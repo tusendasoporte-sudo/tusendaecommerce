@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
 **Fecha de actualización:** 2026-06-07  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional iniciada: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas y frontend conectado por `PUBLIC_POCKETBASE_URL`. **Próximo bloque recomendado: copiar `pb_data` local a staging para probar datos reales desde dominio temporal y luego continuar prueba visual móvil/PC antes de Producto individual visual y funcional.** Bloque futuro documentado: plataforma multitienda + bazar principal.
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional cerrada como base funcional: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas, `pb_data` local copiado de forma segura a PocketBase staging, frontend conectado por `PUBLIC_POCKETBASE_URL` en HTTPS, imágenes cargando correctamente y flujo de trabajo actualizado. **Próximo bloque recomendado: trabajar el punto 12 — Marketing, Promociones y Cupones.** Bloque futuro documentado: plataforma multitienda + bazar principal.
 
 ---
 
@@ -146,7 +146,7 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🔜 Próximo bloque recomendado: Producto individual visual y funcional.
+🔜 Próximo bloque recomendado: Marketing, Promociones y Cupones.
 ```
 
 Estado del bloque anterior:
@@ -167,7 +167,7 @@ Estado del bloque anterior:
 Objetivo inmediato recomendado:
 
 ```txt
-Mejorar la página individual del producto sin romper moneda, variaciones, carrito ni checkout.
+Iniciar el punto 12: Marketing, Promociones y Cupones, comenzando por una base segura que no rompa carrito, checkout, moneda, WhatsApp ni órdenes.
 ```
 
 Checklist de moneda cerrado en pruebas:
@@ -188,13 +188,14 @@ Checklist de moneda cerrado en pruebas:
 Orden recomendado actualizado:
 
 ```txt
-1. Producto individual visual y funcional.
-2. Carrito / checkout visual.
-3. Página de gracias después de enviar pedido.
-4. Copia visual pública de orden para el cliente.
-5. Panel admin relacionado con tienda pública y ajustes generales.
-6. Regalos profesionales por reglas.
-7. Plataforma multitienda + bazar principal como bloque futuro grande.
+1. Marketing, Promociones y Cupones.
+2. Producto individual visual y funcional.
+3. Carrito / checkout visual.
+4. Página de gracias después de enviar pedido.
+5. Copia visual pública de orden para el cliente.
+6. Panel admin relacionado con tienda pública y ajustes generales.
+7. Regalos profesionales por reglas.
+8. Plataforma multitienda + bazar principal como bloque futuro grande.
 ```
 
 División importante:
@@ -12516,3 +12517,969 @@ Continuación PowerZona/Tusenda staging. Ya están GitHub, Coolify, frontend y P
 ```
 
 
+---
+
+### 21.46. Bloque cerrado: Copia segura de `pb_data` local a PocketBase staging + flujo de trabajo actualizado
+
+Esta sección se agrega como actualización acumulativa después de completar la copia real de datos locales hacia el PocketBase staging en Coolify.
+
+Estado:
+
+```txt
+✅ CERRADO COMO BASE FUNCIONAL
+```
+
+Fecha de actualización documental:
+
+```txt
+2026-06-07
+```
+
+Marca de versión documental:
+
+```txt
+PZ-MASTER-PBDATA-STAGING-FLUJO-ACTUALIZADO-V15-20260607
+```
+
+---
+
+#### 21.46.1. Objetivo cerrado
+
+Objetivo del bloque:
+
+```txt
+Copiar el pb_data local de PocketBase hacia el PocketBase staging en Coolify de forma segura, sin subir pb_data a GitHub y sin tocar producción.
+```
+
+Resultado:
+
+```txt
+El PocketBase staging ya tiene los datos reales locales.
+La tienda pública staging ya abre con productos, categorías, settings e imágenes.
+```
+
+---
+
+#### 21.46.2. Limpieza de PocketBase viejo
+
+Durante el proceso se confirmó que existían dos PocketBase.
+
+Decisión tomada:
+
+```txt
+Se eliminó el PocketBase viejo.
+Se mantiene el PocketBase actualizado creado desde el flujo profesional de Coolify/GitHub.
+```
+
+Regla:
+
+```txt
+No conservar recursos viejos que puedan confundirse con staging activo.
+```
+
+---
+
+#### 21.46.3. ZIP local de `pb_data`
+
+Se creó un ZIP local desde:
+
+```txt
+backend-powerzona/pb_data
+```
+
+Archivo generado:
+
+```txt
+pb_data_staging.zip
+```
+
+Contenido confirmado dentro del ZIP:
+
+```txt
+pb_data/
+├─ auxiliary.db
+├─ data.db
+├─ storage/
+└─ types.d.ts
+```
+
+Regla:
+
+```txt
+pb_data sigue fuera de GitHub.
+```
+
+---
+
+#### 21.46.4. Subida del ZIP al servidor
+
+El archivo se subió manualmente por `scp` hacia el servidor.
+
+Comando usado:
+
+```bash
+scp .\pb_data_staging.zip root@91.99.99.83:/root/pb_data_staging.zip
+```
+
+Ruta final en el servidor:
+
+```txt
+/root/pb_data_staging.zip
+```
+
+Verificación realizada:
+
+```bash
+ls -lh /root/pb_data_staging.zip
+```
+
+Resultado esperado confirmado:
+
+```txt
+El ZIP apareció en /root/pb_data_staging.zip.
+```
+
+---
+
+#### 21.46.5. Contenedor PocketBase staging identificado
+
+Contenedor PocketBase staging confirmado:
+
+```txt
+d62f3393a4e9
+```
+
+Nombre asociado:
+
+```txt
+imdbiodgr30k0dbhx3wtlysj-134309156638
+```
+
+Puerto interno:
+
+```txt
+8080/tcp
+```
+
+---
+
+#### 21.46.6. Volumen persistente real de PocketBase
+
+Se inspeccionó el contenedor con:
+
+```bash
+docker inspect d62f3393a4e9 --format '{{json .Mounts}}'
+```
+
+Resultado importante:
+
+```txt
+Destination: /app/pb_data
+Source: /var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data
+```
+
+Ruta real usada para reemplazar datos:
+
+```txt
+/var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data
+```
+
+Regla:
+
+```txt
+Para Coolify/Docker, el dato importante es el volumen persistente real, no una carpeta suelta del repositorio.
+```
+
+---
+
+#### 21.46.7. Backup seguro antes de reemplazar
+
+Antes de tocar el `pb_data` remoto, se apagó PocketBase staging.
+
+Comando usado:
+
+```bash
+docker stop d62f3393a4e9
+```
+
+Después se creó backup del volumen actual:
+
+```bash
+cp -a /var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data /root/pb_data_backup_antes_import
+```
+
+Backup confirmado en:
+
+```txt
+/root/pb_data_backup_antes_import
+```
+
+Contenido confirmado:
+
+```txt
+auxiliary.db
+data.db
+types.d.ts
+```
+
+Regla:
+
+```txt
+Nunca reemplazar pb_data remoto sin backup previo.
+```
+
+---
+
+#### 21.46.8. Descompresión del ZIP de Windows
+
+El servidor no tenía `unzip`, por lo que se instaló:
+
+```bash
+apt install unzip -y
+```
+
+Se detectó que el ZIP venía con rutas de Windows usando barras invertidas `\`, por lo que se usó Python para normalizar rutas.
+
+Comando usado:
+
+```bash
+python3 - <<'PY'
+import zipfile, os
+zip_path = "/root/pb_data_staging.zip"
+dest = "/root/pb_import"
+with zipfile.ZipFile(zip_path, "r") as z:
+    for item in z.infolist():
+        name = item.filename.replace("\\", "/")
+        target = os.path.join(dest, name)
+        if name.endswith("/"):
+            os.makedirs(target, exist_ok=True)
+        else:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with z.open(item) as src, open(target, "wb") as dst:
+                dst.write(src.read())
+PY
+```
+
+Resultado confirmado:
+
+```txt
+/root/pb_import/pb_data
+```
+
+Contenido confirmado:
+
+```txt
+auxiliary.db
+data.db
+storage
+types.d.ts
+```
+
+---
+
+#### 21.46.9. Reemplazo de datos en staging
+
+Se limpió el volumen actual:
+
+```bash
+rm -rf /var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data/*
+```
+
+Luego se copiaron los datos reales:
+
+```bash
+cp -a /root/pb_import/pb_data/. /var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data/
+```
+
+Verificación realizada:
+
+```bash
+ls -lh /var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data
+```
+
+Contenido final confirmado:
+
+```txt
+auxiliary.db
+data.db
+storage
+types.d.ts
+```
+
+---
+
+#### 21.46.10. PocketBase staging encendido otra vez
+
+Después de copiar los datos, se inició nuevamente PocketBase:
+
+```bash
+docker start d62f3393a4e9
+```
+
+Verificación:
+
+```bash
+docker ps
+```
+
+Resultado:
+
+```txt
+d62f3393a4e9 aparece Up.
+```
+
+Panel PocketBase staging:
+
+```txt
+https://imdbiodgr30k0dbhx3wtlysj.91.99.99.83.sslip.io/_/
+```
+
+Resultado confirmado:
+
+```txt
+El panel abre.
+Las colecciones aparecen.
+Los datos locales aparecen.
+```
+
+---
+
+#### 21.46.11. Frontend staging y fotos
+
+Frontend staging:
+
+```txt
+https://mob76fcvxkxyb8tq0nwys18o.91.99.99.83.sslip.io
+```
+
+PocketBase staging:
+
+```txt
+https://imdbiodgr30k0dbhx3wtlysj.91.99.99.83.sslip.io
+```
+
+Se detectó que al mezclar `http` y `https` podían fallar imágenes o aparecer `no available server`.
+
+Regla final aplicada:
+
+```txt
+Frontend staging = HTTPS.
+PocketBase staging = HTTPS.
+PUBLIC_POCKETBASE_URL debe usar HTTPS.
+```
+
+Resultado confirmado:
+
+```txt
+La página pública abre.
+Las fotos cargan correctamente.
+```
+
+---
+
+#### 21.46.12. Advertencia de Coolify sobre sslip.io y HTTPS
+
+Coolify mostró advertencia indicando que no se recomienda usar HTTPS con dominios `sslip.io` porque Let's Encrypt puede tener límites de validación.
+
+Decisión actual:
+
+```txt
+Para staging se puede seguir usando sslip.io mientras funcione.
+Para producción se debe usar dominio propio.
+```
+
+Regla futura:
+
+```txt
+Cuando se pase a producción, configurar dominio propio y SSL estable.
+```
+
+---
+
+#### 21.46.13. Acceso al panel de administración de PowerZona
+
+Se trabajó un acceso desde la tienda pública hacia el panel admin.
+
+Texto del enlace:
+
+```txt
+Ir al panel de administración
+```
+
+Ubicación:
+
+```txt
+Parte inferior del menú lateral público.
+```
+
+Ruta destino:
+
+```txt
+/admin
+```
+
+Regla:
+
+```txt
+El enlace debe abrir el panel admin de PowerZona, no el panel interno de PocketBase.
+```
+
+Diferencia entre paneles:
+
+```txt
+PocketBase:
+https://imdbiodgr30k0dbhx3wtlysj.91.99.99.83.sslip.io/_/
+
+Admin PowerZona:
+https://mob76fcvxkxyb8tq0nwys18o.91.99.99.83.sslip.io/admin
+```
+
+---
+
+#### 21.46.14. Flujo de trabajo actualizado
+
+Decisión final del flujo:
+
+```txt
+Datos reales de tienda → PocketBase staging en Coolify.
+Código, diseño y lógica → VS Code + GitHub + Coolify.
+```
+
+Ejemplos:
+
+```txt
+Crear productos reales → panel admin web conectado a PocketBase Coolify.
+Crear categorías reales → panel admin web conectado a PocketBase Coolify.
+Subir fotos reales → panel admin web conectado a PocketBase Coolify.
+Crear zonas de envío → panel admin web / PocketBase Coolify.
+Editar ajustes de tienda → panel admin web / PocketBase Coolify.
+Cambiar diseño → VS Code + GitHub + Coolify.
+Cambiar lógica de checkout → VS Code + GitHub + Coolify.
+Cambiar menú lateral → VS Code + GitHub + Coolify.
+Agregar campos nuevos a PocketBase → migración + GitHub + Coolify.
+```
+
+Regla principal:
+
+```txt
+Código y estructura = GitHub / Coolify.
+Datos reales del negocio = PocketBase del servidor.
+```
+
+---
+
+#### 21.46.15. Uso de VS Code Source Control
+
+Se confirmó que el panel Source Control de VS Code sirve para revisar cambios antes de subirlos.
+
+Flujo recomendado después de Codex:
+
+```txt
+1. Revisar archivos modificados en Source Control.
+2. Probar local con npm run dev.
+3. Verificar que el cambio funciona.
+4. Escribir mensaje de commit.
+5. Commit.
+6. Sync Changes / Push.
+7. Coolify despliega staging.
+```
+
+Comandos equivalentes:
+
+```bash
+git status
+git diff --stat
+git add .
+git commit -m "Mensaje claro"
+git push
+```
+
+Regla:
+
+```txt
+Antes de hacer commit, revisar qué archivos tocó Codex.
+```
+
+---
+
+#### 21.46.16. Prueba local antes de GitHub
+
+Se confirmó que se puede probar el cambio local antes de subirlo.
+
+Comando:
+
+```bash
+cd frontend-powerzona
+npm run dev
+```
+
+URLs locales:
+
+```txt
+http://localhost:4321
+http://localhost:4321/admin
+```
+
+Nota:
+
+```txt
+Si el frontend local apunta al PocketBase staging, se pueden probar cambios visuales locales usando datos reales del servidor.
+```
+
+---
+
+#### 21.46.17. Estado final del bloque
+
+Estado confirmado:
+
+```txt
+✅ PocketBase viejo eliminado.
+✅ pb_data local comprimido.
+✅ ZIP subido al servidor.
+✅ PocketBase staging apagado antes de reemplazar datos.
+✅ Backup remoto creado.
+✅ ZIP descomprimido correctamente.
+✅ Volumen persistente reemplazado.
+✅ PocketBase staging iniciado.
+✅ Panel PocketBase abre con datos reales.
+✅ Frontend staging abre.
+✅ Fotos cargan correctamente.
+✅ Flujo de trabajo actualizado.
+✅ Source Control / GitHub / Coolify probado para cambios de código.
+```
+
+Conclusión:
+
+```txt
+La infraestructura staging ya está lista para seguir desarrollando PowerZona usando datos reales en el servidor.
+```
+
+---
+
+### 21.47. Próximo bloque recomendado: Punto 12 — Marketing, Promociones y Cupones
+
+Esta sección prepara el nuevo chat para continuar desde el punto 12 del Master Document.
+
+Estado:
+
+```txt
+🔜 PRÓXIMO BLOQUE RECOMENDADO
+```
+
+Bloque:
+
+```txt
+Marketing, Promociones y Cupones
+```
+
+Referencia principal del documento:
+
+```txt
+## 12. Marketing, Promociones y Cupones
+```
+
+---
+
+#### 21.47.1. Objetivo del nuevo bloque
+
+Objetivo:
+
+```txt
+Crear una base profesional para marketing dentro de PowerZona sin romper el carrito, checkout, moneda, WhatsApp, productos destacados ni órdenes.
+```
+
+El bloque debe cubrir progresivamente:
+
+```txt
+- Cintillo promocional.
+- Promociones visibles o banners.
+- Cupones manuales.
+- Cupones por enlace.
+- Reglas de descuento.
+- Validación en checkout.
+- Guardado del descuento en la orden.
+- Visualización en WhatsApp y panel admin.
+```
+
+---
+
+#### 21.47.2. Orden recomendado para trabajar el punto 12
+
+Orden recomendado:
+
+```txt
+1. Revisar source actualizado.
+2. Revisar estructura actual de settings y store_visual_items.
+3. Definir si el primer avance será:
+   - Cintillo promocional simple.
+   - Banners/promos visuales.
+   - Cupones.
+4. Crear o reutilizar sección admin dentro de Promociones.
+5. Empezar por una implementación pequeña y segura.
+6. Probar en local.
+7. Subir por GitHub a staging.
+8. Probar en Coolify con datos reales.
+```
+
+Recomendación técnica:
+
+```txt
+Comenzar por Cintillo promocional y estructura base de Promociones.
+Después pasar a Cupones.
+```
+
+Motivo:
+
+```txt
+Los cupones afectan totales, moneda, WhatsApp, órdenes, admin y métricas.
+Conviene no empezar por lo más delicado sin preparar primero la base visual/admin.
+```
+
+---
+
+#### 21.47.3. Alcance inicial recomendado
+
+Primera parte sugerida:
+
+```txt
+A. Cintillo promocional
+- Crear/editar mensaje.
+- Activar/desactivar.
+- Fecha inicio opcional.
+- Fecha fin opcional.
+- Mostrar arriba de la tienda pública.
+- No afectar carrito ni totales.
+
+B. Banners / promos visuales
+- Reutilizar o ampliar store_visual_items si conviene.
+- Mostrar promociones en portada.
+- Mantener sin textos técnicos visibles.
+
+C. Preparación de Cupones
+- Definir colección coupons.
+- Definir campos mínimos.
+- No aplicar todavía descuentos hasta revisar impacto.
+```
+
+---
+
+#### 21.47.4. Cupones: regla de seguridad antes de implementar
+
+Antes de aplicar un cupón real al checkout, se debe validar:
+
+```txt
+- Moneda visual elegida.
+- Productos only_usd.
+- Productos convertibles.
+- Envío separado USD / CUP.
+- Total interno USD.
+- Total mostrado al cliente.
+- WhatsApp final.
+- Orden guardada en PocketBase.
+- Panel admin de orden.
+```
+
+Regla:
+
+```txt
+El descuento nunca debe depender solo de datos manipulables del localStorage.
+El checkout debe recalcular contra PocketBase antes de guardar la orden.
+```
+
+---
+
+#### 21.47.5. Colecciones futuras relacionadas
+
+Colección recomendada para cupones:
+
+```txt
+coupons
+```
+
+Historial recomendado:
+
+```txt
+coupon_redemptions
+```
+
+Posibles campos a guardar en orders cuando haya cupón aplicado:
+
+```txt
+coupon_code
+coupon_name
+coupon_discount_type
+coupon_discount_value
+coupon_discount_usd
+coupon_discount_local
+coupon_free_shipping
+total_before_discount_usd
+total_after_discount_usd
+```
+
+Regla:
+
+```txt
+La orden debe guardar el historial del cupón usado para que no cambie si el cupón se edita después.
+```
+
+---
+
+#### 21.47.6. Archivos que probablemente se tocarán
+
+Posibles archivos del próximo bloque:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/pages/admin/promos.astro
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/checkout.astro
+frontend-powerzona/src/components/Cart.astro
+frontend-powerzona/src/lib/api.ts
+frontend-powerzona/src/lib/pocketbase.ts
+backend-powerzona/pb_migrations/*
+```
+
+Regla:
+
+```txt
+Codex debe avisar antes de tocar migraciones.
+Si agrega una migración, debe indicar cuál se conserva y si reemplaza alguna.
+```
+
+---
+
+#### 21.47.7. Reglas permanentes para el nuevo bloque
+
+Reglas:
+
+```txt
+No romper diseño premium.
+No agregar textos internos visibles.
+No dejar nombres técnicos como promo_visual, coupon_scope o debug visibles al cliente.
+No tocar producción.
+Trabajar en dev.
+Probar local antes de push.
+Subir por GitHub para que Coolify actualice staging.
+Datos reales se administran en PocketBase staging.
+```
+
+---
+
+#### 21.47.8. Mensaje recomendado para abrir el nuevo chat
+
+Mensaje sugerido:
+
+```txt
+Continuamos PowerZona desde el punto 12: Marketing, Promociones y Cupones. Source actualizado. Ya quedó funcionando GitHub/Coolify staging, pb_data real copiado al PocketBase del servidor, frontend y PocketBase en HTTPS con fotos cargando. Quiero empezar por una base segura de Promociones, preferiblemente Cintillo promocional y estructura admin antes de entrar en cupones.
+```
+
+---
+
+#### 21.47.9. Estado final antes del nuevo chat
+
+Estado:
+
+```txt
+✅ Infraestructura staging cerrada como base funcional.
+✅ pb_data real en PocketBase Coolify.
+✅ Fotos cargando en frontend staging.
+✅ Flujo de trabajo actualizado.
+🔜 Próximo bloque: Marketing, Promociones y Cupones.
+```
+
+
+
+
+---
+
+### 21.48. Actualización agregada: diferencia entre staging y producción estable para clientes
+
+Esta sección se agrega después de explicar el flujo de despliegue estable para clientes. No reemplaza las secciones anteriores; complementa el flujo de GitHub, Coolify y PocketBase.
+
+Estado:
+
+```txt
+✅ DECISIÓN DOCUMENTADA
+```
+
+Objetivo:
+
+```txt
+Separar claramente el ambiente de prueba del ambiente real que usarán los clientes.
+```
+
+---
+
+#### 21.48.1. Dos ambientes separados
+
+PowerZona debe manejar dos ambientes principales:
+
+```txt
+Staging = ambiente de prueba real para el administrador.
+Producción = tienda estable que usarán los clientes.
+```
+
+Regla:
+
+```txt
+Los clientes no deben usar staging como tienda definitiva.
+Staging sirve para probar cambios antes de publicarlos en producción.
+```
+
+Ejemplo futuro con dominio propio:
+
+```txt
+Staging:
+staging.powerzona.com
+
+Producción:
+powerzona.com
+```
+
+---
+
+#### 21.48.2. Relación entre ramas Git y ambientes
+
+Regla de ramas:
+
+```txt
+dev  = staging / pruebas
+main = producción / versión estable
+```
+
+Flujo de trabajo:
+
+```txt
+VS Code
+→ Codex modifica archivos
+→ Prueba local
+→ Commit y push en dev
+→ Coolify actualiza staging
+→ Se prueba en PC y móvil
+→ Si todo está correcto, dev se pasa a main
+→ Coolify producción actualiza la tienda estable
+```
+
+Regla principal:
+
+```txt
+main solo debe recibir cambios ya probados en dev/staging.
+```
+
+---
+
+#### 21.48.3. Producción debe tener su propio frontend y PocketBase
+
+La arquitectura recomendada para evitar mezclar pruebas con clientes reales es:
+
+```txt
+Frontend staging    → PocketBase staging
+Frontend producción → PocketBase producción
+```
+
+Motivo:
+
+```txt
+Si staging y producción usan el mismo PocketBase, se pueden mezclar productos de prueba, órdenes falsas, cambios incompletos o configuraciones temporales con datos reales de clientes.
+```
+
+Regla:
+
+```txt
+Producción debe tener su propio pb_data persistente y separado.
+```
+
+---
+
+#### 21.48.4. Cómo se publicará la página estable para clientes
+
+Cuando PowerZona esté lista para clientes reales, el flujo recomendado será:
+
+```txt
+1. Tener staging probado y estable.
+2. Crear en Coolify un frontend de producción conectado a la rama main.
+3. Crear un PocketBase producción separado.
+4. Configurar dominio propio para producción.
+5. Configurar HTTPS con dominio propio.
+6. Copiar una sola vez los datos buenos desde staging a producción si hace falta.
+7. Configurar el frontend producción con la URL del PocketBase producción.
+8. Probar compra completa en producción.
+9. Entregar el dominio oficial a los clientes.
+```
+
+Regla:
+
+```txt
+La tienda pública para clientes debe salir de main, no de dev.
+```
+
+---
+
+#### 21.48.5. Datos y contenido después de pasar a producción
+
+Cuando producción esté activa, los datos reales del negocio se manejarán en el PocketBase producción o panel admin producción:
+
+```txt
+Productos reales
+Categorías reales
+Fotos reales
+Zonas de envío reales
+Ajustes de tienda reales
+Órdenes reales
+```
+
+Staging queda para:
+
+```txt
+Pruebas de diseño
+Pruebas de lógica
+Pruebas de nuevas funciones
+Órdenes falsas
+Productos temporales
+Validaciones antes de publicar
+```
+
+---
+
+#### 21.48.6. Regla final del flujo profesional
+
+Regla resumida:
+
+```txt
+Staging es para probar.
+Producción es para vender.
+Dev actualiza staging.
+Main actualiza producción.
+PocketBase staging y PocketBase producción deben estar separados.
+```
+
+Ejemplo visual:
+
+```txt
+Trabajo diario:
+VS Code → dev → GitHub → Coolify staging → prueba
+
+Publicación estable:
+dev probado → merge a main → Coolify producción → clientes
+```
+
+---
+
+#### 21.48.7. Estado de esta decisión
+
+Estado:
+
+```txt
+✅ DOCUMENTADO
+```
+
+Resumen:
+
+```txt
+- La tienda de clientes será producción.
+- Staging queda para pruebas.
+- Producción debe conectarse a main.
+- Staging debe conectarse a dev.
+- Producción debe tener su propio PocketBase.
+- El dominio oficial debe apuntar a producción.
+```
