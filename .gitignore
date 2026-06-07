@@ -36,3 +36,13 @@ backend-powerzona/pb_data/
 backend-powerzona/pb_logs/
 backend-powerzona/pb_public/
 backend-powerzona/pocketbase.exe
+# archives / backups
+*.zip
+*.rar
+*.7z
+*.bak
+*.backup
+
+# local temp
+tmp/
+temp/
