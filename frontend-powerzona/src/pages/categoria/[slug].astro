@@ -4,6 +4,7 @@
 import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
+import PromoBar from '../../components/PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -99,6 +100,8 @@ function getProductOfferView(product: any) {
   <section class="category-hero">
     {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="category-hero-fallback">PZ</div>}
   </section>
+
+  <PromoBar settings={settings} />
 
   {categorySubcategories.length > 0 && (
     <section>

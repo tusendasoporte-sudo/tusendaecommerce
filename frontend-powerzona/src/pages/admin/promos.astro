@@ -14,7 +14,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crear Producto/Promo | PowerZona</title>
+    <title>Marketing | PowerZona</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style is:global>
       :root {
@@ -133,8 +133,37 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       .order-btn { min-width: 42px; padding-left: 12px; padding-right: 12px; }
       .mini-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
       .mini-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .marketing-offers-head { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 2px; }
+      #marketing-bar-form > fieldset.full { display: none !important; }
+      .marketing-offers-title { margin: 0; color: #0f172a; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
+      .marketing-offers-list { grid-column: 1 / -1; display: grid; gap: 10px; overflow: visible; }
+      .marketing-offer-row { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 20px; background: rgba(255,255,255,.92); box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+      .marketing-offer-row.menu-open { z-index: 10020; }
+      .marketing-offer-title { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .marketing-offer-link { margin: 4px 0 0; color: #64748b; font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .marketing-switch { display: inline-flex; align-items: center; gap: 8px; color: #334155; font-size: 12px; font-weight: 950; white-space: nowrap; }
+      .marketing-switch input { width: 18px; height: 18px; accent-color: #0f172a; }
+      .marketing-menu-wrap { position: relative; display: inline-flex; justify-content: flex-end; z-index: 2; }
+      .marketing-menu-wrap.open { z-index: 10030; }
+      .marketing-kebab-btn { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 22px; font-weight: 1000; line-height: 1; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(15,23,42,.06); }
+      .marketing-floating-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10040; min-width: 210px; display: none; gap: 6px; padding: 8px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.22); }
+      .marketing-menu-wrap.open .marketing-floating-menu { display: grid; }
+      .marketing-floating-menu.drop-up { top: auto; bottom: calc(100% + 8px); }
+      .marketing-floating-menu button { width: 100%; border: 0; border-radius: 13px; background: transparent; color: #0f172a; padding: 10px 11px; text-align: left; font-size: 13px; font-weight: 950; }
+      .marketing-floating-menu button:hover { background: #f8fafc; }
+      .marketing-floating-menu button.danger { color: #991b1b; }
+      .marketing-floating-menu button.danger:hover { background: #fee2e2; }
+      .marketing-floating-menu button.success { color: #166534; }
+      .marketing-floating-menu button.success:hover { background: #dcfce7; }
+      .marketing-modal { position: fixed; inset: 0; z-index: 12000; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.42); backdrop-filter: blur(4px); }
+      .marketing-modal.hidden { display: none !important; }
+      .marketing-modal-card { width: min(560px, 100%); max-height: calc(100vh - 36px); overflow: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 28px; box-shadow: 0 32px 90px rgba(15,23,42,.28); padding: 22px; }
+      .marketing-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+      .marketing-modal-title { margin: 0; font-size: 21px; font-weight: 1000; letter-spacing: -.03em; }
+      .marketing-modal-subtitle { margin: 5px 0 0; color: #64748b; font-size: 13px; font-weight: 800; line-height: 1.45; }
+      .marketing-modal-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; }
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } }
-      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } }
+      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .marketing-offer-row { grid-template-columns: minmax(0, 1fr) auto; } .marketing-switch { grid-column: 1 / -1; order: 3; } .marketing-menu-wrap { justify-content: flex-end; } }
     
 
       /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
@@ -399,7 +428,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
           <p class="sidebar-label">Divisiones</p>
           <nav class="nav-list">
-            <a class="nav-item active" href="/admin/promos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Crear Producto/Promo</span></a>
+            <a class="nav-item active" href="/admin/promos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
             <a class="nav-item" href="/admin/organization"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
           </nav>
 
@@ -448,6 +477,91 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             <article class="stat-card"><p class="stat-label">Productos destacados</p><p id="stat-featured" class="stat-value">0</p></article>
             <article class="stat-card"><p class="stat-label">Promos visuales</p><p id="stat-promos" class="stat-value">0</p></article>
             <article class="stat-card"><p class="stat-label">Accesos rápidos</p><p id="stat-shortcuts" class="stat-value">0</p></article>
+          </div>
+
+          <section class="panel-card">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">Cintillo promocional</h2>
+                <p class="section-subtitle">Configura un mensaje corto para mostrarlo en la tienda pública.</p>
+              </div>
+            </div>
+            <form id="marketing-bar-form" class="visual-form-grid">
+              <div class="field full">
+                <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:13px;">
+                  <input id="marketing-bar-active" type="checkbox" style="width:auto;box-shadow:none;" />
+                  Activar cintillo
+                </label>
+              </div>
+              <div class="field full">
+                <label for="marketing-bar-theme">Estilo/color del cintillo</label>
+                <select id="marketing-bar-theme">
+                  <option value="black">Negro</option>
+                  <option value="gold">Dorado</option>
+                  <option value="green">Verde</option>
+                  <option value="red">Rojo</option>
+                  <option value="blue">Azul</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label for="marketing-bar-motion">Movimiento del cintillo</label>
+                <select id="marketing-bar-motion">
+                  <option value="carousel">Carrusel por oferta</option>
+                  <option value="marquee">Cinta continua</option>
+                </select>
+              </div>
+              <div class="marketing-offers-head">
+                <h3 class="marketing-offers-title">Ofertas del cintillo</h3>
+                <button id="marketing-add-offer-btn" class="mini-btn primary" type="button">Agregar oferta</button>
+              </div>
+              <div id="marketing-offers-list" class="marketing-offers-list"></div>
+              {[1, 2, 3].map((index) => (
+                <fieldset class="full" style="display:grid;gap:12px;border:1px solid #e2e8f0;border-radius:22px;padding:14px;background:#f8fafc;">
+                  <legend style="padding:0 8px;color:#0f172a;font-size:13px;font-weight:1000;">Oferta {index}</legend>
+                  <div class="field">
+                    <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:13px;">
+                      <input id={`marketing-bar-item-${index}-active`} type="checkbox" style="width:auto;box-shadow:none;" />
+                      Activa
+                    </label>
+                  </div>
+                  <div class="field"><label for={`marketing-bar-item-${index}-text`}>Texto</label><textarea id={`marketing-bar-item-${index}-text`} placeholder="Ej: Oferta de Creatinas esta semana"></textarea></div>
+                  <div class="visual-form-grid">
+                    <div class="field"><label for={`marketing-bar-item-${index}-button-text`}>Texto del botón</label><input id={`marketing-bar-item-${index}-button-text`} type="text" placeholder="Ej: Ver" /></div>
+                    <div class="field"><label for={`marketing-bar-item-${index}-url`}>Enlace</label><input id={`marketing-bar-item-${index}-url`} type="text" placeholder="https://... o /categoria/creatinas" /></div>
+                  </div>
+                </fieldset>
+              ))}
+              <div id="marketing-bar-alert" class="alert alert-info hidden full"></div>
+              <div class="editor-actions full"><button class="submit-btn" type="submit">Guardar cambios</button></div>
+            </form>
+          </section>
+
+          <div id="marketing-offer-modal" class="marketing-modal hidden" aria-hidden="true">
+            <form id="marketing-offer-form" class="marketing-modal-card">
+              <div class="marketing-modal-head">
+                <div>
+                  <h3 id="marketing-offer-modal-title" class="marketing-modal-title">Oferta del cintillo</h3>
+                  <p class="marketing-modal-subtitle">Edita el texto, botón y enlace que verá el cliente.</p>
+                </div>
+                <button id="marketing-offer-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+              </div>
+              <input id="marketing-offer-index" type="hidden" />
+              <div class="visual-form-grid">
+                <div class="field full">
+                  <label style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;font-size:13px;">
+                    <input id="marketing-offer-active" type="checkbox" style="width:auto;box-shadow:none;" />
+                    Activa
+                  </label>
+                </div>
+                <div class="field full"><label for="marketing-offer-text">Texto de la oferta</label><textarea id="marketing-offer-text" placeholder="Ej: Oferta de Creatinas esta semana"></textarea></div>
+                <div class="field"><label for="marketing-offer-button-text">Texto del botón</label><input id="marketing-offer-button-text" type="text" placeholder="Ej: Ver" /></div>
+                <div class="field"><label for="marketing-offer-url">Enlace</label><input id="marketing-offer-url" type="text" placeholder="https://... o /categoria/creatinas" /></div>
+              </div>
+              <div class="editor-actions">
+                <button id="marketing-offer-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                <button class="submit-btn" type="submit">Guardar</button>
+              </div>
+            </form>
           </div>
 
           <section id="tab-generales" class="panel-card tab-panel hidden">
@@ -1227,11 +1341,34 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           footerLink1Label: document.getElementById('settings-footer-link-1-label'),
           footerLink1Url: document.getElementById('settings-footer-link-1-url'),
           footerLink2Label: document.getElementById('settings-footer-link-2-label'),
-          footerLink2Url: document.getElementById('settings-footer-link-2-url')
+          footerLink2Url: document.getElementById('settings-footer-link-2-url'),
+          marketingBarActive: document.getElementById('marketing-bar-active'),
+          marketingBarTheme: document.getElementById('marketing-bar-theme'),
+          marketingBarMotion: document.getElementById('marketing-bar-motion'),
+          marketingBarItems: [1, 2, 3].map((index) => ({
+            active: document.getElementById(`marketing-bar-item-${index}-active`),
+            text: document.getElementById(`marketing-bar-item-${index}-text`),
+            buttonText: document.getElementById(`marketing-bar-item-${index}-button-text`),
+            url: document.getElementById(`marketing-bar-item-${index}-url`),
+          }))
         };
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
         const footerRefreshBtn = document.getElementById('footer-settings-refresh-btn');
+        const marketingBarForm = document.getElementById('marketing-bar-form');
+        const marketingBarAlertBox = document.getElementById('marketing-bar-alert');
+        const marketingOffersList = document.getElementById('marketing-offers-list');
+        const marketingAddOfferBtn = document.getElementById('marketing-add-offer-btn');
+        const marketingOfferModal = document.getElementById('marketing-offer-modal');
+        const marketingOfferForm = document.getElementById('marketing-offer-form');
+        const marketingOfferModalTitle = document.getElementById('marketing-offer-modal-title');
+        const marketingOfferIndex = document.getElementById('marketing-offer-index');
+        const marketingOfferActive = document.getElementById('marketing-offer-active');
+        const marketingOfferText = document.getElementById('marketing-offer-text');
+        const marketingOfferButtonText = document.getElementById('marketing-offer-button-text');
+        const marketingOfferUrl = document.getElementById('marketing-offer-url');
+        const marketingOfferCloseBtn = document.getElementById('marketing-offer-close-btn');
+        const marketingOfferCancelBtn = document.getElementById('marketing-offer-cancel-btn');
         function token() { return localStorage.getItem(AUTH_TOKEN_KEY_PUBLIC_SETTINGS) || ''; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -1241,6 +1378,133 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         }
         function show(message = '', type = 'info') { showMessage(alertBox, message, type); }
         function showFooter(message = '', type = 'info') { showMessage(footerAlertBox, message, type); }
+        function showMarketingBar(message = '', type = 'info') { showMessage(marketingBarAlertBox, message, type); }
+        function parseMarketingItems(value) {
+          if (!value) return [];
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (_) {
+            return [];
+          }
+        }
+        function getMarketingItems(record) {
+          const parsedItems = parseMarketingItems(record.marketing_bar_items_json);
+          if (parsedItems.length) return parsedItems.slice(0, 3);
+          const legacyText = String(record.marketing_bar_text || '').trim();
+          if (!legacyText) return [];
+          return [{
+            active: true,
+            text: legacyText,
+            button_text: record.marketing_bar_button_text || '',
+            url: record.marketing_bar_url || '',
+          }];
+        }
+        function escapeMarketingHtml(value) {
+          return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+        function currentMarketingItems() {
+          return fields.marketingBarItems
+            .map((fieldSet) => ({
+              active: fieldSet.active?.checked === true,
+              text: fieldSet.text?.value?.trim() || '',
+              button_text: fieldSet.buttonText?.value?.trim() || '',
+              url: fieldSet.url?.value?.trim() || '',
+            }))
+            .filter((item) => item.text || item.button_text || item.url);
+        }
+        function setMarketingItems(items) {
+          const normalized = items.slice(0, 3);
+          fields.marketingBarItems.forEach((fieldSet, index) => {
+            const item = normalized[index] || {};
+            if (fieldSet.active) fieldSet.active.checked = item.active !== false && Boolean(item.text);
+            if (fieldSet.text) fieldSet.text.value = item.text || '';
+            if (fieldSet.buttonText) fieldSet.buttonText.value = item.button_text || '';
+            if (fieldSet.url) fieldSet.url.value = item.url || '';
+          });
+          renderMarketingOffers();
+        }
+        function renderMarketingOffers() {
+          if (!marketingOffersList) return;
+          const items = currentMarketingItems();
+          if (marketingAddOfferBtn) marketingAddOfferBtn.classList.toggle('hidden', items.length >= 3);
+          if (!items.length) {
+            marketingOffersList.innerHTML = '<div class="empty-state">Todavía no hay ofertas en el cintillo.</div>';
+            return;
+          }
+          marketingOffersList.innerHTML = items.map((item, index) => {
+            const isActive = item.active !== false;
+            const title = item.text || `Oferta ${index + 1}`;
+            return `
+              <article class="marketing-offer-row" data-marketing-offer-index="${index}">
+                <div>
+                  <p class="marketing-offer-title">${escapeMarketingHtml(title)}</p>
+                  ${item.url ? `<p class="marketing-offer-link">${escapeMarketingHtml(item.url)}</p>` : ''}
+                </div>
+                <label class="marketing-switch">
+                  <input class="js-marketing-offer-switch" type="checkbox" ${isActive ? 'checked' : ''} />
+                  ${isActive ? 'Activa' : 'Inactiva'}
+                </label>
+                <div class="marketing-menu-wrap">
+                  <button class="marketing-kebab-btn js-marketing-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                  <div class="marketing-floating-menu" role="menu">
+                    <button class="js-marketing-edit" type="button" role="menuitem">Editar</button>
+                    <button class="${isActive ? 'danger' : 'success'} js-marketing-toggle" type="button" role="menuitem">${isActive ? 'Desactivar' : 'Activar'}</button>
+                    <button class="danger js-marketing-delete" type="button" role="menuitem">Borrar</button>
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join('');
+        }
+        function closeMarketingMenus(except = null) {
+          marketingOffersList?.querySelectorAll('.marketing-menu-wrap.open').forEach((wrap) => {
+            if (except && wrap === except) return;
+            wrap.classList.remove('open');
+            wrap.closest('.marketing-offer-row')?.classList.remove('menu-open');
+            wrap.querySelector('.marketing-floating-menu')?.classList.remove('drop-up');
+            wrap.querySelector('.js-marketing-menu')?.setAttribute('aria-expanded', 'false');
+          });
+        }
+        function positionMarketingMenu(wrap) {
+          if (!wrap) return;
+          const menu = wrap.querySelector('.marketing-floating-menu');
+          if (!menu) return;
+          menu.classList.remove('drop-up');
+          window.requestAnimationFrame(() => {
+            const rect = menu.getBoundingClientRect();
+            const triggerRect = wrap.getBoundingClientRect();
+            if (window.innerHeight - triggerRect.bottom < rect.height + 18 && triggerRect.top > rect.height + 18) {
+              menu.classList.add('drop-up');
+            }
+          });
+        }
+        function toggleMarketingMenu(wrap) {
+          if (!wrap) return;
+          const willOpen = !wrap.classList.contains('open');
+          closeMarketingMenus(wrap);
+          wrap.classList.toggle('open', willOpen);
+          wrap.closest('.marketing-offer-row')?.classList.toggle('menu-open', willOpen);
+          wrap.querySelector('.js-marketing-menu')?.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          if (willOpen) positionMarketingMenu(wrap);
+        }
+        function openMarketingOfferForm(index = -1) {
+          const items = currentMarketingItems();
+          const item = index >= 0 ? items[index] || {} : { active: true, text: '', button_text: '', url: '' };
+          if (marketingOfferIndex) marketingOfferIndex.value = String(index);
+          if (marketingOfferActive) marketingOfferActive.checked = item.active !== false;
+          if (marketingOfferText) marketingOfferText.value = item.text || '';
+          if (marketingOfferButtonText) marketingOfferButtonText.value = item.button_text || '';
+          if (marketingOfferUrl) marketingOfferUrl.value = item.url || '';
+          if (marketingOfferModalTitle) marketingOfferModalTitle.textContent = index >= 0 ? 'Editar oferta' : 'Agregar oferta';
+          marketingOfferModal?.classList.remove('hidden');
+          marketingOfferModal?.setAttribute('aria-hidden', 'false');
+          setTimeout(() => marketingOfferText?.focus(), 60);
+        }
+        function closeMarketingOfferForm() {
+          marketingOfferModal?.classList.add('hidden');
+          marketingOfferModal?.setAttribute('aria-hidden', 'true');
+        }
         function fileName(name) { const value = settingsRecord && settingsRecord[name]; return Array.isArray(value) ? value[0] : value || ''; }
         function fileUrl(name, thumb) {
           const filename = fileName(name);
@@ -1286,6 +1550,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           fields.footerLink1Url.value = record.footer_link_1_url || '';
           fields.footerLink2Label.value = record.footer_link_2_label || '';
           fields.footerLink2Url.value = record.footer_link_2_url || '';
+          if (fields.marketingBarActive) fields.marketingBarActive.checked = record.marketing_bar_active === true;
+          if (fields.marketingBarTheme) fields.marketingBarTheme.value = ['black', 'gold', 'green', 'red', 'blue'].includes(record.marketing_bar_theme) ? record.marketing_bar_theme : 'black';
+          if (fields.marketingBarMotion) fields.marketingBarMotion.value = ['carousel', 'marquee'].includes(record.marketing_bar_motion) ? record.marketing_bar_motion : 'carousel';
+          const marketingItems = getMarketingItems(record);
+          setMarketingItems(marketingItems);
           fields.currentLogo.textContent = fileName('logo_image') ? 'Logo actual: ' + fileName('logo_image') + '. Si subes otro, se reemplaza.' : '';
           fields.currentCover.textContent = fileName('cover_image') ? 'Portada actual: ' + fileName('cover_image') + '. Si subes otra, se reemplaza.' : '';
           renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo / icono');
@@ -1326,10 +1595,120 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           showFooter('Footer público guardado correctamente.', 'success');
           await loadSettings();
         }
+        async function saveMarketingBar(event) {
+          event.preventDefault();
+          if (!settingsRecord || !settingsRecord.id) { showMarketingBar('No se encontro el registro activo de ajustes.', 'error'); return; }
+          const items = currentMarketingItems();
+          const firstVisibleItem = items.find((item) => item.active && item.text) || items.find((item) => item.text) || {};
+          const data = {
+            marketing_bar_active: fields.marketingBarActive?.checked === true,
+            marketing_bar_theme: fields.marketingBarTheme?.value || 'black',
+            marketing_bar_motion: fields.marketingBarMotion?.value || 'carousel',
+            marketing_bar_items_json: JSON.stringify(items),
+            marketing_bar_text: firstVisibleItem.text || '',
+            marketing_bar_button_text: firstVisibleItem.button_text || '',
+            marketing_bar_url: firstVisibleItem.url || '',
+          };
+          await api('/api/collections/settings/records/' + settingsRecord.id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          showMarketingBar('Cintillo promocional guardado correctamente.', 'success');
+          await loadSettings();
+        }
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
         refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
         footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch((error) => showFooter(error.message || 'No se pudo guardar el footer.', 'error')));
         footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => loadSettings().catch((error) => showFooter(error.message || 'No se pudieron cargar los ajustes.', 'error')));
+        marketingAddOfferBtn && marketingAddOfferBtn.addEventListener('click', () => {
+          closeMarketingMenus();
+          if (currentMarketingItems().length >= 3) {
+            showMarketingBar('Solo puedes tener hasta 3 ofertas en el cintillo.', 'error');
+            return;
+          }
+          openMarketingOfferForm(-1);
+        });
+        marketingOffersList && marketingOffersList.addEventListener('click', (event) => {
+          const target = event.target;
+          const row = target.closest('[data-marketing-offer-index]');
+          if (!row) return;
+          const index = Number(row.dataset.marketingOfferIndex || -1);
+          const menuBtn = target.closest('.js-marketing-menu');
+          if (menuBtn) {
+            toggleMarketingMenu(menuBtn.closest('.marketing-menu-wrap'));
+            return;
+          }
+          if (target.closest('.js-marketing-edit')) {
+            closeMarketingMenus();
+            openMarketingOfferForm(index);
+            return;
+          }
+          if (target.closest('.js-marketing-toggle')) {
+            closeMarketingMenus();
+            const items = currentMarketingItems();
+            if (!items[index]) return;
+            items[index].active = !items[index].active;
+            setMarketingItems(items);
+            saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+            return;
+          }
+          if (target.closest('.js-marketing-delete')) {
+            closeMarketingMenus();
+            const items = currentMarketingItems();
+            if (!items[index]) return;
+            if (!confirm('¿Borrar esta oferta del cintillo?')) return;
+            items.splice(index, 1);
+            setMarketingItems(items);
+            saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+          }
+        });
+        marketingOffersList && marketingOffersList.addEventListener('change', (event) => {
+          const target = event.target;
+          if (!target.closest('.js-marketing-offer-switch')) return;
+          const row = target.closest('[data-marketing-offer-index]');
+          const index = Number(row?.dataset?.marketingOfferIndex || -1);
+          const items = currentMarketingItems();
+          if (!items[index]) return;
+          items[index].active = target.checked === true;
+          setMarketingItems(items);
+          saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+        });
+        marketingOfferForm && marketingOfferForm.addEventListener('submit', (event) => {
+          event.preventDefault();
+          const items = currentMarketingItems();
+          const index = Number(marketingOfferIndex?.value || -1);
+          const item = {
+            active: marketingOfferActive?.checked === true,
+            text: marketingOfferText?.value?.trim() || '',
+            button_text: marketingOfferButtonText?.value?.trim() || '',
+            url: marketingOfferUrl?.value?.trim() || '',
+          };
+          if (!item.text) {
+            showMarketingBar('Escribe el texto de la oferta.', 'error');
+            return;
+          }
+          if (index >= 0) items[index] = item;
+          else {
+            if (items.length >= 3) {
+              showMarketingBar('Solo puedes tener hasta 3 ofertas en el cintillo.', 'error');
+              return;
+            }
+            items.push(item);
+          }
+          setMarketingItems(items);
+          closeMarketingOfferForm();
+          saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+        });
+        marketingOfferCloseBtn && marketingOfferCloseBtn.addEventListener('click', closeMarketingOfferForm);
+        marketingOfferCancelBtn && marketingOfferCancelBtn.addEventListener('click', closeMarketingOfferForm);
+        marketingOfferModal && marketingOfferModal.addEventListener('click', (event) => {
+          if (event.target === marketingOfferModal) closeMarketingOfferForm();
+        });
+        document.addEventListener('click', (event) => {
+          if (!event.target.closest('.marketing-menu-wrap')) closeMarketingMenus();
+        });
+        marketingBarForm && marketingBarForm.addEventListener('submit', (event) => saveMarketingBar(event).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error')));
         if (token()) loadSettings().catch(() => {});
       })();
     </script>

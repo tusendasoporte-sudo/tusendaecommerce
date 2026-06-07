@@ -1,0 +1,335 @@
+---
+interface Props {
+  settings?: any;
+}
+
+const { settings } = Astro.props;
+
+type PromoBarItem = {
+  active?: boolean;
+  text?: string;
+  button_text?: string;
+  url?: string;
+};
+
+const allowedThemes = ['black', 'gold', 'green', 'red', 'blue'];
+const theme = allowedThemes.includes(String(settings?.marketing_bar_theme || ''))
+  ? String(settings?.marketing_bar_theme)
+  : 'black';
+const motion = ['carousel', 'marquee'].includes(String(settings?.marketing_bar_motion || ''))
+  ? String(settings?.marketing_bar_motion)
+  : 'carousel';
+
+function parseItems(value: any): PromoBarItem[] {
+  if (!value) return [];
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+const configuredItems = parseItems(settings?.marketing_bar_items_json);
+const legacyItem: PromoBarItem = {
+  active: true,
+  text: String(settings?.marketing_bar_text || '').trim(),
+  button_text: String(settings?.marketing_bar_button_text || '').trim(),
+  url: String(settings?.marketing_bar_url || '').trim(),
+};
+const sourceItems = configuredItems.length > 0 ? configuredItems : [legacyItem];
+const items = sourceItems
+  .filter((item) => item?.active !== false && String(item?.text || '').trim().length > 0)
+  .slice(0, 3)
+  .map((item) => ({
+    text: String(item.text || '').trim(),
+    buttonText: String(item.button_text || '').trim(),
+    url: String(item.url || '').trim(),
+    isExternal: /^https?:\/\//i.test(String(item.url || '').trim()),
+  }));
+
+const isVisible = settings?.marketing_bar_active === true && items.length > 0;
+const isMarquee = motion === 'marquee' && items.length > 1;
+const isCarousel = !isMarquee;
+---
+
+{isVisible && (
+  <aside
+    class={`promo-bar promo-bar-${theme} ${isMarquee ? 'promo-bar-marquee' : 'promo-bar-carousel'}`}
+    style={`--promo-columns: ${items.length};`}
+    aria-label="Ofertas"
+    data-promo-bar={isCarousel ? 'carousel' : undefined}
+    data-promo-count={items.length}
+  >
+    <div class="promo-bar-track">
+      {items.map((item) => (
+        <article class="promo-bar-item">
+          <p class="promo-bar-text">{item.text}</p>
+          {item.buttonText && item.url && (
+            <a
+              class="promo-bar-button"
+              href={item.url}
+              target={item.isExternal ? '_blank' : undefined}
+              rel={item.isExternal ? 'noreferrer' : undefined}
+            >
+              {item.buttonText}
+            </a>
+          )}
+        </article>
+      ))}
+      {isMarquee && items.map((item) => (
+        <article class="promo-bar-item" aria-hidden="true">
+          <p class="promo-bar-text">{item.text}</p>
+          {item.buttonText && item.url && (
+            <a
+              class="promo-bar-button"
+              href={item.url}
+              target={item.isExternal ? '_blank' : undefined}
+              rel={item.isExternal ? 'noreferrer' : undefined}
+              tabindex="-1"
+            >
+              {item.buttonText}
+            </a>
+          )}
+        </article>
+      ))}
+    </div>
+  </aside>
+)}
+
+{isVisible && isCarousel && items.length > 1 && (
+  <script>
+    (() => {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduceMotion) return;
+
+      document.querySelectorAll('[data-promo-bar]').forEach((bar) => {
+        const count = Number(bar.getAttribute('data-promo-count') || 0);
+        const track = bar.querySelector('.promo-bar-track') as HTMLElement | null;
+        if (!track || count <= 1) return;
+
+        const mobileQuery = window.matchMedia('(max-width: 640px)');
+        let activeIndex = 0;
+        let timer: number | null = null;
+        let resetTimer: number | null = null;
+        let clonedItem: HTMLElement | null = null;
+
+        function setIndex(index, animated = true) {
+          track.style.transition = animated ? '' : 'none';
+          track.style.setProperty('--promo-index', String(index));
+          if (!animated) {
+            window.requestAnimationFrame(() => {
+              track.style.transition = '';
+            });
+          }
+        }
+
+        function stop() {
+          if (timer) window.clearInterval(timer);
+          if (resetTimer) window.clearTimeout(resetTimer);
+          timer = null;
+          resetTimer = null;
+        }
+
+        function removeClone() {
+          if (clonedItem) {
+            clonedItem.remove();
+            clonedItem = null;
+          }
+        }
+
+        function tick() {
+          activeIndex += 1;
+          setIndex(activeIndex, true);
+
+          if (activeIndex === count) {
+            resetTimer = window.setTimeout(() => {
+              activeIndex = 0;
+              setIndex(0, false);
+            }, 560);
+          }
+        }
+
+        function start() {
+          stop();
+          if (!mobileQuery.matches) {
+            activeIndex = 0;
+            setIndex(0, false);
+            removeClone();
+            return;
+          }
+
+          if (!clonedItem && track.firstElementChild) {
+            clonedItem = track.firstElementChild.cloneNode(true) as HTMLElement;
+            clonedItem.setAttribute('aria-hidden', 'true');
+            track.appendChild(clonedItem);
+          }
+
+          activeIndex = 0;
+          setIndex(0, false);
+          timer = window.setInterval(tick, 4000);
+        }
+
+        bar.addEventListener('mouseenter', stop);
+        bar.addEventListener('mouseleave', start);
+        mobileQuery.addEventListener('change', start);
+        start();
+      });
+    })();
+  </script>
+)}
+
+<style>
+  .promo-bar {
+    width: 100%;
+    margin: 0 0 18px;
+    border: 1px solid rgba(226, 232, 240, .95);
+    border-radius: 22px;
+    color: #ffffff;
+    padding: 9px;
+    box-shadow: 0 16px 38px rgba(15, 23, 42, .12);
+    overflow: hidden;
+  }
+
+  .promo-bar-black {
+    background: linear-gradient(135deg, #111827, #1f2937);
+  }
+
+  .promo-bar-gold {
+    background: linear-gradient(135deg, #78350f, #b7791f);
+  }
+
+  .promo-bar-green {
+    background: linear-gradient(135deg, #14532d, #16a34a);
+  }
+
+  .promo-bar-red {
+    background: linear-gradient(135deg, #7f1d1d, #dc2626);
+  }
+
+  .promo-bar-blue {
+    background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  }
+
+  .promo-bar-track {
+    display: grid;
+    grid-template-columns: repeat(var(--promo-columns, 3), minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .promo-bar-marquee .promo-bar-track {
+    display: flex;
+    width: max-content;
+    gap: 8px;
+    animation: promo-bar-marquee 24s linear infinite;
+    will-change: transform;
+  }
+
+  .promo-bar-marquee:hover .promo-bar-track {
+    animation-play-state: paused;
+  }
+
+  .promo-bar-item {
+    min-width: 0;
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .12);
+    padding: 8px 10px;
+  }
+
+  .promo-bar-text {
+    margin: 0;
+    min-width: 0;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 900;
+    text-align: left;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .promo-bar-button {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 13px;
+    font-size: 12px;
+    font-weight: 1000;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .16);
+    white-space: nowrap;
+  }
+
+  .promo-bar-marquee .promo-bar-item {
+    flex: 0 0 auto;
+    min-width: min(78vw, 320px);
+  }
+
+  @keyframes promo-bar-marquee {
+    from {
+      transform: translateX(0);
+    }
+
+    to {
+      transform: translateX(calc(-50% - 4px));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .promo-bar-marquee .promo-bar-track {
+      animation: none;
+      transform: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .promo-bar {
+      border-radius: 20px;
+      padding: 8px;
+    }
+
+    .promo-bar-carousel .promo-bar-track {
+      display: flex;
+      gap: 0;
+      transform: translateX(calc(var(--promo-index, 0) * -100%));
+      transition: transform .52s cubic-bezier(.22, 1, .36, 1);
+      will-change: transform;
+    }
+
+    .promo-bar-carousel .promo-bar-item {
+      flex: 0 0 100%;
+      justify-content: space-between;
+    }
+
+    .promo-bar-marquee .promo-bar-track {
+      gap: 8px;
+      animation-duration: 22s;
+    }
+
+    .promo-bar-marquee .promo-bar-item {
+      min-width: min(82vw, 330px);
+      justify-content: space-between;
+    }
+
+    .promo-bar-text {
+      font-size: 12px;
+    }
+
+    .promo-bar-button {
+      min-height: 34px;
+      padding: 0 12px;
+    }
+  }
+</style>

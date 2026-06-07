@@ -5,6 +5,7 @@
 import Layout from '../layouts/Layout.astro';
 import ProductCard from '../components/ProductCard.astro';
 import PublicFooter from '../components/PublicFooter.astro';
+import PromoBar from '../components/PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts } from '../lib/api';
 
 const settings = await getSettings();
@@ -242,6 +243,8 @@ function getProductOfferView(product: any) {
     <a class="hero-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp</a>
     <a class="hero-btn secondary" href="#categorias">Ver categorías</a>
   </div>
+
+  <PromoBar settings={settings} />
 
   {(address || businessHours || servicesText || reviewsText) && (
     <section class="public-info-grid">

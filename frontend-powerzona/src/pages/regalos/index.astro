@@ -2,6 +2,7 @@
 // PZ-PUBLIC-GIFTS-PAGE-V3-CARDS-RATIO-CONTROL-20260604
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
+import PromoBar from '../../components/PromoBar.astro';
 import { getSettings, getPublicGifts } from '../../lib/api';
 
 const settings = await getSettings();
@@ -53,6 +54,8 @@ const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
   <section class="gift-hero">
     {giftsPublicImageUrl ? <img src={giftsPublicImageUrl} alt={giftsPublicTitle} /> : <div class="gift-hero-fallback">🎁</div>}
   </section>
+
+  <PromoBar settings={settings} />
 
   <div id="gift-info-alert" class="gift-info-alert"></div>
 
