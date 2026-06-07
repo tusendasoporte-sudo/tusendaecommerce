@@ -1,0 +1,144 @@
+---
+// PowerZona Ajustes Visuales V22 - textos descriptivos limpiados
+// PZ-CATEGORIA-PUBLICA-V28-HERO-IMAGEN-16X9-20260605
+import Layout from '../../layouts/Layout.astro';
+import ProductCard from '../../components/ProductCard.astro';
+import PublicFooter from '../../components/PublicFooter.astro';
+import { getSettings, getCategories, getSubcategories, getProducts } from '../../lib/api';
+
+export async function getStaticPaths() {
+  const categories = await getCategories();
+  return categories.map((category) => ({ params: { slug: category.slug } }));
+}
+
+const { slug } = Astro.params;
+const settings = await getSettings();
+const categories = await getCategories();
+const subcategories = await getSubcategories();
+const products = await getProducts();
+
+const category = categories.find((item) => item.slug === slug);
+if (!category) return Astro.redirect('/');
+
+const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const logoImageUrl = settings?.logoImageUrl || '';
+const categorySubcategories = subcategories.filter((subcategory) => subcategory.category === category.id);
+const directProducts = products.filter((product) => product.category === category.id && !product.subcategory);
+const allCategoryProducts = products.filter((product) => product.category === category.id);
+
+function productsBySubcategory(subcategoryId: string) {
+  return products.filter((product) => product.subcategory === subcategoryId);
+}
+function getProductOfferView(product: any) {
+  const activePrice = Number(product?.base_price_usd || 0);
+  const regularPrice = Number(product?.regular_price_usd || activePrice);
+  const isOffer = Boolean(product?.is_offer) && activePrice > 0 && regularPrice > activePrice;
+  return {
+    price: activePrice,
+    regularPrice: isOffer ? regularPrice : activePrice,
+    isOffer,
+  };
+}
+
+---
+
+<!-- PZ-CATEGORIA-PUBLICA-V2-FOOTER-PUBLICO-20260603 -->
+<Layout>
+  <style>
+    .category-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .brand-link { display: flex; align-items: center; gap: 10px; min-width: 0; color: #111827; }
+    .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; flex: 0 0 auto; }
+    .brand-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .brand-name { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .back-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 16px; padding: 11px 13px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 13px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.06); }
+    .category-copy { display: grid; gap: 12px; margin-bottom: 16px; }
+    .category-kicker { margin: 0; color: #16a34a; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .11em; }
+    .category-title { margin: 0; font-size: clamp(34px, 8vw, 64px); line-height: .96; font-weight: 1000; letter-spacing: -.065em; color: #111827; }
+    .category-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .category-pill { display: inline-flex; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 11px; color: #334155; font-size: 12px; font-weight: 950; }
+    .category-hero { position: relative; min-height: 260px; aspect-ratio: 16 / 9; border-radius: 34px; overflow: hidden; background: #111827; border: 1px solid rgba(226,232,240,.9); box-shadow: 0 24px 70px rgba(15,23,42,.15); margin-bottom: 24px; }
+    .category-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: .98; }
+    .category-hero-fallback { position: absolute; inset: 0; background: radial-gradient(circle at top left, #334155, #111827); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.45); font-size: 68px; font-weight: 1000; }
+    .section-head { margin: 0 0 14px; }
+    .section-title { margin: 0; color: #111827; font-size: 22px; font-weight: 1000; letter-spacing: -.04em; }
+    .section-subtitle { margin: 3px 0 0; color: #64748b; font-size: 13px; font-weight: 800; }
+    .subcategory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 26px; }
+    .subcategory-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 22px; padding: 15px; box-shadow: 0 12px 32px rgba(15,23,42,.06); color: #111827; }
+    .subcategory-card strong { display: block; font-size: 14px; font-weight: 1000; line-height: 1.15; }
+    .subcategory-card span { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 850; }
+    .subcategory-arrow { width: 34px; height: 34px; border-radius: 999px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; flex: 0 0 auto; }
+    .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .empty-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 24px; padding: 22px; color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
+    @media (min-width: 768px) {
+      .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+      .subcategory-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    }
+    @media (max-width: 640px) {
+      .category-hero { border-radius: 28px; min-height: 210px; }
+      .back-btn { padding: 10px 11px; }
+    }
+  </style>
+
+  <div class="category-top">
+    <a class="brand-link" href="/">
+      <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+      <p class="brand-name">{storeName}</p>
+    </a>
+    <a class="back-btn" href="/#categorias">← Categorías</a>
+  </div>
+
+  <div class="category-copy">
+    <p class="category-kicker">Categoría</p>
+    <h1 class="category-title">{category.name}</h1>
+    <div class="category-meta">
+      <span class="category-pill">{allCategoryProducts.length} productos</span>
+      {categorySubcategories.length > 0 && <span class="category-pill">{categorySubcategories.length} subcategorías</span>}
+    </div>
+  </div>
+
+  <section class="category-hero">
+    {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="category-hero-fallback">PZ</div>}
+  </section>
+
+  {categorySubcategories.length > 0 && (
+    <section>
+      <div class="section-head">
+        <h2 class="section-title">Subcategorías</h2>
+      </div>
+      <div class="subcategory-grid">
+        {categorySubcategories.map((subcategory) => {
+          const count = productsBySubcategory(subcategory.id).length;
+          return (
+            <a href={`/subcategoria/${subcategory.slug}`} class="subcategory-card">
+              <div>
+                <strong>{subcategory.name}</strong>
+                <span>{count} productos</span>
+              </div>
+              <div class="subcategory-arrow">›</div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  )}
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">Productos de {category.name}</h2>
+    </div>
+
+    {directProducts.length > 0 ? (
+      <div class="product-grid">
+        {directProducts.map((product) => (
+          <a href={`/producto/${product.slug}`} class="block">
+            <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} />
+          </a>
+        ))}
+      </div>
+    ) : (
+      <div class="empty-box">Esta categoría no tiene productos directos visibles. Revisa sus subcategorías.</div>
+    )}
+  </section>
+
+  <PublicFooter settings={settings} />
+</Layout>

@@ -1,0 +1,3073 @@
+---
+// PZ-ADMIN-PRODUCTS-V26-10-OFERTA-TARJETA-GRIS-20260605
+// PZ-PRODUCTOS-ADMIN-V45-FIX-OFERTA-REGULAR-BLOQUEADO-20260605
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+<!-- PZ-PRODUCTOS-INFO-ADICIONAL-V6-20260603
+  Cambio: guarda Información adicional con PATCH JSON y requiere migración final extra_info.
+-->
+<!-- PZ-AJUSTES-GENERALES-PUBLICOS-MENU-PUBLICO-V5-20260603
+  Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
+-->
+<!-- PZ-PRODUCTOS-V25-VISTA-VARIACIONES-20260601
+  Bloque: Gestión de catálogo - Crear y editar productos
+  Cambio base: formulario real para crear y editar productos en PocketBase desde /admin/products.
+  V3: Limpieza visual: al crear o editar se ocultan resumen, buscador y listado de productos existentes.
+  V4: Categoría y subcategoría se pueden crear rápido desde el formulario de producto, con foto opcional.
+  V5: Creación rápida movida a modal flotante sin salir del producto.
+  V6: Modal flotante con estilo de tarjeta premium.
+  V7: Corrección de cierre del modal: botón X funcional, clic fuera de la tarjeta cierra el modal y Escape mantiene cierre seguro.
+  V8: Placeholder del nombre cambiado a "Ej: Nombre del producto".
+  V9: En el listado, tocar miniatura o nombre del producto abre edición.
+  V10: Agrega botón Borrar en el listado con confirmación segura antes de eliminar el producto.
+  V11: Corrige Ocultar/Activar para no abrir edición y cierra el formulario al guardar correctamente.
+  V12: Stock 0 se muestra como Agotado sin ocultar el producto.
+  V13: Limpia acciones del listado con menú flotante, agrega Marcar agotado y permite preorder cuando stock está en 0.
+  V14: Corrige menú de 3 puntos para que no quede escondido al final del listado; se posiciona como flotante y abre hacia arriba si hace falta.
+  V15: Agrega gestión admin de variaciones por producto: crear, editar, ocultar/activar, borrar, foto, precio, costo, stock, ref interna, preorder y orden visual.
+  V16: Mantiene el menú de variaciones funcional y permite borrar productos con variaciones borrando primero sus variaciones reales. Las órdenes conservan historial fijo en order_items.
+  V17: Agrega control de stock descontable, valida Guardar según nombre/stock/variaciones, permite producto sin categoría visible en inicio y sincroniza stock padre con la suma de variaciones.
+  V19: Corrige validaciones de variaciones, categoría opcional visible, stock padre automático y limpia el panel de variaciones con edición bajo demanda y flechas de orden.
+  V20: Oculta “Usa variaciones” durante creación; después de guardar pregunta si desea agregar variaciones antes de cerrar el panel.
+  V21: Cambia confirmaciones por paneles flotantes dentro de la tarjeta: agregar variaciones post-guardado y borrar producto. Refuerza stock=0 seguro cuando no descuenta stock.
+  V36: Oculta “Usa variaciones” desde el HTML inicial al crear producto nuevo; solo se muestra al editar productos existentes.
+  V33: Corrige creación de producto nuevo con stock descontable: botón Guardar directo sin bloqueo HTML y creación segura en dos pasos.
+  V34: Evita productos repetidos, busca por ref interna y unifica Marcar agotado con estilo/confirmación tipo Borrar.
+  V35: Agrega alerta flotante premium “Producto repetido” al intentar crear/guardar duplicados.
+  V37: Agrega oferta con precio de oferta USD, visible en tienda pública, carrito y checkout.
+-->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Productos | PowerZona</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --surface-soft: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --green: #16a34a;
+        --blue: #2563eb;
+        --red: #dc2626;
+        --orange: #f97316;
+        --purple: #7c3aed;
+        --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, 0.16), transparent 30%),
+          radial-gradient(circle at 85% 8%, rgba(22, 163, 74, 0.10), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+
+      a { color: inherit; text-decoration: none; }
+      button, input, select { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .65; }
+      .hidden { display: none !important; }
+
+      .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; display: block; }
+      .sidebar-overlay {
+        position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .36);
+        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
+      }
+      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
+      .sidebar {
+        position: fixed; top: 18px; left: 18px; bottom: 18px; z-index: 90; width: min(286px, calc(100vw - 36px));
+        border-radius: 30px; padding: 18px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        color: #0f172a; border: 1px solid rgba(226, 232, 240, .95); box-shadow: 0 28px 80px rgba(15, 23, 42, .22);
+        overflow: hidden; transform: translateX(calc(-100% - 28px)); transition: transform .24s ease;
+      }
+      body.sidebar-open .sidebar { transform: translateX(0); }
+      .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
+      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+      .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
+      .brand-logo { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: #0f172a; color: #fff; box-shadow: 0 14px 30px rgba(15, 23, 42, .18); font-weight: 1000; }
+      .brand-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
+      .brand-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; }
+      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
+      .nav-list { display: grid; gap: 8px; }
+      .nav-item { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 18px; color: #334155; font-size: 13px; font-weight: 950; border: 1px solid transparent; }
+      .nav-item:hover { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; }
+      .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15,23,42,.16); }
+      .nav-icon { width: 34px; height: 34px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0; flex: 0 0 auto; }
+      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
+      .nav-item.active .nav-icon { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.20); }
+      .sidebar-footer { margin-top: auto; padding: 14px; border-radius: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .sidebar-footer strong { display: block; font-size: 12px; margin-bottom: 5px; color: #0f172a; }
+      .sidebar-footer span { display: block; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 750; }
+      .sidebar-close { margin-left: auto; width: 36px; height: 36px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
+      .menu-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 18px; padding: 12px 15px; background: #0f172a; color: #fff; border: 1px solid #0f172a; box-shadow: 0 12px 26px rgba(15,23,42,.16); font-weight: 1000; }
+
+      .main-wrap { min-width: 0; padding: 2px 0 28px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
+      .action-btn, .mini-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+        border-radius: 16px; padding: 11px 14px; background: rgba(255,255,255,.92);
+        border: 1px solid rgba(226, 232, 240, 0.95); box-shadow: 0 12px 26px rgba(15,23,42,.07); font-weight: 950;
+      }
+      .action-btn.dark, .mini-btn.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
+      .action-btn.danger, .mini-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .mini-btn.danger:hover { background: #fecaca; }
+      .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; position: relative; z-index: 1; }
+      .hero-card, .panel-card, .list-card { background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(226, 232, 240, 0.96); border-radius: 30px; box-shadow: var(--shadow); backdrop-filter: blur(10px); }
+      .hero-card { padding: 26px; margin-bottom: 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; position: relative; overflow: hidden; }
+      .hero-card::after { content: ''; position: absolute; right: -80px; top: -90px; width: 230px; height: 230px; background: radial-gradient(circle, rgba(37,99,235,.16), transparent 66%); pointer-events: none; }
+      .badge { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 12px; background: #dcfce7; color: #166534; font-size: 13px; font-weight: 1000; }
+      .page-title { font-size: clamp(25px, 3vw, 40px); font-weight: 1000; letter-spacing: -0.045em; line-height: 1.05; margin: 14px 0 0; }
+      .page-title span { color: #334155; font-weight: 800; }
+      .page-subtitle { margin: 9px 0 0; font-size: 15px; color: var(--muted); line-height: 1.55; max-width: 820px; }
+      .panel-card { padding: 22px; }
+      .login-card { max-width: 520px; margin: 28px auto; }
+      .form-grid { display: grid; gap: 12px; }
+      .field { display: grid; gap: 7px; }
+      .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+      .field input, .field select { width: 100%; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: var(--text); padding: 12px 13px; outline: none; font-weight: 800; box-shadow: inset 0 1px 0 rgba(15,23,42,.02); }
+      .submit-btn { border: 0; border-radius: 16px; padding: 12px 16px; background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; font-weight: 1000; box-shadow: 0 14px 28px rgba(15,23,42,.20); }
+      .alert { margin-top: 12px; border-radius: 16px; padding: 11px 12px; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+      .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+      .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+      .duplicate-toast {
+        position: fixed;
+        right: 22px;
+        bottom: 22px;
+        z-index: 9999;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        max-width: min(420px, calc(100vw - 32px));
+        border: 1px solid #fecaca;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #fee2e2, #fff7f7);
+        color: #991b1b;
+        padding: 12px 15px;
+        box-shadow: 0 20px 44px rgba(153, 27, 27, .18);
+        font-size: 13px;
+        font-weight: 1000;
+        letter-spacing: -.01em;
+        transform: translateY(0);
+        opacity: 1;
+        transition: opacity .18s ease, transform .18s ease;
+      }
+      .duplicate-toast.hidden { display: none; }
+      .duplicate-toast-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #991b1b;
+        color: #fff;
+        flex: 0 0 auto;
+        box-shadow: 0 10px 22px rgba(153, 27, 27, .20);
+      }
+      .duplicate-toast strong { display: block; line-height: 1.05; }
+      .duplicate-toast span:last-child { display: block; margin-top: 2px; font-size: 11px; font-weight: 850; color: #7f1d1d; }
+
+      .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+      .stat-card { padding: 18px; border-radius: 24px; background: rgba(255,255,255,.92); border: 1px solid rgba(226,232,240,.96); box-shadow: 0 14px 34px rgba(15,23,42,.06); }
+      .stat-label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .05em; }
+      .stat-value { margin: 7px 0 0; font-size: 25px; font-weight: 1000; letter-spacing: -.04em; }
+      .toolbar { padding: 18px; display: grid; grid-template-columns: 1.2fr .8fr .8fr auto; gap: 12px; align-items: end; margin-bottom: 18px; }
+      .products-list { display: grid; gap: 0; overflow: visible; }
+      .product-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(160px, .6fr) minmax(130px, .45fr) minmax(140px, .45fr) minmax(180px, auto); gap: 14px; align-items: center; padding: 16px 18px; border-bottom: 1px solid #eef2f7; }
+      .product-row:last-child { border-bottom: 0; }
+      .product-row:hover { background: #fbfdff; }
+      .product-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .product-thumb { width: 58px; height: 58px; border-radius: 16px; object-fit: cover; flex: 0 0 58px; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .product-thumb.placeholder { display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 22px; font-weight: 1000; }
+      .product-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
+      .product-title.js-product-open, .product-thumb.js-product-open { cursor: pointer; }
+      .product-title.js-product-open:hover { text-decoration: underline; text-underline-offset: 3px; }
+      .product-meta { margin: 5px 0 0; color: var(--muted); font-size: 12px; font-weight: 750; word-break: break-word; }
+      .pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 8px 10px; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .035em; border: 1px solid transparent; white-space: nowrap; }
+      .pill-visible { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .pill-hidden { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .pill-soldout { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+      .price { font-size: 15px; font-weight: 1000; }
+      .stock { font-size: 15px; font-weight: 950; color: #334155; }
+      .row-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; position: relative; }
+      .actions-wrap { position: relative; display: inline-flex; justify-content: flex-end; }
+      .actions-trigger { min-width: 44px; padding-inline: 13px; font-size: 18px; line-height: 1; }
+      .actions-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 3000;
+        width: 210px;
+        padding: 8px;
+        border-radius: 20px;
+        border: 1px solid rgba(226,232,240,.96);
+        background: rgba(255,255,255,.98);
+        box-shadow: 0 22px 55px rgba(15,23,42,.18);
+      }
+      .actions-menu.open-up {
+        top: auto;
+        bottom: calc(100% + 8px);
+      }
+      .actions-menu::before { display: none; }
+      .actions-menu button {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border: 0;
+        border-radius: 14px;
+        background: transparent;
+        padding: 10px 11px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 950;
+        text-align: left;
+      }
+      .actions-menu button:hover { background: #f1f5f9; color: #0f172a; }
+      .actions-menu button.danger-action { color: #991b1b; }
+      .actions-menu button.danger-action:hover { background: #fee2e2; }
+      .actions-menu button:disabled { color: #94a3b8; background: transparent; opacity: .75; }
+
+      .editor-card { padding: 0; overflow: hidden; margin-bottom: 18px; }
+      .editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(248,250,252,.92), rgba(255,255,255,.72)); }
+      .editor-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
+      .editor-subtitle { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; font-weight: 800; }
+      .editor-body { padding: 20px 22px 22px; }
+      .product-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+      .product-form-grid .full { grid-column: 1 / -1; }
+      .field textarea { width: 100%; min-height: 118px; resize: vertical; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: var(--text); padding: 12px 13px; outline: none; font-weight: 750; line-height: 1.5; box-shadow: inset 0 1px 0 rgba(15,23,42,.02); }
+      .field textarea:focus { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); }
+      .field input[type="file"] { padding: 10px; background: #f8fafc; }
+      .check-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .check-card { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 18px; background: #fff; padding: 12px 13px; color: #334155; font-weight: 900; }
+      .check-card input { width: 18px; height: 18px; accent-color: #16a34a; }
+      .price-offer-card { grid-column: 1 / -1; border: 1px solid rgba(15, 23, 42, .10); background: linear-gradient(180deg, #fff 0%, #f8fafc 100%); border-radius: 22px; padding: 14px; box-shadow: 0 16px 38px rgba(15,23,42,.06); }
+      .price-offer-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+      .price-offer-card-title { margin:0; font-size:14px; font-weight:1000; color:#0f172a; letter-spacing:-.01em; }
+      .price-offer-card-subtitle { margin:4px 0 0; color:#64748b; font-size:12px; line-height:1.35; font-weight:750; }
+      .price-offer-grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:12px; align-items:start; }
+      .offer-field { border: 1px solid rgba(220, 38, 38, .16); background: linear-gradient(180deg, #fff 0%, #fff7f7 100%); border-radius: 20px; padding: 12px; }
+      .offer-field .offer-hint { margin: 7px 0 0; color: #16a34a; font-size: 12px; font-weight: 900; }
+      .field input.is-locked, .field input:disabled.is-locked { background: #e5e7eb; border-color: #cbd5e1; color: #64748b; cursor: not-allowed; box-shadow: inset 0 1px 0 rgba(15,23,42,.04); }
+      .field input.is-locked::placeholder { color: #94a3b8; }
+      @media (max-width: 720px) { .price-offer-grid { grid-template-columns: 1fr; } }
+      .price-offer-admin { display:flex; flex-direction:column; gap:3px; align-items:flex-end; }
+      .price-offer-admin .old { color:#94a3b8; text-decoration:line-through; font-size:12px; font-weight:900; }
+      .price-offer-admin .new { color:#dc2626; font-weight:1000; }
+      .form-help { margin: 7px 0 0; color: #64748b; font-size: 12px; line-height: 1.4; font-weight: 750; }
+      body.quick-modal-open { overflow: hidden; }
+      .quick-create-panel {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        z-index: 2500;
+        width: min(520px, calc(100vw - 28px));
+        max-height: calc(100vh - 36px);
+        overflow: hidden;
+        transform: translate(-50%, -50%);
+        border: 1px solid rgba(255,255,255,.82);
+        background:
+          radial-gradient(circle at top left, rgba(219,234,254,.95), transparent 34%),
+          linear-gradient(180deg, rgba(255,255,255,.98) 0%, rgba(248,250,252,.98) 100%);
+        border-radius: 34px;
+        padding: 0;
+        box-shadow:
+          0 44px 110px rgba(15,23,42,.42),
+          0 18px 36px rgba(15,23,42,.20),
+          0 0 0 1px rgba(255,255,255,.72) inset;
+      }
+      .quick-create-panel::before {
+        content: "";
+        position: fixed;
+        inset: -120vh -120vw;
+        z-index: -1;
+        background:
+          radial-gradient(circle at center, rgba(59,130,246,.16), transparent 32%),
+          rgba(15, 23, 42, .64);
+        backdrop-filter: blur(8px);
+      }
+      .quick-create-panel::after {
+        content: "";
+        position: absolute;
+        left: 22px;
+        right: 22px;
+        top: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent);
+        pointer-events: none;
+      }
+      .quick-create-head {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 24px 24px 18px;
+        border-bottom: 1px solid rgba(226,232,240,.88);
+        background: linear-gradient(180deg, rgba(255,255,255,.78), rgba(248,250,252,.42));
+      }
+      .quick-create-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        width: fit-content;
+        margin: 0 0 9px;
+        border: 1px solid rgba(191,219,254,.9);
+        border-radius: 999px;
+        background: rgba(239,246,255,.92);
+        color: #1d4ed8;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 1000;
+        text-transform: uppercase;
+        letter-spacing: .045em;
+      }
+      .quick-create-close {
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 14px;
+        background: rgba(255,255,255,.86);
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1;
+        font-weight: 1000;
+        cursor: pointer;
+        box-shadow: 0 10px 22px rgba(15,23,42,.08);
+      }
+      .quick-create-close:hover { transform: translateY(-1px); box-shadow: 0 14px 26px rgba(15,23,42,.13); }
+      .quick-create-body { padding: 20px 24px 24px; overflow: auto; max-height: calc(100vh - 180px); }
+      .quick-create-title { margin: 0; color: #0f172a; font-size: 21px; font-weight: 1000; letter-spacing: -.04em; }
+      .quick-create-subtitle { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.5; font-weight: 800; }
+      .quick-create-grid { display: grid; grid-template-columns: 1fr; gap: 13px; align-items: end; }
+      .quick-create-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid rgba(226,232,240,.82); }
+      .quick-create-panel input[type="file"] { padding: 10px; font-size: 12px; background: #fff; }
+      .editor-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+      .inline-floating-card {
+        margin-top: 14px;
+        border: 1px solid rgba(191, 219, 254, .95);
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at top left, rgba(219,234,254,.96), transparent 46%),
+          linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        box-shadow: 0 18px 42px rgba(15,23,42,.10);
+        padding: 15px;
+      }
+      .inline-floating-title { margin: 0; font-size: 14px; font-weight: 1000; letter-spacing: -.02em; color: #0f172a; }
+      .inline-floating-text { margin: 6px 0 0; color: #475569; font-size: 12px; font-weight: 800; line-height: 1.45; }
+      .inline-floating-actions { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
+      .inline-floating-card.danger {
+        border-color: #fecaca;
+        background:
+          radial-gradient(circle at top left, rgba(254,226,226,.92), transparent 46%),
+          linear-gradient(180deg, #ffffff 0%, #fff7f7 100%);
+      }
+      .product-delete-confirm {
+        grid-column: 1 / -1;
+        margin: -4px 18px 16px;
+      }
+
+      .product-image-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+      .product-image-slot { position: relative; min-width: 0; border: 1px solid #e2e8f0; background: linear-gradient(180deg,#fff,#f8fafc); border-radius: 20px; padding: 10px; box-shadow: 0 10px 26px rgba(15,23,42,.06); overflow: hidden; }
+      .product-image-slot.is-cover { border-color: rgba(22,163,74,.38); box-shadow: 0 12px 32px rgba(22,163,74,.10); }
+      .product-image-preview { width: 100%; aspect-ratio: 1 / 1; border-radius: 16px; border: 1px dashed #cbd5e1; background: #f1f5f9; overflow: hidden; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 24px; font-weight: 1000; }
+      .product-image-preview img { width: 100%; height: 100%; object-fit: contain; background: #fff; display: block; }
+      .product-image-label { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; color: #475569; font-weight: 1000; }
+      .product-image-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 7px; font-size: 10px; font-weight: 1000; background: #dcfce7; color: #166534; }
+      .product-image-actions { display: flex; gap: 6px; margin-top: 8px; }
+      .product-image-action { flex: 1; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #111827; padding: 8px 7px; font-size: 11px; font-weight: 1000; cursor: pointer; box-shadow: 0 8px 16px rgba(15,23,42,.05); text-align: center; }
+      .product-image-action.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+      .product-image-action input { display: none; }
+      @media (max-width: 640px) { .product-image-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+      .product-extra-panel { margin-top: 10px; display: grid; gap: 10px; }
+      .related-products-panel { margin-top: 10px; border: 1px solid rgba(15, 23, 42, .09); border-radius: 22px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 14px; box-shadow: 0 14px 32px rgba(15,23,42,.05); }
+      .related-products-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+      .related-products-title { margin:0; color:#0f172a; font-size:15px; font-weight:1000; letter-spacing:-.02em; }
+      .related-products-subtitle { margin:4px 0 0; color:#64748b; font-size:12px; font-weight:800; line-height:1.4; }
+      .related-products-list { display:grid; gap:10px; margin-top:12px; }
+      .related-product-row { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid #e5e7eb; border-radius:18px; background:#fff; padding:10px; }
+      .related-product-info { min-width:0; display:flex; align-items:center; gap:10px; }
+      .related-product-thumb { width:48px; height:48px; border-radius:14px; object-fit:cover; background:#f1f5f9; flex:0 0 auto; }
+      .related-product-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:18px; }
+      .related-product-name { margin:0; color:#0f172a; font-size:13px; font-weight:1000; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .related-product-meta { margin:3px 0 0; color:#64748b; font-size:12px; font-weight:800; }
+      .related-product-remove { border:1px solid #fecaca; background:#fff1f2; color:#b91c1c; border-radius:12px; padding:8px 10px; font-size:12px; font-weight:1000; cursor:pointer; }
+      .related-modal-search { margin-bottom:14px; }
+      .related-modal-list { display:grid; gap:9px; max-height:48vh; overflow:auto; padding-right:2px; }
+      .related-modal-item { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid #e5e7eb; border-radius:18px; background:#fff; padding:10px; cursor:pointer; }
+      .related-modal-item.is-disabled { opacity:.45; cursor:not-allowed; }
+      .related-modal-item.is-selected { border-color:#0f172a; box-shadow:0 0 0 2px rgba(15,23,42,.06); }
+      .related-modal-item input { width:22px; height:22px; flex:0 0 auto; accent-color:#0f172a; }
+      .related-modal-empty { border:1px dashed #cbd5e1; border-radius:18px; background:#f8fafc; color:#64748b; padding:16px; text-align:center; font-size:13px; font-weight:850; }
+      .product-extra-list { display: grid; gap: 9px; }
+      .product-extra-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #e2e8f0; border-radius: 18px; background: linear-gradient(180deg,#fff,#f8fafc); padding: 11px 12px; box-shadow: 0 10px 22px rgba(15,23,42,.05); }
+      .product-extra-row strong { display: block; font-size: 12px; font-weight: 1000; color: #0f172a; letter-spacing: -.01em; }
+      .product-extra-row span { display: block; margin-top: 2px; font-size: 12px; font-weight: 800; color: #64748b; word-break: break-word; }
+      .product-extra-actions { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+      .product-extra-mini { border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #111827; padding: 8px 10px; font-size: 11px; font-weight: 1000; cursor: pointer; box-shadow: 0 8px 16px rgba(15,23,42,.05); }
+      .product-extra-mini.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+      .product-extra-add { width: fit-content; border: 1px solid #dbeafe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; padding: 10px 13px; font-size: 12px; font-weight: 1000; cursor: pointer; box-shadow: 0 10px 20px rgba(37,99,235,.08); }
+      .product-extra-add:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+      .product-extra-editor { border: 1px solid #dbeafe; border-radius: 24px; background: radial-gradient(circle at top left, rgba(239,246,255,.95), transparent 45%), linear-gradient(180deg,#fff,#f8fafc); padding: 14px; box-shadow: 0 18px 36px rgba(15,23,42,.10); }
+      .product-extra-editor.hidden { display: none; }
+      .product-extra-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+      .product-extra-editor-title { margin: 0; font-size: 14px; font-weight: 1000; color: #0f172a; }
+      .product-extra-editor-help { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.4; }
+      .product-extra-editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .product-extra-editor-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+      @media (max-width: 720px) { .product-extra-row { align-items: flex-start; flex-direction: column; } .product-extra-editor-grid { grid-template-columns: 1fr; } }
+      .product-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 7px; }
+      .mini-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 8px; font-size: 10px; font-weight: 1000; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; text-transform: uppercase; letter-spacing: .03em; }
+      .mini-pill.featured { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+      .mini-pill.usd { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .mini-pill.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .mini-pill.delivery { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+      .empty-state { padding: 28px; color: var(--muted); font-size: 14px; font-weight: 850; text-align: center; }
+
+
+      .variation-manager { margin-top: 18px; border: 1px solid #e2e8f0; border-radius: 26px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 18px; box-shadow: 0 12px 28px rgba(15,23,42,.05); }
+      .variation-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+      .variation-title { margin: 0; font-size: 17px; font-weight: 1000; letter-spacing: -.025em; }
+      .variation-subtitle { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.45; max-width: 740px; }
+      .variation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+      .variation-grid .wide { grid-column: span 2; }
+      .variation-grid .full { grid-column: 1 / -1; }
+      .variation-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .variation-current-image { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+      .variation-current-image img { width: 58px; height: 58px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .variation-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+      .variations-list { display: grid; gap: 10px; margin-top: 16px; }
+      .variation-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(120px, .45fr) minmax(120px, .45fr) minmax(120px, .45fr) minmax(210px, auto); gap: 12px; align-items: center; padding: 13px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.88); }
+      .variation-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
+      .variation-thumb { width: 52px; height: 52px; border-radius: 15px; object-fit: cover; flex: 0 0 52px; border: 1px solid #e2e8f0; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.06); }
+      .variation-name { margin: 0; font-size: 14px; font-weight: 1000; letter-spacing: -.015em; }
+      .variation-meta { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 750; word-break: break-word; }
+      .variation-mini-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .variation-order-actions { display: inline-flex; align-items: center; gap: 6px; }
+      .variation-order-btn { min-width: 36px; padding: 8px 10px; }
+      .variation-editor.hidden { display: none; }
+      .variation-empty { border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 22px; padding: 16px; color: #64748b; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      @media (max-width: 1120px) { .variation-grid, .variation-row, .variation-checks { grid-template-columns: 1fr; } .variation-grid .wide { grid-column: 1 / -1; } .variation-mini-actions { justify-content: flex-start; } }
+
+      @media (max-width: 1120px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .toolbar, .product-row, .product-form-grid, .check-grid, .quick-create-grid { grid-template-columns: 1fr; } .row-actions { justify-content: flex-start; } }
+      @media (max-width: 980px) { .hero-card { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } }
+      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .stats-grid { grid-template-columns: 1fr; } }
+    
+
+      /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
+         Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
+      .sidebar-overlay,
+      #sidebar-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 80 !important;
+        background: rgba(15, 23, 42, .36) !important;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .22s ease !important;
+        backdrop-filter: blur(3px) !important;
+      }
+      .sidebar-overlay.show,
+      body.sidebar-open .sidebar-overlay,
+      body.sidebar-open #sidebar-overlay {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      .sidebar,
+      #admin-sidebar {
+        position: fixed !important;
+        top: 18px !important;
+        left: 18px !important;
+        bottom: 18px !important;
+        z-index: 90 !important;
+        width: min(286px, calc(100vw - 36px)) !important;
+        border-radius: 30px !important;
+        padding: 18px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(226, 232, 240, .95) !important;
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95) !important;
+        overflow: hidden auto !important;
+        transform: translateX(calc(-100% - 36px)) !important;
+        transition: transform .24s ease !important;
+      }
+      .sidebar.open,
+      body.sidebar-open .sidebar,
+      body.sidebar-open #admin-sidebar {
+        transform: translateX(0) !important;
+      }
+      .sidebar::before,
+      #admin-sidebar::before {
+        content: '' !important;
+        position: absolute !important;
+        inset: 0 !important;
+        background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important;
+        pointer-events: none !important;
+      }
+      .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; min-height: 100% !important; }
+      .sidebar-top,
+      .brand,
+      .sidebar-brand-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 11px !important;
+        padding: 8px 8px 18px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        margin: 0 0 14px !important;
+      }
+      .sidebar-brand,
+      .brand-title,
+      .sidebar-title {
+        margin: 0 !important;
+        font-size: 22px !important;
+        font-weight: 1000 !important;
+        letter-spacing: -.035em !important;
+        color: #0f172a !important;
+        line-height: 1.1 !important;
+      }
+      .sidebar-sub,
+      .brand-subtitle,
+      .sidebar-subtitle {
+        margin: 4px 0 0 !important;
+        color: #334155 !important;
+        font-size: 12px !important;
+        font-weight: 850 !important;
+        line-height: 1.2 !important;
+      }
+      .brand-logo {
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: linear-gradient(135deg, #0f172a, #020617) !important;
+        color: #ffffff !important;
+        font-size: 12px !important;
+        font-weight: 1000 !important;
+        box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
+      }
+      .close-btn,
+      .sidebar-close,
+      #sidebar-close,
+      #sidebar-close-btn {
+        margin-left: auto !important;
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
+        border-radius: 16px !important;
+        border: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 18px !important;
+        font-weight: 1000 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-group { margin: 14px 0 !important; }
+      .sidebar-label,
+      .nav-label {
+        margin: 18px 9px 9px !important;
+        color: #475569 !important;
+        font-size: 10px !important;
+        font-weight: 1000 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .14em !important;
+      }
+      .nav-list { display: grid !important; gap: 6px !important; }
+      .nav-item,
+      .nav-link {
+        min-height: 50px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 11px !important;
+        width: 100% !important;
+        padding: 8px 10px !important;
+        border-radius: 16px !important;
+        background: transparent !important;
+        color: #0f172a !important;
+        border: 1px solid transparent !important;
+        font-size: 15px !important;
+        font-weight: 1000 !important;
+        line-height: 1.18 !important;
+        text-decoration: none !important;
+        box-shadow: none !important;
+        transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease !important;
+      }
+      .nav-left { display: inline-flex !important; align-items: center !important; gap: 11px !important; min-width: 0 !important; }
+      .nav-item:hover,
+      .nav-link:hover {
+        transform: translateX(2px) !important;
+        background: #f8fafc !important;
+        color: #020617 !important;
+        border-color: #e2e8f0 !important;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-item.active,
+      .nav-link.active {
+        background: linear-gradient(135deg, #0f172a, #020617) !important;
+        color: #ffffff !important;
+        border-color: rgba(15,23,42,.95) !important;
+        box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-icon,
+      .premium-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 14px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-icon svg,
+      .premium-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
+      .nav-icon svg path,
+      .premium-icon svg path { stroke: currentColor; }
+      .nav-item.active .nav-icon,
+      .nav-link.active .nav-icon,
+      .nav-link.active .premium-icon,
+      .nav-item:hover .nav-icon,
+      .nav-link:hover .nav-icon,
+      .nav-link:hover .premium-icon {
+        background: rgba(255,255,255,.12) !important;
+        color: #ffffff !important;
+        border-color: rgba(255,255,255,.20) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-item:hover:not(.active) .nav-icon,
+      .nav-link:hover:not(.active) .nav-icon,
+      .nav-link:hover:not(.active) .premium-icon {
+        background: #020617 !important;
+        color: #ffffff !important;
+        border-color: #020617 !important;
+        box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-link > span:last-child:not(.nav-left):not(.nav-pill),
+      .nav-link > .arrow,
+      .nav-item > .arrow,
+      .nav-arrow { display: none !important; }
+      .nav-pill {
+        margin-left: auto !important;
+        background: #f1f5f9 !important;
+        color: #64748b !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 999px !important;
+        padding: 5px 9px !important;
+        font-size: 11px !important;
+        font-weight: 1000 !important;
+      }
+      .nav-link.active .nav-pill,
+      .nav-item.active .nav-pill { background: rgba(255,255,255,.14) !important; color: #fff !important; border-color: rgba(255,255,255,.25) !important; }
+      .sidebar-footer {
+        margin-top: auto !important;
+        padding: 14px !important;
+        border-radius: 22px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .sidebar-footer strong { display: block !important; font-size: 12px !important; margin-bottom: 5px !important; color: #0f172a !important; }
+      .sidebar-footer span { display: block !important; color: #475569 !important; font-size: 11px !important; line-height: 1.45 !important; font-weight: 750 !important; }
+      @media (max-width: 620px) {
+        .sidebar,
+        #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
+      }
+
+      </style>
+  </head>
+  <body>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+    <div class="app-shell">
+      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
+        <div class="sidebar-inner">
+          <div class="brand">
+            <span class="brand-logo">PZ</span>
+            <div>
+              <p class="brand-title">PowerZona</p>
+              <p class="brand-subtitle">Panel administrativo</p>
+            </div>
+            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
+          </div>
+
+          <p class="sidebar-label">Principal</p>
+          <nav class="nav-list">
+            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item active" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+          </nav>
+
+          <p class="sidebar-label">Tienda</p>
+          <nav class="nav-list">
+            <a class="nav-item" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
+          </nav>
+        </div>
+      </aside>
+
+      <main class="main-wrap">
+        <header class="topbar">
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
+          <div class="hero-actions">
+            <a class="action-btn" href="/admin/catalog">Categorías</a>
+            <a class="action-btn" href="/">Ver catálogo público</a>
+            <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
+          </div>
+        </header>
+
+        <section class="hero-card">
+          <div>
+            <span class="badge">📦 Productos</span>
+            <h1 class="page-title">Gestión de <span>productos</span></h1>
+            <p id="admin-subtitle" class="page-subtitle">Administra los productos de la tienda, sus precios, stock, imágenes, categorías y visibilidad.</p>
+          </div>
+          <div class="hero-actions">
+            <button id="new-product-btn" class="action-btn dark" type="button">+ Nuevo producto</button>
+          </div>
+        </section>
+
+        <section id="login-view" class="panel-card login-card hidden">
+          <h2 class="page-title" style="font-size: 24px; margin: 0;">Entrar como admin</h2>
+          <p class="page-subtitle">Usa el mismo usuario administrador de PocketBase para ver productos ocultos y preparar la edición.</p>
+          <form id="login-form" class="form-grid" style="margin-top: 18px;">
+            <div class="field">
+              <label for="admin-email">Email</label>
+              <input id="admin-email" type="email" autocomplete="username" required />
+            </div>
+            <div class="field">
+              <label for="admin-password">Contraseña</label>
+              <input id="admin-password" type="password" autocomplete="current-password" required />
+            </div>
+            <button id="login-btn" class="submit-btn" type="submit">Entrar al panel</button>
+            <div id="login-alert" class="alert alert-error hidden"></div>
+          </form>
+        </section>
+
+        <section id="admin-view" class="hidden">
+
+          <section id="product-editor" class="panel-card editor-card hidden">
+            <div class="editor-head">
+              <div>
+                <h2 id="editor-title" class="editor-title">Nuevo producto</h2>
+                <p id="editor-subtitle" class="editor-subtitle">Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.</p>
+              </div>
+              <button id="editor-close-btn" class="mini-btn" type="button">Cerrar</button>
+            </div>
+            <div class="editor-body">
+              <form id="product-form">
+                <input id="product-id" type="hidden" />
+                <input id="product-slug" type="hidden" />
+                <div class="product-form-grid">
+                  <div class="field full">
+                    <label for="product-name">Nombre del producto</label>
+                    <input id="product-name" type="text" placeholder="Ej: Nombre del producto" required />
+                    <p class="form-help">El slug se genera automáticamente desde este nombre.</p>
+                  </div>
+                  <div class="field">
+                    <label for="product-category">Categoría</label>
+                    <select id="product-category"><option value="">Sin categoría / página principal</option></select>
+                    <div id="quick-category-panel" class="quick-create-panel hidden" role="dialog" aria-modal="true" aria-labelledby="quick-category-title">
+                      <div class="quick-create-head">
+                        <div>
+                          <p class="quick-create-kicker">Nueva categoría</p>
+                          <h3 id="quick-category-title" class="quick-create-title">Crear nueva categoría</h3>
+                          <p class="quick-create-subtitle">Agrega una categoría sin salir del producto. La foto es opcional y luego puedes cambiarla desde Gestión de catálogo.</p>
+                        </div>
+                        <button id="quick-category-x" class="quick-create-close" type="button" aria-label="Cerrar">×</button>
+                      </div>
+                      <div class="quick-create-body">
+                        <div class="quick-create-grid">
+                          <div class="field">
+                            <label for="quick-category-name">Nombre</label>
+                            <input id="quick-category-name" type="text" placeholder="Ej. Proteínas" />
+                          </div>
+                          <div class="field">
+                            <label for="quick-category-image">Foto opcional</label>
+                            <input id="quick-category-image" type="file" accept="image/*" />
+                          </div>
+                        </div>
+                        <div id="quick-category-alert" class="alert alert-info hidden"></div>
+                        <div class="quick-create-actions">
+                          <button id="quick-category-cancel" class="mini-btn" type="button">Cancelar</button>
+                          <button id="quick-category-save" class="submit-btn" type="button">Crear categoría</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="product-subcategory">Subcategoría</label>
+                    <select id="product-subcategory"><option value="">Producto directo de la categoría</option></select>
+                    <div id="quick-subcategory-panel" class="quick-create-panel hidden" role="dialog" aria-modal="true" aria-labelledby="quick-subcategory-title">
+                      <div class="quick-create-head">
+                        <div>
+                          <p class="quick-create-kicker">Nueva subcategoría</p>
+                          <h3 id="quick-subcategory-title" class="quick-create-title">Crear nueva subcategoría</h3>
+                          <p class="quick-create-subtitle">Se guardará dentro de la categoría seleccionada y quedará lista para este producto.</p>
+                        </div>
+                        <button id="quick-subcategory-x" class="quick-create-close" type="button" aria-label="Cerrar">×</button>
+                      </div>
+                      <div class="quick-create-body">
+                        <div class="quick-create-grid">
+                          <div class="field">
+                            <label for="quick-subcategory-name">Nombre</label>
+                            <input id="quick-subcategory-name" type="text" placeholder="Ej. Whey Protein" />
+                          </div>
+                          <div class="field">
+                            <label for="quick-subcategory-image">Foto opcional</label>
+                            <input id="quick-subcategory-image" type="file" accept="image/*" />
+                          </div>
+                        </div>
+                        <p class="form-help">Se creará dentro de la categoría seleccionada.</p>
+                        <div id="quick-subcategory-alert" class="alert alert-info hidden"></div>
+                        <div class="quick-create-actions">
+                          <button id="quick-subcategory-cancel" class="mini-btn" type="button">Cancelar</button>
+                          <button id="quick-subcategory-save" class="submit-btn" type="button">Crear subcategoría</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field price-offer-card">
+                    <div class="price-offer-card-head">
+                      <div>
+                        <p class="price-offer-card-title">Precio y oferta</p>
+                        <p class="price-offer-card-subtitle">El Precio USD se bloquea en gris cuando la oferta está activa.</p>
+                      </div>
+                    </div>
+                    <div class="price-offer-grid">
+                      <div class="field">
+                        <label for="product-price">Precio USD</label>
+                        <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required />
+                      </div>
+                      <div class="field offer-field">
+                        <label class="check-card"><input id="product-is-offer" type="checkbox" /> Oferta</label>
+                        <label for="product-offer-price" style="margin-top:10px;">Precio oferta USD</label>
+                        <input id="product-offer-price" type="number" min="0" step="0.01" placeholder="0.00" disabled />
+                        <p id="product-offer-help" class="offer-hint">Activa Oferta y escribe un precio menor al Precio USD.</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="product-cost">Costo USD</label>
+                    <input id="product-cost" type="number" min="0" step="0.01" placeholder="0.00" />
+                  </div>
+                  <div class="field">
+                    <label for="product-internal-ref">Ref interna</label>
+                    <input id="product-internal-ref" type="text" placeholder="Ej: BF-WHEY-5LB" />
+                  </div>
+                  <div id="product-stock-field" class="field">
+                    <label for="product-stock">Stock</label>
+                    <input id="product-stock" type="number" min="0" step="1" placeholder="0" />
+                    <p id="product-stock-help" class="form-help">Si el producto usa variaciones, el stock real de venta saldrá de las variaciones.</p>
+                  </div>
+                  <div class="field">
+                    <label for="product-delivery-mode">Método disponible</label>
+                    <select id="product-delivery-mode" required>
+                      <option value="both">Envío o recogida</option>
+                      <option value="delivery">Solo envío</option>
+                      <option value="pickup">Solo recogida</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="product-expiration-date">Fecha de vencimiento</label>
+                    <input id="product-expiration-date" type="date" />
+                  </div>
+                  <div class="field full">
+                    <label for="product-description">Descripción</label>
+                    <textarea id="product-description" placeholder="Descripción visible en la ficha del producto"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label>Información adicional</label>
+                    <p class="form-help">Agrega hasta 3 datos editables por producto. Ej: Marca, Presentación, Beneficio, Sabor, Tamaño o Servicio.</p>
+                    <div class="product-extra-panel">
+                      <div id="product-extra-list" class="product-extra-list"></div>
+                      <button id="product-extra-add-btn" class="product-extra-add" type="button">＋ Añadir información</button>
+                      <div id="product-extra-editor" class="product-extra-editor hidden">
+                        <div class="product-extra-editor-head">
+                          <div>
+                            <p id="product-extra-editor-title" class="product-extra-editor-title">Nueva información</p>
+                            <p class="product-extra-editor-help">El admin puede editar el nombre del dato y su valor para cada producto.</p>
+                          </div>
+                          <button id="product-extra-close-btn" class="mini-btn" type="button">×</button>
+                        </div>
+                        <div class="product-extra-editor-grid">
+                          <div class="field">
+                            <label for="product-extra-label">Nombre del dato</label>
+                            <input id="product-extra-label" type="text" placeholder="Ej: Marca" maxlength="40" />
+                          </div>
+                          <div class="field">
+                            <label for="product-extra-value">Valor</label>
+                            <input id="product-extra-value" type="text" placeholder="Ej: Spring Valley" maxlength="80" />
+                          </div>
+                        </div>
+                        <div class="product-extra-editor-actions">
+                          <button id="product-extra-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                          <button id="product-extra-save-btn" class="submit-btn" type="button">Guardar información</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field full">
+                    <label>Productos relacionados</label>
+                    <p class="form-help">Selecciona hasta 4 productos sugeridos para mostrar al final de la ficha pública.</p>
+                    <div class="related-products-panel">
+                      <div class="related-products-head">
+                        <div>
+                          <p class="related-products-title">Productos relacionados</p>
+                          <p class="related-products-subtitle">Artículos sugeridos junto a este producto.</p>
+                        </div>
+                        <button id="related-products-open-btn" class="mini-btn" type="button">＋ Añadir productos</button>
+                      </div>
+                      <div id="related-products-list" class="related-products-list"></div>
+                    </div>
+                  </div>
+                  <div class="field full">
+                    <label>Fotos del producto</label>
+                    <p class="form-help">Usa hasta 4 espacios. La foto del primer espacio es la portada. Las imágenes se ajustan automáticamente para verse completas y pesar menos.</p>
+                    <div id="product-image-slots" class="product-image-slots"></div>
+                  </div>
+                  <div class="field full">
+                    <label>Opciones</label>
+                    <div class="check-grid">
+                      <label class="check-card"><input id="product-active" type="checkbox" checked /> Visible en tienda</label>
+                      <label class="check-card"><input id="product-featured" type="checkbox" /> Destacado</label>
+                      <label class="check-card"><input id="product-only-usd" type="checkbox" /> Solo USD</label>
+                      <label class="check-card"><input id="product-allow-preorder" type="checkbox" /> Preorder si está agotado</label>
+                      <label class="check-card"><input id="product-track-stock" type="checkbox" checked /> Descontar stock en órdenes</label>
+                      <label id="product-has-variations-option" class="check-card hidden"><input id="product-has-variations" type="checkbox" /> Usa variaciones</label>
+                    </div>
+                    <p class="form-help">Si activas “Descontar stock”, las órdenes descontarán inventario. Si el producto usa variaciones, el stock del producto padre será la suma de las variaciones.</p>
+                  </div>
+                  <div id="product-variation-view-field" class="field full hidden">
+                    <label for="product-variation-view">Vista de variaciones en tienda</label>
+                    <select id="product-variation-view">
+                      <option value="buttons">Botones</option>
+                      <option value="dropdown">Desplegable</option>
+                      <option value="checkbox">Checkbox fijo</option>
+                    </select>
+                    <p class="form-help">Botones para pocas opciones, desplegable para muchas opciones y checkbox fijo para mostrar todas las variaciones visibles.</p>
+                  </div>
+                </div>
+
+                <section id="variation-manager" class="variation-manager hidden" aria-live="polite">
+                  <div class="variation-head">
+                    <div>
+                      <h3 class="variation-title">Variaciones del producto</h3>
+                      <p id="variation-manager-help" class="variation-subtitle">Guarda o abre un producto existente para crear variaciones. La tienda pública se conectará a esta información en el próximo paso.</p>
+                    </div>
+                    <div class="variation-actions" style="margin-top:0;">
+                      <button id="variation-new-btn" class="mini-btn" type="button">Nueva variación</button>
+                      <button id="variation-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+                    </div>
+                  </div>
+
+                  <div id="variation-editor" class="variation-editor hidden">
+                    <input id="variation-id" type="hidden" />
+                    <div class="variation-grid">
+                      <div class="field">
+                        <label for="variation-type">Tipo</label>
+                        <input id="variation-type" type="text" placeholder="Ej: Sabor" />
+                      </div>
+                      <div class="field">
+                        <label for="variation-value">Valor</label>
+                        <input id="variation-value" type="text" placeholder="Ej: Chocolate" />
+                      </div>
+                      <div class="field">
+                        <label for="variation-price">Precio USD</label>
+                        <input id="variation-price" type="number" min="0" step="0.01" placeholder="0.00" />
+                      </div>
+                      <div class="field">
+                        <label for="variation-cost">Costo USD</label>
+                        <input id="variation-cost" type="number" min="0" step="0.01" placeholder="0.00" />
+                      </div>
+                      <div class="field">
+                        <label for="variation-stock">Stock</label>
+                        <input id="variation-stock" type="number" min="0" step="1" placeholder="0" />
+                        <p id="variation-stock-help" class="form-help">Se exige solo si el producto padre descuenta stock.</p>
+                      </div>
+                      <div class="field">
+                        <label for="variation-ref">Ref interna</label>
+                        <input id="variation-ref" type="text" placeholder="Ej: BF-WHEY-CHOC" />
+                      </div>
+                      <input id="variation-order" type="hidden" />
+                      <div class="field">
+                        <label for="variation-image">Foto de la variación</label>
+                        <input id="variation-image" type="file" accept="image/*" />
+                        <div id="variation-current-image" class="variation-current-image hidden"></div>
+                      </div>
+                      <div class="field full">
+                        <label>Opciones de la variación</label>
+                        <div class="variation-checks">
+                          <label class="check-card"><input id="variation-active" type="checkbox" checked /> Activa / visible</label>
+                          <label class="check-card"><input id="variation-allow-preorder" type="checkbox" /> Preorder si está agotada</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="variation-alert" class="alert alert-info hidden"></div>
+                    <div class="variation-actions">
+                      <button id="variation-cancel-btn" class="mini-btn" type="button">Cerrar</button>
+                      <button id="variation-delete-btn" class="mini-btn danger hidden" type="button">Borrar variación</button>
+                      <button id="variation-save-btn" class="submit-btn" type="button">Guardar variación</button>
+                    </div>
+                  </div>
+
+                  <div id="variations-list" class="variations-list">
+                    <div class="variation-empty">Abre un producto existente para ver sus variaciones.</div>
+                  </div>
+                </section>
+                <div id="product-form-alert" class="alert alert-info hidden"></div>
+                <div id="duplicate-product-toast" class="duplicate-toast hidden" role="status" aria-live="polite">
+                  <span class="duplicate-toast-icon">!</span>
+                  <span><strong>Producto repetido</strong><span id="duplicate-product-toast-detail">Ya existe un producto con ese nombre o ref interna.</span></span>
+                </div>
+                <div id="post-save-variation-prompt" class="inline-floating-card hidden">
+                  <p class="inline-floating-title">Producto creado correctamente</p>
+                  <p class="inline-floating-text">¿Deseas agregar variaciones a este producto ahora? Si eliges “Sí”, el producto se marcará como producto con variaciones y se abrirá el panel de variación. Si eliges “No”, se cerrará este panel y podrás agregarlas después desde Editar.</p>
+                  <div class="inline-floating-actions">
+                    <button id="post-save-variation-no" class="mini-btn" type="button">No, después</button>
+                    <button id="post-save-variation-yes" class="submit-btn" type="button">Sí, agregar variación</button>
+                  </div>
+                </div>
+                <div class="editor-actions">
+                  <button id="product-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                  <button id="product-save-btn" class="submit-btn" type="button">Guardar producto</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <div id="catalog-overview">
+            <div class="stats-grid">
+              <article class="stat-card"><p class="stat-label">Productos totales</p><p id="stat-total" class="stat-value">0</p></article>
+              <article class="stat-card"><p class="stat-label">Visibles</p><p id="stat-visible" class="stat-value">0</p></article>
+              <article class="stat-card"><p class="stat-label">Ocultos</p><p id="stat-hidden" class="stat-value">0</p></article>
+              <article class="stat-card"><p class="stat-label">Stock total</p><p id="stat-stock" class="stat-value">0</p></article>
+            </div>
+
+            <section class="panel-card toolbar">
+              <div class="field">
+                <label for="search-input">Buscar producto</label>
+                <input id="search-input" type="search" placeholder="Nombre, ref interna, slug o categoría" />
+              </div>
+              <div class="field">
+                <label for="category-filter">Categoría</label>
+                <select id="category-filter"><option value="">Todas</option></select>
+              </div>
+              <div class="field">
+                <label for="subcategory-filter">Subcategoría</label>
+                <select id="subcategory-filter"><option value="">Todas</option></select>
+              </div>
+              <button id="refresh-btn" class="action-btn" type="button">Actualizar</button>
+            </section>
+
+            <section class="list-card">
+              <div id="products-list" class="products-list"><div class="empty-state">Cargando productos...</div></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="related-products-modal" class="quick-create-panel hidden" role="dialog" aria-modal="true" aria-labelledby="related-products-modal-title">
+      <div class="quick-create-head">
+        <div>
+          <p class="quick-create-kicker">Añadir productos</p>
+          <h3 id="related-products-modal-title" class="quick-create-title">Productos relacionados</h3>
+          <p id="related-products-modal-subtitle" class="quick-create-subtitle">Selecciona hasta 4 productos relacionados.</p>
+        </div>
+        <button id="related-products-close-btn" class="quick-create-close" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <div class="quick-create-body">
+        <div class="field related-modal-search">
+          <label for="related-products-search">Buscar</label>
+          <input id="related-products-search" type="search" placeholder="Buscar producto" />
+        </div>
+        <div id="related-products-modal-list" class="related-modal-list"></div>
+        <div class="quick-create-actions">
+          <button id="related-products-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+          <button id="related-products-apply-btn" class="submit-btn" type="button">Añadir</button>
+        </div>
+      </div>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl }}>
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+      const TRACK_STOCK_FIELD = 'track_stock';
+
+      let categories = [];
+      let subcategories = [];
+      let products = [];
+      let productVariations = [];
+      let selectedRelatedProductIds = [];
+      let modalRelatedProductIds = [];
+      let lockedRegularPriceUsd = 0;
+      let pendingVariationProductId = "";
+      let pendingDeleteProductId = "";
+      let pendingSoldoutProductId = "";
+
+      const sidebar = document.getElementById('admin-sidebar');
+      const sidebarOpenBtn = document.getElementById('sidebar-open');
+      const sidebarCloseBtn = document.getElementById('sidebar-close');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const loginView = document.getElementById('login-view');
+      const adminView = document.getElementById('admin-view');
+      const logoutBtn = document.getElementById('logout-btn');
+      const loginForm = document.getElementById('login-form');
+      const loginAlert = document.getElementById('login-alert');
+      const productsList = document.getElementById('products-list');
+      const catalogOverview = document.getElementById('catalog-overview');
+      const refreshBtn = document.getElementById('refresh-btn');
+      const newProductBtn = document.getElementById('new-product-btn');
+      const searchInput = document.getElementById('search-input');
+      const categoryFilter = document.getElementById('category-filter');
+      const subcategoryFilter = document.getElementById('subcategory-filter');
+      const productEditor = document.getElementById('product-editor');
+      const productForm = document.getElementById('product-form');
+      const productIdInput = document.getElementById('product-id');
+      const productNameInput = document.getElementById('product-name');
+      const productSlugInput = document.getElementById('product-slug');
+      const productCategoryInput = document.getElementById('product-category');
+      const productSubcategoryInput = document.getElementById('product-subcategory');
+      const productPriceInput = document.getElementById('product-price');
+      const productIsOfferInput = document.getElementById('product-is-offer');
+      const productOfferPriceInput = document.getElementById('product-offer-price');
+      const productOfferHelp = document.getElementById('product-offer-help');
+      const productCostInput = document.getElementById('product-cost');
+      const productInternalRefInput = document.getElementById('product-internal-ref');
+      const productStockInput = document.getElementById('product-stock');
+      const productStockField = document.getElementById('product-stock-field');
+      const productStockHelp = document.getElementById('product-stock-help');
+      const productDeliveryModeInput = document.getElementById('product-delivery-mode');
+      const productExpirationDateInput = document.getElementById('product-expiration-date');
+      const productDescriptionInput = document.getElementById('product-description');
+      const productExtraList = document.getElementById('product-extra-list');
+      const productExtraAddBtn = document.getElementById('product-extra-add-btn');
+      const productExtraEditor = document.getElementById('product-extra-editor');
+      const productExtraEditorTitle = document.getElementById('product-extra-editor-title');
+      const productExtraLabelInput = document.getElementById('product-extra-label');
+      const productExtraValueInput = document.getElementById('product-extra-value');
+      const productExtraCloseBtn = document.getElementById('product-extra-close-btn');
+      const productExtraCancelBtn = document.getElementById('product-extra-cancel-btn');
+      const productExtraSaveBtn = document.getElementById('product-extra-save-btn');
+      const productImageSlotsBox = document.getElementById('product-image-slots');
+      const relatedProductsOpenBtn = document.getElementById('related-products-open-btn');
+      const relatedProductsList = document.getElementById('related-products-list');
+      const relatedProductsModal = document.getElementById('related-products-modal');
+      const relatedProductsModalSubtitle = document.getElementById('related-products-modal-subtitle');
+      const relatedProductsCloseBtn = document.getElementById('related-products-close-btn');
+      const relatedProductsCancelBtn = document.getElementById('related-products-cancel-btn');
+      const relatedProductsApplyBtn = document.getElementById('related-products-apply-btn');
+      const relatedProductsSearchInput = document.getElementById('related-products-search');
+      const relatedProductsModalList = document.getElementById('related-products-modal-list');
+      const productActiveInput = document.getElementById('product-active');
+      const productFeaturedInput = document.getElementById('product-featured');
+      const productOnlyUsdInput = document.getElementById('product-only-usd');
+      const productAllowPreorderInput = document.getElementById('product-allow-preorder');
+      const productTrackStockInput = document.getElementById('product-track-stock');
+      const productHasVariationsInput = document.getElementById('product-has-variations');
+      const productHasVariationsOption = document.getElementById('product-has-variations-option');
+      const productVariationViewField = document.getElementById('product-variation-view-field');
+      const productVariationViewInput = document.getElementById('product-variation-view');
+      const productFormAlert = document.getElementById('product-form-alert');
+      const duplicateProductToast = document.getElementById('duplicate-product-toast');
+      const duplicateProductToastDetail = document.getElementById('duplicate-product-toast-detail');
+      let duplicateProductToastTimer = null;
+      const editorTitle = document.getElementById('editor-title');
+      const editorSubtitle = document.getElementById('editor-subtitle');
+      const editorCloseBtn = document.getElementById('editor-close-btn');
+      const productCancelBtn = document.getElementById('product-cancel-btn');
+      const productSaveBtn = document.getElementById('product-save-btn');
+      const postSaveVariationPrompt = document.getElementById('post-save-variation-prompt');
+      const postSaveVariationYesBtn = document.getElementById('post-save-variation-yes');
+      const postSaveVariationNoBtn = document.getElementById('post-save-variation-no');
+      const quickCategoryPanel = document.getElementById('quick-category-panel');
+      const quickCategoryName = document.getElementById('quick-category-name');
+      const quickCategoryImage = document.getElementById('quick-category-image');
+      const quickCategoryAlert = document.getElementById('quick-category-alert');
+      const quickCategoryCancel = document.getElementById('quick-category-cancel');
+      const quickCategoryX = document.getElementById('quick-category-x');
+      const quickCategorySave = document.getElementById('quick-category-save');
+      const quickSubcategoryPanel = document.getElementById('quick-subcategory-panel');
+      const quickSubcategoryName = document.getElementById('quick-subcategory-name');
+      const quickSubcategoryImage = document.getElementById('quick-subcategory-image');
+      const quickSubcategoryAlert = document.getElementById('quick-subcategory-alert');
+      const quickSubcategoryCancel = document.getElementById('quick-subcategory-cancel');
+      const quickSubcategoryX = document.getElementById('quick-subcategory-x');
+      const quickSubcategorySave = document.getElementById('quick-subcategory-save');
+      const variationManager = document.getElementById('variation-manager');
+      const variationManagerHelp = document.getElementById('variation-manager-help');
+      const variationEditor = document.getElementById('variation-editor');
+      const variationsList = document.getElementById('variations-list');
+      const variationNewBtn = document.getElementById('variation-new-btn');
+      const variationRefreshBtn = document.getElementById('variation-refresh-btn');
+      const variationIdInput = document.getElementById('variation-id');
+      const variationTypeInput = document.getElementById('variation-type');
+      const variationValueInput = document.getElementById('variation-value');
+      const variationPriceInput = document.getElementById('variation-price');
+      const variationCostInput = document.getElementById('variation-cost');
+      const variationStockInput = document.getElementById('variation-stock');
+      const variationStockHelp = document.getElementById('variation-stock-help');
+      const variationRefInput = document.getElementById('variation-ref');
+      const variationOrderInput = document.getElementById('variation-order');
+      const variationImageInput = document.getElementById('variation-image');
+      const variationActiveInput = document.getElementById('variation-active');
+      const variationAllowPreorderInput = document.getElementById('variation-allow-preorder');
+      const variationCurrentImageBox = document.getElementById('variation-current-image');
+      const PRODUCT_IMAGE_SLOT_COUNT = 4;
+      let productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
+      let productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
+      let productImagesToDelete = new Set();
+      const PRODUCT_EXTRA_INFO_LIMIT = 3;
+      let productExtraInfoItems = [];
+      let editingExtraInfoIndex = -1;
+      function normalizeProductImages(product) {
+        const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
+        let order = [];
+        try {
+          order = product?.image_order ? JSON.parse(product.image_order) : [];
+        } catch (_) {
+          order = [];
+        }
+        const ordered = Array.isArray(order) ? order.filter((name) => images.includes(name)) : [];
+        return ordered.concat(images.filter((name) => !ordered.includes(name))).slice(0, PRODUCT_IMAGE_SLOT_COUNT);
+      }
+      const variationAlert = document.getElementById('variation-alert');
+      const variationCancelBtn = document.getElementById('variation-cancel-btn');
+      const variationDeleteBtn = document.getElementById('variation-delete-btn');
+      const variationSaveBtn = document.getElementById('variation-save-btn');
+
+      function openSidebar() {
+        document.body.classList.add('sidebar-open');
+        sidebar?.setAttribute('aria-hidden', 'false');
+        sidebarOpenBtn?.setAttribute('aria-expanded', 'true');
+        if (sidebarOverlay) sidebarOverlay.hidden = false;
+      }
+      function closeSidebar() {
+        document.body.classList.remove('sidebar-open');
+        sidebar?.setAttribute('aria-hidden', 'true');
+        sidebarOpenBtn?.setAttribute('aria-expanded', 'false');
+        window.setTimeout(() => {
+          if (!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true;
+        }, 230);
+      }
+      sidebarOpenBtn?.addEventListener('click', openSidebar);
+      sidebarCloseBtn?.addEventListener('click', closeSidebar);
+      sidebarOverlay?.addEventListener('click', closeSidebar);
+      sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSidebar));
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+      }
+      function formatUsd(value) {
+        return `${Number(value || 0).toFixed(2)} USD`;
+      }
+      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token); }
+      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
+      function showLogin() { loginView.classList.remove('hidden'); adminView.classList.add('hidden'); logoutBtn.classList.add('hidden'); }
+      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); }
+      function setAlert(element, message) {
+        element.textContent = message || '';
+        element.classList.toggle('hidden', !message);
+      }
+
+      function slugify(value) {
+        return String(value || '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 80);
+      }
+      function dateForInput(value) {
+        if (!value) return '';
+        return String(value).slice(0, 10);
+      }
+      function setFormAlert(message, type = 'info') {
+        productFormAlert.textContent = message || '';
+        productFormAlert.className = `alert alert-${type} ${message ? '' : 'hidden'}`;
+      }
+
+      function showDuplicateProductToast(detail = '') {
+        if (!duplicateProductToast) return;
+        if (duplicateProductToastDetail) {
+          duplicateProductToastDetail.textContent = detail || 'Ya existe un producto con ese nombre o ref interna.';
+        }
+        duplicateProductToast.classList.remove('hidden');
+        window.clearTimeout(duplicateProductToastTimer);
+        duplicateProductToastTimer = window.setTimeout(() => {
+          duplicateProductToast?.classList.add('hidden');
+        }, 4200);
+      }
+
+      function hidePostSaveVariationPrompt() {
+        pendingVariationProductId = '';
+        postSaveVariationPrompt?.classList.add('hidden');
+      }
+      function showPostSaveVariationPrompt(productId) {
+        pendingVariationProductId = productId || '';
+        if (!pendingVariationProductId || !postSaveVariationPrompt) return;
+        postSaveVariationPrompt.classList.remove('hidden');
+        postSaveVariationPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      function setQuickAlert(element, message, type = 'info') {
+        if (!element) return;
+        element.textContent = message || '';
+        element.className = `alert alert-${type} ${message ? '' : 'hidden'}`;
+      }
+      function nextOrder(items) {
+        const maxOrder = items.reduce((max, item) => Math.max(max, Number(item.order || 0)), 0);
+        return maxOrder + 1;
+      }
+      function sortByOrderAndName(items) {
+        return [...items].sort((a, b) => (Number(a.order || 0) - Number(b.order || 0)) || String(a.name || '').localeCompare(String(b.name || '')));
+      }
+      const CREATE_CATEGORY_VALUE = '__create_category__';
+      const CREATE_SUBCATEGORY_VALUE = '__create_subcategory__';
+      function deliveryLabel(value) {
+        if (value === 'delivery') return 'Solo envío';
+        if (value === 'pickup') return 'Solo recogida';
+        return 'Envío o recogida';
+      }
+      function renderProductSelectOptions() {
+        const selectedCategory = productCategoryInput.value && productCategoryInput.value !== CREATE_CATEGORY_VALUE ? productCategoryInput.value : '';
+        const categoryOptions = sortByOrderAndName(categories).map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}${item.active ? '' : ' · Oculta'}</option>`).join('');
+        productCategoryInput.innerHTML = '<option value="">Sin categoría / página principal</option>' + categoryOptions + `<option value="${CREATE_CATEGORY_VALUE}">+ Crear nueva categoría</option>`;
+        if (selectedCategory) productCategoryInput.value = selectedCategory;
+        renderProductSubcategoryOptions(productSubcategoryInput.value);
+      }
+      function renderProductSubcategoryOptions(selectedValue = '') {
+        const categoryId = productCategoryInput.value;
+        const safeSelectedValue = selectedValue && selectedValue !== CREATE_SUBCATEGORY_VALUE ? selectedValue : '';
+        const items = subcategories.filter((item) => categoryId && item.category === categoryId);
+        const createOption = categoryId ? `<option value="${CREATE_SUBCATEGORY_VALUE}">+ Crear nueva subcategoría</option>` : '<option value="" disabled>Disponible solo si escoges categoría</option>';
+        productSubcategoryInput.innerHTML = '<option value="">Sin subcategoría</option>' + sortByOrderAndName(items).map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}${item.active ? '' : ' · Oculta'}</option>`).join('') + createOption;
+        if (safeSelectedValue && items.some((item) => item.id === safeSelectedValue)) productSubcategoryInput.value = safeSelectedValue;
+      }
+      function resetQuickCreatePanels() {
+        quickCategoryPanel?.classList.add('hidden');
+        quickSubcategoryPanel?.classList.add('hidden');
+        document.body.classList.remove('quick-modal-open');
+        if (quickCategoryName) quickCategoryName.value = '';
+        if (quickCategoryImage) quickCategoryImage.value = '';
+        if (quickSubcategoryName) quickSubcategoryName.value = '';
+        if (quickSubcategoryImage) quickSubcategoryImage.value = '';
+        setQuickAlert(quickCategoryAlert, '');
+        setQuickAlert(quickSubcategoryAlert, '');
+      }
+
+      function getOpenQuickCreatePanel() {
+        if (quickCategoryPanel && !quickCategoryPanel.classList.contains('hidden')) return quickCategoryPanel;
+        if (quickSubcategoryPanel && !quickSubcategoryPanel.classList.contains('hidden')) return quickSubcategoryPanel;
+        return null;
+      }
+
+      function closeQuickCreatePanelsAndRestoreSelects() {
+        const currentSubcategoryValue = productSubcategoryInput?.value || '';
+        resetQuickCreatePanels();
+        renderProductSelectOptions(productCategoryInput?.value || '');
+        renderProductSubcategoryOptions(currentSubcategoryValue);
+      }
+      function openQuickCategoryPanel() {
+        quickSubcategoryPanel?.classList.add('hidden');
+        quickCategoryPanel?.classList.remove('hidden');
+        document.body.classList.add('quick-modal-open');
+        setQuickAlert(quickCategoryAlert, '');
+        window.setTimeout(() => quickCategoryName?.focus(), 30);
+      }
+      function openQuickSubcategoryPanel() {
+        if (!productCategoryInput.value || productCategoryInput.value === CREATE_CATEGORY_VALUE) {
+          productSubcategoryInput.value = '';
+          setFormAlert('Primero selecciona o crea una categoría para poder crear una subcategoría.', 'error');
+          return;
+        }
+        quickCategoryPanel?.classList.add('hidden');
+        quickSubcategoryPanel?.classList.remove('hidden');
+        document.body.classList.add('quick-modal-open');
+        setQuickAlert(quickSubcategoryAlert, '');
+        window.setTimeout(() => quickSubcategoryName?.focus(), 30);
+      }
+      function parseProductExtraInfo(value) {
+        if (Array.isArray(value)) return value;
+        if (!value) return [];
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+          return [];
+        }
+      }
+      function normalizeProductExtraInfo(value) {
+        return parseProductExtraInfo(value)
+          .map((item) => ({
+            label: String(item?.label || item?.name || '').trim().slice(0, 40),
+            value: String(item?.value || '').trim().slice(0, 80),
+          }))
+          .filter((item) => item.label && item.value)
+          .slice(0, PRODUCT_EXTRA_INFO_LIMIT);
+      }
+      function renderProductExtraInfo() {
+        if (!productExtraList) return;
+        productExtraList.innerHTML = productExtraInfoItems.length
+          ? productExtraInfoItems.map((item, index) => `
+              <div class="product-extra-row" data-extra-row="${index}">
+                <div>
+                  <strong>${escapeHtml(item.label)}</strong>
+                  <span>${escapeHtml(item.value)}</span>
+                </div>
+                <div class="product-extra-actions">
+                  <button type="button" class="product-extra-mini" data-extra-edit="${index}">Editar</button>
+                  <button type="button" class="product-extra-mini danger" data-extra-remove="${index}">Borrar</button>
+                </div>
+              </div>`).join('')
+          : '<div class="variation-empty">Sin información adicional. Agrega datos como Marca, Presentación o Beneficio.</div>';
+        if (productExtraAddBtn) {
+          productExtraAddBtn.disabled = productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT;
+          productExtraAddBtn.textContent = productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT ? 'Máximo 3 informaciones' : '＋ Añadir información';
+        }
+        productExtraList.querySelectorAll('[data-extra-edit]').forEach((button) => {
+          button.addEventListener('click', () => openExtraInfoEditor(Number(button.dataset.extraEdit || -1)));
+        });
+        productExtraList.querySelectorAll('[data-extra-remove]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const index = Number(button.dataset.extraRemove || -1);
+            if (index < 0) return;
+            productExtraInfoItems.splice(index, 1);
+            closeExtraInfoEditor();
+            renderProductExtraInfo();
+            try {
+              await saveProductExtraInfoDirectly('Información adicional borrada correctamente.');
+            } catch (error) {
+              setFormAlert(error.message || 'No se pudo borrar la información adicional.', 'error');
+            }
+          });
+        });
+      }
+      function openExtraInfoEditor(index = -1) {
+        if (!productExtraEditor) return;
+        if (index < 0 && productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT) return;
+        editingExtraInfoIndex = index;
+        const item = index >= 0 ? productExtraInfoItems[index] : null;
+        if (productExtraEditorTitle) productExtraEditorTitle.textContent = item ? 'Editar información' : 'Nueva información';
+        if (productExtraLabelInput) productExtraLabelInput.value = item?.label || '';
+        if (productExtraValueInput) productExtraValueInput.value = item?.value || '';
+        productExtraEditor.classList.remove('hidden');
+        window.setTimeout(() => productExtraLabelInput?.focus(), 30);
+      }
+      function closeExtraInfoEditor() {
+        editingExtraInfoIndex = -1;
+        productExtraEditor?.classList.add('hidden');
+        if (productExtraLabelInput) productExtraLabelInput.value = '';
+        if (productExtraValueInput) productExtraValueInput.value = '';
+      }
+      async function saveProductExtraInfoDirectly(message = 'Información adicional guardada correctamente.') {
+        const editingProductId = productIdInput?.value || '';
+        if (!editingProductId) {
+          setFormAlert('Información adicional actualizada. Recuerda guardar el producto.', 'success');
+          return;
+        }
+        const cleanExtraInfo = normalizeProductExtraInfo(productExtraInfoItems);
+        const updatedProduct = await apiRequest(`/api/collections/products/records/${editingProductId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ extra_info: JSON.stringify(cleanExtraInfo) }),
+        });
+        products = products.map((item) => item.id === editingProductId ? { ...item, extra_info: updatedProduct.extra_info } : item);
+        productExtraInfoItems = normalizeProductExtraInfo(updatedProduct.extra_info);
+        renderProductExtraInfo();
+        setFormAlert(message, 'success');
+      }
+      async function saveExtraInfoEditor() {
+        const label = String(productExtraLabelInput?.value || '').trim().slice(0, 40);
+        const value = String(productExtraValueInput?.value || '').trim().slice(0, 80);
+        if (!label || !value) {
+          setFormAlert('Completa el nombre del dato y el valor de la información adicional.', 'error');
+          return;
+        }
+        const item = { label, value };
+        if (editingExtraInfoIndex >= 0) productExtraInfoItems[editingExtraInfoIndex] = item;
+        else if (productExtraInfoItems.length < PRODUCT_EXTRA_INFO_LIMIT) productExtraInfoItems.push(item);
+        closeExtraInfoEditor();
+        renderProductExtraInfo();
+        try {
+          if (productExtraSaveBtn) productExtraSaveBtn.disabled = true;
+          await saveProductExtraInfoDirectly();
+        } catch (error) {
+          setFormAlert(error.message || 'No se pudo guardar la información adicional.', 'error');
+        } finally {
+          if (productExtraSaveBtn) productExtraSaveBtn.disabled = false;
+        }
+      }
+      function resetProductExtraInfo(value = []) {
+        productExtraInfoItems = normalizeProductExtraInfo(value);
+        closeExtraInfoEditor();
+        renderProductExtraInfo();
+      }
+      function productImagePreviewUrl(productId, filename) {
+        if (!productId || !filename || !POCKETBASE_URL) return '';
+        return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(productId)}/${encodeURIComponent(filename)}?thumb=300x300`;
+      }
+      function resetProductImageSlots() {
+        productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
+        productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
+        productImagesToDelete = new Set();
+        renderProductImageSlots();
+      }
+      function renderProductImageSlots(product = null) {
+        if (!productImageSlotsBox) return;
+        const productId = product?.id || productIdInput?.value || '';
+        productImageSlotsBox.innerHTML = Array.from({ length: PRODUCT_IMAGE_SLOT_COUNT }, (_, index) => {
+          const existing = productImageSlotExisting[index] || '';
+          const selected = productImageSlotFiles[index] || null;
+          const preview = selected ? URL.createObjectURL(selected) : productImagePreviewUrl(productId, existing);
+          const isCover = index === 0;
+          const hasImage = Boolean(preview);
+          const label = isCover ? 'Portada' : `Foto ${index + 1}`;
+          return `
+            <div class="product-image-slot ${isCover ? 'is-cover' : ''}" data-slot="${index}">
+              <div class="product-image-preview">${hasImage ? `<img src="${preview}" alt="${label}" />` : '＋'}</div>
+              <div class="product-image-label"><span>${label}</span>${isCover ? '<span class="product-image-badge">Portada</span>' : ''}</div>
+              <div class="product-image-actions">
+                <label class="product-image-action">${hasImage ? 'Cambiar' : 'Subir'}<input type="file" accept="image/*" data-image-input="${index}" /></label>
+                ${hasImage ? `<button type="button" class="product-image-action danger" data-image-remove="${index}">Borrar</button>` : ''}
+              </div>
+            </div>`;
+        }).join('');
+        productImageSlotsBox.querySelectorAll('[data-image-input]').forEach((input) => {
+          input.addEventListener('change', (event) => {
+            const slot = Number(event.currentTarget.dataset.imageInput);
+            const file = event.currentTarget.files?.[0] || null;
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+              setFormAlert('Solo puedes subir imágenes.', 'error');
+              event.currentTarget.value = '';
+              return;
+            }
+            const existing = productImageSlotExisting[slot] || '';
+            if (existing) productImagesToDelete.add(existing);
+            productImageSlotFiles[slot] = file;
+            renderProductImageSlots(product);
+          });
+        });
+        productImageSlotsBox.querySelectorAll('[data-image-remove]').forEach((button) => {
+          button.addEventListener('click', (event) => {
+            const slot = Number(event.currentTarget.dataset.imageRemove);
+            const existing = productImageSlotExisting[slot] || '';
+            if (existing) productImagesToDelete.add(existing);
+            productImageSlotExisting[slot] = '';
+            productImageSlotFiles[slot] = null;
+            renderProductImageSlots(product);
+          });
+        });
+      }
+      function renderCurrentImages(product) {
+        const images = normalizeProductImages(product);
+        productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('').map((_, index) => images[index] || '');
+        productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
+        productImagesToDelete = new Set();
+        renderProductImageSlots(product);
+      }
+      async function optimizeProductImageFile(file) {
+        if (!file || !file.type.startsWith('image/')) return file;
+        if (typeof window === 'undefined' || !window.createImageBitmap) return file;
+        try {
+          const bitmap = await createImageBitmap(file);
+          const maxSide = 1000;
+          const ratio = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+          const width = Math.max(1, Math.round(bitmap.width * ratio));
+          const height = Math.max(1, Math.round(bitmap.height * ratio));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bitmap, 0, 0, width, height);
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.78));
+          if (!blob) return file;
+          if (blob.size >= file.size && file.size <= 450000) return file;
+          const safeName = file.name.replace(/\.[^.]+$/, '') || 'producto';
+          return new File([blob], `${safeName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+        } catch (error) {
+          console.warn('No se pudo optimizar la imagen. Se usará la original.', error);
+          return file;
+        }
+      }
+      async function appendProductImageFiles(formData, { appendMode = false } = {}) {
+        productImagesToDelete.forEach((filename) => {
+          if (filename) formData.append('images-', filename);
+        });
+        const filesInOrder = productImageSlotFiles.map((file, index) => ({ file, index })).filter((item) => Boolean(item.file)).slice(0, PRODUCT_IMAGE_SLOT_COUNT);
+        const fieldName = appendMode ? 'images+' : 'images';
+        for (const { file } of filesInOrder) {
+          formData.append(fieldName, await optimizeProductImageFile(file));
+        }
+      }
+      async function syncProductImageOrder(savedProduct) {
+        if (!savedProduct?.id) return savedProduct;
+        const savedImages = Array.isArray(savedProduct.images) ? savedProduct.images.filter(Boolean) : [];
+        const existingKept = productImageSlotExisting.filter(Boolean).filter((name) => savedImages.includes(name));
+        const newNames = savedImages.filter((name) => !existingKept.includes(name));
+        let newIndex = 0;
+        const ordered = [];
+        for (let index = 0; index < PRODUCT_IMAGE_SLOT_COUNT; index += 1) {
+          if (productImageSlotFiles[index]) {
+            const uploadedName = newNames[newIndex];
+            newIndex += 1;
+            if (uploadedName && savedImages.includes(uploadedName)) ordered.push(uploadedName);
+          } else {
+            const existing = productImageSlotExisting[index] || '';
+            if (existing && savedImages.includes(existing)) ordered.push(existing);
+          }
+        }
+        const finalOrder = ordered.concat(savedImages.filter((name) => !ordered.includes(name))).slice(0, PRODUCT_IMAGE_SLOT_COUNT);
+        if (!finalOrder.length) return savedProduct;
+        const orderData = new FormData();
+        orderData.set('image_order', JSON.stringify(finalOrder));
+        try {
+          return await apiRequest(`/api/collections/products/records/${savedProduct.id}`, { method: 'PATCH', body: orderData });
+        } catch (error) {
+          console.warn('No se pudo guardar el orden de imágenes. Revisa que la migración image_order esté aplicada.', error);
+          return savedProduct;
+        }
+      }
+      function variationImageUrl(variation) {
+        const imageValue = Array.isArray(variation?.image) ? variation.image[0] : variation?.image;
+        if (!variation?.id || !imageValue || !POCKETBASE_URL) return '';
+        return `${POCKETBASE_URL}/api/files/product_variations/${encodeURIComponent(variation.id)}/${encodeURIComponent(imageValue)}?thumb=120x120`;
+      }
+      function variationThumbMarkup(variation) {
+        const url = variationImageUrl(variation);
+        if (!url) return '<span class="variation-thumb">🏷️</span>';
+        return `<img class="variation-thumb" src="${url}" alt="${escapeHtml(variation.value || 'Variación')}" loading="lazy" />`;
+      }
+      function setVariationAlert(message, type = 'info') {
+        if (!variationAlert) return;
+        variationAlert.textContent = message || '';
+        variationAlert.className = `alert alert-${type} ${message ? '' : 'hidden'}`;
+      }
+      function productTracksStock(product = null) {
+        if (product && Object.prototype.hasOwnProperty.call(product, TRACK_STOCK_FIELD)) return product[TRACK_STOCK_FIELD] !== false;
+        return productTrackStockInput ? productTrackStockInput.checked : true;
+      }
+      function getVariationStockSum() {
+        return productVariations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stock || 0))), 0);
+      }
+      function updateProductFormState({ showMessage = false } = {}) {
+        if (!productSaveBtn) return;
+        const name = productNameInput.value.trim();
+        const trackStock = productTrackStockInput ? productTrackStockInput.checked : true;
+        const isEditing = Boolean(productIdInput.value);
+        const useVariations = isEditing && productHasVariationsInput ? productHasVariationsInput.checked : false;
+        const stockRaw = productStockInput.value;
+        const hasValidStock = stockRaw !== '' && Number.isFinite(Number(stockRaw)) && Number(stockRaw) >= 0;
+        const offerState = getValidOfferState();
+        updateOfferFieldState();
+
+        if (productHasVariationsOption) productHasVariationsOption.classList.toggle('hidden', !isEditing);
+        if (!isEditing && productHasVariationsInput) productHasVariationsInput.checked = false;
+
+        if (productStockField) productStockField.classList.toggle('hidden', !trackStock);
+        productStockInput.disabled = !trackStock || useVariations;
+        productStockInput.required = trackStock && !useVariations;
+        if (trackStock && useVariations) {
+          productStockInput.value = String(getVariationStockSum());
+          if (productStockHelp) productStockHelp.textContent = 'Stock automático: suma del stock de las variaciones.';
+        } else if (trackStock) {
+          if (productStockHelp) productStockHelp.textContent = 'Requerido porque este producto descuenta stock y no usa variaciones.';
+        } else {
+          productStockInput.value = '0';
+          if (productStockHelp) productStockHelp.textContent = 'Este producto no descuenta stock en órdenes.';
+        }
+
+        if (variationStockInput) {
+          variationStockInput.disabled = !trackStock;
+          variationStockInput.required = trackStock;
+          if (!trackStock) variationStockInput.value = '0';
+        }
+        if (variationStockHelp) {
+          variationStockHelp.textContent = trackStock ? 'Requerido porque el producto padre descuenta stock.' : 'No requerido porque el producto padre no descuenta stock.';
+        }
+
+        if (variationManager) {
+          const shouldShowVariationPanel = isEditing && useVariations;
+          variationManager.classList.toggle('hidden', !shouldShowVariationPanel);
+        }
+
+        if (productVariationViewField) productVariationViewField.classList.toggle('hidden', !useVariations);
+        if (productVariationViewInput && !productVariationViewInput.value) productVariationViewInput.value = 'buttons';
+
+        const missingName = !name;
+        const missingStock = trackStock && !useVariations && !hasValidStock;
+        const invalidOffer = offerState.enabled && !offerState.valid;
+        productSaveBtn.disabled = missingName || missingStock || invalidOffer;
+        if (showMessage) {
+          if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
+          else if (missingStock) setFormAlert('Este producto descuenta stock. Escribe un stock válido.', 'info');
+          else if (invalidOffer) setFormAlert('El precio de oferta debe ser menor que el Precio USD.', 'info');
+          else setFormAlert('');
+        }
+      }
+
+      function readRegularPriceInput() {
+        return Math.max(0, Number(productPriceInput?.value || 0));
+      }
+
+      function syncLockedRegularPrice({ force = false } = {}) {
+        const enabled = Boolean(productIsOfferInput?.checked);
+        if (enabled && (force || lockedRegularPriceUsd <= 0)) {
+          lockedRegularPriceUsd = readRegularPriceInput();
+        }
+        if (!enabled) {
+          lockedRegularPriceUsd = readRegularPriceInput();
+        }
+        return lockedRegularPriceUsd;
+      }
+
+      function getValidOfferState() {
+        const enabled = Boolean(productIsOfferInput?.checked);
+        const regularPrice = enabled ? syncLockedRegularPrice() : readRegularPriceInput();
+        const offerPrice = Math.max(0, Number(productOfferPriceInput?.value || 0));
+        const valid = enabled && regularPrice > 0 && offerPrice > 0 && offerPrice < regularPrice;
+        return { regularPrice, offerPrice, enabled, valid, savings: valid ? regularPrice - offerPrice : 0 };
+      }
+
+      function updateOfferFieldState() {
+        if (!productIsOfferInput || !productOfferPriceInput) return;
+        const state = getValidOfferState();
+        productPriceInput.disabled = state.enabled;
+        productPriceInput.classList.toggle('is-locked', state.enabled);
+        productOfferPriceInput.disabled = !state.enabled;
+        productOfferPriceInput.required = state.enabled;
+        if (state.enabled && state.regularPrice > 0) productPriceInput.value = state.regularPrice.toFixed(2);
+        if (!state.enabled) {
+          productOfferPriceInput.value = '';
+          if (productOfferHelp) productOfferHelp.textContent = 'Activa Oferta y escribe un precio menor al Precio USD.';
+          return;
+        }
+        if (state.valid) {
+          if (productOfferHelp) productOfferHelp.textContent = `Oferta activa. Precio USD bloqueado en ${formatUsd(state.regularPrice)}. El cliente ahorra ${formatUsd(state.savings)}.`;
+        } else {
+          if (productOfferHelp) productOfferHelp.textContent = 'El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.';
+        }
+      }
+
+      function resetVariationEditor() {
+        if (!variationEditor) return;
+        variationIdInput.value = '';
+        variationTypeInput.value = 'Sabor';
+        variationValueInput.value = '';
+        variationPriceInput.value = Number(productPriceInput.value || 0).toFixed(2);
+        variationCostInput.value = Number(productCostInput.value || 0).toFixed(2);
+        variationStockInput.value = '0';
+        variationRefInput.value = '';
+        variationOrderInput.value = String(nextVariationOrder());
+        variationImageInput.value = '';
+        variationActiveInput.checked = true;
+        variationAllowPreorderInput.checked = false;
+        variationCurrentImageBox.innerHTML = '';
+        variationCurrentImageBox.classList.add('hidden');
+        variationDeleteBtn?.classList.add('hidden');
+        variationEditor.classList.add('hidden');
+        updateProductFormState();
+        setVariationAlert('');
+      }
+      function openNewVariationEditor() {
+        resetVariationEditor();
+        variationOrderInput.value = String(nextVariationOrder());
+        variationDeleteBtn?.classList.add('hidden');
+        variationEditor?.classList.remove('hidden');
+        updateProductFormState();
+        variationValueInput?.focus();
+      }
+      function resetVariationState() {
+        productVariations = [];
+        if (variationManager) variationManager.classList.add('hidden');
+        if (variationEditor) variationEditor.classList.add('hidden');
+        if (variationsList) variationsList.innerHTML = '<div class="variation-empty">Abre un producto existente para ver sus variaciones.</div>';
+        setVariationAlert('');
+      }
+      function nextVariationOrder() {
+        const maxOrder = productVariations.reduce((max, item) => Math.max(max, Number(item.sort_order || 0)), 0);
+        return maxOrder + 1;
+      }
+      function renderVariationCurrentImage(variation) {
+        const url = variationImageUrl(variation);
+        if (!url) {
+          variationCurrentImageBox.innerHTML = '';
+          variationCurrentImageBox.classList.add('hidden');
+          return;
+        }
+        variationCurrentImageBox.innerHTML = `<img src="${url}" alt="Foto actual" /><span class="form-help">Foto actual. Si subes otra, se reemplaza.</span>`;
+        variationCurrentImageBox.classList.remove('hidden');
+      }
+      function openVariationEditor(variationId = '') {
+        const variation = productVariations.find((item) => item.id === variationId);
+        resetVariationEditor();
+        if (!variation) {
+          variationValueInput.focus();
+          return;
+        }
+        variationIdInput.value = variation.id;
+        variationTypeInput.value = variation.variation_type || 'Sabor';
+        variationValueInput.value = variation.value || '';
+        variationPriceInput.value = Number(variation.price_usd || 0).toFixed(2);
+        variationCostInput.value = Number(variation.cost_usd || 0).toFixed(2);
+        variationStockInput.value = Number(variation.stock || 0);
+        variationRefInput.value = variation.internal_ref || '';
+        variationOrderInput.value = Number(variation.sort_order || 0);
+        variationActiveInput.checked = variation.active !== false;
+        variationAllowPreorderInput.checked = Boolean(variation.allow_preorder);
+        renderVariationCurrentImage(variation);
+        variationDeleteBtn?.classList.remove('hidden');
+        variationEditor?.classList.remove('hidden');
+        updateProductFormState();
+        variationValueInput.focus();
+      }
+      function renderVariations() {
+        if (!variationsList) return;
+        const currentProductId = productIdInput.value;
+        if (!currentProductId) {
+          variationsList.innerHTML = '<div class="variation-empty">Guarda el producto primero para poder crear variaciones.</div>';
+          return;
+        }
+        if (!productVariations.length) {
+          variationsList.innerHTML = '<div class="variation-empty">Este producto todavía no tiene variaciones. Usa el botón Nueva variación para crear la primera.</div>';
+          return;
+        }
+        const sorted = getSortedVariations();
+        variationsList.innerHTML = sorted.map((variation) => {
+          const active = variation.active !== false;
+          const stockNumber = Number(variation.stock || 0);
+          const preorder = Boolean(variation.allow_preorder);
+          const refText = variation.internal_ref ? `Ref: ${variation.internal_ref}` : 'Sin ref interna';
+          return `
+            <article class="variation-row" data-variation-id="${variation.id}">
+              <div class="variation-main">
+                ${variationThumbMarkup(variation)}
+                <div>
+                  <p class="variation-name">${escapeHtml(variation.variation_type || 'Variación')}: ${escapeHtml(variation.value || 'Sin valor')}</p>
+                  <p class="variation-meta">${escapeHtml(refText)} · Orden ${Number(variation.sort_order || 0)}</p>
+                </div>
+              </div>
+              <span class="pill ${active ? 'pill-visible' : 'pill-hidden'}">${active ? 'Activa' : 'Oculta'}</span>
+              <span class="price">${escapeHtml(formatUsd(variation.price_usd))}</span>
+              <span class="stock">Stock: ${stockNumber}${stockNumber <= 0 ? (preorder ? ' · Preorder' : ' · Agotada') : ''}</span>
+              <div class="variation-mini-actions">
+                <span class="variation-order-actions" aria-label="Orden visual">
+                  <button class="mini-btn variation-order-btn js-variation-up" type="button" title="Subir">↑</button>
+                  <button class="mini-btn variation-order-btn js-variation-down" type="button" title="Bajar">↓</button>
+                </span>
+                <button class="mini-btn js-variation-edit" type="button">Editar</button>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+      async function loadProductVariations(productId) {
+        if (!productId) {
+          productVariations = [];
+          renderVariations();
+          return;
+        }
+        variationsList.innerHTML = '<div class="variation-empty">Cargando variaciones...</div>';
+        const filter = encodeURIComponent(`product="${productId}"`);
+        productVariations = await loadAllRecords('product_variations', `filter=${filter}&sort=sort_order,variation_type,value`);
+        renderVariations();
+        updateProductFormState();
+      }
+      function getSortedVariations() {
+        return [...productVariations].sort((a, b) => (Number(a.sort_order || 0) - Number(b.sort_order || 0)) || String(a.variation_type || '').localeCompare(String(b.variation_type || '')) || String(a.value || '').localeCompare(String(b.value || '')));
+      }
+      async function moveVariation(variationId, direction) {
+        const sorted = getSortedVariations();
+        const currentIndex = sorted.findIndex((item) => item.id === variationId);
+        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= sorted.length) return;
+        const current = sorted[currentIndex];
+        const target = sorted[targetIndex];
+        const currentOrder = Number(current.sort_order || currentIndex + 1);
+        const targetOrder = Number(target.sort_order || targetIndex + 1);
+        const currentData = new FormData();
+        const targetData = new FormData();
+        currentData.append('sort_order', String(targetOrder));
+        targetData.append('sort_order', String(currentOrder));
+        await apiRequest(`/api/collections/product_variations/records/${current.id}`, { method: 'PATCH', body: currentData });
+        await apiRequest(`/api/collections/product_variations/records/${target.id}`, { method: 'PATCH', body: targetData });
+        await loadProductVariations(productIdInput.value);
+        setVariationAlert('Orden de variaciones actualizado.', 'success');
+      }
+      async function syncProductVariationFlag() {
+        const currentProductId = productIdInput.value;
+        if (!currentProductId) return;
+        const hasVariations = productHasVariationsInput.checked || productVariations.length > 0;
+        productHasVariationsInput.checked = hasVariations;
+        const trackStock = productTracksStock();
+        const syncedStock = trackStock && hasVariations ? getVariationStockSum() : Math.max(0, Math.floor(Number(productStockInput.value || 0)));
+        productStockInput.value = String(syncedStock);
+        const formData = new FormData();
+        formData.append('has_variations', hasVariations ? 'true' : 'false');
+        formData.append('variation_view', hasVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons');
+        formData.append('stock', String(syncedStock));
+        await apiRequest(`/api/collections/products/records/${currentProductId}`, { method: 'PATCH', body: formData });
+        products = products.map((item) => item.id === currentProductId ? { ...item, has_variations: hasVariations, variation_view: hasVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons', stock: syncedStock } : item);
+        updateProductFormState();
+      }
+      async function setupVariationManager(product) {
+        if (!variationManager) return;
+        variationManager.classList.remove('hidden');
+        variationEditor?.classList.add('hidden');
+        if (variationManagerHelp) {
+          variationManagerHelp.textContent = productTracksStock(product) ? `Variaciones de ${product.name || 'este producto'}. El stock del producto padre se calculará con la suma de las variaciones.` : `Variaciones de ${product.name || 'este producto'}. Este producto no descuenta stock, por eso las variaciones no exigen stock.`;
+        }
+        resetVariationEditor();
+        try {
+          await loadProductVariations(product.id);
+        } catch (error) {
+          console.error(error);
+          productVariations = [];
+          renderVariations();
+          setVariationAlert(error.message || 'No se pudieron cargar las variaciones de este producto.', 'error');
+        }
+      }
+      function buildVariationFormData() {
+        const currentProductId = productIdInput.value;
+        const type = variationTypeInput.value.trim() || 'Sabor';
+        const value = variationValueInput.value.trim();
+        if (!currentProductId) throw new Error('Primero guarda o abre un producto existente.');
+        if (!value) throw new Error('Escribe el valor de la variación. Ej: Chocolate.');
+        if (productTracksStock() && variationStockInput.value === '') throw new Error('Escribe el stock de la variación o desactiva Descontar stock en el producto padre.');
+        const formData = new FormData();
+        formData.append('product', currentProductId);
+        formData.append('variation_type', type);
+        formData.append('value', value);
+        formData.append('price_usd', String(Math.max(0, Number(variationPriceInput.value || 0))));
+        formData.append('cost_usd', String(Math.max(0, Number(variationCostInput.value || 0))));
+        formData.append('stock', String(Math.max(0, Math.floor(Number(variationStockInput.value || 0)))));
+        formData.append('internal_ref', variationRefInput.value.trim());
+        formData.append('sort_order', String(Math.max(0, Math.floor(Number(variationOrderInput.value || 0)))));
+        formData.append('active', variationActiveInput.checked ? 'true' : 'false');
+        formData.append('allow_preorder', variationAllowPreorderInput.checked ? 'true' : 'false');
+        if (variationImageInput.files?.[0]) formData.append('image', variationImageInput.files[0]);
+        return formData;
+      }
+      async function saveVariation() {
+        const currentProductId = productIdInput.value;
+        if (!currentProductId) return;
+        const editingVariationId = variationIdInput.value;
+        variationSaveBtn.disabled = true;
+        setVariationAlert(editingVariationId ? 'Guardando variación...' : 'Creando variación...', 'info');
+        try {
+          const formData = buildVariationFormData();
+          if (editingVariationId) {
+            await apiRequest(`/api/collections/product_variations/records/${editingVariationId}`, { method: 'PATCH', body: formData });
+            setVariationAlert('Variación actualizada correctamente.', 'success');
+          } else {
+            await apiRequest('/api/collections/product_variations/records', { method: 'POST', body: formData });
+            setVariationAlert('Variación creada correctamente.', 'success');
+          }
+          await loadProductVariations(currentProductId);
+          await syncProductVariationFlag();
+          resetVariationEditor();
+        } catch (error) {
+          setVariationAlert(error.message || 'No se pudo guardar la variación.', 'error');
+        } finally {
+          variationSaveBtn.disabled = false;
+        }
+      }
+      function resetProductForm() {
+        productForm.reset();
+        productIdInput.value = '';
+        productActiveInput.checked = true;
+        productCostInput.value = '';
+        lockedRegularPriceUsd = 0;
+        selectedRelatedProductIds = [];
+        modalRelatedProductIds = [];
+        renderSelectedRelatedProducts();
+        if (productIsOfferInput) productIsOfferInput.checked = false;
+        if (productOfferPriceInput) productOfferPriceInput.value = '';
+        productInternalRefInput.value = '';
+        productHasVariationsInput.checked = false;
+        if (productVariationViewInput) productVariationViewInput.value = 'buttons';
+        productFeaturedInput.checked = false;
+        productOnlyUsdInput.checked = false;
+        productAllowPreorderInput.checked = false;
+        productTrackStockInput.checked = true;
+        productDeliveryModeInput.value = 'both';
+        resetProductImageSlots();
+        resetProductExtraInfo();
+        setFormAlert('');
+        duplicateProductToast?.classList.add('hidden');
+        hidePostSaveVariationPrompt();
+        resetQuickCreatePanels();
+        renderProductSelectOptions();
+        resetVariationState();
+        updateProductFormState();
+      }
+      function setCatalogOverviewVisible(isVisible) {
+        catalogOverview?.classList.toggle('hidden', !isVisible);
+      }
+      function closeProductEditor() {
+        productEditor.classList.add('hidden');
+        setCatalogOverviewVisible(true);
+        setFormAlert('');
+        duplicateProductToast?.classList.add('hidden');
+        hidePostSaveVariationPrompt();
+        resetQuickCreatePanels();
+        resetVariationState();
+      }
+      function openNewProductEditor() {
+        resetProductForm();
+        editorTitle.textContent = 'Nuevo producto';
+        editorSubtitle.textContent = 'Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.';
+        if (productHasVariationsOption) productHasVariationsOption.classList.add('hidden');
+        productEditor.classList.remove('hidden');
+        setCatalogOverviewVisible(false);
+        productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        updateProductFormState({ showMessage: true });
+        productNameInput.focus();
+      }
+      function openEditProductEditor(productId) {
+        const product = products.find((item) => item.id === productId);
+        if (!product) return;
+        resetProductForm();
+        editorTitle.textContent = 'Editar producto';
+        editorSubtitle.textContent = `Editando: ${product.name || 'Producto sin nombre'}`;
+        productIdInput.value = product.id;
+        productNameInput.value = product.name || '';
+        productSlugInput.value = product.slug || '';
+        productCategoryInput.value = product.category || '';
+        renderProductSubcategoryOptions(product.subcategory || '');
+        const productHasActiveOffer = Boolean(product.is_offer);
+        const activePriceUsd = Number(product.base_price_usd || 0);
+        const savedRegularPriceUsd = Number(product.regular_price_usd || 0);
+        const savedOfferPriceUsd = Number(product.offer_price_usd || 0);
+        const regularPriceUsd = productHasActiveOffer
+          ? (savedRegularPriceUsd > 0 ? savedRegularPriceUsd : Math.max(activePriceUsd, savedOfferPriceUsd))
+          : activePriceUsd;
+        lockedRegularPriceUsd = regularPriceUsd;
+        productPriceInput.value = regularPriceUsd > 0 ? regularPriceUsd.toFixed(2) : '';
+        if (productIsOfferInput) productIsOfferInput.checked = productHasActiveOffer;
+        if (productOfferPriceInput) productOfferPriceInput.value = productHasActiveOffer ? Number(savedOfferPriceUsd || activePriceUsd || 0).toFixed(2) : '';
+        productCostInput.value = Number(product.cost_usd || 0).toFixed(2);
+        productInternalRefInput.value = product.internal_ref || '';
+        productStockInput.value = Number(product.stock || 0);
+        productDeliveryModeInput.value = product.delivery_mode || 'both';
+        productExpirationDateInput.value = dateForInput(product.expiration_date);
+        productDescriptionInput.value = product.description || '';
+        resetProductExtraInfo(product.extra_info);
+        selectedRelatedProductIds = normalizeRelatedProductsValue(product.related_products).filter((id) => id !== product.id);
+        renderSelectedRelatedProducts();
+        productActiveInput.checked = product.active !== false;
+        productFeaturedInput.checked = Boolean(product.featured);
+        productOnlyUsdInput.checked = Boolean(product.only_usd);
+        productAllowPreorderInput.checked = Boolean(product.allow_preorder);
+        productTrackStockInput.checked = productTracksStock(product);
+        productHasVariationsInput.checked = Boolean(product.has_variations);
+        if (productVariationViewInput) productVariationViewInput.value = ['buttons', 'dropdown', 'checkbox'].includes(product.variation_view) ? product.variation_view : 'buttons';
+        renderCurrentImages(product);
+        if (productHasVariationsOption) productHasVariationsOption.classList.remove('hidden');
+        setupVariationManager(product);
+        productEditor.classList.remove('hidden');
+        updateProductFormState();
+        setCatalogOverviewVisible(false);
+        productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        productNameInput.focus();
+      }
+      function appendOptionalFormValue(formData, field, value) {
+        const cleaned = typeof value === 'string' ? value.trim() : value;
+        if (cleaned !== '' && cleaned !== null && cleaned !== undefined) formData.append(field, cleaned);
+      }
+      function normalizeDuplicateText(value) {
+        return String(value || '')
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/\s+/g, ' ');
+      }
+      function findDuplicateProduct({ excludeId = '', name = '', slug = '', internalRef = '' } = {}) {
+        const cleanName = normalizeDuplicateText(name);
+        const cleanSlug = normalizeDuplicateText(slug);
+        const cleanRef = normalizeDuplicateText(internalRef);
+        return products.find((item) => {
+          if (!item || item.id === excludeId) return false;
+          const itemName = normalizeDuplicateText(item.name);
+          const itemSlug = normalizeDuplicateText(item.slug);
+          const itemRef = normalizeDuplicateText(item.internal_ref);
+          if (cleanSlug && itemSlug && cleanSlug === itemSlug) return true;
+          if (cleanName && itemName && cleanName === itemName) return true;
+          if (cleanRef && itemRef && cleanRef === itemRef) return true;
+          return false;
+        }) || null;
+      }
+
+      async function buildProductFormData({ forceHasVariations = null } = {}) {
+        const formData = new FormData();
+        const name = productNameInput.value.trim();
+        const slug = slugify(name);
+        const category = productCategoryInput.value;
+        const subcategory = productSubcategoryInput.value;
+        if (!name) throw new Error('Escribe el nombre del producto.');
+        if (!slug) throw new Error('Escribe un nombre válido para generar el slug del producto.');
+        const duplicate = findDuplicateProduct({
+          excludeId: productIdInput.value || '',
+          name,
+          slug,
+          internalRef: productInternalRefInput.value.trim(),
+        });
+        if (duplicate) {
+          const duplicateName = duplicate.name || 'Producto existente';
+          const detail = `Ya existe: ${duplicateName}. Edita ese producto o cambia el nombre/ref interna.`;
+          showDuplicateProductToast(detail);
+          throw new Error(detail);
+        }
+        const trackStock = productTracksStock();
+        const isEditing = Boolean(productIdInput.value);
+        const shouldUseVariations = forceHasVariations !== null
+          ? Boolean(forceHasVariations)
+          : (isEditing && (productHasVariationsInput.checked || productVariations.length > 0));
+        if (trackStock && !shouldUseVariations && productStockInput.value === '') throw new Error('Este producto descuenta stock. Escribe un stock válido.');
+        formData.append('name', name);
+        formData.append('slug', slug);
+        if (isEditing || category) formData.append('category', category);
+        if (isEditing || subcategory) formData.append('subcategory', subcategory);
+        const offerState = getValidOfferState();
+        if (offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.');
+        const regularPriceUsd = offerState.enabled ? offerState.regularPrice : readRegularPriceInput();
+        const activePriceUsd = offerState.valid ? offerState.offerPrice : regularPriceUsd;
+        formData.append('base_price_usd', String(activePriceUsd));
+        formData.append('regular_price_usd', String(regularPriceUsd));
+        formData.append('is_offer', offerState.valid ? 'true' : 'false');
+        formData.append('offer_price_usd', offerState.valid ? String(offerState.offerPrice) : '0');
+        formData.append('cost_usd', String(Math.max(0, Number(productCostInput.value || 0))));
+        formData.append('internal_ref', productInternalRefInput.value.trim());
+        const finalStock = trackStock && !shouldUseVariations ? Math.max(0, Math.floor(Number(productStockInput.value || 0))) : (shouldUseVariations ? getVariationStockSum() : 0);
+        const safeStock = Number.isFinite(Number(finalStock)) ? Math.max(0, Math.floor(Number(finalStock))) : 0;
+        formData.set('stock', String(safeStock));
+        formData.append('delivery_mode', productDeliveryModeInput.value || 'both');
+        formData.append('description', productDescriptionInput.value.trim());
+        formData.append('extra_info', JSON.stringify(normalizeProductExtraInfo(productExtraInfoItems)));
+        formData.append('active', productActiveInput.checked ? 'true' : 'false');
+        formData.append('featured', productFeaturedInput.checked ? 'true' : 'false');
+        formData.append('only_usd', productOnlyUsdInput.checked ? 'true' : 'false');
+        formData.append('allow_preorder', productAllowPreorderInput.checked ? 'true' : 'false');
+        formData.append(TRACK_STOCK_FIELD, trackStock ? 'true' : 'false');
+        formData.append('has_variations', shouldUseVariations ? 'true' : 'false');
+        formData.append('variation_view', shouldUseVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons');
+        if (isEditing) formData.append('expiration_date', productExpirationDateInput.value || '');
+        else appendOptionalFormValue(formData, 'expiration_date', productExpirationDateInput.value || '');
+        const relatedIds = selectedRelatedProductIds.slice(0, 4).filter(Boolean);
+        if (relatedIds.length) relatedIds.forEach((id) => formData.append('related_products', id));
+        else formData.append('related_products', '');
+        await appendProductImageFiles(formData, { appendMode: isEditing });
+        return formData;
+      }
+      async function createQuickCategory() {
+        const name = quickCategoryName.value.trim();
+        if (!name) {
+          setQuickAlert(quickCategoryAlert, 'Escribe el nombre de la categoría.', 'error');
+          return;
+        }
+        quickCategorySave.disabled = true;
+        setQuickAlert(quickCategoryAlert, 'Creando categoría...', 'info');
+        try {
+          const formData = new FormData();
+          formData.append('name', name);
+          formData.append('slug', slugify(name));
+          formData.append('active', 'true');
+          formData.append('order', String(nextOrder(categories)));
+          if (quickCategoryImage.files?.[0]) formData.append('image', quickCategoryImage.files[0]);
+          const created = await apiRequest('/api/collections/categories/records', { method: 'POST', body: formData });
+          categories = sortByOrderAndName([...categories, created]);
+          renderProductSelectOptions();
+          productCategoryInput.value = created.id;
+          renderProductSubcategoryOptions('');
+          renderFilters();
+          resetQuickCreatePanels();
+          setFormAlert(`Categoría creada y seleccionada: ${created.name || name}.`, 'success');
+        } catch (error) {
+          setQuickAlert(quickCategoryAlert, error.message || 'No se pudo crear la categoría.', 'error');
+        } finally {
+          quickCategorySave.disabled = false;
+        }
+      }
+      async function createQuickSubcategory() {
+        const categoryId = productCategoryInput.value;
+        const name = quickSubcategoryName.value.trim();
+        if (!categoryId || categoryId === CREATE_CATEGORY_VALUE) {
+          setQuickAlert(quickSubcategoryAlert, 'Selecciona una categoría primero.', 'error');
+          return;
+        }
+        if (!name) {
+          setQuickAlert(quickSubcategoryAlert, 'Escribe el nombre de la subcategoría.', 'error');
+          return;
+        }
+        quickSubcategorySave.disabled = true;
+        setQuickAlert(quickSubcategoryAlert, 'Creando subcategoría...', 'info');
+        try {
+          const sameCategoryItems = subcategories.filter((item) => item.category === categoryId);
+          const formData = new FormData();
+          formData.append('name', name);
+          formData.append('slug', slugify(name));
+          formData.append('category', categoryId);
+          formData.append('active', 'true');
+          formData.append('order', String(nextOrder(sameCategoryItems)));
+          if (quickSubcategoryImage.files?.[0]) formData.append('image', quickSubcategoryImage.files[0]);
+          const created = await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
+          subcategories = sortByOrderAndName([...subcategories, created]);
+          renderProductSubcategoryOptions(created.id);
+          renderFilters();
+          resetQuickCreatePanels();
+          setFormAlert(`Subcategoría creada y seleccionada: ${created.name || name}.`, 'success');
+        } catch (error) {
+          setQuickAlert(quickSubcategoryAlert, error.message || 'No se pudo crear la subcategoría.', 'error');
+        } finally {
+          quickSubcategorySave.disabled = false;
+        }
+      }
+
+      async function saveProduct() {
+        const editingId = productIdInput.value;
+        const requestedTrackStock = productTracksStock();
+        const requestedStock = Math.max(0, Math.floor(Number(productStockInput.value || 0)));
+        if (!requestedTrackStock || (editingId && productHasVariationsInput?.checked)) productStockInput.value = '0';
+        const formData = await buildProductFormData({ forceHasVariations: editingId ? null : false });
+        productSaveBtn.disabled = true;
+        setFormAlert(editingId ? 'Guardando cambios...' : 'Creando producto...', 'info');
+        try {
+          if (editingId) {
+            const updatedProduct = await apiRequest(`/api/collections/products/records/${editingId}`, { method: 'PATCH', body: formData });
+            await syncProductImageOrder(updatedProduct);
+            setFormAlert('Producto actualizado correctamente.', 'success');
+            await loadProducts();
+            closeProductEditor();
+          } else {
+            let created;
+
+            if (requestedTrackStock) {
+              // PZ-PRODUCTS-V33-CREATE-TRACK-STOCK-SAFE-20260602
+              // Evita el bloqueo al crear producto nuevo con stock descontable.
+              // Creamos primero igual que el flujo que ya funciona manualmente: sin stock descontable.
+              const createData = new FormData();
+              formData.forEach((value, key) => {
+                if (value instanceof File) return;
+                createData.append(key, value);
+              });
+              createData.set(TRACK_STOCK_FIELD, 'false');
+              createData.set('stock', '0');
+              createData.set('has_variations', 'false');
+              createData.set('variation_view', 'buttons');
+              await appendProductImageFiles(createData);
+
+              created = await apiRequest('/api/collections/products/records', { method: 'POST', body: createData });
+
+              const stockPatchData = new FormData();
+              stockPatchData.set(TRACK_STOCK_FIELD, 'true');
+              stockPatchData.set('stock', String(requestedStock));
+              stockPatchData.set('has_variations', 'false');
+              stockPatchData.set('variation_view', 'buttons');
+              await apiRequest(`/api/collections/products/records/${created.id}`, { method: 'PATCH', body: stockPatchData });
+            } else {
+              created = await apiRequest('/api/collections/products/records', { method: 'POST', body: formData });
+            }
+
+            await loadProducts();
+            productIdInput.value = created.id;
+            editorTitle.textContent = 'Producto creado';
+            editorSubtitle.textContent = `Producto guardado: ${created.name || productNameInput.value.trim()}`;
+            productHasVariationsInput.checked = false;
+            if (requestedTrackStock) {
+              productTrackStockInput.checked = true;
+              productStockInput.value = String(requestedStock);
+            }
+            updateProductFormState();
+            setFormAlert('Producto creado correctamente.', 'success');
+            showPostSaveVariationPrompt(created.id);
+          }
+        } catch (error) {
+          setFormAlert(error.message || 'No se pudo guardar el producto.', 'error');
+        } finally {
+          updateProductFormState();
+        }
+      }
+
+
+      async function confirmPostSaveVariationChoice() {
+        const productId = pendingVariationProductId || productIdInput.value;
+        if (!productId) return;
+        postSaveVariationYesBtn.disabled = true;
+        postSaveVariationNoBtn.disabled = true;
+        setFormAlert('Preparando variaciones...', 'info');
+        try {
+          const variationData = new FormData();
+          variationData.set('has_variations', 'true');
+          variationData.set('variation_view', productVariationViewInput?.value || 'buttons');
+          variationData.set('stock', '0');
+          await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: variationData });
+          hidePostSaveVariationPrompt();
+          await loadProducts();
+          openEditProductEditor(productId);
+          productHasVariationsInput.checked = true;
+          productStockInput.value = '0';
+          updateProductFormState();
+          openNewVariationEditor();
+          setFormAlert('Producto listo. Agrega la primera variación.', 'success');
+        } catch (error) {
+          setFormAlert(error.message || 'No se pudo preparar el producto para variaciones.', 'error');
+        } finally {
+          postSaveVariationYesBtn.disabled = false;
+          postSaveVariationNoBtn.disabled = false;
+        }
+      }
+
+      async function declinePostSaveVariationChoice() {
+        hidePostSaveVariationPrompt();
+        setFormAlert('Producto creado correctamente.', 'success');
+        closeProductEditor();
+        await loadProducts();
+      }
+
+      async function deleteProductWithVariations(productId) {
+        if (!productId) return;
+        const filter = encodeURIComponent(`product="${productId}"`);
+        const variations = await loadAllRecords('product_variations', `filter=${filter}`);
+        for (const variation of variations) {
+          await apiRequest(`/api/collections/product_variations/records/${variation.id}`, { method: 'DELETE' });
+        }
+        await apiRequest(`/api/collections/products/records/${productId}`, { method: 'DELETE' });
+      }
+
+      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con PocketBase.') {
+        const base = result?.message || fallback;
+        const fieldErrors = result?.data && typeof result.data === 'object'
+          ? Object.entries(result.data).map(([field, info]) => {
+              const message = info?.message || (Array.isArray(info) ? info.map((item) => item?.message).filter(Boolean).join(', ') : '');
+              return message ? `${field}: ${message}` : field;
+            }).filter(Boolean)
+          : [];
+        return fieldErrors.length ? `${base} ${fieldErrors.join(' · ')}` : base;
+      }
+      async function apiRequest(path, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const token = getAdminToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(pocketBaseErrorMessage(result));
+        return result;
+      }
+      async function loginAsAdmin(email, password) {
+        const payload = { identity: email, password };
+        try {
+          const result = await apiRequest('/api/collections/_superusers/auth-with-password', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+          });
+          setAdminToken(result.token);
+          return result;
+        } catch (error) {
+          const result = await apiRequest('/api/admins/auth-with-password', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+          });
+          setAdminToken(result.token);
+          return result;
+        }
+      }
+      async function loadAllRecords(collection, params = '') {
+        let page = 1;
+        const perPage = 200;
+        let items = [];
+        let totalPages = 1;
+        do {
+          const separator = params ? '&' : '';
+          const result = await apiRequest(`/api/collections/${collection}/records?${params}${separator}page=${page}&perPage=${perPage}`);
+          items = items.concat(result.items || []);
+          totalPages = result.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+        return items;
+      }
+
+      function productImageUrl(product) {
+        const images = normalizeProductImages(product);
+        const firstImage = images[0] || '';
+        if (!product?.id || !firstImage || !POCKETBASE_URL) return '';
+        return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(firstImage)}?thumb=160x160`;
+      }
+      function productImageMarkup(product) {
+        const name = product?.name || 'Producto';
+        const url = productImageUrl(product);
+        if (!url) return '<span class="product-thumb placeholder js-product-open" role="button" tabindex="0" title="Editar producto">📦</span>';
+        return `<img class="product-thumb js-product-open" src="${url}" alt="${escapeHtml(name)}" loading="lazy" title="Editar producto" />`;
+      }
+      function normalizeRelatedProductsValue(value) {
+        if (Array.isArray(value)) return value.filter(Boolean).slice(0, 4);
+        if (typeof value === 'string' && value.trim()) return [value.trim()].slice(0, 4);
+        return [];
+      }
+      function relatedProductThumbMarkup(product) {
+        const url = productImageUrl(product);
+        const name = escapeHtml(product?.name || 'Producto');
+        if (!url) return '<span class="related-product-thumb placeholder">📦</span>';
+        return `<img class="related-product-thumb" src="${url}" alt="${name}" loading="lazy" />`;
+      }
+      function relatedProductPriceText(product) {
+        const activePrice = Number(product?.base_price_usd || 0);
+        const regularPrice = Number(product?.regular_price_usd || activePrice || 0);
+        const hasOffer = Boolean(product?.is_offer) && regularPrice > activePrice && activePrice > 0;
+        return hasOffer ? `Oferta · ${formatUsd(activePrice)}` : `${formatUsd(activePrice)}`;
+      }
+      function getRelatedProductCandidates() {
+        const currentId = productIdInput?.value || '';
+        return products.filter((product) => product?.id && product.id !== currentId);
+      }
+      function getSelectedRelatedProducts() {
+        return selectedRelatedProductIds
+          .map((id) => products.find((product) => product.id === id))
+          .filter(Boolean)
+          .slice(0, 4);
+      }
+      function renderSelectedRelatedProducts() {
+        if (!relatedProductsList) return;
+        const selectedProducts = getSelectedRelatedProducts();
+        if (!selectedProducts.length) {
+          relatedProductsList.innerHTML = '<div class="related-modal-empty">No hay productos relacionados seleccionados.</div>';
+          return;
+        }
+        relatedProductsList.innerHTML = selectedProducts.map((product) => `
+          <div class="related-product-row">
+            <div class="related-product-info">
+              ${relatedProductThumbMarkup(product)}
+              <div style="min-width:0;">
+                <p class="related-product-name">${escapeHtml(product.name || 'Producto')}</p>
+                <p class="related-product-meta">${escapeHtml(relatedProductPriceText(product))}</p>
+              </div>
+            </div>
+            <button class="related-product-remove" type="button" data-related-remove="${product.id}">Quitar</button>
+          </div>
+        `).join('');
+        relatedProductsList.querySelectorAll('[data-related-remove]').forEach((button) => {
+          button.addEventListener('click', () => {
+            selectedRelatedProductIds = selectedRelatedProductIds.filter((id) => id !== button.dataset.relatedRemove);
+            renderSelectedRelatedProducts();
+          });
+        });
+      }
+      function renderRelatedProductsModal() {
+        if (!relatedProductsModalList) return;
+        const term = normalizeDuplicateText(relatedProductsSearchInput?.value || '');
+        const candidates = getRelatedProductCandidates().filter((product) => {
+          if (!term) return true;
+          return normalizeDuplicateText(`${product.name || ''} ${product.internal_ref || ''} ${product.slug || ''}`).includes(term);
+        });
+        if (!candidates.length) {
+          relatedProductsModalList.innerHTML = '<div class="related-modal-empty">No se encontraron productos.</div>';
+          return;
+        }
+        relatedProductsModalList.innerHTML = candidates.map((product) => {
+          const isSelected = modalRelatedProductIds.includes(product.id);
+          const limitReached = modalRelatedProductIds.length >= 4 && !isSelected;
+          const activeLabel = product.active ? 'Activo' : 'Inactivo';
+          const disabledClass = limitReached ? ' is-disabled' : '';
+          const selectedClass = isSelected ? ' is-selected' : '';
+          return `
+            <label class="related-modal-item${disabledClass}${selectedClass}" data-related-option="${product.id}">
+              <div class="related-product-info">
+                ${relatedProductThumbMarkup(product)}
+                <div style="min-width:0;">
+                  <p class="related-product-name">${escapeHtml(product.name || 'Producto')}</p>
+                  <p class="related-product-meta">${escapeHtml(activeLabel)} · ${escapeHtml(relatedProductPriceText(product))}</p>
+                </div>
+              </div>
+              <input type="checkbox" value="${product.id}" ${isSelected ? 'checked' : ''} ${limitReached ? 'disabled' : ''} />
+            </label>
+          `;
+        }).join('');
+        relatedProductsModalList.querySelectorAll('[data-related-option]').forEach((row) => {
+          row.addEventListener('click', (event) => {
+            event.preventDefault();
+            const id = row.dataset.relatedOption || '';
+            if (!id) return;
+            const isSelected = modalRelatedProductIds.includes(id);
+            if (!isSelected && modalRelatedProductIds.length >= 4) return;
+            modalRelatedProductIds = isSelected
+              ? modalRelatedProductIds.filter((item) => item !== id)
+              : modalRelatedProductIds.concat(id).slice(0, 4);
+            renderRelatedProductsModal();
+          });
+        });
+      }
+      function openRelatedProductsModal() {
+        if (!relatedProductsModal) return;
+        modalRelatedProductIds = selectedRelatedProductIds.slice(0, 4);
+        if (relatedProductsModalSubtitle) {
+          const productName = productNameInput?.value?.trim() || 'este producto';
+          relatedProductsModalSubtitle.textContent = `Selecciona productos relacionados con: ${productName}. Máximo 4.`;
+        }
+        if (relatedProductsSearchInput) relatedProductsSearchInput.value = '';
+        relatedProductsModal.classList.remove('hidden');
+        document.body.classList.add('quick-modal-open');
+        renderRelatedProductsModal();
+        setTimeout(() => relatedProductsSearchInput?.focus(), 40);
+      }
+      function closeRelatedProductsModal() {
+        relatedProductsModal?.classList.add('hidden');
+        document.body.classList.remove('quick-modal-open');
+      }
+      function applyRelatedProductsModal() {
+        selectedRelatedProductIds = modalRelatedProductIds.slice(0, 4);
+        renderSelectedRelatedProducts();
+        closeRelatedProductsModal();
+      }
+      function getCategory(id) { return categories.find((item) => item.id === id) || null; }
+      function getSubcategory(id) { return subcategories.find((item) => item.id === id) || null; }
+      function productIsPublicVisible(product) {
+        const category = product.category ? getCategory(product.category) : null;
+        const subcategory = product.subcategory ? getSubcategory(product.subcategory) : null;
+        if (!product.active) return false;
+        if (product.category && !category?.active) return false;
+        if (subcategory && !subcategory.active) return false;
+        return true;
+      }
+
+      function syncFiltersFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const categoryId = params.get('category') || '';
+        const subcategoryId = params.get('subcategory') || '';
+        if (categoryId) categoryFilter.value = categoryId;
+        updateSubcategoryOptions();
+        if (subcategoryId) subcategoryFilter.value = subcategoryId;
+      }
+
+      function openEditorFromUrl() {
+        const params = new URLSearchParams(window.location.search);
+        const editProductId = params.get('product') || '';
+        const shouldCreate = params.get('new') === '1';
+        const categoryId = params.get('category') || '';
+        const subcategoryId = params.get('subcategory') || '';
+        if (editProductId) {
+          openEditProductEditor(editProductId);
+          return;
+        }
+        if (shouldCreate) {
+          openNewProductEditor();
+          if (categoryId && categories.some((item) => item.id === categoryId)) {
+            productCategoryInput.value = categoryId;
+            renderProductSubcategoryOptions(subcategoryId);
+          }
+        }
+      }
+      function updateSubcategoryOptions() {
+        const selectedCategory = categoryFilter.value;
+        const items = subcategories.filter((item) => !selectedCategory || item.category === selectedCategory);
+        subcategoryFilter.innerHTML = '<option value="">Todas</option>' + items.map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
+      }
+      function renderFilters() {
+        categoryFilter.innerHTML = '<option value="">Todas</option>' + categories.map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
+        updateSubcategoryOptions();
+      }
+      function renderStats(filteredProducts) {
+        document.getElementById('stat-total').textContent = String(filteredProducts.length);
+        document.getElementById('stat-visible').textContent = String(filteredProducts.filter(productIsPublicVisible).length);
+        document.getElementById('stat-hidden').textContent = String(filteredProducts.filter((item) => !productIsPublicVisible(item)).length);
+        document.getElementById('stat-stock').textContent = String(filteredProducts.reduce((total, item) => total + Number(item.stock || 0), 0));
+      }
+      function getFilteredProducts() {
+        const term = searchInput.value.trim().toLowerCase();
+        const categoryId = categoryFilter.value;
+        const subcategoryId = subcategoryFilter.value;
+        return products.filter((product) => {
+          const category = getCategory(product.category);
+          const subcategory = getSubcategory(product.subcategory);
+          const searchable = [product.name, product.internal_ref, product.slug, category?.name, subcategory?.name].filter(Boolean).join(' ').toLowerCase();
+          if (term && !searchable.includes(term)) return false;
+          if (categoryId && product.category !== categoryId) return false;
+          if (subcategoryId && product.subcategory !== subcategoryId) return false;
+          return true;
+        });
+      }
+      function closeProductActionMenus(exceptMenu = null) {
+        productsList?.querySelectorAll('.actions-menu').forEach((menu) => {
+          if (exceptMenu && menu === exceptMenu) return;
+          menu.classList.add('hidden');
+          menu.classList.remove('open-up');
+          const trigger = menu.closest('.actions-wrap')?.querySelector('.js-actions-trigger');
+          trigger?.setAttribute('aria-expanded', 'false');
+        });
+      }
+      function positionProductActionsMenu(menu, trigger) {
+        if (!menu || !trigger) return;
+
+        menu.classList.remove('open-up');
+        const margin = 18;
+        const triggerRect = trigger.getBoundingClientRect();
+        const menuHeight = menu.offsetHeight || 150;
+        const availableBelow = window.innerHeight - triggerRect.bottom;
+        const availableAbove = triggerRect.top;
+
+        if (availableBelow < menuHeight + margin && availableAbove > menuHeight + margin) {
+          menu.classList.add('open-up');
+        }
+      }
+      function renderProducts() {
+        closeProductActionMenus();
+        const filtered = getFilteredProducts();
+        renderStats(filtered);
+        if (!filtered.length) {
+          productsList.innerHTML = '<div class="empty-state">No hay productos para este filtro.</div>';
+          return;
+        }
+        productsList.innerHTML = filtered.map((product) => {
+          const category = getCategory(product.category);
+          const subcategory = getSubcategory(product.subcategory);
+          const visible = productIsPublicVisible(product);
+          const stockNumber = Number(product.stock || 0);
+          const allowPreorder = Boolean(product.allow_preorder);
+          const isOutOfStock = stockNumber <= 0;
+          const locationText = subcategory ? `${category?.name || 'Sin categoría'} › ${subcategory.name}` : (category ? `${category.name} › Producto directo` : 'Sin categoría · Página principal');
+          const refText = product.internal_ref ? ` · Ref: ${product.internal_ref}` : '';
+          const trackStock = productTracksStock(product);
+          const activePriceUsd = Number(product.base_price_usd || 0);
+          const regularPriceUsd = Number(product.regular_price_usd || 0);
+          const hasActiveOffer = Boolean(product.is_offer) && regularPriceUsd > activePriceUsd && activePriceUsd > 0;
+          return `
+            <article class="product-row" data-product-id="${product.id}">
+              <div class="product-main">
+                ${productImageMarkup(product)}
+                <div>
+                  <p class="product-title js-product-open" role="button" tabindex="0" title="Editar producto">${escapeHtml(product.name || 'Producto sin nombre')}</p>
+                  <p class="product-meta">${escapeHtml(locationText + refText)}</p>
+                  <div class="product-badges">
+                    ${product.featured ? '<span class="mini-pill featured">Destacado</span>' : ''}
+                    ${hasActiveOffer ? '<span class="mini-pill danger">Oferta</span>' : ''}
+                    ${product.only_usd ? '<span class="mini-pill usd">Solo USD</span>' : ''}
+                    ${product.has_variations ? '<span class="mini-pill featured">Variaciones</span>' : ''}
+                    <span class="mini-pill delivery">${escapeHtml(deliveryLabel(product.delivery_mode))}</span>
+                    ${isOutOfStock && allowPreorder ? '<span class="mini-pill featured">Preorder</span>' : ''}
+                  </div>
+                </div>
+              </div>
+              <span class="pill ${visible ? 'pill-visible' : 'pill-hidden'}">${visible ? 'Visible' : 'Oculto'}</span>
+              <span class="price">${hasActiveOffer ? `<span class="price-offer-admin"><span class="old">${escapeHtml(formatUsd(regularPriceUsd))}</span><span class="new">${escapeHtml(formatUsd(activePriceUsd))}</span></span>` : escapeHtml(formatUsd(activePriceUsd))}</span>
+              <span class="stock">${trackStock ? `Stock: ${stockNumber}${isOutOfStock ? (allowPreorder ? ' · Preorder' : ' · Agotado') : ''}` : 'Sin stock descontable'}</span>
+              <div class="row-actions">
+                <button class="mini-btn js-product-toggle" type="button">${product.active ? 'Ocultar' : 'Activar'}</button>
+                <div class="actions-wrap">
+                  <button class="mini-btn actions-trigger js-actions-trigger" type="button" aria-haspopup="menu" aria-expanded="false" title="Más acciones">⋯</button>
+                  <div class="actions-menu hidden" role="menu">
+                    <button class="js-product-edit" type="button" role="menuitem">Editar <span>✏️</span></button>
+                    <button class="danger-action js-product-soldout" type="button" role="menuitem" ${isOutOfStock ? 'disabled' : ''}>${isOutOfStock ? 'Ya está agotado' : 'Marcar agotado'} <span>⚠️</span></button>
+                    <button class="danger-action js-product-delete" type="button" role="menuitem">Borrar <span>🗑️</span></button>
+                  </div>
+                </div>
+              </div>
+              ${pendingDeleteProductId === product.id ? `
+                <div class="inline-floating-card danger product-delete-confirm">
+                  <p class="inline-floating-title">Borrar producto</p>
+                  <p class="inline-floating-text">¿Seguro que quieres borrar “${escapeHtml(product.name || 'Producto sin nombre')}”? Si tiene variaciones de prueba, se borrarán primero. Si solo quieres quitarlo de la tienda, usa Ocultar.</p>
+                  <div class="inline-floating-actions">
+                    <button class="mini-btn js-product-delete-cancel" type="button">Cancelar</button>
+                    <button class="mini-btn danger js-product-delete-confirm" type="button">Sí, borrar</button>
+                  </div>
+                </div>
+              ` : ''}
+              ${pendingSoldoutProductId === product.id ? `
+                <div class="inline-floating-card danger product-delete-confirm">
+                  <p class="inline-floating-title">Marcar agotado</p>
+                  <p class="inline-floating-text">¿Seguro que quieres marcar “${escapeHtml(product.name || 'Producto sin nombre')}” como agotado? Esto pondrá el stock en 0. El producto puede seguir visible, pero no se podrá pedir salvo que tenga preorder activo.</p>
+                  <div class="inline-floating-actions">
+                    <button class="mini-btn js-product-soldout-cancel" type="button">Cancelar</button>
+                    <button class="mini-btn danger js-product-soldout-confirm" type="button">Sí, marcar agotado</button>
+                  </div>
+                </div>
+              ` : ''}
+            </article>
+          `;
+        }).join('');
+      }
+      async function loadProducts({ openFromUrl = false } = {}) {
+        if (refreshBtn) refreshBtn.disabled = true;
+        productsList.innerHTML = '<div class="empty-state">Cargando productos...</div>';
+        try {
+          const [categoryRecords, subcategoryRecords, productRecords] = await Promise.all([
+            loadAllRecords('categories', 'sort=order,name'),
+            loadAllRecords('subcategories', 'sort=order,name'),
+            loadAllRecords('products', 'sort=name'),
+          ]);
+          categories = categoryRecords;
+          subcategories = subcategoryRecords;
+          products = productRecords;
+          renderProductSelectOptions();
+          renderFilters();
+          syncFiltersFromUrl();
+          renderProducts();
+          if (openFromUrl) openEditorFromUrl();
+        } catch (error) {
+          console.error(error);
+          productsList.innerHTML = '<div class="empty-state">No se pudieron cargar los productos. Revisa tu sesión admin.</div>';
+        } finally {
+          if (refreshBtn) refreshBtn.disabled = false;
+        }
+      }
+
+      loginForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setAlert(loginAlert, '');
+        const email = document.getElementById('admin-email').value.trim();
+        const password = document.getElementById('admin-password').value;
+        try {
+          await loginAsAdmin(email, password);
+          showAdmin();
+          await loadProducts({ openFromUrl: true });
+        } catch (error) {
+          setAlert(loginAlert, error.message || 'No se pudo iniciar sesión.');
+        }
+      });
+      logoutBtn?.addEventListener('click', () => {
+        clearAdminToken();
+        categories = [];
+        subcategories = [];
+        products = [];
+        showLogin();
+      });
+      refreshBtn?.addEventListener('click', loadProducts);
+      relatedProductsOpenBtn?.addEventListener('click', openRelatedProductsModal);
+      relatedProductsCloseBtn?.addEventListener('click', closeRelatedProductsModal);
+      relatedProductsCancelBtn?.addEventListener('click', closeRelatedProductsModal);
+      relatedProductsApplyBtn?.addEventListener('click', applyRelatedProductsModal);
+      relatedProductsSearchInput?.addEventListener('input', renderRelatedProductsModal);
+      relatedProductsModal?.addEventListener('click', (event) => {
+        if (event.target === relatedProductsModal) closeRelatedProductsModal();
+      });
+      searchInput?.addEventListener('input', renderProducts);
+      categoryFilter?.addEventListener('change', () => {
+        updateSubcategoryOptions();
+        subcategoryFilter.value = '';
+        renderProducts();
+      });
+      subcategoryFilter?.addEventListener('change', renderProducts);
+      newProductBtn?.addEventListener('click', openNewProductEditor);
+      editorCloseBtn?.addEventListener('click', closeProductEditor);
+      productCancelBtn?.addEventListener('click', closeProductEditor);
+      productNameInput?.addEventListener('input', () => {
+        productSlugInput.value = slugify(productNameInput.value);
+        updateProductFormState();
+      });
+      productPriceInput?.addEventListener('input', () => {
+        if (!productIsOfferInput?.checked) lockedRegularPriceUsd = readRegularPriceInput();
+        updateProductFormState();
+      });
+      productIsOfferInput?.addEventListener('change', () => {
+        syncLockedRegularPrice({ force: productIsOfferInput.checked });
+        updateProductFormState({ showMessage: true });
+      });
+      productOfferPriceInput?.addEventListener('input', () => updateProductFormState());
+      productStockInput?.addEventListener('input', () => updateProductFormState());
+      productTrackStockInput?.addEventListener('change', () => updateProductFormState({ showMessage: true }));
+      productVariationViewInput?.addEventListener('change', () => updateProductFormState());
+      productHasVariationsInput?.addEventListener('change', () => {
+        updateProductFormState({ showMessage: true });
+        if (productHasVariationsInput.checked && productIdInput.value) {
+          setFormAlert('Este producto usará variaciones. El stock padre se calculará con la suma de las variaciones.', 'info');
+        }
+      });
+      productCategoryInput?.addEventListener('change', () => {
+        setFormAlert('');
+        if (productCategoryInput.value === CREATE_CATEGORY_VALUE) {
+          productCategoryInput.value = '';
+          renderProductSubcategoryOptions('');
+          openQuickCategoryPanel();
+          return;
+        }
+        resetQuickCreatePanels();
+        renderProductSubcategoryOptions('');
+      });
+      productSubcategoryInput?.addEventListener('change', () => {
+        setFormAlert('');
+        if (productSubcategoryInput.value === CREATE_SUBCATEGORY_VALUE) {
+          productSubcategoryInput.value = '';
+          openQuickSubcategoryPanel();
+          return;
+        }
+        quickSubcategoryPanel?.classList.add('hidden');
+      });
+      quickCategoryCancel?.addEventListener('click', closeQuickCreatePanelsAndRestoreSelects);
+      quickSubcategoryCancel?.addEventListener('click', closeQuickCreatePanelsAndRestoreSelects);
+      quickCategoryX?.addEventListener('click', closeQuickCreatePanelsAndRestoreSelects);
+      quickSubcategoryX?.addEventListener('click', closeQuickCreatePanelsAndRestoreSelects);
+      quickCategorySave?.addEventListener('click', createQuickCategory);
+      quickSubcategorySave?.addEventListener('click', createQuickSubcategory);
+      quickCategoryName?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          createQuickCategory();
+        }
+      });
+      quickSubcategoryName?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          createQuickSubcategory();
+        }
+      });
+      productExtraAddBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        openExtraInfoEditor(-1);
+      });
+      productExtraCloseBtn?.addEventListener('click', closeExtraInfoEditor);
+      productExtraCancelBtn?.addEventListener('click', closeExtraInfoEditor);
+      productExtraSaveBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        saveExtraInfoEditor();
+      });
+      productExtraEditor?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        const tagName = String(event.target?.tagName || '').toLowerCase();
+        if (tagName === 'textarea') return;
+        event.preventDefault();
+        saveExtraInfoEditor();
+      });
+      document.addEventListener('click', (event) => {
+        if (!document.body.classList.contains('quick-modal-open')) return;
+        const openPanel = getOpenQuickCreatePanel();
+        if (!openPanel) return;
+        const clickedInsideModal = openPanel.contains(event.target);
+        const clickedCreateSelect = event.target === productCategoryInput || event.target === productSubcategoryInput;
+        if (!clickedInsideModal && !clickedCreateSelect) closeQuickCreatePanelsAndRestoreSelects();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !relatedProductsModal?.classList.contains('hidden')) {
+          closeRelatedProductsModal();
+          return;
+        }
+        if (event.key === 'Escape' && document.body.classList.contains('quick-modal-open')) {
+          closeQuickCreatePanelsAndRestoreSelects();
+        }
+      });
+      variationRefreshBtn?.addEventListener('click', async () => {
+        const currentProductId = productIdInput.value;
+        if (!currentProductId) return;
+        await loadProductVariations(currentProductId);
+        setVariationAlert('Variaciones actualizadas.', 'success');
+      });
+      variationNewBtn?.addEventListener('click', openNewVariationEditor);
+      variationCancelBtn?.addEventListener('click', resetVariationEditor);
+      variationDeleteBtn?.addEventListener('click', async () => {
+        const variationId = variationIdInput.value;
+        if (!variationId) return;
+        const variation = productVariations.find((item) => item.id === variationId);
+        const label = `${variation?.variation_type || 'Variación'}: ${variation?.value || 'Sin valor'}`;
+        const confirmed = window.confirm(`¿Seguro que quieres borrar la variación "${label}"?\n\nEsta acción no se puede deshacer.`);
+        if (!confirmed) return;
+        variationDeleteBtn.disabled = true;
+        try {
+          await apiRequest(`/api/collections/product_variations/records/${variationId}`, { method: 'DELETE' });
+          resetVariationEditor();
+          await loadProductVariations(productIdInput.value);
+          await syncProductVariationFlag();
+          setVariationAlert('Variación borrada correctamente.', 'success');
+        } catch (error) {
+          setVariationAlert(error.message || 'No se pudo borrar la variación. Revisa si ya fue usada en una orden.', 'error');
+        } finally {
+          variationDeleteBtn.disabled = false;
+        }
+      });
+      variationSaveBtn?.addEventListener('click', saveVariation);
+      variationEditor?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        const tagName = String(event.target?.tagName || '').toLowerCase();
+        if (tagName === 'textarea') return;
+        event.preventDefault();
+        saveVariation();
+      });
+      variationsList?.addEventListener('click', async (event) => {
+        const row = event.target.closest('.variation-row');
+        const variationId = row?.dataset?.variationId;
+        if (!variationId) return;
+        const editBtn = event.target.closest('.js-variation-edit');
+        const upBtn = event.target.closest('.js-variation-up');
+        const downBtn = event.target.closest('.js-variation-down');
+        if (editBtn) {
+          openVariationEditor(variationId);
+          return;
+        }
+        if (upBtn || downBtn) {
+          const button = upBtn || downBtn;
+          button.disabled = true;
+          try {
+            await moveVariation(variationId, upBtn ? 'up' : 'down');
+          } catch (error) {
+            setVariationAlert(error.message || 'No se pudo cambiar el orden de la variación.', 'error');
+          } finally {
+            button.disabled = false;
+          }
+        }
+      });
+      productSaveBtn?.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await saveProduct();
+      });
+      productForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        await saveProduct();
+      });
+      postSaveVariationYesBtn?.addEventListener('click', confirmPostSaveVariationChoice);
+      postSaveVariationNoBtn?.addEventListener('click', declinePostSaveVariationChoice);
+      productsList?.addEventListener('click', async (event) => {
+        const row = event.target.closest('.product-row');
+        const productId = row?.dataset?.productId;
+        if (!productId) return;
+        const editBtn = event.target.closest('.js-product-edit');
+        const openClick = event.target.closest('.js-product-open');
+        const toggleBtn = event.target.closest('.js-product-toggle');
+        const actionsTrigger = event.target.closest('.js-actions-trigger');
+        const soldoutBtn = event.target.closest('.js-product-soldout');
+        const soldoutConfirmBtn = event.target.closest('.js-product-soldout-confirm');
+        const soldoutCancelBtn = event.target.closest('.js-product-soldout-cancel');
+        const deleteBtn = event.target.closest('.js-product-delete');
+        const deleteConfirmBtn = event.target.closest('.js-product-delete-confirm');
+        const deleteCancelBtn = event.target.closest('.js-product-delete-cancel');
+        if (deleteCancelBtn) {
+          pendingDeleteProductId = '';
+          renderProducts();
+          return;
+        }
+        if (soldoutCancelBtn) {
+          pendingSoldoutProductId = '';
+          renderProducts();
+          return;
+        }
+        if (soldoutConfirmBtn) {
+          const product = products.find((item) => item.id === productId);
+          if (!product) return;
+          soldoutConfirmBtn.disabled = true;
+          try {
+            const formData = new FormData();
+            formData.append('stock', '0');
+            await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: formData });
+            pendingSoldoutProductId = '';
+            await loadProducts();
+          } catch (error) {
+            alert(error.message || 'No se pudo marcar el producto como agotado.');
+            soldoutConfirmBtn.disabled = false;
+          }
+          return;
+        }
+        if (deleteConfirmBtn) {
+          const product = products.find((item) => item.id === productId);
+          if (!product) return;
+          deleteConfirmBtn.disabled = true;
+          try {
+            await deleteProductWithVariations(productId);
+            pendingDeleteProductId = '';
+            if (productIdInput.value === productId) closeProductEditor();
+            await loadProducts();
+          } catch (error) {
+            alert(error.message || 'No se pudo borrar el producto. Revisa reglas delete de products/product_variations o si otra colección todavía tiene una relación requerida.');
+            deleteConfirmBtn.disabled = false;
+          }
+          return;
+        }
+        if (actionsTrigger) {
+          const menu = actionsTrigger.closest('.actions-wrap')?.querySelector('.actions-menu');
+          if (!menu) return;
+          const willOpen = menu.classList.contains('hidden');
+          closeProductActionMenus(menu);
+          menu.classList.toggle('hidden', !willOpen);
+          actionsTrigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          if (willOpen) requestAnimationFrame(() => positionProductActionsMenu(menu, actionsTrigger));
+          return;
+        }
+        if (toggleBtn) {
+          const product = products.find((item) => item.id === productId);
+          if (!product) return;
+          toggleBtn.disabled = true;
+          try {
+            const formData = new FormData();
+            formData.append('active', product.active ? 'false' : 'true');
+            await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: formData });
+            await loadProducts();
+          } catch (error) {
+            alert(error.message || 'No se pudo cambiar la visibilidad del producto.');
+          } finally {
+            toggleBtn.disabled = false;
+          }
+          return;
+        }
+        if (soldoutBtn) {
+          const product = products.find((item) => item.id === productId);
+          if (!product || soldoutBtn.disabled) return;
+          if (!productTracksStock(product)) {
+            alert('Este producto no descuenta stock. No necesita marcarse como agotado.');
+            return;
+          }
+          closeProductActionMenus();
+          pendingDeleteProductId = '';
+          pendingSoldoutProductId = productId;
+          renderProducts();
+          return;
+        }
+        if (deleteBtn) {
+          closeProductActionMenus();
+          pendingSoldoutProductId = '';
+          pendingDeleteProductId = productId;
+          renderProducts();
+          return;
+        }
+        if (editBtn || openClick) {
+          closeProductActionMenus();
+          openEditProductEditor(productId);
+          return;
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.actions-wrap')) closeProductActionMenus();
+      });
+
+      window.addEventListener('scroll', () => closeProductActionMenus(), true);
+      window.addEventListener('resize', () => closeProductActionMenus());
+
+      productsList?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const openTarget = event.target.closest('.js-product-open');
+        if (!openTarget) return;
+        const row = event.target.closest('.product-row');
+        const productId = row?.dataset?.productId;
+        if (!productId) return;
+        event.preventDefault();
+        openEditProductEditor(productId);
+      });
+
+      if (!POCKETBASE_URL) {
+        showLogin();
+        setAlert(loginAlert, 'Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+      } else if (getAdminToken()) {
+        showAdmin();
+        loadProducts({ openFromUrl: true });
+      } else {
+        showLogin();
+      }
+    </script>
+  </body>
+</html>

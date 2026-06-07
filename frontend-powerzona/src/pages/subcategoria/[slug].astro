@@ -1,0 +1,85 @@
+---
+// PZ-SUBCATEGORIA-PUBLICA-V1-PAGINA-PROPIA-20260603
+import Layout from '../../layouts/Layout.astro';
+import ProductCard from '../../components/ProductCard.astro';
+import PublicFooter from '../../components/PublicFooter.astro';
+import { getSettings, getCategories, getSubcategories, getProducts } from '../../lib/api';
+
+export async function getStaticPaths() {
+  const subcategories = await getSubcategories();
+  return subcategories.map((subcategory) => ({ params: { slug: subcategory.slug } }));
+}
+
+const { slug } = Astro.params;
+const settings = await getSettings();
+const categories = await getCategories();
+const subcategories = await getSubcategories();
+const products = await getProducts();
+
+const subcategory = subcategories.find((item) => item.slug === slug);
+if (!subcategory) return Astro.redirect('/');
+
+const category = categories.find((item) => item.id === subcategory.category);
+const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const logoImageUrl = settings?.logoImageUrl || '';
+const subcategoryProducts = products.filter((product) => product.subcategory === subcategory.id);
+function getProductOfferView(product: any) {
+  const activePrice = Number(product?.base_price_usd || 0);
+  const regularPrice = Number(product?.regular_price_usd || activePrice);
+  const isOffer = Boolean(product?.is_offer) && activePrice > 0 && regularPrice > activePrice;
+  return {
+    price: activePrice,
+    regularPrice: isOffer ? regularPrice : activePrice,
+    isOffer,
+  };
+}
+
+---
+
+<!-- PZ-SUBCATEGORIA-PUBLICA-V2-FOOTER-PUBLICO-20260603 -->
+<Layout>
+  <style>
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .brand-link { display: flex; align-items: center; gap: 10px; min-width: 0; color: #111827; }
+    .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; flex: 0 0 auto; }
+    .brand-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .brand-name { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .back-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 16px; padding: 11px 13px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 13px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.06); }
+    .hero-copy { display:grid; gap:10px; margin-bottom:24px; }
+    .kicker { margin: 0; color: #16a34a; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .11em; }
+    .title { margin: 0; font-size: clamp(32px, 7vw, 58px); line-height: .96; font-weight: 1000; letter-spacing: -.06em; color:#111827; }
+    .subtitle { margin: 0; color: #64748b; font-size: 14px; font-weight: 850; line-height:1.45; }
+    .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .empty-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 24px; padding: 22px; color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
+    @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; } }
+    @media (max-width: 640px) { .hero { border-radius: 28px; } .back-btn { padding: 10px 11px; } }
+  </style>
+
+  <div class="top">
+    <a class="brand-link" href="/">
+      <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+      <p class="brand-name">{storeName}</p>
+    </a>
+    <a class="back-btn" href={category ? `/categoria/${category.slug}` : '/#categorias'}>← Volver</a>
+  </div>
+
+  <section class="hero-copy">
+    <p class="kicker">Subcategoría{category ? ` · ${category.name}` : ''}</p>
+    <h1 class="title">{subcategory.name}</h1>
+    <p class="subtitle">{subcategoryProducts.length} productos visibles · Vista 2 por fila en PC y móvil.</p>
+  </section>
+
+  {subcategoryProducts.length > 0 ? (
+    <div class="product-grid">
+      {subcategoryProducts.map((product) => (
+        <a href={`/producto/${product.slug}`} class="block">
+          <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} />
+        </a>
+      ))}
+    </div>
+  ) : (
+    <div class="empty-box">Esta subcategoría todavía no tiene productos visibles.</div>
+  )}
+
+  <PublicFooter settings={settings} />
+</Layout>

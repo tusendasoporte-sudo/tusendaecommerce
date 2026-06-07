@@ -1,0 +1,154 @@
+---
+// PZ-PUBLIC-GIFTS-PAGE-V3-CARDS-RATIO-CONTROL-20260604
+import Layout from '../../layouts/Layout.astro';
+import PublicFooter from '../../components/PublicFooter.astro';
+import { getSettings, getPublicGifts } from '../../lib/api';
+
+const settings = await getSettings();
+const gifts = await getPublicGifts();
+const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const giftsPublicActive = settings?.gifts_public_active !== false;
+const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
+const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
+---
+
+<Layout>
+  <style>
+    .gift-page-head { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px; }
+    .back-link { display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2e8f0;background:#fff;color:#111827;border-radius:18px;padding:11px 14px;font-weight:1000;text-decoration:none;box-shadow:0 12px 26px rgba(15,23,42,.06); }
+    .gift-hero-copy { display:grid;gap:10px;margin-bottom:14px; }
+    .gift-hero-kicker { display:inline-flex;width:max-content;max-width:100%;border-radius:999px;padding:7px 11px;background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;font-size:11px;font-weight:1000; }
+    .gift-hero-title { margin:0;font-size:clamp(34px,7vw,58px);font-weight:1000;letter-spacing:-.06em;line-height:.96;color:#111827; }
+    .gift-hero-text { margin:0;color:#64748b;font-weight:800;max-width:650px;line-height:1.45; }
+    .gift-hero { position:relative;aspect-ratio:16/7;min-height:190px;max-height:330px;border-radius:32px;overflow:hidden;background:#111827;margin-bottom:18px;box-shadow:0 20px 50px rgba(15,23,42,.16); }
+    .gift-hero img { position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.98; }
+    .gift-hero-fallback { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:72px;background:radial-gradient(circle at top left,#334155,#111827); }
+    .gift-info-alert { display:none;margin:0 0 14px;border-radius:18px;padding:12px 14px;font-size:13px;font-weight:900;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe; }
+    .gift-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
+    .gift-card { background:#fff;border:1px solid #eef2f7;border-radius:28px;overflow:hidden;box-shadow:0 14px 34px rgba(15,23,42,.07);display:flex;flex-direction:column;min-width:0; }
+    .gift-image { display:block;width:100%;aspect-ratio:4/3;height:auto;background:#f8fafc;object-fit:contain;padding:10px; }
+    .gift-body { padding:14px;display:flex;flex-direction:column;gap:8px;flex:1; }
+    .gift-title { margin:0;font-size:15px;font-weight:1000;color:#111827;line-height:1.15; }
+    .gift-description { margin:0;color:#64748b;font-size:12px;line-height:1.35;font-weight:750; }
+    .gift-meta { display:flex;flex-wrap:wrap;gap:6px; }
+    .gift-pill { display:inline-flex;width:max-content;max-width:100%;border-radius:999px;padding:6px 8px;font-size:10px;font-weight:1000;background:#ecfdf5;color:#166534;border:1px solid #bbf7d0; }
+    .gift-btn { margin-top:auto;border:0;border-radius:17px;padding:11px 12px;font-size:12px;font-weight:1000;background:#111827;color:#fff;box-shadow:0 12px 24px rgba(15,23,42,.14);cursor:pointer; }
+    .gift-btn:disabled { background:#e5e7eb;color:#64748b;box-shadow:none;cursor:not-allowed; }
+    .empty { background:#fff;border:1px dashed #cbd5e1;border-radius:26px;padding:34px;text-align:center;color:#64748b;font-weight:900; }
+    @media(min-width:900px){ .gift-grid { gap:18px; } .gift-card { border-radius:30px; } }
+    @media(max-width:520px){ .gift-grid { gap:10px; } .gift-body{padding:11px;} .gift-title{font-size:13px;} .gift-btn{font-size:11px;padding:10px 8px;} .gift-hero{border-radius:26px;aspect-ratio:16/9;min-height:170px;} .gift-image{aspect-ratio:4/3;padding:8px;} }
+  </style>
+
+  <div class="gift-page-head">
+    <a class="back-link" href="/">← Inicio</a>
+    <a class="back-link" href="/#categorias">Categorías</a>
+  </div>
+
+  <div class="gift-hero-copy">
+    <span class="gift-hero-kicker">Especial para tu compra</span>
+    <h1 class="gift-hero-title">{giftsPublicTitle}</h1>
+    <p class="gift-hero-text">Escoge un regalo cuando tu carrito cumpla la regla. Solo se permite 1 regalo por orden.</p>
+  </div>
+
+  <section class="gift-hero">
+    {giftsPublicImageUrl ? <img src={giftsPublicImageUrl} alt={giftsPublicTitle} /> : <div class="gift-hero-fallback">🎁</div>}
+  </section>
+
+  <div id="gift-info-alert" class="gift-info-alert"></div>
+
+  {!giftsPublicActive && <div class="empty">La categoría de regalos no está visible en este momento.</div>}
+  {giftsPublicActive && gifts.length === 0 && <div class="empty">No hay regalos disponibles en este momento.</div>}
+
+  {giftsPublicActive && gifts.length > 0 && (
+    <section class="gift-grid">
+      {gifts.map((gift) => (
+        <article class="gift-card" data-gift-card data-gift-id={gift.id} data-gift-name={gift.name} data-gift-min={String(gift.min_order_usd || 0)} data-gift-stock={String(gift.stock || 0)} data-gift-image={gift.imageUrl || 'https://placehold.co/500x500?text=Regalo'}>
+          <img class="gift-image" src={gift.imageUrl || 'https://placehold.co/500x500?text=Regalo'} alt={gift.name} loading="lazy" />
+          <div class="gift-body">
+            <h2 class="gift-title">{gift.name}</h2>
+            {gift.description && <p class="gift-description">{gift.description}</p>}
+            <div class="gift-meta">
+              <span class="gift-pill">Desde ${Number(gift.min_order_usd || 0).toFixed(2)} USD</span>
+              <span class="gift-pill">Stock: {Number(gift.stock || 0)}</span>
+            </div>
+            <button type="button" class="gift-btn" data-gift-button data-gift-id={gift.id}>Disponible desde ${Number(gift.min_order_usd || 0).toFixed(2)} USD</button>
+          </div>
+        </article>
+      ))}
+    </section>
+  )}
+
+  <PublicFooter settings={settings} />
+
+  <script>
+    function getGiftCart() {
+      try { return JSON.parse(localStorage.getItem('powerzona_cart') || '[]'); } catch (_) { return []; }
+    }
+    function saveGiftCart(cart) {
+      const payload = JSON.stringify(cart);
+      localStorage.setItem('powerzona_cart', payload);
+      if (cart.length) sessionStorage.setItem('powerzona_checkout_cart', payload);
+      else sessionStorage.removeItem('powerzona_checkout_cart');
+      window.dispatchEvent(new Event('cart-updated'));
+    }
+    function getGiftCartSubtotal(cart = getGiftCart()) {
+      return cart.filter((item) => !item.is_gift).reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0);
+    }
+    function showGiftInfo(message) {
+      const alert = document.getElementById('gift-info-alert');
+      if (!alert) return;
+      alert.textContent = message;
+      alert.style.display = message ? 'block' : 'none';
+      if (message) alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function syncGiftButtons() {
+      const subtotal = getGiftCartSubtotal();
+      document.querySelectorAll('[data-gift-card]').forEach((card) => {
+        const min = Number(card.dataset.giftMin || 0);
+        const stock = Number(card.dataset.giftStock || 0);
+        const btn = card.querySelector('[data-gift-button]');
+        if (!btn) return;
+        const canAdd = subtotal >= min && stock > 0;
+        btn.disabled = !canAdd;
+        btn.textContent = stock <= 0 ? 'Agotado' : canAdd ? 'Agregar regalo' : `Disponible desde $${min.toFixed(2)} USD`;
+      });
+    }
+    function addGiftFromCard(card) {
+      const cart = getGiftCart();
+      const min = Number(card.dataset.giftMin || 0);
+      const subtotal = getGiftCartSubtotal(cart);
+      if (subtotal < min) {
+        showGiftInfo(`Este regalo estará disponible cuando tu carrito llegue a $${min.toFixed(2)} USD.`);
+        return;
+      }
+      const existingGift = cart.find((item) => item.is_gift);
+      if (existingGift && existingGift.gift_id !== card.dataset.giftId) {
+        const replace = window.confirm('Ya tienes un regalo seleccionado. ¿Quieres reemplazarlo por este?');
+        if (!replace) return;
+      }
+      const withoutGifts = cart.filter((item) => !item.is_gift);
+      withoutGifts.push({
+        id: `gift-${card.dataset.giftId}`,
+        gift_id: card.dataset.giftId,
+        title: card.dataset.giftName || 'Regalo',
+        image: card.dataset.giftImage || 'https://placehold.co/500x500?text=Regalo',
+        price: 0,
+        quantity: 1,
+        stock: Number(card.dataset.giftStock || 0),
+        min_order_usd: min,
+        is_gift: true,
+        track_stock: true,
+      });
+      saveGiftCart(withoutGifts);
+      showGiftInfo('Regalo agregado al carrito. Solo puedes llevar 1 regalo por orden.');
+    }
+    document.querySelectorAll('[data-gift-button]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const card = button.closest('[data-gift-card]');
+        if (card) addGiftFromCard(card);
+      });
+    });
+    window.addEventListener('cart-updated', syncGiftButtons);
+    syncGiftButtons();
+  </script>
+</Layout>

@@ -1,0 +1,1604 @@
+---
+// PZ-PATCH-V26.5-OFERTA-FINAL-ESTABLE-20260605
+import Layout from '../layouts/Layout.astro';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+<!-- PZ-CHECKOUT-V19-OFERTA-AHORRO-20260605 -->
+<Layout>
+	<section class="max-w-5xl mx-auto">
+		<div class="mb-6">
+			<a href="/" class="inline-flex items-center text-sm text-blue-600 font-semibold mb-4">
+				← Seguir comprando
+			</a>
+
+			<h1 class="text-3xl font-extrabold text-gray-900">
+				Revisar pedido
+			</h1>
+
+			<p class="text-gray-500 mt-2">
+				Confirma tus productos, elige cómo deseas recibir el pedido y completa tus datos.
+			</p>
+		</div>
+
+		<div id="checkout-empty" class="hidden bg-white rounded-3xl border border-gray-100 shadow-sm p-8 text-center">
+			<div class="text-5xl mb-4">🛒</div>
+
+			<h2 class="text-xl font-bold text-gray-900 mb-2">
+				Tu carrito está vacío
+			</h2>
+
+			<p class="text-gray-500 mb-6">
+				No hay productos para realizar el pedido. Te enviaremos nuevamente al catálogo.
+			</p>
+
+			<a
+				href="/"
+				class="inline-flex bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-2xl transition"
+			>
+				Volver al catálogo
+			</a>
+		</div>
+
+		<div id="checkout-content" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<div class="lg:col-span-2 space-y-6">
+				<div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+					<div class="p-5 border-b border-gray-100">
+						<h2 class="text-xl font-bold text-gray-900">
+							Productos del pedido
+						</h2>
+
+						<p class="text-sm text-gray-500 mt-1">
+							Revisa cantidades, stock y subtotal por producto.
+						</p>
+					</div>
+
+					<div id="checkout-items" class="divide-y divide-gray-100"></div>
+
+					<div id="add-more-products-box" class="p-5 bg-gray-50 border-t border-gray-100">
+						<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+							<div>
+								<h3 class="font-bold text-gray-900">
+									¿Deseas agregar algo más?
+								</h3>
+
+								<p class="text-sm text-gray-500 mt-1">
+									Puedes volver al catálogo y seguir agregando productos a tu pedido.
+								</p>
+							</div>
+
+							<a
+								href="/"
+								class="inline-flex justify-center items-center bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-2xl transition"
+							>
+								Volver al catálogo
+							</a>
+						</div>
+					</div>
+				</div>
+
+				<form id="checkout-form" class="space-y-6" novalidate>
+					<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+						<h2 class="text-xl font-bold text-gray-900 mb-4">
+							Método de entrega
+						</h2>
+
+						<div id="delivery-methods" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+							<label id="delivery-option-delivery" class="delivery-option border border-gray-200 rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
+								<input type="radio" name="delivery_method" value="delivery" class="mr-2" />
+								<span class="font-bold text-gray-800">Envío</span>
+								<p class="text-xs text-gray-500 mt-1">
+									Entrega a domicilio.
+								</p>
+							</label>
+
+							<label id="delivery-option-pickup" class="delivery-option border border-gray-200 rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
+								<input type="radio" name="delivery_method" value="pickup" class="mr-2" />
+								<span class="font-bold text-gray-800">Recogida</span>
+								<p class="text-xs text-gray-500 mt-1">
+									Se coordina por WhatsApp.
+								</p>
+							</label>
+
+							<label id="delivery-option-coordinate" class="delivery-option border border-gray-200 rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
+								<input type="radio" name="delivery_method" value="coordinate" class="mr-2" />
+								<span class="font-bold text-gray-800">Coordinar</span>
+								<p class="text-xs text-gray-500 mt-1">
+									Un admin confirma contigo.
+								</p>
+							</label>
+						</div>
+
+						<p id="delivery-method-error" class="hidden text-xs text-red-500 font-semibold mt-3">
+							Selecciona un método de entrega.
+						</p>
+
+						<div id="delivery-helper" class="mt-4 bg-blue-50 border border-blue-100 text-blue-800 rounded-2xl p-3 text-xs font-semibold">
+							Selecciona cómo deseas recibir el pedido para completar los datos necesarios.
+						</div>
+					</div>
+
+					<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+						<h2 class="text-xl font-bold text-gray-900 mb-4">
+							Datos del cliente
+						</h2>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<label for="customer-name" class="block text-sm font-semibold text-gray-700 mb-2">
+									Nombre completo <span class="text-red-500">*</span>
+								</label>
+								<input
+									id="customer-name"
+									name="customer_name"
+									type="text"
+									placeholder="Ej: Juan Pérez"
+									autocomplete="name"
+									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+								<p id="customer-name-error" class="hidden text-xs text-red-500 font-semibold mt-2">
+									Escribe el nombre del cliente.
+								</p>
+							</div>
+
+							<div>
+								<label for="customer-phone" class="block text-sm font-semibold text-gray-700 mb-2">
+									Teléfono / WhatsApp <span class="text-red-500">*</span>
+								</label>
+								<input
+									id="customer-phone"
+									name="customer_phone"
+									type="tel"
+									placeholder="Ej: +53 5..."
+									autocomplete="tel"
+									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+								<p id="customer-phone-error" class="hidden text-xs text-red-500 font-semibold mt-2">
+									Escribe un teléfono válido para coordinar el pedido.
+								</p>
+							</div>
+
+							<div id="municipality-field-box" class="hidden">
+								<label for="customer-municipality" class="block text-sm font-semibold text-gray-700 mb-2">
+									Municipio <span class="text-red-500">*</span>
+								</label>
+								<select
+									id="customer-municipality"
+									name="customer_municipality"
+									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+								disabled
+								>
+									<option value="">Cargando municipios...</option>
+								</select>
+								<p id="customer-municipality-error" class="hidden text-xs text-red-500 font-semibold mt-2">
+									Selecciona el municipio para calcular el envío.
+								</p>
+							</div>
+
+							<div id="shipping-zone-field-box" class="hidden">
+								<label for="customer-shipping-zone" class="block text-sm font-semibold text-gray-700 mb-2">
+									Zona de entrega <span class="text-red-500">*</span>
+								</label>
+								<select
+									id="customer-shipping-zone"
+									name="shipping_zone"
+									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+								disabled
+								>
+									<option value="">Primero selecciona municipio</option>
+								</select>
+								<p id="customer-shipping-zone-error" class="hidden text-xs text-red-500 font-semibold mt-2">
+									Selecciona la zona de entrega.
+								</p>
+							</div>
+
+							<div id="address-field-box" class="hidden md:col-span-2">
+								<label for="customer-address" class="block text-sm font-semibold text-gray-700 mb-2">
+									Dirección o referencia <span class="text-red-500">*</span>
+								</label>
+								<input
+									id="customer-address"
+									name="customer_address"
+									type="text"
+									placeholder="Ej: Calle, número, entrecalles, referencia..."
+									autocomplete="street-address"
+									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+								/>
+								<p id="customer-address-error" class="hidden text-xs text-red-500 font-semibold mt-2">
+									Escribe una dirección o referencia para la entrega.
+								</p>
+							</div>
+
+							<div class="md:col-span-2">
+								<label for="customer-note" class="block text-sm font-semibold text-gray-700 mb-2">
+									Nota adicional
+								</label>
+								<textarea
+									id="customer-note"
+									name="customer_note"
+									rows="3"
+									placeholder="Ej: horario preferido, detalles de entrega, aclaraciones del pedido..."
+									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+								></textarea>
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+
+			<aside class="lg:col-span-1">
+				<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5 sticky top-24">
+					<h2 class="text-xl font-bold text-gray-900 mb-4">
+						Resumen
+					</h2>
+
+					<div class="space-y-3 text-sm">
+						<div class="flex justify-between">
+							<span class="text-gray-500">Productos</span>
+							<span id="summary-items" class="font-bold text-gray-900">0</span>
+						</div>
+
+						<div class="flex justify-between">
+							<span class="text-gray-500">Moneda elegida</span>
+							<span id="summary-currency" class="font-bold text-gray-900">USD</span>
+						</div>
+
+						<div class="flex justify-between">
+							<span class="text-gray-500">Productos</span>
+							<span id="summary-subtotal" class="font-bold text-gray-900">$0.00 USD</span>
+						</div>
+
+						<div class="flex justify-between">
+							<span class="text-gray-500">Entrega</span>
+							<span id="summary-delivery" class="font-bold text-gray-400">Pendiente</span>
+						</div>
+
+						<div class="border-t border-gray-100 pt-4 flex justify-between items-center">
+							<span class="font-bold text-gray-900">Total estimado</span>
+							<span id="summary-total" class="text-2xl font-black text-blue-600">$0.00 USD</span>
+						</div>
+
+						<div id="summary-delivery-cost-note" class="hidden rounded-2xl bg-blue-50 border border-blue-100 p-3">
+							<div class="flex justify-between gap-3 text-sm">
+								<span class="font-bold text-blue-900">Costo de entrega</span>
+								<span id="summary-delivery-cost" class="font-black text-blue-700 text-right">$0.00 USD</span>
+							</div>
+							<p class="text-xs text-blue-700 font-semibold mt-1">
+								La entrega se muestra aparte del total estimado.
+							</p>
+						</div>
+					</div>
+
+					<div id="summary-alerts" class="mt-5 space-y-2"></div>
+					<div id="checkout-validation-alert" class="mt-4 hidden bg-red-50 border border-red-100 text-red-700 rounded-2xl p-3 text-xs font-semibold"></div>
+					<div id="checkout-success-alert" class="mt-4 hidden bg-green-50 border border-green-100 text-green-700 rounded-2xl p-3 text-xs font-semibold"></div>
+
+					<button
+						type="button"
+						id="continue-whatsapp-btn"
+						class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl shadow-lg transition mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+						disabled
+					>
+						Realizar Pedido
+					</button>
+
+					<p class="text-xs text-gray-400 mt-3 text-center">
+						Primero se guardará la orden. Luego podrás abrir WhatsApp sin crear pedidos duplicados.
+					</p>
+				</div>
+			</aside>
+		</div>
+	</section>
+
+	<script define:vars={{ pocketbaseUrl }}>
+		const checkoutEmpty = document.getElementById('checkout-empty');
+		const checkoutContent = document.getElementById('checkout-content');
+		const checkoutItems = document.getElementById('checkout-items');
+		const checkoutForm = document.getElementById('checkout-form');
+
+		const customerName = document.getElementById('customer-name');
+		const customerPhone = document.getElementById('customer-phone');
+		const customerMunicipality = document.getElementById('customer-municipality');
+		const customerAddress = document.getElementById('customer-address');
+		const customerShippingZone = document.getElementById('customer-shipping-zone');
+		const customerNote = document.getElementById('customer-note');
+
+		const municipalityFieldBox = document.getElementById('municipality-field-box');
+		const addressFieldBox = document.getElementById('address-field-box');
+		const shippingZoneFieldBox = document.getElementById('shipping-zone-field-box');
+
+		const summaryItems = document.getElementById('summary-items');
+		const summarySubtotal = document.getElementById('summary-subtotal');
+		const summaryCurrency = document.getElementById('summary-currency');
+		const summaryTotal = document.getElementById('summary-total');
+		const summaryDelivery = document.getElementById('summary-delivery');
+		const summaryDeliveryCostNote = document.getElementById('summary-delivery-cost-note');
+		const summaryDeliveryCost = document.getElementById('summary-delivery-cost');
+		const summaryAlerts = document.getElementById('summary-alerts');
+		const checkoutValidationAlert = document.getElementById('checkout-validation-alert');
+		const checkoutSuccessAlert = document.getElementById('checkout-success-alert');
+		const continueWhatsappBtn = document.getElementById('continue-whatsapp-btn');
+		const deliveryHelper = document.getElementById('delivery-helper');
+
+		let shippingZones = [];
+		let shippingZonesLoaded = false;
+		let isSubmittingOrder = false;
+		let orderWasCreated = false;
+		let savedWhatsappUrl = '';
+		let savedOrderNumber = '';
+		let pendingOrderFingerprint = '';
+		let checkoutLocked = false;
+
+		const PENDING_ORDER_KEY = 'powerzona_pending_checkout_order';
+
+			function parseStoredCart(value) {
+				try {
+					const parsed = JSON.parse(value || '[]');
+					return Array.isArray(parsed) ? parsed : [];
+				} catch (error) {
+					console.warn('Carrito guardado inválido.', error);
+					return [];
+				}
+			}
+
+			function getCart() {
+				const localCart = parseStoredCart(localStorage.getItem('powerzona_cart'));
+				if (localCart.length) return localCart;
+
+				const checkoutBackup = parseStoredCart(sessionStorage.getItem('powerzona_checkout_cart'));
+				if (checkoutBackup.length) {
+					localStorage.setItem('powerzona_cart', JSON.stringify(checkoutBackup));
+					return checkoutBackup;
+				}
+
+				return [];
+			}
+
+			function saveCart(cart) {
+				if (checkoutLocked) return;
+				const payload = JSON.stringify(cart);
+				localStorage.setItem('powerzona_cart', payload);
+				if (cart.length) sessionStorage.setItem('powerzona_checkout_cart', payload);
+				else sessionStorage.removeItem('powerzona_checkout_cart');
+				window.dispatchEvent(new Event('cart-updated'));
+				renderCheckout();
+			}
+
+
+		function buildCartFingerprint(cart) {
+			return (cart || [])
+				.map((item) => `${item?.is_gift ? 'gift' : 'product'}:${item?.id || item?.gift_id || item?.title}:${item?.variation_id || ''}:${Number(item?.quantity || 1)}`)
+				.sort()
+				.join('|');
+		}
+
+		function getPendingCheckoutOrder(cart) {
+			try {
+				const pending = JSON.parse(sessionStorage.getItem(PENDING_ORDER_KEY) || 'null');
+				if (!pending || !pending.whatsappUrl || !pending.cartFingerprint) return null;
+				const currentFingerprint = buildCartFingerprint(cart || getCart());
+				if (!currentFingerprint || pending.cartFingerprint !== currentFingerprint) {
+					sessionStorage.removeItem(PENDING_ORDER_KEY);
+					return null;
+				}
+				return pending;
+			} catch (error) {
+				sessionStorage.removeItem(PENDING_ORDER_KEY);
+				return null;
+			}
+		}
+
+		function savePendingCheckoutOrder({ orderNumber, whatsappUrl, cartFingerprint }) {
+			const payload = { orderNumber, whatsappUrl, cartFingerprint, createdAt: Date.now() };
+			sessionStorage.setItem(PENDING_ORDER_KEY, JSON.stringify(payload));
+		}
+
+		function clearPendingCheckoutOrder() {
+			sessionStorage.removeItem(PENDING_ORDER_KEY);
+		}
+
+		function setCheckoutLocked(locked) {
+			checkoutLocked = Boolean(locked);
+			checkoutForm?.querySelectorAll('input, select, textarea').forEach((field) => {
+				field.disabled = checkoutLocked;
+			});
+			document.querySelectorAll('.delivery-option').forEach((label) => {
+				label.classList.toggle('opacity-60', checkoutLocked);
+				label.classList.toggle('cursor-not-allowed', checkoutLocked);
+			});
+			const addMoreBox = document.getElementById('add-more-products-box');
+			if (addMoreBox) addMoreBox.classList.toggle('hidden', checkoutLocked);
+		}
+
+		function markOrderCreated({ orderNumber, whatsappUrl, cartFingerprint }) {
+			orderWasCreated = true;
+			isSubmittingOrder = false;
+			savedWhatsappUrl = whatsappUrl;
+			savedOrderNumber = orderNumber || '';
+			pendingOrderFingerprint = cartFingerprint || buildCartFingerprint(getCart());
+			if (savedWhatsappUrl) {
+				savePendingCheckoutOrder({
+					orderNumber: savedOrderNumber,
+					whatsappUrl: savedWhatsappUrl,
+					cartFingerprint: pendingOrderFingerprint,
+				});
+			}
+			setCheckoutLocked(true);
+			continueWhatsappBtn.disabled = false;
+			continueWhatsappBtn.textContent = 'Abrir WhatsApp del pedido';
+			checkoutValidationAlert.classList.add('hidden');
+			checkoutSuccessAlert.innerHTML = `
+				<div class="font-black mb-2">Pedido ${escapeHtml(savedOrderNumber || '')} guardado correctamente.</div>
+				<div class="mb-3">La orden ya quedó registrada. Ahora abre WhatsApp para enviar el resumen al negocio.</div>
+			`;
+			checkoutSuccessAlert.classList.remove('hidden');
+		}
+
+		function resetOrderCreatedState() {
+			orderWasCreated = false;
+			isSubmittingOrder = false;
+			savedWhatsappUrl = '';
+			savedOrderNumber = '';
+			pendingOrderFingerprint = '';
+			setCheckoutLocked(false);
+			clearPendingCheckoutOrder();
+		}
+
+		function completeCheckoutAfterWhatsApp() {
+			localStorage.removeItem('powerzona_cart');
+			sessionStorage.removeItem('powerzona_checkout_cart');
+			localStorage.removeItem('powerzona_checkout_draft');
+			clearPendingCheckoutOrder();
+			window.dispatchEvent(new Event('cart-updated'));
+			checkoutContent?.classList.add('hidden');
+			checkoutEmpty?.classList.remove('hidden');
+			setTimeout(() => {
+				window.location.href = '/';
+			}, 900);
+		}
+
+		function getItemKey(item) {
+			if (item?.is_gift) return `gift::${item.gift_id || item.id}`;
+			return item?.variation_id ? `${item.id}::${item.variation_id}` : (item.id || item.title);
+		}
+
+		function formatUSD(value) {
+			return '$' + Number(value || 0).toFixed(2) + ' USD';
+		}
+
+		function selectedCurrencyCode() {
+			return window.PZCurrency?.selected?.code || localStorage.getItem('powerzona_currency') || 'USD';
+		}
+
+		function formatVisualFromUsd(value, options = {}) {
+			if (window.PZCurrency?.formatVisualFromUsd) return window.PZCurrency.formatVisualFromUsd(value, options);
+			return formatUSD(value);
+		}
+
+		function convertFromUsd(value, currencyCode = selectedCurrencyCode()) {
+			if (window.PZCurrency?.convertFromUsd) return window.PZCurrency.convertFromUsd(value, currencyCode);
+			return Number(value || 0);
+		}
+
+		function formatShipping(value) {
+			if (window.PZCurrency?.formatShipping) return window.PZCurrency.formatShipping(value);
+			return formatUSD(value);
+		}
+
+		function getSelectedCurrencyObject() {
+			return window.PZCurrency?.selected || { code: selectedCurrencyCode(), id: '', exchange_rate: 1 };
+		}
+
+		function formatCheckoutTotals(totals) {
+			const selected = selectedCurrencyCode();
+			if (selected !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal > 0) {
+				return `${formatVisualFromUsd(totals.localCurrencyTotal, { onlyUsd: false })} + ${formatUSD(totals.usdOnlyTotal)}`;
+			}
+			if (totals.usdOnlyTotal > 0 && totals.localCurrencyTotal <= 0) return formatUSD(totals.usdOnlyTotal);
+			return formatVisualFromUsd(totals.localCurrencyTotal || totals.subtotalUSD, { onlyUsd: false });
+		}
+
+		function getCheckoutSummaryCurrencyLabel(totals) {
+			const selected = selectedCurrencyCode();
+			if (totals.usdOnlyTotal > 0 && totals.localCurrencyTotal <= 0) return 'USD';
+			if (selected !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal > 0) return `${selected} + USD`;
+			return selected;
+		}
+
+		function escapeHtml(value) {
+			return String(value || '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		}
+
+		function getShippingZonePrice(zone) {
+			if (!zone) return 0;
+		return Number(zone.price_usd ?? 0);	
+		}
+
+		function getSelectedShippingZone() {
+			const selectedId = customerShippingZone?.value || '';
+			return shippingZones.find((zone) => zone.id === selectedId) || null;
+		}
+
+		function getUniqueMunicipalities() {
+			return [...new Set(shippingZones.map((zone) => zone.municipality).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+		}
+
+		function normalizeDeliveryMode(deliveryMode) {
+			const value = String(deliveryMode || 'both').trim().toLowerCase();
+
+			if (value === 'delivery' || value === 'solo_envio' || value === 'solo envío' || value === 'solo envio') {
+				return 'delivery';
+			}
+
+			if (value === 'pickup' || value === 'solo_recogida' || value === 'solo recogida') {
+				return 'pickup';
+			}
+
+			return 'both';
+		}
+
+		function getDeliveryText(deliveryMode) {
+			const normalizedMode = normalizeDeliveryMode(deliveryMode);
+
+			if (normalizedMode === 'delivery') return 'Solo envío';
+			if (normalizedMode === 'pickup') return 'Solo recogida';
+			return 'Envío o recogida';
+		}
+
+		function getSelectedDeliveryMethod() {
+			const selected = document.querySelector('input[name="delivery_method"]:checked');
+			return selected ? selected.value : '';
+		}
+
+		function getDeliveryMethodText(method) {
+			if (method === 'delivery') return 'Envío';
+			if (method === 'pickup') return 'Para recoger';
+			if (method === 'coordinate') return 'Coordinar entrega';
+			return 'Pendiente';
+		}
+
+		function getWhatsAppDeliveryLine(checkoutData, totals) {
+			if (checkoutData?.delivery_method === 'delivery') {
+				return `*Total de envío*: ${formatShipping(totals.shippingUSD)}`;
+			}
+
+			if (checkoutData?.delivery_method === 'pickup') {
+				return '*Entrega*: Para recoger';
+			}
+
+			if (checkoutData?.delivery_method === 'coordinate') {
+				return '*Entrega*: A coordinar con la tienda';
+			}
+
+			return '*Entrega*: Pendiente';
+		}
+
+		async function loadShippingZones() {
+			if (shippingZonesLoaded) return;
+
+			if (!POCKETBASE_URL) {
+				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+			}
+
+			const filter = encodeURIComponent('active = true');
+			const response = await fetch(
+				`${POCKETBASE_URL}/api/collections/shipping_zones/records?filter=${filter}&sort=municipality,zone&perPage=200`
+			);
+			const result = await response.json().catch(() => null);
+
+			if (!response.ok) {
+				console.error('Error leyendo shipping_zones:', result);
+				throw new Error('No se pudieron cargar las zonas de envío desde PocketBase.');
+			}
+
+			shippingZones = result?.items || [];
+			shippingZonesLoaded = true;
+			renderMunicipalityOptions();
+		}
+
+		function renderMunicipalityOptions() {
+			if (!customerMunicipality) return;
+
+			const currentValue = customerMunicipality.value;
+			const municipalities = getUniqueMunicipalities();
+
+			if (!municipalities.length) {
+				customerMunicipality.innerHTML = '<option value="">No hay municipios disponibles</option>';
+				customerMunicipality.disabled = true;
+				renderShippingZoneOptions('');
+				return;
+			}
+
+			customerMunicipality.innerHTML = '<option value="">Selecciona municipio</option>' + municipalities
+				.map((municipality) => `<option value="${escapeHtml(municipality)}">${escapeHtml(municipality)}</option>`)
+				.join('');
+
+			customerMunicipality.disabled = false;
+
+			if (municipalities.includes(currentValue)) {
+				customerMunicipality.value = currentValue;
+			}
+
+			renderShippingZoneOptions(customerMunicipality.value);
+		}
+
+		function renderShippingZoneOptions(municipality) {
+			if (!customerShippingZone) return;
+
+			const currentValue = customerShippingZone.value;
+			const zones = shippingZones.filter((zone) => zone.municipality === municipality);
+
+			if (!municipality) {
+				customerShippingZone.innerHTML = '<option value="">Primero selecciona municipio</option>';
+				customerShippingZone.disabled = true;
+				return;
+			}
+
+			if (!zones.length) {
+				customerShippingZone.innerHTML = '<option value="">No hay zonas para este municipio</option>';
+				customerShippingZone.disabled = true;
+				return;
+			}
+
+			customerShippingZone.innerHTML = '<option value="">Selecciona zona</option>' + zones
+				.map((zone) => {
+					const label = `${zone.zone || zone.municipality} - ${formatShipping(getShippingZonePrice(zone))}`;
+					return `<option value="${zone.id}">${escapeHtml(label)}</option>`;
+				})
+				.join('');
+
+			customerShippingZone.disabled = false;
+
+			if (zones.some((zone) => zone.id === currentValue)) {
+				customerShippingZone.value = currentValue;
+			}
+		}
+
+		function isValidPhone(value) {
+			const digits = String(value || '').replace(/\D/g, '');
+			return digits.length >= 6;
+		}
+
+		function setError(id, show) {
+			const element = document.getElementById(id);
+			if (!element) return;
+
+			if (show) {
+				element.classList.remove('hidden');
+			} else {
+				element.classList.add('hidden');
+			}
+		}
+
+		function setFieldInvalid(field, invalid) {
+			if (!field) return;
+
+			if (invalid) {
+				field.classList.add('ring-2', 'ring-red-400');
+			} else {
+				field.classList.remove('ring-2', 'ring-red-400');
+			}
+		}
+
+		function getAvailableDeliveryMethods(cart) {
+			const normalItems = cart.filter((item) => !item.is_gift);
+			const normalizedModes = normalItems.map((item) => normalizeDeliveryMode(item.delivery_mode));
+			const hasDeliveryOnly = normalizedModes.includes('delivery');
+			const hasPickupOnly = normalizedModes.includes('pickup');
+			const hasFlexible = normalizedModes.includes('both');
+
+			if (hasPickupOnly && (hasDeliveryOnly || hasFlexible)) {
+				return ['coordinate'];
+			}
+
+			if (hasDeliveryOnly) {
+				return ['delivery', 'coordinate'];
+			}
+
+			if (hasPickupOnly) {
+				return ['pickup', 'coordinate'];
+			}
+
+			return ['delivery', 'pickup', 'coordinate'];
+		}
+
+		function updateDeliveryOptions(cart) {
+			const availableMethods = getAvailableDeliveryMethods(cart);
+			const currentMethod = getSelectedDeliveryMethod();
+
+			document.querySelectorAll('input[name="delivery_method"]').forEach((input) => {
+				const label = input.closest('.delivery-option');
+				const isAvailable = availableMethods.includes(input.value);
+
+				input.disabled = !isAvailable;
+
+				if (!isAvailable) {
+					input.checked = false;
+					label?.classList.add('opacity-40', 'cursor-not-allowed', 'bg-gray-50');
+					label?.classList.remove('cursor-pointer', 'hover:border-blue-500');
+				} else {
+					label?.classList.remove('opacity-40', 'cursor-not-allowed', 'bg-gray-50');
+					label?.classList.add('cursor-pointer', 'hover:border-blue-500');
+				}
+			});
+
+			if (!availableMethods.includes(currentMethod)) {
+				const firstAvailable = document.querySelector(`input[name="delivery_method"][value="${availableMethods[0]}"]`);
+				if (firstAvailable) firstAvailable.checked = true;
+			}
+		}
+
+		function updateDeliveryUI() {
+			const method = getSelectedDeliveryMethod();
+
+			document.querySelectorAll('.delivery-option').forEach((label) => {
+				const input = label.querySelector('input[name="delivery_method"]');
+				const isChecked = input?.checked;
+
+				label.classList.toggle('border-blue-500', Boolean(isChecked));
+				label.classList.toggle('bg-blue-50', Boolean(isChecked));
+			});
+
+			if (method === 'delivery') {
+				municipalityFieldBox?.classList.remove('hidden');
+				shippingZoneFieldBox?.classList.remove('hidden');
+				addressFieldBox?.classList.remove('hidden');
+				deliveryHelper.textContent = 'Selecciona municipio y zona de entrega. El envío se muestra aparte en USD y equivalente de la moneda elegida.';
+			} else if (method === 'pickup') {
+				municipalityFieldBox?.classList.add('hidden');
+				shippingZoneFieldBox?.classList.add('hidden');
+				addressFieldBox?.classList.add('hidden');
+				deliveryHelper.textContent = 'La recogida se coordinará por WhatsApp. La dirección fija de recogida no se muestra directamente en la web.';
+			} else if (method === 'coordinate') {
+				municipalityFieldBox?.classList.add('hidden');
+				shippingZoneFieldBox?.classList.add('hidden');
+				addressFieldBox?.classList.add('hidden');
+				deliveryHelper.textContent = 'Un administrador confirmará contigo la mejor forma de entrega según los productos del pedido.';
+			} else {
+				municipalityFieldBox?.classList.add('hidden');
+				shippingZoneFieldBox?.classList.add('hidden');
+				addressFieldBox?.classList.add('hidden');
+				deliveryHelper.textContent = 'Selecciona cómo deseas recibir el pedido para completar los datos necesarios.';
+			}
+
+			const selectedZone = getSelectedShippingZone();
+			if (method === 'delivery' && selectedZone) {
+				summaryDelivery.textContent = formatShipping(getShippingZonePrice(selectedZone));
+			} else {
+				summaryDelivery.textContent = getDeliveryMethodText(method);
+			}
+			summaryDelivery.classList.toggle('text-gray-400', !method);
+			summaryDelivery.classList.toggle('text-gray-900', Boolean(method));
+		}
+
+		function getCheckoutData() {
+			return {
+				customer_name: customerName?.value.trim() || '',
+				customer_phone: customerPhone?.value.trim() || '',
+				customer_municipality: customerMunicipality?.value.trim() || '',
+				customer_address: customerAddress?.value.trim() || '',
+				customer_note: customerNote?.value.trim() || '',
+				delivery_method: getSelectedDeliveryMethod(),
+				shipping_zone: customerShippingZone?.value || '',
+			};
+		}
+
+		function itemTracksStock(item) {
+			return item?.track_stock !== false;
+		}
+
+		function getProductsSubtotalUSD(cart = getCart()) {
+			return cart
+				.filter((item) => !item.is_gift)
+				.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0);
+		}
+
+		function validateGiftRulesOnCheckout() {
+			const cart = getCart();
+			const subtotal = getProductsSubtotalUSD(cart);
+			const gifts = cart.filter((item) => item.is_gift);
+			if (!gifts.length) return cart;
+
+			let removed = false;
+			const validGifts = [];
+			for (const gift of gifts) {
+				const min = Number(gift.min_order_usd || 0);
+				const stock = Number(gift.stock || 0);
+				if (!validGifts.length && subtotal >= min && stock > 0) validGifts.push({ ...gift, quantity: 1, price: 0 });
+				else removed = true;
+			}
+
+			if (!removed && validGifts.length === gifts.length) return cart;
+
+			const nextCart = cart.filter((item) => !item.is_gift).concat(validGifts.slice(0, 1));
+			const payload = JSON.stringify(nextCart);
+			localStorage.setItem('powerzona_cart', payload);
+			if (nextCart.length) sessionStorage.setItem('powerzona_checkout_cart', payload);
+			else sessionStorage.removeItem('powerzona_checkout_cart');
+			sessionStorage.setItem('powerzona_gift_notice', 'Tu compra no cumplía con las reglas del regalo. Por favor, vuelve a agregarlo después de agregar algo más a tu carrito.');
+			return nextCart;
+		}
+
+		function getStockProblemItems(cart) {
+			return cart.filter((item) => {
+				const stock = Number(item.stock || 0);
+				const quantity = Number(item.quantity || 1);
+				const isPreorder = Boolean(item.preorder);
+
+				return itemTracksStock(item) && !isPreorder && (stock <= 0 || quantity > stock);
+			});
+		}
+
+		function validateCheckout(showErrors = false) {
+			const cart = getCart();
+			const data = getCheckoutData();
+			const requiresAddress = data.delivery_method === 'delivery';
+			const stockProblemItems = getStockProblemItems(cart);
+
+			const errors = {
+				cart: cart.filter((item) => !item.is_gift).length === 0,
+				stock: stockProblemItems.length > 0,
+				name: data.customer_name.length < 2,
+				phone: !isValidPhone(data.customer_phone),
+				delivery_method: !data.delivery_method,
+				municipality: requiresAddress && data.customer_municipality.length < 2,
+				shipping_zone: requiresAddress && !data.shipping_zone,
+				address: requiresAddress && data.customer_address.length < 5,
+			};
+
+			if (showErrors) {
+				setError('customer-name-error', errors.name);
+				setError('customer-phone-error', errors.phone);
+				setError('delivery-method-error', errors.delivery_method);
+				setError('customer-municipality-error', errors.municipality);
+				setError('customer-shipping-zone-error', errors.shipping_zone);
+				setError('customer-address-error', errors.address);
+
+				setFieldInvalid(customerName, errors.name);
+				setFieldInvalid(customerPhone, errors.phone);
+				setFieldInvalid(customerMunicipality, errors.municipality);
+				setFieldInvalid(customerShippingZone, errors.shipping_zone);
+				setFieldInvalid(customerAddress, errors.address);
+			}
+
+			if (errors.stock) {
+				const names = stockProblemItems.map((item) => item.title).filter(Boolean).join(', ');
+				checkoutValidationAlert.textContent = `Hay productos agotados o con cantidad mayor al stock disponible: ${names}. Elimínalos o ajusta la cantidad para continuar.`;
+				checkoutValidationAlert.classList.remove('hidden');
+			}
+
+			const isValid = !Object.values(errors).some(Boolean);
+
+			if (orderWasCreated) {
+				continueWhatsappBtn.disabled = false;
+				continueWhatsappBtn.textContent = 'Abrir WhatsApp del pedido';
+			} else if (isSubmittingOrder) {
+				continueWhatsappBtn.disabled = true;
+			} else {
+				continueWhatsappBtn.disabled = !isValid;
+			}
+
+			if (isValid) {
+				checkoutValidationAlert.classList.add('hidden');
+			}
+
+			return { isValid, errors, data };
+		}
+
+		function renderCheckout() {
+			const cart = validateGiftRulesOnCheckout();
+
+			const giftNotice = sessionStorage.getItem('powerzona_gift_notice');
+			if (giftNotice) {
+				checkoutValidationAlert.textContent = giftNotice;
+				checkoutValidationAlert.classList.remove('hidden');
+				sessionStorage.removeItem('powerzona_gift_notice');
+			}
+
+			if (!cart.length || cart.filter((item) => !item.is_gift).length === 0) {
+				checkoutEmpty.classList.remove('hidden');
+				checkoutContent.classList.add('hidden');
+
+				setTimeout(() => {
+					window.location.href = '/';
+				}, 1800);
+
+				return;
+			}
+
+			checkoutEmpty.classList.add('hidden');
+			checkoutContent.classList.remove('hidden');
+
+			let totalUSD = 0;
+			let visualConvertibleTotalUSD = 0;
+			let usdOnlyTotalUSD = 0;
+			let totalItems = 0;
+			let hasOnlyUSD = false;
+			let hasDeliveryOnly = false;
+			let hasPickupOnly = false;
+			let hasFlexibleDelivery = false;
+
+			checkoutItems.innerHTML = '';
+
+			cart.forEach((item) => {
+				const itemKey = getItemKey(item);
+				const price = Number(item.price || 0);
+				const quantity = Number(item.quantity || 1);
+				const stock = Number(item.stock || 0);
+				const lineTotal = item.is_gift ? 0 : price * quantity;
+				const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
+				const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
+				const lineSavings = hasOffer ? (regularPrice - price) * quantity : 0;
+				const tracksStock = itemTracksStock(item);
+				const isPreorder = Boolean(item.preorder);
+				const isOutOfStock = tracksStock && stock <= 0 && !isPreorder;
+				const isOverStock = tracksStock && !isPreorder && !isOutOfStock && quantity > stock;
+				const isGift = Boolean(item.is_gift);
+				const isAtMaxStock = isGift || (tracksStock && !isPreorder && !isOutOfStock && quantity >= stock);
+
+				totalUSD += lineTotal;
+				if (item.only_usd) usdOnlyTotalUSD += lineTotal;
+				else visualConvertibleTotalUSD += lineTotal;
+				if (!item.is_gift) totalItems += quantity;
+
+				if (!item.is_gift && item.only_usd) hasOnlyUSD = true;
+				if (!item.is_gift && normalizeDeliveryMode(item.delivery_mode) === 'delivery') hasDeliveryOnly = true;
+				if (!item.is_gift && normalizeDeliveryMode(item.delivery_mode) === 'pickup') hasPickupOnly = true;
+				if (!item.is_gift && normalizeDeliveryMode(item.delivery_mode) === 'both') hasFlexibleDelivery = true;
+
+				checkoutItems.innerHTML += `
+					<div class="p-5 flex gap-4">
+						<img
+							src="${item.image}"
+							alt="${item.title}"
+							class="w-20 h-20 object-cover rounded-2xl border border-gray-100"
+						/>
+
+						<div class="flex-1">
+							<div class="flex justify-between gap-3">
+								<div>
+									<h3 class="font-bold text-gray-900 leading-snug">
+										${item.title}
+									</h3>
+
+									${item.variation_label ? `
+										<p class="text-xs text-gray-500 font-bold mt-1">${item.variation_label}</p>
+									` : ''}
+
+									${hasOffer ? `
+										<p class="text-xs text-gray-400 font-black mt-1 line-through">${formatVisualFromUsd(regularPrice, { onlyUsd: Boolean(item.only_usd) })}</p>
+										<p class="text-sm text-red-600 font-black mt-1">${formatVisualFromUsd(price, { onlyUsd: Boolean(item.only_usd) })}</p>
+										<p class="text-xs text-green-700 font-black mt-1">Oferta · Ahorras ${formatVisualFromUsd(lineSavings, { onlyUsd: Boolean(item.only_usd) })}</p>
+									` : `
+										<p class="text-sm text-blue-600 font-bold mt-1">
+											${item.is_gift ? 'Gratis' : formatVisualFromUsd(price, { onlyUsd: Boolean(item.only_usd) })}
+										</p>
+									`}
+								</div>
+
+								<button
+									type="button"
+									data-key="${itemKey}"
+									class="delete-checkout-item text-gray-300 hover:text-red-500 transition"
+									title="Eliminar"
+								>
+									Eliminar
+								</button>
+							</div>
+
+							<div class="flex flex-wrap gap-2 mt-3">
+								${item.is_gift ? `
+									<span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Regalo</span>
+								` : item.only_usd ? `
+									<span class="text-xs font-bold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
+										Solo USD
+									</span>
+								` : ''}
+
+								${hasOffer ? `
+									<span class="text-xs font-bold bg-red-100 text-red-700 px-3 py-1 rounded-full">Oferta</span>
+								` : ''}
+
+								${!item.is_gift ? `
+								<span class="text-xs font-bold bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+									${getDeliveryText(item.delivery_mode)}
+								</span>` : ''}
+
+								<span class="text-xs font-bold ${isPreorder ? 'bg-blue-100 text-blue-700' : isOutOfStock ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'} px-3 py-1 rounded-full">
+									${!tracksStock ? 'Disponible' : isPreorder ? 'Preorden' : isOutOfStock ? 'Agotado' : `Stock: ${stock}`}
+								</span>
+							</div>
+
+							${item.is_gift ? `
+								<p class="text-xs text-gray-500 font-black mt-3">Regalo válido desde ${formatUSD(Number(item.min_order_usd || 0))}. Si bajas el carrito por debajo de la regla, se quitará al revisar el pedido.</p>
+							` : !tracksStock ? `` : isPreorder ? `
+								<p class="text-xs text-blue-700 font-black mt-3">Producto en preorder. Disponibilidad a coordinar por WhatsApp.</p>
+							` : isOutOfStock ? `
+								<p class="text-xs text-red-600 font-black mt-3">Este producto está agotado. Elimínalo del pedido para continuar.</p>
+							` : isOverStock ? `
+								<p class="text-xs text-orange-600 font-black mt-3">Cantidad mayor al stock disponible (${stock}). Ajusta la cantidad para continuar.</p>
+							` : ''}
+
+							<div class="flex items-center justify-between mt-4">
+								<div class="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+									<button
+										type="button"
+										data-key="${itemKey}"
+										class="decrease-checkout-item px-3 py-2 text-gray-700 hover:bg-gray-100 font-bold"
+									>
+										−
+									</button>
+
+									<span class="px-4 py-2 text-sm font-bold text-gray-800 bg-gray-50">
+										${quantity}
+									</span>
+
+									<button
+										type="button"
+										data-key="${itemKey}"
+										${(isAtMaxStock || isOutOfStock) ? 'disabled' : ''}
+										class="increase-checkout-item px-3 py-2 font-bold ${
+											(isAtMaxStock || isOutOfStock)
+												? 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
+												: 'text-gray-700 hover:bg-gray-100'
+										}"
+									>
+										+
+									</button>
+								</div>
+
+								<p class="font-black text-gray-900">
+									${item.is_gift ? 'Gratis' : formatVisualFromUsd(lineTotal, { onlyUsd: Boolean(item.only_usd) })}
+								</p>
+							</div>
+
+							${isAtMaxStock && !isOutOfStock ? `
+								<p class="text-xs text-orange-600 font-semibold mt-2">
+									Stock máximo alcanzado (${stock} disponibles)
+								</p>
+							` : ''}
+						</div>
+					</div>
+				`;
+			});
+
+			summaryItems.textContent = String(totalItems);
+			const selectedShippingZone = getSelectedShippingZone();
+			const selectedShippingPrice = getSelectedDeliveryMethod() === 'delivery'
+				? getShippingZonePrice(selectedShippingZone)
+				: 0;
+
+			const renderTotals = calculateTotals(cart, selectedShippingZone, getSelectedDeliveryMethod());
+			if (summaryCurrency) summaryCurrency.textContent = getCheckoutSummaryCurrencyLabel(renderTotals);
+			summarySubtotal.textContent = formatCheckoutTotals(renderTotals);
+			summaryTotal.textContent = formatCheckoutTotals(renderTotals);
+
+			if (summaryDeliveryCostNote && summaryDeliveryCost) {
+				const hasDeliveryCost = getSelectedDeliveryMethod() === 'delivery' && selectedShippingPrice > 0;
+				summaryDeliveryCostNote.classList.toggle('hidden', !hasDeliveryCost);
+				summaryDeliveryCost.textContent = hasDeliveryCost ? formatShipping(selectedShippingPrice) : '';
+			}
+
+			summaryAlerts.innerHTML = '';
+
+			if (hasOnlyUSD) {
+				summaryAlerts.innerHTML += `
+					<div class="bg-yellow-50 border border-yellow-100 text-yellow-800 rounded-2xl p-3 text-xs font-semibold">
+						Este pedido contiene productos Solo USD. Si elegiste CUP, se mostrarán separados para no confundir el pago.
+					</div>
+				`;
+			}
+
+			if (hasPickupOnly && (hasDeliveryOnly || hasFlexibleDelivery)) {
+				summaryAlerts.innerHTML += `
+					<div class="bg-orange-50 border border-orange-100 text-orange-800 rounded-2xl p-3 text-xs font-semibold">
+						Esta orden combina productos con reglas de entrega diferentes. Debe coordinarse con la tienda por WhatsApp.
+					</div>
+				`;
+			}
+
+			updateDeliveryOptions(cart);
+			updateDeliveryUI();
+			validateCheckout(false);
+
+			document.querySelectorAll('.increase-checkout-item').forEach((btn) => {
+				btn.addEventListener('click', (event) => {
+					const key = event.currentTarget.dataset.key;
+					const currentCart = getCart();
+
+					const updatedCart = currentCart.map((item) => {
+						if (getItemKey(item) === key) {
+							const quantity = Number(item.quantity || 1);
+							const stock = Number(item.stock || 0);
+
+							if (item.is_gift || (itemTracksStock(item) && stock > 0 && quantity >= stock)) {
+								return item;
+							}
+
+							return {
+								...item,
+								quantity: quantity + 1,
+							};
+						}
+
+						return item;
+					});
+
+					saveCart(updatedCart);
+				});
+			});
+
+			document.querySelectorAll('.decrease-checkout-item').forEach((btn) => {
+				btn.addEventListener('click', (event) => {
+					const key = event.currentTarget.dataset.key;
+					const currentCart = getCart();
+
+					const updatedCart = currentCart
+						.map((item) => {
+							if (getItemKey(item) === key) {
+								return {
+									...item,
+									quantity: Number(item.quantity || 1) - 1,
+								};
+							}
+
+							return item;
+						})
+						.filter((item) => Number(item.quantity || 0) > 0);
+
+					saveCart(updatedCart);
+				});
+			});
+
+			document.querySelectorAll('.delete-checkout-item').forEach((btn) => {
+				btn.addEventListener('click', (event) => {
+					const key = event.currentTarget.dataset.key;
+					const currentCart = getCart();
+					const updatedCart = currentCart.filter((item) => getItemKey(item) !== key);
+
+					saveCart(updatedCart);
+				});
+			});
+		}
+
+		document.querySelectorAll('input[name="delivery_method"]').forEach((input) => {
+			input.addEventListener('change', () => {
+				checkoutSuccessAlert.classList.add('hidden');
+				updateDeliveryUI();
+				renderCheckout();
+				validateCheckout(false);
+			});
+		});
+
+		customerMunicipality?.addEventListener('change', () => {
+			checkoutSuccessAlert.classList.add('hidden');
+			renderShippingZoneOptions(customerMunicipality.value);
+			if (customerShippingZone) customerShippingZone.value = '';
+			renderCheckout();
+			validateCheckout(false);
+		});
+
+		customerShippingZone?.addEventListener('change', () => {
+			checkoutSuccessAlert.classList.add('hidden');
+			renderCheckout();
+			validateCheckout(false);
+		});
+
+		document.querySelectorAll('.checkout-field').forEach((field) => {
+			field.addEventListener('input', () => {
+				checkoutSuccessAlert.classList.add('hidden');
+				validateCheckout(false);
+			});
+		});
+
+		const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+
+		function normalizeOrderPrefix(value) {
+			const clean = String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+			return clean || 'PP';
+		}
+
+		function buildOrderNumber(prefix = 'PP') {
+			const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+			let code = '';
+
+			for (let i = 0; i < 5; i++) {
+				const randomIndex = Math.floor(Math.random() * characters.length);
+				code += characters[randomIndex];
+			}
+
+			return `${normalizeOrderPrefix(prefix)}-${code}`;
+		}
+
+		function buildReceiptToken() {
+			const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+			const cryptoValues = new Uint32Array(24);
+
+			if (window.crypto?.getRandomValues) {
+				window.crypto.getRandomValues(cryptoValues);
+				return Array.from(cryptoValues, (value) => characters[value % characters.length]).join('');
+			}
+
+			let token = '';
+			for (let i = 0; i < 24; i++) {
+				token += characters[Math.floor(Math.random() * characters.length)];
+			}
+			return token;
+		}
+
+		function buildReceiptUrl(orderNumber, token) {
+			const origin = window.location.origin;
+			return `${origin}/orden/${encodeURIComponent(orderNumber)}/${encodeURIComponent(token)}`;
+		}
+
+		function normalizeWhatsAppNumber(phone) {
+			return String(phone || '').replace(/\D/g, '');
+		}
+
+		function calculateTotals(cart, shippingZone = null, deliveryMethod = '') {
+			const subtotalUSD = cart.reduce((sum, item) => {
+				if (item.is_gift) return sum;
+				return sum + Number(item.price || 0) * Number(item.quantity || 1);
+			}, 0);
+
+			const usdOnlyTotal = cart.reduce((sum, item) => {
+				if (item.is_gift || !item.only_usd) return sum;
+				return sum + Number(item.price || 0) * Number(item.quantity || 1);
+			}, 0);
+
+			const localCurrencyTotal = subtotalUSD - usdOnlyTotal;
+			const hasUsdOnly = cart.some((item) => !item.is_gift && Boolean(item.only_usd));
+			const hasLocalItems = cart.some((item) => !item.is_gift && !item.only_usd);
+
+			const shippingUSD = deliveryMethod === 'delivery' ? getShippingZonePrice(shippingZone) : 0;
+
+			return {
+				subtotalUSD,
+				shippingUSD,
+				totalUSD: subtotalUSD + shippingUSD,
+				usdOnlyTotal,
+				localCurrencyTotal,
+				visualTotalUSD: localCurrencyTotal,
+				mixedPayment: selectedCurrencyCode() !== 'USD' && hasUsdOnly && hasLocalItems,
+			};
+		}
+
+		async function pocketbaseRequest(collectionName, data) {
+			if (!POCKETBASE_URL) {
+				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+			}
+
+			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(data),
+			});
+
+			const result = await response.json().catch(() => null);
+
+			if (!response.ok) {
+				console.error(`Error creando registro en ${collectionName}:`, result);
+				throw new Error(result?.message || `No se pudo crear el registro en ${collectionName}.`);
+			}
+
+			return result;
+		}
+
+		async function getActiveSettings() {
+			if (!POCKETBASE_URL) {
+				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+			}
+
+			const filter = encodeURIComponent('active = true');
+
+			const response = await fetch(
+				`${POCKETBASE_URL}/api/collections/settings/records?filter=${filter}&expand=default_currency&perPage=1`
+			);
+
+			const result = await response.json().catch(() => null);
+
+			if (!response.ok) {
+				console.error('Error leyendo settings:', result);
+				throw new Error('No se pudo leer la configuración activa de la tienda.');
+			}
+
+			const settings = result?.items?.[0];
+
+			if (!settings) {
+				throw new Error('No hay una configuración activa en PocketBase. Revisa la colección settings.');
+			}
+
+			if (!settings.default_currency) {
+				throw new Error('La configuración activa no tiene moneda principal asignada.');
+			}
+
+			return settings;
+		}
+
+		function getCurrencyId(settings) {
+			if (Array.isArray(settings.default_currency)) {
+				return settings.default_currency[0];
+			}
+
+			return settings.default_currency;
+		}
+
+		function getExpandedDefaultCurrency(settings) {
+			if (Array.isArray(settings.expand?.default_currency)) {
+				return settings.expand.default_currency[0];
+			}
+
+			return settings.expand?.default_currency;
+		}
+
+		function getStorePublicName(settings) {
+			return String(settings?.store_name || settings?.stored_name || 'PowerZona').trim() || 'PowerZona';
+		}
+
+		function buildWhatsAppMessage({ order, cart, checkoutData, totals, receiptUrl, settings }) {
+	const selectedCode = selectedCurrencyCode();
+	const storePublicName = getStorePublicName(settings);
+	const productItems = cart.filter((item) => !item.is_gift);
+	const giftItems = cart.filter((item) => item.is_gift);
+	const productLines = productItems.map((item, index) => {
+		const quantity = Number(item.quantity || 1);
+		const price = Number(item.price || 0);
+		const lineTotal = price * quantity;
+		const variationText = item.variation_label ? ` (${item.variation_label})` : '';
+		const preorderText = item.preorder ? '  ⚠️ *PREORDEN*' : '';
+		const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
+		const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
+		const savingsText = hasOffer ? `
+   Oferta: antes ${formatVisualFromUsd(regularPrice * quantity, { onlyUsd: Boolean(item.only_usd) })}
+   Ahorra: ${formatVisualFromUsd((regularPrice - price) * quantity, { onlyUsd: Boolean(item.only_usd) })}` : '';
+		const visualPrice = formatVisualFromUsd(lineTotal, { onlyUsd: Boolean(item.only_usd) });
+		return `${index + 1}. *${item.title}${variationText}*${preorderText}
+   Cantidad: ${quantity}${savingsText}
+   Importe: ${visualPrice}`;
+	});
+	const giftLines = giftItems.map((item, index) => `${index + 1}. *${item.title}*
+   Cantidad: 1
+   Importe: Gratis`);
+
+	const addressText = checkoutData.delivery_method === 'delivery'
+		? `
+*Municipio*: ${checkoutData.customer_municipality}
+*Zona*: ${checkoutData.shipping_zone_name || 'No seleccionada'}
+*Dirección*: ${checkoutData.customer_address}`
+		: '';
+
+	const noteText = checkoutData.customer_note
+		? `
+*Nota*: ${checkoutData.customer_note}`
+		: '';
+
+	let totalText = '';
+	if (selectedCode !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal > 0) {
+		totalText = `*Total productos ${selectedCode}*: ${formatVisualFromUsd(totals.localCurrencyTotal, { onlyUsd: false })}
+*Total productos USD*: ${formatUSD(totals.usdOnlyTotal)}`;
+	} else if (selectedCode !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal <= 0) {
+		totalText = `*Total productos USD*: ${formatUSD(totals.usdOnlyTotal)}`;
+	} else {
+		totalText = `*Total productos ${selectedCode}*: ${formatVisualFromUsd(totals.localCurrencyTotal || totals.subtotalUSD, { onlyUsd: false })}`;
+	}
+
+	return `${storePublicName}
+
+*Orden: ${order.order_number}*
+
+*Cliente*: ${checkoutData.customer_name}
+*Teléfono*: ${checkoutData.customer_phone}
+*Tipo servicio*: ${getDeliveryMethodText(checkoutData.delivery_method)}
+*Moneda elegida*: ${selectedCode}${addressText}${noteText}
+
+*Productos:*
+${productLines.join('\n')}${giftLines.length ? `\n\n*Regalo incluido:*\n${giftLines.join('\n')}` : ''}
+
+${getWhatsAppDeliveryLine(checkoutData, totals)}
+-------------------------------------------------------------------------------------------
+${totalText}
+
+Gracias.
+
+*Resumen de su orden:*
+${receiptUrl || 'Se enviará al confirmar la orden.'}`;
+}
+
+
+		async function createOrderAndItems(validation) {
+			const cart = validateGiftRulesOnCheckout();
+			const stockProblemItems = getStockProblemItems(cart);
+
+			if (stockProblemItems.length > 0) {
+				throw new Error('No se puede realizar el pedido porque hay productos agotados o con cantidad mayor al stock disponible.');
+			}
+
+			const settings = await getActiveSettings();
+			const whatsappNumber = normalizeWhatsAppNumber(settings.whatsapp_number);
+
+			if (!whatsappNumber) {
+				throw new Error('La configuración activa no tiene número de WhatsApp.');
+			}
+
+			const selectedShippingZone = getSelectedShippingZone();
+			const totals = calculateTotals(cart, selectedShippingZone, validation.data.delivery_method);
+			const orderNumber = buildOrderNumber(settings.order_prefix);
+			const receiptToken = buildReceiptToken();
+			const receiptUrl = buildReceiptUrl(orderNumber, receiptToken);
+
+			const selectedCurrency = getSelectedCurrencyObject();
+			const currencyId = selectedCurrency?.id || getCurrencyId(settings);
+			const expandedCurrency = selectedCurrency?.id ? selectedCurrency : getExpandedDefaultCurrency(settings);
+			const selectedCode = selectedCurrency?.code || selectedCurrencyCode();
+			const exchangeRateUsed = Number(expandedCurrency?.exchange_rate || 1);
+			const visualConvertibleTotal = selectedCode === 'USD' ? totals.localCurrencyTotal : convertFromUsd(totals.localCurrencyTotal, selectedCode);
+			const visualShippingTotal = selectedCode === 'USD' ? totals.shippingUSD : convertFromUsd(totals.shippingUSD, selectedCode);
+
+			const shippingZoneName = selectedShippingZone
+				? `${selectedShippingZone.municipality} / ${selectedShippingZone.zone || selectedShippingZone.municipality}`
+				: '';
+
+			validation.data.shipping_zone_name = shippingZoneName;
+
+			const orderPayload = {
+				order_number: orderNumber,
+				receipt_token: receiptToken,
+				customer_name: validation.data.customer_name,
+				customer_phone: validation.data.customer_phone,
+				customer_address: validation.data.delivery_method === 'delivery'
+					? validation.data.customer_address
+					: '',
+				currency: currencyId,
+				subtotal: totals.subtotalUSD,
+				shipping: totals.shippingUSD,
+				total: totals.totalUSD,
+				usd_total: totals.totalUSD,
+				mixed_payment: totals.mixedPayment,
+				delivery_method: validation.data.delivery_method,
+				status: 'pending',
+				whatsapp_sent: false,
+				notes: [
+					validation.data.customer_municipality ? `Municipio: ${validation.data.customer_municipality}` : '',
+					validation.data.customer_note ? `Nota cliente: ${validation.data.customer_note}` : '',
+					`Moneda elegida cliente: ${selectedCode}`,
+					`Total productos visual cliente: ${formatCheckoutTotals(totals)}`,
+					`Envío visual cliente: ${formatShipping(totals.shippingUSD)}`,
+					cart.some((item) => item.preorder) ? `Preorder: ${cart.filter((item) => item.preorder).map((item) => item.title).join(', ')}` : '',
+					cart.some((item) => item.is_offer) ? `Ahorro por ofertas USD: ${formatUSD(cart.reduce((sum, item) => sum + (item.is_gift ? 0 : Math.max(0, Number(item.regular_price_usd || item.price || 0) - Number(item.price || 0)) * Number(item.quantity || 1)), 0))}` : '',
+				].filter(Boolean).join('\n'),
+				local_currency_total: visualConvertibleTotal,
+				usd_only_total: totals.usdOnlyTotal,
+				shipping_cup: visualShippingTotal,
+				shipping_zone: selectedShippingZone?.id || '',
+				exchange_rate_used: exchangeRateUsed,
+			};
+
+			const createdOrder = await pocketbaseRequest('orders', orderPayload);
+
+			for (const item of cart) {
+				const isGift = Boolean(item.is_gift);
+				const quantity = isGift ? 1 : Number(item.quantity || 1);
+				const unitPriceUSD = isGift ? 0 : Number(item.price || 0);
+				const unitCostUSD = isGift ? 0 : Number(item.variation_cost_usd ?? item.cost_usd ?? 0);
+				const unitProfitUSD = unitPriceUSD - unitCostUSD;
+				const lineTotalUSD = unitPriceUSD * quantity;
+				const lineProfitUSD = unitProfitUSD * quantity;
+				const variationLabel = isGift ? '' : (item.variation_label || item.variation_name || '');
+				const variationRef = isGift ? '' : (item.variation_ref || item.variation_internal_ref || '');
+				const visualUnitPrice = item.only_usd || selectedCode === 'USD' ? unitPriceUSD : convertFromUsd(unitPriceUSD, selectedCode);
+				const visualLineTotal = item.only_usd || selectedCode === 'USD' ? lineTotalUSD : convertFromUsd(lineTotalUSD, selectedCode);
+				const orderItemPayload = {
+					order: createdOrder.id,
+					product_name: item.title,
+					variation_name: variationLabel,
+					variation_label: variationLabel,
+					variation_ref: variationRef,
+					quantity,
+					unit_price_selected_currency: visualUnitPrice,
+					unit_price_usd: unitPriceUSD,
+					variation_price_usd: unitPriceUSD,
+					unit_profit_usd: unitProfitUSD,
+					line_profit_usd: lineProfitUSD,
+					line_total_usd: lineTotalUSD,
+					line_total_selected_currency: visualLineTotal,
+					only_usd: Boolean(item.only_usd),
+					is_gift: isGift,
+					gift_min_order_usd: isGift ? Number(item.min_order_usd || 0) : 0,
+				};
+
+				if (isGift) {
+					orderItemPayload.gift = item.gift_id;
+				} else {
+					orderItemPayload.product = item.id;
+					orderItemPayload.product_ref = item.id;
+					if (item.variation_id) orderItemPayload.variation = item.variation_id;
+				}
+
+				await pocketbaseRequest('order_items', orderItemPayload);
+			}
+
+			const message = buildWhatsAppMessage({
+				order: createdOrder,
+				cart,
+				checkoutData: validation.data,
+				totals,
+				receiptUrl,
+				settings,
+			});
+
+			return {
+				createdOrder,
+				whatsappNumber,
+				message,
+				cartFingerprint: buildCartFingerprint(cart),
+			};
+		}
+
+		continueWhatsappBtn.addEventListener('click', async () => {
+			if (orderWasCreated && savedWhatsappUrl) {
+				const openedWindow = window.open(savedWhatsappUrl, '_blank', 'noopener');
+				completeCheckoutAfterWhatsApp();
+				if (!openedWindow) {
+					window.location.href = savedWhatsappUrl;
+				}
+				return;
+			}
+
+			if (isSubmittingOrder) return;
+
+			const validation = validateCheckout(true);
+
+			if (!validation.isValid) {
+				checkoutValidationAlert.textContent = 'Revisa los campos marcados antes de realizar el pedido.';
+				checkoutValidationAlert.classList.remove('hidden');
+				checkoutSuccessAlert.classList.add('hidden');
+				return;
+			}
+
+			isSubmittingOrder = true;
+			checkoutValidationAlert.classList.add('hidden');
+			checkoutSuccessAlert.classList.add('hidden');
+			continueWhatsappBtn.disabled = true;
+			continueWhatsappBtn.textContent = 'Guardando pedido...';
+
+			try {
+				const { createdOrder, whatsappNumber, message, cartFingerprint } = await createOrderAndItems(validation);
+				const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+
+				markOrderCreated({
+					orderNumber: createdOrder.order_number,
+					whatsappUrl,
+					cartFingerprint,
+				});
+			} catch (error) {
+				console.error(error);
+				isSubmittingOrder = false;
+				checkoutValidationAlert.textContent = error?.message || 'No se pudo guardar el pedido. Revisa PocketBase e intenta nuevamente.';
+				checkoutValidationAlert.classList.remove('hidden');
+				continueWhatsappBtn.disabled = false;
+				continueWhatsappBtn.textContent = 'Realizar Pedido';
+				validateCheckout(false);
+			}
+		});
+
+		window.addEventListener('pz-currency-changed', () => renderCheckout());
+
+		loadShippingZones()
+			.catch((error) => {
+				console.error(error);
+				checkoutValidationAlert.textContent = error?.message || 'No se pudieron cargar las zonas de envío.';
+				checkoutValidationAlert.classList.remove('hidden');
+			})
+			.finally(() => {
+				renderCheckout();
+			});
+	</script>
+</Layout>

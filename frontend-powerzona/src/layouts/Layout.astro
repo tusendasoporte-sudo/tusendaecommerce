@@ -1,0 +1,28 @@
+---
+import '../styles/global.css';
+import Cart from '../components/Cart.astro';
+import CurrencySwitcher from '../components/CurrencySwitcher.astro';
+---
+
+<!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<title>Power Zona E-commerce</title>
+	</head>
+	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden">
+		
+		<main class="flex flex-col min-h-screen w-full min-w-0">
+			<div class="w-full max-w-7xl mx-auto p-4 sm:p-6">
+				<slot />
+			</div>
+		</main>
+
+		<CurrencySwitcher />
+		<Cart />
+
+	</body>
+</html>

@@ -1,0 +1,213 @@
+---
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+<!-- PZ-CURRENCY-SWITCHER-V4-MENU-MOBILE-SYNC-20260604 -->
+<div id="pz-currency-switcher" class="pz-currency-switcher" hidden>
+  <label for="pz-currency-select">Moneda</label>
+  <select id="pz-currency-select" data-pz-currency-select aria-label="Moneda visual"></select>
+</div>
+
+<style>
+  .pz-currency-switcher {
+    position: fixed;
+    right: 124px;
+    bottom: 18px;
+    z-index: 38;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.96);
+    border: 1px solid rgba(226,232,240,.95);
+    box-shadow: 0 16px 36px rgba(15,23,42,.14);
+    backdrop-filter: blur(10px);
+  }
+  .pz-currency-switcher label { color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .05em; }
+  .pz-currency-switcher select { border: 0; outline: none; background: #111827; color: #fff; border-radius: 999px; padding: 8px 26px 8px 11px; font-size: 12px; font-weight: 1000; }
+  @media (max-width: 1024px) {
+    .pz-currency-switcher { right: 108px; bottom: 18px; padding: 8px; }
+    .pz-currency-switcher label { display: none; }
+  }
+  @media (max-width: 420px) {
+    .pz-currency-switcher { right: 104px; bottom: 18px; }
+    .pz-currency-switcher select { padding: 8px 24px 8px 10px; max-width: 84px; }
+  }
+</style>
+
+<script define:vars={{ pocketbaseUrl }}>
+  (() => {
+    const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+    const STORAGE_KEY = 'powerzona_currency';
+    const switcher = document.getElementById('pz-currency-switcher');
+    const select = document.getElementById('pz-currency-select');
+    const state = {
+      currencies: [],
+      defaultCode: 'USD',
+      selectedCode: localStorage.getItem(STORAGE_KEY) || '',
+      ready: false,
+    };
+
+    function normalizeCurrency(currency) {
+      const code = String(currency?.code || '').trim().toUpperCase();
+      return {
+        id: currency?.id || '',
+        code,
+        name: currency?.name || code,
+        symbol: currency?.symbol || (code === 'USD' ? '$' : code),
+        exchange_rate: Math.max(0, Number(currency?.exchange_rate || (code === 'USD' ? 1 : 0))),
+        active: currency?.active !== false,
+        is_default: currency?.is_default === true,
+      };
+    }
+
+    function fallbackCurrencies() {
+      return [
+        { id: '', code: 'USD', name: 'USD', symbol: '$', exchange_rate: 1, active: true, is_default: true },
+      ];
+    }
+
+    function getCurrencies() {
+      return state.currencies.length ? state.currencies : fallbackCurrencies();
+    }
+
+    function getCurrency(code) {
+      const target = String(code || state.selectedCode || state.defaultCode || 'USD').toUpperCase();
+      return getCurrencies().find((currency) => currency.code === target) || getCurrencies()[0] || fallbackCurrencies()[0];
+    }
+
+    function formatMoney(amount, currencyCode) {
+      const currency = getCurrency(currencyCode);
+      const value = Number(amount || 0);
+      if (currency.code === 'USD') return '$' + value.toFixed(2) + ' USD';
+      const formatted = value.toLocaleString('es-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      return formatted + ' ' + currency.code;
+    }
+
+    function convertFromUsd(amountUsd, currencyCode) {
+      const currency = getCurrency(currencyCode);
+      if (currency.code === 'USD') return Number(amountUsd || 0);
+      return Number(amountUsd || 0) * Number(currency.exchange_rate || 1);
+    }
+
+    function formatUsd(amountUsd) {
+      return formatMoney(amountUsd, 'USD');
+    }
+
+    function formatVisualFromUsd(amountUsd, options = {}) {
+      const onlyUsd = Boolean(options.onlyUsd);
+      const selected = getCurrency(state.selectedCode || state.defaultCode);
+      if (onlyUsd || selected.code === 'USD') return formatUsd(amountUsd);
+      return formatMoney(convertFromUsd(amountUsd, selected.code), selected.code);
+    }
+
+    function formatShipping(amountUsd) {
+      const selected = getCurrency(state.selectedCode || state.defaultCode);
+      if (selected.code === 'USD') return formatUsd(amountUsd);
+      return `${formatUsd(amountUsd)} / equivalente ${formatMoney(convertFromUsd(amountUsd, selected.code), selected.code)}`;
+    }
+
+    function getSelectedCurrency() {
+      return getCurrency(state.selectedCode || state.defaultCode);
+    }
+
+    function updatePriceNodes() {
+      document.querySelectorAll('[data-pz-price-usd]').forEach((node) => {
+        const amount = Number(node.getAttribute('data-pz-price-usd') || 0);
+        const onlyUsd = node.getAttribute('data-pz-only-usd') === 'true';
+        node.textContent = formatVisualFromUsd(amount, { onlyUsd });
+      });
+      document.querySelectorAll('[data-pz-shipping-usd]').forEach((node) => {
+        const amount = Number(node.getAttribute('data-pz-shipping-usd') || 0);
+        node.textContent = formatShipping(amount);
+      });
+    }
+
+    function publish() {
+      window.PZCurrency = {
+        ...state,
+        currencies: getCurrencies(),
+        selected: getSelectedCurrency(),
+        formatMoney,
+        formatUsd,
+        convertFromUsd,
+        formatVisualFromUsd,
+        formatShipping,
+      };
+      updatePriceNodes();
+      window.dispatchEvent(new CustomEvent('pz-currency-ready', { detail: window.PZCurrency }));
+      window.dispatchEvent(new CustomEvent('pz-currency-changed', { detail: window.PZCurrency }));
+    }
+
+    function getCurrencySelects() {
+      return Array.from(document.querySelectorAll('[data-pz-currency-select]'));
+    }
+
+    function renderSelector() {
+      const currencies = getCurrencies().filter((currency) => currency.active !== false);
+      const shouldHide = currencies.length <= 1;
+      if (!state.selectedCode || !currencies.some((currency) => currency.code === state.selectedCode)) {
+        state.selectedCode = state.defaultCode || currencies[0]?.code || 'USD';
+      }
+      const options = currencies.map((currency) => `<option value="${currency.code}">${currency.code}</option>`).join('');
+      getCurrencySelects().forEach((currencySelect) => {
+        currencySelect.innerHTML = options;
+        currencySelect.value = state.selectedCode;
+        currencySelect.disabled = shouldHide;
+      });
+      if (switcher) switcher.hidden = shouldHide;
+      document.querySelectorAll('[data-pz-currency-menu]').forEach((menu) => { menu.hidden = shouldHide; });
+    }
+
+    async function loadCurrencyConfig() {
+      try {
+        if (!POCKETBASE_URL) throw new Error('PUBLIC_POCKETBASE_URL no configurado.');
+        const [currenciesResponse, settingsResponse] = await Promise.all([
+          fetch(`${POCKETBASE_URL}/api/collections/currencies/records?filter=${encodeURIComponent('active = true')}&sort=code&perPage=100`),
+          fetch(`${POCKETBASE_URL}/api/collections/settings/records?filter=${encodeURIComponent('active = true')}&expand=default_currency&sort=-updated&perPage=1`),
+        ]);
+        const currenciesResult = await currenciesResponse.json().catch(() => null);
+        const settingsResult = await settingsResponse.json().catch(() => null);
+        const settings = settingsResult?.items?.[0] || null;
+        const expandedDefault = Array.isArray(settings?.expand?.default_currency) ? settings.expand.default_currency[0] : settings?.expand?.default_currency;
+        state.currencies = (currenciesResult?.items || []).map(normalizeCurrency).filter((currency) => currency.code && currency.active !== false);
+        if (!state.currencies.some((currency) => currency.code === 'USD')) {
+          state.currencies.unshift(fallbackCurrencies()[0]);
+        }
+        state.defaultCode = String(expandedDefault?.code || state.currencies.find((currency) => currency.is_default)?.code || 'USD').toUpperCase();
+      } catch (error) {
+        console.warn('No se pudo cargar configuración de monedas. Usando USD.', error);
+        state.currencies = fallbackCurrencies();
+        state.defaultCode = 'USD';
+      } finally {
+        state.ready = true;
+        renderSelector();
+        publish();
+      }
+    }
+
+    document.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || !target.matches?.('[data-pz-currency-select]')) return;
+      state.selectedCode = String(target.value || state.defaultCode || 'USD').toUpperCase();
+      localStorage.setItem(STORAGE_KEY, state.selectedCode);
+      renderSelector();
+      publish();
+    });
+
+    window.PZCurrency = {
+      ...state,
+      currencies: fallbackCurrencies(),
+      selected: fallbackCurrencies()[0],
+      formatMoney,
+      formatUsd,
+      convertFromUsd,
+      formatVisualFromUsd,
+      formatShipping,
+    };
+
+    document.addEventListener('DOMContentLoaded', () => updatePriceNodes());
+    loadCurrencyConfig();
+  })();
+</script>

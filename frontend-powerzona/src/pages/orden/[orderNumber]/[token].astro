@@ -1,0 +1,356 @@
+---
+export const prerender = false;
+import Layout from '../../../layouts/Layout.astro';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const { orderNumber, token } = Astro.params;
+---
+
+<Layout>
+  <section class="max-w-4xl mx-auto py-4 sm:py-8">
+    <div class="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <a href="/" class="inline-flex items-center text-sm font-black text-slate-700 hover:text-slate-950">
+        ← Volver a la tienda
+      </a>
+      <button id="receipt-print-btn" type="button" class="hidden bg-slate-950 hover:bg-black text-white font-black px-5 py-3 rounded-2xl shadow-sm transition">
+        Imprimir comprobante
+      </button>
+    </div>
+
+    <div id="receipt-loading" class="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 text-center">
+      <div class="text-4xl mb-3">🧾</div>
+      <h1 class="text-2xl font-black text-slate-950">Cargando resumen de orden...</h1>
+      <p class="text-slate-500 mt-2 font-semibold">Estamos buscando el comprobante solicitado.</p>
+    </div>
+
+    <div id="receipt-error" class="hidden bg-white rounded-3xl border border-red-100 shadow-sm p-8 text-center">
+      <div class="text-4xl mb-3">⚠️</div>
+      <h1 class="text-2xl font-black text-slate-950">No se pudo abrir este resumen</h1>
+      <p id="receipt-error-text" class="text-slate-500 mt-2 font-semibold">Verifica que el enlace esté completo.</p>
+      <a href="/" class="inline-flex mt-6 bg-slate-950 hover:bg-black text-white font-black px-5 py-3 rounded-2xl transition">Ir a la tienda</a>
+    </div>
+
+    <article id="receipt-content" class="hidden bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+      <div class="bg-gradient-to-br from-slate-950 to-slate-800 text-white p-6 sm:p-8">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div class="flex items-center gap-4">
+            <div id="store-logo-box" class="w-16 h-16 rounded-3xl bg-white/10 border border-white/15 flex items-center justify-center overflow-hidden shadow-sm">
+              <span id="store-logo-fallback" class="text-xl font-black">PZ</span>
+              <img id="store-logo-img" class="hidden w-full h-full object-cover" alt="Logo de la tienda" />
+            </div>
+            <div>
+              <p id="store-name" class="text-lg font-black leading-tight">PowerZona</p>
+              <p id="store-info" class="hidden text-xs text-slate-300 font-bold mt-1"></p>
+            </div>
+          </div>
+          <span id="receipt-status" class="inline-flex w-fit rounded-full bg-white/10 border border-white/20 px-4 py-2 text-xs font-black uppercase tracking-wide"></span>
+        </div>
+        <div class="mt-6 border-t border-white/10 pt-5">
+          <p class="text-xs uppercase tracking-[0.22em] text-slate-300 font-black">Resumen de compra</p>
+          <h1 id="receipt-order-number" class="mt-3 text-3xl sm:text-4xl font-black tracking-tight">Orden</h1>
+          <p id="receipt-created" class="text-slate-300 mt-2 font-semibold"></p>
+        </div>
+      </div>
+
+      <div class="p-5 sm:p-8 space-y-6">
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="rounded-3xl border border-slate-100 bg-slate-50 p-5">
+            <h2 class="text-sm font-black text-slate-950 uppercase tracking-wide">Cliente</h2>
+            <div class="mt-4 space-y-2 text-sm">
+              <p><span class="text-slate-500 font-bold">Nombre:</span> <strong id="customer-name" class="text-slate-950"></strong></p>
+              <p><span class="text-slate-500 font-bold">Teléfono:</span> <strong id="customer-phone" class="text-slate-950"></strong></p>
+              <p><span class="text-slate-500 font-bold">Moneda elegida:</span> <strong id="receipt-currency" class="text-slate-950"></strong></p>
+            </div>
+          </div>
+
+          <div class="rounded-3xl border border-slate-100 bg-slate-50 p-5">
+            <h2 class="text-sm font-black text-slate-950 uppercase tracking-wide">Entrega</h2>
+            <div class="mt-4 space-y-2 text-sm">
+              <p><span class="text-slate-500 font-bold">Método:</span> <strong id="delivery-method" class="text-slate-950"></strong></p>
+              <p id="delivery-zone-row" class="hidden"><span class="text-slate-500 font-bold">Zona:</span> <strong id="delivery-zone" class="text-slate-950"></strong></p>
+              <p id="delivery-address-row" class="hidden"><span class="text-slate-500 font-bold">Dirección:</span> <strong id="delivery-address" class="text-slate-950"></strong></p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h2 class="text-xl font-black text-slate-950">Productos</h2>
+            <span id="receipt-items-count" class="text-xs bg-slate-100 text-slate-600 rounded-full px-3 py-1 font-black"></span>
+          </div>
+          <div id="receipt-items" class="space-y-3"></div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-100 bg-slate-50 p-5">
+          <h2 class="text-xl font-black text-slate-950 mb-4">Totales</h2>
+          <div id="receipt-totals" class="space-y-3 text-sm"></div>
+        </section>
+
+        <section id="receipt-notes-box" class="hidden rounded-3xl border border-slate-100 bg-white p-5">
+          <h2 class="text-sm font-black text-slate-950 uppercase tracking-wide">Notas de la orden</h2>
+          <pre id="receipt-notes" class="mt-3 whitespace-pre-wrap text-sm text-slate-600 font-semibold leading-relaxed"></pre>
+        </section>
+      </div>
+    </article>
+  </section>
+
+  <script define:vars={{ pocketbaseUrl, orderNumber, token }}>
+    const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+    const ORDER_NUMBER = decodeURIComponent(String(orderNumber || ''));
+    const TOKEN = decodeURIComponent(String(token || ''));
+
+    const loadingBox = document.getElementById('receipt-loading');
+    const errorBox = document.getElementById('receipt-error');
+    const errorText = document.getElementById('receipt-error-text');
+    const contentBox = document.getElementById('receipt-content');
+    const printBtn = document.getElementById('receipt-print-btn');
+
+    const deliveryLabels = {
+      delivery: 'Envío',
+      pickup: 'Recogida',
+      coordinate: 'Coordinar',
+    };
+
+    const statusLabels = {
+      pending: 'Pendiente',
+      confirmed: 'Confirmado',
+      preparing: 'Preparando',
+      delivered: 'Entregado',
+      cancelled: 'Cancelado',
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;',
+      }[char]));
+    }
+
+    function formatUSD(value) {
+      return `$${Number(value || 0).toFixed(2)} USD`;
+    }
+
+    function formatMoney(value, code = 'USD') {
+      const amount = Number(value || 0);
+      if (code === 'USD') return formatUSD(amount);
+      return `${amount.toLocaleString('es-ES', { maximumFractionDigits: 0 })} ${code}`;
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      try {
+        return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+      } catch (_) {
+        return value;
+      }
+    }
+
+    function getCurrencyCode(order) {
+      const expandedCurrency = Array.isArray(order?.expand?.currency) ? order.expand.currency[0] : order?.expand?.currency;
+      return expandedCurrency?.code || 'USD';
+    }
+
+    function getZoneLabel(order) {
+      const expandedZone = Array.isArray(order?.expand?.shipping_zone) ? order.expand.shipping_zone[0] : order?.expand?.shipping_zone;
+      if (expandedZone) return `${expandedZone.municipality || ''}${expandedZone.zone ? ` / ${expandedZone.zone}` : ''}`.trim();
+      const match = String(order?.notes || '').match(/Municipio:\s*(.+)/i);
+      return match?.[1] || '';
+    }
+
+    function getItemName(item) {
+      const variation = item.variation_label || item.variation_name || '';
+      return `${item.product_name || 'Producto'}${variation ? ` (${variation})` : ''}`;
+    }
+
+    function getItemTotal(item, currencyCode) {
+      if (item.is_gift) return 'Gratis';
+      if (item.only_usd) return formatUSD(item.line_total_usd);
+      if (currencyCode !== 'USD' && Number(item.line_total_selected_currency || 0) > 0) {
+        return formatMoney(item.line_total_selected_currency, currencyCode);
+      }
+      return formatUSD(item.line_total_usd);
+    }
+
+    function getTotalsLines(order, items, currencyCode) {
+      const usdOnlyTotal = Number(order.usd_only_total || 0);
+      const localCurrencyTotal = Number(order.local_currency_total || 0);
+      const subtotal = Number(order.subtotal || 0);
+      const shippingUsd = Number(order.shipping || 0);
+      const shippingVisual = Number(order.shipping_cup || 0);
+      const hasUsdOnly = usdOnlyTotal > 0;
+      const hasLocal = currencyCode !== 'USD' && localCurrencyTotal > 0;
+      const rows = [];
+
+      if (currencyCode !== 'USD' && hasUsdOnly && hasLocal) {
+        rows.push(['Productos convertibles', formatMoney(localCurrencyTotal, currencyCode)]);
+        rows.push(['Productos solo USD', formatUSD(usdOnlyTotal)]);
+      } else if (currencyCode !== 'USD' && hasUsdOnly && !hasLocal) {
+        rows.push(['Productos', formatUSD(usdOnlyTotal)]);
+      } else if (currencyCode !== 'USD') {
+        rows.push(['Productos', formatMoney(localCurrencyTotal || subtotal, currencyCode)]);
+      } else {
+        rows.push(['Productos', formatUSD(subtotal)]);
+      }
+
+      rows.push(['Envío', shippingUsd > 0 ? (currencyCode === 'USD' ? formatUSD(shippingUsd) : `${formatUSD(shippingUsd)} / ${formatMoney(shippingVisual, currencyCode)}`) : 'Sin costo']);
+      return rows;
+    }
+
+    function renderTotals(order, items, currencyCode) {
+      const totalsBox = document.getElementById('receipt-totals');
+      const rows = getTotalsLines(order, items, currencyCode);
+      totalsBox.innerHTML = rows.map(([label, value]) => `
+        <div class="flex items-center justify-between gap-4 border-b border-slate-200 last:border-b-0 pb-3 last:pb-0">
+          <span class="text-slate-500 font-bold">${escapeHtml(label)}</span>
+          <strong class="text-slate-950 text-right">${escapeHtml(value)}</strong>
+        </div>
+      `).join('');
+    }
+
+    function showError(message) {
+      loadingBox.classList.add('hidden');
+      contentBox.classList.add('hidden');
+      printBtn.classList.add('hidden');
+      errorText.textContent = message;
+      errorBox.classList.remove('hidden');
+    }
+
+    async function fetchJson(path) {
+      const response = await fetch(`${POCKETBASE_URL}${path}`);
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || 'No se pudo leer la orden.');
+      return result;
+    }
+
+    function normalizeFileValue(value) {
+      if (!value) return [];
+      return Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean);
+    }
+
+    function buildFileUrl(record, field, thumb = '') {
+      const fileName = normalizeFileValue(record?.[field])[0];
+      if (!record?.id || !fileName) return '';
+      const base = `${POCKETBASE_URL}/api/files/settings/${record.id}/${encodeURIComponent(fileName)}`;
+      return thumb ? `${base}?thumb=${encodeURIComponent(thumb)}` : base;
+    }
+
+    async function loadStoreSettings() {
+      try {
+        const filter = encodeURIComponent('active = true');
+        const result = await fetchJson(`/api/collections/settings/records?filter=${filter}&perPage=1`);
+        const settings = result?.items?.[0] || null;
+        if (!settings) return;
+
+        const storeName = settings.store_name || settings.stored_name || 'PowerZona';
+        const whatsapp = settings.whatsapp_number || '';
+        const address = settings.address || '';
+        const logoUrl = buildFileUrl(settings, 'logo_image', '160x160');
+
+        document.getElementById('store-name').textContent = storeName;
+        document.title = `Orden ${ORDER_NUMBER} · ${storeName}`;
+
+        const infoParts = [whatsapp, address].filter(Boolean);
+        if (infoParts.length) {
+          const storeInfo = document.getElementById('store-info');
+          storeInfo.textContent = infoParts.join(' · ');
+          storeInfo.classList.remove('hidden');
+        }
+
+        if (logoUrl) {
+          const logoImg = document.getElementById('store-logo-img');
+          const fallback = document.getElementById('store-logo-fallback');
+          logoImg.src = logoUrl;
+          logoImg.onload = () => {
+            logoImg.classList.remove('hidden');
+            fallback.classList.add('hidden');
+          };
+        }
+      } catch (error) {
+        console.warn('No se pudo cargar el logo de la tienda:', error);
+      }
+    }
+
+    async function loadReceipt() {
+      if (!POCKETBASE_URL) throw new Error('Falta configurar la conexión con PocketBase.');
+      if (!ORDER_NUMBER || !TOKEN) throw new Error('El enlace del resumen no está completo.');
+
+      await loadStoreSettings();
+
+      const queryAccess = `order_number=${encodeURIComponent(ORDER_NUMBER)}&token=${encodeURIComponent(TOKEN)}`;
+      const orderFilter = encodeURIComponent(`order_number = "${ORDER_NUMBER.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" && receipt_token = "${TOKEN.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`);
+      const ordersResult = await fetchJson(`/api/collections/orders/records?filter=${orderFilter}&expand=shipping_zone,currency&perPage=1&${queryAccess}`);
+      const order = ordersResult?.items?.[0];
+
+      if (!order) throw new Error('No encontramos una orden con este enlace.');
+
+      const itemsFilter = encodeURIComponent(`order = "${order.id}"`);
+      const itemsResult = await fetchJson(`/api/collections/order_items/records?filter=${itemsFilter}&sort=created&expand=product,variation,gift&perPage=200&${queryAccess}`);
+      const items = itemsResult?.items || [];
+      const currencyCode = getCurrencyCode(order);
+
+      document.getElementById('receipt-order-number').textContent = order.order_number || ORDER_NUMBER;
+      document.getElementById('receipt-created').textContent = order.created ? `Creada el ${formatDate(order.created)}` : '';
+      document.getElementById('receipt-status').textContent = statusLabels[order.status] || order.status || 'Pendiente';
+      document.getElementById('customer-name').textContent = order.customer_name || '';
+      document.getElementById('customer-phone').textContent = order.customer_phone || '';
+      document.getElementById('receipt-currency').textContent = currencyCode;
+      document.getElementById('delivery-method').textContent = deliveryLabels[order.delivery_method] || order.delivery_method || '';
+
+      const zoneLabel = getZoneLabel(order);
+      if (zoneLabel) {
+        document.getElementById('delivery-zone').textContent = zoneLabel;
+        document.getElementById('delivery-zone-row').classList.remove('hidden');
+      }
+      if (order.customer_address) {
+        document.getElementById('delivery-address').textContent = order.customer_address;
+        document.getElementById('delivery-address-row').classList.remove('hidden');
+      }
+
+      document.getElementById('receipt-items-count').textContent = `${items.length} artículo${items.length === 1 ? '' : 's'}`;
+      document.getElementById('receipt-items').innerHTML = items.length ? items.map((item) => `
+        <div class="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h3 class="font-black text-slate-950 leading-tight">${escapeHtml(getItemName(item))}</h3>
+              <p class="text-sm text-slate-500 font-bold mt-1">Cantidad: ${escapeHtml(item.is_gift ? 1 : Number(item.quantity || 0))}</p>
+              ${item.is_gift ? '<p class="text-xs text-green-700 bg-green-50 border border-green-100 rounded-full px-3 py-1 inline-flex mt-2 font-black">Regalo incluido</p>' : ''}
+            </div>
+            <strong class="text-right text-slate-950 whitespace-nowrap">${escapeHtml(getItemTotal(item, currencyCode))}</strong>
+          </div>
+        </div>
+      `).join('') : '<div class="rounded-3xl border border-slate-100 bg-slate-50 p-5 text-center text-slate-500 font-bold">Sin productos cargados.</div>';
+
+      renderTotals(order, items, currencyCode);
+
+      if (order.notes) {
+        document.getElementById('receipt-notes').textContent = order.notes;
+        document.getElementById('receipt-notes-box').classList.remove('hidden');
+      }
+
+      loadingBox.classList.add('hidden');
+      errorBox.classList.add('hidden');
+      contentBox.classList.remove('hidden');
+      printBtn.classList.remove('hidden');
+    }
+
+    printBtn.addEventListener('click', () => window.print());
+
+    loadReceipt().catch((error) => {
+      console.error(error);
+      showError(error?.message || 'No se pudo cargar el resumen.');
+    });
+  </script>
+
+  <style>
+    @media print {
+      body { background: #fff !important; }
+      #receipt-print-btn,
+      a[href="/"] { display: none !important; }
+      #receipt-content { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+      #store-logo-box { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }
+  </style>
+</Layout>

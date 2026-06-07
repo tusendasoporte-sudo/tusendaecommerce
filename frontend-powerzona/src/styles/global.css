@@ -1,0 +1,14 @@
+@import "tailwindcss";
+/* PZ-GLOBAL-V11-MOBILE-VIEW-LOCK-20260603
+   Refuerzo para vista móvil: evita ancho extra, scroll horizontal y gestos raros. */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  touch-action: pan-y;
+}
+
+* {
+  box-sizing: border-box;
+}

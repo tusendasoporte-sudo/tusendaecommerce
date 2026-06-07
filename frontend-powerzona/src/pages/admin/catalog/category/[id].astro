@@ -1,0 +1,769 @@
+---
+export const prerender = false;
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const categoryId = Astro.params.id;
+---
+<!-- PZ-CATALOG-ADMIN-CATEGORY-DETAIL-V1-20260603
+  Bloque: Categorías admin visual
+  Cambio: página dedicada para editar una categoría, cambiar foto, visibilidad y gestionar subcategorías/productos directos.
+-->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Categoría admin | PowerZona</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --soft: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --green: #16a34a;
+        --red: #dc2626;
+        --blue: #2563eb;
+        --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; margin: 0; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(37, 99, 235, 0.15), transparent 30%),
+          radial-gradient(circle at 90% 12%, rgba(22, 163, 74, 0.10), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 52%, #e8eef7 100%);
+      }
+      a { color: inherit; text-decoration: none; }
+      button, input, select { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .65; }
+      .hidden { display: none !important; }
+      .app-shell { width: min(1320px, 100%); margin: 0 auto; padding: 24px; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+      .topbar-left, .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .action-btn, .back-link {
+        display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+        border: 1px solid rgba(226, 232, 240, .95); border-radius: 18px; padding: 12px 15px;
+        background: rgba(255,255,255,.92); color: #0f172a; font-weight: 1000;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07);
+      }
+      .action-btn.dark { background: #0f172a; color: #fff; border-color: #0f172a; }
+      .action-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .hero-card, .panel-card, .list-card {
+        background: rgba(255,255,255,.93); border: 1px solid rgba(226,232,240,.96);
+        border-radius: 30px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+      }
+      .hero-card { padding: 26px; margin-bottom: 18px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; overflow: hidden; position: relative; }
+      .hero-thumb { width: 82px; height: 82px; border-radius: 24px; object-fit: cover; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 16px 30px rgba(15,23,42,.10); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 1000; color: #94a3b8; }
+      .badge { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 12px; background: #dbeafe; color: #1d4ed8; font-size: 12px; font-weight: 1000; }
+      .page-title { margin: 10px 0 0; font-size: clamp(26px, 4vw, 42px); font-weight: 1000; letter-spacing: -.045em; line-height: 1.05; }
+      .page-subtitle { margin: 8px 0 0; color: var(--muted); line-height: 1.5; font-size: 14px; font-weight: 760; }
+      .status-pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 9px 12px; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .035em; border: 1px solid transparent; white-space: nowrap; }
+      .status-visible { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .status-hidden { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .grid { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.25fr); gap: 18px; align-items: start; }
+      .stack { display: grid; gap: 18px; }
+      .panel-card { padding: 22px; }
+      .panel-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.025em; }
+      .panel-text { margin: 8px 0 18px; color: var(--muted); line-height: 1.55; font-size: 14px; font-weight: 750; }
+      .form-grid { display: grid; gap: 12px; }
+      .field { display: grid; gap: 7px; }
+      .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+      .field input, .field select {
+        width: 100%; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: var(--text);
+        padding: 12px 13px; outline: none; font-weight: 850; box-shadow: inset 0 1px 0 rgba(15,23,42,.02);
+      }
+      .field input[type="file"] { padding: 10px; background: #f8fafc; }
+      .field input:focus, .field select:focus { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+      .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .checkline { display: flex; align-items: center; gap: 10px; font-weight: 950; color: #334155; }
+      .checkline input { width: 18px; height: 18px; accent-color: #16a34a; }
+      .submit-btn, .mini-btn {
+        border: 0; border-radius: 18px; padding: 12px 15px; background: #0f172a; color: #fff;
+        font-weight: 1000; box-shadow: 0 14px 28px rgba(15,23,42,.18); display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      }
+      .mini-btn { padding: 10px 13px; border-radius: 999px; font-size: 12px; }
+      .mini-btn.soft { background: #fff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 10px 22px rgba(15,23,42,.06); }
+      .mini-btn.green { background: #16a34a; }
+      .mini-btn.red { background: #dc2626; }
+      .alert { margin-top: 12px; border-radius: 16px; padding: 11px 12px; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+      .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+      .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+      .list-card { overflow: hidden; }
+      .list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 20px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.6)); }
+      .list-title { margin: 0; font-size: 18px; font-weight: 1000; letter-spacing: -.02em; }
+      .list-subtitle { margin: 5px 0 0; color: var(--muted); font-size: 13px; font-weight: 750; }
+      .list-body { display: grid; gap: 0; }
+      .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 15px 18px; border-bottom: 1px solid #eef2f7; }
+      .item-row:last-child { border-bottom: 0; }
+      .item-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .row-thumb { width: 54px; height: 54px; min-width: 54px; border-radius: 16px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 1000; }
+      .item-title { margin: 0; font-size: 14px; font-weight: 1000; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .item-meta { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 800; }
+      .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+      .inline-editor { grid-column: 1 / -1; display: none; margin-top: 2px; padding: 15px; border-radius: 22px; border: 1px solid #e2e8f0; background: #f8fafc; }
+      .item-row.editing .inline-editor { display: block; }
+      .empty { padding: 22px; color: #64748b; font-weight: 850; }
+      .product-price { border-radius: 999px; padding: 8px 10px; font-size: 11px; font-weight: 1000; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; white-space: nowrap; }
+      .login-card { max-width: 520px; margin: 24px auto 0; }
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+        .hero-card { grid-template-columns: 1fr; }
+        .form-row { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 620px) {
+        .app-shell { padding: 14px; }
+        .item-row { grid-template-columns: 1fr; }
+        .row-actions { justify-content: flex-start; }
+        .hero-thumb { width: 68px; height: 68px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-left">
+          <a class="back-link" href="/admin/catalog">← Volver a categorías</a>
+          <a class="back-link" href="/admin">Resumen</a>
+        </div>
+        <div class="topbar-actions">
+          <a class="action-btn" href="/admin/products">Productos</a>
+          <a class="action-btn" href="/">Ver catálogo público</a>
+          <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
+        </div>
+      </header>
+
+      <section id="login-view" class="panel-card login-card hidden">
+        <h2 class="panel-title">Entrar como admin</h2>
+        <p class="panel-text">Usa el mismo usuario administrador de PocketBase para editar esta categoría.</p>
+        <form id="login-form" class="form-grid">
+          <div class="field">
+            <label for="admin-email">Email</label>
+            <input id="admin-email" type="email" autocomplete="username" required />
+          </div>
+          <div class="field">
+            <label for="admin-password">Contraseña</label>
+            <input id="admin-password" type="password" autocomplete="current-password" required />
+          </div>
+          <button id="login-btn" class="submit-btn" type="submit">Entrar al panel</button>
+          <div id="login-alert" class="alert alert-error hidden"></div>
+        </form>
+      </section>
+
+      <section id="admin-view" class="hidden">
+        <section class="hero-card">
+          <div id="category-hero-thumb" class="hero-thumb">+</div>
+          <div>
+            <span class="badge">🗂️ Categoría</span>
+            <h1 id="category-title" class="page-title">Cargando categoría...</h1>
+            <p id="category-subtitle" class="page-subtitle">Edita el nombre, la foto, la visibilidad, las subcategorías y los productos directos de esta categoría.</p>
+          </div>
+          <span id="category-status" class="status-pill status-visible">Visible</span>
+        </section>
+
+        <div class="grid">
+          <div class="stack">
+            <section class="panel-card">
+              <h2 class="panel-title">Datos de la categoría</h2>
+              <p class="panel-text">Aquí puedes cambiar el nombre público, la foto principal y si aparece o no en la tienda.</p>
+              <form id="category-form" class="form-grid">
+                <div class="field">
+                  <label for="category-name">Nombre</label>
+                  <input id="category-name" type="text" placeholder="Nombre de la categoría" required />
+                </div>
+                <div class="field">
+                  <label for="category-image">Cambiar foto</label>
+                  <input id="category-image" type="file" accept="image/*" />
+                </div>
+                <label class="checkline"><input id="category-active" type="checkbox" /> Visible en tienda pública</label>
+                <button id="category-submit" class="submit-btn" type="submit">Guardar categoría</button>
+                <div id="category-alert" class="alert alert-info hidden"></div>
+              </form>
+            </section>
+
+            <section class="panel-card">
+              <h2 class="panel-title">Nueva subcategoría</h2>
+              <p class="panel-text">Crea subcategorías dentro de esta categoría sin ensuciar la vista general.</p>
+              <form id="subcategory-form" class="form-grid">
+                <div class="field">
+                  <label for="subcategory-name">Nombre</label>
+                  <input id="subcategory-name" type="text" placeholder="Ej: Whey Protein" required />
+                </div>
+                <div class="field">
+                  <label for="subcategory-image">Foto</label>
+                  <input id="subcategory-image" type="file" accept="image/*" />
+                </div>
+                <label class="checkline"><input id="subcategory-active" type="checkbox" checked /> Visible en tienda</label>
+                <button id="subcategory-submit" class="submit-btn" type="submit">Crear subcategoría</button>
+                <div id="subcategory-alert" class="alert alert-info hidden"></div>
+              </form>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="list-card">
+              <div class="list-head">
+                <div>
+                  <h2 class="list-title">Subcategorías</h2>
+                  <p id="subcategories-count" class="list-subtitle">Cargando...</p>
+                </div>
+              </div>
+              <div id="subcategories-list" class="list-body"></div>
+            </section>
+
+            <section class="list-card">
+              <div class="list-head">
+                <div>
+                  <h2 class="list-title">Productos directos</h2>
+                  <p id="products-count" class="list-subtitle">Cargando...</p>
+                </div>
+                <button id="new-product-btn" class="mini-btn" type="button">+ Nuevo producto</button>
+              </div>
+              <div id="products-list" class="list-body"></div>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl, categoryId }}>
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CATEGORY_ID = String(categoryId || '');
+      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+
+      const loginView = document.getElementById('login-view');
+      const adminView = document.getElementById('admin-view');
+      const logoutBtn = document.getElementById('logout-btn');
+      const loginForm = document.getElementById('login-form');
+      const loginBtn = document.getElementById('login-btn');
+      const loginAlert = document.getElementById('login-alert');
+
+      const categoryHeroThumb = document.getElementById('category-hero-thumb');
+      const categoryTitle = document.getElementById('category-title');
+      const categorySubtitle = document.getElementById('category-subtitle');
+      const categoryStatus = document.getElementById('category-status');
+      const categoryForm = document.getElementById('category-form');
+      const categoryName = document.getElementById('category-name');
+      const categoryImage = document.getElementById('category-image');
+      const categoryActive = document.getElementById('category-active');
+      const categoryAlert = document.getElementById('category-alert');
+
+      const subcategoryForm = document.getElementById('subcategory-form');
+      const subcategoryName = document.getElementById('subcategory-name');
+      const subcategoryImage = document.getElementById('subcategory-image');
+      const subcategoryActive = document.getElementById('subcategory-active');
+      const subcategoryAlert = document.getElementById('subcategory-alert');
+      const subcategoriesList = document.getElementById('subcategories-list');
+      const subcategoriesCount = document.getElementById('subcategories-count');
+      const productsList = document.getElementById('products-list');
+      const productsCount = document.getElementById('products-count');
+      const newProductBtn = document.getElementById('new-product-btn');
+
+      let category = null;
+      let categories = [];
+      let subcategories = [];
+      let products = [];
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function slugify(value) {
+        return String(value || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+      }
+
+      function normalizeName(value) {
+        return String(value || '')
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, ' ');
+      }
+
+
+      // PZ-CATALOG-IMAGE-OPTIMIZER-V28-20260605
+      // Optimiza fotos de categorías/subcategorías antes de enviarlas a PocketBase.
+      async function optimizeCatalogImageFile(file) {
+        if (!file || !file.type?.startsWith('image/')) return file;
+        let objectUrl = '';
+        try {
+          const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            objectUrl = URL.createObjectURL(file);
+            img.src = objectUrl;
+          });
+
+          const targetWidth = 1200;
+          const targetHeight = 675;
+          const targetRatio = targetWidth / targetHeight;
+          const sourceWidth = image.naturalWidth || image.width;
+          const sourceHeight = image.naturalHeight || image.height;
+          const sourceRatio = sourceWidth / sourceHeight;
+
+          let sx = 0;
+          let sy = 0;
+          let sw = sourceWidth;
+          let sh = sourceHeight;
+
+          if (sourceRatio > targetRatio) {
+            sw = sourceHeight * targetRatio;
+            sx = (sourceWidth - sw) / 2;
+          } else if (sourceRatio < targetRatio) {
+            sh = sourceWidth / targetRatio;
+            sy = (sourceHeight - sh) / 2;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(image, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          if (!blob) return file;
+          const safeName = String(file.name || 'categoria')
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-z0-9_-]+/gi, '_')
+            .toLowerCase();
+          return new File([blob], `${safeName}_categoria_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
+        } catch (error) {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          console.warn('No se pudo optimizar la imagen de categoría. Se usará la original.', error);
+          return file;
+        }
+      }
+
+      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token); }
+      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
+      function showLogin() { loginView.classList.remove('hidden'); adminView.classList.add('hidden'); logoutBtn.classList.add('hidden'); }
+      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); }
+
+      function setAlert(element, message, type = 'info') {
+        element.textContent = message;
+        element.className = `alert alert-${type}`;
+        element.classList.toggle('hidden', !message);
+      }
+
+      async function apiRequest(path, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const token = getAdminToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con PocketBase.');
+        return result;
+      }
+
+      async function loginAsAdmin(email, password) {
+        const payload = { identity: email, password };
+        try {
+          const result = await apiRequest('/api/collections/_superusers/auth-with-password', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+          });
+          setAdminToken(result.token);
+          return result;
+        } catch (error) {
+          const result = await apiRequest('/api/admins/auth-with-password', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+          });
+          setAdminToken(result.token);
+          return result;
+        }
+      }
+
+      async function loadAllRecords(collection, params = '') {
+        let page = 1;
+        const perPage = 200;
+        let items = [];
+        let totalPages = 1;
+        do {
+          const separator = params ? '&' : '';
+          const result = await apiRequest(`/api/collections/${collection}/records?${params}${separator}page=${page}&perPage=${perPage}`);
+          items = items.concat(result.items || []);
+          totalPages = result.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+        return items;
+      }
+
+      function recordImageUrl(collection, record) {
+        if (!record?.image) return '';
+        return `${POCKETBASE_URL}/api/files/${collection}/${encodeURIComponent(record.id)}/${encodeURIComponent(record.image)}`;
+      }
+
+      function imageMarkup(collection, record, label, placeholder = '+') {
+        const url = recordImageUrl(collection, record);
+        if (!url) return `<span class="row-thumb" aria-label="Sin imagen">${escapeHtml(placeholder)}</span>`;
+        return `<img class="row-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(label)}" loading="lazy" />`;
+      }
+
+      function parseProductImageOrder(product) {
+        const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
+        let stored = [];
+        try {
+          stored = Array.isArray(JSON.parse(product?.image_order || '[]')) ? JSON.parse(product?.image_order || '[]') : [];
+        } catch (_) {
+          stored = [];
+        }
+        const ordered = stored.filter((name) => images.includes(name));
+        images.forEach((name) => { if (!ordered.includes(name)) ordered.push(name); });
+        return ordered;
+      }
+      function productImageUrl(product) {
+        const images = parseProductImageOrder(product);
+        const firstImage = images[0];
+        if (!product?.id || !firstImage || !POCKETBASE_URL) return '';
+        return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(firstImage)}?thumb=160x160`;
+      }
+
+      function productImageMarkup(product) {
+        const url = productImageUrl(product);
+        if (!url) return '<span class="row-thumb">P</span>';
+        return `<img class="row-thumb" src="${escapeHtml(url)}" alt="${escapeHtml(product?.name || 'Producto')}" loading="lazy" />`;
+      }
+
+      function formatUsd(value) {
+        const amount = Number(value || 0);
+        return `${amount.toFixed(2)} USD`;
+      }
+
+      function productHasRealSubcategory(product) {
+        return Boolean(product?.subcategory && subcategories.some((item) => item.id === product.subcategory));
+      }
+
+      function directProducts() {
+        return products.filter((product) => product.category === CATEGORY_ID && !productHasRealSubcategory(product));
+      }
+
+      function subcategoryNameExists(name, exceptId = '') {
+        const normalized = normalizeName(name);
+        return subcategories.some((item) => item.id !== exceptId && item.category === CATEGORY_ID && normalizeName(item.name) === normalized);
+      }
+
+      function categoryNameExists(name) {
+        const normalized = normalizeName(name);
+        return categories.some((item) => item.id !== CATEGORY_ID && normalizeName(item.name) === normalized);
+      }
+
+      function nextOrder(items) {
+        if (!items.length) return 1;
+        return Math.max(...items.map((item) => Number(item.order || 0))) + 1;
+      }
+
+      function productCreateUrl(categoryId = '', subcategoryId = '') {
+        const params = new URLSearchParams();
+        params.set('new', '1');
+        if (categoryId) params.set('category', categoryId);
+        if (subcategoryId) params.set('subcategory', subcategoryId);
+        return `/admin/products?${params.toString()}`;
+      }
+
+      function productEditUrl(productId = '') {
+        const params = new URLSearchParams();
+        if (productId) params.set('product', productId);
+        return `/admin/products?${params.toString()}`;
+      }
+
+      function renderHero() {
+        categoryTitle.textContent = category?.name || 'Categoría sin nombre';
+        const childCount = subcategories.length;
+        const directCount = directProducts().length;
+        categorySubtitle.textContent = `${childCount} subcategorías · ${directCount} productos directos`;
+        categoryStatus.textContent = category?.active ? 'Visible' : 'Oculta';
+        categoryStatus.className = `status-pill ${category?.active ? 'status-visible' : 'status-hidden'}`;
+        const url = recordImageUrl('categories', category);
+        categoryHeroThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" style="width:100%;height:100%;object-fit:cover;border-radius:24px;" />` : '+';
+        categoryName.value = category?.name || '';
+        categoryActive.checked = category?.active === true;
+      }
+
+      function renderSubcategories() {
+        const ordered = [...subcategories].sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.name || '').localeCompare(String(b.name || '')));
+        subcategoriesCount.textContent = `${ordered.length} subcategorías · ${ordered.filter((item) => item.active).length} visibles`;
+        if (!ordered.length) {
+          subcategoriesList.innerHTML = '<div class="empty">Esta categoría todavía no tiene subcategorías.</div>';
+          return;
+        }
+        subcategoriesList.innerHTML = ordered.map((subcategory) => {
+          const count = products.filter((product) => product.subcategory === subcategory.id).length;
+          const statusText = category?.active === false ? 'Oculta por categoría' : (subcategory.active ? 'Visible' : 'Oculta');
+          const statusClass = category?.active === true && subcategory.active ? 'status-visible' : 'status-hidden';
+          return `
+            <article class="item-row" data-subcategory-id="${subcategory.id}">
+              <div class="item-main">
+                ${imageMarkup('subcategories', subcategory, subcategory.name || 'Subcategoría')}
+                <div style="min-width:0;">
+                  <p class="item-title">${escapeHtml(subcategory.name || 'Subcategoría sin nombre')}</p>
+                  <p class="item-meta">${count} productos · ${escapeHtml(statusText)}</p>
+                </div>
+              </div>
+              <div class="row-actions">
+                <span class="status-pill ${statusClass}">${escapeHtml(statusText)}</span>
+                <button class="mini-btn soft js-subcategory-edit" type="button">Editar</button>
+                <button class="mini-btn soft js-subcategory-products" type="button">Productos</button>
+                <button class="mini-btn ${subcategory.active ? 'red' : 'green'} js-subcategory-toggle" type="button">${subcategory.active ? 'Ocultar' : 'Activar'}</button>
+              </div>
+              <div class="inline-editor">
+                <div class="form-grid">
+                  <div class="form-row">
+                    <div class="field">
+                      <label>Nombre</label>
+                      <input class="js-subcategory-name" value="${escapeHtml(subcategory.name || '')}" />
+                    </div>
+                    <div class="field">
+                      <label>Cambiar foto</label>
+                      <input class="js-subcategory-image" type="file" accept="image/*" />
+                    </div>
+                  </div>
+                  <div class="row-actions">
+                    <button class="mini-btn soft js-subcategory-cancel" type="button">Cerrar</button>
+                    <button class="mini-btn js-subcategory-save" type="button">Guardar subcategoría</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      function renderProducts() {
+        const items = directProducts().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+        productsCount.textContent = `${items.length} productos directos en esta categoría`;
+        if (!items.length) {
+          productsList.innerHTML = '<div class="empty">No hay productos directos en esta categoría.</div>';
+          return;
+        }
+        productsList.innerHTML = items.map((product) => `
+          <article class="item-row" data-product-id="${product.id}">
+            <div class="item-main">
+              ${productImageMarkup(product)}
+              <div style="min-width:0;">
+                <p class="item-title">${escapeHtml(product.name || 'Producto sin nombre')}</p>
+                <p class="item-meta">Stock: ${Number(product.stock || 0)} · ${product.active ? 'Visible' : 'Oculto'}</p>
+              </div>
+            </div>
+            <div class="row-actions">
+              <span class="product-price">${escapeHtml(formatUsd(product.base_price_usd))}</span>
+              <button class="mini-btn soft js-product-edit" type="button">Editar</button>
+            </div>
+          </article>
+        `).join('');
+      }
+
+      function renderAll() {
+        renderHero();
+        renderSubcategories();
+        renderProducts();
+      }
+
+      async function loadPage() {
+        try {
+          categoryTitle.textContent = 'Cargando categoría...';
+          const [categoryRecord, allCategories, subcategoryRecords, productRecords] = await Promise.all([
+            apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`),
+            loadAllRecords('categories', 'sort=order,name'),
+            loadAllRecords('subcategories', `filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=order,name`),
+            loadAllRecords('products', `filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=name`),
+          ]);
+          category = categoryRecord;
+          categories = allCategories;
+          subcategories = subcategoryRecords;
+          products = productRecords;
+          renderAll();
+        } catch (error) {
+          console.error(error);
+          categoryTitle.textContent = 'No se pudo cargar la categoría';
+          categorySubtitle.textContent = error.message || 'Revisa tu sesión admin o si la categoría existe.';
+        }
+      }
+
+      async function saveCategory(event) {
+        event.preventDefault();
+        const name = categoryName.value.trim();
+        if (!name) {
+          setAlert(categoryAlert, 'El nombre de la categoría no puede estar vacío.', 'error');
+          return;
+        }
+        if (categoryNameExists(name)) {
+          setAlert(categoryAlert, `Ya existe una categoría llamada "${name}".`, 'error');
+          return;
+        }
+        setAlert(categoryAlert, 'Guardando categoría...', 'info');
+        const imageFile = categoryImage.files?.[0];
+        const changes = { name, slug: slugify(name), active: categoryActive.checked };
+        if (imageFile) {
+          const formData = new FormData();
+          Object.entries(changes).forEach(([key, value]) => formData.append(key, String(value)));
+          formData.append('image', await optimizeCatalogImageFile(imageFile));
+          category = await apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`, { method: 'PATCH', body: formData });
+        } else {
+          category = await apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes),
+          });
+        }
+        categoryImage.value = '';
+        setAlert(categoryAlert, 'Categoría guardada correctamente.', 'success');
+        await loadPage();
+      }
+
+      async function createSubcategory(event) {
+        event.preventDefault();
+        const name = subcategoryName.value.trim();
+        if (!name) {
+          setAlert(subcategoryAlert, 'Escribe el nombre de la subcategoría.', 'error');
+          return;
+        }
+        if (subcategoryNameExists(name)) {
+          setAlert(subcategoryAlert, `Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
+          return;
+        }
+        setAlert(subcategoryAlert, 'Creando subcategoría...', 'info');
+        const formData = new FormData();
+        formData.append('category', CATEGORY_ID);
+        formData.append('name', name);
+        formData.append('slug', slugify(name));
+        formData.append('active', subcategoryActive.checked ? 'true' : 'false');
+        formData.append('order', String(nextOrder(subcategories)));
+        if (subcategoryImage.files?.[0]) formData.append('image', await optimizeCatalogImageFile(subcategoryImage.files[0]));
+        await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
+        subcategoryForm.reset();
+        subcategoryActive.checked = true;
+        setAlert(subcategoryAlert, 'Subcategoría creada correctamente.', 'success');
+        await loadPage();
+      }
+
+      async function updateSubcategory(row, changes) {
+        const id = row.dataset.subcategoryId;
+        const imageFile = row.querySelector('.js-subcategory-image')?.files?.[0];
+        if (imageFile) {
+          const formData = new FormData();
+          Object.entries(changes).forEach(([key, value]) => formData.append(key, String(value)));
+          formData.append('image', await optimizeCatalogImageFile(imageFile));
+          await apiRequest(`/api/collections/subcategories/records/${id}`, { method: 'PATCH', body: formData });
+        } else {
+          await apiRequest(`/api/collections/subcategories/records/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(changes),
+          });
+        }
+        await loadPage();
+      }
+
+      loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setAlert(loginAlert, '', 'error');
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Entrando...';
+        try {
+          await loginAsAdmin(document.getElementById('admin-email').value, document.getElementById('admin-password').value);
+          showAdmin();
+          await loadPage();
+        } catch (error) {
+          console.error(error);
+          setAlert(loginAlert, 'No se pudo iniciar sesión. Revisa el email y la contraseña de PocketBase.', 'error');
+        } finally {
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Entrar al panel';
+        }
+      });
+
+      logoutBtn.addEventListener('click', () => {
+        clearAdminToken();
+        showLogin();
+      });
+
+      categoryForm.addEventListener('submit', saveCategory);
+      subcategoryForm.addEventListener('submit', createSubcategory);
+      newProductBtn.addEventListener('click', () => {
+        window.location.href = productCreateUrl(CATEGORY_ID, '');
+      });
+
+      subcategoriesList.addEventListener('click', async (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const row = button.closest('[data-subcategory-id]');
+        if (!row) return;
+        const subcategory = subcategories.find((item) => item.id === row.dataset.subcategoryId);
+        if (!subcategory) return;
+
+        try {
+          if (button.classList.contains('js-subcategory-edit')) {
+            row.classList.add('editing');
+            row.querySelector('.js-subcategory-name')?.focus();
+            return;
+          }
+          if (button.classList.contains('js-subcategory-cancel')) {
+            row.classList.remove('editing');
+            return;
+          }
+          if (button.classList.contains('js-subcategory-products')) {
+            window.location.href = productCreateUrl(CATEGORY_ID, subcategory.id);
+            return;
+          }
+          if (button.classList.contains('js-subcategory-toggle')) {
+            button.disabled = true;
+            await updateSubcategory(row, { active: !subcategory.active });
+            return;
+          }
+          if (button.classList.contains('js-subcategory-save')) {
+            const name = row.querySelector('.js-subcategory-name').value.trim();
+            if (!name) {
+              alert('El nombre de la subcategoría no puede estar vacío.');
+              return;
+            }
+            if (subcategoryNameExists(name, subcategory.id)) {
+              alert(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`);
+              return;
+            }
+            button.disabled = true;
+            await updateSubcategory(row, { name, slug: slugify(name), category: CATEGORY_ID });
+          }
+        } catch (error) {
+          console.error(error);
+          alert(error.message || 'No se pudo actualizar la subcategoría.');
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      productsList.addEventListener('click', (event) => {
+        const button = event.target.closest('.js-product-edit');
+        const row = button?.closest('[data-product-id]');
+        if (row?.dataset?.productId) window.location.href = productEditUrl(row.dataset.productId);
+      });
+
+      if (!POCKETBASE_URL) {
+        showLogin();
+        setAlert(loginAlert, 'Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.', 'error');
+      } else if (getAdminToken()) {
+        showAdmin();
+        loadPage();
+      } else {
+        showLogin();
+      }
+    </script>
+  </body>
+</html>

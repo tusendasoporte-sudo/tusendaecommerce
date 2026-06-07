@@ -1,0 +1,583 @@
+---
+// PZ-ADMIN-GIFTS-V25M-SIN-NOTAS-INTERNAS-20260605
+// Ajuste visible: interfaz final sin notas internas en regalos.
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Regalos | PowerZona</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page:#eef3f9; --surface:#fff; --soft:#f8fafc; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
+        --dark:#111827; --green:#16a34a; --red:#dc2626; --shadow:0 18px 45px rgba(15,23,42,.08);
+      }
+      *{box-sizing:border-box} body{margin:0;min-height:100vh;color:var(--text);background:linear-gradient(180deg,#f8fbff,var(--page));} a{text-decoration:none;color:inherit} button,input,textarea{font:inherit} button{cursor:pointer}.hidden{display:none!important}
+      .login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card,.card{background:#fff;border:1px solid var(--border);border-radius:28px;box-shadow:var(--shadow)}.login-card{width:min(100%,440px);padding:28px}.brand{display:inline-flex;background:#ecfdf5;color:#166534;padding:8px 12px;border-radius:999px;font-weight:1000;font-size:13px}h1{font-size:34px;letter-spacing:-.05em;margin:16px 0 8px}p{color:var(--muted);line-height:1.5}label{display:block;font-size:12px;font-weight:950;color:#334155;margin:0 0 7px}input,textarea{width:100%;border:1px solid var(--border);border-radius:16px;background:var(--soft);padding:12px 13px;outline:none}textarea{resize:vertical;min-height:84px}input:focus,textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+      .btn{border:0;border-radius:16px;padding:12px 16px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .16s ease,box-shadow .16s ease,background .16s ease}.btn:hover{transform:translateY(-1px)}.btn-primary{background:var(--dark);color:#fff;box-shadow:0 14px 28px rgba(17,24,39,.14)}.btn-green{background:var(--green);color:#fff;box-shadow:0 14px 28px rgba(22,163,74,.14)}.btn-soft{background:#fff;color:#111827;border:1px solid var(--border);box-shadow:0 10px 22px rgba(15,23,42,.06)}.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+      .wrap{width:min(1320px,100%);margin:0 auto;padding:24px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px}.top-actions{display:flex;gap:10px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px}.card{padding:20px}.card-title{margin:0 0 4px;font-size:20px;font-weight:1000;letter-spacing:-.03em}.form-grid{display:grid;gap:13px;margin-top:16px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.check-row{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:16px;padding:12px}.check-row input{width:auto}.alert{border-radius:16px;padding:12px 14px;font-size:13px;font-weight:850;margin-bottom:12px}.alert-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}.alert-ok{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
+      .settings-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.category-preview{display:flex;gap:12px;align-items:center;margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:10px}.category-preview img{width:78px;height:58px;border-radius:16px;object-fit:cover;background:#fff;border:1px solid #e2e8f0;display:block;flex:0 0 auto}.category-preview span{font-size:12px;font-weight:900;color:#64748b}
+      #gifts-list{display:grid;gap:10px}.gift-row-premium{width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:22px;box-shadow:0 12px 28px rgba(15,23,42,.06);padding:10px;display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center}.gift-thumb-premium{width:58px!important;height:58px!important;min-width:58px!important;max-width:58px!important;max-height:58px!important;border-radius:16px;object-fit:contain;background:#f8fafc;border:1px solid #e2e8f0;display:block;padding:3px}.gift-info-premium{min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.gift-name-premium{font-weight:1000;font-size:14px;line-height:1.2;color:#111827;min-width:210px;max-width:370px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gift-meta-premium{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#475569;font-weight:950;font-size:12px}.pill{font-size:10px;font-weight:1000;border-radius:999px;padding:6px 8px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}.pill.green{background:#ecfdf5;color:#166534;border-color:#bbf7d0}.pill.red{background:#fee2e2;color:#991b1b;border-color:#fecaca}.gift-actions-premium{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}.premium-action{height:38px;border-radius:14px;border:1px solid var(--border);background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center;transition:transform .16s ease,box-shadow .16s ease}.premium-action:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(15,23,42,.1)}.premium-action.arrow{width:38px;padding:0;font-size:15px}.premium-action.dark{background:#111827;color:#fff;border-color:#111827}.premium-action.danger{background:#fff1f2;color:#991b1b;border-color:#fecdd3}.premium-action:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}.empty{padding:34px;text-align:center;color:#64748b;font-weight:850;border:1px dashed #cbd5e1;border-radius:24px;background:#fff}
+      @media(max-width:1050px){.grid{grid-template-columns:1fr}.gift-row-premium{grid-template-columns:58px minmax(0,1fr)}.gift-actions-premium{grid-column:1/-1;justify-content:flex-start;padding-left:70px}.gift-name-premium{max-width:100%;min-width:0}}@media(max-width:620px){.wrap{padding:16px}.topbar{align-items:flex-start;flex-direction:column}.two,.settings-row{grid-template-columns:1fr}.gift-row-premium{grid-template-columns:52px minmax(0,1fr);gap:10px}.gift-thumb-premium{width:52px!important;height:52px!important;min-width:52px!important;max-width:52px!important;max-height:52px!important;border-radius:15px}.gift-info-premium{display:block}.gift-name-premium{font-size:13px;margin-bottom:5px;min-width:0}.gift-meta-premium{gap:5px}.gift-actions-premium{padding-left:0}.premium-action{height:36px;padding:0 10px}.premium-action.arrow{width:36px}}
+
+
+      /* PZ V25B: menú lateral premium igual a Gestión de categorías */
+      .sidebar-overlay {
+        position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .36);
+        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
+      }
+      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
+      .sidebar {
+        position: fixed; top: 18px; left: 18px; bottom: 18px; z-index: 90; width: min(286px, calc(100vw - 36px));
+        border-radius: 30px; padding: 18px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        color: #0f172a; border: 1px solid rgba(226, 232, 240, .95); box-shadow: 0 28px 80px rgba(15, 23, 42, .22);
+        overflow: hidden; transform: translateX(calc(-100% - 28px)); transition: transform .24s ease;
+      }
+      body.sidebar-open .sidebar { transform: translateX(0); }
+      .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
+      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+      .sidebar-brand-row { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
+      .brand-logo { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: #0f172a; color: #fff; box-shadow: 0 14px 30px rgba(15, 23, 42, .18); font-weight: 1000; }
+      .sidebar-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; color:#0f172a; line-height:1.2; }
+      .sidebar-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; line-height:1.2; }
+      .sidebar-close { margin-left: auto; width: 34px; height: 34px; border: 0; border-radius: 13px; background: #f1f5f9; color: #0f172a; font-size: 22px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; }
+      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
+      .nav-list { display: grid; gap: 7px; }
+      .nav-item { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 8px 9px; border-radius: 16px; color: #334155; font-size: 13px; font-weight: 950; border: 1px solid transparent; background: transparent; }
+      .nav-item:hover { background: #fff; border-color: #e2e8f0; color: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.07); }
+      .nav-item.active { background: #0f172a; color: #fff; box-shadow: 0 14px 30px rgba(15,23,42,.16); }
+      .nav-icon { width: 32px; height: 32px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15,23,42,.06); }
+      .nav-item.active .nav-icon { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.16); box-shadow: none; }
+      .nav-icon svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+      .sidebar-footer { margin-top: auto; padding: 12px; border-radius: 18px; background: #f8fafc; border: 1px solid #e2e8f0; display: grid; gap: 3px; }
+      .sidebar-footer strong { font-size: 12px; color: #0f172a; }
+      .sidebar-footer span { font-size: 11px; color: #64748b; line-height: 1.35; }
+      .menu-btn { border: 0; border-radius: 18px; padding: 13px 16px; font-weight: 1000; background: #0f172a; color: #fff; box-shadow: 0 18px 38px rgba(15, 23, 42, .18); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+      .action-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:16px; padding:12px 16px; background:#fff; border:1px solid var(--border); box-shadow:0 10px 22px rgba(15,23,42,.06); color:#111827; font-weight:1000; }
+      .action-btn.danger { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+      #admin-view.wrap { width: min(1480px, 100%); }
+      #admin-view .topbar { justify-content: space-between; align-items: center; }
+      @media(max-width:620px){.menu-btn,.action-btn{width:100%;}.top-actions{width:100%;}.sidebar{top:12px;left:12px;bottom:12px;width:calc(100vw - 24px);}}
+
+    
+
+      /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
+         Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
+      .sidebar-overlay,
+      #sidebar-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 80 !important;
+        background: rgba(15, 23, 42, .36) !important;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .22s ease !important;
+        backdrop-filter: blur(3px) !important;
+      }
+      .sidebar-overlay.show,
+      body.sidebar-open .sidebar-overlay,
+      body.sidebar-open #sidebar-overlay {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      .sidebar,
+      #admin-sidebar {
+        position: fixed !important;
+        top: 18px !important;
+        left: 18px !important;
+        bottom: 18px !important;
+        z-index: 90 !important;
+        width: min(286px, calc(100vw - 36px)) !important;
+        border-radius: 30px !important;
+        padding: 18px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(226, 232, 240, .95) !important;
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95) !important;
+        overflow: hidden auto !important;
+        transform: translateX(calc(-100% - 36px)) !important;
+        transition: transform .24s ease !important;
+      }
+      .sidebar.open,
+      body.sidebar-open .sidebar,
+      body.sidebar-open #admin-sidebar {
+        transform: translateX(0) !important;
+      }
+      .sidebar::before,
+      #admin-sidebar::before {
+        content: '' !important;
+        position: absolute !important;
+        inset: 0 !important;
+        background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important;
+        pointer-events: none !important;
+      }
+      .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; min-height: 100% !important; }
+      .sidebar-top,
+      .brand,
+      .sidebar-brand-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 11px !important;
+        padding: 8px 8px 18px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        margin: 0 0 14px !important;
+      }
+      .sidebar-brand,
+      .brand-title,
+      .sidebar-title {
+        margin: 0 !important;
+        font-size: 22px !important;
+        font-weight: 1000 !important;
+        letter-spacing: -.035em !important;
+        color: #0f172a !important;
+        line-height: 1.1 !important;
+      }
+      .sidebar-sub,
+      .brand-subtitle,
+      .sidebar-subtitle {
+        margin: 4px 0 0 !important;
+        color: #334155 !important;
+        font-size: 12px !important;
+        font-weight: 850 !important;
+        line-height: 1.2 !important;
+      }
+      .brand-logo {
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: linear-gradient(135deg, #0f172a, #020617) !important;
+        color: #ffffff !important;
+        font-size: 12px !important;
+        font-weight: 1000 !important;
+        box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
+      }
+      .close-btn,
+      .sidebar-close,
+      #sidebar-close,
+      #sidebar-close-btn {
+        margin-left: auto !important;
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
+        border-radius: 16px !important;
+        border: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 18px !important;
+        font-weight: 1000 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-group { margin: 14px 0 !important; }
+      .sidebar-label,
+      .nav-label {
+        margin: 18px 9px 9px !important;
+        color: #475569 !important;
+        font-size: 10px !important;
+        font-weight: 1000 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .14em !important;
+      }
+      .nav-list { display: grid !important; gap: 6px !important; }
+      .nav-item,
+      .nav-link {
+        min-height: 50px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 11px !important;
+        width: 100% !important;
+        padding: 8px 10px !important;
+        border-radius: 16px !important;
+        background: transparent !important;
+        color: #0f172a !important;
+        border: 1px solid transparent !important;
+        font-size: 15px !important;
+        font-weight: 1000 !important;
+        line-height: 1.18 !important;
+        text-decoration: none !important;
+        box-shadow: none !important;
+        transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease !important;
+      }
+      .nav-left { display: inline-flex !important; align-items: center !important; gap: 11px !important; min-width: 0 !important; }
+      .nav-item:hover,
+      .nav-link:hover {
+        transform: translateX(2px) !important;
+        background: #f8fafc !important;
+        color: #020617 !important;
+        border-color: #e2e8f0 !important;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-item.active,
+      .nav-link.active {
+        background: linear-gradient(135deg, #0f172a, #020617) !important;
+        color: #ffffff !important;
+        border-color: rgba(15,23,42,.95) !important;
+        box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-icon,
+      .premium-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 14px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-icon svg,
+      .premium-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
+      .nav-icon svg path,
+      .premium-icon svg path { stroke: currentColor; }
+      .nav-item.active .nav-icon,
+      .nav-link.active .nav-icon,
+      .nav-link.active .premium-icon,
+      .nav-item:hover .nav-icon,
+      .nav-link:hover .nav-icon,
+      .nav-link:hover .premium-icon {
+        background: rgba(255,255,255,.12) !important;
+        color: #ffffff !important;
+        border-color: rgba(255,255,255,.20) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-item:hover:not(.active) .nav-icon,
+      .nav-link:hover:not(.active) .nav-icon,
+      .nav-link:hover:not(.active) .premium-icon {
+        background: #020617 !important;
+        color: #ffffff !important;
+        border-color: #020617 !important;
+        box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-link > span:last-child:not(.nav-left):not(.nav-pill),
+      .nav-link > .arrow,
+      .nav-item > .arrow,
+      .nav-arrow { display: none !important; }
+      .nav-pill {
+        margin-left: auto !important;
+        background: #f1f5f9 !important;
+        color: #64748b !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 999px !important;
+        padding: 5px 9px !important;
+        font-size: 11px !important;
+        font-weight: 1000 !important;
+      }
+      .nav-link.active .nav-pill,
+      .nav-item.active .nav-pill { background: rgba(255,255,255,.14) !important; color: #fff !important; border-color: rgba(255,255,255,.25) !important; }
+      .sidebar-footer {
+        margin-top: auto !important;
+        padding: 14px !important;
+        border-radius: 22px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .sidebar-footer strong { display: block !important; font-size: 12px !important; margin-bottom: 5px !important; color: #0f172a !important; }
+      .sidebar-footer span { display: block !important; color: #475569 !important; font-size: 11px !important; line-height: 1.45 !important; font-weight: 750 !important; }
+      @media (max-width: 620px) {
+        .sidebar,
+        #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
+      }
+
+      </style>
+  </head>
+  <body>
+    <div id="login-view" class="login-wrap">
+      <div class="login-card">
+        <span class="brand">PowerZona Admin</span>
+        <h1>Regalos</h1>
+        <p>Entra con tu admin para crear regalos por reglas.</p>
+        <div id="login-alert" class="alert alert-error hidden"></div>
+        <form id="login-form" class="form-grid">
+          <div><label>Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
+          <div><label>Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
+          <button class="btn btn-primary" type="submit">Entrar</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+    <main id="admin-view" class="hidden wrap">
+      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
+        <div class="sidebar-inner">
+          <div class="sidebar-brand-row">
+            <span class="brand-logo">PZ</span>
+            <div>
+              <p class="sidebar-title">PowerZona</p>
+              <p class="sidebar-subtitle">Panel administrativo</p>
+            </div>
+            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
+          </div>
+          <p class="sidebar-label">Principal</p>
+          <nav class="nav-list">
+            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+          </nav>
+          <p class="sidebar-label">Tienda</p>
+          <nav class="nav-list">
+            <a class="nav-item" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item active" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm3 3h10V6H7v2Zm0 4h10v-2H7v2Zm0 4h6v-2H7v2Z"/></svg></span><span>Ajustes de tienda</span></a>
+          </nav>
+          
+        </div>
+      </aside>
+      <div class="topbar">
+        <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
+        <div class="top-actions"><a class="action-btn" href="/admin">Resumen</a><a class="action-btn" href="/admin/products">Productos</a><a class="action-btn" href="/admin/catalog">Catálogo</a><button id="logout-btn" class="action-btn danger" type="button">Salir</button></div>
+      </div>
+      <div style="margin-bottom:18px;"><span class="brand">Regalos</span><h1>Gestión de regalos</h1><p>Administra los regalos disponibles para promociones de la tienda.</p></div>
+      <div id="alert" class="alert alert-info hidden"></div>
+
+      <section class="grid">
+        <aside class="card">
+          <h2 class="card-title" id="form-title">Crear regalo</h2>
+          <p style="margin:0;font-size:13px;">Define las condiciones necesarias para que el cliente pueda seleccionar este regalo.</p>
+          <form id="gift-form" class="form-grid">
+            <input id="gift-id" type="hidden" />
+            <div><label>Nombre del regalo *</label><input id="gift-name" required placeholder="Ej: Vitamina E de 30 Tabletas" /></div>
+            <div><label>Descripción</label><textarea id="gift-description" placeholder="Texto corto para la tarjeta pública"></textarea></div>
+            <div class="two"><div><label>Orden mínima USD *</label><input id="gift-min" type="number" min="0" step="0.01" value="0" required /></div><div><label>Stock *</label><input id="gift-stock" type="number" min="0" step="1" value="0" required /></div></div>
+            <label class="check-row"><input id="gift-active" type="checkbox" checked /> Visible</label>
+            <div><label>Foto del regalo</label><input id="gift-image" type="file" accept="image/*" /><p style="margin:7px 0 0;font-size:11px;color:#64748b;font-weight:800;">La imagen se optimiza automáticamente para catálogo público.</p></div>
+            <button class="btn btn-green" type="submit">Guardar regalo</button>
+            <button id="cancel-edit-btn" class="btn btn-soft hidden" type="button">Cancelar edición</button>
+          </form>
+        </aside>
+
+        <section class="card">
+          <div class="settings-row" style="margin-bottom:16px;">
+            <div><h2 class="card-title">Categoría pública de regalos</h2><p style="margin:0;font-size:13px;">Configura cómo se muestra la categoría de regalos en la tienda pública.</p></div>
+            <button id="save-settings-btn" class="btn btn-primary" type="button">Guardar categoría</button>
+          </div>
+          <div class="two" style="margin-bottom:12px;">
+            <label class="check-row"><input id="gifts-public-active" type="checkbox" checked /> Mostrar categoría Regalos</label>
+            <div><label>Nombre de categoría</label><input id="gifts-public-title" placeholder="Regalos" /></div>
+          </div>
+          <div><label>Foto de categoría Regalos</label><input id="gifts-public-image" type="file" accept="image/*" /><p style="margin:7px 0 0;font-size:11px;color:#64748b;font-weight:800;">La foto se optimiza automáticamente para la tarjeta pública.</p></div>
+          <div id="category-preview" class="category-preview hidden"><img id="category-preview-img" alt="Categoría Regalos" /><span>Foto actual de la categoría Regalos</span></div>
+
+          <div class="settings-row" style="margin:22px 0 14px;"><div><h2 class="card-title">Listado de regalos</h2><p style="margin:0;font-size:13px;">Consulta y edita los regalos activos de la tienda.</p></div><button id="refresh-btn" class="btn btn-soft" type="button">Actualizar</button></div>
+          <div id="gifts-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script define:vars={{ pocketbaseUrl }}>
+      const POCKETBASE_URL = pocketbaseUrl;
+      const TOKEN_KEY = 'pb_admin_token';
+      const loginView = document.getElementById('login-view');
+      const adminView = document.getElementById('admin-view');
+      const loginForm = document.getElementById('login-form');
+      const giftForm = document.getElementById('gift-form');
+      const giftsList = document.getElementById('gifts-list');
+      const loginAlert = document.getElementById('login-alert');
+      const alertBox = document.getElementById('alert');
+      const logoutBtn = document.getElementById('logout-btn');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const sidebar = document.getElementById('admin-sidebar');
+      const sidebarOpenBtn = document.getElementById('sidebar-open');
+      const sidebarCloseBtn = document.getElementById('sidebar-close');
+      const refreshBtn = document.getElementById('refresh-btn');
+      const saveSettingsBtn = document.getElementById('save-settings-btn');
+      const formTitle = document.getElementById('form-title');
+      const cancelEditBtn = document.getElementById('cancel-edit-btn');
+      const categoryPreview = document.getElementById('category-preview');
+      const categoryPreviewImg = document.getElementById('category-preview-img');
+      let gifts = [];
+      let settings = null;
+
+      const token = () => localStorage.getItem(TOKEN_KEY);
+      const setToken = (value) => localStorage.setItem(TOKEN_KEY, value);
+      const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+      const show = (view) => { loginView.classList.toggle('hidden', view !== 'login'); adminView.classList.toggle('hidden', view !== 'admin'); };
+      function openSidebar(){ document.body.classList.add('sidebar-open'); if(sidebarOverlay) sidebarOverlay.hidden = false; if(sidebar) sidebar.setAttribute('aria-hidden','false'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','true'); }
+      function closeSidebar(){ document.body.classList.remove('sidebar-open'); if(sidebar) sidebar.setAttribute('aria-hidden','true'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','false'); setTimeout(()=>{ if(!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true; }, 220); }
+      function showAlert(message, type='info'){ alertBox.textContent=message; alertBox.className=`alert alert-${type}`; alertBox.classList.remove('hidden'); setTimeout(()=>alertBox.classList.add('hidden'), 4200); }
+      function escapeHtml(value){ return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+      function normalizeFile(value){ return Array.isArray(value) ? value[0] : value; }
+      function fileUrl(record){ const file = normalizeFile(record.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}?thumb=100x100` : 'https://placehold.co/100x100?text=Regalo'; }
+      function settingsFileUrl(field){ const file = normalizeFile(settings?.[field]); return settings?.id && file ? `${POCKETBASE_URL}/api/files/settings/${settings.id}/${file}?thumb=300x200` : ''; }
+
+      async function optimizeGiftImageFile(file) {
+        if (!file || !file.type?.startsWith('image/')) return file;
+        if (file.type === 'image/gif') return file;
+        let objectUrl = '';
+        try {
+          const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            objectUrl = URL.createObjectURL(file);
+            img.src = objectUrl;
+          });
+
+          const targetWidth = 1200;
+          const targetHeight = 675;
+          const targetRatio = targetWidth / targetHeight;
+          const sourceWidth = image.naturalWidth || image.width;
+          const sourceHeight = image.naturalHeight || image.height;
+          const sourceRatio = sourceWidth / sourceHeight;
+
+          let sx = 0;
+          let sy = 0;
+          let sw = sourceWidth;
+          let sh = sourceHeight;
+
+          if (sourceRatio > targetRatio) {
+            sw = sourceHeight * targetRatio;
+            sx = (sourceWidth - sw) / 2;
+          } else if (sourceRatio < targetRatio) {
+            sh = sourceWidth / targetRatio;
+            sy = (sourceHeight - sh) / 2;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(image, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          if (!blob) return file;
+          const safeName = String(file.name || 'regalo')
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-z0-9_-]+/gi, '_')
+            .toLowerCase();
+          return new File([blob], `${safeName}_regalo_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
+        } catch (error) {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          console.warn('No se pudo optimizar la imagen de regalos. Se usará la original.', error);
+          return file;
+        }
+      }
+
+      async function api(path, options = {}){
+        const headers = { ...(options.headers || {}) };
+        if (token()) headers.Authorization = `Bearer ${token()}`;
+        const res = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+        const data = await res.json().catch(() => null);
+        if(!res.ok) throw new Error(data?.message || 'Error de comunicación con PocketBase.');
+        return data;
+      }
+      async function login(email, password){
+        try { return await api('/api/collections/_superusers/auth-with-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ identity:email, password }) }); }
+        catch (_) { return await api('/api/admins/auth-with-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ identity:email, password }) }); }
+      }
+      async function loadSettings(){
+        const filter = encodeURIComponent('active = true');
+        const result = await api(`/api/collections/settings/records?filter=${filter}&perPage=1`);
+        settings = result.items?.[0] || null;
+        document.getElementById('gifts-public-active').checked = settings?.gifts_public_active !== false;
+        document.getElementById('gifts-public-title').value = settings?.gifts_public_title || 'Regalos';
+        const preview = settingsFileUrl('gifts_public_image');
+        categoryPreview.classList.toggle('hidden', !preview);
+        if(preview) categoryPreviewImg.src = preview;
+      }
+      async function loadGifts(){
+        giftsList.innerHTML = '<div class="empty">Cargando regalos...</div>';
+        const result = await api('/api/collections/gifts/records?sort=sort_order,name&perPage=200');
+        gifts = result.items || [];
+        renderGifts();
+      }
+      function renderGifts(){
+        if(!gifts.length){ giftsList.innerHTML = '<div class="empty">Aún no tienes regalos creados.</div>'; return; }
+        giftsList.innerHTML = gifts.map((gift, index) => `
+          <article class="gift-row-premium" style="width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:22px;box-shadow:0 12px 28px rgba(15,23,42,.06);padding:10px;display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;">
+            <img class="gift-thumb-premium" style="width:58px!important;height:58px!important;min-width:58px!important;max-width:58px!important;max-height:58px!important;border-radius:16px;object-fit:contain;background:#f8fafc;border:1px solid #e2e8f0;display:block;padding:3px;" src="${escapeHtml(fileUrl(gift))}" alt="${escapeHtml(gift.name)}" />
+            <div class="gift-info-premium" style="min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div class="gift-name-premium" style="font-weight:1000;font-size:14px;line-height:1.2;color:#111827;min-width:210px;max-width:370px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(gift.name)}</div>
+              <div class="gift-meta-premium" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#475569;font-weight:950;font-size:12px;">
+                <span>Desde $${Number(gift.min_order_usd || 0).toFixed(2)} USD</span>
+                <span>Stock: ${Number(gift.stock || 0)}</span>
+                <span style="font-size:10px;font-weight:1000;border-radius:999px;padding:6px 8px;background:${gift.active ? '#ecfdf5' : '#fee2e2'};color:${gift.active ? '#166534' : '#991b1b'};border:1px solid ${gift.active ? '#bbf7d0' : '#fecaca'};">${gift.active ? 'Visible':'Oculto'}</span>
+              </div>
+            </div>
+            <div class="gift-actions-premium" style="display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;">
+              <button class="premium-action toggle-gift" style="height:38px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;" data-id="${gift.id}" type="button">${gift.active ? 'Ocultar':'Mostrar'}</button>
+              <button class="premium-action arrow move-gift" style="width:38px;height:38px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);font-size:15px;font-weight:1000;" data-id="${gift.id}" data-dir="up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
+              <button class="premium-action arrow move-gift" style="width:38px;height:38px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);font-size:15px;font-weight:1000;" data-id="${gift.id}" data-dir="down" type="button" ${index === gifts.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
+              <button class="premium-action dark edit-gift" style="height:38px;border-radius:14px;border:1px solid #111827;background:#111827;color:#fff;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;" data-id="${gift.id}" type="button">Editar</button>
+              <button class="premium-action danger delete-gift" style="height:38px;border-radius:14px;border:1px solid #fecdd3;background:#fff1f2;color:#991b1b;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;" data-id="${gift.id}" type="button">Borrar</button>
+            </div>
+          </article>`).join('');
+        document.querySelectorAll('.toggle-gift').forEach((btn)=>btn.addEventListener('click',()=>toggleGift(btn.dataset.id)));
+        document.querySelectorAll('.move-gift').forEach((btn)=>btn.addEventListener('click',()=>moveGift(btn.dataset.id, btn.dataset.dir)));
+        document.querySelectorAll('.edit-gift').forEach((btn)=>btn.addEventListener('click',()=>editGift(btn.dataset.id)));
+        document.querySelectorAll('.delete-gift').forEach((btn)=>btn.addEventListener('click',()=>deleteGift(btn.dataset.id)));
+      }
+      function resetForm(){ giftForm.reset(); document.getElementById('gift-id').value=''; document.getElementById('gift-active').checked=true; document.getElementById('gift-min').value='0'; document.getElementById('gift-stock').value='0'; formTitle.textContent='Crear regalo'; cancelEditBtn.classList.add('hidden'); }
+      function editGift(id){ const gift = gifts.find((item)=>item.id===id); if(!gift) return; document.getElementById('gift-id').value=gift.id; document.getElementById('gift-name').value=gift.name||''; document.getElementById('gift-description').value=gift.description||''; document.getElementById('gift-min').value=Number(gift.min_order_usd||0); document.getElementById('gift-stock').value=Number(gift.stock||0); document.getElementById('gift-active').checked=gift.active!==false; formTitle.textContent='Editar regalo'; cancelEditBtn.classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); }
+      async function saveGift(event){
+        event.preventDefault();
+        const id = document.getElementById('gift-id').value;
+        const fd = new FormData();
+        fd.set('name', document.getElementById('gift-name').value.trim());
+        fd.set('description', document.getElementById('gift-description').value.trim());
+        fd.set('min_order_usd', String(Math.max(0, Number(document.getElementById('gift-min').value || 0))));
+        fd.set('stock', String(Math.max(0, Math.floor(Number(document.getElementById('gift-stock').value || 0)))));
+        if(!id) fd.set('sort_order', String(nextSortOrder()));
+        fd.set('active', document.getElementById('gift-active').checked ? 'true' : 'false');
+        const image = document.getElementById('gift-image').files?.[0];
+        if(image) fd.append('image', await optimizeGiftImageFile(image));
+        if(id) await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', body:fd });
+        else await api('/api/collections/gifts/records', { method:'POST', body:fd });
+        resetForm(); await loadGifts(); showAlert('Regalo guardado correctamente.', 'ok');
+      }
+      function nextSortOrder(){ return gifts.length ? Math.max(...gifts.map((gift)=>Number(gift.sort_order || 0))) + 10 : 10; }
+      async function normalizeGiftOrder(){ await Promise.all(gifts.map((gift, index)=>api(`/api/collections/gifts/records/${gift.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:(index + 1) * 10 }) }))); await loadGifts(); }
+      async function moveGift(id, direction){ const index = gifts.findIndex((gift)=>gift.id === id); if(index < 0) return; const targetIndex = direction === 'up' ? index - 1 : index + 1; if(targetIndex < 0 || targetIndex >= gifts.length) return; const current = gifts[index]; const target = gifts[targetIndex]; const currentOrder = Number(current.sort_order || 0); const targetOrder = Number(target.sort_order || 0); if(currentOrder === targetOrder){ await normalizeGiftOrder(); return moveGift(id, direction); } await Promise.all([ api(`/api/collections/gifts/records/${current.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:targetOrder }) }), api(`/api/collections/gifts/records/${target.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:currentOrder }) }), ]); await loadGifts(); }
+      async function toggleGift(id){ const gift = gifts.find((item)=>item.id === id); if(!gift) return; await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active: !gift.active }) }); await loadGifts(); showAlert(gift.active ? 'Regalo ocultado.' : 'Regalo visible.', 'ok'); }
+      async function deleteGift(id){ if(!confirm('¿Seguro que deseas borrar este regalo?')) return; await api(`/api/collections/gifts/records/${id}`, { method:'DELETE' }); await loadGifts(); showAlert('Regalo borrado.', 'ok'); }
+      async function saveSettings(){
+        if(!settings?.id){ showAlert('No hay settings activo para guardar la categoría pública.', 'error'); return; }
+        try {
+          saveSettingsBtn.disabled = true;
+          saveSettingsBtn.textContent = 'Guardando...';
+          const fd = new FormData();
+          fd.set('gifts_public_active', document.getElementById('gifts-public-active').checked ? 'true' : 'false');
+          fd.set('gifts_public_title', document.getElementById('gifts-public-title').value.trim() || 'Regalos');
+          const image = document.getElementById('gifts-public-image').files?.[0];
+          if(image) fd.append('gifts_public_image', await optimizeGiftImageFile(image));
+          await api(`/api/collections/settings/records/${settings.id}`, { method:'PATCH', body:fd });
+          document.getElementById('gifts-public-image').value = '';
+          await loadSettings();
+          showAlert('Categoría pública de regalos actualizada.', 'ok');
+        } catch (error) {
+          console.error(error);
+          showAlert(error.message || 'No se pudo guardar la categoría pública de regalos.', 'error');
+        } finally {
+          saveSettingsBtn.disabled = false;
+          saveSettingsBtn.textContent = 'Guardar categoría';
+        }
+      }
+      async function boot(){ if(!POCKETBASE_URL){ loginAlert.textContent='Falta PUBLIC_POCKETBASE_URL en .env'; loginAlert.classList.remove('hidden'); return; } if(!token()){ show('login'); return; } try{ show('admin'); await loadSettings(); await loadGifts(); } catch(error){ console.error(error); clearToken(); show('login'); loginAlert.textContent='Sesión vencida o falta aplicar migraciones de regalos. Entra nuevamente después de reiniciar PocketBase.'; loginAlert.classList.remove('hidden'); } }
+      loginForm.addEventListener('submit', async (event)=>{ event.preventDefault(); loginAlert.classList.add('hidden'); try{ const result = await login(document.getElementById('admin-email').value.trim(), document.getElementById('admin-password').value); setToken(result.token); await boot(); } catch(error){ loginAlert.textContent='No se pudo iniciar sesión.'; loginAlert.classList.remove('hidden'); }});
+      giftForm.addEventListener('submit', saveGift); cancelEditBtn.addEventListener('click', resetForm); refreshBtn.addEventListener('click', loadGifts); saveSettingsBtn.addEventListener('click', saveSettings); logoutBtn.addEventListener('click', ()=>{ clearToken(); closeSidebar(); show('login'); });
+      sidebarOpenBtn?.addEventListener('click', openSidebar);
+      sidebarCloseBtn?.addEventListener('click', closeSidebar);
+      sidebarOverlay?.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', (event)=>{ if(event.key === 'Escape') closeSidebar(); });
+      document.querySelectorAll('#admin-sidebar a').forEach((link)=>link.addEventListener('click', closeSidebar));
+      boot();
+    </script>
+  </body>
+</html>

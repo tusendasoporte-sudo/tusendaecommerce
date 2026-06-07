@@ -1,0 +1,822 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PublicFooter from '../../components/PublicFooter.astro';
+import { getSettings, getProducts, getProductBySlug, getProductVariations } from '../../lib/api';
+
+export async function getStaticPaths() {
+	const products = await getProducts();
+
+	return products.map((product) => ({
+		params: {
+			slug: product.slug,
+		},
+	}));
+}
+
+const { slug } = Astro.params;
+const settings = await getSettings();
+const product = await getProductBySlug(slug as string);
+const variations = product.has_variations ? await getProductVariations(product.id) : [];
+
+const productGalleryImages = product.imageUrls?.length ? product.imageUrls : ['https://placehold.co/800x800?text=PowerZona'];
+const mainImage = productGalleryImages[0];
+const categoryName = product.expand?.category?.name ?? 'Sin categoría';
+const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const logoImageUrl = settings?.logoImageUrl || '';
+const productBackHref = product.expand?.subcategory?.slug
+	? `/subcategoria/${product.expand.subcategory.slug}`
+	: product.expand?.category?.slug
+		? `/categoria/${product.expand.category.slug}`
+		: '/';
+const productBackLabel = product.expand?.subcategory?.name
+	? `← Volver a ${product.expand.subcategory.name}`
+	: product.expand?.category?.name
+		? `← Volver a ${product.expand.category.name}`
+		: '← Volver al inicio';
+const relatedProductIds = Array.isArray(product.related_products)
+	? product.related_products.filter(Boolean).slice(0, 4)
+	: product.related_products
+		? [product.related_products].filter(Boolean).slice(0, 4)
+		: [];
+const allPublicProducts = relatedProductIds.length ? await getProducts() : [];
+const relatedProducts = relatedProductIds
+	.map((id: string) => allPublicProducts.find((item: any) => item.id === id))
+	.filter((item: any) => item && item.id !== product.id)
+	.slice(0, 4);
+function getProductCardImage(item: any) {
+	return item?.imageUrls?.[0] || 'https://placehold.co/180x180?text=PowerZona';
+}
+function getProductOfferState(item: any) {
+	const activePrice = Number(item?.base_price_usd || 0);
+	const regularPrice = Number(item?.regular_price_usd || activePrice || 0);
+	const hasOffer = Boolean(item?.is_offer) && activePrice > 0 && regularPrice > activePrice;
+	return { activePrice, regularPrice, hasOffer, savings: hasOffer ? regularPrice - activePrice : 0 };
+}
+function parseExtraInfoValue(value: any) {
+	if (!value) return [];
+	let current = value;
+
+	// PocketBase puede devolver el campo texto como string JSON. En algunos casos,
+	// si el dato se guardó doble-serializado, hay que parsearlo más de una vez.
+	for (let index = 0; index < 3 && typeof current === 'string'; index += 1) {
+		const cleaned = current.trim();
+		if (!cleaned) return [];
+
+		try {
+			current = JSON.parse(cleaned);
+		} catch (_) {
+			// Fallback: permite texto simple tipo "Marca: Spring Valley" por línea.
+			return cleaned
+				.split('\n')
+				.map((line) => {
+					const [label, ...rest] = line.split(':');
+					return {
+						label: String(label || '').trim(),
+						value: rest.join(':').trim(),
+					};
+				})
+				.filter((item) => item.label && item.value)
+				.slice(0, 3);
+		}
+	}
+
+	if (current && !Array.isArray(current) && typeof current === 'object') {
+		current = current.items || current.data || current.values || [current];
+	}
+
+	return Array.isArray(current)
+		? current
+			.map((item) => ({
+				label: String(item?.label || item?.name || item?.title || item?.key || item?.dato || '').trim(),
+				value: String(item?.value || item?.description || item?.text || item?.valor || '').trim(),
+			}))
+			.filter((item) => item.label && item.value)
+			.slice(0, 3)
+		: [];
+}
+const extraInfoItems = parseExtraInfoValue(
+	product.extra_info ?? product.extraInfo ?? product.additional_info ?? product.product_extra_info ?? []
+);
+const tracksStock = product.track_stock !== false;
+const baseProductPrice = Number(product.base_price_usd || 0);
+const regularProductPrice = Number(product.regular_price_usd || baseProductPrice);
+const productHasOffer = Boolean(product.is_offer) && baseProductPrice > 0 && regularProductPrice > baseProductPrice;
+const effectiveProductPrice = baseProductPrice;
+const productSavings = productHasOffer ? regularProductPrice - baseProductPrice : 0;
+const hasPublicVariations = variations.length > 0;
+const variationView = ['buttons', 'dropdown', 'checkbox'].includes(product.variation_view) ? product.variation_view : 'buttons';
+const firstVariation = variations.find((variation) => !tracksStock || Number(variation.stock || 0) > 0 || Boolean(variation.allow_preorder)) ?? variations[0] ?? null;
+const initialPrice = hasPublicVariations
+	? Number(firstVariation?.price_usd || effectiveProductPrice || 0)
+	: Number(effectiveProductPrice || 0);
+const initialCost = hasPublicVariations
+	? Number(firstVariation?.cost_usd || 0)
+	: Number(product.cost_usd || 0);
+const initialStock = hasPublicVariations
+	? Number(firstVariation?.stock || 0)
+	: Number(product.stock || 0);
+const initialAllowPreorder = hasPublicVariations
+	? Boolean(firstVariation?.allow_preorder)
+	: Boolean(product.allow_preorder);
+const initialIsOutOfStock = tracksStock && initialStock <= 0;
+const initialCanPreorder = tracksStock && initialIsOutOfStock && initialAllowPreorder;
+const initialButtonDisabled = initialIsOutOfStock && !initialCanPreorder;
+const initialButtonText = initialIsOutOfStock && !initialCanPreorder
+	? 'Agotado'
+	: `${initialCanPreorder ? 'Preordenar' : 'Añadir'} 1 al pedido · ${initialPrice.toFixed(2)} USD`;
+const initialStockText = !tracksStock
+	? 'Disponible'
+	: initialCanPreorder
+		? 'Disponible por preorder'
+		: initialStock > 0
+			? `${initialStock} disponibles`
+			: 'Agotado';
+const initialStockClass = !tracksStock
+	? 'text-green-700'
+	: initialCanPreorder
+		? 'text-blue-700'
+		: initialIsOutOfStock
+			? 'text-red-600'
+			: 'text-gray-800';
+const variationItems = variations.map((variation) => {
+	const variationImage = variation.imageUrls?.[0] ?? mainImage;
+	const variationPrice = Number(variation.price_usd || effectiveProductPrice || 0);
+	const variationCost = Number(variation.cost_usd || 0);
+	const variationStock = Number(variation.stock || 0);
+	const variationPreorder = Boolean(variation.allow_preorder);
+	const variationOutOfStock = tracksStock && variationStock <= 0;
+	const variationCanPreorder = variationOutOfStock && variationPreorder;
+	const variationDisabled = variationOutOfStock && !variationCanPreorder;
+	const variationLabel = [variation.variation_type, variation.value].filter(Boolean).join(': ') || 'Variación';
+	const stockLabel = !tracksStock ? 'Disponible' : variationCanPreorder ? 'Preorder' : variationDisabled ? 'Agotada' : `${variationStock} disponibles`;
+	const stockClass = !tracksStock ? 'text-green-700' : variationCanPreorder ? 'text-blue-700' : variationDisabled ? 'text-red-600' : 'text-gray-500';
+	return {
+		...variation,
+		variationImage,
+		variationPrice,
+		variationCost,
+		variationStock,
+		variationOutOfStock,
+		variationCanPreorder,
+		variationDisabled,
+		variationLabel,
+		stockLabel,
+		stockClass,
+	};
+});
+
+---
+
+<!-- PZ-PRODUCTO-DETALLE-V33-RELACIONADOS-20260605 -->
+<Layout>
+	<style>
+		.product-public-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+		.product-public-brand { min-width: 0; display: flex; align-items: center; gap: 10px; color: #111827; text-decoration: none; }
+		.product-public-logo { width: 42px; height: 42px; border-radius: 16px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; font-weight: 1000; }
+		.product-public-logo img { width: 100%; height: 100%; object-fit: cover; }
+		.product-public-name { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.product-back-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 16px; padding: 11px 13px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 13px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-decoration: none; }
+		.product-offer-badge { display:inline-flex; align-items:center; border-radius:999px; background:#dc2626; color:#fff; padding:7px 11px; font-size:11px; font-weight:1000; text-transform:uppercase; letter-spacing:.04em; box-shadow:0 12px 24px rgba(220,38,38,.18); }
+		.product-regular-price { color:#94a3b8; font-size:16px; font-weight:900; text-decoration:line-through; }
+		.product-save-text { color:#16a34a; font-size:13px; font-weight:1000; }
+		.related-section { margin-top: 34px; border-top: 1px solid #e5e7eb; padding-top: 24px; }
+		.related-section-title { margin: 0; color: #111827; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; }
+		.related-section-subtitle { margin: 4px 0 18px; color: #4b5563; font-size: 17px; font-weight: 700; }
+		.related-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+		.related-card { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; align-items: center; border: 1px solid #e5e7eb; border-radius: 24px; background: #fff; padding: 12px; text-decoration: none; color: inherit; box-shadow: 0 12px 30px rgba(15,23,42,.05); }
+		.related-card:hover { transform: translateY(-1px); box-shadow: 0 18px 36px rgba(15,23,42,.08); }
+		.related-image { width: 92px; height: 92px; border-radius: 20px; object-fit: contain; background: #fff; border: 1px solid #f1f5f9; }
+		.related-name { margin: 0; color: #111827; font-size: 16px; font-weight: 1000; line-height: 1.25; letter-spacing: -.02em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+		.related-description { margin: 5px 0 0; color: #4b5563; font-size: 13px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+		.related-price-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 7px; }
+		.related-price { color: #111827; font-size: 15px; font-weight: 1000; }
+		.related-price.offer { color: #dc2626; }
+		.related-old-price { color: #94a3b8; font-size: 13px; font-weight: 900; text-decoration: line-through; }
+		.related-badge { display: inline-flex; align-items: center; width: fit-content; border-radius: 999px; background: #fee2e2; color: #b91c1c; padding: 4px 8px; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; margin-top: 8px; }
+		.related-buy { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border-radius: 999px; background: #111827; color: #fff; padding: 8px 12px; font-size: 12px; font-weight: 1000; margin-top: 10px; }
+		@media (max-width: 780px) { .related-grid { grid-template-columns: 1fr; } }
+		@media (max-width: 640px) { .product-public-name { max-width: 45vw; } .product-back-btn { padding: 10px 11px; font-size: 12px; } .related-card { grid-template-columns: 82px minmax(0, 1fr); border-radius: 22px; } .related-image { width: 82px; height: 82px; } .related-section-title { font-size: 22px; } }
+	</style>
+
+	<div class="product-public-top">
+		<a class="product-public-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
+			<div class="product-public-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+			<p class="product-public-name">{storeName}</p>
+		</a>
+		<a href={productBackHref} class="product-back-btn">{productBackLabel}</a>
+	</div>
+
+	<section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+		<div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+			<div id="product-gallery" class="relative bg-white">
+				<img
+					id="product-main-image"
+					src={mainImage}
+					alt={product.name}
+					class="w-full aspect-square object-contain bg-white p-2 sm:p-4"
+				/>
+
+				{productGalleryImages.length > 1 && (
+					<>
+						<button
+							type="button"
+							id="gallery-prev-btn"
+							class="absolute left-3 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-xl font-black text-gray-900 shadow-lg backdrop-blur transition hover:scale-105 hover:bg-white"
+							aria-label="Foto anterior"
+						>
+							‹
+						</button>
+
+						<button
+							type="button"
+							id="gallery-next-btn"
+							class="absolute right-3 top-1/2 -translate-y-1/2 inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-xl font-black text-gray-900 shadow-lg backdrop-blur transition hover:scale-105 hover:bg-white"
+							aria-label="Foto siguiente"
+						>
+							›
+						</button>
+					</>
+				)}
+			</div>
+
+			{productGalleryImages.length > 1 && (
+				<div id="gallery-dots" class="flex items-center justify-center gap-2 px-4 pb-5 pt-1">
+					{productGalleryImages.map((imageUrl, index) => (
+						<button
+							type="button"
+							data-gallery-dot
+							data-index={index}
+							aria-label={`Ver foto ${index + 1}`}
+							class={`h-2.5 rounded-full transition-all ${index === 0 ? 'w-5 bg-gray-900' : 'w-2.5 bg-gray-300 hover:bg-gray-400'}`}
+						></button>
+					))}
+				</div>
+			)}
+
+			<script type="application/json" id="product-gallery-data" set:html={JSON.stringify(productGalleryImages)}></script>
+		</div>
+
+		<div>
+			<p class="text-sm font-semibold text-blue-600 mb-2">
+				{categoryName}
+			</p>
+
+			<h1 class="text-3xl font-extrabold text-gray-900 mb-4">
+				{product.name}
+			</h1>
+
+			<div class="flex flex-wrap items-center gap-3 mb-5">
+				{productHasOffer && !hasPublicVariations && (
+					<span class="product-offer-badge">Oferta</span>
+				)}
+
+				<div class="flex flex-col gap-1">
+					{productHasOffer && !hasPublicVariations && (
+						<span id="product-regular-price" class="product-regular-price" data-pz-price-usd={regularProductPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>
+							{`$${regularProductPrice.toFixed(2)} USD`}
+						</span>
+					)}
+					<span id="product-price" class={`text-3xl font-black ${productHasOffer && !hasPublicVariations ? 'text-red-600' : 'text-gray-900'}`} data-pz-price-usd={initialPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>
+						{`$${initialPrice.toFixed(2)} USD`}
+					</span>
+					{productHasOffer && !hasPublicVariations && (
+						<span id="product-save-text" class="product-save-text">
+							{`Ahorras $${productSavings.toFixed(2)} USD`}
+						</span>
+					)}
+				</div>
+
+				{product.only_usd && (
+					<span class="text-xs font-bold bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
+						Solo USD
+					</span>
+				)}
+			</div>
+
+			{hasPublicVariations && (
+				<div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+					<div class="flex items-center justify-between gap-3 mb-3">
+						<div>
+							<h2 class="font-bold text-gray-900">Selecciona una variación</h2>
+							<p class="text-xs text-gray-500 mt-1">El precio, la foto y el stock cambian según la opción.</p>
+						</div>
+						<span class="text-xs font-black bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+							{variations.length} opciones
+						</span>
+					</div>
+
+					{variationView === 'dropdown' && (
+						<div class="space-y-2">
+							<label for="variation-dropdown" class="text-xs font-black text-gray-500 uppercase tracking-wide">Opción disponible</label>
+							<select
+								id="variation-dropdown"
+								class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+							>
+								{variationItems.map((variation) => (
+										<option value={variation.id} selected={variation.id === firstVariation?.id} disabled={variation.variationDisabled}>
+											{variation.variationLabel} · {`$${variation.variationPrice.toFixed(2)} USD`}{tracksStock ? ` · ${variation.stockLabel}` : ''}
+										</option>
+									))}
+							</select>
+						</div>
+					)}
+
+					{variationView === 'checkbox' && (
+						<div id="variation-checkbox-list" class="grid grid-cols-1 gap-3">
+							{variationItems.map((variation) => (
+									<label
+										data-variation-check-card
+										data-variation-id={variation.id}
+										class={`flex items-center justify-between gap-3 rounded-2xl border p-3 transition ${variation.id === firstVariation?.id ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white'} ${variation.variationDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-blue-200'}`}
+									>
+										<span class="flex items-center gap-3 min-w-0">
+											<input
+												type="radio"
+												name="variation_fixed_option"
+												value={variation.id}
+												checked={variation.id === firstVariation?.id}
+												disabled={variation.variationDisabled}
+												data-variation-radio
+												class="h-4 w-4 accent-blue-600"
+											/>
+											<img src={variation.variationImage} alt={variation.variationLabel} class="w-11 h-11 rounded-xl object-cover border border-gray-100" />
+											<span class="min-w-0">
+												<span class="block font-black text-gray-900 text-sm truncate">{variation.variationLabel}</span>
+												<span class={`block text-xs font-bold ${variation.stockClass}`}>
+													{variation.stockLabel}
+												</span>
+											</span>
+										</span>
+										<span class="text-blue-600 font-extrabold text-sm whitespace-nowrap" data-pz-price-usd={variation.variationPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>{`$${variation.variationPrice.toFixed(2)} USD`}</span>
+									</label>
+								))}
+						</div>
+					)}
+
+					<div id="variation-options" class={`${variationView === 'buttons' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'hidden'}`}>
+						{variationItems.map((variation) => (
+								<button
+									type="button"
+									data-variation-option
+									data-id={variation.id}
+									data-label={variation.variationLabel}
+									data-price={variation.variationPrice}
+									data-cost={variation.variationCost}
+									data-stock={variation.variationStock}
+									data-image={variation.variationImage}
+									data-ref={variation.internal_ref || ''}
+									data-preorder={variation.variationCanPreorder ? 'true' : 'false'}
+									data-out-of-stock={variation.variationOutOfStock ? 'true' : 'false'}
+									disabled={variation.variationDisabled}
+									class={`variation-option text-left rounded-2xl border p-3 transition ${variation.id === firstVariation?.id ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white hover:border-blue-200'} ${variation.variationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+								>
+									<div class="flex items-center gap-3">
+										<img src={variation.variationImage} alt={variation.variationLabel} class="w-12 h-12 rounded-xl object-cover border border-gray-100" />
+										<div class="min-w-0">
+											<p class="font-black text-gray-900 text-sm truncate">{variation.variationLabel}</p>
+											<p class="text-blue-600 font-extrabold text-sm" data-pz-price-usd={variation.variationPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>{`$${variation.variationPrice.toFixed(2)} USD`}</p>
+											<p class={`text-xs font-bold ${variation.stockClass}`}>
+												{variation.stockLabel}
+											</p>
+										</div>
+									</div>
+								</button>
+							))}
+					</div>
+				</div>
+			)}
+
+			<div class="grid grid-cols-2 gap-3 mb-6">
+				<div class="bg-white rounded-2xl border border-gray-100 p-4">
+					<p class="text-xs text-gray-500">Stock</p>
+					<p id="product-stock-text" class={`font-bold ${initialStockClass}`}>
+						{initialStockText}
+					</p>
+				</div>
+
+				<div class="bg-white rounded-2xl border border-gray-100 p-4">
+					<p class="text-xs text-gray-500">Entrega</p>
+					<p class="font-bold text-gray-800">
+						{product.delivery_mode === 'both' && 'Envío o recogida'}
+						{product.delivery_mode === 'delivery' && 'Solo envío'}
+						{product.delivery_mode === 'pickup' && 'Solo recogida'}
+					</p>
+				</div>
+			</div>
+
+
+			{extraInfoItems.length > 0 && (
+				<section class="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white/95 p-5 mb-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+					<div class="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+
+					<h2 class="mb-4 text-xl font-semibold tracking-tight text-slate-950">Información adicional</h2>
+
+					<div class="rounded-[1.6rem] border border-slate-100 bg-slate-50/70 p-2 shadow-inner shadow-slate-200/40">
+						{extraInfoItems.map((item) => (
+							<div class="flex items-center justify-between gap-4 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-100/80 [&:not(:last-child)]:mb-2">
+								<span class="min-w-0 text-slate-500 font-medium tracking-wide">{item.label}</span>
+								<span class="min-w-0 text-right text-slate-950 font-semibold">{item.value}</span>
+							</div>
+						))}
+					</div>
+				</section>
+			)}
+
+			<div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+				<h2 class="font-bold text-gray-900 mb-3">
+					Descripción
+				</h2>
+
+				<div class="text-gray-600 leading-relaxed" set:html={product.description}></div>
+			</div>
+
+			<div class="bg-white rounded-3xl border border-gray-100 p-5 mb-4">
+				<p class="text-xs font-black text-gray-500 uppercase tracking-wide text-center mb-4">Cantidad</p>
+				<div class="flex items-center justify-center gap-6">
+					<button
+						type="button"
+						id="quantity-minus-btn"
+						class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-300 text-3xl font-black leading-none text-white shadow-sm transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+						aria-label="Disminuir cantidad"
+					>
+						−
+					</button>
+
+					<span id="quantity-display" class="min-w-10 text-center text-3xl font-black text-slate-900">1</span>
+
+					<button
+						type="button"
+						id="quantity-plus-btn"
+						class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-3xl font-black leading-none text-white shadow-lg transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+						aria-label="Aumentar cantidad"
+					>
+						+
+					</button>
+				</div>
+			</div>
+
+			<button
+				id="add-to-cart-btn"
+				data-id={product.id}
+				data-title={product.name}
+				data-price={initialPrice}
+				data-cost={initialCost}
+				data-regular-price={regularProductPrice}
+				data-is-offer={productHasOffer && !hasPublicVariations ? 'true' : 'false'}
+				data-savings-usd={productHasOffer && !hasPublicVariations ? productSavings : 0}
+				data-image={firstVariation?.imageUrls?.[0] ?? mainImage}
+				data-only-usd={product.only_usd}
+				data-delivery-mode={product.delivery_mode}
+				data-stock={initialStock}
+				data-track-stock={tracksStock ? 'true' : 'false'}
+				data-out-of-stock={initialIsOutOfStock ? 'true' : 'false'}
+				data-preorder={initialCanPreorder ? 'true' : 'false'}
+				data-variation-id={firstVariation?.id || ''}
+				data-variation-label={firstVariation ? [firstVariation.variation_type, firstVariation.value].filter(Boolean).join(': ') : ''}
+				data-variation-ref={firstVariation?.internal_ref || ''}
+				disabled={initialButtonDisabled}
+				class={`w-full font-black py-4 rounded-[2rem] shadow-xl transition ${initialButtonDisabled ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-slate-950 hover:bg-slate-900 text-white'}`}
+			>
+				{initialButtonText}
+			</button>
+
+			<script>
+				const addToCartBtn = document.getElementById('add-to-cart-btn');
+				const productMainImage = document.getElementById('product-main-image');
+				const productPrice = document.getElementById('product-price');
+				const productRegularPrice = document.getElementById('product-regular-price');
+				const productSaveText = document.getElementById('product-save-text');
+				const productStockText = document.getElementById('product-stock-text');
+				const quantityMinusBtn = document.getElementById('quantity-minus-btn');
+				const quantityPlusBtn = document.getElementById('quantity-plus-btn');
+				const quantityDisplay = document.getElementById('quantity-display');
+				const variationOptions = document.querySelectorAll('[data-variation-option]');
+				const variationDropdown = document.getElementById('variation-dropdown');
+				const variationRadios = document.querySelectorAll('[data-variation-radio]');
+				const variationCheckCards = document.querySelectorAll('[data-variation-check-card]');
+				const baseButtonClass = 'w-full font-black py-4 rounded-[2rem] shadow-xl transition';
+				const activeButtonClass = 'bg-slate-950 hover:bg-slate-900 text-white';
+				const disabledButtonClass = 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none';
+				const tracksStock = addToCartBtn?.dataset.trackStock !== 'false';
+				const galleryData = document.getElementById('product-gallery-data');
+				const galleryImages = JSON.parse(galleryData?.textContent || '[]');
+				const galleryPrevBtn = document.getElementById('gallery-prev-btn');
+				const galleryNextBtn = document.getElementById('gallery-next-btn');
+				const galleryDots = document.querySelectorAll('[data-gallery-dot]');
+				const productGallery = document.getElementById('product-gallery');
+				let galleryIndex = 0;
+				let touchStartX = 0;
+				let touchEndX = 0;
+				let selectedQuantity = 1;
+
+				function updateGallery(index) {
+					if (!productMainImage || galleryImages.length === 0) return;
+					galleryIndex = (index + galleryImages.length) % galleryImages.length;
+					productMainImage.setAttribute('src', galleryImages[galleryIndex]);
+					galleryDots.forEach((dot) => {
+						const isActive = Number(dot.dataset.index || 0) === galleryIndex;
+						dot.className = isActive
+							? 'h-2.5 w-5 rounded-full bg-gray-900 transition-all'
+							: 'h-2.5 w-2.5 rounded-full bg-gray-300 transition-all hover:bg-gray-400';
+					});
+				}
+
+				galleryPrevBtn?.addEventListener('click', () => updateGallery(galleryIndex - 1));
+				galleryNextBtn?.addEventListener('click', () => updateGallery(galleryIndex + 1));
+				galleryDots.forEach((dot) => {
+					dot.addEventListener('click', () => updateGallery(Number(dot.dataset.index || 0)));
+				});
+
+				productGallery?.addEventListener('touchstart', (event) => {
+					touchStartX = event.changedTouches[0]?.screenX || 0;
+				});
+
+				productGallery?.addEventListener('touchend', (event) => {
+					touchEndX = event.changedTouches[0]?.screenX || 0;
+					const distance = touchStartX - touchEndX;
+					if (Math.abs(distance) < 45 || galleryImages.length <= 1) return;
+					updateGallery(distance > 0 ? galleryIndex + 1 : galleryIndex - 1);
+				});
+
+				function getCurrentUnitPrice() {
+					return Number(addToCartBtn?.dataset.price || 0);
+				}
+
+				function getCurrentStock() {
+					return Number(addToCartBtn?.dataset.stock || 0);
+				}
+
+				function getCurrentCanPreorder() {
+					return addToCartBtn?.dataset.preorder === 'true';
+				}
+
+				function getCurrentIsOutOfStock() {
+					return addToCartBtn?.dataset.outOfStock === 'true';
+				}
+
+				function getMaxQuantity() {
+					if (!tracksStock || getCurrentCanPreorder()) return 99;
+					return Math.max(1, getCurrentStock());
+				}
+
+				function clampQuantity(value) {
+					const maxQuantity = getMaxQuantity();
+					return Math.min(Math.max(1, Number(value || 1)), maxQuantity);
+				}
+
+				function formatVisualPrice(amountUsd) {
+					const onlyUsd = addToCartBtn?.dataset.onlyUsd === 'true';
+					if (window.PZCurrency?.formatVisualFromUsd) return window.PZCurrency.formatVisualFromUsd(amountUsd, { onlyUsd });
+					return '$' + Number(amountUsd || 0).toFixed(2) + ' USD';
+				}
+
+				function formatSavingsText(amountUsd) {
+					return `Ahorras ${formatVisualPrice(amountUsd)}`;
+				}
+
+				function buildButtonText() {
+					const isOutOfStock = getCurrentIsOutOfStock();
+					const canPreorder = getCurrentCanPreorder();
+					if (isOutOfStock && !canPreorder) return 'Agotado';
+					const action = canPreorder ? 'Preordenar' : 'Añadir';
+					const total = getCurrentUnitPrice() * selectedQuantity;
+					return `${action} ${selectedQuantity} al pedido · ${formatVisualPrice(total)}`;
+				}
+
+				function updateQuantityUI() {
+					selectedQuantity = clampQuantity(selectedQuantity);
+					const maxQuantity = getMaxQuantity();
+					if (quantityDisplay) quantityDisplay.textContent = String(selectedQuantity);
+					if (quantityMinusBtn) quantityMinusBtn.disabled = selectedQuantity <= 1 || addToCartBtn?.disabled;
+					if (quantityPlusBtn) quantityPlusBtn.disabled = selectedQuantity >= maxQuantity || addToCartBtn?.disabled;
+					if (addToCartBtn) addToCartBtn.textContent = buildButtonText();
+				}
+
+				function stockText({ stock, isOutOfStock, canPreorder }) {
+					if (!tracksStock) return 'Disponible';
+					if (canPreorder) return 'Disponible por preorder';
+					if (isOutOfStock) return 'Agotado';
+					return `${stock} disponibles`;
+				}
+
+				function setStockClass({ isOutOfStock, canPreorder }) {
+					if (!productStockText) return;
+					productStockText.className = 'font-bold';
+					if (!tracksStock) productStockText.classList.add('text-green-700');
+					else if (canPreorder) productStockText.classList.add('text-blue-700');
+					else if (isOutOfStock) productStockText.classList.add('text-red-600');
+					else productStockText.classList.add('text-gray-800');
+				}
+
+				function getCartItemKey(item) {
+					return item.variation_id ? `${item.id}::${item.variation_id}` : item.id;
+				}
+
+				function syncButtonState({ stock, isOutOfStock, canPreorder }) {
+					if (!addToCartBtn) return;
+					const disabled = isOutOfStock && !canPreorder;
+					addToCartBtn.dataset.outOfStock = isOutOfStock ? 'true' : 'false';
+					addToCartBtn.dataset.preorder = canPreorder ? 'true' : 'false';
+					addToCartBtn.dataset.stock = String(stock);
+					addToCartBtn.disabled = disabled;
+					addToCartBtn.className = `${baseButtonClass} ${disabled ? disabledButtonClass : activeButtonClass}`;
+					selectedQuantity = clampQuantity(selectedQuantity);
+					updateQuantityUI();
+				}
+
+				function setSelectedVisual(variationId) {
+					variationOptions.forEach((item) => {
+						const isSelected = item.dataset.id === variationId;
+						item.classList.toggle('border-blue-500', isSelected);
+						item.classList.toggle('ring-2', isSelected);
+						item.classList.toggle('ring-blue-100', isSelected);
+						item.classList.toggle('bg-blue-50/40', isSelected);
+						item.classList.toggle('border-gray-100', !isSelected);
+						item.classList.toggle('bg-white', !isSelected);
+					});
+
+					variationCheckCards.forEach((item) => {
+						const isSelected = item.dataset.variationId === variationId;
+						item.classList.toggle('border-blue-500', isSelected);
+						item.classList.toggle('ring-2', isSelected);
+						item.classList.toggle('ring-blue-100', isSelected);
+						item.classList.toggle('bg-blue-50/40', isSelected);
+						item.classList.toggle('border-gray-100', !isSelected);
+						item.classList.toggle('bg-white', !isSelected);
+					});
+
+					variationRadios.forEach((radio) => {
+						radio.checked = radio.value === variationId;
+					});
+
+					if (variationDropdown && variationDropdown.value !== variationId) variationDropdown.value = variationId;
+				}
+
+				function applyVariation(option) {
+					if (!option || !addToCartBtn) return;
+
+					const stock = Number(option.dataset.stock || 0);
+					const price = Number(option.dataset.price || 0);
+					const cost = Number(option.dataset.cost || 0);
+					const isOutOfStock = tracksStock && option.dataset.outOfStock === 'true';
+					const canPreorder = tracksStock && option.dataset.preorder === 'true';
+
+					addToCartBtn.dataset.price = String(price);
+					addToCartBtn.dataset.cost = String(cost);
+					addToCartBtn.dataset.isOffer = 'false';
+					addToCartBtn.dataset.savingsUsd = '0';
+					addToCartBtn.dataset.regularPrice = String(price);
+					addToCartBtn.dataset.image = option.dataset.image || addToCartBtn.dataset.image || '';
+					addToCartBtn.dataset.variationId = option.dataset.id || '';
+					addToCartBtn.dataset.variationLabel = option.dataset.label || '';
+					addToCartBtn.dataset.variationRef = option.dataset.ref || '';
+
+					setSelectedVisual(option.dataset.id || '');
+					if (productMainImage && option.dataset.image) productMainImage.setAttribute('src', option.dataset.image);
+					if (productPrice) { productPrice.setAttribute('data-pz-price-usd', String(price)); productPrice.textContent = formatVisualPrice(price); }
+					if (productStockText) productStockText.textContent = stockText({ stock, isOutOfStock, canPreorder });
+					setStockClass({ isOutOfStock, canPreorder });
+					syncButtonState({ stock, isOutOfStock, canPreorder });
+				}
+
+				function findVariationOption(variationId) {
+					return Array.from(variationOptions).find((item) => item.dataset.id === variationId);
+				}
+
+				variationOptions.forEach((option) => {
+					option.addEventListener('click', () => {
+						if (option.disabled) return;
+						applyVariation(option);
+					});
+				});
+
+				variationDropdown?.addEventListener('change', () => {
+					const option = findVariationOption(variationDropdown.value);
+					applyVariation(option);
+				});
+
+				variationRadios.forEach((radio) => {
+					radio.addEventListener('change', () => {
+						if (radio.disabled || !radio.checked) return;
+						const option = findVariationOption(radio.value);
+						applyVariation(option);
+					});
+				});
+
+				quantityMinusBtn?.addEventListener('click', () => {
+					selectedQuantity -= 1;
+					updateQuantityUI();
+				});
+
+				quantityPlusBtn?.addEventListener('click', () => {
+					selectedQuantity += 1;
+					updateQuantityUI();
+				});
+
+				window.addEventListener('pz-currency-changed', () => {
+					if (productPrice) productPrice.textContent = formatVisualPrice(Number(productPrice.getAttribute('data-pz-price-usd') || getCurrentUnitPrice()));
+					if (productRegularPrice) productRegularPrice.textContent = formatVisualPrice(Number(productRegularPrice.getAttribute('data-pz-price-usd') || addToCartBtn?.dataset.regularPrice || getCurrentUnitPrice()));
+					if (productSaveText) productSaveText.textContent = formatSavingsText(Number(addToCartBtn?.dataset.savingsUsd || 0));
+					updateQuantityUI();
+				});
+
+				updateQuantityUI();
+
+				addToCartBtn?.addEventListener('click', () => {
+					if (addToCartBtn.dataset.outOfStock === 'true' && addToCartBtn.dataset.preorder !== 'true') {
+						addToCartBtn.textContent = 'Producto agotado';
+						setTimeout(() => {
+							updateQuantityUI();
+						}, 1500);
+						return;
+					}
+
+					const product = {
+						id: addToCartBtn.dataset.id,
+						title: addToCartBtn.dataset.title,
+						price: Number(addToCartBtn.dataset.price),
+						image: addToCartBtn.dataset.image,
+						quantity: selectedQuantity,
+						only_usd: addToCartBtn.dataset.onlyUsd === 'true',
+						delivery_mode: addToCartBtn.dataset.deliveryMode,
+						stock: Number(addToCartBtn.dataset.stock),
+						track_stock: addToCartBtn.dataset.trackStock !== 'false',
+						preorder: addToCartBtn.dataset.preorder === 'true',
+						variation_id: addToCartBtn.dataset.variationId || '',
+						variation_name: addToCartBtn.dataset.variationLabel || '',
+						variation_label: addToCartBtn.dataset.variationLabel || '',
+						variation_ref: addToCartBtn.dataset.variationRef || '',
+						variation_price_usd: Number(addToCartBtn.dataset.price),
+						cost_usd: Number(addToCartBtn.dataset.cost || 0),
+						variation_cost_usd: Number(addToCartBtn.dataset.cost || 0),
+						regular_price_usd: Number(addToCartBtn.dataset.regularPrice || addToCartBtn.dataset.price || 0),
+						is_offer: addToCartBtn.dataset.isOffer === 'true',
+						savings_usd: Number(addToCartBtn.dataset.savingsUsd || 0),
+					};
+
+					let cart = JSON.parse(localStorage.getItem('powerzona_cart') || '[]');
+					const productKey = getCartItemKey(product);
+					const existingProduct = cart.find((item) => getCartItemKey(item) === productKey);
+
+					if (existingProduct) {
+						if (product.track_stock !== false && !product.preorder && existingProduct.quantity + product.quantity > product.stock) {
+							addToCartBtn.textContent = 'Stock máximo alcanzado';
+							setTimeout(() => {
+								updateQuantityUI();
+							}, 1500);
+							return;
+						}
+
+						existingProduct.quantity += product.quantity;
+						existingProduct.price = product.price;
+						existingProduct.image = product.image;
+						existingProduct.stock = product.stock;
+						existingProduct.preorder = product.preorder;
+						existingProduct.regular_price_usd = product.regular_price_usd;
+						existingProduct.is_offer = product.is_offer;
+						existingProduct.savings_usd = product.savings_usd;
+					} else {
+						cart.push(product);
+					}
+
+					localStorage.setItem('powerzona_cart', JSON.stringify(cart));
+					window.dispatchEvent(new Event('cart-updated'));
+					addToCartBtn.textContent = 'Agregado al pedido ✅';
+
+					setTimeout(() => {
+						updateQuantityUI();
+					}, 1500);
+				});
+			</script>
+		</div>
+	</section>
+
+	{relatedProducts.length > 0 && (
+		<section class="related-section">
+			<h2 class="related-section-title">Relacionados</h2>
+			<p class="related-section-subtitle">Pueden interesarte también</p>
+			<div class="related-grid">
+				{relatedProducts.map((item: any) => {
+					const offer = getProductOfferState(item);
+					return (
+						<a class="related-card" href={`/producto/${item.slug}`}>
+							<img class="related-image" src={getProductCardImage(item)} alt={item.name} loading="lazy" />
+							<div>
+								{offer.hasOffer && <span class="related-badge">Oferta</span>}
+								<h3 class="related-name">{item.name}</h3>
+								{item.description && <p class="related-description">{item.description}</p>}
+								<div class="related-price-row">
+									{offer.hasOffer && <span class="related-old-price" data-pz-price-usd={offer.regularPrice} data-pz-only-usd={item.only_usd ? 'true' : 'false'}>{`$${offer.regularPrice.toFixed(2)} USD`}</span>}
+									<span class={`related-price ${offer.hasOffer ? 'offer' : ''}`} data-pz-price-usd={offer.activePrice} data-pz-only-usd={item.only_usd ? 'true' : 'false'}>{`$${offer.activePrice.toFixed(2)} USD`}</span>
+								</div>
+								<span class="related-buy">Comprar</span>
+							</div>
+						</a>
+					);
+				})}
+			</div>
+		</section>
+	)}
+
+	<PublicFooter settings={settings} />
+</Layout>

@@ -1,0 +1,297 @@
+---
+// PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603
+import Layout from '../layouts/Layout.astro';
+import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
+
+const settings = await getSettings();
+const categories = await getCategories();
+const subcategories = await getSubcategories();
+const products = await getProducts();
+
+const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const logoImageUrl = settings?.logoImageUrl || '';
+const rawQuery = Astro.url.searchParams.get('q') || '';
+const initialQuery = rawQuery.trim();
+
+function normalizeText(value: any) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function getCategoryNameById(categoryId: string) {
+  return categories.find((category) => category.id === categoryId)?.name || '';
+}
+
+function getSubcategoryNameById(subcategoryId: string) {
+  return subcategories.find((subcategory) => subcategory.id === subcategoryId)?.name || '';
+}
+
+const searchItems = [
+  ...products.map((product) => ({
+    type: 'Producto',
+    name: product.name || '',
+    subtitle: [getCategoryNameById(product.category), getSubcategoryNameById(product.subcategory)].filter(Boolean).join(' · ') || 'Producto',
+    description: product.description || product.short_description || '',
+    slug: product.slug || '',
+    url: `/producto/${product.slug}`,
+    image: product.imageUrls?.[0] || '',
+    price: product.base_price_usd ?? '',
+    regularPrice: Number(product.regular_price_usd || product.base_price_usd || 0),
+    isOffer: Boolean(product.is_offer) && Number(product.regular_price_usd || 0) > Number(product.base_price_usd || 0),
+    onlyUsd: Boolean(product.only_usd),
+    searchText: normalizeText([product.name, product.slug, product.description, product.short_description, product.internal_ref, getCategoryNameById(product.category), getSubcategoryNameById(product.subcategory)].join(' ')),
+  })),
+  ...categories.map((category) => ({
+    type: 'Categoría',
+    name: category.name || '',
+    subtitle: 'Categoría',
+    description: '',
+    slug: category.slug || '',
+    url: `/categoria/${category.slug}`,
+    image: category.imageUrl || '',
+    price: '',
+    onlyUsd: false,
+    searchText: normalizeText([category.name, category.slug].join(' ')),
+  })),
+  ...subcategories.map((subcategory) => ({
+    type: 'Subcategoría',
+    name: subcategory.name || '',
+    subtitle: subcategory.expand?.category?.name ? `Subcategoría de ${subcategory.expand.category.name}` : 'Subcategoría',
+    description: '',
+    slug: subcategory.slug || '',
+    url: `/subcategoria/${subcategory.slug}`,
+    image: '',
+    price: '',
+    onlyUsd: false,
+    searchText: normalizeText([subcategory.name, subcategory.slug, subcategory.expand?.category?.name].join(' ')),
+  })),
+];
+---
+
+<!-- PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603 -->
+<Layout>
+  <style>
+    .search-shell { max-width: 1120px; margin: 0 auto; }
+    .search-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .search-brand { min-width: 0; display: flex; align-items: center; gap: 12px; color: #111827; text-decoration: none; }
+    .search-logo { width: 50px; height: 50px; border-radius: 18px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; box-shadow: 0 12px 28px rgba(15,23,42,.12); flex: 0 0 auto; }
+    .search-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .search-store { margin: 0; font-size: 19px; color: #111827; font-weight: 1000; letter-spacing: -.035em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .back-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 999px; background: #fff; border: 1px solid #e5e7eb; color: #111827; padding: 0 15px; font-size: 13px; font-weight: 1000; box-shadow: 0 14px 32px rgba(15,23,42,.08); }
+    .search-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 30px; box-shadow: 0 22px 64px rgba(15,23,42,.09); padding: clamp(18px, 4vw, 28px); margin-bottom: 20px; }
+    .search-title { margin: 0 0 10px; font-size: clamp(28px, 7vw, 50px); line-height: .98; font-weight: 1000; letter-spacing: -.06em; color: #111827; }
+    .search-text { margin: 0 0 18px; color: #64748b; font-size: 15px; line-height: 1.55; font-weight: 750; }
+    .search-input-wrap { position: relative; }
+    .search-input-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 20px; font-weight: 1000; }
+    .search-input { width: 100%; min-height: 56px; border-radius: 20px; border: 1px solid #e5e7eb; background: #f8fafc; padding: 0 46px; font-size: 15px; font-weight: 850; color: #111827; outline: none; }
+    .search-input:focus { border-color: #111827; background: #fff; box-shadow: 0 0 0 4px rgba(17,24,39,.08); }
+    .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 999px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-size: 18px; font-weight: 1000; display: none; }
+    .search-clear.is-visible { display: inline-flex; align-items: center; justify-content: center; }
+    .results-info { margin: 0 0 16px; color: #64748b; font-size: 14px; font-weight: 850; }
+    .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .result-card { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 24px; padding: 12px; box-shadow: 0 12px 32px rgba(15,23,42,.06); color: #111827; text-decoration: none; min-width: 0; }
+    .result-img { width: 62px; height: 62px; border-radius: 18px; background: #f8fafc; border: 1px solid #eef2f7; object-fit: cover; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 20px; font-weight: 1000; }
+    .result-main { min-width: 0; flex: 1; }
+    .result-name { margin: 0; color: #111827; font-size: 14px; font-weight: 1000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .result-subtitle { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .result-price { margin: 5px 0 0; color: #111827; font-size: 13px; font-weight: 1000; }
+    .result-type { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #f1f5f9; color: #64748b; padding: 5px 8px; font-size: 11px; font-weight: 1000; flex: 0 0 auto; }
+    .recent-card, .empty-card { background: #fff; border: 1px solid #eef2f7; border-radius: 26px; padding: 18px; box-shadow: 0 12px 34px rgba(15,23,42,.06); }
+    .recent-title { margin: 0 0 12px; color: #111827; font-size: 16px; font-weight: 1000; }
+    .recent-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .recent-chip { border: 1px solid #e5e7eb; background: #f8fafc; color: #111827; border-radius: 999px; padding: 10px 13px; font-size: 13px; font-weight: 1000; }
+    .empty-card { color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
+    [hidden] { display: none !important; }
+    @media (max-width: 700px) { .result-grid { grid-template-columns: 1fr; } .search-store { max-width: 52vw; } .search-panel { border-radius: 26px; } }
+  </style>
+
+  <div class="search-shell">
+    <div class="search-head">
+      <a class="search-brand" href="/" aria-label={`Volver a ${storeName}`}>
+        <div class="search-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+        <p class="search-store">{storeName}</p>
+      </a>
+      <a class="back-btn" href="/">Volver</a>
+    </div>
+
+    <section class="search-panel">
+      <h1 class="search-title">Buscar productos</h1>
+      <p class="search-text">Escribe y los resultados aparecerán automáticamente. Puedes buscar productos, categorías, subcategorías o palabras relacionadas.</p>
+      <div class="search-input-wrap">
+        <span class="search-input-icon">⌕</span>
+        <input id="public-search-input" class="search-input" type="search" value={initialQuery} placeholder="Ej: proteína, creatina, vitaminas..." autocomplete="off" autofocus />
+        <button id="public-search-clear" class="search-clear" type="button" aria-label="Limpiar búsqueda">×</button>
+      </div>
+    </section>
+
+    <p id="public-search-info" class="results-info" hidden></p>
+
+    <section id="recent-searches" class="recent-card" hidden>
+      <h2 class="recent-title">Búsquedas recientes</h2>
+      <div id="recent-searches-list" class="recent-list"></div>
+    </section>
+
+    <div id="search-results" class="result-grid" hidden></div>
+    <div id="empty-results" class="empty-card" hidden>No encontramos resultados con esa búsqueda. Prueba con otra palabra.</div>
+    <div id="empty-recent" class="empty-card" hidden>Todavía no hay búsquedas recientes en este dispositivo.</div>
+  </div>
+
+  <script define:vars={{ searchItems, initialQuery }}>
+    const STORAGE_KEY = 'powerzona_recent_searches_v1';
+    const input = document.getElementById('public-search-input');
+    const clearBtn = document.getElementById('public-search-clear');
+    const info = document.getElementById('public-search-info');
+    const recentBox = document.getElementById('recent-searches');
+    const recentList = document.getElementById('recent-searches-list');
+    const emptyRecent = document.getElementById('empty-recent');
+    const resultsBox = document.getElementById('search-results');
+    const emptyResults = document.getElementById('empty-results');
+    let saveTimer = null;
+
+    function normalizeText(value) {
+      return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    }
+
+    function getRecentSearches() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0, 8) : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function saveRecentSearch(query) {
+      const cleaned = String(query || '').trim();
+      if (cleaned.length < 2) return;
+      const recent = getRecentSearches().filter((item) => item.toLowerCase() !== cleaned.toLowerCase());
+      recent.unshift(cleaned);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.slice(0, 8)));
+    }
+
+    function renderRecentSearches() {
+      const recent = getRecentSearches();
+      resultsBox.hidden = true;
+      emptyResults.hidden = true;
+      info.hidden = true;
+      recentList.innerHTML = '';
+
+      if (!recent.length) {
+        recentBox.hidden = true;
+        emptyRecent.hidden = false;
+        return;
+      }
+
+      emptyRecent.hidden = true;
+      recentBox.hidden = false;
+      recent.forEach((query) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'recent-chip';
+        button.textContent = query;
+        button.addEventListener('click', () => {
+          input.value = query;
+          runSearch(query, true);
+        });
+        recentList.appendChild(button);
+      });
+    }
+
+    function resultImage(item) {
+      if (item.image) return `<img class="result-img" src="${item.image}" alt="${item.name}">`;
+      return `<div class="result-img">${item.type === 'Producto' ? 'PZ' : item.type === 'Categoría' ? 'C' : 'S'}</div>`;
+    }
+
+    function renderResults(matches, query) {
+      recentBox.hidden = true;
+      emptyRecent.hidden = true;
+      resultsBox.innerHTML = '';
+      info.textContent = `${matches.length} resultado${matches.length === 1 ? '' : 's'} para “${query}”.`;
+      info.hidden = false;
+
+      if (!matches.length) {
+        resultsBox.hidden = true;
+        emptyResults.hidden = false;
+        return;
+      }
+
+      emptyResults.hidden = true;
+      resultsBox.hidden = false;
+      matches.slice(0, 60).forEach((item) => {
+        const link = document.createElement('a');
+        link.className = 'result-card';
+        link.href = item.url;
+        link.innerHTML = `
+          ${resultImage(item)}
+          <div class="result-main">
+            <p class="result-name">${item.name}</p>
+            <p class="result-subtitle">${item.subtitle || item.type}</p>
+            ${item.price !== '' && item.price !== null && item.price !== undefined ? `
+              ${item.isOffer ? `<p class="text-[11px] font-black text-red-600 mt-1">Oferta</p><p class="text-[11px] font-black text-gray-400 line-through mt-1" data-pz-price-usd="${Number(item.regularPrice || 0)}" data-pz-only-usd="${item.onlyUsd ? 'true' : 'false'}">${window.PZCurrency?.formatVisualFromUsd ? window.PZCurrency.formatVisualFromUsd(Number(item.regularPrice || 0), { onlyUsd: Boolean(item.onlyUsd) }) : '$' + Number(item.regularPrice || 0).toFixed(2) + ' USD'}</p>` : ''}
+              <p class="result-price ${item.isOffer ? 'text-red-600' : ''}" data-pz-price-usd="${Number(item.price)}" data-pz-only-usd="${item.onlyUsd ? 'true' : 'false'}">${window.PZCurrency?.formatVisualFromUsd ? window.PZCurrency.formatVisualFromUsd(Number(item.price), { onlyUsd: Boolean(item.onlyUsd) }) : '$' + Number(item.price).toFixed(2) + ' USD'}</p>
+            ` : ''}
+          </div>
+          <span class="result-type">${item.type}</span>
+        `;
+        link.addEventListener('click', () => saveRecentSearch(query));
+        resultsBox.appendChild(link);
+      });
+    }
+
+    function runSearch(rawQuery, saveLater = false) {
+      const query = String(rawQuery || '').trim();
+      clearBtn.classList.toggle('is-visible', Boolean(query));
+
+      if (!query) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('q');
+        history.replaceState({}, '', url);
+        renderRecentSearches();
+        return;
+      }
+
+      const normalized = normalizeText(query);
+      const matches = searchItems
+        .filter((item) => item.searchText.includes(normalized))
+        .sort((a, b) => {
+          const aStarts = normalizeText(a.name).startsWith(normalized) ? 0 : 1;
+          const bStarts = normalizeText(b.name).startsWith(normalized) ? 0 : 1;
+          return aStarts - bStarts || a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+        });
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('q', query);
+      history.replaceState({}, '', url);
+      renderResults(matches, query);
+
+      clearTimeout(saveTimer);
+      if (saveLater) saveRecentSearch(query);
+      else saveTimer = setTimeout(() => saveRecentSearch(query), 800);
+    }
+
+    input?.addEventListener('input', () => runSearch(input.value));
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        runSearch(input.value, true);
+      }
+    });
+    window.addEventListener('pz-currency-changed', () => runSearch(input?.value || ''));
+
+    clearBtn?.addEventListener('click', () => {
+      input.value = '';
+      input.focus();
+      runSearch('');
+    });
+
+    if (initialQuery) runSearch(initialQuery, true);
+    else renderRecentSearches();
+  </script>
+</Layout>
