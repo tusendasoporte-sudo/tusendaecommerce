@@ -1,7 +1,6 @@
 ---
 // PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603
 import Layout from '../layouts/Layout.astro';
-import PromoBar from '../components/PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
 
 const settings = await getSettings();
@@ -117,8 +116,6 @@ const searchItems = [
       </a>
       <a class="back-btn" href="/">Volver</a>
     </div>
-
-    <PromoBar settings={settings} />
 
     <section class="search-panel">
       <h1 class="search-title">Buscar productos</h1>

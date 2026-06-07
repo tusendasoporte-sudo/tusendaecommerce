@@ -40,6 +40,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   (() => {
     const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
     const STORAGE_KEY = 'powerzona_currency';
+    const CART_STORAGE_KEY = 'powerzona_cart';
     const switcher = document.getElementById('pz-currency-switcher');
     const select = document.getElementById('pz-currency-select');
     const state = {
@@ -144,6 +145,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       return Array.from(document.querySelectorAll('[data-pz-currency-select]'));
     }
 
+    function getCartItems() {
+      try {
+        const cart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+        return Array.isArray(cart) ? cart : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function cartHasItems() {
+      return getCartItems().length > 0;
+    }
+
+    function updateFloatingSwitcherVisibility() {
+      const hasMultipleCurrencies = getCurrencies().filter((currency) => currency.active !== false).length > 1;
+      if (switcher) switcher.hidden = !hasMultipleCurrencies || !cartHasItems();
+    }
+
     function renderSelector() {
       const currencies = getCurrencies().filter((currency) => currency.active !== false);
       const shouldHide = currencies.length <= 1;
@@ -156,7 +175,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         currencySelect.value = state.selectedCode;
         currencySelect.disabled = shouldHide;
       });
-      if (switcher) switcher.hidden = shouldHide;
+      updateFloatingSwitcherVisibility();
       document.querySelectorAll('[data-pz-currency-menu]').forEach((menu) => { menu.hidden = shouldHide; });
     }
 
@@ -208,6 +227,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     };
 
     document.addEventListener('DOMContentLoaded', () => updatePriceNodes());
+    window.addEventListener('cart-updated', updateFloatingSwitcherVisibility);
+    window.addEventListener('storage', (event) => {
+      if (event.key === CART_STORAGE_KEY) updateFloatingSwitcherVisibility();
+    });
     loadCurrencyConfig();
   })();
 </script>

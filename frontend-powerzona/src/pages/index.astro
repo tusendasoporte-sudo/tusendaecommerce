@@ -146,7 +146,7 @@ function getProductOfferView(product: any) {
     .public-category-go { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 999px; background: rgba(255,255,255,.92); color: #111827; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 1000; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
     .public-gift-banner-link { display: grid; gap: 14px; color: inherit; text-decoration: none; }
     .public-gift-copy { display: grid; gap: 10px; }
-    .public-gift-copy-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .public-gift-copy-top { display: grid; gap: 12px; justify-items: start; }
     .public-gift-copy-main { display: grid; gap: 8px; min-width: 0; }
     .public-gift-banner { position: relative; width: 100%; min-height: 235px; aspect-ratio: 16 / 5.2; border-radius: 34px; overflow: hidden; background: #111827; box-shadow: 0 24px 60px rgba(15,23,42,.18); border: 1px solid rgba(226,232,240,.9); }
     .public-gift-banner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: .98; transition: transform .35s ease; }
@@ -185,7 +185,6 @@ function getProductOfferView(product: any) {
       .public-store-name { font-size: 17px; max-width: 52vw; }
       .public-hero { border-radius: 26px; }
       .public-category-card { min-height: 0; border-radius: 24px; }
-      .public-gift-copy-top { flex-direction: column; }
       .public-gift-banner { min-height: 205px; aspect-ratio: 16 / 9; border-radius: 26px; }
       .public-gift-text { max-width: none; }
       .public-gift-cta { width: max-content; padding: 11px 14px; }

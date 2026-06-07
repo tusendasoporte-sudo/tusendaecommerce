@@ -111,6 +111,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       .section-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
       .section-subtitle { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 800; line-height: 1.45; }
       .product-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
+      .featured-search-results { margin-top: 10px; display: grid; gap: 10px; max-height: 420px; overflow: auto; padding-right: 3px; }
+      .featured-result-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 12px; }
+      .featured-result-title { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; line-height: 1.25; }
+      .featured-result-meta { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; }
       .items-list { display: grid; gap: 10px; }
       .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.88); }
       .item-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -130,10 +134,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       .organization-card + .organization-card { margin-top: 16px; }
       .organization-title { margin: 0; font-size: 16px; font-weight: 1000; letter-spacing: -.025em; }
       .organization-help { margin: 5px 0 14px; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.45; }
+      .admin-block-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      .admin-block-summary-main { min-width: 0; }
+      .admin-block-summary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+      .admin-block-total { display: inline-flex; width: fit-content; margin-top: 10px; border-radius: 999px; padding: 8px 11px; background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; font-size: 12px; font-weight: 1000; }
+      .admin-read-panel { margin-top: 16px; display: grid; gap: 14px; }
+      .admin-read-list { display: grid; gap: 10px; }
       .order-btn { min-width: 42px; padding-left: 12px; padding-right: 12px; }
       .mini-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
       .mini-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } }
+      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions, .admin-block-summary-actions { justify-content: flex-start; } .admin-block-summary { align-items: flex-start; flex-direction: column; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } }
     
 
@@ -519,102 +529,137 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           </section>
 
           <section id="tab-destacados" class="panel-card tab-panel hidden">
-            <div class="section-head">
-              <div>
+            <div class="admin-block-summary" data-admin-block-summary="featured">
+              <div class="admin-block-summary-main">
                 <h2 class="section-title">Productos destacados</h2>
                 <p class="section-subtitle">Marca productos existentes para que salgan en la sección pública “Productos destacados”. Aquí ves el resumen de todos los marcados.</p>
+                <p class="admin-block-total" data-featured-total>Total de destacados: 0</p>
               </div>
-              <button id="refresh-btn" class="mini-btn" type="button">Actualizar</button>
-            </div>
-            <div class="product-picker">
-              <div class="field">
-                <label for="featured-product-select">Producto existente</label>
-                <select id="featured-product-select"><option value="">Selecciona un producto</option></select>
-                <p class="form-help">No crea un producto nuevo. Solo marca uno existente como destacado.</p>
+              <div class="admin-block-summary-actions">
+                <button class="mini-btn primary js-admin-block-edit" data-admin-block="featured" data-featured-summary-action type="button">Editar</button>
               </div>
-              <button id="mark-featured-btn" class="submit-btn" type="button">Marcar destacado</button>
             </div>
-            <div id="featured-alert" class="alert alert-info hidden"></div>
-            <div id="featured-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando destacados...</div></div>
+            <div class="hidden" data-admin-block-panel="featured-editor">
+              <div class="section-head">
+                <div>
+                  <h2 class="section-title">Productos destacados</h2>
+                  <p class="section-subtitle">Marca productos existentes para que salgan en la sección pública “Productos destacados”. Aquí ves el resumen de todos los marcados.</p>
+                </div>
+                <div class="hero-actions">
+                  <button id="refresh-btn" class="mini-btn" type="button">Actualizar</button>
+                  <button class="mini-btn js-admin-block-close" data-admin-block="featured" type="button">Cerrar</button>
+                </div>
+              </div>
+              <div class="product-picker">
+                <div class="field">
+                  <label for="featured-product-search">Buscar producto</label>
+                  <input id="featured-product-search" type="search" placeholder="Escribe nombre, referencia o categoría" autocomplete="off" />
+                  <select id="featured-product-select" class="hidden" aria-hidden="true"><option value="">Selecciona un producto</option></select>
+                  <div id="featured-product-results" class="featured-search-results"><div class="empty-state">Escribe para buscar productos.</div></div>
+                </div>
+                <button id="mark-featured-btn" class="submit-btn hidden" type="button" aria-hidden="true">Marcar destacado</button>
+              </div>
+              <div id="featured-alert" class="alert alert-info hidden"></div>
+              <div id="featured-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando destacados...</div></div>
+            </div>
           </section>
 
           <section id="tab-visuales" class="panel-card tab-panel hidden">
-            <div class="section-head">
-              <div>
-                <h2 class="section-title">Promo visual / Acceso rápido</h2>
+            <div class="admin-block-summary" data-admin-block-summary="visual">
+              <div class="admin-block-summary-main">
+                <h2 class="section-title">Promo visual</h2>
                 <p class="section-subtitle">Crea tarjetas visuales para ofertas o accesos a WhatsApp, enlaces, categorías o archivos.</p>
               </div>
-              <button id="open-visual-form-btn" class="mini-btn primary" type="button">+ Crear</button>
+              <div class="admin-block-summary-actions">
+                <button class="mini-btn primary js-admin-block-edit" data-admin-block="visual" type="button">Editar</button>
+                <button class="mini-btn js-admin-block-view hidden" data-admin-block="visual" type="button">Ver</button>
+              </div>
             </div>
+            <div class="admin-read-panel hidden" data-admin-block-panel="visual-view">
+              <div class="admin-read-list" id="visual-read-list"></div>
+              <div class="editor-actions"><button class="mini-btn js-admin-block-close" data-admin-block="visual" type="button">Cerrar</button></div>
+            </div>
+            <div class="hidden" data-admin-block-panel="visual-editor">
+              <div class="section-head">
+                <div>
+                  <h2 class="section-title">Promo visual / Acceso rápido</h2>
+                  <p class="section-subtitle">Crea tarjetas visuales para ofertas o accesos a WhatsApp, enlaces, categorías o archivos.</p>
+                </div>
+                <div class="hero-actions">
+                  <button id="open-visual-form-btn" class="mini-btn primary" type="button">+ Crear</button>
+                  <button class="mini-btn js-admin-block-close" data-admin-block="visual" type="button">Cerrar</button>
+                </div>
+              </div>
 
-            <form id="visual-form" class="visual-form-grid hidden">
-              <input id="visual-id" type="hidden" />
-              <div class="field">
-                <label for="visual-type">Tipo</label>
-                <select id="visual-type" required>
-                  <option value="promo_visual">Promo visual</option>
-                  <option value="acceso_rapido">Acceso rápido</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="visual-title">Título</label>
-                <input id="visual-title" type="text" placeholder="Ej: Combo especial" required />
-              </div>
-              <div class="field full">
-                <label for="visual-description">Descripción corta</label>
-                <textarea id="visual-description" placeholder="Texto corto para mostrar en la tienda pública"></textarea>
-              </div>
-              <div class="field">
-                <label for="visual-image">Imagen</label>
-                <input id="visual-image" type="file" accept="image/*" />
-                <p id="visual-current-image" class="form-help"></p>
-              </div>
-              <div class="field">
-                <label for="visual-button-text">Texto del botón</label>
-                <input id="visual-button-text" type="text" placeholder="Ej: Contactar por WhatsApp" />
-              </div>
-              <div class="field">
-                <label for="visual-action-type">Acción</label>
-                <select id="visual-action-type">
-                  <option value="whatsapp">WhatsApp</option>
-                  <option value="url">Enlace externo</option>
-                  <option value="categoria">Categoría</option>
-                  <option value="archivo">Archivo</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="visual-order">Orden visual</label>
-                <input id="visual-order" type="number" min="0" step="1" placeholder="0" />
-              </div>
-              <div class="field full" id="visual-url-field">
-                <label for="visual-url">URL / enlace</label>
-                <input id="visual-url" type="url" placeholder="https://..." />
-              </div>
-              <div class="field full" id="visual-whatsapp-field">
-                <label for="visual-whatsapp-message">Mensaje de WhatsApp</label>
-                <textarea id="visual-whatsapp-message" placeholder="Hola PowerZona, quiero información sobre..."></textarea>
-              </div>
-              <div class="field" id="visual-category-field">
-                <label for="visual-category">Categoría</label>
-                <select id="visual-category"><option value="">Selecciona categoría</option></select>
-              </div>
-              <div class="field" id="visual-attachment-field">
-                <label for="visual-attachment">Archivo</label>
-                <input id="visual-attachment" type="file" accept="application/pdf,image/*" />
-                <p id="visual-current-attachment" class="form-help"></p>
-              </div>
-              <div class="field full">
-                <label>Estado</label>
-                <label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="visual-active" type="checkbox" checked /> Visible en tienda pública</label>
-              </div>
-              <div id="visual-alert" class="alert alert-info hidden full"></div>
-              <div class="editor-actions full">
-                <button id="visual-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                <button id="visual-save-btn" class="submit-btn" type="submit">Guardar</button>
-              </div>
-            </form>
+              <form id="visual-form" class="visual-form-grid hidden">
+                <input id="visual-id" type="hidden" />
+                <div class="field">
+                  <label for="visual-type">Tipo</label>
+                  <select id="visual-type" required>
+                    <option value="promo_visual">Promo visual</option>
+                    <option value="acceso_rapido">Acceso rápido</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="visual-title">Título</label>
+                  <input id="visual-title" type="text" placeholder="Ej: Combo especial" required />
+                </div>
+                <div class="field full">
+                  <label for="visual-description">Descripción corta</label>
+                  <textarea id="visual-description" placeholder="Texto corto para mostrar en la tienda pública"></textarea>
+                </div>
+                <div class="field">
+                  <label for="visual-image">Imagen</label>
+                  <input id="visual-image" type="file" accept="image/*" />
+                  <p id="visual-current-image" class="form-help"></p>
+                </div>
+                <div class="field">
+                  <label for="visual-button-text">Texto del botón</label>
+                  <input id="visual-button-text" type="text" placeholder="Ej: Contactar por WhatsApp" />
+                </div>
+                <div class="field">
+                  <label for="visual-action-type">Acción</label>
+                  <select id="visual-action-type">
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="url">Enlace externo</option>
+                    <option value="categoria">Categoría</option>
+                    <option value="archivo">Archivo</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="visual-order">Orden visual</label>
+                  <input id="visual-order" type="number" min="0" step="1" placeholder="0" />
+                </div>
+                <div class="field full" id="visual-url-field">
+                  <label for="visual-url">URL / enlace</label>
+                  <input id="visual-url" type="url" placeholder="https://..." />
+                </div>
+                <div class="field full" id="visual-whatsapp-field">
+                  <label for="visual-whatsapp-message">Mensaje de WhatsApp</label>
+                  <textarea id="visual-whatsapp-message" placeholder="Hola PowerZona, quiero información sobre..."></textarea>
+                </div>
+                <div class="field" id="visual-category-field">
+                  <label for="visual-category">Categoría</label>
+                  <select id="visual-category"><option value="">Selecciona categoría</option></select>
+                </div>
+                <div class="field" id="visual-attachment-field">
+                  <label for="visual-attachment">Archivo</label>
+                  <input id="visual-attachment" type="file" accept="application/pdf,image/*" />
+                  <p id="visual-current-attachment" class="form-help"></p>
+                </div>
+                <div class="field full">
+                  <label>Estado</label>
+                  <label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="visual-active" type="checkbox" checked /> Visible en tienda pública</label>
+                </div>
+                <div id="visual-alert" class="alert alert-info hidden full"></div>
+                <div class="editor-actions full">
+                  <button id="visual-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                  <button id="visual-save-btn" class="submit-btn" type="submit">Guardar</button>
+                </div>
+              </form>
 
-            <div id="visual-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando promos y accesos...</div></div>
+              <div id="visual-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando promos y accesos...</div></div>
+            </div>
           </section>
 
           <section id="tab-organizacion" class="panel-card tab-panel">
@@ -628,14 +673,52 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             <div id="organization-alert" class="alert alert-info hidden"></div>
             <div class="organization-grid">
               <article class="organization-card">
-                <h3 class="organization-title">Productos destacados</h3>
-                <p class="organization-help">Cambia el orden de la sección “Productos destacados”. Si quieres ocultar uno solo de destacados, usa “Quitar destacado” para no ocultar el producto completo de la tienda.</p>
-                <div id="organization-featured-list" class="items-list"><div class="empty-state">Cargando destacados...</div></div>
+                <div class="admin-block-summary" data-admin-block-summary="orgFeatured">
+                  <div class="admin-block-summary-main">
+                    <h3 class="organization-title">Productos destacados</h3>
+                    <p class="organization-help">Cambia el orden de la sección “Productos destacados”. Si quieres ocultar uno solo de destacados, usa “Quitar destacado” para no ocultar el producto completo de la tienda.</p>
+                    <p class="admin-block-total" data-featured-total>Total de destacados: 0</p>
+                  </div>
+                  <div class="admin-block-summary-actions">
+                    <button class="mini-btn primary js-admin-block-edit" data-admin-block="orgFeatured" data-featured-summary-action type="button">Editar</button>
+                  </div>
+                </div>
+                <div class="hidden" data-admin-block-panel="orgFeatured-editor">
+                  <div class="section-head">
+                    <div>
+                      <h3 class="organization-title">Productos destacados</h3>
+                      <p class="organization-help">Cambia el orden de la sección “Productos destacados”. Si quieres ocultar uno solo de destacados, usa “Quitar destacado” para no ocultar el producto completo de la tienda.</p>
+                    </div>
+                    <button class="mini-btn js-admin-block-close" data-admin-block="orgFeatured" type="button">Cerrar</button>
+                  </div>
+                  <div id="organization-featured-list" class="items-list"><div class="empty-state">Cargando destacados...</div></div>
+                </div>
               </article>
               <article class="organization-card">
-                <h3 class="organization-title">Promos visuales</h3>
-                <p class="organization-help">Ordena y activa/desactiva las tarjetas de promociones que aparecen en la portada pública.</p>
-                <div id="organization-promos-list" class="items-list"><div class="empty-state">Cargando promos...</div></div>
+                <div class="admin-block-summary" data-admin-block-summary="orgPromos">
+                  <div class="admin-block-summary-main">
+                    <h3 class="organization-title">Promo visual</h3>
+                    <p class="organization-help">Ordena y activa/desactiva las tarjetas de promociones que aparecen en la portada pública.</p>
+                  </div>
+                  <div class="admin-block-summary-actions">
+                    <button class="mini-btn primary js-admin-block-edit" data-admin-block="orgPromos" type="button">Editar</button>
+                    <button class="mini-btn js-admin-block-view hidden" data-admin-block="orgPromos" type="button">Ver</button>
+                  </div>
+                </div>
+                <div class="admin-read-panel hidden" data-admin-block-panel="orgPromos-view">
+                  <div class="admin-read-list" id="organization-promos-read-list"></div>
+                  <div class="editor-actions"><button class="mini-btn js-admin-block-close" data-admin-block="orgPromos" type="button">Cerrar</button></div>
+                </div>
+                <div class="hidden" data-admin-block-panel="orgPromos-editor">
+                  <div class="section-head">
+                    <div>
+                      <h3 class="organization-title">Promo visual</h3>
+                      <p class="organization-help">Ordena y activa/desactiva las tarjetas de promociones que aparecen en la portada pública.</p>
+                    </div>
+                    <button class="mini-btn js-admin-block-close" data-admin-block="orgPromos" type="button">Cerrar</button>
+                  </div>
+                  <div id="organization-promos-list" class="items-list"><div class="empty-state">Cargando promos...</div></div>
+                </div>
               </article>
               <article class="organization-card">
                 <h3 class="organization-title">Accesos rápidos</h3>
@@ -655,6 +738,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       let categories = [];
       let visualItems = [];
       let activeTab = 'organizacion';
+      const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
 
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -666,11 +750,14 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const loginForm = document.getElementById('login-form');
       const loginAlert = document.getElementById('login-alert');
       const featuredProductSelect = document.getElementById('featured-product-select');
+      const featuredProductSearch = document.getElementById('featured-product-search');
+      const featuredProductResults = document.getElementById('featured-product-results');
       const markFeaturedBtn = document.getElementById('mark-featured-btn');
       const featuredList = document.getElementById('featured-list');
       const featuredAlert = document.getElementById('featured-alert');
       const visualForm = document.getElementById('visual-form');
       const visualList = document.getElementById('visual-list');
+      const visualReadList = document.getElementById('visual-read-list');
       const visualAlert = document.getElementById('visual-alert');
       const newVisualBtn = document.getElementById('new-visual-btn');
       const openVisualFormBtn = document.getElementById('open-visual-form-btn');
@@ -679,6 +766,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const organizationAlert = document.getElementById('organization-alert');
       const organizationFeaturedList = document.getElementById('organization-featured-list');
       const organizationPromosList = document.getElementById('organization-promos-list');
+      const organizationPromosReadList = document.getElementById('organization-promos-read-list');
       const organizationShortcutsList = document.getElementById('organization-shortcuts-list');
       const visualId = document.getElementById('visual-id');
       const visualType = document.getElementById('visual-type');
@@ -708,6 +796,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
+      }
+      function normalizeSearchText(value) {
+        return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
       function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con PocketBase.') {
         const base = result?.message || fallback;
@@ -786,16 +877,82 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         return `<img class="thumb" src="${url}" alt="" loading="lazy" />`;
       }
       function formatUsd(value) { return `$${Number(value || 0).toFixed(2)} USD`; }
+      function readOnlyVisualRow(item) {
+        return `
+          <article class="item-row">
+            <div class="item-main">
+              ${thumbMarkup(visualImageUrl(item), '🏷️')}
+              <div>
+                <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
+                <p class="item-meta">Promo visual · Orden ${Number(item.sort_order || 0)} · ${item.active !== false ? 'Visible' : 'Oculta'}</p>
+              </div>
+            </div>
+            <div class="item-actions"><span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${item.active !== false ? 'Visible' : 'Oculta'}</span></div>
+          </article>
+        `;
+      }
       function renderStats() {
         document.getElementById('stat-featured').textContent = String(products.filter((p) => p.featured === true).length);
         document.getElementById('stat-promos').textContent = String(visualItems.filter((item) => item.type === 'promo_visual').length);
         document.getElementById('stat-shortcuts').textContent = String(visualItems.filter((item) => item.type === 'acceso_rapido').length);
       }
       function renderProductSelect() {
-        const available = products.filter((product) => product.active !== false && product.featured !== true);
+        const available = products.filter((product) => product.active !== false);
         featuredProductSelect.innerHTML = '<option value="">Selecciona un producto</option>' + available
           .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
           .map((product) => `<option value="${product.id}">${escapeHtml(product.name || 'Sin nombre')} · ${formatUsd(product.base_price_usd)}</option>`).join('');
+        renderFeaturedProductResults();
+      }
+      function productCategoryText(product) {
+        const category = product.expand?.category?.name || categories.find((item) => item.id === product.category)?.name || '';
+        const subcategory = product.expand?.subcategory?.name || product.subcategory_name || '';
+        return [category, subcategory].filter(Boolean).join(' · ');
+      }
+      function productSearchText(product) {
+        return normalizeSearchText([
+          product.name,
+          product.internal_ref,
+          product.sku,
+          product.slug,
+          productCategoryText(product),
+        ].filter(Boolean).join(' '));
+      }
+      function renderFeaturedProductResults() {
+        if (!featuredProductResults) return;
+        const query = normalizeSearchText(featuredProductSearch?.value || '');
+        if (!query) {
+          featuredProductResults.innerHTML = '<div class="empty-state">Escribe para buscar productos.</div>';
+          return;
+        }
+        const matches = products
+          .filter((product) => product.active !== false || product.featured === true)
+          .filter((product) => productSearchText(product).includes(query))
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+          .slice(0, 15);
+        if (!matches.length) {
+          featuredProductResults.innerHTML = '<div class="empty-state">No se encontraron productos.</div>';
+          return;
+        }
+        featuredProductResults.innerHTML = matches.map((product) => {
+          const alreadyFeatured = product.featured === true;
+          const categoryText = productCategoryText(product);
+          const meta = [
+            formatUsd(product.base_price_usd),
+            `Stock ${Number(product.stock || 0)}`,
+            product.active === false ? 'Oculto' : 'Visible',
+            product.internal_ref ? `Ref ${product.internal_ref}` : '',
+            categoryText,
+          ].filter(Boolean).join(' · ');
+          return `
+            <article class="featured-result-row">
+              <div>
+                <p class="featured-result-title">${escapeHtml(product.name || 'Sin nombre')}</p>
+                <p class="featured-result-meta">${escapeHtml(meta)}</p>
+              </div>
+              <button class="mini-btn ${alreadyFeatured ? '' : 'primary'} js-featured-result-add" data-product-id="${product.id}" type="button" ${alreadyFeatured ? 'disabled' : ''}>${alreadyFeatured ? 'Ya agregado' : 'Agregar'}</button>
+            </article>
+          `;
+        }).join('');
       }
       function getFeaturedProductsSorted() {
         return products
@@ -807,10 +964,45 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           .filter((item) => item.type === type)
           .sort((a, b) => (Number(a.sort_order || 0) - Number(b.sort_order || 0)) || String(a.title || '').localeCompare(String(b.title || '')));
       }
+      function renderAdminReadPanels() {
+        const featured = getFeaturedProductsSorted();
+        const promos = getVisualItemsSorted('promo_visual');
+        if (visualReadList) visualReadList.innerHTML = promos.length ? promos.map(readOnlyVisualRow).join('') : '';
+        if (organizationPromosReadList) organizationPromosReadList.innerHTML = promos.length ? promos.map(readOnlyVisualRow).join('') : '';
+        document.querySelectorAll('[data-featured-total]').forEach((node) => { node.textContent = `Total de destacados: ${featured.length}`; });
+        document.querySelectorAll('[data-featured-summary-action]').forEach((button) => { button.textContent = featured.length > 0 ? 'Editar' : 'Agregar'; });
+        document.querySelectorAll('.js-admin-block-view[data-admin-block="visual"]').forEach((button) => button.classList.toggle('hidden', !promos.length));
+        document.querySelectorAll('.js-admin-block-view[data-admin-block="orgPromos"]').forEach((button) => button.classList.toggle('hidden', !promos.length));
+        if (!promos.length && adminBlockModes.visual === 'view') adminBlockModes.visual = 'closed';
+        if (!promos.length && adminBlockModes.orgPromos === 'view') adminBlockModes.orgPromos = 'closed';
+      }
+      function setAdminBlockMode(block, mode = 'closed') {
+        adminBlockModes[block] = mode;
+        const summary = document.querySelector(`[data-admin-block-summary="${block}"]`);
+        const viewPanel = document.querySelector(`[data-admin-block-panel="${block}-view"]`);
+        const editorPanel = document.querySelector(`[data-admin-block-panel="${block}-editor"]`);
+        summary?.classList.toggle('hidden', mode !== 'closed');
+        viewPanel?.classList.toggle('hidden', mode !== 'view');
+        editorPanel?.classList.toggle('hidden', mode !== 'edit');
+        if (mode !== 'edit' && block === 'visual') resetVisualForm();
+      }
+      function syncAdminBlockPanels() {
+        renderAdminReadPanels();
+        setAdminBlockMode('featured', adminBlockModes.featured);
+        setAdminBlockMode('visual', adminBlockModes.visual);
+        setAdminBlockMode('orgFeatured', adminBlockModes.orgFeatured);
+        setAdminBlockMode('orgPromos', adminBlockModes.orgPromos);
+      }
+      function openFeaturedAddFlow() {
+        showTab('destacados');
+        setAdminBlockMode('featured', 'edit');
+        featuredProductSearch?.focus();
+        featuredProductSearch?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
       function renderFeaturedList() {
         const featured = getFeaturedProductsSorted();
         if (!featured.length) {
-          featuredList.innerHTML = '<div class="empty-state">Todavía no hay productos marcados como destacados.</div>';
+          featuredList.innerHTML = '<div class="empty-state">Todavía no hay productos marcados como destacados.<div class="editor-actions"><button class="submit-btn js-featured-empty-add" type="button">Agregar producto a destacado</button></div></div>';
           return;
         }
         featuredList.innerHTML = featured.map((product) => `
@@ -863,7 +1055,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       function renderOrganizationFeaturedList() {
         const featured = getFeaturedProductsSorted();
         if (!featured.length) {
-          organizationFeaturedList.innerHTML = '<div class="empty-state">Todavía no hay productos destacados para ordenar.</div>';
+          organizationFeaturedList.innerHTML = '<div class="empty-state">Todavía no hay productos destacados para ordenar.<div class="editor-actions"><button class="submit-btn js-featured-empty-add" type="button">Agregar producto a destacado</button></div></div>';
           return;
         }
         organizationFeaturedList.innerHTML = featured.map((product, index) => `
@@ -924,6 +1116,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         renderVisualList();
         renderCategoryOptions();
         renderOrganization();
+        syncAdminBlockPanels();
       }
       function renderCategoryOptions() {
         visualCategory.innerHTML = '<option value="">Selecciona categoría</option>' + categories
@@ -942,14 +1135,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         }
         renderAll();
       }
-      async function markFeatured() {
-        const productId = featuredProductSelect.value;
+      async function markFeatured(productIdOverride = '') {
+        const productId = productIdOverride || featuredProductSelect.value;
         if (!productId) return showAlert(featuredAlert, 'Selecciona un producto primero.', 'error');
         const formData = new FormData();
         formData.append('featured', 'true');
         formData.append('featured_order', String(nextFeaturedOrder()));
         await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: formData });
         showAlert(featuredAlert, 'Producto marcado como destacado.', 'success');
+        if (featuredProductSearch) featuredProductSearch.value = '';
+        if (featuredProductSelect) featuredProductSelect.value = '';
         await loadData();
       }
       async function unfeatureProduct(productId) {
@@ -1050,6 +1245,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           visualCurrentAttachment.textContent = attachment ? `Archivo actual: ${attachment}. Si subes otro, se reemplaza.` : '';
         }
         updateActionFields();
+        setAdminBlockMode('visual', 'edit');
         visualForm.classList.remove('hidden');
         showTab('visuales');
         visualTitle.focus();
@@ -1128,6 +1324,14 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       });
       logoutBtn?.addEventListener('click', () => { clearAdminToken(); showLogin(); });
       markFeaturedBtn?.addEventListener('click', () => markFeatured().catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error')));
+      featuredProductSearch?.addEventListener('input', renderFeaturedProductResults);
+      featuredProductResults?.addEventListener('click', (event) => {
+        const button = event.target.closest('.js-featured-result-add');
+        if (!button || button.disabled) return;
+        const productId = button.dataset.productId || '';
+        if (featuredProductSelect) featuredProductSelect.value = productId;
+        markFeatured(productId).catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error'));
+      });
       refreshBtn?.addEventListener('click', () => loadData());
       refreshOrgBtn?.addEventListener('click', () => loadData());
       newVisualBtn?.addEventListener('click', () => openVisualForm());
@@ -1135,8 +1339,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       visualCancelBtn?.addEventListener('click', closeVisualForm);
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
+      document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
+        button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'edit'));
+      });
+      document.querySelectorAll('.js-admin-block-view').forEach((button) => {
+        button.addEventListener('click', () => {
+          renderAdminReadPanels();
+          setAdminBlockMode(button.dataset.adminBlock, 'view');
+        });
+      });
+      document.querySelectorAll('.js-admin-block-close').forEach((button) => {
+        button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'closed'));
+      });
       document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => showTab(btn.dataset.tab || 'destacados')));
       featuredList?.addEventListener('click', (event) => {
+        if (event.target.closest('.js-featured-empty-add')) {
+          openFeaturedAddFlow();
+          return;
+        }
         const btn = event.target.closest('.js-unfeature');
         if (!btn) return;
         const id = btn.closest('[data-product-id]')?.dataset.productId;
@@ -1156,6 +1376,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       });
 
       organizationFeaturedList?.addEventListener('click', (event) => {
+        if (event.target.closest('.js-featured-empty-add')) {
+          openFeaturedAddFlow();
+          return;
+        }
         const row = event.target.closest('[data-org-product-id]');
         if (!row) return;
         const id = row.dataset.orgProductId;

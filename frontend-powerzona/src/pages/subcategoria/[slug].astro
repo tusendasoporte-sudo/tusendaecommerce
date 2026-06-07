@@ -3,7 +3,6 @@
 import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
-import PromoBar from '../../components/PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -69,8 +68,6 @@ function getProductOfferView(product: any) {
     <h1 class="title">{subcategory.name}</h1>
     <p class="subtitle">{subcategoryProducts.length} productos visibles · Vista 2 por fila en PC y móvil.</p>
   </section>
-
-  <PromoBar settings={settings} />
 
   {subcategoryProducts.length > 0 ? (
     <div class="product-grid">

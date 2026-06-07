@@ -1,7 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
-import PromoBar from '../../components/PromoBar.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -206,8 +205,6 @@ const variationItems = variations.map((variation) => {
 		</a>
 		<a href={productBackHref} class="product-back-btn">{productBackLabel}</a>
 	</div>
-
-	<PromoBar settings={settings} />
 
 	<section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 		<div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
