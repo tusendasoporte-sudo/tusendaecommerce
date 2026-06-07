@@ -235,6 +235,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       async function saveZone(event){
         event.preventDefault();showAlert(formAlert,'');
         const payload=getPayload();
+        const savedMunicipality=payload.municipality;
         if(editingId){
           await api('/api/collections/shipping_zones/records/'+editingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
           showAlert(formAlert,'Zona actualizada correctamente.','success');
@@ -242,6 +243,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
           showAlert(formAlert,'Envío agregado correctamente.','success');
         }
+        if(savedMunicipality)expandedMunicipalities.add(savedMunicipality);
         resetForm();hideMainForm();await loadZones();
       }
       async function loadZones(){
