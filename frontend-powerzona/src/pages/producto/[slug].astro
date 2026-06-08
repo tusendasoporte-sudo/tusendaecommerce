@@ -194,7 +194,55 @@ const variationItems = variations.map((variation) => {
 		.related-old-price { color: #94a3b8; font-size: 13px; font-weight: 900; text-decoration: line-through; }
 		.related-badge { display: inline-flex; align-items: center; width: fit-content; border-radius: 999px; background: #fee2e2; color: #b91c1c; padding: 4px 8px; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; margin-top: 8px; }
 		.related-buy { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border-radius: 999px; background: #111827; color: #fff; padding: 8px 12px; font-size: 12px; font-weight: 1000; margin-top: 10px; }
+		.product-mobile-cta { display: none; }
 		@media (max-width: 780px) { .related-grid { grid-template-columns: 1fr; } }
+		@media (max-width: 767px) {
+			.product-mobile-cta {
+				position: fixed;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				z-index: 35;
+				display: flex;
+				padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
+				background: linear-gradient(180deg, rgba(248,250,252,0), rgba(248,250,252,.92) 34%, rgba(248,250,252,.98));
+				pointer-events: none;
+				opacity: 0;
+				transform: translateY(18px);
+				transition: opacity .22s ease, transform .22s ease;
+			}
+			.product-mobile-cta.is-visible {
+				opacity: 1;
+				transform: translateY(0);
+			}
+			.product-mobile-cta button {
+				width: 100%;
+				min-height: 58px;
+				border: 0;
+				border-radius: 999px;
+				background: #020617;
+				color: #fff;
+				font-size: 15px;
+				font-weight: 1000;
+				line-height: 1.2;
+				padding: 15px 18px;
+				box-shadow: 0 18px 38px rgba(2,6,23,.28), 0 3px 10px rgba(15,23,42,.12);
+				pointer-events: auto;
+			}
+			.product-mobile-cta button:active { transform: translateY(1px); }
+			.product-mobile-cta button.is-disabled {
+				background: #e5e7eb;
+				color: #6b7280;
+				box-shadow: 0 12px 28px rgba(15,23,42,.12);
+				cursor: not-allowed;
+			}
+		}
+		@media (prefers-reduced-motion: reduce) {
+			.product-mobile-cta,
+			.product-mobile-cta button {
+				transition: none;
+			}
+		}
 		@media (max-width: 640px) { .product-public-name { max-width: 45vw; } .product-back-btn { padding: 10px 11px; font-size: 12px; } .related-card { grid-template-columns: 82px minmax(0, 1fr); border-radius: 22px; } .related-image { width: 82px; height: 82px; } .related-section-title { font-size: 22px; } }
 	</style>
 
@@ -430,6 +478,7 @@ const variationItems = variations.map((variation) => {
 				<div class="text-gray-600 leading-relaxed" set:html={product.description}></div>
 			</div>
 
+			<div id="product-purchase-actions">
 			<div class="bg-white rounded-3xl border border-gray-100 p-5 mb-4">
 				<p class="text-xs font-black text-gray-500 uppercase tracking-wide text-center mb-4">Cantidad</p>
 				<div class="flex items-center justify-center gap-6">
@@ -479,9 +528,19 @@ const variationItems = variations.map((variation) => {
 			>
 				{initialButtonText}
 			</button>
+			</div>
+
+			<div id="product-mobile-cta" class="product-mobile-cta" aria-hidden="true">
+				<button id="mobile-add-to-cart-btn" type="button" disabled={initialButtonDisabled}>
+					{initialButtonText}
+				</button>
+			</div>
 
 			<script>
 				const addToCartBtn = document.getElementById('add-to-cart-btn');
+				const mobileCta = document.getElementById('product-mobile-cta');
+				const mobileAddToCartBtn = document.getElementById('mobile-add-to-cart-btn');
+				const purchaseActions = document.getElementById('product-purchase-actions');
 				const productMainImage = document.getElementById('product-main-image');
 				const productPrice = document.getElementById('product-price');
 				const productRegularPrice = document.getElementById('product-regular-price');
@@ -508,6 +567,36 @@ const variationItems = variations.map((variation) => {
 				let touchStartX = 0;
 				let touchEndX = 0;
 				let selectedQuantity = 1;
+				let purchaseActionsVisible = false;
+
+				function syncFloatingCta() {
+					if (!mobileAddToCartBtn || !addToCartBtn) return;
+					mobileAddToCartBtn.textContent = addToCartBtn.textContent || '';
+					mobileAddToCartBtn.disabled = addToCartBtn.disabled;
+					mobileAddToCartBtn.classList.toggle('is-disabled', addToCartBtn.disabled);
+				}
+
+				function setPrimaryButtonText(text) {
+					if (!addToCartBtn) return;
+					addToCartBtn.textContent = text;
+					syncFloatingCta();
+				}
+
+				function updateFloatingCtaVisibility() {
+					if (!mobileCta) return;
+					const isMobile = window.matchMedia('(max-width: 767px)').matches;
+					const shouldShow = isMobile && !purchaseActionsVisible;
+					mobileCta.classList.toggle('is-visible', shouldShow);
+					mobileCta.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+				}
+
+				function refreshPurchaseActionsVisibility() {
+					if (!purchaseActions) return;
+					const rect = purchaseActions.getBoundingClientRect();
+					const visibleHeight = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+					purchaseActionsVisible = visibleHeight > Math.min(48, rect.height * 0.08);
+					updateFloatingCtaVisibility();
+				}
 
 				function updateGallery(index) {
 					if (!productMainImage || galleryImages.length === 0) return;
@@ -589,7 +678,7 @@ const variationItems = variations.map((variation) => {
 					if (quantityDisplay) quantityDisplay.textContent = String(selectedQuantity);
 					if (quantityMinusBtn) quantityMinusBtn.disabled = selectedQuantity <= 1 || addToCartBtn?.disabled;
 					if (quantityPlusBtn) quantityPlusBtn.disabled = selectedQuantity >= maxQuantity || addToCartBtn?.disabled;
-					if (addToCartBtn) addToCartBtn.textContent = buildButtonText();
+					setPrimaryButtonText(buildButtonText());
 				}
 
 				function stockText({ stock, isOutOfStock, canPreorder }) {
@@ -620,6 +709,7 @@ const variationItems = variations.map((variation) => {
 					addToCartBtn.dataset.stock = String(stock);
 					addToCartBtn.disabled = disabled;
 					addToCartBtn.className = `${baseButtonClass} ${disabled ? disabledButtonClass : activeButtonClass}`;
+					syncFloatingCta();
 					selectedQuantity = clampQuantity(selectedQuantity);
 					updateQuantityUI();
 				}
@@ -722,9 +812,30 @@ const variationItems = variations.map((variation) => {
 
 				updateQuantityUI();
 
+				if (purchaseActions && 'IntersectionObserver' in window) {
+					const purchaseObserver = new IntersectionObserver((entries) => {
+						purchaseActionsVisible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio > 0.08);
+						updateFloatingCtaVisibility();
+					}, {
+						root: null,
+						threshold: [0, 0.08, 0.2],
+						rootMargin: '0px 0px -18% 0px',
+					});
+					purchaseObserver.observe(purchaseActions);
+				}
+
+				window.addEventListener('resize', refreshPurchaseActionsVisibility);
+				refreshPurchaseActionsVisibility();
+
+				mobileAddToCartBtn?.addEventListener('click', () => {
+					if (mobileAddToCartBtn.disabled) return;
+					addToCartBtn?.click();
+					requestAnimationFrame(syncFloatingCta);
+				});
+
 				addToCartBtn?.addEventListener('click', () => {
 					if (addToCartBtn.dataset.outOfStock === 'true' && addToCartBtn.dataset.preorder !== 'true') {
-						addToCartBtn.textContent = 'Producto agotado';
+						setPrimaryButtonText('Producto agotado');
 						setTimeout(() => {
 							updateQuantityUI();
 						}, 1500);
@@ -760,7 +871,7 @@ const variationItems = variations.map((variation) => {
 
 					if (existingProduct) {
 						if (product.track_stock !== false && !product.preorder && existingProduct.quantity + product.quantity > product.stock) {
-							addToCartBtn.textContent = 'Stock máximo alcanzado';
+							setPrimaryButtonText('Stock máximo alcanzado');
 							setTimeout(() => {
 								updateQuantityUI();
 							}, 1500);
@@ -781,7 +892,7 @@ const variationItems = variations.map((variation) => {
 
 					localStorage.setItem('powerzona_cart', JSON.stringify(cart));
 					window.dispatchEvent(new Event('cart-updated'));
-					addToCartBtn.textContent = 'Agregado al pedido ✅';
+					setPrimaryButtonText('Agregado al pedido ✅');
 
 					setTimeout(() => {
 						updateQuantityUI();
