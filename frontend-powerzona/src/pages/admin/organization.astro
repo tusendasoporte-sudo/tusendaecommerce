@@ -143,6 +143,18 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       .order-btn { min-width: 42px; padding-left: 12px; padding-right: 12px; }
       .mini-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
       .mini-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .visual-menu-wrap { position: relative; display: inline-flex; justify-content: flex-end; z-index: 2; }
+      .visual-menu-wrap.open { z-index: 10030; }
+      .visual-kebab-btn { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 22px; font-weight: 1000; line-height: 1; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(15,23,42,.06); }
+      .visual-floating-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10040; min-width: 210px; display: none; gap: 6px; padding: 8px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.22); }
+      .visual-menu-wrap.open .visual-floating-menu { display: grid; }
+      .visual-floating-menu.drop-up { top: auto; bottom: calc(100% + 8px); }
+      .visual-floating-menu button { width: 100%; border: 0; border-radius: 13px; background: transparent; color: #0f172a; padding: 10px 11px; text-align: left; font-size: 13px; font-weight: 950; }
+      .visual-floating-menu button:hover { background: #f8fafc; }
+      .visual-floating-menu button.danger { color: #991b1b; }
+      .visual-floating-menu button.danger:hover { background: #fee2e2; }
+      .visual-floating-menu button.success { color: #166534; }
+      .visual-floating-menu button.success:hover { background: #dcfce7; }
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions, .admin-block-summary-actions { justify-content: flex-start; } .admin-block-summary { align-items: flex-start; flex-direction: column; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } }
     
@@ -472,8 +484,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             <form id="settings-form" class="visual-form-grid">
               <div class="field"><label for="settings-store-name">Nombre público de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
               <div class="field"><label for="settings-whatsapp-number">WhatsApp principal</label><input id="settings-whatsapp-number" type="text" placeholder="Ej: +53 5 000 0000" required /></div>
-              <div class="field"><label for="settings-logo-image">Icono o logo del negocio</label><input id="settings-logo-image" type="file" accept="image/*" /><p id="settings-current-logo" class="settings-current-file"></p></div>
-              <div class="field"><label for="settings-cover-image">Foto de portada / banner</label><input id="settings-cover-image" type="file" accept="image/*" /><p id="settings-current-cover" class="settings-current-file"></p></div>
+              <div class="field"><label for="settings-logo-image">Icono o logo del negocio</label><input id="settings-logo-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen cuadrada, mínimo 512 x 512 px.</p><p id="settings-current-logo" class="settings-current-file"></p></div>
+              <div class="field"><label for="settings-cover-image">Foto de portada / banner</label><input id="settings-cover-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1600 x 900 px.</p><p id="settings-current-cover" class="settings-current-file"></p></div>
               <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
               <div class="field"><label for="settings-address">Dirección</label><textarea id="settings-address" placeholder="Dirección pública de la tienda"></textarea></div>
               <div class="field"><label for="settings-business-hours">Horarios</label><textarea id="settings-business-hours" placeholder="Ej: Lunes a sábado · 9:00 AM - 6:00 PM"></textarea></div>
@@ -567,17 +579,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           <section id="tab-visuales" class="panel-card tab-panel hidden">
             <div class="admin-block-summary" data-admin-block-summary="visual">
               <div class="admin-block-summary-main">
-                <h2 class="section-title">Promo visual</h2>
+                <h2 class="section-title">Promo visual / Acceso rápido</h2>
                 <p class="section-subtitle">Crea tarjetas visuales para ofertas o accesos a WhatsApp, enlaces, categorías o archivos.</p>
+                <p class="admin-block-total" data-visual-total>Total de promos: 0</p>
               </div>
               <div class="admin-block-summary-actions">
-                <button class="mini-btn primary js-admin-block-edit" data-admin-block="visual" type="button">Editar</button>
-                <button class="mini-btn js-admin-block-view hidden" data-admin-block="visual" type="button">Ver</button>
+                <button class="mini-btn primary js-admin-block-edit" data-admin-block="visual" data-visual-summary-action type="button">Editar</button>
               </div>
-            </div>
-            <div class="admin-read-panel hidden" data-admin-block-panel="visual-view">
-              <div class="admin-read-list" id="visual-read-list"></div>
-              <div class="editor-actions"><button class="mini-btn js-admin-block-close" data-admin-block="visual" type="button">Cerrar</button></div>
             </div>
             <div class="hidden" data-admin-block-panel="visual-editor">
               <div class="section-head">
@@ -610,7 +618,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                 </div>
                 <div class="field">
                   <label for="visual-image">Imagen</label>
-                  <input id="visual-image" type="file" accept="image/*" />
+                  <input id="visual-image" type="file" accept="image/jpeg,image/png,image/webp" />
+                  <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                   <p id="visual-current-image" class="form-help"></p>
                 </div>
                 <div class="field">
@@ -697,33 +706,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               <article class="organization-card">
                 <div class="admin-block-summary" data-admin-block-summary="orgPromos">
                   <div class="admin-block-summary-main">
-                    <h3 class="organization-title">Promo visual</h3>
-                    <p class="organization-help">Ordena y activa/desactiva las tarjetas de promociones que aparecen en la portada pública.</p>
+                    <h3 class="organization-title">Promo visual / Acceso rápido</h3>
+                    <p class="organization-help">Ordena y activa/desactiva las tarjetas visuales y accesos rápidos que aparecen en la portada pública.</p>
+                    <p class="admin-block-total" data-visual-total>Total de promos: 0</p>
                   </div>
                   <div class="admin-block-summary-actions">
-                    <button class="mini-btn primary js-admin-block-edit" data-admin-block="orgPromos" type="button">Editar</button>
-                    <button class="mini-btn js-admin-block-view hidden" data-admin-block="orgPromos" type="button">Ver</button>
+                    <button class="mini-btn primary js-admin-block-edit" data-admin-block="orgPromos" data-visual-summary-action type="button">Editar</button>
                   </div>
-                </div>
-                <div class="admin-read-panel hidden" data-admin-block-panel="orgPromos-view">
-                  <div class="admin-read-list" id="organization-promos-read-list"></div>
-                  <div class="editor-actions"><button class="mini-btn js-admin-block-close" data-admin-block="orgPromos" type="button">Cerrar</button></div>
                 </div>
                 <div class="hidden" data-admin-block-panel="orgPromos-editor">
                   <div class="section-head">
                     <div>
-                      <h3 class="organization-title">Promo visual</h3>
-                      <p class="organization-help">Ordena y activa/desactiva las tarjetas de promociones que aparecen en la portada pública.</p>
+                      <h3 class="organization-title">Promo visual / Acceso rápido</h3>
+                      <p class="organization-help">Ordena y activa/desactiva las tarjetas visuales y accesos rápidos que aparecen en la portada pública.</p>
                     </div>
                     <button class="mini-btn js-admin-block-close" data-admin-block="orgPromos" type="button">Cerrar</button>
                   </div>
                   <div id="organization-promos-list" class="items-list"><div class="empty-state">Cargando promos...</div></div>
                 </div>
-              </article>
-              <article class="organization-card">
-                <h3 class="organization-title">Accesos rápidos</h3>
-                <p class="organization-help">Ordena y activa/desactiva botones o tarjetas rápidas como WhatsApp, enlaces, categorías o archivos.</p>
-                <div id="organization-shortcuts-list" class="items-list"><div class="empty-state">Cargando accesos rápidos...</div></div>
               </article>
             </div>
           </section>
@@ -757,17 +757,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const featuredAlert = document.getElementById('featured-alert');
       const visualForm = document.getElementById('visual-form');
       const visualList = document.getElementById('visual-list');
-      const visualReadList = document.getElementById('visual-read-list');
       const visualAlert = document.getElementById('visual-alert');
-      const newVisualBtn = document.getElementById('new-visual-btn');
       const openVisualFormBtn = document.getElementById('open-visual-form-btn');
       const refreshBtn = document.getElementById('refresh-btn');
       const refreshOrgBtn = document.getElementById('refresh-org-btn');
       const organizationAlert = document.getElementById('organization-alert');
       const organizationFeaturedList = document.getElementById('organization-featured-list');
       const organizationPromosList = document.getElementById('organization-promos-list');
-      const organizationPromosReadList = document.getElementById('organization-promos-read-list');
-      const organizationShortcutsList = document.getElementById('organization-shortcuts-list');
       const visualId = document.getElementById('visual-id');
       const visualType = document.getElementById('visual-type');
       const visualTitle = document.getElementById('visual-title');
@@ -964,17 +960,19 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           .filter((item) => item.type === type)
           .sort((a, b) => (Number(a.sort_order || 0) - Number(b.sort_order || 0)) || String(a.title || '').localeCompare(String(b.title || '')));
       }
+      function getAllVisualItemsSorted() {
+        return [...visualItems]
+          .sort((a, b) => (Number(a.sort_order || 0) - Number(b.sort_order || 0)) || String(a.title || '').localeCompare(String(b.title || '')));
+      }
       function renderAdminReadPanels() {
         const featured = getFeaturedProductsSorted();
-        const promos = getVisualItemsSorted('promo_visual');
-        if (visualReadList) visualReadList.innerHTML = promos.length ? promos.map(readOnlyVisualRow).join('') : '';
-        if (organizationPromosReadList) organizationPromosReadList.innerHTML = promos.length ? promos.map(readOnlyVisualRow).join('') : '';
+        const visuals = getAllVisualItemsSorted();
         document.querySelectorAll('[data-featured-total]').forEach((node) => { node.textContent = `Total de destacados: ${featured.length}`; });
         document.querySelectorAll('[data-featured-summary-action]').forEach((button) => { button.textContent = featured.length > 0 ? 'Editar' : 'Agregar'; });
-        document.querySelectorAll('.js-admin-block-view[data-admin-block="visual"]').forEach((button) => button.classList.toggle('hidden', !promos.length));
-        document.querySelectorAll('.js-admin-block-view[data-admin-block="orgPromos"]').forEach((button) => button.classList.toggle('hidden', !promos.length));
-        if (!promos.length && adminBlockModes.visual === 'view') adminBlockModes.visual = 'closed';
-        if (!promos.length && adminBlockModes.orgPromos === 'view') adminBlockModes.orgPromos = 'closed';
+        document.querySelectorAll('[data-visual-total]').forEach((node) => { node.textContent = `Total de promos: ${visuals.length}`; });
+        document.querySelectorAll('[data-visual-summary-action]').forEach((button) => { button.textContent = visuals.length > 0 ? 'Editar' : 'Agregar'; });
+        if (adminBlockModes.visual === 'view') adminBlockModes.visual = 'closed';
+        if (adminBlockModes.orgPromos === 'view') adminBlockModes.orgPromos = 'closed';
       }
       function setAdminBlockMode(block, mode = 'closed') {
         adminBlockModes[block] = mode;
@@ -1023,14 +1021,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         `).join('');
       }
       function renderVisualList() {
-        if (!visualItems.length) {
+        const sortedVisuals = getAllVisualItemsSorted();
+        if (!sortedVisuals.length) {
           visualList.innerHTML = '<div class="empty-state">Todavía no hay promos visuales ni accesos rápidos.</div>';
           return;
         }
-        visualList.innerHTML = [...visualItems]
-          .sort((a, b) => (Number(a.sort_order || 0) - Number(b.sort_order || 0)) || String(a.title || '').localeCompare(String(b.title || '')))
-          .map((item) => {
+        visualList.innerHTML = sortedVisuals
+          .map((item, index) => {
             const typeLabel = item.type === 'promo_visual' ? 'Promo visual' : 'Acceso rápido';
+            const stateLabel = item.active !== false
+              ? `Visible ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`
+              : `Oculto ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`;
             const actionLabel = item.action_type ? `Acción: ${item.action_type}` : 'Sin acción';
             const attachment = visualAttachmentName(item);
             return `
@@ -1043,10 +1044,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                   </div>
                 </div>
                 <div class="item-actions">
-                  <span class="pill pill-type">${escapeHtml(typeLabel)}</span>
-                  <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${item.active !== false ? 'Visible' : 'Oculto'}</span>
-                  <button class="mini-btn js-visual-edit" type="button">Editar</button>
-                  <button class="mini-btn danger js-visual-delete" type="button">Borrar</button>
+                  <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
+                  <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === sortedVisuals.length - 1 ? 'disabled' : ''}>↓</button>
+                  <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${escapeHtml(stateLabel)}</span>
+                  <div class="visual-menu-wrap">
+                    <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                    <div class="visual-floating-menu" role="menu">
+                      <button class="js-visual-edit" type="button">Editar</button>
+                      <button class="${item.active !== false ? '' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
+                      <button class="danger js-visual-delete" type="button">Borrar</button>
+                    </div>
+                  </div>
                 </div>
               </article>
             `;
@@ -1077,6 +1085,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       function organizationVisualRow(item, index, total) {
         const typeLabel = item.type === 'promo_visual' ? 'Promo visual' : 'Acceso rápido';
+        const stateLabel = item.active !== false
+          ? `Visible ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`
+          : `Oculto ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`;
         return `
           <article class="item-row" data-org-visual-id="${item.id}">
             <div class="item-main">
@@ -1089,21 +1100,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             <div class="item-actions">
               <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
               <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === total - 1 ? 'disabled' : ''}>↓</button>
-              <button class="mini-btn ${item.active !== false ? 'warning' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
-              <button class="mini-btn js-visual-org-edit" type="button">Editar</button>
+              <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${escapeHtml(stateLabel)}</span>
+              <div class="visual-menu-wrap">
+                <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                <div class="visual-floating-menu" role="menu">
+                  <button class="js-visual-org-edit" type="button">Editar</button>
+                  <button class="${item.active !== false ? '' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
+                  <button class="danger js-visual-delete" type="button">Borrar</button>
+                </div>
+              </div>
             </div>
           </article>
         `;
       }
       function renderOrganizationVisualLists() {
-        const promos = getVisualItemsSorted('promo_visual');
-        const shortcuts = getVisualItemsSorted('acceso_rapido');
+        const promos = getAllVisualItemsSorted();
         organizationPromosList.innerHTML = promos.length
           ? promos.map((item, index) => organizationVisualRow(item, index, promos.length)).join('')
-          : '<div class="empty-state">Todavía no hay promos visuales para ordenar.</div>';
-        organizationShortcutsList.innerHTML = shortcuts.length
-          ? shortcuts.map((item, index) => organizationVisualRow(item, index, shortcuts.length)).join('')
-          : '<div class="empty-state">Todavía no hay accesos rápidos para ordenar.</div>';
+          : '<div class="empty-state">Todavía no hay promos visuales ni accesos rápidos para ordenar.</div>';
       }
       function renderOrganization() {
         renderOrganizationFeaturedList();
@@ -1182,10 +1196,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         showAlert(organizationAlert, 'Orden de destacados actualizado.', 'success');
         await loadData();
       }
-      async function swapVisualOrder(itemId, direction) {
+      async function swapVisualOrder(itemId, direction, alertTarget = organizationAlert) {
         const currentItem = visualItems.find((item) => item.id === itemId);
         if (!currentItem) return;
-        const sameTypeItems = getVisualItemsSorted(currentItem.type);
+        const sameTypeItems = getAllVisualItemsSorted();
         const currentIndex = sameTypeItems.findIndex((item) => item.id === itemId);
         const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
         if (currentIndex < 0 || targetIndex < 0 || targetIndex >= sameTypeItems.length) return;
@@ -1201,17 +1215,54 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           apiRequest(`/api/collections/store_visual_items/records/${current.id}`, { method: 'PATCH', body: currentData }),
           apiRequest(`/api/collections/store_visual_items/records/${target.id}`, { method: 'PATCH', body: targetData }),
         ]);
-        showAlert(organizationAlert, 'Orden visual actualizado.', 'success');
+        showAlert(alertTarget, 'Orden visual actualizado.', 'success');
         await loadData();
       }
-      async function toggleVisualActive(itemId) {
+      async function toggleVisualActive(itemId, alertTarget = organizationAlert) {
         const item = visualItems.find((entry) => entry.id === itemId);
         if (!item) return;
         const formData = new FormData();
         formData.append('active', item.active !== false ? 'false' : 'true');
         await apiRequest(`/api/collections/store_visual_items/records/${itemId}`, { method: 'PATCH', body: formData });
-        showAlert(organizationAlert, item.active !== false ? 'Elemento ocultado de la tienda pública.' : 'Elemento visible en la tienda pública.', 'success');
+        showAlert(alertTarget, item.active !== false ? 'Elemento ocultado de la tienda pública.' : 'Elemento visible en la tienda pública.', 'success');
         await loadData();
+      }
+      async function optimizeVisualImageFile(file) {
+        if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return file;
+        const source = await createImageBitmap(file);
+        const ratio = Math.min(1, 1200 / source.width, 675 / source.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(source.width * ratio));
+        canvas.height = Math.max(1, Math.round(source.height * ratio));
+        const context = canvas.getContext('2d');
+        context.drawImage(source, 0, 0, canvas.width, canvas.height);
+        source.close?.();
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+        if (!blob) return file;
+        const baseName = String(file.name || 'promo-visual').replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'promo-visual';
+        return new File([blob], `${baseName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+      }
+      function closeVisualMenus() {
+        document.querySelectorAll('.visual-menu-wrap.open').forEach((wrap) => {
+          wrap.classList.remove('open');
+          wrap.querySelector('.js-visual-menu')?.setAttribute('aria-expanded', 'false');
+          wrap.querySelector('.visual-floating-menu')?.classList.remove('drop-up');
+        });
+      }
+      function toggleVisualMenu(wrap) {
+        if (!wrap) return;
+        const willOpen = !wrap.classList.contains('open');
+        closeVisualMenus();
+        wrap.classList.toggle('open', willOpen);
+        wrap.querySelector('.js-visual-menu')?.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        const menu = wrap.querySelector('.visual-floating-menu');
+        if (willOpen && menu) {
+          menu.classList.remove('drop-up');
+          requestAnimationFrame(() => {
+            const rect = menu.getBoundingClientRect();
+            if (rect.bottom > window.innerHeight - 12) menu.classList.add('drop-up');
+          });
+        }
       }
       function resetVisualForm() {
         visualForm.reset();
@@ -1278,7 +1329,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         formData.append('active', visualActive.checked ? 'true' : 'false');
         const imageFile = visualImage.files?.[0];
         const attachmentFile = visualAttachment.files?.[0];
-        if (imageFile) formData.append('image', imageFile);
+        if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
         if (attachmentFile) formData.append('attachment', attachmentFile);
         const id = visualId.value;
         if (id) {
@@ -1334,19 +1385,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       });
       refreshBtn?.addEventListener('click', () => loadData());
       refreshOrgBtn?.addEventListener('click', () => loadData());
-      newVisualBtn?.addEventListener('click', () => openVisualForm());
       openVisualFormBtn?.addEventListener('click', () => openVisualForm());
       visualCancelBtn?.addEventListener('click', closeVisualForm);
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'edit'));
-      });
-      document.querySelectorAll('.js-admin-block-view').forEach((button) => {
-        button.addEventListener('click', () => {
-          renderAdminReadPanels();
-          setAdminBlockMode(button.dataset.adminBlock, 'view');
-        });
       });
       document.querySelectorAll('.js-admin-block-close').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'closed'));
@@ -1366,11 +1410,30 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const row = event.target.closest('[data-visual-id]');
         if (!row) return;
         const id = row.dataset.visualId;
+        const menuBtn = event.target.closest('.js-visual-menu');
+        if (menuBtn) {
+          toggleVisualMenu(menuBtn.closest('.visual-menu-wrap'));
+          return;
+        }
+        const moveBtn = event.target.closest('.js-visual-move');
+        if (moveBtn) {
+          closeVisualMenus();
+          swapVisualOrder(id, moveBtn.dataset.direction || 'up', visualAlert).catch((error) => showAlert(visualAlert, error.message || 'No se pudo ordenar elemento visual.', 'error'));
+          return;
+        }
         if (event.target.closest('.js-visual-edit')) {
+          closeVisualMenus();
           const item = visualItems.find((entry) => entry.id === id);
           openVisualForm(item);
+          return;
+        }
+        if (event.target.closest('.js-visual-toggle')) {
+          closeVisualMenus();
+          toggleVisualActive(id, visualAlert).catch((error) => showAlert(visualAlert, error.message || 'No se pudo cambiar visibilidad.', 'error'));
+          return;
         }
         if (event.target.closest('.js-visual-delete')) {
+          closeVisualMenus();
           deleteVisualItem(id).catch((error) => showAlert(visualAlert, error.message || 'No se pudo borrar.', 'error'));
         }
       });
@@ -1392,25 +1455,41 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           unfeatureProduct(id).catch((error) => showAlert(organizationAlert, error.message || 'No se pudo quitar destacado.', 'error'));
         }
       });
-      document.querySelectorAll('#organization-promos-list, #organization-shortcuts-list').forEach((list) => {
+      document.querySelectorAll('#organization-promos-list').forEach((list) => {
         list.addEventListener('click', (event) => {
           const row = event.target.closest('[data-org-visual-id]');
           if (!row) return;
           const id = row.dataset.orgVisualId;
+          const menuBtn = event.target.closest('.js-visual-menu');
+          if (menuBtn) {
+            toggleVisualMenu(menuBtn.closest('.visual-menu-wrap'));
+            return;
+          }
           const moveBtn = event.target.closest('.js-visual-move');
           if (moveBtn) {
+            closeVisualMenus();
             swapVisualOrder(id, moveBtn.dataset.direction || 'up').catch((error) => showAlert(organizationAlert, error.message || 'No se pudo ordenar elemento visual.', 'error'));
             return;
           }
           if (event.target.closest('.js-visual-toggle')) {
+            closeVisualMenus();
             toggleVisualActive(id).catch((error) => showAlert(organizationAlert, error.message || 'No se pudo cambiar visibilidad.', 'error'));
             return;
           }
+          if (event.target.closest('.js-visual-delete')) {
+            closeVisualMenus();
+            deleteVisualItem(id).catch((error) => showAlert(organizationAlert, error.message || 'No se pudo borrar.', 'error'));
+            return;
+          }
           if (event.target.closest('.js-visual-org-edit')) {
+            closeVisualMenus();
             const item = visualItems.find((entry) => entry.id === id);
             openVisualForm(item);
           }
         });
+      });
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('.visual-menu-wrap')) closeVisualMenus();
       });
 
 

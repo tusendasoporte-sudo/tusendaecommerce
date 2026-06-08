@@ -134,12 +134,12 @@ function getProductOfferView(product: any) {
     .section-subtitle { margin: 3px 0 0; color: #64748b; font-size: 13px; font-weight: 800; }
     .featured-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(165px, 220px); gap: 14px; overflow-x: auto; padding: 2px 2px 14px; scroll-snap-type: x mandatory; }
     .featured-strip > a { scroll-snap-align: start; }
-    .public-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
-    .public-category-link { display: grid; gap: 8px; color: #111827; text-decoration: none; }
-    .public-category-title-outside { margin: 0; font-size: clamp(16px, 3vw, 22px); font-weight: 1000; letter-spacing: -.04em; line-height: 1.05; color: #111827; padding: 0 4px; }
-    .public-category-meta { margin: 0; display: flex; flex-wrap: wrap; gap: 7px; padding: 0 4px; }
+    .public-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 16px; }
+    .public-category-link { display: grid; gap: 10px; color: #111827; text-decoration: none; align-content: start; }
+    .public-category-title-outside { margin: 0; font-size: clamp(18px, 3.3vw, 24px); font-weight: 1000; letter-spacing: -.04em; line-height: 1.06; color: #111827; padding: 0 4px; }
+    .public-category-meta { margin: 1px 0 0; display: flex; flex-wrap: wrap; gap: 7px; padding: 0 4px; }
     .public-category-pill { display: inline-flex; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 9px; color: #334155; font-size: 11px; font-weight: 950; }
-    .public-category-card { position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 0; border-radius: 30px; overflow: hidden; background: #111827; box-shadow: 0 20px 50px rgba(15,23,42,.15); border: 1px solid rgba(226,232,240,.9); }
+    .public-category-card { position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 0; border-radius: 30px; overflow: hidden; background: #111827; box-shadow: 0 20px 50px rgba(15,23,42,.15); border: 1px solid rgba(226,232,240,.9); }
     .public-category-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: .98; transition: transform .35s ease; }
     .public-category-link:hover .public-category-card img { transform: scale(1.04); }
     .public-category-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at top left, #334155, #111827); color: rgba(255,255,255,.7); font-size: 42px; font-weight: 1000; }
@@ -172,7 +172,7 @@ function getProductOfferView(product: any) {
     .gift-info-alert { display:none; margin:0 0 12px; border-radius:18px; padding:12px 14px; font-size:13px; font-weight:900; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
 
     @media (min-width: 768px) {
-      .public-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+      .public-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 22px; }
       .public-category-card { min-height: 0; }
       .public-gift-banner { min-height: 260px; }
       .homepage-products-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
@@ -184,6 +184,7 @@ function getProductOfferView(product: any) {
       .public-store-head { margin-bottom: 12px; }
       .public-store-name { font-size: 17px; max-width: 52vw; }
       .public-hero { border-radius: 26px; }
+      .public-category-grid { gap: 28px 14px; }
       .public-category-card { min-height: 0; border-radius: 24px; }
       .public-gift-banner { min-height: 205px; aspect-ratio: 16 / 9; border-radius: 26px; }
       .public-gift-text { max-width: none; }
@@ -346,13 +347,13 @@ function getProductOfferView(product: any) {
           return (
             <a href={`/categoria/${category.slug}`} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
               <h3 class="public-category-title-outside">{category.name}</h3>
-              <div class="public-category-meta">
-                <span class="public-category-pill">{categoryProducts.length} productos</span>
-                {categorySubcategories.length > 0 && <span class="public-category-pill">{categorySubcategories.length} subcategorías</span>}
-              </div>
               <div class="public-category-card">
                 {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="public-category-fallback">PZ</div>}
                 <span class="public-category-go">›</span>
+              </div>
+              <div class="public-category-meta">
+                <span class="public-category-pill">{categoryProducts.length} productos</span>
+                <span class="public-category-pill">{categorySubcategories.length} subcategorías</span>
               </div>
             </a>
           );

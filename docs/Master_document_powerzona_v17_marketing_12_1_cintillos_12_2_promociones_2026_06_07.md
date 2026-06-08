@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
 **Fecha de actualización:** 2026-06-07  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional cerrada como base funcional: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas, `pb_data` local copiado de forma segura a PocketBase staging, frontend conectado por `PUBLIC_POCKETBASE_URL` en HTTPS, imágenes cargando correctamente y flujo de trabajo actualizado. **Próximo bloque recomendado: trabajar el punto 12 — Marketing, Promociones y Cupones.** Bloque futuro documentado: plataforma multitienda + bazar principal.
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional cerrada como base funcional: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas, `pb_data` local copiado de forma segura a PocketBase staging, frontend conectado por `PUBLIC_POCKETBASE_URL` en HTTPS, imágenes cargando correctamente y flujo de trabajo actualizado. **Marketing 12.1 — Cintillo promocional y base visual de promociones queda cerrado como base funcional. Próximo bloque recomendado: 12.2 Promociones automáticas.** Bloque futuro documentado: plataforma multitienda + bazar principal.
 
 ---
 
@@ -146,7 +146,7 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🔜 Próximo bloque recomendado: Marketing, Promociones y Cupones.
+🔜 Próximo bloque recomendado: 12.2 Promociones automáticas.
 ```
 
 Estado del bloque anterior:
@@ -162,12 +162,13 @@ Estado del bloque anterior:
 ✅ Portada pública ajustada con categorías más visuales y destacados compactos.
 ✅ Monedas tienda pública cerrada como base funcional.
 ✅ Carrito, checkout, WhatsApp y panel admin actualizados para moneda visual y cobro mixto.
+✅ Marketing 12.1 cerrado como base funcional: cintillo promocional, ofertas rápidas, temas de color, movimientos, administración compacta, visibilidad solo en portada y ajustes visuales relacionados.
 ```
 
 Objetivo inmediato recomendado:
 
 ```txt
-Iniciar el punto 12: Marketing, Promociones y Cupones, comenzando por una base segura que no rompa carrito, checkout, moneda, WhatsApp ni órdenes.
+Iniciar el punto 12.2: Promociones automáticas, comenzando por una base segura que no rompa carrito, checkout, moneda, WhatsApp ni órdenes.
 ```
 
 Checklist de moneda cerrado en pruebas:
@@ -13483,3 +13484,955 @@ Resumen:
 - Producción debe tener su propio PocketBase.
 - El dominio oficial debe apuntar a producción.
 ```
+
+---
+
+### 21.49. Bloque cerrado: Marketing 12.1 — Cintillo promocional, base visual de promociones y limpieza admin
+
+Esta sección se agrega como actualización acumulativa después de cerrar el primer tramo del punto 12.
+
+Estado:
+
+```txt
+✅ CERRADO COMO BASE FUNCIONAL
+```
+
+Bloque trabajado:
+
+```txt
+12.1 Marketing — Cintillo promocional y estructura visual/admin de promociones
+```
+
+Fecha de cierre documental:
+
+```txt
+2026-06-07
+```
+
+Marca de versión documental:
+
+```txt
+PZ-MASTER-MARKETING-12-1-CINTILLO-PROMOS-V17-20260607
+```
+
+---
+
+#### 21.49.1. Contexto de infraestructura antes del bloque
+
+El bloque se trabajó después de dejar funcionando la base profesional de despliegue:
+
+```txt
+- GitHub privado conectado.
+- Rama dev para staging.
+- Rama main reservada para producción estable.
+- Coolify staging funcionando.
+- PocketBase staging funcionando.
+- pb_data real copiado al PocketBase del servidor.
+- Frontend y PocketBase conectados por HTTPS.
+- Fotos cargando correctamente en staging.
+```
+
+Regla vigente:
+
+```txt
+Staging es para probar.
+Producción será para clientes.
+```
+
+---
+
+#### 21.49.2. Cintillo promocional base
+
+Se implementó la base del cintillo promocional dentro de Marketing.
+
+Objetivo:
+
+```txt
+Mostrar promociones rápidas en la portada pública sin entrar todavía en cupones ni descuentos automáticos.
+```
+
+Reglas cerradas:
+
+```txt
+- El cintillo se administra desde /admin/promos.
+- El cintillo puede activarse o desactivarse.
+- Si está desactivado, no debe aparecer en la tienda pública.
+- Si está desactivado, en el admin solo debe mostrarse el encabezado, descripción y switch de Activar cintillo.
+- Al activar, se despliega el panel completo sin borrar datos anteriores.
+- El cintillo público solo se muestra en la página principal.
+- No debe mostrarse en búsqueda, categoría, subcategoría, producto ni regalos.
+```
+
+---
+
+#### 21.49.3. Ofertas rápidas dentro del cintillo
+
+El cintillo evolucionó de un mensaje simple a una barra de ofertas rápidas.
+
+Estructura aprobada:
+
+```txt
+Hasta 3 ofertas dentro del mismo cintillo.
+Cada oferta tiene:
+- Activa / inactiva.
+- Texto de la oferta.
+- Texto del botón.
+- Enlace.
+```
+
+Ejemplos de uso:
+
+```txt
+🔥 Oferta de Creatinas esta semana  Ver
+🎁 Regalo gratis desde 50 USD       Ver
+🚚 Descuento en envío               Ver
+```
+
+Reglas:
+
+```txt
+- Los enlaces internos como /categoria/slug, /producto/slug y /regalos deben funcionar.
+- Los enlaces externos https://... deben funcionar.
+- Si una oferta no tiene texto, no debe mostrarse.
+- Si no hay ofertas activas, el cintillo no se renderiza.
+```
+
+---
+
+#### 21.49.4. Color y movimiento del cintillo
+
+Se agregó configuración visual del cintillo.
+
+Opciones de tema/color recomendadas:
+
+```txt
+black
+gold
+green
+red
+blue
+```
+
+Campo conceptual/usado:
+
+```txt
+marketing_bar_theme
+```
+
+También se agregó selector de movimiento:
+
+```txt
+marketing_bar_motion
+```
+
+Opciones:
+
+```txt
+carousel → Carrusel por oferta.
+marquee  → Cinta continua.
+```
+
+Comportamiento definido:
+
+```txt
+Carrusel por oferta:
+- En móvil muestra una oferta por vez.
+- Cambia automáticamente en bucle.
+- En PC puede mantenerse más estático si el diseño lo requiere.
+
+Cinta continua:
+- Mueve las ofertas de derecha a izquierda.
+- Funciona como una barra tipo marquee premium.
+- Debe ser suave, legible y sin salto brusco.
+- Si solo hay una oferta activa, no debe animar innecesariamente.
+```
+
+---
+
+#### 21.49.5. Admin del cintillo simplificado
+
+Se limpió el panel de administración del cintillo.
+
+Regla visual final:
+
+```txt
+Cuando el cintillo está desactivado:
+Solo mostrar:
+- Cintillo promocional
+- Configura un mensaje corto para mostrarlo en la tienda pública.
+- Activar cintillo
+```
+
+Cuando está activo:
+
+```txt
+Mostrar configuración completa:
+- Color/tema.
+- Movimiento.
+- Ofertas del cintillo.
+- Agregar oferta.
+- Editar ofertas.
+```
+
+Las ofertas creadas se muestran en lista compacta.
+
+Cada oferta debe mostrar:
+
+```txt
+- Nombre/texto de la oferta.
+- Casilla o switch activo/inactivo.
+- Menú de tres puntos.
+```
+
+Menú de tres puntos:
+
+```txt
+- Editar.
+- Activar / Desactivar.
+- Borrar.
+```
+
+Regla visual importante:
+
+```txt
+Los menús de tres puntos no deben quedar cortados dentro de tarjetas ni contenedores con overflow.
+```
+
+---
+
+#### 21.49.6. Selector flotante de moneda
+
+Se ajustó el selector flotante de moneda.
+
+Regla final:
+
+```txt
+Si el carrito está vacío, el selector flotante inferior derecho de moneda no debe mostrarse.
+```
+
+Pero:
+
+```txt
+La moneda debe seguir disponible desde el menú principal de tres puntos.
+```
+
+Si el carrito tiene productos:
+
+```txt
+El selector flotante puede mostrarse como apoyo visual para el cliente.
+```
+
+---
+
+#### 21.49.7. Productos destacados — resumen admin
+
+Se mejoró el bloque de Productos destacados en admin.
+
+Reglas:
+
+```txt
+- El bloque debe aparecer cerrado por defecto.
+- Ya no debe mostrar botón Ver.
+- Debe mostrar Total de destacados: #.
+- Si el total es 0, el botón principal debe decir Agregar.
+- Si el total es mayor que 0, el botón principal debe decir Editar.
+```
+
+Al tocar Agregar o Editar:
+
+```txt
+- Se abre el panel completo actual de destacados.
+- Si no hay destacados, debe aparecer botón Agregar producto a destacado.
+- Si hay destacados, se mantiene el flujo actual para editar, ordenar o quitar destacados.
+```
+
+---
+
+#### 21.49.8. Buscador para selector de productos destacados
+
+Se agregó buscador al selector usado para agregar productos destacados.
+
+Motivo:
+
+```txt
+Cuando existan muchos productos, una lista completa sería incómoda e inmensa.
+```
+
+Reglas:
+
+```txt
+- Buscar por nombre.
+- Buscar por referencia interna si existe.
+- Buscar por categoría o subcategoría si los datos están disponibles.
+- Si el campo está vacío, evitar mostrar una lista inmensa.
+- Mostrar primeros resultados o pedir al usuario que escriba.
+- Evitar duplicar productos que ya están destacados.
+```
+
+---
+
+#### 21.49.9. Promo visual / Acceso rápido — reorganización admin
+
+Se mejoró el panel relacionado con Promo visual y Acceso rápido.
+
+Cambio principal:
+
+```txt
+Se quitó el botón superior + Nueva promo/acceso.
+```
+
+Regla:
+
+```txt
+La creación debe hacerse desde dentro del bloque correspondiente, no desde el encabezado general.
+```
+
+Bloque cerrado/resumido:
+
+```txt
+Promo visual / Acceso rápido
+Total de promos: #
+```
+
+Total:
+
+```txt
+promo_visual + acceso_rapido
+```
+
+Botón principal:
+
+```txt
+Si total = 0 → Agregar.
+Si total > 0 → Editar.
+```
+
+Dentro del panel:
+
+```txt
+- Mostrar las promos/accesos existentes en lista.
+- Mostrar botón Crear dentro del panel.
+- El formulario completo de creación solo abre al tocar Crear.
+- Editar una promo existente abre el formulario actual con sus datos.
+```
+
+Cada elemento muestra:
+
+```txt
+- Título.
+- Estado visible/oculto según tipo.
+- Menú de tres puntos.
+- Flechas arriba/abajo para ordenar.
+```
+
+Estados visibles:
+
+```txt
+Visible promo visual
+Oculta promo visual
+Visible acceso rápido
+Oculto acceso rápido
+```
+
+Menú de tres puntos:
+
+```txt
+- Editar.
+- Ocultar / Mostrar.
+- Borrar.
+```
+
+Regla de orden:
+
+```txt
+Se quitó el botón separado Orden visual.
+El orden se maneja directamente con flechas arriba/abajo.
+```
+
+---
+
+#### 21.49.10. Optimización WebP para Promo visual / Acceso rápido
+
+Se agregó o dejó documentada la regla de optimización de imágenes para Promo visual / Acceso rápido.
+
+Regla:
+
+```txt
+Las nuevas imágenes de promo visual/acceso rápido deben pasar por el mismo proceso de optimización del proyecto.
+```
+
+Proceso esperado:
+
+```txt
+1. Aceptar jpg, jpeg, png y webp.
+2. Redimensionar.
+3. Convertir a WebP.
+4. Comprimir manteniendo buena calidad.
+5. Guardar la imagen optimizada.
+```
+
+Recomendación:
+
+```txt
+Formato: 16:9 horizontal.
+Tamaño máximo sugerido: 1200 x 675 px.
+Calidad WebP aproximada: 0.82.
+```
+
+Compatibilidad:
+
+```txt
+Las imágenes antiguas deben seguir cargando.
+La optimización aplica a imágenes nuevas o cuando se cambie la imagen al editar.
+```
+
+---
+
+#### 21.49.11. Ayuda visual debajo de campos de imagen admin
+
+Se agregó ayuda debajo de campos de foto/imagen del panel admin.
+
+Objetivo:
+
+```txt
+Guiar al administrador sobre el formato recomendado antes de subir imágenes.
+```
+
+Textos recomendados por tipo:
+
+```txt
+Banner principal:
+Recomendado: imagen horizontal 16:9, mínimo 1600 x 900 px.
+
+Categorías:
+Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.
+
+Subcategorías:
+Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.
+
+Promo visual:
+Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.
+
+Regalos:
+Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.
+
+Productos:
+Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.
+
+Variaciones de producto:
+Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.
+
+Logo/Icono:
+Recomendado: imagen cuadrada, mínimo 512 x 512 px.
+```
+
+Regla:
+
+```txt
+Estos textos son ayuda visual discreta.
+No deben cambiar la lógica de subida ni romper la optimización existente.
+```
+
+---
+
+#### 21.49.12. Ajustes visuales de portada relacionados
+
+Se realizaron ajustes visuales en la portada pública.
+
+##### Botón Ver regalos
+
+Regla final:
+
+```txt
+El botón Ver regalos debe quedar a la izquierda y debajo de la descripción de Regalos disponibles.
+```
+
+No debe quedar:
+
+```txt
+A la derecha, alineado con el título o descripción.
+```
+
+Orden visual deseado:
+
+```txt
+Especial para tu compra
+Regalos disponibles
+Descripción
+[Ver regalos]
+Chips/resumen
+Imagen/banner
+```
+
+##### Categorías en portada
+
+Se ajustó la sección Categorías en la página principal.
+
+Reglas:
+
+```txt
+- Nombre de la categoría arriba de la imagen.
+- Nombre un poco más grande y con más presencia.
+- Imagen de categoría en el medio.
+- Datos debajo de la imagen.
+- Datos: cantidad de productos y cantidad de subcategorías.
+- Más separación vertical entre filas.
+- Evitar que los datos de una categoría se mezclen con el nombre de la siguiente.
+- Fotos de categoría con un poco más de altura.
+- Mantener object-fit: cover.
+- No deformar imágenes.
+- Mantener responsive en PC y móvil.
+```
+
+Regla importante:
+
+```txt
+Mantener la automatización actual de fotos de categorías.
+No cambiar cómo se suben, optimizan, convierten a WebP ni guardan.
+```
+
+---
+
+#### 21.49.13. Reglas de trabajo con Codex agregadas
+
+Se documentó una regla práctica para trabajar con Codex.
+
+Antes de entregar un prompt para Codex, indicar separado:
+
+```txt
+Terminales abiertas
+```
+
+o:
+
+```txt
+Cerrar terminales
+```
+
+Reglas:
+
+```txt
+Terminales abiertas:
+- Cambios de frontend/admin visual.
+- Astro/CSS/JS sin migraciones.
+- Se puede dejar PocketBase y npm run dev corriendo.
+
+Cerrar terminales:
+- Cambios de migraciones.
+- Cambios que requieren reiniciar PocketBase.
+- Cambios de backend/estructura de datos.
+```
+
+Regla visual de comunicación:
+
+```txt
+No poner la indicación de terminales y el prompt/código de Codex en la misma tarjeta.
+Primero indicar Terminales abiertas o Cerrar terminales.
+Después, en un bloque separado, entregar el prompt para Codex.
+```
+
+---
+
+#### 21.49.14. Archivos relacionados con el bloque
+
+Archivos probablemente trabajados o relacionados durante este tramo:
+
+```txt
+frontend-powerzona/src/pages/admin/promos.astro
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/pages/admin/organization.astro
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/buscar.astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/regalos/index.astro
+frontend-powerzona/src/components/PromoBar.astro
+frontend-powerzona/src/components/Cart.astro
+backend-powerzona/pb_migrations/*settings_marketing_bar*.js
+backend-powerzona/pb_migrations/*marketing_bar*.js
+```
+
+Nota:
+
+```txt
+La lista exacta puede variar según los cambios aplicados por Codex.
+El source actualizado del usuario es la referencia final.
+```
+
+---
+
+#### 21.49.15. Estado final de 12.1
+
+Estado:
+
+```txt
+✅ CERRADO COMO BASE FUNCIONAL
+```
+
+Resumen:
+
+```txt
+- Cintillo promocional creado y administrable.
+- Ofertas rápidas de hasta 3 items.
+- Color/tema configurable.
+- Movimiento configurable: carrusel o cinta continua.
+- Cintillo visible solo en portada.
+- Admin del cintillo limpio cuando está desactivado.
+- Promo visual / Acceso rápido reorganizado.
+- Botón + Nueva promo/acceso eliminado.
+- Crear promo movido dentro del panel.
+- Orden con flechas.
+- Menús de tres puntos para editar/ocultar/borrar.
+- Imágenes de promo visual optimizadas a WebP.
+- Ayudas de formato agregadas a campos de imagen.
+- Productos destacados resumidos con total y botón Agregar/Editar.
+- Buscador agregado al selector de destacados.
+- Ajustes visuales de portada aplicados.
+```
+
+---
+
+### 21.50. Próximo bloque definido: 12.2 Promociones automáticas
+
+Estado:
+
+```txt
+🔜 PRÓXIMO BLOQUE RECOMENDADO
+```
+
+Nombre recomendado del próximo chat:
+
+```txt
+PowerZona 12.2 Promociones automáticas - Source actualizado
+```
+
+Objetivo general:
+
+```txt
+Crear la base segura para promociones automáticas sin tocar todavía cupones manuales.
+```
+
+---
+
+#### 21.50.1. Qué se debe trabajar primero en 12.2
+
+El primer paso no debe ser aplicar descuentos reales al checkout de inmediato.
+
+Orden recomendado:
+
+```txt
+1. Diseñar estructura de promociones automáticas.
+2. Crear colección o modelo seguro para reglas.
+3. Crear admin visual para activar/desactivar reglas.
+4. Crear vista de prueba/simulación interna.
+5. Después conectar lectura en carrito.
+6. Después conectar cálculo visual en checkout.
+7. Finalmente guardar descuento en orden y WhatsApp.
+```
+
+Motivo:
+
+```txt
+Las promociones automáticas afectan subtotal, total, moneda visual, productos only_usd, envío, WhatsApp, order_items, orders y métricas futuras.
+```
+
+---
+
+#### 21.50.2. Tipos iniciales recomendados
+
+Tipos recomendados para empezar:
+
+```txt
+percentage_discount     → descuento porcentual.
+fixed_discount          → descuento fijo.
+buy_x_get_y             → compra X y recibe Y.
+quantity_discount       → descuento por cantidad.
+category_discount       → descuento por categoría.
+product_discount        → descuento por producto específico.
+```
+
+Pero el primer MVP debe ser pequeño.
+
+MVP recomendado:
+
+```txt
+1. Descuento porcentual sobre carrito.
+2. Descuento fijo sobre carrito.
+3. Descuento por producto específico.
+4. Descuento por categoría.
+```
+
+Dejar para después:
+
+```txt
+Compra X y paga Y.
+Reglas complejas por combos.
+Promos acumulables.
+Promos por cliente.
+```
+
+---
+
+#### 21.50.3. Reglas críticas antes de implementar descuentos reales
+
+Antes de aplicar promociones automáticas al carrito o checkout, definir:
+
+```txt
+- Si las promociones son acumulables o no.
+- Si una promo automática puede convivir con cupón manual futuro.
+- Qué promo gana si hay varias aplicables.
+- Si aplica a productos only_usd.
+- Si aplica a productos de regalo.
+- Si aplica al envío o solo a productos.
+- Si el mínimo se calcula en USD.
+- Si la promo se guarda en la orden.
+- Cómo aparece en WhatsApp.
+```
+
+Recomendación inicial:
+
+```txt
+- No acumulables.
+- Aplicar solo la mejor promoción válida.
+- Calcular todo internamente en USD.
+- No aplicar a regalos.
+- No aplicar al envío.
+- Respetar productos only_usd y cobro mixto.
+- Guardar resumen del descuento en orders.
+```
+
+---
+
+#### 21.50.4. Colección recomendada para promociones automáticas
+
+Colección recomendada:
+
+```txt
+automatic_promotions
+```
+
+Campos sugeridos:
+
+```txt
+name                    → text
+description             → text/editor
+active                  → bool
+promotion_type           → select
+discount_type            → select
+discount_value           → number
+scope                    → select
+product                 → relation opcional → products
+category                → relation opcional → categories
+subcategory             → relation opcional → subcategories
+min_order_usd            → number
+min_items                → number
+start_date               → date opcional
+end_date                 → date opcional
+priority                 → number
+stackable                → bool
+public_label             → text
+created                 → autodate
+updated                 → autodate
+```
+
+Valores sugeridos:
+
+```txt
+promotion_type:
+- cart_total
+- specific_product
+- specific_category
+- specific_subcategory
+
+discount_type:
+- percentage
+- fixed_amount
+
+scope:
+- cart_total
+- specific_product
+- specific_category
+- specific_subcategory
+```
+
+Regla:
+
+```txt
+No crear campos innecesarios para compra X paga Y en el primer paso si se decide iniciar con MVP simple.
+```
+
+---
+
+#### 21.50.5. Campos futuros en orders para descuentos automáticos
+
+Más adelante, cuando se conecte a checkout, se pueden agregar campos a `orders`:
+
+```txt
+automatic_promotion_applied   → bool
+automatic_promotion_id        → relation opcional → automatic_promotions
+automatic_promotion_name      → text
+automatic_discount_usd        → number
+automatic_discount_label      → text
+subtotal_before_discount_usd  → number
+subtotal_after_discount_usd   → number
+```
+
+Regla:
+
+```txt
+No agregar estos campos hasta que se conecte el cálculo real en checkout.
+Primero crear admin y simulación.
+```
+
+---
+
+#### 21.50.6. Admin recomendado para promociones automáticas
+
+En `/admin/promos`, crear sección:
+
+```txt
+Promociones automáticas
+```
+
+Estado inicial cerrado/resumido:
+
+```txt
+Promociones automáticas
+Total de promociones: #
+[Agregar] si total = 0
+[Editar] si total > 0
+```
+
+Dentro del panel:
+
+```txt
+- Botón Crear promoción.
+- Lista de promociones existentes.
+- Estado Activa/Oculta.
+- Tipo.
+- Alcance.
+- Prioridad.
+- Fecha inicio/fin si aplica.
+- Menú de tres puntos: Editar, Activar/Ocultar, Borrar.
+```
+
+El formulario debe abrir solo al tocar Crear o Editar.
+
+---
+
+#### 21.50.7. Simulador recomendado antes de conectar checkout
+
+Antes de tocar carrito/checkout, crear un simulador interno en admin.
+
+Objetivo:
+
+```txt
+Probar si una promoción aplicaría sin afectar pedidos reales.
+```
+
+Simulador:
+
+```txt
+- Seleccionar productos de prueba.
+- Cantidades.
+- Moneda visual opcional.
+- Ver subtotal.
+- Ver promoción aplicable.
+- Ver descuento estimado.
+- Ver total final estimado.
+```
+
+Regla:
+
+```txt
+El simulador no crea órdenes.
+El simulador no modifica carrito real.
+El simulador no descuenta inventario.
+```
+
+---
+
+#### 21.50.8. Integración futura con carrito y checkout
+
+Después de validar admin y simulador:
+
+```txt
+1. Leer promociones activas.
+2. Evaluar promociones contra el carrito.
+3. Seleccionar mejor promoción válida.
+4. Mostrar descuento visual en carrito/checkout.
+5. Recalcular total final.
+6. Guardar descuento en order.
+7. Incluir descuento en WhatsApp.
+8. Mostrar descuento en admin de órdenes.
+```
+
+Reglas:
+
+```txt
+- El cálculo base debe ser USD.
+- La moneda visual solo convierte lo mostrado.
+- El descuento nunca puede dejar subtotal negativo.
+- En pedidos mixtos, separar correctamente productos convertibles y only_usd.
+```
+
+---
+
+#### 21.50.9. Riesgos a cuidar en 12.2
+
+No romper:
+
+```txt
+- Carrito.
+- Checkout.
+- WhatsApp.
+- Moneda visual.
+- Productos only_usd.
+- Envío separado.
+- Regalos.
+- Inventario seguro.
+- order_items históricos.
+- Panel admin de órdenes.
+```
+
+Especial cuidado:
+
+```txt
+No descontar dos veces.
+No mezclar envío con subtotal de productos.
+No aplicar descuentos a regalos.
+No aplicar descuento a productos que no califican.
+No cambiar precio real del producto en catálogo.
+No guardar descuentos sin recalcular desde datos reales.
+```
+
+---
+
+#### 21.50.10. Mensaje recomendado para abrir el próximo chat
+
+Mensaje sugerido:
+
+```txt
+Continuamos PowerZona desde 12.2 Promociones automáticas. Source actualizado. Ya quedó cerrado 12.1 Cintillo promocional: ofertas rápidas, colores, movimiento, admin compacto, promo visual/acceso rápido reorganizados, imágenes WebP y ajustes visuales de portada. Quiero empezar por una base segura de promociones automáticas, primero estructura admin y simulador, antes de tocar carrito/checkout.
+```
+
+---
+
+#### 21.50.11. Estado final antes del nuevo chat
+
+Estado:
+
+```txt
+✅ 12.1 Cintillo promocional y base visual de Marketing cerrado.
+🔜 12.2 Promociones automáticas como próximo bloque.
+```
+
+Regla de trabajo:
+
+```txt
+Abrir conversación nueva con source actualizado.
+No empezar cupones manuales todavía.
+Primero promociones automáticas.
+```
+

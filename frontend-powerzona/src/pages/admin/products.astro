@@ -805,6 +805,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                           <div class="field">
                             <label for="quick-category-image">Foto opcional</label>
                             <input id="quick-category-image" type="file" accept="image/*" />
+                            <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                           </div>
                         </div>
                         <div id="quick-category-alert" class="alert alert-info hidden"></div>
@@ -836,6 +837,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                           <div class="field">
                             <label for="quick-subcategory-image">Foto opcional</label>
                             <input id="quick-subcategory-image" type="file" accept="image/*" />
+                            <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                           </div>
                         </div>
                         <p class="form-help">Se creará dentro de la categoría seleccionada.</p>
@@ -943,7 +945,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                   </div>
                   <div class="field full">
                     <label>Fotos del producto</label>
-                    <p class="form-help">Usa hasta 4 espacios. La foto del primer espacio es la portada. Las imágenes se ajustan automáticamente para verse completas y pesar menos.</p>
+                    <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px. Usa hasta 4 espacios; la primera foto es la portada.</p>
                     <div id="product-image-slots" class="product-image-slots"></div>
                   </div>
                   <div class="field full">
@@ -1013,6 +1015,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                       <div class="field">
                         <label for="variation-image">Foto de la variación</label>
                         <input id="variation-image" type="file" accept="image/*" />
+                        <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
                         <div id="variation-current-image" class="variation-current-image hidden"></div>
                       </div>
                       <div class="field full">
@@ -1549,6 +1552,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             <div class="product-image-slot ${isCover ? 'is-cover' : ''}" data-slot="${index}">
               <div class="product-image-preview">${hasImage ? `<img src="${preview}" alt="${label}" />` : '＋'}</div>
               <div class="product-image-label"><span>${label}</span>${isCover ? '<span class="product-image-badge">Portada</span>' : ''}</div>
+              <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
               <div class="product-image-actions">
                 <label class="product-image-action">${hasImage ? 'Cambiar' : 'Subir'}<input type="file" accept="image/*" data-image-input="${index}" /></label>
                 ${hasImage ? `<button type="button" class="product-image-action danger" data-image-remove="${index}">Borrar</button>` : ''}

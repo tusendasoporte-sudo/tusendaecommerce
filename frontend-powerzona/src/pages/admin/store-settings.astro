@@ -467,8 +467,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               <div class="field"><label for="settings-store-name">Nombre público de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
               <div class="field"><label for="settings-order-prefix">Prefijo de órdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
               <div class="field"><label for="settings-whatsapp-number">WhatsApp principal</label><input id="settings-whatsapp-number" type="text" placeholder="Ej: +53 5 000 0000" required /></div>
-              <div class="field"><label for="settings-logo-image">Icono o logo del negocio</label><input id="settings-logo-image" type="file" accept="image/*" /><p id="settings-current-logo" class="settings-current-file"></p></div>
-              <div class="field"><label for="settings-cover-image">Foto de portada / banner</label><input id="settings-cover-image" type="file" accept="image/*" /><p class="settings-current-file">La portada se optimiza automáticamente con calidad alta para cargar rápido sin perder brillo.</p><p id="settings-current-cover" class="settings-current-file"></p></div>
+              <div class="field"><label for="settings-logo-image">Icono o logo del negocio</label><input id="settings-logo-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen cuadrada, mínimo 512 x 512 px.</p><p id="settings-current-logo" class="settings-current-file"></p></div>
+              <div class="field"><label for="settings-cover-image">Foto de portada / banner</label><input id="settings-cover-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1600 x 900 px.</p><p class="settings-current-file">La portada se optimiza automáticamente con calidad alta para cargar rápido sin perder brillo.</p><p id="settings-current-cover" class="settings-current-file"></p></div>
               <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
               <div class="field"><label for="settings-address">Dirección</label><textarea id="settings-address" placeholder="Dirección pública de la tienda"></textarea></div>
               <div class="field"><label for="settings-business-hours">Horarios</label><textarea id="settings-business-hours" placeholder="Ej: Lunes a sábado · 9:00 AM - 6:00 PM"></textarea></div>
@@ -572,6 +572,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               <div class="field">
                 <label for="visual-image">Imagen</label>
                 <input id="visual-image" type="file" accept="image/*" />
+                <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                 <p id="visual-current-image" class="form-help"></p>
               </div>
               <div class="field">

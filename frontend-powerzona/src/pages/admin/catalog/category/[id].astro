@@ -79,6 +79,7 @@ const categoryId = Astro.params.id;
         padding: 12px 13px; outline: none; font-weight: 850; box-shadow: inset 0 1px 0 rgba(15,23,42,.02);
       }
       .field input[type="file"] { padding: 10px; background: #f8fafc; }
+      .image-help { margin: 2px 0 0; color: #64748b; font-size: 11px; line-height: 1.4; font-weight: 800; }
       .field input:focus, .field select:focus { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
       .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .checkline { display: flex; align-items: center; gap: 10px; font-weight: 950; color: #334155; }
@@ -180,6 +181,7 @@ const categoryId = Astro.params.id;
                 <div class="field">
                   <label for="category-image">Cambiar foto</label>
                   <input id="category-image" type="file" accept="image/*" />
+                  <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                 </div>
                 <label class="checkline"><input id="category-active" type="checkbox" /> Visible en tienda pública</label>
                 <button id="category-submit" class="submit-btn" type="submit">Guardar categoría</button>
@@ -198,6 +200,7 @@ const categoryId = Astro.params.id;
                 <div class="field">
                   <label for="subcategory-image">Foto</label>
                   <input id="subcategory-image" type="file" accept="image/*" />
+                  <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                 </div>
                 <label class="checkline"><input id="subcategory-active" type="checkbox" checked /> Visible en tienda</label>
                 <button id="subcategory-submit" class="submit-btn" type="submit">Crear subcategoría</button>
@@ -537,6 +540,7 @@ const categoryId = Astro.params.id;
                     <div class="field">
                       <label>Cambiar foto</label>
                       <input class="js-subcategory-image" type="file" accept="image/*" />
+                      <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                     </div>
                   </div>
                   <div class="row-actions">
