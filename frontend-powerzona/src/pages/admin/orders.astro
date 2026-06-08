@@ -184,6 +184,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       .order-select-row { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 12px; }
       .order-select-box { width: 24px !important; height: 24px !important; padding: 0 !important; margin: 0 !important; accent-color: #dc2626; cursor: pointer; }
       .order-select-row .order-row { min-width: 0; }
+      .orders-admin-alert { margin: 0 0 18px; }
+      .order-confirm-modal { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.42); backdrop-filter: blur(4px); }
+      .order-confirm-modal.hidden { display: none !important; }
+      .order-confirm-card { width: min(480px, 100%); border-radius: 30px; background: linear-gradient(145deg, #ffffff, #f8fafc); border: 1px solid rgba(226,232,240,.96); box-shadow: 0 32px 90px rgba(15,23,42,.26), inset 0 1px 0 rgba(255,255,255,.95); padding: 22px; }
+      .order-confirm-icon { width: 46px; height: 46px; border-radius: 18px; display: inline-flex; align-items: center; justify-content: center; background: #fee2e2; color: #991b1b; margin-bottom: 14px; box-shadow: 0 12px 24px rgba(153,27,27,.10); }
+      .order-confirm-icon svg { width: 22px; height: 22px; fill: currentColor; }
+      .order-confirm-title { margin: 0; color: #0f172a; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; }
+      .order-confirm-message { margin: 8px 0 0; color: #475569; font-size: 14px; line-height: 1.5; font-weight: 850; }
+      .order-confirm-alert { margin-top: 14px; }
+      .order-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+      .order-confirm-actions .btn { min-width: 132px; }
       @media (max-width: 720px) { .cleanup-selection-bar { align-items: stretch; } .cleanup-selection-actions { width: 100%; } .cleanup-selection-actions .btn { flex: 1 1 auto; } .order-select-row { grid-template-columns: 30px minmax(0, 1fr); gap: 9px; align-items: flex-start; } .order-select-box { margin-top: 18px !important; } }
 
       /* FIX VISUAL V9: estado compacto y total de cada orden separado/resaltado */
@@ -630,6 +641,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             </div>
           </section>
 
+          <div id="orders-admin-alert" class="alert orders-admin-alert hidden"></div>
+
           <div class="admin-grid">
             <section class="card orders-list"><div id="orders-list"></div><div id="orders-pagination" class="orders-pagination hidden"></div></section>
             <aside class="card detail-panel">
@@ -737,6 +750,21 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           </div>
         </div>
       </section>
+
+      <div id="order-delete-confirm-modal" class="order-confirm-modal hidden" role="dialog" aria-modal="true" aria-labelledby="order-delete-confirm-title" aria-hidden="true">
+        <div class="order-confirm-card">
+          <div class="order-confirm-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 7h10l-.8 13H7.8L7 7Zm2-3h6l1 2h4v2H4V6h4l1-2Zm1 7h2v6h-2v-6Zm4 0h2v6h-2v-6Z"/></svg>
+          </div>
+          <h2 id="order-delete-confirm-title" class="order-confirm-title">Eliminar pedido</h2>
+          <p id="order-delete-confirm-message" class="order-confirm-message">Esta acción eliminará la orden y sus productos relacionados. No modifica el inventario.</p>
+          <div id="order-delete-confirm-alert" class="alert order-confirm-alert hidden"></div>
+          <div class="order-confirm-actions">
+            <button id="order-delete-confirm-cancel" class="btn btn-secondary" type="button">Cancelar</button>
+            <button id="order-delete-confirm-submit" class="btn btn-danger" type="button">Sí, borrar pedido</button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <script define:vars={{ pocketbaseUrl }}>
@@ -762,6 +790,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const cleanupSelectedCount = document.getElementById('cleanup-selected-count');
       const cleanupSelectAllBtn = document.getElementById('cleanup-select-all-btn');
       const cleanupDeleteSelectedBtn = document.getElementById('cleanup-delete-selected-btn');
+      const ordersAdminAlert = document.getElementById('orders-admin-alert');
+      const orderDeleteConfirmModal = document.getElementById('order-delete-confirm-modal');
+      const orderDeleteConfirmTitle = document.getElementById('order-delete-confirm-title');
+      const orderDeleteConfirmMessage = document.getElementById('order-delete-confirm-message');
+      const orderDeleteConfirmAlert = document.getElementById('order-delete-confirm-alert');
+      const orderDeleteConfirmCancel = document.getElementById('order-delete-confirm-cancel');
+      const orderDeleteConfirmSubmit = document.getElementById('order-delete-confirm-submit');
       const searchInput = document.getElementById('search-input');
       const statusFilter = document.getElementById('status-filter');
       const deliveryFilter = document.getElementById('delivery-filter');
@@ -839,6 +874,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       let orderAutoSaveTimer = null;
       let orderAutoSaveRunning = false;
       let orderAutoSavePending = false;
+      let pendingOrderDeleteAction = null;
       const cleanupOrdersOpenBtnOriginalHtml = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.innerHTML : '';
       const cleanupOrdersOpenBtnOriginalClass = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.className : '';
 
@@ -954,6 +990,65 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       function setLoginAlert(message) { loginAlert.textContent = message; loginAlert.classList.toggle('hidden', !message); }
       function setDetailAlert(message, type = 'info') { detailAlert.textContent = message; detailAlert.className = `alert alert-${type}`; detailAlert.classList.toggle('hidden', !message); }
+      function setOrdersAdminAlert(message = '', type = 'info') {
+        if (!ordersAdminAlert) return;
+        ordersAdminAlert.textContent = message;
+        ordersAdminAlert.className = `alert alert-${type} orders-admin-alert`;
+        ordersAdminAlert.classList.toggle('hidden', !message);
+      }
+      function setOrderConfirmAlert(message = '', type = 'error') {
+        if (!orderDeleteConfirmAlert) return;
+        orderDeleteConfirmAlert.textContent = message;
+        orderDeleteConfirmAlert.className = `alert alert-${type} order-confirm-alert`;
+        orderDeleteConfirmAlert.classList.toggle('hidden', !message);
+      }
+      function closeOrderDeleteConfirm() {
+        pendingOrderDeleteAction = null;
+        setOrderConfirmAlert('');
+        orderDeleteConfirmModal?.classList.add('hidden');
+        orderDeleteConfirmModal?.setAttribute('aria-hidden', 'true');
+        if (orderDeleteConfirmSubmit) {
+          orderDeleteConfirmSubmit.disabled = false;
+          orderDeleteConfirmSubmit.textContent = 'Sí, borrar pedido';
+        }
+        if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
+      }
+      function openOrderDeleteConfirm({ title, message, confirmText, action }) {
+        pendingOrderDeleteAction = action;
+        setOrderConfirmAlert('');
+        if (orderDeleteConfirmTitle) orderDeleteConfirmTitle.textContent = title;
+        if (orderDeleteConfirmMessage) orderDeleteConfirmMessage.textContent = message;
+        if (orderDeleteConfirmSubmit) {
+          orderDeleteConfirmSubmit.disabled = false;
+          orderDeleteConfirmSubmit.textContent = confirmText;
+        }
+        if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
+        orderDeleteConfirmModal?.classList.remove('hidden');
+        orderDeleteConfirmModal?.setAttribute('aria-hidden', 'false');
+        orderDeleteConfirmSubmit?.focus();
+      }
+      async function confirmPendingOrderDelete() {
+        if (!pendingOrderDeleteAction) return;
+        const action = pendingOrderDeleteAction;
+        if (orderDeleteConfirmSubmit) {
+          orderDeleteConfirmSubmit.disabled = true;
+          orderDeleteConfirmSubmit.textContent = 'Borrando...';
+        }
+        if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = true;
+        setOrderConfirmAlert('');
+        try {
+          await action();
+          closeOrderDeleteConfirm();
+        } catch (error) {
+          console.error(error);
+          setOrderConfirmAlert(error?.message || 'No se pudo completar el borrado.', 'error');
+          if (orderDeleteConfirmSubmit) {
+            orderDeleteConfirmSubmit.disabled = false;
+            orderDeleteConfirmSubmit.textContent = orderDeleteConfirmTitle?.textContent?.includes('seleccionadas') ? 'Sí, borrar seleccionadas' : 'Sí, borrar pedido';
+          }
+          if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
+        }
+      }
       function showLogin() { loginView.classList.remove('hidden'); adminView.classList.add('hidden'); }
       function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); }
       function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
@@ -2584,28 +2679,33 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           updateCancelledDeleteButtonState();
           return;
         }
-        const label = selectedOrder.order_number || 'esta orden';
-        const confirmation = window.confirm(`¿Seguro que deseas eliminar ${label}? Esta acción elimina la orden y no modifica el inventario.`);
-        if (!confirmation) return;
-        deleteCancelledOrderBtn.disabled = true;
-        deleteCancelledOrderBtn.textContent = 'Eliminando...';
-        setDetailAlert('Eliminando orden cancelada...', 'info');
-        try {
-          const deletedId = selectedOrder.id;
-          await deleteOrderPermanentlyNoStock(deletedId);
-          orders = orders.filter((order) => order.id !== deletedId);
-          clearDetail();
-          renderStats();
-          renderOrders();
-          renderCleanupOrdersList();
-          alert('Orden eliminada correctamente. El inventario no fue modificado.');
-        } catch (error) {
-          console.error(error);
-          setDetailAlert('No se pudo eliminar la orden. Revisa las reglas delete de orders y order_items en PocketBase.', 'error');
-        } finally {
-          deleteCancelledOrderBtn.disabled = false;
-          deleteCancelledOrderBtn.textContent = 'Eliminar pedido';
-        }
+        openOrderDeleteConfirm({
+          title: 'Eliminar pedido',
+          message: 'Esta acción eliminará la orden y sus productos relacionados. No modifica el inventario.',
+          confirmText: 'Sí, borrar pedido',
+          action: async () => {
+            deleteCancelledOrderBtn.disabled = true;
+            deleteCancelledOrderBtn.textContent = 'Eliminando...';
+            setDetailAlert('Eliminando orden cancelada...', 'info');
+            setOrdersAdminAlert('');
+            try {
+              const deletedId = selectedOrder.id;
+              await deleteOrderPermanentlyNoStock(deletedId);
+              orders = orders.filter((order) => order.id !== deletedId);
+              clearDetail();
+              renderStats();
+              renderOrders();
+              renderCleanupOrdersList();
+              setOrdersAdminAlert('Orden eliminada correctamente. El inventario no fue modificado.', 'success');
+            } catch (error) {
+              setDetailAlert('No se pudo eliminar la orden. Revisa las reglas delete de orders y order_items en PocketBase.', 'error');
+              throw error;
+            } finally {
+              deleteCancelledOrderBtn.disabled = false;
+              deleteCancelledOrderBtn.textContent = 'Eliminar pedido';
+            }
+          },
+        });
       }
 
       function openCleanupOrdersPanel() {
@@ -2669,32 +2769,38 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       async function deleteSelectedCleanupOrders() {
         const ids = getCleanupSelectedOrderIds();
         if (!ids.length) {
-          alert('Selecciona al menos una orden para borrar.');
+          setOrdersAdminAlert('Selecciona al menos una orden para borrar.', 'error');
           return;
         }
-        const confirmation = window.confirm(`Vas a borrar ${ids.length} orden(es). Esta acción elimina la orden y no modifica el inventario. ¿Deseas continuar?`);
-        if (!confirmation) return;
-        cleanupDeleteSelectedBtn.disabled = true;
-        cleanupDeleteSelectedBtn.textContent = 'Borrando...';
-        try {
-          for (const id of ids) {
-            await deleteOrderPermanentlyNoStock(id);
-          }
-          orders = orders.filter((order) => !ids.includes(order.id));
-          ids.forEach((id) => cleanupSelectedOrderIds.delete(id));
-          if (selectedOrder && ids.includes(selectedOrder.id)) clearDetail();
-          renderStats();
-          renderOrders();
-          updateCleanupSelectionUI();
-          alert('Órdenes borradas correctamente. El inventario no fue modificado.');
-        } catch (error) {
-          console.error(error);
-          alert('No se pudieron borrar todas las órdenes. Revisa las reglas delete de orders y order_items en PocketBase.');
-        } finally {
-          cleanupDeleteSelectedBtn.disabled = false;
-          cleanupDeleteSelectedBtn.textContent = 'Borrar seleccionadas';
-          updateCleanupSelectionUI();
-        }
+        openOrderDeleteConfirm({
+          title: 'Borrar órdenes seleccionadas',
+          message: 'Esta acción eliminará las órdenes seleccionadas y sus productos relacionados. No modifica el inventario.',
+          confirmText: 'Sí, borrar seleccionadas',
+          action: async () => {
+            cleanupDeleteSelectedBtn.disabled = true;
+            cleanupDeleteSelectedBtn.textContent = 'Borrando...';
+            setOrdersAdminAlert('');
+            try {
+              for (const id of ids) {
+                await deleteOrderPermanentlyNoStock(id);
+              }
+              orders = orders.filter((order) => !ids.includes(order.id));
+              ids.forEach((id) => cleanupSelectedOrderIds.delete(id));
+              if (selectedOrder && ids.includes(selectedOrder.id)) clearDetail();
+              renderStats();
+              renderOrders();
+              updateCleanupSelectionUI();
+              setOrdersAdminAlert('Órdenes borradas correctamente. El inventario no fue modificado.', 'success');
+            } catch (error) {
+              setOrdersAdminAlert('No se pudieron borrar todas las órdenes. Revisa las reglas delete de orders y order_items en PocketBase.', 'error');
+              throw error;
+            } finally {
+              cleanupDeleteSelectedBtn.disabled = false;
+              cleanupDeleteSelectedBtn.textContent = 'Borrar seleccionadas';
+              updateCleanupSelectionUI();
+            }
+          },
+        });
       }
 
       function openSidebar() { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); }
@@ -2766,6 +2872,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       cleanupOrdersCloseBtn?.addEventListener('click', closeCleanupOrdersPanel);
       cleanupSelectAllBtn?.addEventListener('click', selectAllCleanupOrders);
       cleanupDeleteSelectedBtn?.addEventListener('click', deleteSelectedCleanupOrders);
+      orderDeleteConfirmCancel?.addEventListener('click', closeOrderDeleteConfirm);
+      orderDeleteConfirmSubmit?.addEventListener('click', confirmPendingOrderDelete);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !orderDeleteConfirmModal?.classList.contains('hidden')) closeOrderDeleteConfirm();
+      });
 
       if (!POCKETBASE_URL) {
         showLogin();
