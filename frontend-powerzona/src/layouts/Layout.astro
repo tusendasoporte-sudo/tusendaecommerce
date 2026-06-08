@@ -2,6 +2,8 @@
 import '../styles/global.css';
 import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
+
+const isCheckoutPage = Astro.url.pathname.replace(/\/$/, '') === '/checkout';
 ---
 
 <!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
@@ -21,7 +23,7 @@ import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 			</div>
 		</main>
 
-		<CurrencySwitcher />
+		<CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />
 		<Cart />
 
 	</body>

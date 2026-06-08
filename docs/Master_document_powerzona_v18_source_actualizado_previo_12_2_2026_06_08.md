@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-07  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional cerrada como base funcional: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas, `pb_data` local copiado de forma segura a PocketBase staging, frontend conectado por `PUBLIC_POCKETBASE_URL` en HTTPS, imágenes cargando correctamente y flujo de trabajo actualizado. **Marketing 12.1 — Cintillo promocional y base visual de promociones queda cerrado como base funcional. Próximo bloque recomendado: 12.2 Promociones automáticas.** Bloque futuro documentado: plataforma multitienda + bazar principal.
+**Fecha de actualización:** 2026-06-08  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional cerrada como base funcional: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas, `pb_data` local copiado de forma segura a PocketBase staging, frontend conectado por `PUBLIC_POCKETBASE_URL` en HTTPS, imágenes cargando correctamente y flujo de trabajo actualizado. **Marketing 12.1 — Cintillo promocional y base visual de promociones queda cerrado como base funcional. Source actualizado hasta ajustes visuales finales de header público, producto, checkout, categorías/subcategorías y regalos. Próximo bloque recomendado: 12.2 Promociones automáticas.** Bloque futuro documentado: plataforma multitienda + bazar principal.
 
 ---
 
@@ -14436,3 +14436,595 @@ No empezar cupones manuales todavía.
 Primero promociones automáticas.
 ```
 
+
+
+---
+
+### 21.51. Actualización final de source antes de iniciar 12.2 Promociones automáticas
+
+Esta sección se agrega como cierre acumulativo después de los últimos ajustes visuales y funcionales realizados antes de iniciar el bloque:
+
+```txt
+12.2 Promociones automáticas
+```
+
+Estado:
+
+```txt
+✅ SOURCE ACTUALIZADO / LISTO PARA NUEVO CHAT
+```
+
+Fecha de actualización documental:
+
+```txt
+2026-06-08
+```
+
+Marca de versión documental:
+
+```txt
+PZ-MASTER-V18-SOURCE-ACTUALIZADO-PREVIO-12-2-20260608
+```
+
+---
+
+#### 21.51.1. Objetivo de esta actualización
+
+El objetivo de esta actualización es dejar documentado el estado real más reciente del proyecto antes de continuar con promociones automáticas.
+
+Queda cerrado el tramo de ajustes posteriores a 12.1, incluyendo:
+
+```txt
+- Confirmaciones visuales del admin.
+- Producto individual visual y funcional.
+- Ajustes de checkout.
+- Acciones superiores de producto, categoría y subcategoría.
+- Ajustes del header público.
+- Ajustes de regalos.
+- Preparación final para 12.2 Promociones automáticas.
+```
+
+Regla importante:
+
+```txt
+El source actualizado por el usuario es la referencia final.
+Este documento registra el estado funcional y las decisiones para continuar sin perder contexto.
+```
+
+---
+
+#### 21.51.2. Panel admin de pedidos — confirmación visual al borrar
+
+Se reemplazó o se dejó definido como completado el cambio para que, al borrar órdenes desde el panel admin, no se usen confirmaciones nativas del navegador.
+
+Regla final:
+
+```txt
+No usar confirm(), alert() ni prompt() para confirmar borrado de órdenes.
+```
+
+Comportamiento esperado:
+
+```txt
+- Al borrar una orden individual, aparece panel flotante premium.
+- Al borrar órdenes seleccionadas, aparece panel flotante premium.
+- Cancelar no borra nada.
+- Confirmar ejecuta la misma lógica segura de borrado existente.
+- El borrado administrativo no modifica inventario.
+```
+
+Texto de referencia para una orden:
+
+```txt
+Eliminar pedido
+Esta acción eliminará la orden y sus productos relacionados. No modifica el inventario.
+
+[Cancelar] [Sí, borrar pedido]
+```
+
+Texto de referencia para varias órdenes:
+
+```txt
+Borrar órdenes seleccionadas
+Esta acción eliminará las órdenes seleccionadas y sus productos relacionados. No modifica el inventario.
+
+[Cancelar] [Sí, borrar seleccionadas]
+```
+
+Archivo principal relacionado:
+
+```txt
+frontend-powerzona/src/pages/admin/orders.astro
+```
+
+---
+
+#### 21.51.3. Producto individual — botón Añadir flotante inteligente
+
+Se trabajó la página individual de producto para mejorar la experiencia tipo app.
+
+Reglas finales del botón Añadir:
+
+```txt
+- En móvil, el botón Añadir aparece flotante desde que se abre el producto.
+- Mientras el cliente hace scroll, el botón se mantiene visible.
+- Al llegar al selector de cantidad, el flotante se detiene/desaparece y queda el botón normal debajo de Cantidad.
+- Si el cliente vuelve a subir, el flotante reaparece.
+```
+
+También se definió/extendió la experiencia en PC:
+
+```txt
+- Vista tipo móvil/app.
+- Foto del producto primero.
+- Datos debajo.
+- Descripción debajo.
+- Variaciones si existen.
+- Selector de cantidad.
+- Botón Añadir debajo de Cantidad.
+- En PC, el botón flotante debe estar centrado y con ancho máximo, no a pantalla completa.
+```
+
+Reglas que no se deben romper:
+
+```txt
+- Variaciones.
+- Productos Solo USD.
+- Moneda visual.
+- Producto agotado.
+- Preorder.
+- track_stock=false.
+- Agregar al carrito.
+```
+
+Archivo principal relacionado:
+
+```txt
+frontend-powerzona/src/pages/producto/[slug].astro
+```
+
+---
+
+#### 21.51.4. Producto individual — evitar choque de flotantes en móvil
+
+Se ajustó la relación visual entre:
+
+```txt
+- Botón Añadir flotante.
+- Carrito flotante.
+- Selector flotante de moneda.
+```
+
+Regla final en página de producto:
+
+```txt
+Cuando el botón Añadir está flotante abajo, el carrito flotante y el selector de moneda deben quedar arriba del botón Añadir.
+```
+
+Visual deseado:
+
+```txt
+[ USD ] [ Carrito ]
+
+[Añadir 1 al pedido · $35.00 USD]
+```
+
+Reglas:
+
+```txt
+- No deben chocar.
+- No deben tapar el texto del botón Añadir.
+- No deben salirse de pantalla.
+- Si el carrito está vacío, mantener la regla actual: el selector flotante de moneda no aparece abajo.
+- Cuando el botón Añadir deja de flotar al llegar a Cantidad, carrito/moneda pueden volver a su posición normal.
+```
+
+Archivos relacionados:
+
+```txt
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/components/Cart.astro
+frontend-powerzona/src/layouts/Layout.astro
+```
+
+---
+
+#### 21.51.5. Checkout — selector de moneda oculto
+
+Se cerró el ajuste para que el selector de moneda no aparezca dentro del checkout.
+
+Regla final:
+
+```txt
+En /checkout no debe mostrarse selector de moneda.
+```
+
+Motivo:
+
+```txt
+Cuando el cliente llega a realizar la orden, debe mantenerse la moneda que ya eligió antes en la tienda o carrito.
+```
+
+Reglas que se mantienen:
+
+```txt
+- El checkout usa la moneda seleccionada previamente.
+- Los precios y totales siguen mostrando la moneda elegida correctamente.
+- Productos Solo USD siguen saliendo en USD.
+- Envío sigue mostrándose separado como USD / equivalente CUP cuando aplique.
+- La orden sigue guardando moneda seleccionada y tasa usada.
+- WhatsApp sigue usando el formato aprobado.
+```
+
+Archivo principal relacionado:
+
+```txt
+frontend-powerzona/src/pages/checkout.astro
+```
+
+Posibles componentes relacionados:
+
+```txt
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/components/Cart.astro
+```
+
+---
+
+#### 21.51.6. Página de producto — iconos de buscar y compartir
+
+Se agregó o se dejó documentado como completado el ajuste para que cada página individual de producto tenga acciones superiores.
+
+Acciones:
+
+```txt
+- Icono de búsqueda.
+- Icono de compartir producto.
+```
+
+Reglas:
+
+```txt
+- La lupa lleva a /buscar.
+- Compartir usa Web Share API si existe.
+- Si no existe Web Share API, copia el enlace al portapapeles.
+- No usar alert() del navegador.
+- Mostrar confirmación visual discreta tipo “Enlace copiado”.
+- Los iconos no deben chocar con logo, INICIO, botón volver ni nombre/título.
+```
+
+Archivo principal relacionado:
+
+```txt
+frontend-powerzona/src/pages/producto/[slug].astro
+```
+
+---
+
+#### 21.51.7. Categorías y subcategorías — compartir y menú de 3 puntos
+
+Se agregaron o se dejaron cerradas las acciones superiores en páginas públicas de categoría y subcategoría.
+
+Páginas afectadas:
+
+```txt
+/categoria/[slug]
+/subcategoria/[slug]
+```
+
+Acciones superiores:
+
+```txt
+- Compartir.
+- Menú de 3 puntos.
+```
+
+Regla del botón compartir:
+
+```txt
+Debe tener el mismo estilo visual que el botón Compartir creado en la página individual de producto.
+```
+
+Funcionalidad:
+
+```txt
+- Usa Web Share API si existe.
+- Si no existe, copia enlace al portapapeles.
+- Muestra confirmación visual discreta.
+- No usa alert() del navegador.
+```
+
+---
+
+#### 21.51.8. Categorías y subcategorías — menú con Moneda y Categorías desplegable
+
+El menú de 3 puntos de categoría/subcategoría debe contener:
+
+```txt
+- Moneda.
+- Categorías.
+```
+
+Regla para Moneda:
+
+```txt
+El selector de moneda se muestra dentro del menú sin cambiar la lógica actual de moneda.
+```
+
+Regla para Categorías:
+
+```txt
+Las categorías no deben mostrarse fijas al abrir el menú.
+Deben estar dentro de un desplegable interno.
+```
+
+Visual deseado:
+
+```txt
+Categorías
+[ Ver categorías ▼ ]
+```
+
+Al tocar:
+
+```txt
+- Se despliega la lista de categorías visibles/activas.
+- Al volver a tocar, se cierra.
+- Al seleccionar una categoría, navega a /categoria/[slug].
+```
+
+Reglas:
+
+```txt
+- Mostrar solo categorías visibles.
+- Respetar orden visual.
+- No mostrar ocultas.
+- Si hay muchas categorías, usar max-height y scroll interno.
+- No romper el menú público general.
+```
+
+Archivos relacionados:
+
+```txt
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+```
+
+---
+
+#### 21.51.9. Página principal — conteo de productos en categorías
+
+Se ajustó la sección Categorías de la página principal.
+
+Regla final:
+
+```txt
+En la tarjeta de cada categoría de la portada ya no se muestra la cantidad de subcategorías.
+```
+
+Debe mostrarse solamente:
+
+```txt
+# productos
+```
+
+El total de productos debe sumar:
+
+```txt
+productos directos de la categoría padre
++
+productos dentro de las subcategorías hijas
+```
+
+Ejemplo:
+
+```txt
+Categoría Proteínas:
+- Productos directos: 2
+- Productos en subcategoría Whey: 4
+- Productos en subcategoría Caseína: 1
+
+Debe mostrar:
+7 productos
+```
+
+Reglas:
+
+```txt
+- Contar solo productos visibles/activos.
+- No duplicar destacados.
+- Usar singular/plural correctamente.
+- Mantener nombre arriba de la imagen.
+- Mantener imagen más alta.
+- Mantener datos debajo de la imagen.
+- No tocar automatización de fotos de categorías.
+```
+
+Archivo principal relacionado:
+
+```txt
+frontend-powerzona/src/pages/index.astro
+```
+
+---
+
+#### 21.51.10. Header público — logo, INICIO y portada
+
+Se ajustó la navegación pública superior.
+
+Reglas finales:
+
+```txt
+- En páginas internas, junto al logo puede aparecer INICIO como acceso para volver a la portada.
+- En la página principal /, debe aparecer solo el icono/logo, sin texto INICIO al lado.
+- El logo siempre debe enlazar a /.
+- No cambiar el nombre real de la tienda guardado en settings.
+```
+
+Páginas internas esperadas:
+
+```txt
+/producto/[slug]
+/categoria/[slug]
+/subcategoria/[slug]
+/buscar
+/regalos
+```
+
+Visual en portada:
+
+```txt
+[Logo]
+```
+
+Visual en páginas internas:
+
+```txt
+[Logo] INICIO
+```
+
+Archivos relacionados:
+
+```txt
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+frontend-powerzona/src/pages/buscar.astro
+frontend-powerzona/src/pages/regalos/index.astro
+```
+
+---
+
+#### 21.51.11. Regalos — header con logo de tienda
+
+Se corrigió o se dejó definido como cerrado que la página pública de regalos debe mantener el mismo estilo general del header de la tienda.
+
+Regla final:
+
+```txt
+La página Regalos debe mostrar el icono/logo de la tienda igual que las demás páginas públicas internas.
+```
+
+Comportamiento esperado:
+
+```txt
+- Logo visible.
+- Enlace a /.
+- Estilo consistente con producto/categoría/subcategoría/buscar.
+- Sin textos internos visibles.
+```
+
+Archivo relacionado:
+
+```txt
+frontend-powerzona/src/pages/regalos/index.astro
+```
+
+O según estructura final del source:
+
+```txt
+frontend-powerzona/src/pages/regalos.astro
+```
+
+---
+
+#### 21.51.12. Source actualizado y commit recomendado
+
+Antes de iniciar 12.2, el source debe quedar guardado en GitHub como estado estable.
+
+Comandos recomendados:
+
+```bash
+cd frontend-powerzona
+npm run build
+```
+
+Si el build pasa:
+
+```bash
+git status
+git add .
+git commit -m "Estado estable antes de promociones automaticas 12.2"
+git push
+```
+
+Después en Coolify:
+
+```txt
+Redeploy / Deploy si no se despliega automáticamente.
+```
+
+Pruebas rápidas recomendadas:
+
+```txt
+/
+/producto/[slug]
+/categoria/[slug]
+/subcategoria/[slug]
+/regalos
+/buscar
+/checkout
+/admin/orders
+```
+
+Verificar:
+
+```txt
+- Portada solo con logo.
+- Páginas internas con INICIO si corresponde.
+- Regalos con logo.
+- Checkout sin selector de moneda.
+- Producto con botón Añadir flotante.
+- Carrito/moneda no chocan con botón Añadir.
+- Categorías/subcategorías con compartir y menú correcto.
+- Admin pedidos con confirmación visual al borrar.
+```
+
+---
+
+#### 21.51.13. Estado final antes de abrir nuevo chat
+
+Estado:
+
+```txt
+✅ Source actualizado hasta los últimos ajustes visuales y funcionales.
+✅ Master Document actualizado a v18.
+🔜 Próximo bloque: 12.2 Promociones automáticas.
+```
+
+Regla para el siguiente bloque:
+
+```txt
+No empezar cupones manuales todavía.
+Primero trabajar promociones automáticas.
+Iniciar por estructura admin y simulador.
+No tocar carrito/checkout hasta validar la base.
+```
+
+---
+
+#### 21.51.14. Mensaje recomendado para abrir el nuevo chat
+
+Mensaje sugerido:
+
+```txt
+Continuamos PowerZona desde el punto 12.2: Promociones automáticas. Source actualizado y Master Document v18 actualizado.
+
+Ya quedó cerrado 12.1 Cintillo promocional y los ajustes posteriores:
+- Cintillo promocional solo en portada.
+- Ofertas rápidas en carrusel/cinta.
+- Promo visual y acceso rápido reorganizados en admin.
+- Producto individual con botón Añadir flotante inteligente.
+- Carrito/moneda ajustados para no chocar con Añadir.
+- Checkout sin selector de moneda.
+- Producto con buscar y compartir.
+- Categoría/subcategoría con compartir y menú de 3 puntos.
+- Categorías en menú como desplegable interno.
+- Portada con conteo total real de productos por categoría.
+- Header público ajustado: portada solo logo, internas con INICIO y Regalos con logo.
+- Admin pedidos con confirmación visual para borrar.
+
+Quiero empezar 12.2 hablando primero la estructura antes de hacer código. No quiero tocar todavía cupones manuales. Quiero definir promociones automáticas seguras como Compra X y paga Y, descuento por volumen, ofertas por producto/categoría y reglas aplicadas al carrito, sin romper carrito, checkout, moneda, WhatsApp ni órdenes.
+```

@@ -94,9 +94,13 @@ function parseExtraInfoValue(value: any) {
 			.slice(0, 3)
 		: [];
 }
+function stripHtml(value: any) {
+	return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 const extraInfoItems = parseExtraInfoValue(
 	product.extra_info ?? product.extraInfo ?? product.additional_info ?? product.product_extra_info ?? []
 );
+const productShareText = stripHtml(product.short_description || product.description || product.name).slice(0, 180) || product.name;
 const tracksStock = product.track_stock !== false;
 const baseProductPrice = Number(product.base_price_usd || 0);
 const regularProductPrice = Number(product.regular_price_usd || baseProductPrice);
@@ -170,15 +174,32 @@ const variationItems = variations.map((variation) => {
 <!-- PZ-PRODUCTO-DETALLE-V33-RELACIONADOS-20260605 -->
 <Layout>
 	<style>
-		.product-public-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+		.product-public-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; position: relative; }
 		.product-public-brand { min-width: 0; display: flex; align-items: center; gap: 10px; color: #111827; text-decoration: none; }
 		.product-public-logo { width: 42px; height: 42px; border-radius: 16px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; font-weight: 1000; }
 		.product-public-logo img { width: 100%; height: 100%; object-fit: cover; }
 		.product-public-name { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.product-public-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
 		.product-back-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 16px; padding: 11px 13px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 13px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-decoration: none; }
+		.product-top-icon-btn { width: 42px; height: 42px; border-radius: 16px; border: 1px solid #e5e7eb; background: #fff; color: #111827; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-decoration: none; transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; cursor: pointer; }
+		.product-top-icon-btn svg { width: 19px; height: 19px; stroke: currentColor; }
+		.product-top-icon-btn:hover { border-color: #cbd5e1; background: #f8fafc; transform: translateY(-1px); box-shadow: 0 14px 28px rgba(15,23,42,.08); }
+		.product-top-icon-btn:focus-visible { outline: 3px solid rgba(15,23,42,.16); outline-offset: 2px; }
+		.product-share-status { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; border-radius: 999px; background: #111827; color: #fff; padding: 8px 12px; font-size: 12px; font-weight: 900; box-shadow: 0 14px 30px rgba(15,23,42,.18); opacity: 0; transform: translateY(-4px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
+		.product-share-status.is-visible { opacity: 1; transform: translateY(0); }
 		.product-offer-badge { display:inline-flex; align-items:center; border-radius:999px; background:#dc2626; color:#fff; padding:7px 11px; font-size:11px; font-weight:1000; text-transform:uppercase; letter-spacing:.04em; box-shadow:0 12px 24px rgba(220,38,38,.18); }
 		.product-regular-price { color:#94a3b8; font-size:16px; font-weight:900; text-decoration:line-through; }
 		.product-save-text { color:#16a34a; font-size:13px; font-weight:1000; }
+		.product-detail-stack { max-width: 760px; margin: 0 auto; padding-bottom: 94px; }
+		.product-detail-info { display: flex; flex-direction: column; }
+		.product-detail-category { order: 1; }
+		.product-detail-price { order: 2; }
+		.product-detail-title { order: 3; }
+		.product-detail-meta { order: 4; }
+		.product-detail-extra { order: 5; }
+		.product-detail-description { order: 6; }
+		.product-detail-variations { order: 7; }
+		.product-detail-purchase { order: 8; }
 		.related-section { margin-top: 34px; border-top: 1px solid #e5e7eb; padding-top: 24px; }
 		.related-section-title { margin: 0; color: #111827; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; }
 		.related-section-subtitle { margin: 4px 0 18px; color: #4b5563; font-size: 17px; font-weight: 700; }
@@ -194,47 +215,62 @@ const variationItems = variations.map((variation) => {
 		.related-old-price { color: #94a3b8; font-size: 13px; font-weight: 900; text-decoration: line-through; }
 		.related-badge { display: inline-flex; align-items: center; width: fit-content; border-radius: 999px; background: #fee2e2; color: #b91c1c; padding: 4px 8px; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; margin-top: 8px; }
 		.related-buy { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border-radius: 999px; background: #111827; color: #fff; padding: 8px 12px; font-size: 12px; font-weight: 1000; margin-top: 10px; }
-		.product-mobile-cta { display: none; }
+		.product-mobile-cta {
+			position: fixed;
+			left: 50%;
+			right: auto;
+			bottom: 0;
+			z-index: 35;
+			display: flex;
+			width: min(720px, calc(100vw - 32px));
+			padding: 12px 0 calc(16px + env(safe-area-inset-bottom));
+			background: linear-gradient(180deg, rgba(248,250,252,0), rgba(248,250,252,.92) 34%, rgba(248,250,252,.98));
+			pointer-events: none;
+			opacity: 0;
+			transform: translate(-50%, 18px);
+			transition: opacity .22s ease, transform .22s ease;
+		}
+		.product-mobile-cta.is-visible {
+			opacity: 1;
+			transform: translate(-50%, 0);
+		}
+		.product-mobile-cta button {
+			width: 100%;
+			min-height: 60px;
+			border: 0;
+			border-radius: 999px;
+			background: #020617;
+			color: #fff;
+			font-size: 16px;
+			font-weight: 1000;
+			line-height: 1.2;
+			padding: 16px 22px;
+			box-shadow: 0 18px 38px rgba(2,6,23,.28), 0 3px 10px rgba(15,23,42,.12);
+			pointer-events: auto;
+		}
+		.product-mobile-cta button:active { transform: translateY(1px); }
+		.product-mobile-cta button.is-disabled {
+			background: #e5e7eb;
+			color: #6b7280;
+			box-shadow: 0 12px 28px rgba(15,23,42,.12);
+			cursor: not-allowed;
+		}
 		@media (max-width: 780px) { .related-grid { grid-template-columns: 1fr; } }
 		@media (max-width: 767px) {
 			.product-mobile-cta {
-				position: fixed;
 				left: 0;
 				right: 0;
-				bottom: 0;
-				z-index: 35;
-				display: flex;
+				width: auto;
 				padding: 12px 16px calc(14px + env(safe-area-inset-bottom));
-				background: linear-gradient(180deg, rgba(248,250,252,0), rgba(248,250,252,.92) 34%, rgba(248,250,252,.98));
-				pointer-events: none;
-				opacity: 0;
 				transform: translateY(18px);
-				transition: opacity .22s ease, transform .22s ease;
 			}
 			.product-mobile-cta.is-visible {
-				opacity: 1;
 				transform: translateY(0);
 			}
 			.product-mobile-cta button {
-				width: 100%;
 				min-height: 58px;
-				border: 0;
-				border-radius: 999px;
-				background: #020617;
-				color: #fff;
 				font-size: 15px;
-				font-weight: 1000;
-				line-height: 1.2;
 				padding: 15px 18px;
-				box-shadow: 0 18px 38px rgba(2,6,23,.28), 0 3px 10px rgba(15,23,42,.12);
-				pointer-events: auto;
-			}
-			.product-mobile-cta button:active { transform: translateY(1px); }
-			.product-mobile-cta button.is-disabled {
-				background: #e5e7eb;
-				color: #6b7280;
-				box-shadow: 0 12px 28px rgba(15,23,42,.12);
-				cursor: not-allowed;
 			}
 		}
 		@media (prefers-reduced-motion: reduce) {
@@ -243,18 +279,44 @@ const variationItems = variations.map((variation) => {
 				transition: none;
 			}
 		}
-		@media (max-width: 640px) { .product-public-name { max-width: 45vw; } .product-back-btn { padding: 10px 11px; font-size: 12px; } .related-card { grid-template-columns: 82px minmax(0, 1fr); border-radius: 22px; } .related-image { width: 82px; height: 82px; } .related-section-title { font-size: 22px; } }
+		@media (max-width: 640px) { .product-public-top { align-items: flex-start; flex-wrap: wrap; padding: 0 2px; } .product-public-brand { flex: 1 1 calc(100% - 96px); max-width: calc(100% - 96px); } .product-public-actions { flex: 1 0 100%; width: 100%; justify-content: flex-end; } .product-public-name { max-width: calc(100vw - 168px); } .product-back-btn { order: 1; min-height: 40px; max-width: calc(100% - 104px); margin-right: auto; padding: 10px 11px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .product-top-icon-btn { order: 2; width: 42px; height: 42px; } .product-share-status { right: 2px; } .related-card { grid-template-columns: 82px minmax(0, 1fr); border-radius: 22px; } .related-image { width: 82px; height: 82px; } .related-section-title { font-size: 22px; } }
 	</style>
 
 	<div class="product-public-top">
 		<a class="product-public-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
 			<div class="product-public-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
-			<p class="product-public-name">{storeName}</p>
+			<p class="product-public-name">INICIO</p>
 		</a>
-		<a href={productBackHref} class="product-back-btn">{productBackLabel}</a>
+		<div class="product-public-actions">
+			<a href={productBackHref} class="product-back-btn">{productBackLabel}</a>
+			<a href="/buscar" class="product-top-icon-btn" aria-label="Buscar productos" title="Buscar productos">
+				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+					<path d="M10.8 18.1a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+					<path d="m16 16 4.2 4.2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+				</svg>
+			</a>
+			<button
+				type="button"
+				id="product-share-btn"
+				class="product-top-icon-btn"
+				aria-label="Compartir producto"
+				title="Compartir producto"
+				data-share-title={product.name}
+				data-share-text={productShareText}
+			>
+				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+					<path d="M8.5 12.5 15.5 16.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+					<path d="M15.5 7.5 8.5 11.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+					<path d="M6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke-width="2"></path>
+					<path d="M18 9.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke-width="2"></path>
+					<path d="M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke-width="2"></path>
+				</svg>
+			</button>
+		</div>
+		<p id="product-share-status" class="product-share-status" role="status" aria-live="polite" hidden>Enlace copiado</p>
 	</div>
 
-	<section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+	<section class="product-detail-stack grid grid-cols-1 gap-8">
 		<div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
 			<div id="product-gallery" class="relative bg-white">
 				<img
@@ -304,16 +366,16 @@ const variationItems = variations.map((variation) => {
 			<script type="application/json" id="product-gallery-data" set:html={JSON.stringify(productGalleryImages)}></script>
 		</div>
 
-		<div>
-			<p class="text-sm font-semibold text-blue-600 mb-2">
+		<div class="product-detail-info">
+			<p class="product-detail-category text-sm font-semibold text-blue-600 mb-2">
 				{categoryName}
 			</p>
 
-			<h1 class="text-3xl font-extrabold text-gray-900 mb-4">
+			<h1 class="product-detail-title text-3xl font-extrabold text-gray-900 mb-4">
 				{product.name}
 			</h1>
 
-			<div class="flex flex-wrap items-center gap-3 mb-5">
+			<div class="product-detail-price flex flex-wrap items-center gap-3 mb-5">
 				{productHasOffer && !hasPublicVariations && (
 					<span class="product-offer-badge">Oferta</span>
 				)}
@@ -342,7 +404,7 @@ const variationItems = variations.map((variation) => {
 			</div>
 
 			{hasPublicVariations && (
-				<div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+				<div class="product-detail-variations bg-white rounded-2xl border border-gray-100 p-5 mb-6">
 					<div class="flex items-center justify-between gap-3 mb-3">
 						<div>
 							<h2 class="font-bold text-gray-900">Selecciona una variación</h2>
@@ -434,7 +496,7 @@ const variationItems = variations.map((variation) => {
 				</div>
 			)}
 
-			<div class="grid grid-cols-2 gap-3 mb-6">
+			<div class="product-detail-meta grid grid-cols-2 gap-3 mb-6">
 				<div class="bg-white rounded-2xl border border-gray-100 p-4">
 					<p class="text-xs text-gray-500">Stock</p>
 					<p id="product-stock-text" class={`font-bold ${initialStockClass}`}>
@@ -454,7 +516,7 @@ const variationItems = variations.map((variation) => {
 
 
 			{extraInfoItems.length > 0 && (
-				<section class="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white/95 p-5 mb-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+				<section class="product-detail-extra relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white/95 p-5 mb-6 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
 					<div class="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
 
 					<h2 class="mb-4 text-xl font-semibold tracking-tight text-slate-950">Información adicional</h2>
@@ -470,7 +532,7 @@ const variationItems = variations.map((variation) => {
 				</section>
 			)}
 
-			<div class="bg-white rounded-2xl border border-gray-100 p-5 mb-6">
+			<div class="product-detail-description bg-white rounded-2xl border border-gray-100 p-5 mb-6">
 				<h2 class="font-bold text-gray-900 mb-3">
 					Descripción
 				</h2>
@@ -478,7 +540,7 @@ const variationItems = variations.map((variation) => {
 				<div class="text-gray-600 leading-relaxed" set:html={product.description}></div>
 			</div>
 
-			<div id="product-purchase-actions">
+			<div id="product-purchase-actions" class="product-detail-purchase">
 			<div class="bg-white rounded-3xl border border-gray-100 p-5 mb-4">
 				<p class="text-xs font-black text-gray-500 uppercase tracking-wide text-center mb-4">Cantidad</p>
 				<div class="flex items-center justify-center gap-6">
@@ -538,6 +600,8 @@ const variationItems = variations.map((variation) => {
 
 			<script>
 				const addToCartBtn = document.getElementById('add-to-cart-btn');
+				const productShareBtn = document.getElementById('product-share-btn');
+				const productShareStatus = document.getElementById('product-share-status');
 				const mobileCta = document.getElementById('product-mobile-cta');
 				const mobileAddToCartBtn = document.getElementById('mobile-add-to-cart-btn');
 				const purchaseActions = document.getElementById('product-purchase-actions');
@@ -568,6 +632,67 @@ const variationItems = variations.map((variation) => {
 				let touchEndX = 0;
 				let selectedQuantity = 1;
 				let purchaseActionsVisible = false;
+				let shareStatusTimeout;
+				document.body.classList.add('product-detail-page');
+
+				function showShareStatus(message = 'Enlace copiado') {
+					if (!productShareStatus) return;
+					productShareStatus.textContent = message;
+					productShareStatus.hidden = false;
+					requestAnimationFrame(() => productShareStatus.classList.add('is-visible'));
+					window.clearTimeout(shareStatusTimeout);
+					shareStatusTimeout = window.setTimeout(() => {
+						productShareStatus.classList.remove('is-visible');
+						window.setTimeout(() => {
+							productShareStatus.hidden = true;
+						}, 220);
+					}, 1800);
+				}
+
+				async function copyProductUrl(url) {
+					if (navigator.clipboard?.writeText) {
+						await navigator.clipboard.writeText(url);
+						return true;
+					}
+
+					const copyField = document.createElement('textarea');
+					copyField.value = url;
+					copyField.setAttribute('readonly', '');
+					copyField.style.position = 'fixed';
+					copyField.style.left = '-9999px';
+					copyField.style.top = '0';
+					document.body.appendChild(copyField);
+					copyField.select();
+					const copied = document.execCommand('copy');
+					copyField.remove();
+					return copied;
+				}
+
+				productShareBtn?.addEventListener('click', async () => {
+					const shareUrl = window.location.href;
+					const shareData = {
+						title: productShareBtn.dataset.shareTitle || document.title,
+						text: productShareBtn.dataset.shareText || productShareBtn.dataset.shareTitle || '',
+						url: shareUrl,
+					};
+
+					if (navigator.share) {
+						try {
+							await navigator.share(shareData);
+						} catch (error) {
+							if (error?.name !== 'AbortError') {
+								try {
+									if (await copyProductUrl(shareUrl)) showShareStatus();
+								} catch (_) {}
+							}
+						}
+						return;
+					}
+
+					try {
+						if (await copyProductUrl(shareUrl)) showShareStatus();
+					} catch (_) {}
+				});
 
 				function syncFloatingCta() {
 					if (!mobileAddToCartBtn || !addToCartBtn) return;
@@ -584,10 +709,10 @@ const variationItems = variations.map((variation) => {
 
 				function updateFloatingCtaVisibility() {
 					if (!mobileCta) return;
-					const isMobile = window.matchMedia('(max-width: 767px)').matches;
-					const shouldShow = isMobile && !purchaseActionsVisible;
+					const shouldShow = !purchaseActionsVisible;
 					mobileCta.classList.toggle('is-visible', shouldShow);
 					mobileCta.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+					document.body.classList.toggle('product-add-floating-active', shouldShow);
 				}
 
 				function refreshPurchaseActionsVisibility() {

@@ -3,6 +3,7 @@
 import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
+import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../../lib/api';
 
 export async function getStaticPaths() {
@@ -23,6 +24,7 @@ const category = categories.find((item) => item.id === subcategory.category);
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';
 const subcategoryProducts = products.filter((product) => product.subcategory === subcategory.id);
+const productCountLabel = `${subcategoryProducts.length} ${subcategoryProducts.length === 1 ? 'producto' : 'productos'}`;
 function getProductOfferView(product: any) {
   const activePrice = Number(product?.base_price_usd || 0);
   const regularPrice = Number(product?.regular_price_usd || activePrice);
@@ -44,6 +46,7 @@ function getProductOfferView(product: any) {
     .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; flex: 0 0 auto; }
     .brand-logo img { width: 100%; height: 100%; object-fit: cover; }
     .brand-name { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .top-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 0 auto; }
     .back-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 16px; padding: 11px 13px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 13px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.06); }
     .hero-copy { display:grid; gap:10px; margin-bottom:24px; }
     .kicker { margin: 0; color: #16a34a; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .11em; }
@@ -52,21 +55,24 @@ function getProductOfferView(product: any) {
     .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .empty-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 24px; padding: 22px; color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
     @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; } }
-    @media (max-width: 640px) { .hero { border-radius: 28px; } .back-btn { padding: 10px 11px; } }
+    @media (max-width: 640px) { .hero { border-radius: 28px; } .back-btn { padding: 10px 11px; } .top { align-items: flex-start; } .top-actions { flex-wrap: wrap; } }
   </style>
 
   <div class="top">
     <a class="brand-link" href="/">
       <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
-      <p class="brand-name">{storeName}</p>
+      <p class="brand-name">INICIO</p>
     </a>
-    <a class="back-btn" href={category ? `/categoria/${category.slug}` : '/#categorias'}>← Volver</a>
+    <div class="top-actions">
+      <a class="back-btn" href={category ? `/categoria/${category.slug}` : '/#categorias'}>← Volver</a>
+      <PublicCategoryActions title={subcategory.name} text={`Subcategoría ${subcategory.name}`} categories={categories} currentCategoryId={category?.id || ''} />
+    </div>
   </div>
 
   <section class="hero-copy">
     <p class="kicker">Subcategoría{category ? ` · ${category.name}` : ''}</p>
     <h1 class="title">{subcategory.name}</h1>
-    <p class="subtitle">{subcategoryProducts.length} productos visibles · Vista 2 por fila en PC y móvil.</p>
+    <p class="subtitle">{productCountLabel}</p>
   </section>
 
   {subcategoryProducts.length > 0 ? (

@@ -1,0 +1,215 @@
+---
+interface CategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+const {
+  title = 'PowerZona',
+  text = 'PowerZona',
+  categories = [],
+  currentCategoryId = '',
+} = Astro.props as {
+  title?: string;
+  text?: string;
+  categories?: CategoryItem[];
+  currentCategoryId?: string;
+};
+---
+
+<div class="public-category-actions" data-public-category-actions data-share-title={title} data-share-text={text}>
+  <button class="category-share-btn" type="button" data-share-page aria-label="Compartir página" title="Compartir página">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8.5 12.5 15.5 16.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M15.5 7.5 8.5 11.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+      <path d="M6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke-width="2"></path>
+      <path d="M18 9.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke-width="2"></path>
+      <path d="M18 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke-width="2"></path>
+    </svg>
+  </button>
+  <div class="category-more-wrap">
+    <button class="category-action-btn category-more-btn" type="button" data-category-menu-toggle aria-label="Abrir opciones" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+      </svg>
+    </button>
+    <div class="category-options-panel" data-category-menu hidden>
+      <section class="category-options-section" data-pz-currency-menu hidden>
+        <p class="category-options-title">Moneda</p>
+        <select class="category-currency-select" data-pz-currency-select aria-label="Moneda visual"></select>
+      </section>
+      <section class="category-options-section">
+        <p class="category-options-title">Categorías</p>
+        <button class="category-list-toggle" type="button" data-category-list-toggle aria-expanded="false">
+          <span>Ver categorías</span>
+          <span class="category-list-chevron" aria-hidden="true">⌄</span>
+        </button>
+        <div class="category-options-list" data-category-list hidden>
+          {categories.map((category) => (
+            <a
+              class:list={['category-options-link', category.id === currentCategoryId && 'is-active']}
+              href={`/categoria/${category.slug}`}
+              aria-current={category.id === currentCategoryId ? 'page' : undefined}
+            >
+              {category.name}
+            </a>
+          ))}
+        </div>
+      </section>
+    </div>
+  </div>
+  <span class="category-share-toast" data-share-toast role="status" aria-live="polite" hidden>Enlace copiado</span>
+</div>
+
+<style>
+  .public-category-actions { position: relative; display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .category-share-btn { width: 42px; height: 42px; border-radius: 16px; border: 1px solid #e5e7eb; background: #fff; color: #111827; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(15,23,42,.06); text-decoration: none; transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; cursor: pointer; }
+  .category-share-btn svg { width: 19px; height: 19px; stroke: currentColor; }
+  .category-share-btn:hover { border-color: #cbd5e1; background: #f8fafc; transform: translateY(-1px); box-shadow: 0 14px 28px rgba(15,23,42,.08); }
+  .category-share-btn:focus-visible { outline: 3px solid rgba(15,23,42,.16); outline-offset: 2px; }
+  .category-action-btn { min-height: 44px; border: 1px solid rgba(226,232,240,.95); background: rgba(255,255,255,.96); color: #111827; border-radius: 999px; box-shadow: 0 12px 28px rgba(15,23,42,.09); display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; font-size: 13px; font-weight: 1000; cursor: pointer; }
+  .category-action-btn svg { width: 18px; height: 18px; fill: currentColor; flex: 0 0 auto; }
+  .category-more-btn { width: 44px; padding: 0; }
+  .category-more-wrap { position: relative; }
+  .category-options-panel { position: absolute; top: calc(100% + 10px); right: 0; z-index: 70; width: min(290px, calc(100vw - 32px)); max-height: min(520px, calc(100vh - 110px)); overflow: auto; border-radius: 24px; background: linear-gradient(180deg,#fff,#f8fafc); border: 1px solid rgba(226,232,240,.95); box-shadow: 0 24px 70px rgba(15,23,42,.20); padding: 12px; display: grid; gap: 10px; }
+  .category-options-section { display: grid; gap: 8px; padding: 12px; border-radius: 18px; background: #fff; border: 1px solid #e5e7eb; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+  .category-options-title { margin: 0; color: #111827; font-size: 13px; font-weight: 1000; }
+  .category-currency-select { width: 100%; border: 1px solid #e5e7eb; outline: none; border-radius: 15px; background: #111827; color: #fff; padding: 11px 12px; font-size: 13px; font-weight: 1000; }
+  .category-list-toggle { width: 100%; min-height: 42px; border-radius: 15px; border: 1px solid #e5e7eb; background: #f8fafc; color: #111827; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; font-size: 13px; font-weight: 1000; cursor: pointer; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+  .category-list-toggle:hover { border-color: #cbd5e1; background: #fff; box-shadow: 0 10px 22px rgba(15,23,42,.06); }
+  .category-list-toggle:focus-visible { outline: 3px solid rgba(15,23,42,.14); outline-offset: 2px; }
+  .category-list-chevron { color: #64748b; font-size: 16px; line-height: 1; transition: transform .18s ease; }
+  .category-list-toggle[aria-expanded="true"] .category-list-chevron { transform: rotate(180deg); }
+  .category-options-list { display: grid; gap: 6px; max-height: 230px; overflow: auto; padding-right: 2px; }
+  .category-options-link { display: flex; align-items: center; min-height: 40px; border-radius: 14px; padding: 9px 11px; color: #111827; font-size: 13px; font-weight: 950; text-decoration: none; }
+  .category-options-link:hover, .category-options-link.is-active { background: #f1f5f9; color: #020617; }
+  .category-options-link.is-active { box-shadow: inset 0 0 0 1px #e2e8f0; }
+  .category-share-toast { position: absolute; top: calc(100% + 10px); right: 0; z-index: 80; border-radius: 999px; background: #111827; color: #fff; padding: 9px 12px; font-size: 12px; font-weight: 1000; box-shadow: 0 14px 30px rgba(15,23,42,.20); white-space: nowrap; }
+  @media (max-width: 520px) {
+    .public-category-actions { gap: 6px; }
+    .category-share-btn { width: 42px; height: 42px; }
+    .category-action-btn { min-height: 42px; padding: 0 11px; }
+    .category-action-btn span { display: none; }
+    .category-more-btn { width: 42px; }
+  }
+</style>
+
+<script>
+  (() => {
+    document.querySelectorAll('[data-public-category-actions]').forEach((root) => {
+      const shareButton = root.querySelector('[data-share-page]');
+      const menuButton = root.querySelector('[data-category-menu-toggle]');
+      const menu = root.querySelector('[data-category-menu]');
+      const categoryListButton = root.querySelector('[data-category-list-toggle]');
+      const categoryList = root.querySelector('[data-category-list]');
+      const toast = root.querySelector('[data-share-toast]');
+      let toastTimer;
+
+      function showToast(message) {
+        if (!toast) return;
+        toast.textContent = message;
+        toast.hidden = false;
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => { toast.hidden = true; }, 2200);
+      }
+
+      function closeCategoryList() {
+        if (!categoryList || !categoryListButton) return;
+        categoryList.hidden = true;
+        categoryListButton.setAttribute('aria-expanded', 'false');
+      }
+
+      function toggleCategoryList() {
+        if (!categoryList || !categoryListButton) return;
+        const nextOpen = categoryList.hidden;
+        categoryList.hidden = !nextOpen;
+        categoryListButton.setAttribute('aria-expanded', String(nextOpen));
+      }
+
+      function closeMenu() {
+        if (!menu || !menuButton) return;
+        menu.hidden = true;
+        menuButton.setAttribute('aria-expanded', 'false');
+        closeCategoryList();
+      }
+
+      function toggleMenu() {
+        if (!menu || !menuButton) return;
+        const nextOpen = menu.hidden;
+        menu.hidden = !nextOpen;
+        menuButton.setAttribute('aria-expanded', String(nextOpen));
+        if (!nextOpen) closeCategoryList();
+      }
+
+      async function copyCurrentUrl() {
+        const url = window.location.href;
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          return;
+        }
+        const field = document.createElement('textarea');
+        field.value = url;
+        field.setAttribute('readonly', '');
+        field.style.position = 'fixed';
+        field.style.opacity = '0';
+        document.body.appendChild(field);
+        field.select();
+        document.execCommand('copy');
+        field.remove();
+      }
+
+      shareButton?.addEventListener('click', async () => {
+        const payload = {
+          title: root.getAttribute('data-share-title') || document.title,
+          text: root.getAttribute('data-share-text') || document.title,
+          url: window.location.href,
+        };
+        try {
+          if (navigator.share) {
+            await navigator.share(payload);
+          } else {
+            await copyCurrentUrl();
+            showToast('Enlace copiado');
+          }
+        } catch (error) {
+          if (error?.name === 'AbortError') return;
+          try {
+            await copyCurrentUrl();
+            showToast('Enlace copiado');
+          } catch (_) {
+            showToast('No se pudo copiar');
+          }
+        }
+      });
+
+      menuButton?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleMenu();
+      });
+
+      categoryListButton?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        toggleCategoryList();
+      });
+
+      menu?.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target?.matches?.('a')) closeMenu();
+      });
+
+      menu?.addEventListener('change', (event) => {
+        const target = event.target;
+        if (target?.matches?.('[data-pz-currency-select]')) closeMenu();
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!root.contains(event.target)) closeMenu();
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeMenu();
+      });
+    });
+  })();
+</script>

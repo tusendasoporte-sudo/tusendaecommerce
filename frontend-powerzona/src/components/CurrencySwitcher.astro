@@ -1,12 +1,15 @@
 ---
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const { hideFloatingSwitcher = false } = Astro.props;
 ---
 
 <!-- PZ-CURRENCY-SWITCHER-V4-MENU-MOBILE-SYNC-20260604 -->
-<div id="pz-currency-switcher" class="pz-currency-switcher" hidden>
-  <label for="pz-currency-select">Moneda</label>
-  <select id="pz-currency-select" data-pz-currency-select aria-label="Moneda visual"></select>
-</div>
+{!hideFloatingSwitcher && (
+  <div id="pz-currency-switcher" class="pz-currency-switcher" hidden>
+    <label for="pz-currency-select">Moneda</label>
+    <select id="pz-currency-select" data-pz-currency-select aria-label="Moneda visual"></select>
+  </div>
+)}
 
 <style>
   .pz-currency-switcher {
@@ -26,9 +29,15 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   }
   .pz-currency-switcher label { color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .05em; }
   .pz-currency-switcher select { border: 0; outline: none; background: #111827; color: #fff; border-radius: 999px; padding: 8px 26px 8px 11px; font-size: 12px; font-weight: 1000; }
+  body.product-detail-page.product-add-floating-active .pz-currency-switcher {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
   @media (max-width: 1024px) {
     .pz-currency-switcher { right: 108px; bottom: 18px; padding: 8px; }
     .pz-currency-switcher label { display: none; }
+    body.product-detail-page.product-add-floating-active .pz-currency-switcher {
+      bottom: calc(92px + env(safe-area-inset-bottom));
+    }
   }
   @media (max-width: 420px) {
     .pz-currency-switcher { right: 104px; bottom: 18px; }

@@ -7,6 +7,7 @@ import { getSettings, getPublicGifts } from '../../lib/api';
 const settings = await getSettings();
 const gifts = await getPublicGifts();
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const logoImageUrl = settings?.logoImageUrl || '';
 const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
@@ -15,6 +16,10 @@ const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
 <Layout>
   <style>
     .gift-page-head { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px; }
+    .gift-brand { min-width:0;display:flex;align-items:center;gap:10px;color:#111827;text-decoration:none; }
+    .gift-logo { width:42px;height:42px;border-radius:16px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:1000;overflow:hidden;flex:0 0 auto;box-shadow:0 10px 24px rgba(15,23,42,.06); }
+    .gift-logo img { width:100%;height:100%;object-fit:cover; }
+    .gift-brand-text { margin:0;font-size:15px;font-weight:1000;letter-spacing:-.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
     .back-link { display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2e8f0;background:#fff;color:#111827;border-radius:18px;padding:11px 14px;font-weight:1000;text-decoration:none;box-shadow:0 12px 26px rgba(15,23,42,.06); }
     .gift-hero-copy { display:grid;gap:10px;margin-bottom:14px; }
     .gift-hero-kicker { display:inline-flex;width:max-content;max-width:100%;border-radius:999px;padding:7px 11px;background:#ecfdf5;border:1px solid #bbf7d0;color:#166534;font-size:11px;font-weight:1000; }
@@ -36,11 +41,14 @@ const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
     .gift-btn:disabled { background:#e5e7eb;color:#64748b;box-shadow:none;cursor:not-allowed; }
     .empty { background:#fff;border:1px dashed #cbd5e1;border-radius:26px;padding:34px;text-align:center;color:#64748b;font-weight:900; }
     @media(min-width:900px){ .gift-grid { gap:18px; } .gift-card { border-radius:30px; } }
-    @media(max-width:520px){ .gift-grid { gap:10px; } .gift-body{padding:11px;} .gift-title{font-size:13px;} .gift-btn{font-size:11px;padding:10px 8px;} .gift-hero{border-radius:26px;aspect-ratio:16/9;min-height:170px;} .gift-image{aspect-ratio:4/3;padding:8px;} }
+    @media(max-width:520px){ .gift-page-head{align-items:flex-start;} .gift-brand-text{max-width:42vw;} .gift-grid { gap:10px; } .gift-body{padding:11px;} .gift-title{font-size:13px;} .gift-btn{font-size:11px;padding:10px 8px;} .gift-hero{border-radius:26px;aspect-ratio:16/9;min-height:170px;} .gift-image{aspect-ratio:4/3;padding:8px;} }
   </style>
 
   <div class="gift-page-head">
-    <a class="back-link" href="/">← Inicio</a>
+    <a class="gift-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
+      <div class="gift-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+      <p class="gift-brand-text">INICIO</p>
+    </a>
     <a class="back-link" href="/#categorias">Categorías</a>
   </div>
 

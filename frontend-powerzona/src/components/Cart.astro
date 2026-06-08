@@ -16,6 +16,19 @@
   </span>
 </button>
 
+<style>
+  body.product-detail-page.product-add-floating-active #cart-floating-btn {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  @media (max-width: 767px) {
+    body.product-detail-page.product-add-floating-active #cart-floating-btn {
+      bottom: calc(92px + env(safe-area-inset-bottom));
+      right: 16px;
+    }
+  }
+</style>
+
 <div id="cart-overlay" class="fixed inset-0 bg-black/40 z-40 hidden opacity-0 transition-opacity duration-300"></div>
 
 <div id="cart-sidebar" class="fixed top-0 right-0 w-full max-w-sm h-full bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">

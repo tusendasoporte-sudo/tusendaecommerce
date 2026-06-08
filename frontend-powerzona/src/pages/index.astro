@@ -41,12 +41,18 @@ function cleanWhatsappNumber(value: string | undefined) {
   return String(value || '').replace(/[^0-9]/g, '');
 }
 
-function productsByCategory(categoryId: string) {
-  return products.filter((product) => product.category === categoryId);
-}
-
 function subcategoriesByCategory(categoryId: string) {
   return subcategories.filter((subcategory) => subcategory.category === categoryId);
+}
+
+function productCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'producto' : 'productos'}`;
+}
+
+function productsByCategoryTotal(categoryId: string) {
+  const childSubcategoryIds = new Set(subcategoriesByCategory(categoryId).map((subcategory) => subcategory.id));
+  const categoryProducts = products.filter((product) => product.category === categoryId || childSubcategoryIds.has(product.subcategory));
+  return Array.from(new Map(categoryProducts.map((product) => [product.id, product])).values());
 }
 
 const whatsappNumber = cleanWhatsappNumber(settings?.whatsapp_number);
@@ -104,7 +110,7 @@ function getProductOfferView(product: any) {
     .drawer-head { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
     .drawer-logo { width: 46px; height: 46px; border-radius: 18px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; }
     .drawer-logo img { width: 100%; height: 100%; object-fit: cover; }
-    .drawer-title { margin: 0; font-size: 16px; font-weight: 1000; color: #111827; letter-spacing: -.02em; }
+    .drawer-title { margin: 0; font-size: 16px; font-weight: 1000; color: #111827; letter-spacing: -.02em; text-decoration: none; }
     .drawer-close { margin-left: auto; width: 38px; height: 38px; border-radius: 14px; border: 1px solid #e5e7eb; background: #fff; font-size: 18px; font-weight: 1000; }
     .drawer-nav { display: grid; gap: 8px; }
     .drawer-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-radius: 18px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 14px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
@@ -197,7 +203,6 @@ function getProductOfferView(product: any) {
   <div class="public-store-head" aria-label="Acciones principales">
     <a class="public-store-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
       <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
-      <div><p class="public-store-name">{storeName}</p></div>
     </a>
     <div class="public-header-actions">
       <a class="public-action-btn" href="/buscar" aria-label="Buscar productos y categorías">⌕</a>
@@ -209,7 +214,6 @@ function getProductOfferView(product: any) {
   <aside id="public-drawer" class="public-drawer" aria-hidden="true">
     <div class="drawer-head">
       <a class="drawer-logo" href="/" aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</a>
-      <div><p class="drawer-title">{storeName}</p></div>
       <button id="public-menu-close" class="drawer-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
     <nav class="drawer-nav">
@@ -342,8 +346,7 @@ function getProductOfferView(product: any) {
       </div>
       <div class="public-category-grid">
         {categories.map((category) => {
-          const categoryProducts = productsByCategory(category.id);
-          const categorySubcategories = subcategoriesByCategory(category.id);
+          const categoryProducts = productsByCategoryTotal(category.id);
           return (
             <a href={`/categoria/${category.slug}`} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
               <h3 class="public-category-title-outside">{category.name}</h3>
@@ -352,8 +355,7 @@ function getProductOfferView(product: any) {
                 <span class="public-category-go">›</span>
               </div>
               <div class="public-category-meta">
-                <span class="public-category-pill">{categoryProducts.length} productos</span>
-                <span class="public-category-pill">{categorySubcategories.length} subcategorías</span>
+                <span class="public-category-pill">{productCountLabel(categoryProducts.length)}</span>
               </div>
             </a>
           );

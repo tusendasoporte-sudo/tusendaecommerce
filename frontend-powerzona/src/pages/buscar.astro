@@ -112,7 +112,7 @@ const searchItems = [
     <div class="search-head">
       <a class="search-brand" href="/" aria-label={`Volver a ${storeName}`}>
         <div class="search-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
-        <p class="search-store">{storeName}</p>
+        <p class="search-store">INICIO</p>
       </a>
       <a class="back-btn" href="/">Volver</a>
     </div>
@@ -141,6 +141,7 @@ const searchItems = [
 
   <script define:vars={{ searchItems, initialQuery }}>
     const STORAGE_KEY = 'powerzona_recent_searches_v1';
+    const MAX_RECENT_SEARCHES = 5;
     const input = document.getElementById('public-search-input');
     const clearBtn = document.getElementById('public-search-clear');
     const info = document.getElementById('public-search-info');
@@ -162,7 +163,15 @@ const searchItems = [
     function getRecentSearches() {
       try {
         const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        return Array.isArray(parsed) ? parsed.filter(Boolean).slice(0, 8) : [];
+        if (!Array.isArray(parsed)) return [];
+        const recent = [];
+        parsed.forEach((item) => {
+          const cleaned = String(item || '').trim();
+          if (!cleaned) return;
+          if (recent.some((saved) => saved.toLowerCase() === cleaned.toLowerCase())) return;
+          recent.push(cleaned);
+        });
+        return recent.slice(0, MAX_RECENT_SEARCHES);
       } catch (error) {
         return [];
       }
@@ -170,10 +179,10 @@ const searchItems = [
 
     function saveRecentSearch(query) {
       const cleaned = String(query || '').trim();
-      if (cleaned.length < 2) return;
+      if (!cleaned) return;
       const recent = getRecentSearches().filter((item) => item.toLowerCase() !== cleaned.toLowerCase());
       recent.unshift(cleaned);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.slice(0, 8)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.slice(0, MAX_RECENT_SEARCHES)));
     }
 
     function renderRecentSearches() {
