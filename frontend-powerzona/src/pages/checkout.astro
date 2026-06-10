@@ -254,6 +254,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 							<span id="summary-discount" class="font-bold text-green-700">-$0.00 USD</span>
 						</div>
 
+						<div id="summary-discount-promo" class="hidden rounded-2xl bg-green-50 border border-green-100 p-3 text-xs font-black text-green-800"></div>
+
 						<div class="flex justify-between">
 							<span class="text-gray-500">Entrega</span>
 							<span id="summary-delivery" class="font-bold text-gray-400">Pendiente</span>
@@ -497,6 +499,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			return window.PZPromotions?.calculateCartPromotions(cart, window.PZ_AUTOMATIC_PROMOTIONS || []) || {
 				items: cart,
 				subtotalOriginalUSD: cart.reduce((sum, item) => item.is_gift ? sum : sum + Number(item.price || 0) * Number(item.quantity || 1), 0),
+				localCurrencyOriginalTotal: cart.reduce((sum, item) => item.is_gift || item.only_usd ? sum : sum + Number(item.price || 0) * Number(item.quantity || 1), 0),
+				usdOnlyOriginalTotal: cart.reduce((sum, item) => item.is_gift || !item.only_usd ? sum : sum + Number(item.price || 0) * Number(item.quantity || 1), 0),
 				discountTotalUSD: 0,
 				usdOnlyDiscountTotal: 0,
 				localCurrencyDiscountTotal: 0,
@@ -521,13 +525,59 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			return formatVisualFromUsd(totals.localCurrencyTotal || totals.subtotalUSD, { onlyUsd: false });
 		}
 
+		function formatCheckoutOriginalTotals(totals) {
+			const selected = selectedCurrencyCode();
+			const localOriginal = Number(totals.localCurrencyOriginalTotal ?? totals.localCurrencyTotal ?? 0);
+			const usdOriginal = Number(totals.usdOnlyOriginalTotal ?? totals.usdOnlyTotal ?? 0);
+			if (selected !== 'USD' && usdOriginal > 0 && localOriginal > 0) {
+				return `${formatVisualFromUsd(localOriginal, { onlyUsd: false })} + ${formatUSD(usdOriginal)}`;
+			}
+			if (usdOriginal > 0 && localOriginal <= 0) return formatUSD(usdOriginal);
+			return formatVisualFromUsd(localOriginal || totals.subtotalOriginalUSD || totals.subtotalUSD, { onlyUsd: false });
+		}
+
 		function formatCheckoutDiscount(totals) {
 			const selected = selectedCurrencyCode();
-			if (selected !== 'USD' && totals.usdOnlyDiscountTotal > 0 && totals.localCurrencyDiscountTotal > 0) {
-				return `${formatVisualFromUsd(totals.localCurrencyDiscountTotal, { onlyUsd: false })} + ${formatUSD(totals.usdOnlyDiscountTotal)}`;
+			const usdOnlyDiscount = Number(totals.usdOnlyDiscountTotal || 0);
+			const localDiscount = Number(totals.localCurrencyDiscountTotal || 0);
+			if (selected !== 'USD' && usdOnlyDiscount > 0 && localDiscount > 0) {
+				return `${formatVisualFromUsd(localDiscount, { onlyUsd: false })} + ${formatUSD(usdOnlyDiscount)}`;
 			}
-			if (totals.usdOnlyDiscountTotal > 0 && totals.localCurrencyDiscountTotal <= 0) return formatUSD(totals.usdOnlyDiscountTotal);
-			return formatVisualFromUsd(totals.localCurrencyDiscountTotal || totals.discountTotalUSD, { onlyUsd: false });
+			if (usdOnlyDiscount > 0 && localDiscount <= 0) return formatUSD(usdOnlyDiscount);
+			if (localDiscount > 0) return formatVisualFromUsd(localDiscount, { onlyUsd: false });
+			return formatVisualFromUsd(totals.discountTotalUSD, { onlyUsd: false });
+		}
+
+		function formatCheckoutDiscountWithSign(totals) {
+			const selected = selectedCurrencyCode();
+			const usdOnlyDiscount = Number(totals.usdOnlyDiscountTotal || 0);
+			const localDiscount = Number(totals.localCurrencyDiscountTotal || 0);
+			if (selected !== 'USD' && usdOnlyDiscount > 0 && localDiscount > 0) {
+				return `-${formatVisualFromUsd(localDiscount, { onlyUsd: false })} + -${formatUSD(usdOnlyDiscount)}`;
+			}
+			return `-${formatCheckoutDiscount(totals)}`;
+		}
+
+		function formatWhatsAppDiscount(totals) {
+			const selected = selectedCurrencyCode();
+			const usdOnlyDiscount = Number(totals.usdOnlyDiscountTotal || 0);
+			const localDiscount = Number(totals.localCurrencyDiscountTotal || 0);
+			if (selected !== 'USD' && usdOnlyDiscount > 0 && localDiscount > 0) {
+				return `*Descuento ${selected}*: -${formatVisualFromUsd(localDiscount, { onlyUsd: false })}
+*Descuento USD*: -${formatUSD(usdOnlyDiscount)}`;
+			}
+			if (usdOnlyDiscount > 0 && localDiscount <= 0) return `*Descuento aplicado*: -${formatUSD(usdOnlyDiscount)}`;
+			if (localDiscount > 0) return `*Descuento aplicado*: -${formatVisualFromUsd(localDiscount, { onlyUsd: false })}`;
+			return `*Descuento aplicado*: -${formatVisualFromUsd(totals.discountTotalUSD, { onlyUsd: false })}`;
+		}
+
+		function getPromotionReasonText(totals) {
+			const promos = totals?.appliedPromotions || [];
+			const labels = promos
+				.map((promo) => promo.label || promo.name || '')
+				.filter(Boolean)
+				.filter((label, index, list) => list.indexOf(label) === index);
+			return labels.join(' / ');
 		}
 
 		function getCheckoutSummaryCurrencyLabel(totals) {
@@ -1123,11 +1173,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			const renderTotals = calculateTotals(cart, selectedShippingZone, getSelectedDeliveryMethod());
 			if (summaryCurrency) summaryCurrency.textContent = getCheckoutSummaryCurrencyLabel(renderTotals);
 			summarySubtotal.textContent = renderTotals.discountTotalUSD > 0
-				? formatVisualFromUsd(renderTotals.subtotalOriginalUSD, { onlyUsd: false })
+				? formatCheckoutOriginalTotals(renderTotals)
 				: formatCheckoutTotals(renderTotals);
 			if (summaryDiscountRow && summaryDiscount) {
 				summaryDiscountRow.classList.toggle('hidden', !(renderTotals.discountTotalUSD > 0));
-				summaryDiscount.textContent = renderTotals.discountTotalUSD > 0 ? `-${formatCheckoutDiscount(renderTotals)}` : '';
+				summaryDiscount.textContent = renderTotals.discountTotalUSD > 0 ? formatCheckoutDiscountWithSign(renderTotals) : '';
+			}
+			const summaryDiscountPromo = document.getElementById('summary-discount-promo');
+			if (summaryDiscountPromo) {
+				const reasonText = getPromotionReasonText(renderTotals);
+				summaryDiscountPromo.classList.toggle('hidden', !(renderTotals.discountTotalUSD > 0 && reasonText));
+				summaryDiscountPromo.textContent = reasonText ? `Promo aplicada: ${reasonText}` : '';
 			}
 			summaryTotal.textContent = formatCheckoutTotals(renderTotals);
 
@@ -1306,7 +1362,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			return {
 				subtotalUSD,
 				subtotalOriginalUSD: promotionTotals.subtotalOriginalUSD,
+				localCurrencyOriginalTotal: promotionTotals.localCurrencyOriginalTotal,
+				usdOnlyOriginalTotal: promotionTotals.usdOnlyOriginalTotal,
 				discountTotalUSD: promotionTotals.discountTotalUSD,
+				usdOnlyDiscountTotal: promotionTotals.usdOnlyDiscountTotal,
+				localCurrencyDiscountTotal: promotionTotals.localCurrencyDiscountTotal,
 				promotionSummary: promotionTotals.promotionSummary,
 				promotionItems: promotionTotals.items,
 				appliedPromotions: promotionTotals.appliedPromotions,
@@ -1447,6 +1507,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 	} else {
 		totalText = `*Total productos ${selectedCode}*: ${formatVisualFromUsd(totals.localCurrencyTotal || totals.subtotalUSD, { onlyUsd: false })}`;
 	}
+	const promotionReasonText = getPromotionReasonText(totals);
+	const discountText = totals.discountTotalUSD > 0 ? `
+${formatWhatsAppDiscount(totals)}${promotionReasonText ? `
+*Promo aplicada*: ${promotionReasonText}` : ''}` : '';
 
 	return `${storePublicName}
 
@@ -1462,7 +1526,7 @@ ${productLines.join('\n')}${giftLines.length ? `\n\n*Regalo incluido:*\n${giftLi
 
 ${getWhatsAppDeliveryLine(checkoutData, totals)}
 -------------------------------------------------------------------------------------------
-${totalText}
+${totalText}${discountText}
 
 Gracias.
 
