@@ -6,7 +6,7 @@ import Layout from '../layouts/Layout.astro';
 import ProductCard from '../components/ProductCard.astro';
 import PublicFooter from '../components/PublicFooter.astro';
 import PromoBar from '../components/PromoBar.astro';
-import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts } from '../lib/api';
+import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../lib/api';
 
 const settings = await getSettings();
 const categories = await getCategories();
@@ -15,6 +15,7 @@ const products = await getProducts();
 const featuredProducts = await getFeaturedProducts();
 const visualItems = await getStoreVisualItems();
 const gifts = await getPublicGifts();
+const automaticPromotions = await getAutomaticPromotions();
 
 // Regla pública:
 // - La portada no abre categorías en la misma página.
@@ -305,7 +306,7 @@ function getProductOfferView(product: any) {
       <div class="featured-strip" aria-label="Carrusel de productos destacados">
         {featuredProducts.map((product) => (
           <a href={`/producto/${product.slug}`} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} />
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
           </a>
         ))}
       </div>
@@ -375,7 +376,7 @@ function getProductOfferView(product: any) {
       <div class="homepage-products-grid">
         {homepageProducts.map((product) => (
           <a href={`/producto/${product.slug}`} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} />
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
           </a>
         ))}
       </div>

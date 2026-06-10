@@ -4,7 +4,7 @@ import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
-import { getSettings, getCategories, getSubcategories, getProducts } from '../../lib/api';
+import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
 
 export async function getStaticPaths() {
   const subcategories = await getSubcategories();
@@ -16,6 +16,7 @@ const settings = await getSettings();
 const categories = await getCategories();
 const subcategories = await getSubcategories();
 const products = await getProducts();
+const automaticPromotions = await getAutomaticPromotions();
 
 const subcategory = subcategories.find((item) => item.slug === slug);
 if (!subcategory) return Astro.redirect('/');
@@ -79,7 +80,7 @@ function getProductOfferView(product: any) {
     <div class="product-grid">
       {subcategoryProducts.map((product) => (
         <a href={`/producto/${product.slug}`} class="block">
-          <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} />
+          <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
         </a>
       ))}
     </div>

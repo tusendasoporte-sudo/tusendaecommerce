@@ -79,6 +79,7 @@
     return '$' + Number(amountUsd || 0).toFixed(2) + ' USD';
   };
   const hasMixedCurrency = (cart) => getSelectedCurrencyCode() !== 'USD' && cart.some((item) => Boolean(item.only_usd)) && cart.some((item) => !item.only_usd);
+  const calculatePromotions = (cart) => window.PZPromotions?.calculateCartPromotions(cart, window.PZ_AUTOMATIC_PROMOTIONS || []) || null;
 
 if (isCheckoutPage) {
   floatingBtn?.classList.add('hidden');
@@ -171,9 +172,11 @@ if (isCheckoutPage) {
 
     cartItemsContainer.innerHTML = '';
 
-    let totalUSD = 0;
-    let visualConvertibleTotalUSD = 0;
-    let usdOnlyTotalUSD = 0;
+    const promotionTotals = calculatePromotions(cart);
+    const cartForRender = promotionTotals?.items || cart;
+    let totalUSD = promotionTotals?.subtotalFinalUSD || 0;
+    let visualConvertibleTotalUSD = promotionTotals?.localCurrencyTotal || 0;
+    let usdOnlyTotalUSD = promotionTotals?.usdOnlyTotal || 0;
 
     if (cart.length === 0) {
       cartItemsContainer.innerHTML = `
@@ -187,26 +190,25 @@ if (isCheckoutPage) {
         </div>
       `;
     } else {
-      cart.forEach((item) => {
+      cartForRender.forEach((item) => {
         const itemKey = getItemKey(item);
         const price = Number(item.price || 0);
         const quantity = Number(item.quantity || 1);
         const stock = Number(item.stock || 0);
-        const lineTotal = price * quantity;
+        const lineTotal = Number(item.line_subtotal_final_usd ?? (price * quantity));
+        const lineOriginal = Number(item.line_subtotal_original_usd ?? (price * quantity));
+        const lineDiscount = Number(item.line_discount_usd || 0);
         const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
         const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
         const unitSavings = hasOffer ? regularPrice - price : 0;
         const lineSavings = unitSavings * quantity;
+        const hasAutomaticPromo = lineDiscount > 0 && Boolean(item.promotion_label);
         const tracksStock = itemTracksStock(item);
         const isPreorder = Boolean(item.preorder);
         const isOutOfStock = tracksStock && stock <= 0 && !isPreorder;
         const isOverStock = tracksStock && !isPreorder && !isOutOfStock && quantity > stock;
         const isGift = Boolean(item.is_gift);
         const isAtMaxStock = isGift || (tracksStock && !isPreorder && !isOutOfStock && quantity >= stock);
-
-        totalUSD += lineTotal;
-        if (item.only_usd) usdOnlyTotalUSD += lineTotal;
-        else visualConvertibleTotalUSD += lineTotal;
 
         cartItemsContainer.innerHTML += `
           <div class="flex gap-4 border-b border-gray-100 pb-4 relative pr-8">
@@ -235,6 +237,13 @@ if (isCheckoutPage) {
 
               ${item.only_usd ? `
                 <span class="inline-flex w-fit mt-1 text-[10px] font-black bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Solo USD</span>
+              ` : ''}
+
+              ${hasAutomaticPromo ? `
+                <div class="mt-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
+                  <p class="text-[11px] text-emerald-800 font-black">Promo aplicada: ${item.promotion_label}</p>
+                  <p class="text-[11px] text-emerald-700 font-black">Ahorras ${formatCartPrice(lineDiscount, item)}</p>
+                </div>
               ` : ''}
 
               ${item.is_gift ? `
@@ -276,7 +285,7 @@ if (isCheckoutPage) {
                 </div>
 
                 <span class="text-xs font-bold text-gray-600">
-                  ${item.is_gift ? 'Gratis' : formatCartPrice(lineTotal, item)}
+                  ${item.is_gift ? 'Gratis' : (hasAutomaticPromo ? `${formatCartPrice(lineTotal, item)} <span class="text-gray-400 line-through ml-1">${formatCartPrice(lineOriginal, item)}</span>` : formatCartPrice(lineTotal, item))}
                 </span>
               </div>
 
@@ -377,5 +386,6 @@ if (isCheckoutPage) {
   });
 
   window.addEventListener('pz-currency-changed', () => window.dispatchEvent(new Event('cart-updated')));
+  window.addEventListener('pz-promotions-updated', () => window.dispatchEvent(new Event('cart-updated')));
   window.dispatchEvent(new Event('cart-updated'));
 </script>

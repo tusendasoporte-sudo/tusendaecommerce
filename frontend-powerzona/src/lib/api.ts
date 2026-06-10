@@ -181,6 +181,46 @@ export async function getPublicGifts() {
   }
 }
 
+export async function getAutomaticPromotions() {
+  try {
+    return await pb.collection('automatic_promotions').getFullList({
+      filter: 'active = true',
+      sort: 'priority,-updated',
+    });
+  } catch (error) {
+    console.warn('automatic_promotions no disponible todavÃ­a. Reinicia PocketBase para aplicar la migraciÃ³n.', error);
+    return [];
+  }
+}
+
+export function getProductAutomaticPromotionText(product: any, promotions: any[] = []) {
+  const now = Date.now();
+  const active = promotions.filter((promotion: any) => {
+    const starts = promotion.starts_at ? new Date(promotion.starts_at).getTime() : 0;
+    const ends = promotion.ends_at ? new Date(promotion.ends_at).getTime() : 0;
+    if (starts && starts > now) return false;
+    if (ends && ends < now) return false;
+    return promotion.active !== false;
+  });
+
+  const candidates = active.filter((promotion: any) => {
+    if (promotion.type === 'cart_subtotal_discount' || promotion.scope === 'cart') return false;
+    if ((promotion.type === 'product_discount' || promotion.scope === 'product') && promotion.product === product.id) return true;
+    if ((promotion.type === 'subcategory_discount' || promotion.scope === 'subcategory') && promotion.subcategory === product.subcategory) return true;
+    if ((promotion.type === 'category_discount' || promotion.scope === 'category') && promotion.category === product.category) return true;
+    if ((promotion.type === 'buy_x_pay_y' || promotion.type === 'volume_discount') && promotion.product === product.id) return true;
+    return false;
+  });
+
+  if (!candidates.length) return '';
+  const promotion = candidates[0];
+  if (promotion.badge_text) return promotion.badge_text;
+  if (promotion.type === 'buy_x_pay_y') return `Compra ${promotion.buy_qty} y paga ${promotion.pay_qty}`;
+  if (promotion.discount_type === 'percentage') return `${Number(promotion.discount_value || 0)}% OFF automático`;
+  if (promotion.discount_type === 'fixed_usd') return `${Number(promotion.discount_value || 0).toFixed(2)} USD de descuento`;
+  return promotion.name || '';
+}
+
 export async function getProductBySlug(slug: string) {
   const product = await pb
     .collection('products')

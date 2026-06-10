@@ -11,6 +11,7 @@ const {
   trackStock = true,
   hasVariations = false,
   onlyUsd = false,
+  promoText = '',
   view = 'standard',
   buttonText = 'Comprar',
 } = Astro.props;
@@ -43,6 +44,8 @@ const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
     .price-stack { display: flex; flex-direction: column; gap: 2px; margin-top: 5px; }
     .regular-price { width: fit-content; color: #94a3b8; font-size: 12px; font-weight: 900; text-decoration: line-through; }
     .save-price { width: fit-content; color: #16a34a; font-size: 11px; font-weight: 1000; }
+    .automatic-promo-chip { display: inline-grid; gap: 1px; width: fit-content; margin-top: 7px; border-radius: 12px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; padding: 6px 8px; font-size: 10px; font-weight: 1000; line-height: 1.15; }
+    .automatic-promo-chip span:first-child { color: #047857; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; }
     @media (max-width: 640px) {
       .product-buy-chip { padding: 9px 10px; font-size: 12px; border-radius: 14px; }
     }
@@ -93,6 +96,13 @@ const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
     {onlyUsd && (
       <span class="inline-flex w-fit mt-1 text-[10px] font-black bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
         Solo USD
+      </span>
+    )}
+
+    {promoText && (
+      <span class="automatic-promo-chip">
+        <span>Promo</span>
+        <span>{promoText}</span>
       </span>
     )}
 

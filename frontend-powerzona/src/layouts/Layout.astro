@@ -4,6 +4,7 @@ import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 
 const isCheckoutPage = Astro.url.pathname.replace(/\/$/, '') === '/checkout';
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 ---
 
 <!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
@@ -23,6 +24,15 @@ const isCheckoutPage = Astro.url.pathname.replace(/\/$/, '') === '/checkout';
 			</div>
 		</main>
 
+		<script is:inline src="/cart-promotions.js"></script>
+		<script define:vars={{ pocketbaseUrl }}>
+			window.PZ_POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+			window.PZ_PROMOTIONS_READY = window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL).then((promotions) => {
+				window.PZ_AUTOMATIC_PROMOTIONS = promotions;
+				window.dispatchEvent(new Event('pz-promotions-updated'));
+				return promotions;
+			});
+		</script>
 		<CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />
 		<Cart />
 
