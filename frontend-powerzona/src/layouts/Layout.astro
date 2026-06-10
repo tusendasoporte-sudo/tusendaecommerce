@@ -32,6 +32,212 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				window.dispatchEvent(new Event('pz-promotions-updated'));
 				return promotions;
 			});
+			window.PZ_COUPONS_READY = window.PZPromotions?.loadActiveCoupons(window.PZ_POCKETBASE_URL).then((coupons) => {
+				window.PZ_MANUAL_COUPONS = coupons;
+				window.dispatchEvent(new Event('pz-coupons-updated'));
+				return coupons;
+			});
+			(() => {
+				const params = new URLSearchParams(window.location.search);
+				const code = String(params.get('coupon') || '').trim().toUpperCase();
+				if (!code) return;
+				const key = 'powerzona_saved_coupons';
+
+				const escapeHtml = (value) => String(value || '')
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#039;');
+
+				const dateBoundaryTime = (value, boundary = 'start') => {
+					if (!value) return 0;
+					const text = String(value);
+					if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+						const [year, month, day] = text.split('-').map(Number);
+						const date = boundary === 'end'
+							? new Date(year, month - 1, day, 23, 59, 59, 999)
+							: new Date(year, month - 1, day, 0, 0, 0, 0);
+						return date.getTime();
+					}
+					const parsed = new Date(text).getTime();
+					return Number.isFinite(parsed) ? parsed : 0;
+				};
+
+				const couponIsExpired = (coupon) => {
+					const now = Date.now();
+					const startsAt = dateBoundaryTime(coupon?.starts_at, 'start');
+					const endsAt = dateBoundaryTime(coupon?.ends_at, 'end');
+					return Boolean((startsAt && startsAt > now) || (endsAt && endsAt < now));
+				};
+
+				const couponIsSoldOut = (coupon) => {
+					const maxUses = Number(coupon?.max_uses || 0);
+					const usedCount = Number(coupon?.used_count || 0);
+					return coupon?.unlimited_uses === false && maxUses > 0 && usedCount >= maxUses;
+				};
+
+				const expandedName = (coupon, field) => {
+					const expanded = coupon?.expand?.[field];
+					const item = Array.isArray(expanded) ? expanded[0] : expanded;
+					return item?.name || item?.title || '';
+				};
+
+				const benefitText = (coupon) => {
+					if (!coupon) return '';
+					if (coupon.scope === 'free_shipping') return 'Tu envío puede quedar en 0.';
+					const value = Number(coupon.discount_value || 0);
+					if (coupon.discount_type === 'percentage') return `Ahorras ${value.toFixed(value % 1 ? 2 : 0)}%.`;
+					if (coupon.discount_type === 'fixed_usd') return `Ahorras ${value.toFixed(2)} USD.`;
+					return coupon.customer_message || 'Cupón disponible.';
+				};
+
+				const conditionLines = (coupon) => {
+					const lines = [];
+					const minSubtotal = Number(coupon?.min_subtotal_usd || 0);
+					if (minSubtotal > 0) lines.push(`Compra mínima: ${minSubtotal.toFixed(2)} USD.`);
+					if (coupon?.scope === 'product') lines.push(`Producto: ${expandedName(coupon, 'product') || 'producto seleccionado'}.`);
+					if (coupon?.scope === 'category') lines.push(`Categoría: ${expandedName(coupon, 'category') || 'categoría seleccionada'}.`);
+					if (coupon?.scope === 'subcategory') lines.push(`Subcategoría: ${expandedName(coupon, 'subcategory') || 'subcategoría seleccionada'}.`);
+					if (coupon?.scope === 'free_shipping') lines.push('Aplica solo para pedidos con envío.');
+					return lines;
+				};
+
+				const saveCouponCode = (couponCode) => {
+					const saved = (() => {
+						try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) { return []; }
+					})();
+					const list = Array.isArray(saved) ? saved.map((item) => String(item || '').toUpperCase()) : [];
+					if (!list.includes(couponCode)) list.push(couponCode);
+					localStorage.setItem(key, JSON.stringify(list.slice(-12)));
+				};
+
+				const removeCouponCode = (couponCode) => {
+					const saved = (() => {
+						try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) { return []; }
+					})();
+					const next = Array.isArray(saved)
+						? saved.map((item) => String(item || '').toUpperCase()).filter((item) => item && item !== couponCode)
+						: [];
+					localStorage.setItem(key, JSON.stringify(next));
+					if (localStorage.getItem('powerzona_selected_coupon') === couponCode) {
+						localStorage.removeItem('powerzona_selected_coupon');
+					}
+				};
+
+				const couponAlreadySaved = (couponCode) => {
+					const saved = (() => {
+						try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) { return []; }
+					})();
+					return Array.isArray(saved) && saved.map((item) => String(item || '').toUpperCase()).includes(couponCode);
+				};
+
+				const cleanCouponFromUrl = () => {
+					const url = new URL(window.location.href);
+					url.searchParams.delete('coupon');
+					const next = `${url.pathname}${url.search}${url.hash}`;
+					window.history.replaceState({}, '', next || '/');
+				};
+
+				const showCouponModal = ({ title, codeText = '', mainText = '', details = [], finalText = '', tone = 'success', onClose = null }) => {
+					document.getElementById('pz-coupon-link-modal')?.remove();
+					const overlay = document.createElement('div');
+					overlay.id = 'pz-coupon-link-modal';
+					overlay.setAttribute('role', 'dialog');
+					overlay.setAttribute('aria-modal', 'true');
+					overlay.innerHTML = `
+						<div class="pz-coupon-link-backdrop"></div>
+						<div class="pz-coupon-link-card">
+							<div class="pz-coupon-link-icon ${tone === 'success' ? 'is-success' : 'is-warning'}">${tone === 'success' ? '%' : '!'}</div>
+							<h2>${escapeHtml(title)}</h2>
+							${codeText ? `<p class="pz-coupon-link-code">${escapeHtml(codeText)}</p>` : ''}
+							${mainText ? `<p class="pz-coupon-link-main">${escapeHtml(mainText)}</p>` : ''}
+							${details.length ? `<div class="pz-coupon-link-details">${details.map((line) => `<p>${escapeHtml(line)}</p>`).join('')}</div>` : ''}
+							${finalText ? `<p class="pz-coupon-link-final">${escapeHtml(finalText)}</p>` : ''}
+							<button class="pz-coupon-link-ok" type="button">OK</button>
+						</div>
+					`;
+					const style = document.createElement('style');
+					style.textContent = `
+						#pz-coupon-link-modal { position: fixed; inset: 0; z-index: 99999; display: grid; place-items: center; padding: 18px; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+						.pz-coupon-link-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .48); backdrop-filter: blur(5px); }
+						.pz-coupon-link-card { position: relative; width: min(460px, 100%); border-radius: 30px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border: 1px solid rgba(226, 232, 240, .96); box-shadow: 0 34px 100px rgba(15, 23, 42, .30); padding: 26px; text-align: center; color: #0f172a; }
+						.pz-coupon-link-icon { width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 20px; display: grid; place-items: center; font-size: 24px; font-weight: 1000; }
+						.pz-coupon-link-icon.is-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+						.pz-coupon-link-icon.is-warning { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+						.pz-coupon-link-card h2 { margin: 0; font-size: clamp(24px, 7vw, 34px); line-height: 1; font-weight: 1000; letter-spacing: 0; }
+						.pz-coupon-link-code { width: fit-content; max-width: 100%; margin: 16px auto 0; border-radius: 999px; background: #0f172a; color: #fff; padding: 9px 14px; font-size: 15px; font-weight: 1000; letter-spacing: .04em; word-break: break-word; }
+						.pz-coupon-link-main { margin: 16px 0 0; color: #334155; font-size: 16px; line-height: 1.45; font-weight: 900; }
+						.pz-coupon-link-details { display: grid; gap: 8px; margin: 16px 0 0; padding: 12px; border-radius: 20px; background: #f1f5f9; border: 1px solid #e2e8f0; text-align: left; }
+						.pz-coupon-link-details p { margin: 0; color: #475569; font-size: 13px; line-height: 1.35; font-weight: 800; }
+						.pz-coupon-link-final { margin: 16px 0 0; color: #166534; font-size: 13px; line-height: 1.45; font-weight: 950; }
+						.pz-coupon-link-ok { width: 100%; margin-top: 18px; border: 0; border-radius: 18px; background: #0f172a; color: #fff; padding: 13px 16px; font-size: 14px; font-weight: 1000; cursor: pointer; box-shadow: 0 14px 30px rgba(15, 23, 42, .18); }
+						@media (max-width: 520px) { .pz-coupon-link-card { border-radius: 26px; padding: 22px; } }
+					`;
+					overlay.appendChild(style);
+					const close = () => {
+						overlay.remove();
+						if (typeof onClose === 'function') onClose();
+					};
+					overlay.querySelector('.pz-coupon-link-ok')?.addEventListener('click', close);
+					overlay.querySelector('.pz-coupon-link-backdrop')?.addEventListener('click', close);
+					document.addEventListener('keydown', function onKeydown(event) {
+						if (event.key !== 'Escape') return;
+						close();
+						document.removeEventListener('keydown', onKeydown);
+					});
+					document.body.appendChild(overlay);
+				};
+
+				Promise.resolve(window.PZ_COUPONS_READY).then(() => {
+					const coupon = (window.PZ_MANUAL_COUPONS || []).find((item) => String(item.code || '').toUpperCase() === code);
+					if (!coupon) {
+						removeCouponCode(code);
+						showCouponModal({
+							title: 'Cupón no disponible',
+							mainText: 'Este cupón no está disponible o ya no existe.',
+							tone: 'warning',
+							onClose: cleanCouponFromUrl,
+						});
+						return;
+					}
+					if (couponIsExpired(coupon)) {
+						removeCouponCode(code);
+						showCouponModal({
+							title: 'Cupón vencido',
+							mainText: 'Este cupón ya no está disponible.',
+							tone: 'warning',
+							onClose: cleanCouponFromUrl,
+						});
+						return;
+					}
+					if (couponIsSoldOut(coupon)) {
+						removeCouponCode(code);
+						showCouponModal({
+							title: 'Cupón agotado',
+							mainText: 'Este cupón ya alcanzó su límite de uso.',
+							tone: 'warning',
+							onClose: cleanCouponFromUrl,
+						});
+						return;
+					}
+					const alreadySaved = couponAlreadySaved(code);
+					if (!alreadySaved) saveCouponCode(code);
+					showCouponModal({
+						title: alreadySaved ? 'Cupón ya listo' : 'Cupón adquirido',
+						codeText: coupon.code || code,
+						mainText: alreadySaved
+							? 'Este cupón ya está guardado para tu próximo pedido.'
+							: (coupon.customer_message || benefitText(coupon)),
+						details: alreadySaved ? [coupon.customer_message || benefitText(coupon)] : conditionLines(coupon),
+						finalText: alreadySaved
+							? 'Lo verás cuando vayas a realizar el pedido.'
+							: 'Este cupón se guardó. Lo verás cuando vayas a realizar el pedido.',
+						tone: 'success',
+						onClose: cleanCouponFromUrl,
+					});
+				});
+			})();
 		</script>
 		<CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />
 		<Cart />

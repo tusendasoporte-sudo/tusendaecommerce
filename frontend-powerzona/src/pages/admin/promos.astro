@@ -516,6 +516,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           <div class="tabs">
             <button class="tab-btn active" data-tab="destacados" type="button">Destacados</button>
             <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>
+            <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>
             <button class="tab-btn" data-tab="visuales" type="button">Promo visual / Acceso rápido</button>
           </div>
 
@@ -910,6 +911,116 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             </div>
           </div>
 
+          <section id="tab-cupones" class="panel-card tab-panel hidden">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">Cupón manual</h2>
+                <p class="section-subtitle">Crea códigos para compartir por enlace o para que el cliente los escriba en checkout.</p>
+              </div>
+              <div class="hero-actions">
+                <button id="coupon-new-btn" class="mini-btn primary" type="button">Nuevo cupón</button>
+                <button id="coupon-readme-btn" class="promotion-readme-btn" type="button">Léeme</button>
+              </div>
+            </div>
+
+            <form id="coupon-form" class="visual-form-grid hidden">
+              <input id="coupon-id" type="hidden" />
+              <div class="field"><label for="coupon-code">Código del cupón</label><input id="coupon-code" type="text" placeholder="POWER5" required /></div>
+              <div class="field"><label for="coupon-name">Nombre interno</label><input id="coupon-name" type="text" required /></div>
+              <div class="field full"><label for="coupon-message">Mensaje visible para el cliente</label><input id="coupon-message" type="text" placeholder="Ahorra 5 USD en tu próxima compra." /></div>
+              <div class="field"><label for="coupon-scope">Tipo de cupón</label><select id="coupon-scope">
+                <option value="cart">Carrito completo</option>
+                <option value="product">Producto</option>
+                <option value="category">Categoría</option>
+                <option value="subcategory">Subcategoría</option>
+                <option value="free_shipping">Envío gratis</option>
+              </select></div>
+              <div class="field" data-coupon-field="discountType"><label for="coupon-discount-type">Tipo de descuento</label><select id="coupon-discount-type">
+                <option value="percentage">Porcentaje</option>
+                <option value="fixed_usd">Valor fijo USD</option>
+              </select></div>
+              <div class="field" data-coupon-field="discountValue"><label for="coupon-discount-value">Valor</label><input id="coupon-discount-value" type="number" min="0" step="0.01" /></div>
+              <div class="field" data-coupon-field="minSubtotal"><label for="coupon-min-subtotal">Subtotal mínimo opcional USD</label><input id="coupon-min-subtotal" type="number" min="0" step="0.01" /></div>
+              <div class="field full" data-coupon-field="product">
+                <label for="coupon-product-search">Producto</label>
+                <input id="coupon-product-search" type="search" placeholder="Escribe el nombre del producto" autocomplete="off" />
+                <select id="coupon-product" class="hidden" aria-hidden="true"><option value="">Selecciona producto</option></select>
+                <div id="coupon-product-selected" class="promotion-product-selected"></div>
+                <div id="coupon-product-results" class="featured-search-results"><div class="empty-state">Escribe para buscar productos.</div></div>
+              </div>
+              <div class="field" data-coupon-field="category"><label for="coupon-category">Categoría</label><select id="coupon-category"><option value="">Selecciona categoría</option></select></div>
+              <div class="field" data-coupon-field="subcategory"><label for="coupon-subcategory">Subcategoría</label><select id="coupon-subcategory"><option value="">Selecciona subcategoría</option></select></div>
+              <div class="field"><label for="coupon-starts">Fecha inicio</label><input id="coupon-starts" type="date" /></div>
+              <div class="field"><label for="coupon-ends">Fecha fin</label><input id="coupon-ends" type="date" /></div>
+              <div class="field"><label for="coupon-uses-mode">Límite de uso</label><select id="coupon-uses-mode">
+                <option value="unlimited">Ilimitado</option>
+                <option value="limited">Máximo de usos</option>
+              </select></div>
+              <div class="field" data-coupon-field="maxUses"><label for="coupon-max-uses">Máximo de usos</label><input id="coupon-max-uses" type="number" min="1" step="1" /></div>
+              <div class="field full"><label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="coupon-active" type="checkbox" checked /> Activo</label></div>
+              <div id="coupon-alert" class="alert alert-info hidden full"></div>
+              <div class="editor-actions full">
+                <button id="coupon-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                <button class="submit-btn" type="submit">Guardar cupón</button>
+              </div>
+            </form>
+
+            <div id="coupon-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando cupones...</div></div>
+          </section>
+
+          <div id="coupon-readme-modal" class="marketing-modal hidden" aria-hidden="true">
+            <div class="marketing-modal-card">
+              <div class="marketing-modal-head">
+                <div>
+                  <h3 class="marketing-modal-title">Guía rápida de cupones manuales</h3>
+                  <p class="marketing-modal-subtitle">Una explicación sencilla para usar cupones sin complicar el checkout.</p>
+                </div>
+                <button id="coupon-readme-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+              </div>
+              <ol class="promotion-guide-list">
+                <li><strong>¿Qué es un cupón manual?</strong><p>Es un código que el cliente puede escribir en checkout o recibir por enlace compartido por la tienda.</p></li>
+                <li><strong>¿Dónde se usa?</strong><p>Aparece debajo de los productos del pedido. El cliente puede escribir un código o usar uno guardado desde un enlace.</p></li>
+                <li><strong>Un cupón por orden</strong><p>Solo se puede aplicar 1 cupón por orden. Si hay varios disponibles, el cliente escoge cuál quiere usar.</p></li>
+                <li><strong>Cupones por enlace</strong><p>Cada cupón genera un enlace para compartir. Al abrirlo, queda guardado y aparece en checkout.</p></li>
+                <li><strong>Condiciones del cupón</strong><p>Puede aplicar a carrito, producto, categoría, subcategoría o envío gratis. Si no cumple, se muestra pero no se aplica.</p></li>
+                <li><strong>Cupón de envío gratis</strong><p>Si gana y el cliente eligió envío, el costo de envío queda en 0.</p></li>
+                <li><strong>Límite de uso</strong><p>El límite es general. No se limita por IP, teléfono ni cliente.</p></li>
+                <li><strong>Promoción de mayor beneficio</strong><p>Si una promoción automática ofrece más beneficio, se aplica esa promoción y se avisa al cliente.</p></li>
+                <li><strong>Historial de uso</strong><p>El historial muestra en qué órdenes fue aplicado y cuánto descontó.</p></li>
+              </ol>
+              <div class="alert alert-info">Los cupones no se acumulan entre sí. El envío se mantiene aparte, excepto cuando gana un cupón de envío gratis.</div>
+            </div>
+          </div>
+
+          <div id="coupon-history-modal" class="marketing-modal hidden" aria-hidden="true">
+            <div class="marketing-modal-card">
+              <div class="marketing-modal-head">
+                <div>
+                  <h3 class="marketing-modal-title">Historial de uso</h3>
+                  <p id="coupon-history-subtitle" class="marketing-modal-subtitle">Usos registrados para este cupón.</p>
+                </div>
+                <button id="coupon-history-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+              </div>
+              <div id="coupon-history-list" class="items-list"></div>
+            </div>
+          </div>
+
+          <div id="coupon-delete-modal" class="marketing-modal hidden" aria-hidden="true">
+            <div class="marketing-modal-card">
+              <div class="marketing-modal-head">
+                <div>
+                  <h3 class="marketing-modal-title">¿Eliminar este cupón?</h3>
+                  <p class="marketing-modal-subtitle">Esta acción no afecta órdenes anteriores.</p>
+                </div>
+                <button id="coupon-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+              </div>
+              <div class="editor-actions">
+                <button id="coupon-delete-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                <button id="coupon-delete-confirm-btn" class="mini-btn danger" type="button">Eliminar</button>
+              </div>
+            </div>
+          </div>
+
           <section id="tab-organizacion" class="panel-card tab-panel hidden">
             <div class="section-head" id="organizacion">
               <div>
@@ -978,9 +1089,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       let subcategories = [];
       let visualItems = [];
       let automaticPromotions = [];
+      let manualCoupons = [];
+      let manualCouponUsages = [];
       let activeTab = 'destacados';
       let promotionFilter = 'all';
       let pendingPromotionDeleteId = '';
+      let pendingCouponDeleteId = '';
       const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
       const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
 
@@ -1058,6 +1172,41 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const promotionStarts = document.getElementById('promotion-starts');
       const promotionEnds = document.getElementById('promotion-ends');
       const promotionActive = document.getElementById('promotion-active');
+      const couponForm = document.getElementById('coupon-form');
+      const couponList = document.getElementById('coupon-list');
+      const couponAlert = document.getElementById('coupon-alert');
+      const couponNewBtn = document.getElementById('coupon-new-btn');
+      const couponReadmeBtn = document.getElementById('coupon-readme-btn');
+      const couponReadmeModal = document.getElementById('coupon-readme-modal');
+      const couponReadmeCloseBtn = document.getElementById('coupon-readme-close-btn');
+      const couponHistoryModal = document.getElementById('coupon-history-modal');
+      const couponHistoryCloseBtn = document.getElementById('coupon-history-close-btn');
+      const couponHistorySubtitle = document.getElementById('coupon-history-subtitle');
+      const couponHistoryList = document.getElementById('coupon-history-list');
+      const couponDeleteModal = document.getElementById('coupon-delete-modal');
+      const couponDeleteCloseBtn = document.getElementById('coupon-delete-close-btn');
+      const couponDeleteCancelBtn = document.getElementById('coupon-delete-cancel-btn');
+      const couponDeleteConfirmBtn = document.getElementById('coupon-delete-confirm-btn');
+      const couponCancelBtn = document.getElementById('coupon-cancel-btn');
+      const couponId = document.getElementById('coupon-id');
+      const couponCode = document.getElementById('coupon-code');
+      const couponName = document.getElementById('coupon-name');
+      const couponMessage = document.getElementById('coupon-message');
+      const couponScope = document.getElementById('coupon-scope');
+      const couponDiscountType = document.getElementById('coupon-discount-type');
+      const couponDiscountValue = document.getElementById('coupon-discount-value');
+      const couponMinSubtotal = document.getElementById('coupon-min-subtotal');
+      const couponProduct = document.getElementById('coupon-product');
+      const couponProductSearch = document.getElementById('coupon-product-search');
+      const couponProductResults = document.getElementById('coupon-product-results');
+      const couponProductSelected = document.getElementById('coupon-product-selected');
+      const couponCategory = document.getElementById('coupon-category');
+      const couponSubcategory = document.getElementById('coupon-subcategory');
+      const couponStarts = document.getElementById('coupon-starts');
+      const couponEnds = document.getElementById('coupon-ends');
+      const couponUsesMode = document.getElementById('coupon-uses-mode');
+      const couponMaxUses = document.getElementById('coupon-max-uses');
+      const couponActive = document.getElementById('coupon-active');
 
       function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
       function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token || ''); }
@@ -1409,6 +1558,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         renderCategoryOptions();
         renderPromotionOptions();
         renderPromotions();
+        renderCouponOptions();
+        renderCoupons();
         renderOrganization();
         syncAdminBlockPanels();
       }
@@ -1648,6 +1799,280 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           `;
         }).join('');
       }
+      function couponScopeLabel(scope) {
+        return ({ cart: 'Carrito', product: 'Producto', category: 'Categoría', subcategory: 'Subcategoría', free_shipping: 'Envío gratis' })[scope] || 'Cupón';
+      }
+      function couponTargetLabel(item) {
+        if (item.scope === 'free_shipping') return 'Envío gratis';
+        if (item.product) return products.find((product) => product.id === item.product)?.name || 'Producto seleccionado';
+        if (item.subcategory) return subcategories.find((subcategory) => subcategory.id === item.subcategory)?.name || 'Subcategoría seleccionada';
+        if (item.category) return categories.find((category) => category.id === item.category)?.name || 'Categoría seleccionada';
+        return 'Carrito completo';
+      }
+      function couponIsExpired(item) {
+        const endsAt = promotionDateTime(item.ends_at, 'end');
+        return Boolean(endsAt && endsAt < Date.now());
+      }
+      function couponIsSoldOut(item) {
+        return item.unlimited_uses === false && Number(item.max_uses || 0) > 0 && Number(item.used_count || 0) >= Number(item.max_uses || 0);
+      }
+      function couponStatusLabel(item) {
+        if (item.active === false) return 'Inactivo';
+        if (couponIsExpired(item)) return 'Vencido';
+        if (couponIsSoldOut(item)) return 'Agotado';
+        return 'Activo';
+      }
+      function couponUsageLabel(item) {
+        const used = Number(item.used_count || 0);
+        if (item.unlimited_uses !== false) return `Usado ${used} ${used === 1 ? 'vez' : 'veces'} · Ilimitado`;
+        const max = Number(item.max_uses || 0);
+        return `Usado ${used} de ${max} · Quedan ${Math.max(0, max - used)}`;
+      }
+      function couponDateLabel(item) {
+        const start = localDateInputValue(item.starts_at);
+        const end = localDateInputValue(item.ends_at);
+        if (start && end) return `${start} a ${end}`;
+        if (end) return `Hasta ${end}`;
+        if (start) return `Desde ${start}`;
+        return 'Sin fecha';
+      }
+      function couponLink(item) {
+        return `${window.location.origin}/?coupon=${encodeURIComponent(String(item.code || '').toUpperCase())}`;
+      }
+      function renderCouponSubcategoryOptions() {
+        if (!couponSubcategory) return;
+        const categoryId = couponCategory?.value || '';
+        couponSubcategory.innerHTML = '<option value="">Selecciona subcategoría</option>' + subcategories
+          .filter((item) => item.active !== false && (!categoryId || item.category === categoryId))
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+          .map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
+      }
+      function renderCouponOptions() {
+        if (couponProduct) couponProduct.innerHTML = '<option value="">Selecciona producto</option>' + products.filter((item) => item.active !== false).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
+        if (couponCategory) couponCategory.innerHTML = '<option value="">Selecciona categoría</option>' + categories.filter((item) => item.active !== false).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))).map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
+        renderCouponSubcategoryOptions();
+        renderCouponProductSelected();
+        renderCouponProductResults();
+      }
+      function getCouponSelectedProduct() {
+        return products.find((product) => product.id === couponProduct?.value) || null;
+      }
+      function renderCouponProductSelected() {
+        if (!couponProductSelected) return;
+        const product = getCouponSelectedProduct();
+        if (!product) {
+          couponProductSelected.classList.remove('show');
+          couponProductSelected.innerHTML = '';
+          return;
+        }
+        couponProductSelected.classList.add('show');
+        couponProductSelected.innerHTML = `<span>Seleccionado: ${escapeHtml(product.name || 'Sin nombre')}</span><button class="mini-btn js-coupon-product-clear" type="button">Cambiar</button>`;
+      }
+      function selectCouponProduct(productId) {
+        if (!couponProduct) return;
+        const product = products.find((item) => item.id === productId);
+        couponProduct.value = product?.id || '';
+        if (couponProductSearch) couponProductSearch.value = product?.name || '';
+        renderCouponProductSelected();
+        renderCouponProductResults();
+      }
+      function renderCouponProductResults() {
+        if (!couponProductResults) return;
+        const query = normalizeSearchText(couponProductSearch?.value || '');
+        if (!query) {
+          couponProductResults.innerHTML = '<div class="empty-state">Escribe para buscar productos.</div>';
+          return;
+        }
+        const matches = products
+          .filter((product) => product.active !== false)
+          .filter((product) => productSearchText(product).includes(query))
+          .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+          .slice(0, 12);
+        couponProductResults.innerHTML = matches.length ? matches.map((product) => {
+          const selected = product.id === couponProduct?.value;
+          const meta = [formatUsd(product.base_price_usd), productCategoryText(product), product.internal_ref ? `Ref ${product.internal_ref}` : ''].filter(Boolean).join(' · ');
+          return `<article class="featured-result-row"><div><p class="featured-result-title">${escapeHtml(product.name || 'Sin nombre')}</p><p class="featured-result-meta">${escapeHtml(meta)}</p></div><button class="mini-btn ${selected ? '' : 'primary'} js-coupon-product-select" data-product-id="${product.id}" type="button">${selected ? 'Seleccionado' : 'Seleccionar'}</button></article>`;
+        }).join('') : '<div class="empty-state">No se encontraron productos.</div>';
+      }
+      function updateCouponFields() {
+        const scope = couponScope?.value || 'cart';
+        const isShipping = scope === 'free_shipping';
+        const visible = {
+          discountType: !isShipping,
+          discountValue: !isShipping,
+          minSubtotal: true,
+          product: scope === 'product',
+          category: scope === 'category' || scope === 'subcategory',
+          subcategory: scope === 'subcategory',
+          maxUses: couponUsesMode?.value === 'limited',
+        };
+        document.querySelectorAll('[data-coupon-field]').forEach((field) => field.classList.toggle('hidden', !visible[field.dataset.couponField]));
+      }
+      function renderCoupons() {
+        if (!couponList) return;
+        if (!manualCoupons.length) {
+          couponList.innerHTML = '<div class="empty-state">Todavía no hay cupones manuales.</div>';
+          return;
+        }
+        couponList.innerHTML = [...manualCoupons]
+          .sort((a, b) => Number(b.active !== false) - Number(a.active !== false) || String(a.code || '').localeCompare(String(b.code || '')))
+          .map((item) => `
+            <article class="item-row" data-coupon-id="${item.id}">
+              <div class="item-main">
+                <span class="thumb placeholder">%</span>
+                <div>
+                  <p class="item-title">${escapeHtml(String(item.code || '').toUpperCase())}</p>
+                  <p class="item-meta">${escapeHtml(couponStatusLabel(item))} · ${escapeHtml(couponScopeLabel(item.scope))} · ${escapeHtml(couponUsageLabel(item))} · ${escapeHtml(couponDateLabel(item))}</p>
+                  <p class="item-meta">${escapeHtml(couponTargetLabel(item))}</p>
+                </div>
+              </div>
+              <div class="item-actions">
+                <button class="mini-btn ${item.active !== false ? '' : 'success'} js-coupon-toggle" type="button">${item.active !== false ? 'Activo' : 'Inactivo'}</button>
+                <div class="promotion-menu-wrap">
+                  <button class="promotion-kebab-btn js-coupon-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                  <div class="promotion-floating-menu" role="menu">
+                    <button class="js-coupon-edit" type="button">Editar</button>
+                    <button class="js-coupon-history" type="button">Ver historial</button>
+                    <button class="js-coupon-copy" type="button">Copiar enlace</button>
+                    <button class="danger js-coupon-delete" type="button">Eliminar</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          `).join('');
+      }
+      function resetCouponForm() {
+        couponForm?.reset();
+        if (couponId) couponId.value = '';
+        if (couponScope) couponScope.value = 'cart';
+        if (couponDiscountType) couponDiscountType.value = 'percentage';
+        if (couponUsesMode) couponUsesMode.value = 'unlimited';
+        if (couponActive) couponActive.checked = true;
+        if (couponProductSearch) couponProductSearch.value = '';
+        showAlert(couponAlert, '');
+        updateCouponFields();
+        renderCouponProductSelected();
+        renderCouponProductResults();
+      }
+      function openCouponForm(item = null) {
+        resetCouponForm();
+        if (item) {
+          couponId.value = item.id || '';
+          couponCode.value = item.code || '';
+          couponName.value = item.name || '';
+          couponMessage.value = item.customer_message || '';
+          couponScope.value = item.scope || 'cart';
+          couponDiscountType.value = item.discount_type || 'percentage';
+          couponDiscountValue.value = Number(item.discount_value || 0) || '';
+          couponMinSubtotal.value = Number(item.min_subtotal_usd || 0) || '';
+          couponProduct.value = item.product || '';
+          if (couponProductSearch) couponProductSearch.value = products.find((product) => product.id === item.product)?.name || '';
+          couponCategory.value = item.category || '';
+          renderCouponSubcategoryOptions();
+          couponSubcategory.value = item.subcategory || '';
+          couponStarts.value = localDateInputValue(item.starts_at);
+          couponEnds.value = localDateInputValue(item.ends_at);
+          couponUsesMode.value = item.unlimited_uses === false ? 'limited' : 'unlimited';
+          couponMaxUses.value = Number(item.max_uses || 0) || '';
+          couponActive.checked = item.active !== false;
+        }
+        updateCouponFields();
+        couponForm?.classList.remove('hidden');
+        showTab('cupones');
+        couponCode?.focus();
+      }
+      function closeCouponForm() {
+        couponForm?.classList.add('hidden');
+        resetCouponForm();
+      }
+      function validateCouponPayload(payload, currentId = '') {
+        if (!payload.code) return 'Escribe el código del cupón.';
+        if (!payload.name) return 'Escribe el nombre interno.';
+        if (manualCoupons.some((item) => item.id !== currentId && String(item.code || '').toUpperCase() === payload.code)) return 'Ya existe un cupón con ese código.';
+        if (payload.ends_at && payload.starts_at && promotionDateTime(payload.ends_at, 'end') < promotionDateTime(payload.starts_at, 'start')) return 'La fecha fin no puede ser menor que la fecha inicio.';
+        if (payload.scope !== 'free_shipping') {
+          if (payload.discount_type === 'percentage' && (Number(payload.discount_value) < 1 || Number(payload.discount_value) > 100)) return 'El porcentaje debe estar entre 1 y 100.';
+          if (payload.discount_type === 'fixed_usd' && !(Number(payload.discount_value) > 0)) return 'El valor fijo USD debe ser mayor que 0.';
+        }
+        if (payload.scope === 'product' && !payload.product) return 'Selecciona el producto.';
+        if (payload.scope === 'category' && !payload.category) return 'Selecciona la categoría.';
+        if (payload.scope === 'subcategory' && !payload.subcategory) return 'Selecciona la subcategoría.';
+        if (payload.unlimited_uses === false && !(Number(payload.max_uses) > 0)) return 'Define el máximo de usos.';
+        return '';
+      }
+      async function saveCoupon(event) {
+        event.preventDefault();
+        const scope = couponScope.value;
+        const payload = {
+          code: couponCode.value.trim().toUpperCase(),
+          name: couponName.value.trim(),
+          customer_message: couponMessage.value.trim(),
+          active: couponActive.checked,
+          scope,
+          discount_type: scope === 'free_shipping' ? '' : couponDiscountType.value,
+          discount_value: scope === 'free_shipping' ? 0 : Number(couponDiscountValue.value || 0),
+          min_subtotal_usd: Number(couponMinSubtotal.value || 0),
+          product: scope === 'product' ? couponProduct.value : '',
+          category: ['category', 'subcategory'].includes(scope) ? couponCategory.value : '',
+          subcategory: scope === 'subcategory' ? couponSubcategory.value : '',
+          starts_at: dateInputToIso(couponStarts.value, 'start'),
+          ends_at: dateInputToIso(couponEnds.value, 'end'),
+          unlimited_uses: couponUsesMode.value !== 'limited',
+          max_uses: couponUsesMode.value === 'limited' ? Number(couponMaxUses.value || 0) : 0,
+          used_count: Number(manualCoupons.find((item) => item.id === couponId.value)?.used_count || 0),
+        };
+        const id = couponId.value;
+        const error = validateCouponPayload(payload, id);
+        if (error) return showAlert(couponAlert, error, 'error');
+        await apiRequest(`/api/collections/manual_coupons/records${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        showAlert(couponAlert, 'Cupón guardado correctamente.', 'success');
+        await loadData();
+        closeCouponForm();
+      }
+      async function toggleCoupon(id) {
+        const item = manualCoupons.find((coupon) => coupon.id === id);
+        if (!item) return;
+        await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: item.active === false }) });
+        await loadData();
+      }
+      async function deleteCoupon(id) {
+        if (!id) return;
+        await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'DELETE' });
+        if (couponId?.value === id) closeCouponForm();
+        closeCouponDeleteModal();
+        await loadData();
+      }
+      async function copyCouponLink(id) {
+        const item = manualCoupons.find((coupon) => coupon.id === id);
+        if (!item) return;
+        await navigator.clipboard?.writeText(couponLink(item));
+        showAlert(couponAlert, 'Enlace copiado.', 'success');
+      }
+      function openCouponReadme() { couponReadmeModal?.classList.remove('hidden'); couponReadmeModal?.setAttribute('aria-hidden', 'false'); }
+      function closeCouponReadme() { couponReadmeModal?.classList.add('hidden'); couponReadmeModal?.setAttribute('aria-hidden', 'true'); }
+      function openCouponDeleteModal(id) { pendingCouponDeleteId = id || ''; closePromotionMenus(); couponDeleteModal?.classList.remove('hidden'); couponDeleteModal?.setAttribute('aria-hidden', 'false'); }
+      function closeCouponDeleteModal() { pendingCouponDeleteId = ''; couponDeleteModal?.classList.add('hidden'); couponDeleteModal?.setAttribute('aria-hidden', 'true'); }
+      function openCouponHistory(id) {
+        const item = manualCoupons.find((coupon) => coupon.id === id);
+        if (!item || !couponHistoryList) return;
+        const rows = manualCouponUsages.filter((usage) => usage.coupon === id);
+        if (couponHistorySubtitle) couponHistorySubtitle.textContent = `${item.code || 'Cupón'} · ${couponUsageLabel(item)}`;
+        couponHistoryList.innerHTML = rows.length ? rows.map((usage) => `
+          <article class="item-row">
+            <div class="item-main">
+              <span class="thumb placeholder">#</span>
+              <div>
+                <p class="item-title">Orden ${escapeHtml(usage.order_number || 'Sin número')}</p>
+                <p class="item-meta">Cliente: ${escapeHtml(usage.customer_name || 'No registrado')} · Descuento: ${formatUsd(Number(usage.discount_usd || 0) + Number(usage.shipping_discount_usd || 0))} · Fecha: ${escapeHtml(localDateInputValue(usage.created) || '')}</p>
+              </div>
+            </div>
+          </article>
+        `).join('') : '<div class="empty-state">Todavía no hay usos para este cupón.</div>';
+        closePromotionMenus();
+        couponHistoryModal?.classList.remove('hidden');
+        couponHistoryModal?.setAttribute('aria-hidden', 'false');
+      }
+      function closeCouponHistory() { couponHistoryModal?.classList.add('hidden'); couponHistoryModal?.setAttribute('aria-hidden', 'true'); }
       async function loadData() {
         products = await loadAllRecords('products', 'sort=featured_order,name');
         categories = await loadAllRecords('categories', 'sort=order,name');
@@ -1657,6 +2082,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         } catch (error) {
           automaticPromotions = [];
           showAlert(promotionAlert, 'No existe todavía la colección automatic_promotions. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+        }
+        try {
+          manualCoupons = await loadAllRecords('manual_coupons', 'sort=-updated');
+        } catch (error) {
+          manualCoupons = [];
+          showAlert(couponAlert, 'No existe todavía la colección manual_coupons. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+        }
+        try {
+          manualCouponUsages = await loadAllRecords('manual_coupon_usages', 'sort=-created');
+        } catch (error) {
+          manualCouponUsages = [];
         }
         try {
           visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
@@ -2084,6 +2520,38 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         selectPromotionProduct('');
         promotionProductSearch?.focus();
       });
+      couponNewBtn?.addEventListener('click', () => openCouponForm());
+      couponCancelBtn?.addEventListener('click', closeCouponForm);
+      couponReadmeBtn?.addEventListener('click', openCouponReadme);
+      couponReadmeCloseBtn?.addEventListener('click', closeCouponReadme);
+      couponReadmeModal?.addEventListener('click', (event) => { if (event.target === couponReadmeModal) closeCouponReadme(); });
+      couponHistoryCloseBtn?.addEventListener('click', closeCouponHistory);
+      couponHistoryModal?.addEventListener('click', (event) => { if (event.target === couponHistoryModal) closeCouponHistory(); });
+      couponDeleteCloseBtn?.addEventListener('click', closeCouponDeleteModal);
+      couponDeleteCancelBtn?.addEventListener('click', closeCouponDeleteModal);
+      couponDeleteModal?.addEventListener('click', (event) => { if (event.target === couponDeleteModal) closeCouponDeleteModal(); });
+      couponDeleteConfirmBtn?.addEventListener('click', () => {
+        deleteCoupon(pendingCouponDeleteId).catch((error) => showAlert(couponAlert, error.message || 'No se pudo eliminar.', 'error'));
+      });
+      couponScope?.addEventListener('change', updateCouponFields);
+      couponUsesMode?.addEventListener('change', updateCouponFields);
+      couponCategory?.addEventListener('change', renderCouponSubcategoryOptions);
+      couponForm?.addEventListener('submit', (event) => saveCoupon(event).catch((error) => showAlert(couponAlert, error.message || 'No se pudo guardar el cupón.', 'error')));
+      couponProductSearch?.addEventListener('input', () => {
+        if (couponProduct && couponProductSearch.value.trim() !== getCouponSelectedProduct()?.name) couponProduct.value = '';
+        renderCouponProductSelected();
+        renderCouponProductResults();
+      });
+      couponProductResults?.addEventListener('click', (event) => {
+        const button = event.target.closest('.js-coupon-product-select');
+        if (!button) return;
+        selectCouponProduct(button.dataset.productId || '');
+      });
+      couponProductSelected?.addEventListener('click', (event) => {
+        if (!event.target.closest('.js-coupon-product-clear')) return;
+        selectCouponProduct('');
+        couponProductSearch?.focus();
+      });
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'edit'));
       });
@@ -2154,6 +2622,39 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         }
         if (event.target.closest('.js-promotion-delete')) {
           openPromotionDeleteModal(id);
+        }
+      });
+      couponList?.addEventListener('click', (event) => {
+        const row = event.target.closest('[data-coupon-id]');
+        if (!row) return;
+        const id = row.dataset.couponId;
+        const menuBtn = event.target.closest('.js-coupon-menu');
+        if (menuBtn) {
+          togglePromotionMenu(menuBtn.closest('.promotion-menu-wrap'));
+          return;
+        }
+        if (event.target.closest('.js-coupon-edit')) {
+          closePromotionMenus();
+          const item = manualCoupons.find((coupon) => coupon.id === id);
+          if (item) openCouponForm(item);
+          return;
+        }
+        if (event.target.closest('.js-coupon-toggle')) {
+          closePromotionMenus();
+          toggleCoupon(id).catch((error) => showAlert(couponAlert, error.message || 'No se pudo cambiar el estado.', 'error'));
+          return;
+        }
+        if (event.target.closest('.js-coupon-history')) {
+          openCouponHistory(id);
+          return;
+        }
+        if (event.target.closest('.js-coupon-copy')) {
+          closePromotionMenus();
+          copyCouponLink(id).catch((error) => showAlert(couponAlert, error.message || 'No se pudo copiar el enlace.', 'error'));
+          return;
+        }
+        if (event.target.closest('.js-coupon-delete')) {
+          openCouponDeleteModal(id);
         }
       });
 

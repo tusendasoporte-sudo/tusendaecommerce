@@ -8,6 +8,14 @@
     CART_SUBTOTAL: 'cart_subtotal_discount',
   };
 
+  const COUPON_SCOPES = {
+    CART: 'cart',
+    PRODUCT: 'product',
+    CATEGORY: 'category',
+    SUBCATEGORY: 'subcategory',
+    FREE_SHIPPING: 'free_shipping',
+  };
+
   const LEVEL_WEIGHT = { product: 3, subcategory: 2, category: 1 };
 
   function number(value) {
@@ -56,6 +64,23 @@
     };
   }
 
+  function normalizeCoupon(coupon) {
+    return {
+      ...coupon,
+      code: String(coupon.code || '').trim().toUpperCase(),
+      scope: String(coupon.scope || ''),
+      discount_type: String(coupon.discount_type || ''),
+      discount_value: number(coupon.discount_value),
+      min_subtotal_usd: number(coupon.min_subtotal_usd),
+      max_uses: number(coupon.max_uses),
+      used_count: number(coupon.used_count),
+      unlimited_uses: coupon.unlimited_uses !== false,
+      product: Array.isArray(coupon.product) ? coupon.product[0] : coupon.product || '',
+      category: Array.isArray(coupon.category) ? coupon.category[0] : coupon.category || '',
+      subcategory: Array.isArray(coupon.subcategory) ? coupon.subcategory[0] : coupon.subcategory || '',
+    };
+  }
+
   async function loadActivePromotions(pocketbaseUrl) {
     const baseUrl = String(pocketbaseUrl || '').replace(/\/$/, '');
     if (!baseUrl) return [];
@@ -68,6 +93,22 @@
       return (result?.items || []).map(normalizePromotion).filter(todayInRange);
     } catch (error) {
       console.warn('Promociones automaticas no disponibles todavia.', error);
+      return [];
+    }
+  }
+
+  async function loadActiveCoupons(pocketbaseUrl) {
+    const baseUrl = String(pocketbaseUrl || '').replace(/\/$/, '');
+    if (!baseUrl) return [];
+
+    try {
+      const filter = encodeURIComponent('active = true');
+      const response = await fetch(`${baseUrl}/api/collections/manual_coupons/records?filter=${filter}&sort=-updated&perPage=200&expand=product,category,subcategory`);
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || 'No se pudieron cargar cupones.');
+      return (result?.items || []).map(normalizeCoupon);
+    } catch (error) {
+      console.warn('Cupones manuales no disponibles todavia.', error);
       return [];
     }
   }
@@ -186,6 +227,21 @@
     item.promotion_label = item.promotion_label && !item.promotion_label.includes(label)
       ? `${item.promotion_label} / ${label}`
       : (item.promotion_label || label);
+    return applied;
+  }
+
+  function applyCouponDiscountToItem(item, coupon, discountUSD) {
+    const available = number(item?.line_subtotal_final_usd);
+    const applied = Math.min(available, Math.max(0, discountUSD));
+    if (!item || applied <= 0) return 0;
+    const label = couponLabel(coupon);
+
+    item.line_discount_usd = number(item.line_discount_usd) + applied;
+    item.coupon_discount_usd = number(item.coupon_discount_usd) + applied;
+    item.line_subtotal_final_usd = Math.max(0, available - applied);
+    item.unit_price_final_usd = lineQuantity(item) > 0 ? item.line_subtotal_final_usd / lineQuantity(item) : number(item.unit_price_final_usd);
+    item.coupon = coupon;
+    item.coupon_label = label;
     return applied;
   }
 
@@ -340,10 +396,209 @@
     };
   }
 
+  function couponLabel(coupon) {
+    if (!coupon) return '';
+    if (coupon.customer_message) return coupon.customer_message;
+    if (coupon.scope === COUPON_SCOPES.FREE_SHIPPING) return 'Envio gratis';
+    if (coupon.discount_type === 'percentage') return `${coupon.discount_value}% de descuento`;
+    if (coupon.discount_type === 'fixed_usd') return `${coupon.discount_value.toFixed(2)} USD de descuento`;
+    return coupon.name || coupon.code || 'Cupon manual';
+  }
+
+  function couponScopeLabel(coupon) {
+    return ({
+      cart: 'Carrito',
+      product: 'Producto',
+      category: 'Categoria',
+      subcategory: 'Subcategoria',
+      free_shipping: 'Envio gratis',
+    })[coupon?.scope] || 'Cupon';
+  }
+
+  function couponIsSoldOut(coupon) {
+    return coupon.unlimited_uses === false && coupon.max_uses > 0 && coupon.used_count >= coupon.max_uses;
+  }
+
+  function couponEligibleItems(coupon, items) {
+    if (!coupon) return [];
+    return (items || []).filter((item) => {
+      if (item?.is_gift) return false;
+      if (coupon.scope === COUPON_SCOPES.CART) return true;
+      if (coupon.scope === COUPON_SCOPES.PRODUCT) return coupon.product && coupon.product === item.id;
+      if (coupon.scope === COUPON_SCOPES.CATEGORY) return coupon.category && coupon.category === item.category;
+      if (coupon.scope === COUPON_SCOPES.SUBCATEGORY) return coupon.subcategory && coupon.subcategory === item.subcategory;
+      return false;
+    });
+  }
+
+  function couponStatusForCart(coupon, baseTotals, deliveryMethod = '', shippingUSD = 0) {
+    if (!coupon) return { ok: false, code: 'missing', message: 'El cupon no es valido.' };
+    if (coupon.active === false) return { ok: false, code: 'inactive', message: 'Este cupon no esta activo.' };
+    if (!todayInRange(coupon)) return { ok: false, code: 'expired', message: 'Este cupon ya vencio.' };
+    if (couponIsSoldOut(coupon)) return { ok: false, code: 'sold_out', message: 'Este cupon ya alcanzo su limite de uso.' };
+    if (coupon.scope === COUPON_SCOPES.FREE_SHIPPING && deliveryMethod && deliveryMethod !== 'delivery') {
+      return { ok: false, code: 'delivery_required', message: 'Este cupon aplica solo para pedidos con envio.' };
+    }
+    if (coupon.scope === COUPON_SCOPES.FREE_SHIPPING && deliveryMethod === 'delivery' && shippingUSD <= 0) {
+      return { ok: false, code: 'no_shipping_cost', message: 'Este pedido no tiene costo de envio para descontar.' };
+    }
+    const subtotal = number(baseTotals?.subtotalOriginalUSD);
+    if (coupon.min_subtotal_usd > 0 && subtotal < coupon.min_subtotal_usd) {
+      return {
+        ok: false,
+        code: 'min_subtotal',
+        missing_usd: coupon.min_subtotal_usd - subtotal,
+        message: `Te faltan ${(coupon.min_subtotal_usd - subtotal).toFixed(2)} USD para usarlo.`,
+      };
+    }
+    return { ok: true, code: 'ok', message: 'Cupon disponible.' };
+  }
+
+  function calculateCouponOnBaseline(cart, coupon, deliveryMethod = '', shippingUSD = 0) {
+    const baseTotals = calculateCartPromotions(cart, []);
+    const normalizedCoupon = normalizeCoupon(coupon || {});
+    const status = couponStatusForCart(normalizedCoupon, baseTotals, deliveryMethod, shippingUSD);
+    if (!status.ok) {
+      return {
+        ...baseTotals,
+        manualCoupon: normalizedCoupon,
+        manualCouponStatus: status,
+        couponDiscountUSD: 0,
+        shippingDiscountUSD: 0,
+        couponApplied: false,
+      };
+    }
+
+    if (normalizedCoupon.scope === COUPON_SCOPES.FREE_SHIPPING) {
+      const shippingDiscountUSD = deliveryMethod === 'delivery' ? Math.max(0, shippingUSD) : 0;
+      return {
+        ...baseTotals,
+        manualCoupon: normalizedCoupon,
+        manualCouponStatus: shippingDiscountUSD > 0 ? status : { ok: false, code: 'delivery_required', message: 'Este cupon aplica solo para pedidos con envio.' },
+        couponDiscountUSD: 0,
+        shippingDiscountUSD,
+        couponApplied: shippingDiscountUSD > 0,
+        couponSummary: shippingDiscountUSD > 0 ? `${normalizedCoupon.code}: envio gratis` : '',
+      };
+    }
+
+    const eligibleItems = couponEligibleItems(normalizedCoupon, baseTotals.items);
+    const eligibleSubtotal = eligibleItems.reduce((sum, item) => sum + number(item.line_subtotal_final_usd), 0);
+    if (eligibleSubtotal <= 0) {
+      return {
+        ...baseTotals,
+        manualCoupon: normalizedCoupon,
+        manualCouponStatus: { ok: false, code: 'no_match', message: 'Este cupon no aplica a los productos del pedido.' },
+        couponDiscountUSD: 0,
+        shippingDiscountUSD: 0,
+        couponApplied: false,
+      };
+    }
+
+    let targetDiscount = 0;
+    if (normalizedCoupon.discount_type === 'percentage') {
+      targetDiscount = eligibleSubtotal * Math.min(100, Math.max(0, normalizedCoupon.discount_value)) / 100;
+    } else if (normalizedCoupon.discount_type === 'fixed_usd') {
+      targetDiscount = Math.max(0, normalizedCoupon.discount_value);
+    }
+    targetDiscount = Math.min(eligibleSubtotal, targetDiscount);
+
+    let remaining = targetDiscount;
+    const sortedItems = [...eligibleItems].sort((a, b) => number(b.line_subtotal_final_usd) - number(a.line_subtotal_final_usd));
+    sortedItems.forEach((item, index) => {
+      if (remaining <= 0) return;
+      const available = number(item.line_subtotal_final_usd);
+      const share = index === sortedItems.length - 1
+        ? remaining
+        : Math.min(available, targetDiscount * (available / eligibleSubtotal));
+      const applied = applyCouponDiscountToItem(item, normalizedCoupon, share);
+      remaining = Math.max(0, remaining - applied);
+    });
+
+    const finalTotals = recalculateTotals(baseTotals.items);
+    const discountTotalUSD = finalTotals.discountTotalUSD;
+    const subtotalFinalUSD = Math.max(0, baseTotals.subtotalOriginalUSD - discountTotalUSD);
+    return {
+      ...baseTotals,
+      discountTotalUSD,
+      usdOnlyDiscountTotal: finalTotals.usdOnlyDiscountTotal,
+      localCurrencyDiscountTotal: finalTotals.localCurrencyDiscountTotal,
+      subtotalFinalUSD,
+      subtotalAfterDiscountUSD: subtotalFinalUSD,
+      localCurrencyTotal: finalTotals.localCurrencyTotal,
+      usdOnlyTotal: finalTotals.usdOnlyTotal,
+      visualTotalUSD: finalTotals.localCurrencyTotal,
+      manualCoupon: normalizedCoupon,
+      manualCouponStatus: status,
+      couponDiscountUSD: targetDiscount,
+      shippingDiscountUSD: 0,
+      couponApplied: targetDiscount > 0,
+      couponSummary: targetDiscount > 0 ? `${normalizedCoupon.code}: $${targetDiscount.toFixed(2)} USD` : '',
+      promotionSummary: targetDiscount > 0 ? `Cupon ${normalizedCoupon.code}: $${targetDiscount.toFixed(2)} USD` : '',
+      appliedPromotions: targetDiscount > 0 ? [{
+        id: normalizedCoupon.id || '',
+        name: normalizedCoupon.name || normalizedCoupon.code,
+        label: `Cupon ${normalizedCoupon.code}`,
+        type: 'manual_coupon',
+        discount_usd: targetDiscount,
+        scope: normalizedCoupon.scope,
+      }] : [],
+    };
+  }
+
+  function calculateCartWithManualCoupon(cart, promotions, coupon, deliveryMethod = '', shippingUSD = 0) {
+    const automaticTotals = calculateCartPromotions(cart, promotions);
+    if (!coupon) {
+      return {
+        ...automaticTotals,
+        couponWinner: 'automatic',
+        couponDiscountUSD: 0,
+        shippingDiscountUSD: 0,
+        shippingOriginalUSD: shippingUSD,
+        shippingFinalUSD: shippingUSD,
+      };
+    }
+
+    const couponTotals = calculateCouponOnBaseline(cart, coupon, deliveryMethod, shippingUSD);
+    const automaticBenefit = number(automaticTotals.discountTotalUSD);
+    const couponBenefit = number(couponTotals.couponDiscountUSD) + number(couponTotals.shippingDiscountUSD);
+    const couponWins = couponTotals.couponApplied && couponBenefit > automaticBenefit;
+
+    if (!couponWins) {
+      const message = couponTotals.manualCouponStatus?.ok && couponBenefit > 0 && automaticBenefit >= couponBenefit
+        ? 'Hay una promocion automatica de mayor beneficio. Se aplico esa promo.'
+        : couponTotals.manualCouponStatus?.message || '';
+      return {
+        ...automaticTotals,
+        manualCoupon: couponTotals.manualCoupon,
+        manualCouponStatus: { ...(couponTotals.manualCouponStatus || {}), message },
+        couponWinner: automaticBenefit > 0 ? 'automatic' : 'none',
+        couponDiscountUSD: 0,
+        shippingDiscountUSD: 0,
+        shippingOriginalUSD: shippingUSD,
+        shippingFinalUSD: shippingUSD,
+      };
+    }
+
+    return {
+      ...couponTotals,
+      couponWinner: 'manual_coupon',
+      shippingOriginalUSD: shippingUSD,
+      shippingFinalUSD: Math.max(0, shippingUSD - number(couponTotals.shippingDiscountUSD)),
+      totalBenefitUSD: couponBenefit,
+    };
+  }
+
   window.PZPromotions = {
     loadActivePromotions,
+    loadActiveCoupons,
     calculateCartPromotions,
+    calculateCartWithManualCoupon,
+    normalizeCoupon,
+    couponLabel,
+    couponScopeLabel,
     discountLabel,
     PROMOTION_TYPES,
+    COUPON_SCOPES,
   };
 })();

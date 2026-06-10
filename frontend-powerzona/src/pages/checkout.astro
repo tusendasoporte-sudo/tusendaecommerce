@@ -78,6 +78,22 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 					</div>
 				</div>
 
+				<div id="manual-coupon-card" class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
+					<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+						<div>
+							<h2 class="text-xl font-bold text-gray-900">Cupón manual</h2>
+							<p class="text-sm text-gray-500 mt-1">Solo puedes usar 1 cupón por orden.</p>
+							<p id="manual-coupon-multiple-note" class="hidden text-xs text-gray-500 font-semibold mt-1">Si tienes varios cupones disponibles, puedes escoger cuál usar.</p>
+						</div>
+					</div>
+					<div class="flex flex-col sm:flex-row gap-3">
+						<input id="manual-coupon-input" type="text" placeholder="¿Tienes un cupón?" autocomplete="off" class="flex-1 bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase" />
+						<button id="manual-coupon-apply-btn" type="button" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-3 rounded-2xl transition">Aplicar</button>
+					</div>
+					<div id="manual-coupon-alert" class="hidden mt-3 rounded-2xl border p-3 text-xs font-bold"></div>
+					<div id="saved-coupons-list" class="mt-4 grid gap-3"></div>
+				</div>
+
 				<form id="checkout-form" class="space-y-6" novalidate>
 					<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
 						<h2 class="text-xl font-bold text-gray-900 mb-4">
@@ -329,6 +345,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		const checkoutSuccessAlert = document.getElementById('checkout-success-alert');
 		const continueWhatsappBtn = document.getElementById('continue-whatsapp-btn');
 		const deliveryHelper = document.getElementById('delivery-helper');
+		const manualCouponInput = document.getElementById('manual-coupon-input');
+		const manualCouponApplyBtn = document.getElementById('manual-coupon-apply-btn');
+		const manualCouponAlert = document.getElementById('manual-coupon-alert');
+		const savedCouponsList = document.getElementById('saved-coupons-list');
+		const manualCouponMultipleNote = document.getElementById('manual-coupon-multiple-note');
 
 		let shippingZones = [];
 		let shippingZonesLoaded = false;
@@ -338,8 +359,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		let savedOrderNumber = '';
 		let pendingOrderFingerprint = '';
 		let checkoutLocked = false;
+		let selectedManualCouponCode = localStorage.getItem('powerzona_selected_coupon') || '';
 
 		const PENDING_ORDER_KEY = 'powerzona_pending_checkout_order';
+		const SAVED_COUPONS_KEY = 'powerzona_saved_coupons';
 
 			function parseStoredCart(value) {
 				try {
@@ -411,6 +434,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			checkoutLocked = Boolean(locked);
 			checkoutForm?.querySelectorAll('input, select, textarea').forEach((field) => {
 				field.disabled = checkoutLocked;
+			});
+			[manualCouponInput, manualCouponApplyBtn].forEach((field) => {
+				if (field) field.disabled = checkoutLocked;
 			});
 			document.querySelectorAll('.delivery-option').forEach((label) => {
 				label.classList.toggle('opacity-60', checkoutLocked);
@@ -512,6 +538,112 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			};
 		}
 
+		function readSavedCouponCodes() {
+			try {
+				const parsed = JSON.parse(localStorage.getItem(SAVED_COUPONS_KEY) || '[]');
+				return Array.isArray(parsed) ? parsed.map((code) => String(code || '').trim().toUpperCase()).filter(Boolean) : [];
+			} catch (_) {
+				return [];
+			}
+		}
+
+		function saveCouponCode(code) {
+			const normalized = String(code || '').trim().toUpperCase();
+			if (!normalized) return;
+			const codes = readSavedCouponCodes();
+			if (!codes.includes(normalized)) codes.push(normalized);
+			localStorage.setItem(SAVED_COUPONS_KEY, JSON.stringify(codes.slice(-12)));
+			selectedManualCouponCode = normalized;
+			localStorage.setItem('powerzona_selected_coupon', normalized);
+		}
+
+		function writeSavedCouponCodes(codes) {
+			const cleanCodes = [...new Set((codes || []).map((code) => String(code || '').trim().toUpperCase()).filter(Boolean))];
+			localStorage.setItem(SAVED_COUPONS_KEY, JSON.stringify(cleanCodes.slice(-12)));
+		}
+
+		function removeSavedCouponCode(code) {
+			const normalized = String(code || '').trim().toUpperCase();
+			if (!normalized) return;
+			writeSavedCouponCodes(readSavedCouponCodes().filter((item) => item !== normalized));
+			if (String(selectedManualCouponCode || '').toUpperCase() === normalized) clearSelectedCoupon();
+		}
+
+		function clearSelectedCoupon() {
+			selectedManualCouponCode = '';
+			localStorage.removeItem('powerzona_selected_coupon');
+		}
+
+		function getActiveManualCoupons() {
+			return (window.PZ_MANUAL_COUPONS || []).map((coupon) => window.PZPromotions?.normalizeCoupon ? window.PZPromotions.normalizeCoupon(coupon) : coupon);
+		}
+
+		function getCouponByCode(code) {
+			const normalized = String(code || '').trim().toUpperCase();
+			if (!normalized) return null;
+			return getActiveManualCoupons().find((coupon) => String(coupon.code || '').toUpperCase() === normalized) || null;
+		}
+
+		function couponDateTime(value, boundary = 'start') {
+			if (!value) return 0;
+			const text = String(value);
+			if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+				const [year, month, day] = text.split('-').map(Number);
+				const date = boundary === 'end'
+					? new Date(year, month - 1, day, 23, 59, 59, 999)
+					: new Date(year, month - 1, day, 0, 0, 0, 0);
+				return date.getTime();
+			}
+			const parsed = new Date(text).getTime();
+			return Number.isFinite(parsed) ? parsed : 0;
+		}
+
+		function couponIsAvailable(coupon) {
+			if (!coupon || coupon.active === false) return false;
+			const now = Date.now();
+			const startsAt = couponDateTime(coupon.starts_at, 'start');
+			const endsAt = couponDateTime(coupon.ends_at, 'end');
+			if (startsAt && startsAt > now) return false;
+			if (endsAt && endsAt < now) return false;
+			const maxUses = Number(coupon.max_uses || 0);
+			const usedCount = Number(coupon.used_count || 0);
+			if (coupon.unlimited_uses === false && maxUses > 0 && usedCount >= maxUses) return false;
+			return true;
+		}
+
+		function syncSavedCouponsWithActiveCoupons() {
+			if (!Array.isArray(window.PZ_MANUAL_COUPONS)) return readSavedCouponCodes();
+			const activeCodes = new Set(getActiveManualCoupons().filter(couponIsAvailable).map((coupon) => String(coupon.code || '').toUpperCase()).filter(Boolean));
+			const savedCodes = readSavedCouponCodes();
+			const nextCodes = savedCodes.filter((code) => activeCodes.has(code));
+			if (nextCodes.length !== savedCodes.length) writeSavedCouponCodes(nextCodes);
+			if (selectedManualCouponCode && !activeCodes.has(String(selectedManualCouponCode).toUpperCase())) clearSelectedCoupon();
+			return nextCodes;
+		}
+
+		function setCouponAlert(message = '', type = 'info') {
+			if (!manualCouponAlert) return;
+			manualCouponAlert.textContent = message || '';
+			manualCouponAlert.classList.toggle('hidden', !message);
+			manualCouponAlert.className = `mt-3 rounded-2xl border p-3 text-xs font-bold ${message ? '' : 'hidden'} ${
+				type === 'error' ? 'bg-red-50 border-red-100 text-red-700' :
+				type === 'success' ? 'bg-green-50 border-green-100 text-green-800' :
+				'bg-blue-50 border-blue-100 text-blue-800'
+			}`;
+		}
+
+		function couponDisplayMessage(coupon) {
+			return coupon?.customer_message || window.PZPromotions?.couponLabel?.(coupon) || coupon?.name || 'Cupón disponible.';
+		}
+
+		function calculateTotalsWithCoupon(cart, shippingZone = null, deliveryMethod = '') {
+			const shippingUSD = deliveryMethod === 'delivery' ? getShippingZonePrice(shippingZone) : 0;
+			const coupon = getCouponByCode(selectedManualCouponCode);
+			return window.PZPromotions?.calculateCartWithManualCoupon
+				? window.PZPromotions.calculateCartWithManualCoupon(cart, window.PZ_AUTOMATIC_PROMOTIONS || [], coupon, deliveryMethod, shippingUSD)
+				: calculateCartPromotions(cart);
+		}
+
 		function getSelectedCurrencyObject() {
 			return window.PZCurrency?.selected || { code: selectedCurrencyCode(), id: '', exchange_rate: 1 };
 		}
@@ -572,6 +704,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		}
 
 		function getPromotionReasonText(totals) {
+			if (totals?.couponWinner === 'manual_coupon' && totals.manualCoupon?.code) {
+				return totals.manualCoupon.scope === 'free_shipping'
+					? `${totals.manualCoupon.code} · Envío gratis`
+					: `${totals.manualCoupon.code} · ${couponDisplayMessage(totals.manualCoupon)}`;
+			}
 			const promos = totals?.appliedPromotions || [];
 			const labels = promos
 				.map((promo) => promo.label || promo.name || '')
@@ -646,6 +783,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
 		function getWhatsAppDeliveryLine(checkoutData, totals) {
 			if (checkoutData?.delivery_method === 'delivery') {
+				if (Number(totals?.shippingDiscountUSD || 0) > 0) {
+					return `*Cupón aplicado*: ${totals.manualCoupon?.code || 'Envío gratis'}
+*Envío*: 0`;
+				}
 				return `*Total de envío*: ${formatShipping(totals.shippingUSD)}`;
 			}
 
@@ -972,6 +1113,61 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			return { isValid, errors, data };
 		}
 
+		function renderManualCouponSection(cart, totals) {
+			if (!savedCouponsList) return;
+			const activeCoupons = getActiveManualCoupons();
+			const savedCodes = syncSavedCouponsWithActiveCoupons();
+			const visibleCodes = [...new Set([...savedCodes, selectedManualCouponCode].map((code) => String(code || '').toUpperCase()).filter(Boolean))];
+			if (manualCouponMultipleNote) manualCouponMultipleNote.classList.toggle('hidden', visibleCodes.length < 2);
+			if (manualCouponInput && !manualCouponInput.value && selectedManualCouponCode) manualCouponInput.value = selectedManualCouponCode;
+
+			if (!visibleCodes.length) {
+				savedCouponsList.innerHTML = '<div class="rounded-2xl bg-gray-50 border border-gray-100 p-3 text-xs font-bold text-gray-500">No tienes cupones guardados todavía.</div>';
+			} else {
+				const selectedZone = getSelectedShippingZone();
+				const deliveryMethod = getSelectedDeliveryMethod();
+				const rows = visibleCodes.map((code) => {
+					const coupon = activeCoupons.find((item) => String(item.code || '').toUpperCase() === code);
+					const preview = coupon && window.PZPromotions?.calculateCartWithManualCoupon
+						? window.PZPromotions.calculateCartWithManualCoupon(cart, window.PZ_AUTOMATIC_PROMOTIONS || [], coupon, deliveryMethod, deliveryMethod === 'delivery' ? getShippingZonePrice(selectedZone) : 0)
+						: null;
+					const isSelected = selectedManualCouponCode === code;
+					const status = preview?.manualCouponStatus;
+					const applies = preview?.couponWinner === 'manual_coupon';
+					const message = coupon ? (status?.message || couponDisplayMessage(coupon)) : 'El cupón no es válido.';
+					const benefit = Number(preview?.couponDiscountUSD || 0) + Number(preview?.shippingDiscountUSD || 0);
+					return `
+						<article class="rounded-2xl border ${isSelected ? 'border-slate-900 bg-slate-50' : 'border-gray-100 bg-gray-50'} p-3">
+							<div class="flex items-start justify-between gap-3">
+								<div>
+									<p class="font-black text-gray-900">${escapeHtml(code)} ${coupon ? `· ${escapeHtml(window.PZPromotions?.couponScopeLabel?.(coupon) || 'Cupón')}` : ''}</p>
+									<p class="text-xs font-semibold ${coupon && status?.ok ? 'text-gray-600' : 'text-red-600'} mt-1">${escapeHtml(message)}</p>
+									${benefit > 0 ? `<p class="text-xs font-black text-green-700 mt-1">Beneficio: ${formatUSD(benefit)}</p>` : ''}
+								</div>
+								<div class="flex flex-col gap-2">
+									${isSelected ? '<span class="text-xs font-black text-slate-900 text-right">Seleccionado</span>' : `<button class="text-xs font-black text-blue-700 js-select-coupon" data-coupon-code="${escapeHtml(code)}" type="button">Usar este cupón</button>`}
+									${isSelected ? `<button class="text-xs font-black text-gray-500 js-clear-coupon" type="button">Quitar</button>` : ''}
+								</div>
+							</div>
+							${isSelected && applies ? '<p class="text-xs font-black text-green-800 mt-2">Este cupón se aplicará a tu orden.</p>' : ''}
+						</article>
+					`;
+				}).join('');
+				savedCouponsList.innerHTML = rows;
+			}
+
+			const selectedCoupon = getCouponByCode(selectedManualCouponCode);
+			if (!selectedManualCouponCode) {
+				setCouponAlert('', 'info');
+			} else if (!selectedCoupon) {
+				setCouponAlert('El cupón no es válido.', 'error');
+			} else if (totals?.couponWinner === 'manual_coupon') {
+				setCouponAlert(selectedCoupon.scope === 'free_shipping' ? 'Cupón aplicado: tu envío queda en 0.' : `Cupón aplicado: ${formatUSD(Number(totals.couponDiscountUSD || 0))} de descuento.`, 'success');
+			} else if (totals?.manualCouponStatus?.message) {
+				setCouponAlert(totals.manualCouponStatus.message, totals.manualCouponStatus.ok ? 'info' : 'error');
+			}
+		}
+
 		function renderCheckout() {
 			const cart = validateGiftRulesOnCheckout();
 
@@ -1004,8 +1200,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			let hasDeliveryOnly = false;
 			let hasPickupOnly = false;
 			let hasFlexibleDelivery = false;
-			const promotionTotals = calculateCartPromotions(cart);
-			const cartForRender = promotionTotals.items || cart;
+			const selectedShippingZone = getSelectedShippingZone();
+			const selectedDeliveryMethod = getSelectedDeliveryMethod();
+			const renderTotals = calculateTotals(cart, selectedShippingZone, selectedDeliveryMethod);
+			const cartForRender = renderTotals.promotionItems || cart;
 
 			checkoutItems.innerHTML = '';
 
@@ -1021,6 +1219,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
 				const lineSavings = hasOffer ? (regularPrice - price) * quantity : 0;
 				const hasAutomaticPromo = lineDiscount > 0 && Boolean(item.promotion_label);
+				const hasManualCoupon = lineDiscount > 0 && Boolean(item.coupon_label);
 				const tracksStock = itemTracksStock(item);
 				const isPreorder = Boolean(item.preorder);
 				const isOutOfStock = tracksStock && stock <= 0 && !isPreorder;
@@ -1091,8 +1290,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 									<span class="text-xs font-bold bg-red-100 text-red-700 px-3 py-1 rounded-full">Oferta</span>
 								` : ''}
 
-								${hasAutomaticPromo ? `
-									<span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">Promo aplicada</span>
+								${hasAutomaticPromo || hasManualCoupon ? `
+									<span class="text-xs font-bold bg-green-100 text-green-700 px-3 py-1 rounded-full">${hasManualCoupon ? 'Cupón aplicado' : 'Promo aplicada'}</span>
 								` : ''}
 
 								${!item.is_gift ? `
@@ -1107,10 +1306,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
 							${item.is_gift ? `
 								<p class="text-xs text-gray-500 font-black mt-3">Regalo válido desde ${formatUSD(Number(item.min_order_usd || 0))}. Si bajas el carrito por debajo de la regla, se quitará al revisar el pedido.</p>
-							` : hasAutomaticPromo ? `
+							` : (hasAutomaticPromo || hasManualCoupon) ? `
 								<div class="mt-3 rounded-2xl bg-green-50 border border-green-100 p-3">
-									<p class="text-xs text-green-800 font-black">Promo aplicada: ${escapeHtml(item.promotion_label)}</p>
-									<p class="text-xs text-green-700 font-black mt-1">Subtotal antes de promo: ${formatVisualFromUsd(lineOriginal, { onlyUsd: Boolean(item.only_usd) })}</p>
+									<p class="text-xs text-green-800 font-black">${hasManualCoupon ? 'Cupón aplicado' : 'Promo aplicada'}: ${escapeHtml(item.coupon_label || item.promotion_label)}</p>
+									<p class="text-xs text-green-700 font-black mt-1">Subtotal antes: ${formatVisualFromUsd(lineOriginal, { onlyUsd: Boolean(item.only_usd) })}</p>
 									<p class="text-xs text-green-700 font-black mt-1">Ahorro: ${formatVisualFromUsd(lineDiscount, { onlyUsd: Boolean(item.only_usd) })}</p>
 								</div>
 							` : !tracksStock ? `` : isPreorder ? `
@@ -1164,13 +1363,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				`;
 			});
 
+			renderManualCouponSection(cart, renderTotals);
+
 			summaryItems.textContent = String(totalItems);
-			const selectedShippingZone = getSelectedShippingZone();
 			const selectedShippingPrice = getSelectedDeliveryMethod() === 'delivery'
 				? getShippingZonePrice(selectedShippingZone)
 				: 0;
 
-			const renderTotals = calculateTotals(cart, selectedShippingZone, getSelectedDeliveryMethod());
 			if (summaryCurrency) summaryCurrency.textContent = getCheckoutSummaryCurrencyLabel(renderTotals);
 			summarySubtotal.textContent = renderTotals.discountTotalUSD > 0
 				? formatCheckoutOriginalTotals(renderTotals)
@@ -1183,14 +1382,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			if (summaryDiscountPromo) {
 				const reasonText = getPromotionReasonText(renderTotals);
 				summaryDiscountPromo.classList.toggle('hidden', !(renderTotals.discountTotalUSD > 0 && reasonText));
-				summaryDiscountPromo.textContent = reasonText ? `Promo aplicada: ${reasonText}` : '';
+				summaryDiscountPromo.textContent = reasonText ? `${renderTotals.couponWinner === 'manual_coupon' ? 'Cupón aplicado' : 'Promo aplicada'}: ${reasonText}` : '';
 			}
 			summaryTotal.textContent = formatCheckoutTotals(renderTotals);
 
 			if (summaryDeliveryCostNote && summaryDeliveryCost) {
 				const hasDeliveryCost = getSelectedDeliveryMethod() === 'delivery' && selectedShippingPrice > 0;
 				summaryDeliveryCostNote.classList.toggle('hidden', !hasDeliveryCost);
-				summaryDeliveryCost.textContent = hasDeliveryCost ? formatShipping(selectedShippingPrice) : '';
+				summaryDeliveryCost.textContent = hasDeliveryCost && renderTotals.shippingDiscountUSD > 0
+					? `Antes: ${formatShipping(selectedShippingPrice)} · Ahora: ${formatShipping(renderTotals.shippingUSD)}`
+					: (hasDeliveryCost ? formatShipping(selectedShippingPrice) : '');
 			}
 
 			summaryAlerts.innerHTML = '';
@@ -1305,6 +1506,42 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			});
 		});
 
+		manualCouponApplyBtn?.addEventListener('click', () => {
+			if (checkoutLocked) return;
+			const code = manualCouponInput?.value || '';
+			if (!String(code).trim()) {
+				clearSelectedCoupon();
+				renderCheckout();
+				return;
+			}
+			saveCouponCode(code);
+			resetOrderCreatedState();
+			renderCheckout();
+		});
+
+		manualCouponInput?.addEventListener('keydown', (event) => {
+			if (event.key !== 'Enter') return;
+			event.preventDefault();
+			manualCouponApplyBtn?.click();
+		});
+
+		savedCouponsList?.addEventListener('click', (event) => {
+			if (checkoutLocked) return;
+			const selectBtn = event.target.closest('.js-select-coupon');
+			if (selectBtn) {
+				saveCouponCode(selectBtn.dataset.couponCode || '');
+				resetOrderCreatedState();
+				renderCheckout();
+				return;
+			}
+			if (event.target.closest('.js-clear-coupon')) {
+				clearSelectedCoupon();
+				if (manualCouponInput) manualCouponInput.value = '';
+				resetOrderCreatedState();
+				renderCheckout();
+			}
+		});
+
 		const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 
 		function normalizeOrderPrefix(value) {
@@ -1350,14 +1587,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		}
 
 		function calculateTotals(cart, shippingZone = null, deliveryMethod = '') {
-			const promotionTotals = calculateCartPromotions(cart);
+			const promotionTotals = calculateTotalsWithCoupon(cart, shippingZone, deliveryMethod);
 			const subtotalUSD = promotionTotals.subtotalFinalUSD;
 			const usdOnlyTotal = promotionTotals.usdOnlyTotal;
 			const localCurrencyTotal = promotionTotals.localCurrencyTotal;
 			const hasUsdOnly = cart.some((item) => !item.is_gift && Boolean(item.only_usd));
 			const hasLocalItems = cart.some((item) => !item.is_gift && !item.only_usd);
 
-			const shippingUSD = deliveryMethod === 'delivery' ? getShippingZonePrice(shippingZone) : 0;
+			const shippingOriginalUSD = deliveryMethod === 'delivery' ? getShippingZonePrice(shippingZone) : 0;
+			const shippingDiscountUSD = Number(promotionTotals.shippingDiscountUSD || 0);
+			const shippingUSD = Math.max(0, shippingOriginalUSD - shippingDiscountUSD);
 
 			return {
 				subtotalUSD,
@@ -1370,6 +1609,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				promotionSummary: promotionTotals.promotionSummary,
 				promotionItems: promotionTotals.items,
 				appliedPromotions: promotionTotals.appliedPromotions,
+				manualCoupon: promotionTotals.manualCoupon,
+				manualCouponStatus: promotionTotals.manualCouponStatus,
+				couponWinner: promotionTotals.couponWinner,
+				couponDiscountUSD: Number(promotionTotals.couponDiscountUSD || 0),
+				shippingOriginalUSD,
+				shippingDiscountUSD,
 				shippingUSD,
 				totalUSD: subtotalUSD + shippingUSD,
 				usdOnlyTotal,
@@ -1399,6 +1644,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				throw new Error(result?.message || `No se pudo crear el registro en ${collectionName}.`);
 			}
 
+			return result;
+		}
+
+		async function pocketbasePatch(collectionName, recordId, data) {
+			if (!POCKETBASE_URL) {
+				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+			}
+
+			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(data),
+			});
+			const result = await response.json().catch(() => null);
+			if (!response.ok) {
+				console.error(`Error actualizando registro en ${collectionName}:`, result);
+				throw new Error(result?.message || `No se pudo actualizar el registro en ${collectionName}.`);
+			}
 			return result;
 		}
 
@@ -1469,12 +1732,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		const preorderText = item.preorder ? '  ⚠️ *PREORDEN*' : '';
 		const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
 		const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
-		const hasAutomaticPromo = lineDiscount > 0 && Boolean(item.promotion_label);
+		const hasAutomaticPromo = lineDiscount > 0 && Boolean(item.promotion_label || item.coupon_label);
 		const savingsText = hasOffer ? `
    Oferta: antes ${formatVisualFromUsd(regularPrice * quantity, { onlyUsd: Boolean(item.only_usd) })}
    Ahorra: ${formatVisualFromUsd((regularPrice - price) * quantity, { onlyUsd: Boolean(item.only_usd) })}` : '';
 		const promoText = hasAutomaticPromo ? `
-   Promo aplicada: ${item.promotion_label}
+   ${item.coupon_label ? 'Cupón aplicado' : 'Promo aplicada'}: ${item.coupon_label || item.promotion_label}
    Subtotal antes de promo: ${formatVisualFromUsd(lineOriginal, { onlyUsd: Boolean(item.only_usd) })}
    Ahorro: ${formatVisualFromUsd(lineDiscount, { onlyUsd: Boolean(item.only_usd) })}` : '';
 		const visualPrice = formatVisualFromUsd(lineTotal, { onlyUsd: Boolean(item.only_usd) });
@@ -1587,6 +1850,12 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 				discount_total_usd: totals.discountTotalUSD,
 				subtotal_after_discount_usd: totals.subtotalUSD,
 				promotion_summary: totals.promotionSummary || '',
+				coupon_id: totals.couponWinner === 'manual_coupon' ? (totals.manualCoupon?.id || '') : '',
+				coupon_code: totals.couponWinner === 'manual_coupon' ? (totals.manualCoupon?.code || '') : '',
+				coupon_discount_usd: totals.couponWinner === 'manual_coupon' ? Number(totals.couponDiscountUSD || 0) : 0,
+				coupon_summary: totals.couponWinner === 'manual_coupon' ? (totals.promotionSummary || getPromotionReasonText(totals)) : '',
+				shipping_original_usd: totals.shippingOriginalUSD,
+				shipping_discount_usd: totals.shippingDiscountUSD,
 				mixed_payment: totals.mixedPayment,
 				delivery_method: validation.data.delivery_method,
 				status: 'pending',
@@ -1596,7 +1865,7 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 					validation.data.customer_note ? `Nota cliente: ${validation.data.customer_note}` : '',
 					`Moneda elegida cliente: ${selectedCode}`,
 					`Total productos visual cliente: ${formatCheckoutTotals(totals)}`,
-					totals.discountTotalUSD > 0 ? `Descuento automático USD: ${formatUSD(totals.discountTotalUSD)}` : '',
+					totals.discountTotalUSD > 0 ? `${totals.couponWinner === 'manual_coupon' ? 'Descuento cupón USD' : 'Descuento automático USD'}: ${formatUSD(totals.discountTotalUSD)}` : '',
 					`Envío visual cliente: ${formatShipping(totals.shippingUSD)}`,
 					cart.some((item) => item.preorder) ? `Preorder: ${cart.filter((item) => item.preorder).map((item) => item.title).join(', ')}` : '',
 					cart.some((item) => item.is_offer) ? `Ahorro por ofertas USD: ${formatUSD(cart.reduce((sum, item) => sum + (item.is_gift ? 0 : Math.max(0, Number(item.regular_price_usd || item.price || 0) - Number(item.price || 0)) * Number(item.quantity || 1)), 0))}` : '',
@@ -1648,6 +1917,9 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 					promotion_id: item.promotion?.id || '',
 					promotion_name: item.promotion?.name || item.promotion_label || '',
 					promotion_type: item.promotion?.type || '',
+					coupon_id: item.coupon?.id || '',
+					coupon_code: item.coupon?.code || '',
+					coupon_discount_usd: Number(item.coupon_discount_usd || 0),
 					only_usd: Boolean(item.only_usd),
 					is_gift: isGift,
 					gift_min_order_usd: isGift ? Number(item.min_order_usd || 0) : 0,
@@ -1662,6 +1934,26 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 				}
 
 				await pocketbaseRequest('order_items', orderItemPayload);
+			}
+
+			if (totals.couponWinner === 'manual_coupon' && totals.manualCoupon?.id) {
+				await pocketbaseRequest('manual_coupon_usages', {
+					coupon: totals.manualCoupon.id,
+					order: createdOrder.id,
+					coupon_code: totals.manualCoupon.code || '',
+					customer_name: validation.data.customer_name,
+					order_number: orderNumber,
+					discount_usd: Number(totals.couponDiscountUSD || 0),
+					shipping_discount_usd: Number(totals.shippingDiscountUSD || 0),
+				});
+				await pocketbasePatch('manual_coupons', totals.manualCoupon.id, {
+					used_count: Number(totals.manualCoupon.used_count || 0) + 1,
+				});
+				const nextUsedCount = Number(totals.manualCoupon.used_count || 0) + 1;
+				const maxUses = Number(totals.manualCoupon.max_uses || 0);
+				if (totals.manualCoupon.unlimited_uses === false && maxUses > 0 && nextUsedCount >= maxUses) {
+					removeSavedCouponCode(totals.manualCoupon.code || '');
+				}
 			}
 
 			const message = buildWhatsAppMessage({
@@ -1730,6 +2022,7 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 
 		window.addEventListener('pz-currency-changed', () => renderCheckout());
 		window.addEventListener('pz-promotions-updated', () => renderCheckout());
+		window.addEventListener('pz-coupons-updated', () => renderCheckout());
 
 		loadShippingZones()
 			.catch((error) => {
