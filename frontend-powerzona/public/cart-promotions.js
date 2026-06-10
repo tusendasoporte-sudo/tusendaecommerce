@@ -17,11 +17,25 @@
 
   function todayInRange(promotion) {
     const now = Date.now();
-    const startsAt = promotion.starts_at ? new Date(promotion.starts_at).getTime() : 0;
-    const endsAt = promotion.ends_at ? new Date(promotion.ends_at).getTime() : 0;
+    const startsAt = dateBoundaryTime(promotion.starts_at, 'start');
+    const endsAt = dateBoundaryTime(promotion.ends_at, 'end');
     if (startsAt && startsAt > now) return false;
     if (endsAt && endsAt < now) return false;
     return true;
+  }
+
+  function dateBoundaryTime(value, boundary = 'start') {
+    if (!value) return 0;
+    const text = String(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      const [year, month, day] = text.split('-').map(Number);
+      const date = boundary === 'end'
+        ? new Date(year, month - 1, day, 23, 59, 59, 999)
+        : new Date(year, month - 1, day, 0, 0, 0, 0);
+      return date.getTime();
+    }
+    const time = new Date(text).getTime();
+    return Number.isFinite(time) ? time : 0;
   }
 
   function normalizePromotion(promotion) {
@@ -172,18 +186,18 @@
     let subtotalAfterItemDiscountUSD = Math.max(0, subtotalOriginalUSD - itemDiscountTotalUSD);
     let cartDiscountUSD = 0;
     let cartPromotion = null;
-    const cartPromotions = activePromotions.filter((promotion) => promotion.type === PROMOTION_TYPES.CART_SUBTOTAL || promotion.scope === 'cart');
-    cartPromotions.forEach((promotion) => {
-      if (subtotalAfterItemDiscountUSD < promotion.min_subtotal_usd) return;
+    const cartPromotions = activePromotions
+      .filter((promotion) => promotion.type === PROMOTION_TYPES.CART_SUBTOTAL || promotion.scope === 'cart')
+      .filter((promotion) => subtotalAfterItemDiscountUSD >= promotion.min_subtotal_usd)
+      .sort((a, b) => (b.min_subtotal_usd - a.min_subtotal_usd) || (b.priority - a.priority));
+    const highestCartPromotion = cartPromotions[0] || null;
+    if (highestCartPromotion) {
       let discount = 0;
-      if (promotion.discount_type === 'percentage') discount = subtotalAfterItemDiscountUSD * Math.min(100, promotion.discount_value) / 100;
-      if (promotion.discount_type === 'fixed_usd') discount = promotion.discount_value;
-      discount = Math.min(subtotalAfterItemDiscountUSD, Math.max(0, discount));
-      if (discount > cartDiscountUSD) {
-        cartDiscountUSD = discount;
-        cartPromotion = promotion;
-      }
-    });
+      if (highestCartPromotion.discount_type === 'percentage') discount = subtotalAfterItemDiscountUSD * Math.min(100, highestCartPromotion.discount_value) / 100;
+      if (highestCartPromotion.discount_type === 'fixed_usd') discount = highestCartPromotion.discount_value;
+      cartDiscountUSD = Math.min(subtotalAfterItemDiscountUSD, Math.max(0, discount));
+      cartPromotion = cartDiscountUSD > 0 ? highestCartPromotion : null;
+    }
 
     if (cartDiscountUSD > 0 && subtotalAfterItemDiscountUSD > 0) {
       const ratio = cartDiscountUSD / subtotalAfterItemDiscountUSD;

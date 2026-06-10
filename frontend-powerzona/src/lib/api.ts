@@ -193,11 +193,25 @@ export async function getAutomaticPromotions() {
   }
 }
 
+function promotionDateTime(value: any, boundary: 'start' | 'end' = 'start') {
+  if (!value) return 0;
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    const [year, month, day] = text.split('-').map(Number);
+    const date = boundary === 'end'
+      ? new Date(year, month - 1, day, 23, 59, 59, 999)
+      : new Date(year, month - 1, day, 0, 0, 0, 0);
+    return date.getTime();
+  }
+  const time = new Date(text).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export function getProductAutomaticPromotionText(product: any, promotions: any[] = []) {
   const now = Date.now();
   const active = promotions.filter((promotion: any) => {
-    const starts = promotion.starts_at ? new Date(promotion.starts_at).getTime() : 0;
-    const ends = promotion.ends_at ? new Date(promotion.ends_at).getTime() : 0;
+    const starts = promotionDateTime(promotion.starts_at, 'start');
+    const ends = promotionDateTime(promotion.ends_at, 'end');
     if (starts && starts > now) return false;
     if (ends && ends < now) return false;
     return promotion.active !== false;

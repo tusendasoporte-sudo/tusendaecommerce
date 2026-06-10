@@ -165,18 +165,27 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       .marketing-offer-link { margin: 4px 0 0; color: #64748b; font-size: 11px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .marketing-switch { display: inline-flex; align-items: center; gap: 8px; color: #334155; font-size: 12px; font-weight: 950; white-space: nowrap; }
       .marketing-switch input { width: 18px; height: 18px; accent-color: #0f172a; }
-      .marketing-menu-wrap, .visual-menu-wrap { position: relative; display: inline-flex; justify-content: flex-end; z-index: 2; }
-      .marketing-menu-wrap.open, .visual-menu-wrap.open { z-index: 10030; }
-      .marketing-kebab-btn, .visual-kebab-btn { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 22px; font-weight: 1000; line-height: 1; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(15,23,42,.06); }
-      .marketing-floating-menu, .visual-floating-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10040; min-width: 210px; display: none; gap: 6px; padding: 8px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.22); }
-      .marketing-menu-wrap.open .marketing-floating-menu, .visual-menu-wrap.open .visual-floating-menu { display: grid; }
-      .marketing-floating-menu.drop-up, .visual-floating-menu.drop-up { top: auto; bottom: calc(100% + 8px); }
-      .marketing-floating-menu button, .visual-floating-menu button { width: 100%; border: 0; border-radius: 13px; background: transparent; color: #0f172a; padding: 10px 11px; text-align: left; font-size: 13px; font-weight: 950; }
-      .marketing-floating-menu button:hover, .visual-floating-menu button:hover { background: #f8fafc; }
-      .marketing-floating-menu button.danger, .visual-floating-menu button.danger { color: #991b1b; }
-      .marketing-floating-menu button.danger:hover, .visual-floating-menu button.danger:hover { background: #fee2e2; }
-      .marketing-floating-menu button.success, .visual-floating-menu button.success { color: #166534; }
-      .marketing-floating-menu button.success:hover, .visual-floating-menu button.success:hover { background: #dcfce7; }
+      .marketing-menu-wrap, .visual-menu-wrap, .promotion-menu-wrap { position: relative; display: inline-flex; justify-content: flex-end; z-index: 2; }
+      .marketing-menu-wrap.open, .visual-menu-wrap.open, .promotion-menu-wrap.open { z-index: 10030; }
+      .marketing-kebab-btn, .visual-kebab-btn, .promotion-kebab-btn { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 22px; font-weight: 1000; line-height: 1; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 10px 20px rgba(15,23,42,.06); }
+      .marketing-floating-menu, .visual-floating-menu, .promotion-floating-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10040; min-width: 210px; display: none; gap: 6px; padding: 8px; border-radius: 18px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.22); }
+      .marketing-menu-wrap.open .marketing-floating-menu, .visual-menu-wrap.open .visual-floating-menu, .promotion-menu-wrap.open .promotion-floating-menu { display: grid; }
+      .marketing-floating-menu.drop-up, .visual-floating-menu.drop-up, .promotion-floating-menu.drop-up { top: auto; bottom: calc(100% + 8px); }
+      .marketing-floating-menu button, .visual-floating-menu button, .promotion-floating-menu button { width: 100%; border: 0; border-radius: 13px; background: transparent; color: #0f172a; padding: 10px 11px; text-align: left; font-size: 13px; font-weight: 950; }
+      .marketing-floating-menu button:hover, .visual-floating-menu button:hover, .promotion-floating-menu button:hover { background: #f8fafc; }
+      .marketing-floating-menu button.danger, .visual-floating-menu button.danger, .promotion-floating-menu button.danger { color: #991b1b; }
+      .marketing-floating-menu button.danger:hover, .visual-floating-menu button.danger:hover, .promotion-floating-menu button.danger:hover { background: #fee2e2; }
+      .marketing-floating-menu button.success, .visual-floating-menu button.success, .promotion-floating-menu button.success { color: #166534; }
+      .marketing-floating-menu button.success:hover, .visual-floating-menu button.success:hover, .promotion-floating-menu button.success:hover { background: #dcfce7; }
+      .promotion-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+      .promotion-filter-btn { border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #334155; padding: 9px 12px; font-size: 12px; font-weight: 1000; box-shadow: 0 10px 20px rgba(15,23,42,.05); }
+      .promotion-filter-btn.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+      .promotion-group { border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(248,250,252,.86); overflow: visible; }
+      .promotion-group + .promotion-group { margin-top: 10px; }
+      .promotion-group-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; cursor: pointer; color: #0f172a; font-weight: 1000; }
+      .promotion-group-summary::-webkit-details-marker { display: none; }
+      .promotion-group-summary span { color: #64748b; font-size: 12px; }
+      .promotion-group-body { display: grid; gap: 10px; padding: 0 14px 14px; }
       .marketing-modal { position: fixed; inset: 0; z-index: 12000; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.42); backdrop-filter: blur(4px); }
       .marketing-modal.hidden { display: none !important; }
       .marketing-modal-card { width: min(560px, 100%); max-height: calc(100vh - 36px); overflow: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 28px; box-shadow: 0 32px 90px rgba(15,23,42,.28); padding: 22px; }
@@ -812,7 +821,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               <div class="hero-actions">
                 <button id="promotion-new-btn" class="mini-btn primary" type="button">Nueva promoción</button>
                 <button id="promotion-readme-btn" class="promotion-readme-btn" type="button">Léeme</button>
-                <button id="promotion-refresh-btn" class="mini-btn" type="button">Actualizar</button>
               </div>
             </div>
 
@@ -848,7 +856,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               <div class="field" data-promo-field="subcategory"><label for="promotion-subcategory">Subcategoría</label><select id="promotion-subcategory"><option value="">Selecciona subcategoría</option></select></div>
               <div class="field"><label for="promotion-starts">Fecha inicio</label><input id="promotion-starts" type="date" /></div>
               <div class="field"><label for="promotion-ends">Fecha fin</label><input id="promotion-ends" type="date" /></div>
-              <div class="field"><label for="promotion-priority">Prioridad</label><input id="promotion-priority" type="number" min="0" step="1" value="0" /></div>
               <div class="field full"><label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="promotion-active" type="checkbox" checked /> Activa</label></div>
               <div id="promotion-alert" class="alert alert-info hidden full"></div>
               <div class="editor-actions full">
@@ -857,8 +864,30 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               </div>
             </form>
 
+            <div id="promotion-filters" class="promotion-filters" aria-label="Filtrar promociones">
+              <button class="promotion-filter-btn active" data-promotion-filter="all" type="button">Todas</button>
+              <button class="promotion-filter-btn" data-promotion-filter="active" type="button">Activas</button>
+              <button class="promotion-filter-btn" data-promotion-filter="inactive" type="button">Inactivas</button>
+              <button class="promotion-filter-btn" data-promotion-filter="expired" type="button">Vencidas</button>
+            </div>
             <div id="promotion-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando promociones automáticas...</div></div>
           </section>
+
+          <div id="promotion-delete-modal" class="marketing-modal hidden" aria-hidden="true">
+            <div class="marketing-modal-card">
+              <div class="marketing-modal-head">
+                <div>
+                  <h3 class="marketing-modal-title">¿Eliminar esta promoción?</h3>
+                  <p class="marketing-modal-subtitle">Esta acción no afecta órdenes anteriores.</p>
+                </div>
+                <button id="promotion-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+              </div>
+              <div class="editor-actions">
+                <button id="promotion-delete-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                <button id="promotion-delete-confirm-btn" class="mini-btn danger" type="button">Eliminar</button>
+              </div>
+            </div>
+          </div>
 
           <div id="promotion-readme-modal" class="marketing-modal hidden" aria-hidden="true">
             <div class="marketing-modal-card">
@@ -950,7 +979,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       let visualItems = [];
       let automaticPromotions = [];
       let activeTab = 'destacados';
+      let promotionFilter = 'all';
+      let pendingPromotionDeleteId = '';
       const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
+      const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
 
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -996,12 +1028,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const visualCancelBtn = document.getElementById('visual-cancel-btn');
       const promotionForm = document.getElementById('promotion-form');
       const promotionList = document.getElementById('promotion-list');
+      const promotionFilters = document.getElementById('promotion-filters');
       const promotionAlert = document.getElementById('promotion-alert');
       const promotionNewBtn = document.getElementById('promotion-new-btn');
-      const promotionRefreshBtn = document.getElementById('promotion-refresh-btn');
       const promotionReadmeBtn = document.getElementById('promotion-readme-btn');
       const promotionReadmeModal = document.getElementById('promotion-readme-modal');
       const promotionReadmeCloseBtn = document.getElementById('promotion-readme-close-btn');
+      const promotionDeleteModal = document.getElementById('promotion-delete-modal');
+      const promotionDeleteCloseBtn = document.getElementById('promotion-delete-close-btn');
+      const promotionDeleteCancelBtn = document.getElementById('promotion-delete-cancel-btn');
+      const promotionDeleteConfirmBtn = document.getElementById('promotion-delete-confirm-btn');
       const promotionCancelBtn = document.getElementById('promotion-cancel-btn');
       const promotionId = document.getElementById('promotion-id');
       const promotionName = document.getElementById('promotion-name');
@@ -1021,7 +1057,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const promotionSubcategory = document.getElementById('promotion-subcategory');
       const promotionStarts = document.getElementById('promotion-starts');
       const promotionEnds = document.getElementById('promotion-ends');
-      const promotionPriority = document.getElementById('promotion-priority');
       const promotionActive = document.getElementById('promotion-active');
 
       function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
@@ -1468,29 +1503,150 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         document.querySelectorAll('[data-promo-field]').forEach((field) => field.classList.toggle('hidden', !visible[field.dataset.promoField]));
         promotionDiscountType?.closest('.field')?.classList.toggle('hidden', type === 'buy_x_pay_y');
       }
+      function promotionDateTime(value, boundary = 'start') {
+        if (!value) return 0;
+        const text = String(value);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+          const [year, month, day] = text.split('-').map(Number);
+          return (boundary === 'end'
+            ? new Date(year, month - 1, day, 23, 59, 59, 999)
+            : new Date(year, month - 1, day, 0, 0, 0, 0)).getTime();
+        }
+        const parsed = new Date(text).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      function localDateInputValue(value) {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      function dateInputToIso(value, boundary = 'start') {
+        if (!value) return '';
+        const [year, month, day] = String(value).split('-').map(Number);
+        const date = boundary === 'end'
+          ? new Date(year, month - 1, day, 23, 59, 59, 999)
+          : new Date(year, month - 1, day, 0, 0, 0, 0);
+        return date.toISOString();
+      }
+      function promotionIsExpired(item) {
+        const endsAt = promotionDateTime(item.ends_at, 'end');
+        return Boolean(endsAt && endsAt < Date.now());
+      }
+      function promotionIsActiveAndCurrent(item) {
+        if (item.active === false) return false;
+        const now = Date.now();
+        const startsAt = promotionDateTime(item.starts_at, 'start');
+        const endsAt = promotionDateTime(item.ends_at, 'end');
+        if (startsAt && startsAt > now) return false;
+        if (endsAt && endsAt < now) return false;
+        return true;
+      }
+      function promotionStatusLabel(item) {
+        if (item.active === false) return 'Inactiva';
+        if (promotionIsExpired(item)) return 'Vencida';
+        return 'Activa';
+      }
+      function promotionStatusClass(item) {
+        return promotionIsActiveAndCurrent(item) ? 'pill-visible' : 'pill-hidden';
+      }
+      function promotionMatchesFilter(item) {
+        if (promotionFilter === 'active') return promotionIsActiveAndCurrent(item);
+        if (promotionFilter === 'inactive') return item.active === false;
+        if (promotionFilter === 'expired') return promotionIsExpired(item);
+        return true;
+      }
+      function sortPromotionsForType(type, items) {
+        return [...items].sort((a, b) => {
+          if (type === 'cart_subtotal_discount') return (Number(a.min_subtotal_usd || 0) - Number(b.min_subtotal_usd || 0)) || String(a.name || '').localeCompare(String(b.name || ''));
+          return Number(b.active !== false) - Number(a.active !== false) || String(a.name || '').localeCompare(String(b.name || ''));
+        });
+      }
+      function promotionConflictKey(item) {
+        if (item.type === 'cart_subtotal_discount' || item.scope === 'cart') return null;
+        if (item.product) return { field: 'product', value: item.product, message: 'Ya existe una promoción activa para este producto. Puedes editarla o desactivarla antes de crear otra.' };
+        if (item.subcategory) return { field: 'subcategory', value: item.subcategory, message: 'Ya existe una promoción activa para esta subcategoría. Puedes editarla o desactivarla antes de crear otra.' };
+        if (item.category) return { field: 'category', value: item.category, message: 'Ya existe una promoción activa para esta categoría. Puedes editarla o desactivarla antes de crear otra.' };
+        return null;
+      }
+      function findActivePromotionConflict(payload, currentId = '') {
+        if (payload.active === false) return '';
+        const key = promotionConflictKey(payload);
+        if (!key) return '';
+        const conflict = automaticPromotions.find((item) => {
+          if (item.id === currentId || item.active === false || !promotionIsActiveAndCurrent(item)) return false;
+          const existingKey = promotionConflictKey(item);
+          return existingKey?.field === key.field && existingKey.value === key.value;
+        });
+        return conflict ? key.message : '';
+      }
+      function closePromotionMenus() {
+        document.querySelectorAll('.promotion-menu-wrap.open').forEach((wrap) => {
+          wrap.classList.remove('open');
+          wrap.querySelector('.js-promotion-menu')?.setAttribute('aria-expanded', 'false');
+          wrap.querySelector('.promotion-floating-menu')?.classList.remove('drop-up');
+        });
+      }
+      function togglePromotionMenu(wrap) {
+        if (!wrap) return;
+        const willOpen = !wrap.classList.contains('open');
+        closePromotionMenus();
+        wrap.classList.toggle('open', willOpen);
+        wrap.querySelector('.js-promotion-menu')?.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        const menu = wrap.querySelector('.promotion-floating-menu');
+        if (willOpen && menu) {
+          menu.classList.remove('drop-up');
+          requestAnimationFrame(() => {
+            const rect = menu.getBoundingClientRect();
+            if (rect.bottom > window.innerHeight - 12) menu.classList.add('drop-up');
+          });
+        }
+      }
       function renderPromotions() {
         if (!promotionList) return;
-        if (!automaticPromotions.length) {
+        promotionFilters?.querySelectorAll('.promotion-filter-btn').forEach((button) => {
+          button.classList.toggle('active', button.dataset.promotionFilter === promotionFilter);
+        });
+        const filteredPromotions = automaticPromotions.filter(promotionMatchesFilter);
+        if (!filteredPromotions.length) {
           promotionList.innerHTML = '<div class="empty-state">Todavía no hay promociones automáticas.</div>';
           return;
         }
-        promotionList.innerHTML = automaticPromotions.map((item) => `
-          <article class="item-row" data-promotion-id="${item.id}">
-            <div class="item-main">
-              <span class="thumb placeholder">%</span>
-              <div>
-                <p class="item-title">${escapeHtml(item.name || 'Sin nombre')}</p>
-                <p class="item-meta">${escapeHtml(promotionTypeLabel(item.type))} · ${escapeHtml(promotionTargetLabel(item))} · ${item.badge_text ? escapeHtml(item.badge_text) : 'Sin texto visible'}</p>
+        promotionList.innerHTML = promotionGroupOrder.map((type) => {
+          const groupItems = sortPromotionsForType(type, filteredPromotions.filter((item) => item.type === type));
+          if (!groupItems.length) return '';
+          return `
+            <details class="promotion-group" open>
+              <summary class="promotion-group-summary">${escapeHtml(promotionTypeLabel(type))} <span>(${groupItems.length})</span></summary>
+              <div class="promotion-group-body">
+                ${groupItems.map((item) => `
+                  <article class="item-row" data-promotion-id="${item.id}">
+                    <div class="item-main">
+                      <span class="thumb placeholder">%</span>
+                      <div>
+                        <p class="item-title">${escapeHtml(item.name || 'Sin nombre')}</p>
+                        <p class="item-meta">${escapeHtml(promotionTargetLabel(item))}${item.badge_text ? ` · ${escapeHtml(item.badge_text)}` : ''}</p>
+                      </div>
+                    </div>
+                    <div class="item-actions">
+                      <button class="mini-btn ${item.active !== false ? '' : 'success'} js-promotion-toggle" type="button">${item.active !== false ? 'Activa' : 'Inactiva'}</button>
+                      <div class="promotion-menu-wrap">
+                        <button class="promotion-kebab-btn js-promotion-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                        <div class="promotion-floating-menu" role="menu">
+                          <button class="js-promotion-edit" type="button">Editar</button>
+                          <button class="danger js-promotion-delete" type="button">Eliminar</button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                `).join('')}
               </div>
-            </div>
-            <div class="item-actions">
-              <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${item.active !== false ? 'Activa' : 'Inactiva'}</span>
-              <button class="mini-btn js-promotion-edit" type="button">Editar</button>
-              <button class="mini-btn ${item.active !== false ? '' : 'success'} js-promotion-toggle" type="button">${item.active !== false ? 'Desactivar' : 'Activar'}</button>
-              <button class="mini-btn danger js-promotion-delete" type="button">Eliminar</button>
-            </div>
-          </article>
-        `).join('');
+            </details>
+          `;
+        }).join('');
       }
       async function loadData() {
         products = await loadAllRecords('products', 'sort=featured_order,name');
@@ -1715,7 +1871,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (promotionActive) promotionActive.checked = true;
         if (promotionType) promotionType.value = 'buy_x_pay_y';
         if (promotionDiscountType) promotionDiscountType.value = 'percentage';
-        if (promotionPriority) promotionPriority.value = '0';
         if (promotionProductSearch) promotionProductSearch.value = '';
         if (promotionProductSelected) promotionProductSelected.innerHTML = '';
         showAlert(promotionAlert, '');
@@ -1741,9 +1896,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           promotionCategory.value = item.category || '';
           renderPromotionSubcategoryOptions();
           promotionSubcategory.value = item.subcategory || '';
-          promotionStarts.value = item.starts_at ? String(item.starts_at).slice(0, 10) : '';
-          promotionEnds.value = item.ends_at ? String(item.ends_at).slice(0, 10) : '';
-          promotionPriority.value = String(Number(item.priority || 0));
+          promotionStarts.value = localDateInputValue(item.starts_at);
+          promotionEnds.value = localDateInputValue(item.ends_at);
           promotionActive.checked = item.active !== false;
         }
         updatePromotionFields();
@@ -1763,7 +1917,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       function validatePromotionPayload(payload) {
         if (!payload.name) return 'Escribe el nombre de la promoción.';
-        if (payload.ends_at && payload.starts_at && payload.ends_at < payload.starts_at) return 'La fecha fin no puede ser menor que la fecha inicio.';
+        if (payload.ends_at && payload.starts_at && promotionDateTime(payload.ends_at, 'end') < promotionDateTime(payload.starts_at, 'start')) return 'La fecha fin no puede ser menor que la fecha inicio.';
         if (payload.type === 'buy_x_pay_y') {
           if (!(Number(payload.buy_qty) > Number(payload.pay_qty))) return 'Compra cantidad debe ser mayor que paga cantidad.';
           if (!(Number(payload.pay_qty) > 0)) return 'Paga cantidad debe ser mayor que 0.';
@@ -1796,15 +1950,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           product: ['product_discount', 'volume_discount', 'buy_x_pay_y'].includes(type) ? promotionProduct.value : '',
           category: ['category_discount', 'subcategory_discount'].includes(type) ? promotionCategory.value : '',
           subcategory: type === 'subcategory_discount' ? promotionSubcategory.value : '',
-          starts_at: promotionStarts.value || '',
-          ends_at: promotionEnds.value || '',
+          starts_at: dateInputToIso(promotionStarts.value, 'start'),
+          ends_at: dateInputToIso(promotionEnds.value, 'end'),
           badge_text: promotionBadge.value.trim(),
-          priority: Number(promotionPriority.value || 0),
+          priority: 0,
           stackable: false,
         };
         const error = validatePromotionPayload(payload);
         if (error) return showAlert(promotionAlert, error, 'error');
         const id = promotionId.value;
+        const conflict = findActivePromotionConflict(payload, id);
+        if (conflict) return showAlert(promotionAlert, conflict, 'error');
         await apiRequest(`/api/collections/automatic_promotions/records${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         showAlert(promotionAlert, 'Promoción guardada correctamente.', 'success');
         await loadData();
@@ -1813,13 +1969,31 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       async function togglePromotion(id) {
         const item = automaticPromotions.find((promotion) => promotion.id === id);
         if (!item) return;
-        await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: item.active === false }) });
+        const nextActive = item.active === false;
+        if (nextActive) {
+          const conflict = findActivePromotionConflict({ ...item, active: true }, id);
+          if (conflict) return showAlert(promotionAlert, conflict, 'error');
+        }
+        await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: nextActive }) });
         await loadData();
       }
       async function deletePromotion(id) {
-        if (!id || !confirm('¿Eliminar esta promoción automática?')) return;
+        if (!id) return;
         await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'DELETE' });
+        if (promotionId?.value === id) closePromotionForm();
+        closePromotionDeleteModal();
         await loadData();
+      }
+      function openPromotionDeleteModal(id) {
+        pendingPromotionDeleteId = id || '';
+        closePromotionMenus();
+        promotionDeleteModal?.classList.remove('hidden');
+        promotionDeleteModal?.setAttribute('aria-hidden', 'false');
+      }
+      function closePromotionDeleteModal() {
+        pendingPromotionDeleteId = '';
+        promotionDeleteModal?.classList.add('hidden');
+        promotionDeleteModal?.setAttribute('aria-hidden', 'true');
       }
       function openPromotionReadme() {
         promotionReadmeModal?.classList.remove('hidden');
@@ -1872,11 +2046,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
       promotionNewBtn?.addEventListener('click', () => openPromotionForm());
-      promotionRefreshBtn?.addEventListener('click', () => loadData());
       promotionReadmeBtn?.addEventListener('click', openPromotionReadme);
       promotionReadmeCloseBtn?.addEventListener('click', closePromotionReadme);
       promotionReadmeModal?.addEventListener('click', (event) => {
         if (event.target === promotionReadmeModal) closePromotionReadme();
+      });
+      promotionDeleteCloseBtn?.addEventListener('click', closePromotionDeleteModal);
+      promotionDeleteCancelBtn?.addEventListener('click', closePromotionDeleteModal);
+      promotionDeleteModal?.addEventListener('click', (event) => {
+        if (event.target === promotionDeleteModal) closePromotionDeleteModal();
+      });
+      promotionDeleteConfirmBtn?.addEventListener('click', () => {
+        deletePromotion(pendingPromotionDeleteId).catch((error) => showAlert(promotionAlert, error.message || 'No se pudo eliminar.', 'error'));
+      });
+      promotionFilters?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-promotion-filter]');
+        if (!button) return;
+        promotionFilter = button.dataset.promotionFilter || 'all';
+        renderPromotions();
       });
       promotionCancelBtn?.addEventListener('click', closePromotionForm);
       promotionType?.addEventListener('change', updatePromotionFields);
@@ -1949,17 +2136,24 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const row = event.target.closest('[data-promotion-id]');
         if (!row) return;
         const id = row.dataset.promotionId;
+        const menuBtn = event.target.closest('.js-promotion-menu');
+        if (menuBtn) {
+          togglePromotionMenu(menuBtn.closest('.promotion-menu-wrap'));
+          return;
+        }
         if (event.target.closest('.js-promotion-edit')) {
+          closePromotionMenus();
           const item = automaticPromotions.find((promotion) => promotion.id === id);
           if (item) openPromotionForm(item);
           return;
         }
         if (event.target.closest('.js-promotion-toggle')) {
+          closePromotionMenus();
           togglePromotion(id).catch((error) => showAlert(promotionAlert, error.message || 'No se pudo cambiar el estado.', 'error'));
           return;
         }
         if (event.target.closest('.js-promotion-delete')) {
-          deletePromotion(id).catch((error) => showAlert(promotionAlert, error.message || 'No se pudo eliminar.', 'error'));
+          openPromotionDeleteModal(id);
         }
       });
 
@@ -2016,6 +2210,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
       document.addEventListener('click', (event) => {
         if (!event.target.closest('.visual-menu-wrap')) closeVisualMenus();
+        if (!event.target.closest('.promotion-menu-wrap')) closePromotionMenus();
       });
 
       if (getAdminToken()) showAdmin(); else showLogin();
