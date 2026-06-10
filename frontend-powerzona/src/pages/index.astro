@@ -7,15 +7,18 @@ import ProductCard from '../components/ProductCard.astro';
 import PublicFooter from '../components/PublicFooter.astro';
 import PromoBar from '../components/PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../lib/api';
+import { getCurrentStore } from '../lib/stores';
 
-const settings = await getSettings();
-const categories = await getCategories();
-const subcategories = await getSubcategories();
-const products = await getProducts();
-const featuredProducts = await getFeaturedProducts();
-const visualItems = await getStoreVisualItems();
-const gifts = await getPublicGifts();
-const automaticPromotions = await getAutomaticPromotions();
+const currentStore = await getCurrentStore(Astro);
+const storeQuery = { storeId: currentStore.id };
+const settings = await getSettings(storeQuery);
+const categories = await getCategories(storeQuery);
+const subcategories = await getSubcategories(storeQuery);
+const products = await getProducts(storeQuery);
+const featuredProducts = await getFeaturedProducts(storeQuery);
+const visualItems = await getStoreVisualItems(storeQuery);
+const gifts = await getPublicGifts(storeQuery);
+const automaticPromotions = await getAutomaticPromotions(storeQuery);
 
 // Regla pública:
 // - La portada no abre categorías en la misma página.

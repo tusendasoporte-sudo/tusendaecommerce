@@ -2,11 +2,14 @@
 // PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603
 import Layout from '../layouts/Layout.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
+import { getCurrentStore } from '../lib/stores';
 
-const settings = await getSettings();
-const categories = await getCategories();
-const subcategories = await getSubcategories();
-const products = await getProducts();
+const currentStore = await getCurrentStore(Astro);
+const storeQuery = { storeId: currentStore.id };
+const settings = await getSettings(storeQuery);
+const categories = await getCategories(storeQuery);
+const subcategories = await getSubcategories(storeQuery);
+const products = await getProducts(storeQuery);
 
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';

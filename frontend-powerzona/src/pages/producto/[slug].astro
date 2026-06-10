@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
+import { getCurrentStore } from '../../lib/stores';
 
 export async function getStaticPaths() {
 	const products = await getProducts();
@@ -14,10 +15,12 @@ export async function getStaticPaths() {
 }
 
 const { slug } = Astro.params;
-const settings = await getSettings();
-const product = await getProductBySlug(slug as string);
+const currentStore = await getCurrentStore(Astro);
+const storeQuery = { storeId: currentStore.id };
+const settings = await getSettings(storeQuery);
+const product = await getProductBySlug(slug as string, storeQuery);
 const variations = product.has_variations ? await getProductVariations(product.id) : [];
-const automaticPromotions = await getAutomaticPromotions();
+const automaticPromotions = await getAutomaticPromotions(storeQuery);
 const automaticPromotionText = getProductAutomaticPromotionText(product, automaticPromotions);
 
 const productGalleryImages = product.imageUrls?.length ? product.imageUrls : ['https://placehold.co/800x800?text=PowerZona'];
@@ -40,7 +43,7 @@ const relatedProductIds = Array.isArray(product.related_products)
 	: product.related_products
 		? [product.related_products].filter(Boolean).slice(0, 4)
 		: [];
-const allPublicProducts = relatedProductIds.length ? await getProducts() : [];
+const allPublicProducts = relatedProductIds.length ? await getProducts(storeQuery) : [];
 const relatedProducts = relatedProductIds
 	.map((id: string) => allPublicProducts.find((item: any) => item.id === id))
 	.filter((item: any) => item && item.id !== product.id)

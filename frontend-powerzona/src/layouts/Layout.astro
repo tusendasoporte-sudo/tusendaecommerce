@@ -2,9 +2,12 @@
 import '../styles/global.css';
 import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
+import { getCurrentStore } from '../lib/stores';
 
 const isCheckoutPage = Astro.url.pathname.replace(/\/$/, '') === '/checkout';
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const currentStore = await getCurrentStore(Astro);
+const currentStoreId = currentStore.id;
 ---
 
 <!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
@@ -25,14 +28,15 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		</main>
 
 		<script is:inline src="/cart-promotions.js"></script>
-		<script define:vars={{ pocketbaseUrl }}>
+		<script define:vars={{ pocketbaseUrl, currentStoreId }}>
 			window.PZ_POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-			window.PZ_PROMOTIONS_READY = window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL).then((promotions) => {
+			window.PZ_CURRENT_STORE_ID = currentStoreId || '';
+			window.PZ_PROMOTIONS_READY = window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID).then((promotions) => {
 				window.PZ_AUTOMATIC_PROMOTIONS = promotions;
 				window.dispatchEvent(new Event('pz-promotions-updated'));
 				return promotions;
 			});
-			window.PZ_COUPONS_READY = window.PZPromotions?.loadActiveCoupons(window.PZ_POCKETBASE_URL).then((coupons) => {
+			window.PZ_COUPONS_READY = window.PZPromotions?.loadActiveCoupons(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID).then((coupons) => {
 				window.PZ_MANUAL_COUPONS = coupons;
 				window.dispatchEvent(new Event('pz-coupons-updated'));
 				return coupons;

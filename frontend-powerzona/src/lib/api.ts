@@ -1,9 +1,31 @@
 import { pb, getPocketBaseFileUrl } from './pocketbase';
+import { getCurrentStore } from './stores';
+
+type StoreQueryOptions = {
+  storeId?: string;
+};
+
+type StoreQueryInput = string | StoreQueryOptions | undefined;
+
+function escapePocketBaseValue(value: string) {
+  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+async function resolveStoreId(options?: StoreQueryInput) {
+  if (typeof options === 'string') return options;
+  if (options?.storeId) return options.storeId;
+  return (await getCurrentStore()).id;
+}
+
+async function storeFilter(baseFilter: string, options?: StoreQueryInput) {
+  const storeId = await resolveStoreId(options);
+  return `${baseFilter} && store="${escapePocketBaseValue(storeId)}"`;
+}
 
 // PZ-API-SETTINGS-V6-REGALOS-FOTOS-THUMB-20260604
-export async function getSettings() {
+export async function getSettings(options?: StoreQueryInput) {
   const records = await pb.collection('settings').getFullList({
-    filter: 'active = true',
+    filter: await storeFilter('active = true', options),
     expand: 'default_currency',
   });
 
@@ -22,9 +44,9 @@ export async function getSettings() {
   };
 }
 
-export async function getCategories() {
+export async function getCategories(options?: StoreQueryInput) {
   const categories = await pb.collection('categories').getFullList({
-    filter: 'active = true',
+    filter: await storeFilter('active = true', options),
     sort: 'order,name',
   });
 
@@ -37,9 +59,9 @@ export async function getCategories() {
 }
 
 // PZ-API-PUBLIC-SUBCATEGORIES-V1-20260603
-export async function getSubcategories() {
+export async function getSubcategories(options?: StoreQueryInput) {
   const subcategories = await pb.collection('subcategories').getFullList({
-    filter: 'active = true',
+    filter: await storeFilter('active = true', options),
     sort: 'order,name',
     expand: 'category',
   });
@@ -109,9 +131,9 @@ function addVariationImages(variation: any) {
   };
 }
 
-export async function getProducts() {
+export async function getProducts(options?: StoreQueryInput) {
   const products = await pb.collection('products').getFullList({
-    filter: 'active = true',
+    filter: await storeFilter('active = true', options),
     sort: '-created',
     expand: 'category,subcategory',
   });
@@ -122,9 +144,9 @@ export async function getProducts() {
 }
 
 // PZ-API-FEATURED-ORDER-V1-20260603
-export async function getFeaturedProducts() {
+export async function getFeaturedProducts(options?: StoreQueryInput) {
   const products = await pb.collection('products').getFullList({
-    filter: 'active = true && featured = true',
+    filter: await storeFilter('active = true && featured = true', options),
     sort: 'featured_order,-updated',
     expand: 'category,subcategory',
   });
@@ -145,10 +167,10 @@ function addVisualItemFiles(item: any) {
   };
 }
 
-export async function getStoreVisualItems() {
+export async function getStoreVisualItems(options?: StoreQueryInput) {
   try {
     const items = await pb.collection('store_visual_items').getFullList({
-      filter: 'active = true',
+      filter: await storeFilter('active = true', options),
       sort: 'sort_order,title',
       expand: 'category',
     });
@@ -168,10 +190,10 @@ function addGiftFiles(gift: any) {
   };
 }
 
-export async function getPublicGifts() {
+export async function getPublicGifts(options?: StoreQueryInput) {
   try {
     const gifts = await pb.collection('gifts').getFullList({
-      filter: 'active = true && stock > 0',
+      filter: await storeFilter('active = true && stock > 0', options),
       sort: 'sort_order,name',
     });
     return gifts.map(addGiftFiles);
@@ -181,10 +203,10 @@ export async function getPublicGifts() {
   }
 }
 
-export async function getAutomaticPromotions() {
+export async function getAutomaticPromotions(options?: StoreQueryInput) {
   try {
     return await pb.collection('automatic_promotions').getFullList({
-      filter: 'active = true',
+      filter: await storeFilter('active = true', options),
       sort: 'priority,-updated',
     });
   } catch (error) {
@@ -235,10 +257,11 @@ export function getProductAutomaticPromotionText(product: any, promotions: any[]
   return promotion.name || '';
 }
 
-export async function getProductBySlug(slug: string) {
+export async function getProductBySlug(slug: string, options?: StoreQueryInput) {
+  const filter = await storeFilter(`slug="${escapePocketBaseValue(slug)}" && active=true`, options);
   const product = await pb
     .collection('products')
-    .getFirstListItem(`slug="${slug}" && active=true`, {
+    .getFirstListItem(filter, {
       expand: 'category,subcategory',
     });
 
@@ -259,4 +282,11 @@ export async function getProductVariations(productId: string) {
   });
 
   return variations.map(addVariationImages);
+}
+
+export async function getShippingZones(options?: StoreQueryInput) {
+  return await pb.collection('shipping_zones').getFullList({
+    filter: await storeFilter('active = true', options),
+    sort: 'municipality,zone',
+  });
 }

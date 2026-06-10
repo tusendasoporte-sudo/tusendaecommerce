@@ -81,12 +81,23 @@
     };
   }
 
-  async function loadActivePromotions(pocketbaseUrl) {
+  function escapeFilterValue(value) {
+    return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function activeStoreFilter(storeId) {
+    const normalizedStoreId = String(storeId || '').trim();
+    return normalizedStoreId
+      ? `active = true && store="${escapeFilterValue(normalizedStoreId)}"`
+      : 'active = true';
+  }
+
+  async function loadActivePromotions(pocketbaseUrl, storeId = '') {
     const baseUrl = String(pocketbaseUrl || '').replace(/\/$/, '');
     if (!baseUrl) return [];
 
     try {
-      const filter = encodeURIComponent('active = true');
+      const filter = encodeURIComponent(activeStoreFilter(storeId));
       const response = await fetch(`${baseUrl}/api/collections/automatic_promotions/records?filter=${filter}&sort=priority,-updated&perPage=200`);
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.message || 'No se pudieron cargar promociones automaticas.');
@@ -97,12 +108,12 @@
     }
   }
 
-  async function loadActiveCoupons(pocketbaseUrl) {
+  async function loadActiveCoupons(pocketbaseUrl, storeId = '') {
     const baseUrl = String(pocketbaseUrl || '').replace(/\/$/, '');
     if (!baseUrl) return [];
 
     try {
-      const filter = encodeURIComponent('active = true');
+      const filter = encodeURIComponent(activeStoreFilter(storeId));
       const response = await fetch(`${baseUrl}/api/collections/manual_coupons/records?filter=${filter}&sort=-updated&perPage=200&expand=product,category,subcategory`);
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.message || 'No se pudieron cargar cupones.');

@@ -1,8 +1,11 @@
 ---
 // PZ-PATCH-V26.5-OFERTA-FINAL-ESTABLE-20260605
 import Layout from '../layouts/Layout.astro';
+import { getCurrentStore } from '../lib/stores';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const currentStore = await getCurrentStore(Astro);
+const currentStoreId = currentStore.id;
 ---
 
 <!-- PZ-CHECKOUT-V19-OFERTA-AHORRO-20260605 -->
@@ -314,7 +317,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 		</div>
 	</section>
 
-	<script define:vars={{ pocketbaseUrl }}>
+	<script define:vars={{ pocketbaseUrl, currentStoreId }}>
 		const checkoutEmpty = document.getElementById('checkout-empty');
 		const checkoutContent = document.getElementById('checkout-content');
 		const checkoutItems = document.getElementById('checkout-items');
@@ -363,6 +366,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
 		const PENDING_ORDER_KEY = 'powerzona_pending_checkout_order';
 		const SAVED_COUPONS_KEY = 'powerzona_saved_coupons';
+		const CURRENT_STORE_ID = currentStoreId || '';
 
 			function parseStoredCart(value) {
 				try {
@@ -808,7 +812,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
 			}
 
-			const filter = encodeURIComponent('active = true');
+			const filter = encodeURIComponent(CURRENT_STORE_ID ? `active = true && store="${CURRENT_STORE_ID}"` : 'active = true');
 			const response = await fetch(
 				`${POCKETBASE_URL}/api/collections/shipping_zones/records?filter=${filter}&sort=municipality,zone&perPage=200`
 			);
@@ -1670,7 +1674,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
 			}
 
-			const filter = encodeURIComponent('active = true');
+			const filter = encodeURIComponent(CURRENT_STORE_ID ? `active = true && store="${CURRENT_STORE_ID}"` : 'active = true');
 
 			const response = await fetch(
 				`${POCKETBASE_URL}/api/collections/settings/records?filter=${filter}&expand=default_currency&perPage=1`
@@ -1834,6 +1838,7 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			validation.data.shipping_zone_name = shippingZoneName;
 
 			const orderPayload = {
+				store: CURRENT_STORE_ID,
 				order_number: orderNumber,
 				receipt_token: receiptToken,
 				customer_name: validation.data.customer_name,

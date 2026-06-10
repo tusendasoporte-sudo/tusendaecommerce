@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-08  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Nueva etapa de infraestructura profesional cerrada como base funcional: GitHub privado conectado, ramas `main/dev`, `.gitignore` seguro, frontend Astro preparado para Coolify SSR, staging en Coolify funcionando, PocketBase staging desde repo GitHub con migraciones aplicadas, `pb_data` local copiado de forma segura a PocketBase staging, frontend conectado por `PUBLIC_POCKETBASE_URL` en HTTPS, imágenes cargando correctamente y flujo de trabajo actualizado. **Marketing 12.1 — Cintillo promocional y base visual de promociones queda cerrado como base funcional. Source actualizado hasta ajustes visuales finales de header público, producto, checkout, categorías/subcategorías y regalos. Próximo bloque recomendado: 12.2 Promociones automáticas.** Bloque futuro documentado: plataforma multitienda + bazar principal.
+**Fecha de actualización:** 2026-06-10  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado: base multitienda stores creada.
 
 ---
 
@@ -112,6 +112,36 @@ Esta sección sirve como mapa rápido para saber qué partes ya quedaron cerrada
 ✅ Envío mostrado separado como USD / equivalente CUP.
 ✅ Total visual de productos en CUP no incluye el envío.
 ✅ Panel admin de órdenes muestra Resumen cliente y Uso interno, separando productos CUP, productos USD y envío.
+✅ Marketing 12.2 Promociones automáticas implementado como base funcional.
+✅ Promociones automáticas dentro de Marketing.
+✅ Compra X y paga Y funcionando como regla automática.
+✅ Descuento por volumen funcionando como base.
+✅ Descuento directo por producto con buscador de producto.
+✅ Descuento por categoría y subcategoría funcionando con prioridad segura.
+✅ Descuento por subtotal del carrito funcionando por escalas.
+✅ Valor fijo USD agregado a promociones automáticas.
+✅ Reglas de prioridad definidas: Producto > Subcategoría > Categoría.
+✅ Una promoción activa por producto, categoría y subcategoría.
+✅ Subtotal del carrito permite varias escalas activas y aplica solo la escala alcanzada de mayor monto.
+✅ Fecha fin de promociones/cupones definida como inclusiva hasta el final del día.
+✅ Lista de promociones automáticas agrupada por tipo.
+✅ Filtros de promociones automáticas definidos: Todas, Activas, Inactivas, Vencidas.
+✅ Menú de 3 puntos definido para promociones, dejando fuera solo Activa/Inactiva.
+✅ Léeme de promociones automáticas definido como ayuda para el admin.
+✅ Descuentos en carrito mixto corregidos para no repartir entre monedas.
+✅ Descuento global se aplica al producto elegible de mayor valor real en USD base.
+✅ Descuento se muestra en la moneda donde realmente cayó: USD si cae sobre Solo USD, CUP/moneda visual si cae sobre convertible.
+✅ Cupón manual 12.3 definido e iniciado dentro de Marketing.
+✅ Cupón manual ubicado en checkout debajo de Productos del pedido.
+✅ Todos los cupones manuales generan enlace compartible.
+✅ Tarjeta flotante para cupón por enlace definida para portada pública.
+✅ Cupón de envío gratis definido: si gana, envío queda en 0.
+✅ Un cupón por orden definido como regla visible para el cliente.
+✅ Si varios cupones cumplen, el cliente escoge cuál usar.
+✅ Cupón seleccionado se compara contra promociones automáticas y gana el mayor beneficio.
+✅ Límite de cupón por usos totales definido, sin limitar por IP, teléfono, cliente ni dispositivo.
+✅ Historial detallado por cupón definido para el admin.
+✅ Manual de ventas de promociones y cupones creado como guía operativa.
 ```
 
 ---
@@ -146,64 +176,62 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🔜 Próximo bloque recomendado: 12.2 Promociones automáticas.
+🟡 Bloque actual: 12.3 Cupón manual.
 ```
 
 Estado del bloque anterior:
 
 ```txt
-✅ Crear Producto/Promo cerrado como base funcional.
-✅ Organización Visual básica cerrada y probada.
-✅ Mobile público ajustado.
-✅ Ajustes generales públicos implementados.
-✅ Menú público de 3 puntos implementado.
-✅ Búsqueda pública separada implementada como base.
-✅ Categorías y subcategorías públicas en páginas propias implementadas como base.
-✅ Portada pública ajustada con categorías más visuales y destacados compactos.
-✅ Monedas tienda pública cerrada como base funcional.
-✅ Carrito, checkout, WhatsApp y panel admin actualizados para moneda visual y cobro mixto.
 ✅ Marketing 12.1 cerrado como base funcional: cintillo promocional, ofertas rápidas, temas de color, movimientos, administración compacta, visibilidad solo en portada y ajustes visuales relacionados.
+✅ Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional.
+✅ Promociones automáticas respetan carrito, checkout, moneda mixta, WhatsApp, órdenes y envío separado.
+✅ Descuentos en carrito mixto ya no se reparten entre monedas; caen sobre el producto elegible de mayor valor.
+✅ Fecha fin de promociones definida como inclusiva.
+✅ Admin de promociones automáticas compacto: lista agrupada por tipo, filtros, menú de 3 puntos y Léeme.
 ```
 
 Objetivo inmediato recomendado:
 
 ```txt
-Iniciar el punto 12.2: Promociones automáticas, comenzando por una base segura que no rompa carrito, checkout, moneda, WhatsApp ni órdenes.
+Continuar y cerrar 12.3 Cupón manual, manteniendo el panel admin simple, el checkout claro para el cliente y la lógica de una sola promoción final por pedido.
 ```
 
-Checklist de moneda cerrado en pruebas:
+Checklist clave del bloque 12.3:
 
 ```txt
-- Cliente puede elegir CUP como moneda visual.
-- Producto convertible se muestra en CUP.
-- Producto Solo USD se muestra en USD.
-- Ambos productos pueden convivir en el carrito.
-- El checkout ya no queda vacío al tocar Hacer el pedido.
-- El mensaje de WhatsApp muestra lo mismo que vio el cliente.
-- El envío se muestra aparte como USD / equivalente CUP.
-- El total CUP de productos no incluye el envío.
-- La orden en admin muestra Resumen cliente y Uso interno.
-- El admin puede ver productos CUP, productos USD y envío separado.
+- Marketing > Cupón manual.
+- Admin compacto con Nuevo cupón + Léeme.
+- Formulario inteligente según tipo de cupón.
+- Buscador de producto cuando el cupón aplique a producto.
+- Todos los cupones generan enlace.
+- Enlace abre tarjeta flotante en portada con datos, reglas, ahorro y OK.
+- Si el cupón ya está guardado, mostrar tarjeta “Cupón ya listo”.
+- Cupón se ve debajo de Productos del pedido en checkout.
+- Aviso fijo: solo puedes usar 1 cupón por orden.
+- Si varios cupones cumplen, el cliente escoge cuál usar.
+- Cupón seleccionado compite con promociones automáticas y gana el mayor beneficio.
+- Cupón de envío gratis deja el envío en 0 si gana.
+- Límite de uso total, sin IP/teléfono/cliente/dispositivo.
+- Historial detallado por cupón en admin.
+- WhatsApp y órdenes guardan cupón ingresado, cupón aplicado/no aplicado, motivo y promoción final.
 ```
 
 Orden recomendado actualizado:
 
 ```txt
-1. Marketing, Promociones y Cupones.
-2. Producto individual visual y funcional.
-3. Carrito / checkout visual.
-4. Página de gracias después de enviar pedido.
-5. Copia visual pública de orden para el cliente.
-6. Panel admin relacionado con tienda pública y ajustes generales.
-7. Regalos profesionales por reglas.
-8. Plataforma multitienda + bazar principal como bloque futuro grande.
+1. Cerrar 12.3 Cupón manual.
+2. Probar checkout con cupones, enlaces, WhatsApp, órdenes y moneda mixta.
+3. Actualizar Master Document y source.
+4. Cerrar Marketing, Promociones y Cupones como bloque base.
+5. Continuar con el siguiente bloque visual/funcional recomendado según pruebas.
 ```
 
 División importante:
 
 ```txt
 Monedas queda cerrado como base funcional.
-Cualquier ajuste futuro de moneda debe hacerse como refinamiento, no como bloque abierto principal.
+Marketing 12.2 queda cerrado como base funcional si las pruebas finales pasan.
+12.3 queda en implementación/prueba hasta confirmar flujo completo de cupones manuales.
 ```
 
 ---
@@ -220,8 +248,8 @@ Cualquier ajuste futuro de moneda debe hacerse como refinamiento, no como bloque
 ⏳ Gestión de inventario avanzada.
 ⏳ Métodos de domicilio y recogida desde panel admin.
 ⏳ Cobro mixto avanzado / pagos reales separados más adelante si hace falta.
-⏳ Promociones, cintillos y banners avanzados.
-⏳ Cupones.
+🟡 Cupón manual 12.3 en implementación/prueba.
+⏳ Promociones, cintillos y banners avanzados futuros.
 ⏳ Regalos profesionales por reglas (`gift_rules`) después de moneda y checkout visual.
 ⏳ Reseñas.
 ⏳ Métricas avanzadas.
@@ -9133,241 +9161,334 @@ USD sigue siendo moneda base real. El admin configura monedas activas y tasa de 
 
 ---
 
-### 21.30. Bloque futuro documentado: Plataforma multitienda + bazar principal
+### 21.30. Bloque iniciado: Tu Senda 84 - Plataforma multitienda + Bazar principal
 
-Esta sección documenta la idea hablada sobre convertir PowerZona en una plataforma multitienda administrada por un Master Admin.
+Esta sección documenta el inicio oficial de la base multitienda de Tu Senda 84.
 
 Estado:
 
 ```txt
-💡 FUTURO / NO IMPLEMENTAR TODAVÍA
+21.30.1 iniciado / base stores creada
+21.30.2 completado / relacion store agregada a colecciones principales
+21.30.4 iniciado / helper central para resolver store actual
+21.30.5 completado / helper de store usado en consultas publicas principales con PowerZona como default
 ```
 
-Motivo:
+Regla oficial:
 
 ```txt
-Es una evolución grande del proyecto.
-Conviene terminar primero la tienda individual PowerZona antes de mover toda la arquitectura a multitienda.
+La plataforma se llama Tu Senda 84.
+El dominio futuro será tusenda84.
+Bazar principal = portada/plataforma principal donde se publican tiendas, promociones, anuncios y destacados.
+Tiendas públicas = plantilla pública global usada por todas las tiendas dentro del Bazar.
+PowerZona = primera Tienda pública oficial dentro de Tu Senda 84.
+Internamente cada tienda pública se manejará como store.
+Todas las tiendas públicas comparten el mismo diseño visual, carrito, checkout y experiencia pública.
+Cada tienda solo cambia sus datos propios: productos, categorías, promociones, cupones, regalos, pedidos, envíos, WhatsApp, horarios y ajustes comerciales.
 ```
 
 ---
 
-#### 21.30.1. Idea general
+#### 21.30.1. Bazar principal
 
-El sistema futuro dejaría de ser solo una tienda y pasaría a ser una plataforma tipo bazar.
+El Bazar principal es la portada/plataforma principal de Tu Senda 84.
 
-Estructura conceptual:
+Debe servir para publicar:
 
 ```txt
-Página principal del bazar
-→ muestra tiendas registradas, promociones, anuncios y tendencias.
-
-Tienda individual
-→ cada tienda tiene su portada, productos, categorías, checkout y órdenes.
-
-Master Admin
-→ crea y administra tiendas.
-
-Admin de tienda
-→ administra únicamente su propia tienda.
+- Tiendas.
+- Promociones.
+- Anuncios.
+- Tiendas destacadas.
+- Tiendas en tendencia.
 ```
 
-Ejemplo de rutas futuras:
+---
+
+#### 21.30.2. Relación store en colecciones principales
+
+Esta fase agrega la relación técnica `store` a las colecciones principales actuales.
+
+Objetivo:
 
 ```txt
+Todos los datos actuales quedan asociados al store PowerZona.
+```
+
+Colecciones incluidas en esta fase:
+
+```txt
+products
+categories
+subcategories
+settings
+shipping_zones
+gifts
+automatic_promotions
+manual_coupons
+orders
+store_visual_items
+```
+
+Colecciones que no se modifican en esta fase:
+
+```txt
+product_variations
+order_items
+manual_coupon_usages
+```
+
+Razón:
+
+```txt
+Estas colecciones dependen de producto, orden o cupón. Por ahora no se agrega store directo para evitar duplicar datos o romper relaciones existentes.
+```
+
+Reglas de esta fase:
+
+```txt
+Todavía no se filtra por store en frontend/admin.
+Todavía no se cambian rutas públicas.
+Todavía no existen rutas /t/[storeSlug].
+Todavía no hay usuarios/roles/login multitienda.
+PowerZona sigue funcionando como antes mientras se prepara la base multitienda.
+No se implementan usuarios, roles, login, permisos ni redirecciones.
+```
+
+Verificación 21.30.3:
+
+```txt
+stores creado.
+PowerZona creado como primer store protegido.
+Colecciones principales conectadas a store.
+Datos existentes migrados a PowerZona.
+La tienda pública actual debe seguir funcionando igual.
+```
+
+---
+
+#### 21.30.3. Tiendas públicas
+
+Las tiendas dentro del Bazar se llaman Tiendas públicas.
+
+Regla visual:
+
+```txt
+Todas las Tiendas públicas comparten la misma plantilla visual global.
+Todas comparten el mismo diseño visual, carrito, checkout y experiencia pública.
+```
+
+Regla de datos:
+
+```txt
+Cada tienda solo cambia sus datos propios:
+- productos
+- categorías
+- subcategorías
+- promociones
+- cupones
+- regalos
+- pedidos
+- envíos
+- WhatsApp
+- horarios
+- ajustes comerciales
+```
+
+---
+
+#### 21.30.4. Helper central de store actual
+
+Se crea un helper central en el frontend para resolver el store actual sin cambiar rutas públicas ni comportamiento visible.
+
+Archivo:
+
+```txt
+frontend-powerzona/src/lib/stores.ts
+```
+
+Funciones base:
+
+```txt
+getDefaultStore()
+getStoreBySlug(slug)
+getCurrentStore(context opcional)
+```
+
+Regla actual:
+
+```txt
+Por ahora el store actual siempre será PowerZona.
+getCurrentStore() devuelve getDefaultStore().
+getDefaultStore() busca stores.slug = "powerzona".
+getStoreBySlug(slug) busca stores activos por slug.
+```
+
+Objetivo futuro:
+
+```txt
+Este helper permitirá más adelante activar rutas /t/[storeSlug] y filtros por tienda.
+```
+
+Límites:
+
+```txt
+No se cambia todavía la tienda pública.
+No se cambia todavía el panel admin.
+No se filtran todavía todas las consultas por store.
+No se implementan rutas /t/[storeSlug].
+```
+
+---
+
+#### 21.30.5. PowerZona dentro de Tu Senda 84
+
+PowerZona es la primera Tienda pública oficial dentro de Tu Senda 84.
+
+Internamente, cada Tienda pública se manejará como un `store`.
+
+Registro inicial de PowerZona:
+
+```txt
+name: PowerZona
+slug: powerzona
+status: active
+plan: premium
+featured: true
+protected: true
+```
+
+Actualizacion 21.30.5 - consultas publicas principales:
+
+```txt
+Se empieza a usar el helper central de store actual en las consultas publicas principales.
+PowerZona sigue siendo el store default mediante getCurrentStore() -> getDefaultStore().
+Las rutas publicas actuales no cambian:
 /
- /tienda/powerzona
- /tienda/otra-tienda
- /admin-master
- /admin-tienda
+/producto/[slug]
+/categoria/[slug]
+/subcategoria/[slug]
+/buscar
+/checkout
+Todavia no existen rutas /t/[storeSlug].
+Todavia no se adapta el panel admin por store.
+Todavia no hay usuarios, roles ni login multitienda.
+Checkout guarda orders.store = PowerZona al crear una orden nueva.
+La tienda publica debe seguir viendose igual.
+```
+
+Archivos tocados en 21.30.5:
+
+```txt
+frontend-powerzona/src/lib/api.ts
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/public/cart-promotions.js
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+frontend-powerzona/src/pages/buscar.astro
+frontend-powerzona/src/pages/checkout.astro
+docs/Master_document_powerzona_v19_marketing_12_2_12_3_2026_06_10.md
 ```
 
 ---
 
-#### 21.30.2. Master Admin
+#### 21.30.6. Colección `stores`
 
-El usuario dueño de la plataforma será el Master Admin.
-
-Funciones futuras:
-
-```txt
-- Crear tiendas.
-- Editar tiendas.
-- Activar/desactivar tiendas.
-- Asignar dueño/admin de tienda.
-- Ver todas las tiendas.
-- Destacar tiendas manualmente.
-- Marcar tiendas como tendencia manual.
-- Crear anuncios generales del bazar.
-- Crear promociones generales del bazar.
-- Revisar métricas generales.
-```
-
----
-
-#### 21.30.3. Admin de tienda
-
-Cada usuario dueño de una tienda debe ver solo sus datos.
-
-Puede administrar:
-
-```txt
-- Productos de su tienda.
-- Categorías de su tienda.
-- Subcategorías de su tienda.
-- Órdenes de su tienda.
-- Ajustes públicos de su tienda.
-- Promos internas de su tienda.
-```
-
-Regla crítica:
-
-```txt
-Un admin de tienda no debe ver ni editar datos de otra tienda.
-```
-
-Esto requiere reglas fuertes en PocketBase y filtros por tienda.
-
----
-
-#### 21.30.4. Colección futura `stores`
-
-Colección recomendada:
+La base inicial ya crea la colección:
 
 ```txt
 stores
 ```
 
-Campos sugeridos:
+Campos base de esta primera fase:
 
 ```txt
 name
 slug
-owner_user
 logo
 banner
-whatsapp
-address
-hours
-description
-is_active
-is_featured
-is_trending_manual
+owner_name
+owner_email
+owner_phone
+status
+plan
+featured
 views_count
+orders_count
+protected
 created
 updated
 ```
 
-Después, las colecciones principales deben relacionarse con una tienda:
+Regla crítica de borrado:
 
 ```txt
-products.store
-categories.store
-subcategories.store
-orders.store
-order_items.store
-shipping_zones.store
-settings.store
-store_visual_items.store
-currencies.store
+protected != true && @request.auth.id != ""
+```
+
+Esto evita borrar accidentalmente stores protegidos como PowerZona.
+
+---
+
+#### 21.30.7. Sistema administrativo previsto
+
+El panel admin actual que hoy controla PowerZona será la base del Panel Admin Global de Tiendas Públicas.
+
+Regla futura del panel:
+
+```txt
+Cuando el Master Admin cree una tienda pública, también creará/asignará el admin de esa tienda.
+Ese admin entrará al mismo panel administrativo global, pero filtrado por su store.
+Cada admin de tienda solo verá y modificará datos de su propia tienda.
+```
+
+Regla de administración superior:
+
+```txt
+PocketBase quedará solo como acceso técnico privado del Master Admin.
+El Master Admin tendrá un panel web aparte para administrar Tu Senda 84.
 ```
 
 ---
 
-#### 21.30.5. Página principal tipo bazar
+#### 21.30.8. Límites de esta fase
 
-La página principal del bazar podría incluir:
+Esta fase agrega la relación `store`, asocia datos existentes a PowerZona y crea el helper central de store actual.
+
+Todavía no se debe cambiar comportamiento público ni filtrar datos por `store` en:
 
 ```txt
-- Banner principal del bazar.
-- Anuncios generales.
-- Promociones generales.
-- Tiendas destacadas por Master Admin.
-- Tiendas en tendencia.
-- Tiendas más vistas.
-- Todas las tiendas registradas.
-- Buscador de tiendas.
-- Buscador global de productos.
+products
+categories
+subcategories
+orders
+settings
+shipping_zones
+automatic_promotions
+manual_coupons
+gifts
+```
+
+Tampoco se debe cambiar todavía:
+
+```txt
+- Rutas públicas.
+- Checkout.
+- Carrito.
+- Productos.
+- Diseño público.
+- Movimiento de PowerZona a /t/powerzona.
 ```
 
 ---
 
-#### 21.30.6. Tiendas destacadas y en tendencia
+#### 21.30.9. Próximo avance recomendado
 
-Sistema recomendado:
+Antes de filtrar frontend/admin por `store`, se deben preparar las reglas PocketBase por tienda y validar la migración de datos.
 
-```txt
-Tendencia automática + control manual del Master Admin.
-```
-
-Criterios automáticos futuros:
-
-```txt
-- Vistas de tienda.
-- Pedidos recientes.
-- Productos vistos.
-- Actividad reciente.
-```
-
-Control manual:
-
-```txt
-- is_featured
-- is_trending_manual
-- priority_order
-```
-
-Regla:
-
-```txt
-El Master Admin siempre debe poder decidir qué tiendas aparecen destacadas.
-```
-
----
-
-#### 21.30.7. Orden recomendado para implementar multitienda en el futuro
-
-No iniciar hasta cerrar tienda individual.
-
-Orden futuro:
-
-```txt
-1. Crear colección stores.
-2. Crear tienda base PowerZona.
-3. Agregar store_id a productos, categorías, subcategorías, órdenes, settings, monedas y visual items.
-4. Migrar datos actuales a la tienda PowerZona.
-5. Crear roles Master Admin y Admin de tienda.
-6. Crear reglas PocketBase por tienda.
-7. Crear rutas públicas /tienda/[slug].
-8. Crear panel Master Admin.
-9. Crear página principal tipo bazar.
-10. Crear anuncios y promociones globales.
-11. Crear métricas de vistas y tendencia.
-```
-
----
-
-#### 21.30.8. Decisión actual
-
-Decisión tomada:
-
-```txt
-No implementar multitienda ahora.
-```
-
-Motivo:
-
-```txt
-Todavía se está cerrando la tienda individual.
-Meter multitienda ahora tocaría productos, categorías, órdenes, checkout, settings, reglas, rutas y panel admin.
-```
-
-Regla práctica:
-
-```txt
-Desde ahora, evitar programar nuevas funciones demasiado rígidas a una sola tienda cuando sea fácil dejarlas preparadas para una futura relación store.
-Pero no hacer la migración multitienda todavía.
-```
+La tienda pública actual debe seguir funcionando igual hasta aprobar el siguiente paso multitienda.
 
 
 
@@ -15027,4 +15148,1253 @@ Ya quedó cerrado 12.1 Cintillo promocional y los ajustes posteriores:
 - Admin pedidos con confirmación visual para borrar.
 
 Quiero empezar 12.2 hablando primero la estructura antes de hacer código. No quiero tocar todavía cupones manuales. Quiero definir promociones automáticas seguras como Compra X y paga Y, descuento por volumen, ofertas por producto/categoría y reglas aplicadas al carrito, sin romper carrito, checkout, moneda, WhatsApp ni órdenes.
+```
+
+
+---
+
+### 21.40. Bloque cerrado: Marketing 12.2 — Promociones automáticas
+
+Esta sección se agrega como actualización acumulativa sin reemplazar secciones anteriores.
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO COMO BASE FUNCIONAL
+🟡 PENDIENTE DE PRUEBA FINAL COMPLETA ANTES DE PUSH/STAGING
+```
+
+Bloque trabajado:
+
+```txt
+12.2 Promociones automáticas
+```
+
+Fecha de actualización documental:
+
+```txt
+2026-06-10
+```
+
+Marca documental:
+
+```txt
+PZ-MASTER-MARKETING-12-2-PROMOS-AUTOMATICAS-V19-20260610
+```
+
+---
+
+#### 21.40.1. Objetivo del bloque
+
+Crear promociones automáticas seguras que se apliquen en carrito/checkout sin que el cliente escriba códigos y sin romper:
+
+```txt
+- carrito
+- checkout
+- moneda mixta
+- productos Solo USD
+- productos convertibles
+- envío separado
+- WhatsApp
+- órdenes
+- panel admin
+```
+
+---
+
+#### 21.40.2. Ubicación en admin
+
+Las promociones automáticas viven dentro de:
+
+```txt
+Marketing > Promociones automáticas
+```
+
+No deben funcionar como módulo independiente del menú principal.
+
+---
+
+#### 21.40.3. Tipos de promociones automáticas definidos
+
+Tipos trabajados:
+
+```txt
+- Compra X y paga Y.
+- Descuento por volumen.
+- Descuento directo por producto.
+- Descuento por categoría.
+- Descuento por subcategoría.
+- Descuento por subtotal del carrito.
+- Valor fijo USD.
+```
+
+Regla:
+
+```txt
+El envío no participa en descuentos automáticos de productos/carrito.
+El envío se mantiene aparte.
+```
+
+---
+
+#### 21.40.4. Prioridad de promociones automáticas
+
+Regla final definida:
+
+```txt
+Producto > Subcategoría > Categoría
+```
+
+Interpretación:
+
+```txt
+1. Si el producto tiene promoción directa activa, gana esa.
+2. Si no tiene promoción directa, se revisa subcategoría.
+3. Si no tiene promoción de subcategoría, se revisa categoría.
+4. No se acumulan descuentos sobre el mismo producto.
+```
+
+El campo prioridad manual no debe mostrarse al admin por ahora.
+
+Regla visual/admin:
+
+```txt
+Prioridad queda oculta o fija en 0.
+No mostrar botón ni campo de prioridad.
+```
+
+---
+
+#### 21.40.5. Una sola promoción activa por objetivo
+
+Para evitar confusión, se definió:
+
+```txt
+- Máximo 1 promoción activa por producto.
+- Máximo 1 promoción activa por categoría.
+- Máximo 1 promoción activa por subcategoría.
+```
+
+Si el admin intenta crear otra activa para el mismo objetivo, debe mostrarse un mensaje claro.
+
+Ejemplos:
+
+```txt
+Ya existe una promoción activa para este producto. Puedes editarla o desactivarla antes de crear otra.
+Ya existe una promoción activa para esta categoría. Puedes editarla o desactivarla antes de crear otra.
+Ya existe una promoción activa para esta subcategoría. Puedes editarla o desactivarla antes de crear otra.
+```
+
+---
+
+#### 21.40.6. Subtotal del carrito por escalas
+
+El descuento por subtotal del carrito sí puede tener varias promociones activas porque funciona como escala.
+
+Ejemplo:
+
+```txt
+Desde 45 USD → ahorras 5 USD
+Desde 70 USD → ahorras 10 USD
+Desde 100 USD → ahorras 15 USD
+```
+
+Reglas:
+
+```txt
+- Puede haber varias escalas activas.
+- Solo se aplica una escala.
+- Se aplica la escala más alta alcanzada.
+- El envío no cuenta para alcanzar el subtotal.
+- El subtotal se calcula sobre productos, después de promociones por producto/categoría/subcategoría.
+```
+
+---
+
+#### 21.40.7. Fecha fin inclusiva
+
+Regla final:
+
+```txt
+Si una promoción termina el día 10, debe funcionar todo el día 10.
+Debe vencer al comenzar el día 11.
+```
+
+Aplicación:
+
+```txt
+Fecha inicio = inicio del día seleccionado.
+Fecha fin = final del día seleccionado.
+```
+
+---
+
+#### 21.40.8. Admin compacto de promociones
+
+Reglas visuales definidas:
+
+```txt
+- Lista agrupada por tipo de promoción.
+- Secciones con contador.
+- Filtros: Todas, Activas, Inactivas, Vencidas.
+- Promociones de subtotal ordenadas por monto mínimo USD de menor a mayor.
+- Las demás promociones ordenadas con activas primero y luego por nombre.
+- Menú de 3 puntos para acciones.
+- Solo Activa/Inactiva queda visible fuera del menú.
+- Botón Actualizar se quitó porque no aportaba.
+```
+
+Acciones dentro del menú de 3 puntos:
+
+```txt
+- Editar
+- Eliminar
+```
+
+Eliminar debe abrir confirmación flotante premium y actualizar la lista sin dejar datos viejos.
+
+---
+
+#### 21.40.9. Léeme de promociones automáticas
+
+Se definió un link simple:
+
+```txt
+Nueva promoción     Léeme
+```
+
+Al tocar Léeme, abre una tarjeta flotante con explicación de:
+
+```txt
+- Compra X y paga Y
+- Descuento por volumen
+- Descuento directo por producto
+- Descuento por categoría
+- Descuento por subcategoría
+- Descuento por subtotal del carrito
+```
+
+Nota clave dentro del Léeme:
+
+```txt
+Los descuentos se aplican solo a productos. El envío se mantiene aparte y no entra en promociones.
+```
+
+---
+
+#### 21.40.10. Buscador de producto
+
+Cuando la promoción sea por producto, el selector debe ser buscador.
+
+Aplica para:
+
+```txt
+- Compra X y paga Y.
+- Descuento directo por producto.
+```
+
+Reglas:
+
+```txt
+- No usar lista desplegable larga.
+- Permitir escribir el nombre.
+- Filtrar resultados.
+- Seleccionar producto.
+- Mostrar producto seleccionado.
+- Permitir cambiarlo.
+```
+
+---
+
+#### 21.40.11. Cintillo promocional
+
+Se corrigió la relación del cintillo.
+
+Regla final:
+
+```txt
+El cintillo promocional depende solo de Promo Visual visible.
+```
+
+No debe depender de:
+
+```txt
+- Promociones automáticas.
+- Productos destacados.
+```
+
+---
+
+#### 21.40.12. Resumen de Marketing
+
+Se definió una sola tarjeta resumen debajo de la primera tarjeta de Crear producto/promo.
+
+Contenido:
+
+```txt
+Productos destacados     Promo Visuales     Accesos Rápidos
+        1                       2                   1
+```
+
+Regla:
+
+```txt
+Debe ser una sola tarjeta horizontal/premium, no tres tarjetas separadas.
+```
+
+---
+
+#### 21.40.13. Descuentos en carrito mixto
+
+Problema corregido:
+
+```txt
+El descuento global se estaba repartiendo entre productos CUP y USD, creando importes raros.
+```
+
+Regla final:
+
+```txt
+Cuando una promoción afecte varios productos y haya mezcla de monedas, el descuento completo debe aplicarse al producto elegible de mayor valor real en USD base.
+```
+
+Aplica para:
+
+```txt
+- Descuento por subtotal del carrito.
+- Descuento por categoría.
+- Descuento por subcategoría.
+```
+
+Regla de visualización:
+
+```txt
+Si el descuento cae sobre producto Solo USD → mostrar descuento en USD.
+Si cae sobre producto convertible mostrado en CUP → mostrar descuento en CUP.
+Si cae sobre otra moneda visual → mostrar descuento en esa moneda visual.
+```
+
+No se debe convertir visualmente a CUP un descuento que cayó sobre producto Solo USD.
+
+---
+
+#### 21.40.14. Separación de monedas y envío
+
+En checkout y WhatsApp debe mantenerse:
+
+```txt
+- Productos CUP o moneda visual.
+- Productos USD.
+- Descuento en la moneda donde cayó.
+- Envío aparte.
+```
+
+El envío:
+
+```txt
+- No participa en promociones automáticas.
+- No cuenta para alcanzar subtotal.
+- No se mezcla dentro de productos.
+```
+
+---
+
+#### 21.40.15. WhatsApp con promociones automáticas
+
+Ejemplo deseado:
+
+```txt
+*Productos:*
+1. Creatina
+   Cantidad: 3
+   Promo aplicada: Compra 3 y paga 2
+   Subtotal antes de promo: 114 USD
+   Ahorro: 38 USD
+   Importe: 76 USD
+
+*Total de envío*: 3 USD / 1710 CUP
+
+-------------------------------------------------------------------------------------------
+*Total productos USD*: 76 USD
+*Envío*: 3 USD / 1710 CUP
+```
+
+Para carrito mixto:
+
+```txt
+*Total productos CUP*: 43,320 CUP
+*Total productos USD*: 45.00 USD
+*Envío*: 3 USD / 1710 CUP
+```
+
+---
+
+#### 21.40.16. Estado del bloque 12.2
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO COMO BASE FUNCIONAL
+```
+
+Pendiente recomendado antes de cerrar 100%:
+
+```txt
+- Probar Compra 3 y paga 2.
+- Probar valor fijo USD.
+- Probar escalas de subtotal.
+- Probar carrito mixto CUP + Solo USD.
+- Probar envío separado en checkout y WhatsApp.
+- Probar fecha fin inclusiva.
+- Probar borrar/editar promociones.
+- Probar filtros y lista agrupada.
+```
+
+---
+
+### 21.41. Bloque en curso: Marketing 12.3 — Cupón manual
+
+Esta sección se agrega como actualización acumulativa sin reemplazar secciones anteriores.
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / EN PRUEBA Y AJUSTE
+```
+
+Bloque trabajado:
+
+```txt
+12.3 Cupón manual
+```
+
+Fecha de actualización documental:
+
+```txt
+2026-06-10
+```
+
+Marca documental:
+
+```txt
+PZ-MASTER-MARKETING-12-3-CUPON-MANUAL-V19-20260610
+```
+
+---
+
+#### 21.41.1. Objetivo del bloque
+
+Crear una sección de cupones manuales dentro de Marketing para que el admin pueda crear códigos de descuento y compartir enlaces de cupón, manteniendo checkout, WhatsApp, órdenes, moneda mixta y envío separados.
+
+---
+
+#### 21.41.2. Ubicación en admin
+
+Nueva sección:
+
+```txt
+Marketing > Cupón manual
+```
+
+No debe ser un módulo independiente en el menú principal.
+
+Debe tener vista compacta con:
+
+```txt
++ Nuevo cupón     Léeme
+
+Filtros:
+Todos | Activos | Inactivos | Vencidos | Agotados
+```
+
+Lista compacta:
+
+```txt
+POWER5 · Activo · Carrito · Usado 3 de 5 · Quedan 2 · ⋮
+ENVIOGRATIS · Activo · Envío gratis · Usado 1 vez · Ilimitado · ⋮
+```
+
+Regla admin:
+
+```txt
+No dejar formularios, historiales, explicaciones ni tarjetas grandes abiertas por defecto.
+Todo debe abrirse bajo demanda.
+```
+
+---
+
+#### 21.41.3. Acciones de cada cupón
+
+Fuera del menú:
+
+```txt
+Activo / Inactivo
+```
+
+Dentro del menú de 3 puntos:
+
+```txt
+- Editar
+- Ver historial
+- Copiar enlace
+- Eliminar
+```
+
+Eliminar debe abrir confirmación flotante premium.
+
+---
+
+#### 21.41.4. Léeme de Cupón manual
+
+Al lado de Nuevo cupón debe existir:
+
+```txt
+Léeme
+```
+
+Abre una tarjeta flotante con explicación clara para el admin.
+
+Debe explicar:
+
+```txt
+- Qué es un cupón manual.
+- Dónde se usa.
+- Regla de 1 cupón por orden.
+- Cupones por enlace.
+- Condiciones del cupón.
+- Cupón de envío gratis.
+- Límite de uso.
+- Promoción de mayor beneficio.
+- Historial de uso.
+```
+
+Nota final:
+
+```txt
+Los cupones no se acumulan entre sí. El envío se mantiene aparte, excepto cuando gana un cupón de envío gratis.
+```
+
+---
+
+#### 21.41.5. Formulario admin de cupón
+
+Campos definidos:
+
+```txt
+- Código del cupón.
+- Nombre interno.
+- Mensaje visible para el cliente.
+- Estado Activo/Inactivo.
+- Fecha inicio.
+- Fecha fin.
+- Tipo de cupón.
+- Tipo de descuento.
+- Valor.
+- Subtotal mínimo opcional.
+- Límite de uso: ilimitado o máximo de usos.
+```
+
+Tipos de cupón:
+
+```txt
+- Carrito completo.
+- Producto.
+- Categoría.
+- Subcategoría.
+- Envío gratis.
+```
+
+Tipos de descuento:
+
+```txt
+- Porcentaje.
+- Valor fijo USD.
+- Envío gratis.
+```
+
+Regla de formulario inteligente:
+
+```txt
+Si tipo = Producto → mostrar buscador de producto, no lista desplegable larga.
+Si tipo = Categoría → mostrar selector de categoría.
+Si tipo = Subcategoría → mostrar categoría + subcategoría.
+Si tipo = Envío gratis → ocultar porcentaje, valor y buscadores que no aplican.
+```
+
+---
+
+#### 21.41.6. Buscador de producto para cupones
+
+Cuando el cupón aplique a producto:
+
+```txt
+- Usar buscador de producto.
+- No usar lista desplegable larga.
+- Permitir escribir, filtrar, seleccionar y cambiar producto.
+- Reutilizar estilo/lógica de buscadores existentes.
+```
+
+---
+
+#### 21.41.7. Ubicación en checkout
+
+El cupón se muestra debajo de:
+
+```txt
+Productos del pedido
+```
+
+Orden recomendado:
+
+```txt
+1. Productos del pedido.
+2. Cupón manual.
+3. Método de entrega.
+4. Datos del cliente.
+5. Resumen / Total estimado.
+6. Realizar pedido.
+```
+
+Aviso fijo:
+
+```txt
+Solo puedes usar 1 cupón por orden.
+```
+
+Si tiene varios cupones:
+
+```txt
+Si tienes varios cupones disponibles, puedes escoger cuál usar.
+```
+
+---
+
+#### 21.41.8. Un cupón por orden
+
+Regla final:
+
+```txt
+El cliente puede tener varios cupones guardados, pero solo puede aplicar 1 cupón por orden.
+```
+
+Si varios cupones cumplen:
+
+```txt
+El cliente escoge cuál quiere usar.
+```
+
+No se elige automáticamente entre cupones.
+
+---
+
+#### 21.41.9. Cupón contra promociones automáticas
+
+Si el cliente selecciona un cupón, el sistema compara ese cupón contra promociones automáticas aplicables.
+
+Regla:
+
+```txt
+Solo una promoción final por pedido.
+Gana la promoción de mayor beneficio.
+```
+
+Ejemplo:
+
+```txt
+Cupón elegido: POWER5 → ahorra 5 USD.
+Promoción automática → ahorra 10 USD.
+Resultado: se aplica la promoción automática.
+```
+
+Mensaje:
+
+```txt
+Tu cupón es válido, pero se aplicó una promoción de mayor beneficio para tu pedido.
+```
+
+---
+
+#### 21.41.10. Comparación en vivo
+
+La validación y comparación debe hacerse en el checkout antes de crear la orden.
+
+Regla:
+
+```txt
+El cliente debe ver cómo queda su pedido antes de tocar Realizar pedido.
+```
+
+La orden guarda exactamente lo que el cliente vio.
+
+---
+
+#### 21.41.11. Cupones por enlace
+
+Todos los cupones manuales generan enlace.
+
+Formato aceptado:
+
+```txt
+/?coupon=POWER5
+```
+
+Al abrir el enlace:
+
+```txt
+1. Entra a la página principal.
+2. Valida cupón contra PocketBase.
+3. Guarda cupón en navegador si está disponible.
+4. Muestra tarjeta flotante premium.
+5. Cliente toca OK.
+6. Se limpia la URL con history.replaceState.
+7. Cliente queda en portada.
+8. Cupón aparece luego en checkout.
+```
+
+---
+
+#### 21.41.12. Tarjeta flotante de cupón por enlace
+
+Si el cupón es válido y nuevo:
+
+```txt
+Cupón adquirido
+
+POWER5
+
+Ahorra 5 USD en compras desde 50 USD.
+
+Este cupón se guardó. Lo verás cuando vayas a realizar el pedido.
+
+[ OK ]
+```
+
+Si es envío gratis:
+
+```txt
+Cupón adquirido
+
+ENVIOGRATIS
+
+Tu envío puede quedar en 0.
+
+Aplica solo para pedidos con envío.
+
+Este cupón se guardó. Lo verás cuando vayas a realizar el pedido.
+
+[ OK ]
+```
+
+Reglas visuales:
+
+```txt
+- Overlay suave.
+- Tarjeta centrada.
+- Bordes redondeados.
+- Sombra suave.
+- Diseño responsive.
+- Botón OK o Entendido.
+- No usar alert().
+- No mostrar texto pequeño al final de la página.
+```
+
+---
+
+#### 21.41.13. Si el cupón ya está guardado
+
+Si el cliente abre de nuevo el mismo enlace y el cupón ya está guardado:
+
+```txt
+Cupón ya listo
+
+POWER5
+
+Este cupón ya está guardado para tu próximo pedido. Lo verás cuando vayas a realizar el pedido.
+
+[ OK ]
+```
+
+No debe duplicarse en localStorage.
+
+---
+
+#### 21.41.14. Si el admin borra/desactiva/venció/agota el cupón
+
+Cada vez que se entra al checkout:
+
+```txt
+1. Leer cupones guardados.
+2. Validar contra PocketBase.
+3. Quitar cupones que:
+   - no existen
+   - están inactivos
+   - están vencidos
+   - están agotados
+4. Mostrar solo cupones disponibles o disponibles pero sin cumplir condición.
+```
+
+Si el admin borra el cupón, desaparece del checkout del cliente.
+
+Si el cupón se usó correctamente y llegó a su límite, desaparece en futuras visitas.
+
+---
+
+#### 21.41.15. Cupón escrito manualmente
+
+En checkout:
+
+```txt
+¿Tienes un cupón?
+[ POWER5 ] [ Aplicar ]
+```
+
+Estados posibles:
+
+```txt
+El cupón no es válido.
+Este cupón ya venció.
+Este cupón ya alcanzó su límite de uso.
+Cupón disponible: POWER5.
+Te faltan X para usarlo.
+Cupón aplicado: POWER5.
+```
+
+---
+
+#### 21.41.16. Cupón de envío gratis
+
+Regla:
+
+```txt
+Si el cupón de envío aplica y gana, el envío queda en 0.
+```
+
+Checkout:
+
+```txt
+Envío:
+Antes: 3 USD / 1710 CUP
+Cupón aplicado: envío gratis
+Ahora: 0
+```
+
+Si el cliente eligió Recogida o Coordinar:
+
+```txt
+Este cupón aplica solo para pedidos con envío.
+```
+
+---
+
+#### 21.41.17. Uso y límites
+
+No se limita por:
+
+```txt
+- IP
+- teléfono
+- cliente
+- usuario
+- dispositivo
+```
+
+Solo límite general:
+
+```txt
+max_uses
+used_count
+unlimited_uses
+```
+
+Ejemplos:
+
+```txt
+Uso único = max_uses 1
+Múltiple con límite = max_uses 5
+Ilimitado = sin límite
+```
+
+Admin muestra:
+
+```txt
+Usado: 3 de 5
+Quedan: 2
+```
+
+El admin puede aumentar manualmente el límite.
+
+---
+
+#### 21.41.18. Historial detallado por cupón
+
+Sí se incluye historial.
+
+No está abierto por defecto.
+
+Se abre desde:
+
+```txt
+⋮ > Ver historial
+```
+
+Ejemplo:
+
+```txt
+Historial de uso
+
+Orden PZ-1045
+Cliente: Roberto
+Descuento: 5 USD
+Fecha: 10 jun 2026
+```
+
+Solo cuenta si:
+
+```txt
+- La orden se creó correctamente.
+- El cupón fue realmente aplicado como promoción final.
+```
+
+No cuenta si:
+
+```txt
+- El cliente escribió el cupón pero no cumplió condición.
+- El cupón era válido pero ganó una promoción automática mejor.
+- El cliente abandonó checkout.
+- El cupón quedó visible pero desactivado.
+```
+
+Si una orden se cancela:
+
+```txt
+No liberar automáticamente el uso del cupón por ahora.
+El admin puede aumentar manualmente el límite si quiere compensar.
+```
+
+---
+
+#### 21.41.19. Moneda mixta con cupones
+
+Debe respetar la lógica de 12.2:
+
+```txt
+Producto Solo USD sigue en USD.
+Producto convertible se muestra en moneda elegida.
+CUP y USD se mantienen separados.
+El envío va aparte.
+El descuento se muestra en la moneda donde realmente cayó.
+```
+
+Si el cupón cae sobre Solo USD:
+
+```txt
+Descuento aplicado: -$5.00 USD
+```
+
+Si cae sobre producto convertible mostrado en CUP:
+
+```txt
+Descuento aplicado: -2,850 CUP
+```
+
+Si es cupón de envío:
+
+```txt
+Envío: 0
+```
+
+---
+
+#### 21.41.20. WhatsApp con cupón
+
+Si el cupón gana:
+
+```txt
+*Cupón aplicado*: POWER5
+*Descuento aplicado*: -5 USD
+```
+
+Si el cupón era válido pero ganó una promoción automática:
+
+```txt
+*Cupón ingresado*: POWER5
+*Estado*: válido, no aplicado
+*Motivo*: se aplicó una promoción de mayor beneficio
+*Promoción aplicada*: Compra 50 o más ahorra 10 USD
+*Descuento aplicado*: -10 USD
+```
+
+Si gana envío gratis:
+
+```txt
+*Cupón aplicado*: ENVIOGRATIS
+*Envío*: 0
+```
+
+---
+
+#### 21.41.21. Órdenes admin
+
+La orden debe conservar historial aunque luego se borre/edite el cupón.
+
+Debe guardar:
+
+```txt
+- cupón ingresado
+- cupón seleccionado
+- cupón aplicado sí/no
+- cupón código
+- cupón nombre
+- promoción final aplicada
+- tipo de promoción final
+- descuento aplicado
+- descuento aplicado en display
+- motivo si el cupón no se aplicó
+- si fue cupón de envío
+- envío original
+- envío final
+```
+
+---
+
+#### 21.41.22. PocketBase recomendado
+
+Colección sugerida:
+
+```txt
+manual_coupons
+```
+
+Campos sugeridos:
+
+```txt
+code
+name
+customer_message
+active
+starts_at
+ends_at
+coupon_type
+discount_type
+discount_value
+min_subtotal_usd
+product
+category
+subcategory
+free_shipping
+unlimited_uses
+max_uses
+used_count
+created
+updated
+```
+
+Campos adicionales en `orders` para historial de cupón/promoción final.
+
+Regla de migraciones:
+
+```txt
+Si se agrega migración nueva, listar nombre exacto y explicar si se debe borrar o conservar alguna migración anterior.
+No borrar migraciones anteriores salvo que sea estrictamente necesario.
+```
+
+---
+
+#### 21.41.23. Estado actual del bloque 12.3
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / EN PRUEBA Y AJUSTE
+```
+
+Pruebas críticas recomendadas:
+
+```txt
+- Crear cupón de carrito.
+- Crear cupón de producto con buscador.
+- Crear cupón de categoría.
+- Crear cupón de subcategoría.
+- Crear cupón de envío gratis.
+- Copiar enlace de cupón.
+- Abrir enlace por primera vez y ver tarjeta “Cupón adquirido”.
+- Abrir el mismo enlace de nuevo y ver “Cupón ya listo”.
+- Borrar/desactivar cupón desde admin y confirmar que desaparece del checkout.
+- Usar cupón y confirmar used_count.
+- Ver historial del cupón.
+- Probar varios cupones guardados y elegir uno.
+- Probar cupón vs promoción automática.
+- Probar WhatsApp y orden admin.
+- Probar carrito mixto CUP + Solo USD.
+```
+
+---
+
+### 21.42. Manual de ventas — Promociones y cupones
+
+Esta sección se agrega como guía operativa para el dueño/admin de la tienda.
+
+Estado:
+
+```txt
+✅ DOCUMENTADO
+```
+
+Objetivo:
+
+```txt
+Usar promociones, cupones, enlaces y WhatsApp para vender más sin complicar el checkout.
+```
+
+---
+
+#### 21.42.1. Reglas básicas de venta
+
+Antes de crear una promoción o cupón, definir el objetivo:
+
+```txt
+- Vender más unidades de un producto.
+- Mover productos lentos.
+- Aumentar el valor del carrito.
+- Premiar clientes con cupón.
+- Regalar envío para cerrar una venta.
+- Promocionar una categoría completa.
+```
+
+No crear demasiadas promociones al mismo tiempo sin objetivo claro.
+
+---
+
+#### 21.42.2. Promociones automáticas
+
+Usarlas cuando se quiera que el cliente reciba beneficio sin escribir código.
+
+Ejemplos:
+
+```txt
+Compra 3 y paga 2.
+Desde 70 USD ahorra 10 USD.
+10% en Vitaminas.
+15% en Creatinas.
+```
+
+Regla:
+
+```txt
+Una orden debe tener una promoción final clara.
+```
+
+---
+
+#### 21.42.3. Cupones manuales
+
+Usarlos para campañas, clientes específicos, enlaces por WhatsApp y ofertas especiales.
+
+Ejemplos:
+
+```txt
+POWER5
+ENVIOGRATIS
+CREATINA10
+VIP15
+```
+
+Regla:
+
+```txt
+Solo 1 cupón por orden.
+Si hay varios cupones disponibles, el cliente escoge cuál usar.
+Si una promoción automática ofrece mayor beneficio, gana la promoción automática.
+```
+
+---
+
+#### 21.42.4. Cupones por enlace
+
+Flujo recomendado:
+
+```txt
+1. Crear cupón en Marketing > Cupón manual.
+2. Copiar enlace.
+3. Probar enlace en incógnito.
+4. Enviar enlace por WhatsApp.
+5. Cliente abre enlace y ve tarjeta flotante.
+6. Cupón queda guardado.
+7. Cliente lo ve en checkout.
+```
+
+Mensaje recomendado:
+
+```txt
+Hola, tenemos este cupón disponible para tu próxima compra:
+
+Código: POWER5
+Beneficio: ahorra 5 USD en compras desde 50 USD.
+
+Toca este enlace para guardarlo y verlo en el checkout:
+[enlace del cupón]
+```
+
+---
+
+#### 21.42.5. Cupón de envío gratis
+
+Uso recomendado:
+
+```txt
+Cerrar ventas cuando el cliente duda por el costo de entrega.
+```
+
+Mensaje:
+
+```txt
+Hola, te dejamos este cupón especial:
+
+Código: ENVIOGRATIS
+Beneficio: tu envío puede quedar en 0.
+
+Toca este enlace para guardarlo:
+[enlace del cupón]
+```
+
+---
+
+#### 21.42.6. Buenas prácticas
+
+```txt
+- Usar nombres fáciles de recordar.
+- Poner mensajes claros.
+- Usar fechas de inicio y fin.
+- Revisar cuántas veces se usó cada cupón.
+- Probar el enlace antes de compartirlo.
+- No prometer envío gratis si el cupón no es de envío.
+- No borrar un cupón activo de campaña sin revisar.
+```
+
+---
+
+#### 21.42.7. Flujo recomendado para vender con cupón
+
+```txt
+1. Crear cupón.
+2. Revisar que esté activo.
+3. Copiar enlace.
+4. Probar en incógnito.
+5. Confirmar que aparece tarjeta flotante.
+6. Confirmar que aparece en checkout.
+7. Enviar enlace al cliente.
+8. Revisar historial de uso en admin.
+```
+
+---
+
+#### 21.42.8. Cierre operativo
+
+Regla principal:
+
+```txt
+Un pedido.
+Una promoción final.
+Mayor beneficio para el cliente.
+Envío claro y separado.
 ```
