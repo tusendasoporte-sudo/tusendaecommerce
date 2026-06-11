@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-10  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona` y base visual del Master Admin en `/master`.
+**Fecha de actualización:** 2026-06-11  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada y creación de usuarios de tienda desde Master Admin implementada pendiente de prueba manual completa.
 
 ---
 
@@ -176,7 +176,7 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🟡 Bloque actual: 12.3 Cupón manual.
+🟡 Bloque actual: 21.30 Tu Senda 84 — multitienda, Master Admin y gestión de tiendas.
 ```
 
 Estado del bloque anterior:
@@ -9180,6 +9180,9 @@ Estado actual:
 21.30.8 completado / Bazar principal visual Tu Senda 84 preparado
 21.30.9 completado / verificación Bazar principal + tienda pública PowerZona
 21.30.10 completado / base visual del Master Admin creada en /master
+21.30.11 completado y validado / base de usuarios, roles y login administrativo creada
+21.30.12 completado y validado / gestión básica de tiendas desde Master Admin
+21.30.13 implementado / creación de usuarios de tienda desde Master Admin pendiente de prueba manual completa
 ```
 
 Regla oficial de nombres:
@@ -9243,8 +9246,10 @@ Regla de trabajo documental:
 
 ```txt
 Codex debe enfocarse principalmente en modificar código.
+Codex NO debe actualizar directamente el Master Document.
+En cada entrega, Codex solo debe incluir una recomendación clara de qué agregar o actualizar en el Master Document.
 Las actualizaciones importantes del Master Document se normalizarán desde ChatGPT para evitar numeraciones duplicadas, archivos duplicados o pérdida del documento oficial.
-Si Codex necesita documentar algo, debe responderlo en texto y no modificar el Master Document automáticamente, salvo instrucción explícita.
+Esta regla evita que Codex cree versiones duplicadas, borre documentos anteriores o modifique el documento maestro fuera del flujo acordado.
 ```
 
 ---
@@ -10087,143 +10092,587 @@ Todavía no crea admins de tiendas.
 
 ---
 
-#### 21.30.11. Sistema administrativo previsto
+#### 21.30.11. Base de usuarios y roles multitienda
 
-El panel admin actual que hoy controla PowerZona será la base del:
-
-```txt
-Panel Admin Global de Tiendas Públicas
-```
-
-Regla futura del panel:
+Se creó la base de autenticación y roles sobre la colección auth existente:
 
 ```txt
-Cuando el Master Admin cree una tienda pública, también creará/asignará el admin de esa tienda.
-Ese admin entrará al mismo panel administrativo global, pero filtrado por su store.
-Cada admin de tienda solo verá y modificará datos de su propia tienda.
+users
 ```
 
-Regla de administración superior:
+No se creó una colección auth nueva.
+
+Migración agregada:
 
 ```txt
-PocketBase quedará solo como acceso técnico privado del Master Admin.
-El Master Admin tendrá un panel web aparte para administrar Tu Senda 84.
+backend-powerzona/pb_migrations/1780469400_updated_users_roles_multistore.js
 ```
 
-Rutas conceptuales previstas:
+Campos agregados a `users`:
 
 ```txt
-/_/ = PocketBase técnico, solo Master Admin.
-/master = panel web del Master Admin de Tu Senda 84.
-/t/[storeSlug]/admin = panel admin global de tienda pública, filtrado por store.
+role
+store
+status
+display_name
+phone
 ```
 
-Roles previstos:
+Detalle de campos:
+
+```txt
+role:
+- select opcional
+- opciones:
+  - master_admin
+  - store_admin
+  - store_staff
+
+store:
+- relation opcional hacia stores
+- maxSelect: 1
+- sin cascade delete
+
+status:
+- select opcional
+- opciones:
+  - active
+  - suspended
+
+display_name:
+- text opcional
+
+phone:
+- text opcional
+```
+
+Roles definidos:
 
 ```txt
 master_admin
+→ Dueño general del sistema.
+→ Puede entrar a /master.
+
 store_admin
+→ Administrador de una tienda específica.
+→ Más adelante deberá entrar al panel de su tienda.
+
 store_staff
+→ Usuario de apoyo de una tienda específica.
+→ Más adelante tendrá permisos limitados.
 ```
 
-Regla:
+Status definidos:
 
 ```txt
-Todavía no se implementan usuarios, roles, login ni redirecciones.
-Este punto queda como arquitectura prevista para fases posteriores.
-```
+active
+→ Usuario activo.
 
----
-
-#### 21.30.12. Límites actuales del bloque multitienda
-
-Ya quedó implementado como base:
-
-```txt
-- Colección stores.
-- PowerZona como primer store.
-- Relación store en colecciones principales.
-- Helper central de store actual.
-- Consultas públicas principales por store.
-- Rutas públicas /t/[storeSlug].
-- Carrito separado por store.
-- Bazar principal visual en `/`.
-- Tienda pública PowerZona en `/t/powerzona`.
-- Regalos preparados bajo `/t/[storeSlug]/regalos`.
-- Base visual del Master Admin en `/master`.
-```
-
-Todavía no está implementado:
-
-```txt
-- Usuarios, roles y login multitienda.
-- Protección real de `/master`.
-- Creación de tiendas desde `/master`.
-- Creación/asignación de admins de tienda desde `/master`.
-- Panel admin filtrado por store.
-- Reglas finales de permisos por tienda.
-- Rutas `/t/[storeSlug]/admin`.
-```
-
-Todavía no se debe cambiar sin prompt específico:
-
-```txt
-- Lógica comercial de promociones.
-- Lógica comercial de cupones.
-- Lógica comercial de regalos.
-- Lógica de monedas.
-- Lógica de envíos.
-- Formato de WhatsApp.
-- Panel admin actual `/admin`.
+suspended
+→ Usuario suspendido.
 ```
 
 Regla importante:
 
 ```txt
-Las Tiendas públicas comparten una plantilla global.
-Cualquier cambio general al diseño o experiencia pública de las Tiendas públicas afectará a todas las tiendas.
-Los cambios exclusivos del Bazar principal se trabajan separados de los cambios a Tiendas públicas.
+No se crearon usuarios reales ni credenciales en código.
+El primer Master Admin se crea manualmente en PocketBase dentro de users.
+```
+
+Configuración manual del primer Master Admin:
+
+```txt
+verified = true
+role = master_admin
+status = active
+store = vacío
+```
+
+El campo `store` queda vacío para el Master Admin porque no pertenece a una sola tienda; administra la plataforma completa.
+
+---
+
+##### 21.30.11.1. Frontend de autenticación
+
+Se creó el archivo:
+
+```txt
+frontend-powerzona/src/lib/auth.ts
+```
+
+Helpers creados:
+
+```txt
+getCurrentUser
+getCurrentUserRole
+isMasterAdmin
+isStoreAdmin
+isStoreStaff
+getUserStoreId
+requireMasterAdmin
+requireStoreAccess
+loginWithPassword
+logout
+cookie helpers
+redirección por rol
+```
+
+Se creó la ruta:
+
+```txt
+/login
+```
+
+Uso:
+
+```txt
+Pantalla funcional de acceso administrativo contra PocketBase users.
+```
+
+Redirecciones por rol:
+
+```txt
+master_admin → /master
+store_admin  → /admin
+store_staff  → /admin
+```
+
+Regla:
+
+```txt
+/admin todavía no se mueve ni se filtra por store en esta fase.
 ```
 
 ---
 
-#### 21.30.13. Próximo avance recomendado
+##### 21.30.11.2. Protección de `/master`
 
-Próximo paso recomendado:
+La ruta:
 
 ```txt
-PROMPT 21.30.11 — Crear base de usuarios y roles para Master Admin y Admin de tienda
+/master
 ```
 
-Objetivo del próximo paso:
+quedó protegida por sesión SSR usando la cookie de PocketBase.
+
+Comportamiento:
 
 ```txt
-Preparar la base de autenticación y roles para separar:
-- master_admin
-- store_admin
-- store_staff
+Sin sesión:
+→ /master redirige a /login.
+
+Con sesión sin role master_admin:
+→ /master muestra acceso no autorizado.
+
+Con sesión master_admin:
+→ /master permite acceso.
 ```
 
-Reglas para el próximo paso:
+Regla:
 
 ```txt
-No adaptar todavía todo el panel `/admin` por store.
-No mover todavía `/admin` a `/t/[storeSlug]/admin`.
-No crear todavía sistema completo de creación de tiendas.
-No crear todavía panel completo de usuarios.
-No romper `/`, `/t/powerzona`, `/master` ni `/admin`.
+/master queda reservado para el dueño general de Tu Senda 84.
+```
+
+---
+
+##### 21.30.11.3. Archivos tocados
+
+```txt
+backend-powerzona/pb_migrations/1780469400_updated_users_roles_multistore.js
+frontend-powerzona/src/lib/auth.ts
+frontend-powerzona/src/pages/login.astro
+frontend-powerzona/src/pages/master/index.astro
+frontend-powerzona/src/lib/stores.ts
+```
+
+---
+
+##### 21.30.11.4. Validación operativa
+
+Validación confirmada:
+
+```txt
+PocketBase fue reiniciado y la migración se aplicó correctamente.
+Se creó manualmente el primer usuario Master Admin en users.
+El usuario fue marcado como verified.
+Se asignó role = master_admin.
+Se asignó status = active.
+El campo store quedó vacío.
+Login probado correctamente desde /login.
+Redirección hacia /master funcionando.
+```
+
+Validación técnica reportada:
+
+```txt
+npm.cmd run build: OK.
+/login respondió 200.
+/master sin sesión respondió 302 hacia /login.
+/admin respondió 200.
+```
+
+No se modificó:
+
+```txt
+/admin
+panel admin de tienda
+/t/[storeSlug]/admin
+tienda pública PowerZona
+Bazar principal
+carrito
+checkout
+promociones
+monedas
+WhatsApp
+```
+
+Regla de migraciones:
+
+```txt
+La migración 1780469400_updated_users_roles_multistore.js se conserva.
+No se deben borrar migraciones anteriores.
+```
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO Y VALIDADO
+```
+
+---
+
+#### 21.30.12. Gestión básica de tiendas desde Master Admin
+
+Se convirtió:
+
+```txt
+/master
+```
+
+en un panel funcional básico para gestionar tiendas desde el rol:
+
+```txt
+master_admin
+```
+
+Objetivo:
+
+```txt
+Permitir que el dueño de Tu Senda 84 pueda listar, crear, editar, activar y suspender tiendas desde el panel Master Admin.
+```
+
+---
+
+##### 21.30.12.1. Funciones agregadas
+
+Funciones disponibles desde `/master`:
+
+```txt
+- Listado de tiendas registradas.
+- Resumen de tiendas totales.
+- Resumen de tiendas activas.
+- Resumen de tiendas suspendidas.
+- Creación de tienda desde modal.
+- Edición de nombre, slug, WhatsApp y estado.
+- Activación de tienda.
+- Suspensión de tienda.
+- Acceso rápido a /t/{slug}.
+- Validación de nombre.
+- Validación de slug.
+- Validación de slug duplicado.
+```
+
+Reglas:
+
+```txt
+Suspender tienda no borra datos.
+Suspender tienda no borra productos.
+Suspender tienda no borra pedidos.
+Suspender tienda no borra configuraciones.
+```
+
+---
+
+##### 21.30.12.2. Helpers agregados o actualizados
+
+Archivo:
+
+```txt
+frontend-powerzona/src/lib/stores.ts
+```
+
+Helpers agregados o actualizados:
+
+```txt
+normalizeStoreSlug
+createStoreFromMaster
+updateStoreFromMaster
+setStoreStatusFromMaster
+```
+
+---
+
+##### 21.30.12.3. Migración de reglas para `stores`
+
+Migración agregada:
+
+```txt
+backend-powerzona/pb_migrations/1780469500_updated_stores_master_admin_rules.js
+```
+
+Objetivo:
+
+```txt
+Reforzar reglas de PocketBase para que crear, editar y eliminar tiendas dependa del rol master_admin.
+```
+
+Regla de migraciones:
+
+```txt
+La migración 1780469500_updated_stores_master_admin_rules.js se conserva.
+No se deben borrar migraciones anteriores.
+```
+
+Nota operativa:
+
+```txt
+PocketBase debe reiniciarse después de agregar esta migración para que las nuevas reglas entren en efecto.
+```
+
+---
+
+##### 21.30.12.4. Archivos tocados
+
+```txt
+frontend-powerzona/src/pages/master/index.astro
+frontend-powerzona/src/lib/stores.ts
+backend-powerzona/pb_migrations/1780469500_updated_stores_master_admin_rules.js
+```
+
+---
+
+##### 21.30.12.5. Seguridad de `/master`
+
+Reglas de seguridad:
+
+```txt
+/master sigue protegido por sesión SSR.
+Solo usuarios con role = master_admin pueden acceder.
+Las acciones de crear, editar, activar o suspender tiendas se ejecutan desde el contexto del Master Admin.
+```
+
+---
+
+##### 21.30.12.6. Corrección de tienda pública dinámica por slug
+
+Durante la validación se detectó que:
+
+```txt
+/t/tienda-prueba
+```
+
+abría la ruta correcta, pero mostraba el nombre fijo:
+
+```txt
+PowerZona
+```
+
+Corrección aplicada:
+
+```txt
+/t/{slug} ahora carga el nombre real de la tienda desde stores.
+```
+
+Archivos tocados en la corrección:
+
+```txt
+frontend-powerzona/src/pages/t/[storeSlug]/index.astro
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+frontend-powerzona/src/components/PublicFooter.astro
+```
+
+Cambios realizados:
+
+```txt
+- El hero/header usa currentStore.name.
+- Logo y banner usan primero datos de la tienda y luego settings como respaldo.
+- WhatsApp usa settings.whatsapp_number o, si no existe, currentStore.owner_phone.
+- El fallback visual cambió de PZ fijo a iniciales reales de la tienda.
+- Si el slug no existe, redirige limpiamente al Bazar /.
+```
+
+Regla:
+
+```txt
+/t/powerzona debe seguir mostrando PowerZona.
+/t/tienda-prueba debe mostrar el nombre real de la tienda creada.
+Ninguna tienda nueva debe caer al nombre fijo PowerZona.
+```
+
+---
+
+##### 21.30.12.7. Validación técnica y operativa
+
+Validación técnica reportada:
+
+```txt
+npm.cmd run build: OK.
+/login: OK.
+/master sin sesión: redirige a /login.
+/admin: 200 OK.
+/t/powerzona: muestra PowerZona.
+/t/tienda-prueba: muestra el nombre real de la tienda creada.
+```
+
+Validación operativa confirmada por el usuario:
+
+```txt
+La tienda de prueba creada desde /master abre correctamente.
+El nombre público ya no cae a PowerZona.
+El nombre real de la tienda aparece correctamente.
+```
+
+No se modificaron:
+
+```txt
+/admin
+panel admin de tienda
+carrito
+checkout
+promociones
+moneda
+WhatsApp
+```
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO Y VALIDADO
+```
+
+---
+
+#### 21.30.13. Crear usuarios de tienda desde Master Admin
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA MANUAL COMPLETA
+```
+
+Objetivo:
+
+```txt
+Permitir que el Master Admin cree usuarios administrativos para una tienda específica desde /master.
+```
+
+Resumen implementado:
+
+```txt
+/master muestra total de usuarios de tienda.
+Cada tienda muestra conteo de usuarios asignados.
+Cada tienda tiene botón Crear usuario.
+El modal permite crear usuarios administrativos de tienda.
+Los usuarios creados quedan asociados a una tienda.
+Los roles permitidos desde esta pantalla son store_admin y store_staff.
+El usuario master_admin queda separado y no se crea desde esta interfaz.
+```
+
+Datos que permite definir el modal:
+
+```txt
+- Nombre visible.
+- Email.
+- Contraseña inicial o temporal.
+- Teléfono.
+- Rol: Administrador de tienda o Colaborador.
+- Estado: Activo o Suspendido.
+- Tienda asociada.
+```
+
+Archivos tocados por Codex:
+
+```txt
+frontend-powerzona/src/pages/master/index.astro
+frontend-powerzona/src/lib/masterUsers.ts
+backend-powerzona/pb_migrations/1780469600_updated_users_master_admin_rules.js
+```
+
+Migración agregada:
+
+```txt
+backend-powerzona/pb_migrations/1780469600_updated_users_master_admin_rules.js
+```
+
+Regla de migraciones:
+
+```txt
+La migración 1780469600_updated_users_master_admin_rules.js se conserva.
+No se deben borrar migraciones anteriores.
+También se deben conservar:
+- 1780469400_updated_users_roles_multistore.js
+- 1780469500_updated_stores_master_admin_rules.js
+```
+
+Nota operativa:
+
+```txt
+Como se agregó una migración nueva de PocketBase, se debe reiniciar PocketBase para aplicar las reglas de users.
+Como se modificó frontend Astro, normalmente basta refrescar el navegador; si /master no refleja cambios, reiniciar Astro.
+```
+
+Reglas esperadas para `users`:
+
+```txt
+master_admin puede listar/ver usuarios administrativos.
+master_admin puede crear usuarios de tienda.
+master_admin puede editar usuarios administrativos.
+store_admin y store_staff no crean usuarios en esta etapa.
+No se debe borrar usuarios en esta etapa; se usa estado Activo/Suspendido.
+```
+
+Validación técnica reportada por Codex:
+
+```txt
+npm.cmd run build: correcto.
+El navegador integrado no estuvo disponible para validar /master visualmente.
+```
+
+Pruebas manuales pendientes antes de cerrar al 100%:
+
+```txt
+- /master sin sesión redirige a /login.
+- /master con usuario no master_admin no permite gestión.
+- /master con master_admin carga tiendas.
+- Botón Crear usuario abre modal.
+- Crear usuario Administrador de tienda.
+- Crear usuario Colaborador.
+- Email repetido muestra error limpio.
+- Contraseña menor de 8 caracteres muestra error limpio.
+- Contraseñas diferentes muestran error limpio si hay confirmación.
+- Usuario creado puede iniciar sesión y redirige a /admin.
+- Conteo de usuarios por tienda se actualiza.
+- Usuario suspendido no debe operar normalmente cuando se aplique la validación de status.
+```
+
+Regla documental aplicada desde este punto:
+
+```txt
+Codex no debe actualizar el Master Document directamente.
+Codex debe entregar solo una recomendación de actualización documental.
+La actualización real del Master Document se hace desde ChatGPT en este flujo.
 ```
 
 Orden recomendado después:
 
 ```txt
-21.30.12 Proteger /master para que solo entre master_admin.
-21.30.13 Adaptar /admin para que sea panel global de tiendas públicas filtrado por store.
-21.30.14 Crear desde /master una tienda nueva + asignar admin de tienda.
+21.30.14 — Proteger /admin por login y preparar acceso de store_admin/store_staff.
+21.30.15 — Filtrar panel admin por store.
+21.30.16 — Evaluar ruta futura /t/[storeSlug]/admin.
 ```
 
 ---
-
 ### 21.31. Bloque cerrado: Monedas tienda pública, cobro mixto, envío separado y resumen admin
 
 Esta sección se agrega como actualización acumulativa sin reemplazar secciones anteriores. Si alguna sección anterior menciona una regla distinta de moneda, esta sección 21.31 es la regla más reciente y debe tomarse como referencia actual.
