@@ -9,7 +9,7 @@ import PromoBar from '../PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
-const currentStore = await getCurrentStore(Astro);
+const currentStore = Astro.props.currentStore || await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
 const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
@@ -30,14 +30,14 @@ const homepageProducts = products.filter((product) => !product.category && produ
 const promoVisualItems = visualItems.filter((item) => item.type === 'promo_visual');
 const quickAccessItems = visualItems.filter((item) => item.type === 'acceso_rapido');
 
-const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
 const welcomeText = settings?.welcome_text || 'Descubre nuestras mejores ofertas y productos destacados.';
 const address = settings?.address || '';
 const businessHours = settings?.business_hours || '';
 const servicesText = settings?.public_services_text || '';
 const reviewsText = settings?.reviews_text || '';
-const logoImageUrl = settings?.logoImageUrl || '';
-const coverImageUrl = settings?.coverImageUrl || '';
+const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
+const coverImageUrl = currentStore?.bannerUrl || settings?.coverImageUrl || '';
 const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
@@ -49,6 +49,15 @@ const servicesAnchorPath = getPublicPath('/#servicios', currentStore, currentPat
 const hoursAnchorPath = getPublicPath('/#horarios', currentStore, currentPathname);
 const reviewsAnchorPath = getPublicPath('/#resena', currentStore, currentPathname);
 const giftsPath = getPublicPath('/regalos', currentStore, currentPathname);
+
+function storeInitials(name: string) {
+  return String(name || 'Tienda')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'T';
+}
 
 function cleanWhatsappNumber(value: string | undefined) {
   return String(value || '').replace(/[^0-9]/g, '');
@@ -68,7 +77,7 @@ function productsByCategoryTotal(categoryId: string) {
   return Array.from(new Map(categoryProducts.map((product) => [product.id, product])).values());
 }
 
-const whatsappNumber = cleanWhatsappNumber(settings?.whatsapp_number);
+const whatsappNumber = cleanWhatsappNumber(settings?.whatsapp_number || currentStore?.owner_phone);
 const whatsappStoreHref = whatsappNumber
   ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola ${storeName}, quiero información.`)}`
   : '#';
@@ -215,7 +224,7 @@ function getProductOfferView(product: any) {
 
   <div class="public-store-head" aria-label="Acciones principales">
     <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
-      <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+      <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
     </a>
     <div class="public-header-actions">
       <a class="public-action-btn" href={searchPath} aria-label="Buscar productos y categorías">⌕</a>
@@ -226,7 +235,7 @@ function getProductOfferView(product: any) {
   <div id="public-drawer-overlay" class="public-drawer-overlay" hidden></div>
   <aside id="public-drawer" class="public-drawer" aria-hidden="true">
     <div class="drawer-head">
-      <a class="drawer-logo" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</a>
+      <a class="drawer-logo" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</a>
       <button id="public-menu-close" class="drawer-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
     <nav class="drawer-nav">

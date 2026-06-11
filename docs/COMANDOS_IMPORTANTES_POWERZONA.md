@@ -24,6 +24,9 @@ cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt"
 
 Abrir una terminal nueva en PowerShell y ejecutar:
 
+cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt\backend-powerzona"
+.\pocketbase.exe serve
+
 ```powershell
 cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt\backend-powerzona"
 .\pocketbase.exe serve

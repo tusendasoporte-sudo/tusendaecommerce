@@ -1,3 +1,5 @@
+import type PocketBase from 'pocketbase';
+import { isMasterAdmin } from './auth';
 import { pb, getPocketBaseFileUrl } from './pocketbase';
 
 export const DEFAULT_STORE_SLUG = 'powerzona';
@@ -15,14 +17,25 @@ export type PublicStore = {
 };
 
 export type MasterStoreSummary = {
+  id: string;
   name: string;
   slug: string;
   status: string;
+  plan?: string;
   featured?: boolean;
+  protected?: boolean;
+  owner_phone?: string;
   views_count?: number;
   orders_count?: number;
   created?: string;
   updated?: string;
+};
+
+export type MasterStoreInput = {
+  name: string;
+  slug: string;
+  status?: string;
+  owner_phone?: string;
 };
 
 function normalizeStoreFileValue(value: any) {
@@ -50,6 +63,59 @@ export class StoreResolutionError extends Error {
 
 function escapePocketBaseValue(value: string) {
   return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function requireMasterClient(client: PocketBase) {
+  if (!isMasterAdmin(client.authStore.record as any)) {
+    throw new Error('No tienes permisos para gestionar tiendas.');
+  }
+}
+
+export function normalizeStoreSlug(value: string) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 80);
+}
+
+function normalizeStoreStatus(value: string | undefined) {
+  return String(value || ACTIVE_STORE_STATUS).toLowerCase() === 'suspended' ? 'suspended' : ACTIVE_STORE_STATUS;
+}
+
+async function assertUniqueStoreSlug(slug: string, currentStoreId = '', client = pb) {
+  try {
+    const existing = await client.collection('stores').getFirstListItem(
+      `slug="${escapePocketBaseValue(slug)}"`,
+      { fields: 'id' }
+    );
+
+    if (existing?.id && existing.id !== currentStoreId) {
+      throw new Error('Ya existe una tienda con ese slug.');
+    }
+  } catch (error: any) {
+    if (error?.status === 404) return;
+    throw error;
+  }
+}
+
+function getMasterStorePayload(input: MasterStoreInput) {
+  const name = String(input.name || '').trim();
+  const slug = normalizeStoreSlug(input.slug);
+
+  if (!name) throw new Error('Escribe el nombre de la tienda.');
+  if (!slug) throw new Error('Escribe un slug valido para la tienda.');
+
+  return {
+    name,
+    slug,
+    status: normalizeStoreStatus(input.status),
+    owner_phone: String(input.owner_phone || '').trim(),
+  };
 }
 
 function getPathnameFromContext(context?: unknown) {
@@ -137,22 +203,62 @@ export async function getFeaturedStores(): Promise<PublicStore[]> {
   return stores.map((store) => addStoreImages(store as PublicStore));
 }
 
-export async function getAllStoresForMaster(): Promise<MasterStoreSummary[]> {
-  const stores = await pb.collection('stores').getFullList({
-    fields: 'name,slug,status,featured,views_count,orders_count,created,updated',
+export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSummary[]> {
+  const stores = await client.collection('stores').getFullList({
+    fields: 'id,name,slug,status,plan,featured,protected,owner_phone,views_count,orders_count,created,updated',
     sort: '-featured,status,name',
   });
 
   return stores.map((store: any) => ({
+    id: store.id || '',
     name: store.name || '',
     slug: store.slug || '',
     status: store.status || '',
+    plan: store.plan || '',
     featured: store.featured === true,
+    protected: store.protected === true,
+    owner_phone: store.owner_phone || '',
     views_count: Number(store.views_count || 0),
     orders_count: Number(store.orders_count || 0),
     created: store.created || '',
     updated: store.updated || '',
   }));
+}
+
+export async function createStoreFromMaster(input: MasterStoreInput, client = pb) {
+  requireMasterClient(client);
+  const payload = getMasterStorePayload(input);
+  await assertUniqueStoreSlug(payload.slug, '', client);
+
+  return client.collection('stores').create({
+    ...payload,
+    plan: 'basic',
+    featured: false,
+    views_count: 0,
+    orders_count: 0,
+    protected: false,
+  });
+}
+
+export async function updateStoreFromMaster(storeId: string, input: MasterStoreInput, client = pb) {
+  requireMasterClient(client);
+  const id = String(storeId || '').trim();
+  if (!id) throw new Error('No se encontro la tienda a editar.');
+
+  const payload = getMasterStorePayload(input);
+  await assertUniqueStoreSlug(payload.slug, id, client);
+
+  return client.collection('stores').update(id, payload);
+}
+
+export async function setStoreStatusFromMaster(storeId: string, status: string, client = pb) {
+  requireMasterClient(client);
+  const id = String(storeId || '').trim();
+  if (!id) throw new Error('No se encontro la tienda.');
+
+  return client.collection('stores').update(id, {
+    status: normalizeStoreStatus(status),
+  });
 }
 
 export async function getCurrentStore(context?: unknown): Promise<PublicStore> {

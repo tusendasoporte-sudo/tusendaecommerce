@@ -1,5 +1,18 @@
 ---
 import PublicStoreHome from '../../../components/public-store/PublicStoreHome.astro';
+import { StoreResolutionError, getCurrentStore } from '../../../lib/stores';
+
+let currentStore;
+
+try {
+  currentStore = await getCurrentStore(Astro);
+} catch (error) {
+  if (error instanceof StoreResolutionError) {
+    return Astro.redirect('/');
+  }
+
+  throw error;
+}
 ---
 
-<PublicStoreHome />
+<PublicStoreHome currentStore={currentStore} />

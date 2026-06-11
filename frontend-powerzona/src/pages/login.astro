@@ -1,0 +1,98 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout isMaster={true}>
+  <style>
+    .login-shell { min-height: calc(100vh - 48px); display: grid; place-items: center; color: #111827; }
+    .login-panel { width: min(460px, 100%); display: grid; gap: 18px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; padding: clamp(22px, 5vw, 34px); box-shadow: 0 20px 55px rgba(15, 23, 42, .10); }
+    .login-kicker { width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; padding: 7px 11px; font-size: 12px; font-weight: 950; }
+    .login-title { margin: 0; color: #0f172a; font-size: clamp(30px, 7vw, 44px); line-height: 1; font-weight: 1000; letter-spacing: 0; }
+    .login-text { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; font-weight: 750; }
+    .login-form { display: grid; gap: 14px; }
+    .field { display: grid; gap: 7px; }
+    .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; }
+    .field input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 13px 14px; outline: none; font-size: 15px; font-weight: 800; }
+    .field input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, .14); }
+    .login-button { min-height: 46px; border: 1px solid #0f172a; border-radius: 8px; background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; line-height: 1; font-weight: 1000; cursor: pointer; }
+    .login-button:disabled { opacity: .62; cursor: wait; }
+    .login-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
+    .login-alert.is-visible { display: block; }
+  </style>
+
+  <main class="login-shell">
+    <section class="login-panel" aria-label="Inicio de sesion administrativo">
+      <span class="login-kicker">Tu Senda 84</span>
+      <div>
+        <h1 class="login-title">Acceso administrativo</h1>
+        <p class="login-text">Entrada para Master Admin y administradores de tienda.</p>
+      </div>
+
+      <form id="login-form" class="login-form">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="login-password">Contraseña</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button id="login-button" class="login-button" type="submit">Entrar</button>
+        <div id="login-alert" class="login-alert" role="alert"></div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    import { exportAuthCookie, getRedirectPathForRole, loginWithPassword, logout } from '../lib/auth';
+
+    const form = document.getElementById('login-form') as HTMLFormElement | null;
+    const button = document.getElementById('login-button') as HTMLButtonElement | null;
+    const alertBox = document.getElementById('login-alert');
+
+    function showError(message: string) {
+      if (!alertBox) return;
+      alertBox.textContent = message;
+      alertBox.classList.add('is-visible');
+    }
+
+    function clearError() {
+      if (!alertBox) return;
+      alertBox.textContent = '';
+      alertBox.classList.remove('is-visible');
+    }
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearError();
+      if (!button) return;
+
+      const formData = new FormData(form);
+      const email = String(formData.get('email') || '').trim();
+      const password = String(formData.get('password') || '');
+
+      button.disabled = true;
+      button.textContent = 'Entrando...';
+
+      try {
+        const user = await loginWithPassword(email, password);
+        document.cookie = exportAuthCookie();
+        const redirectPath = getRedirectPathForRole(user);
+
+        if (redirectPath === '/login') {
+          logout();
+          document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+          showError('Tu usuario no tiene un rol administrativo activo.');
+          return;
+        }
+
+        window.location.assign(redirectPath);
+      } catch (_) {
+        showError('No se pudo iniciar sesión. Revisa el email y la contraseña.');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Entrar';
+      }
+    });
+  </script>
+</Layout>

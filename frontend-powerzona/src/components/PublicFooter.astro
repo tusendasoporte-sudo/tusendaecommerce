@@ -4,8 +4,9 @@ import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const { settings = {} } = Astro.props;
 
-const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
-const whatsappRaw = settings?.whatsapp_number || '';
+const currentStore = await getCurrentStore(Astro);
+const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
+const whatsappRaw = settings?.whatsapp_number || currentStore?.owner_phone || '';
 const whatsappNumber = String(whatsappRaw).replace(/[^0-9]/g, '');
 
 const creatorStoreWhatsappHref = whatsappNumber
@@ -24,8 +25,16 @@ const linkOneUrl = settings?.footer_link_1_url || '';
 const linkTwoLabel = settings?.footer_link_2_label || '';
 const linkTwoUrl = settings?.footer_link_2_url || '';
 const currentYear = new Date().getFullYear();
-const currentStore = await getCurrentStore(Astro);
 const homePath = getPublicPath('/', currentStore, Astro.url.pathname);
+
+function storeInitials(name: string) {
+  return String(name || 'Tienda')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'T';
+}
 
 const hasExtraLinks = linkOneUrl || linkTwoUrl;
 const hasInfoCard = businessHours || servicesText || footerContactText;
@@ -37,7 +46,7 @@ const hasMainInfo = footerText || footerContactText || footerExtraText || addres
     <div class="pz-footer-main">
       <div class="pz-footer-brand">
         <a class="pz-footer-logo-link" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
-          {settings?.logoImageUrl ? <img src={settings.logoImageUrl} alt={storeName} /> : <span>PZ</span>}
+          {settings?.logoImageUrl ? <img src={settings.logoImageUrl} alt={storeName} /> : <span>{storeInitials(storeName)}</span>}
         </a>
         <div>
           <h2>{footerTitle}</h2>

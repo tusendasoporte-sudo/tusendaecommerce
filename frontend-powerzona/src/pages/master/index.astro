@@ -1,26 +1,30 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
 import { ACTIVE_STORE_STATUS, DEFAULT_STORE_SLUG, getAllStoresForMaster } from '../../lib/stores';
 
-// TODO interno: conectar autenticacion Master Admin cuando se implemente usuarios y roles.
-const stores = await getAllStoresForMaster();
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+
+if (!authPb.authStore.isValid || !authPb.authStore.record) {
+  return Astro.redirect('/login');
+}
+
+const isUnauthorized = !masterUser;
+const stores = isUnauthorized ? [] : await getAllStoresForMaster(authPb);
 
 const totalStores = stores.length;
 const activeStores = stores.filter((store) => String(store.status || '').toLowerCase() === ACTIVE_STORE_STATUS).length;
-const featuredStores = stores.filter((store) => store.featured === true).length;
-const pausedStores = stores.filter((store) => String(store.status || '').toLowerCase() !== ACTIVE_STORE_STATUS).length;
+const suspendedStores = stores.filter((store) => String(store.status || '').toLowerCase() !== ACTIVE_STORE_STATUS).length;
 
 function normalizeStatus(status: string) {
   const value = String(status || '').trim().toLowerCase();
   if (value === ACTIVE_STORE_STATUS) return 'Activa';
-  if (value === 'paused' || value === 'pause') return 'Pausada';
-  if (value === 'suspended') return 'Suspendida';
-  if (value === 'inactive') return 'Inactiva';
-  return 'En revision';
+  return 'Suspendida';
 }
 
 function statusClass(status: string) {
-  return String(status || '').trim().toLowerCase() === ACTIVE_STORE_STATUS ? 'is-active' : 'is-paused';
+  return String(status || '').trim().toLowerCase() === ACTIVE_STORE_STATUS ? 'is-active' : 'is-suspended';
 }
 
 function storeHref(store: any) {
@@ -36,16 +40,24 @@ function isPowerZona(store: any) {
 function formatNumber(value: unknown) {
   return new Intl.NumberFormat('es-VE').format(Number(value || 0));
 }
+
+const displayName = String(masterUser?.display_name || masterUser?.name || masterUser?.email || '').trim();
 ---
 
 <Layout isMaster={true}>
   <style>
     .master-shell { display: grid; gap: 24px; color: #111827; }
+    .master-topline { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .master-user { color: #475569; font-size: 13px; line-height: 1.35; font-weight: 850; overflow-wrap: anywhere; }
+    .topline-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+    .primary-button, .logout-button, .action-link, .action-button { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1; font-weight: 1000; text-decoration: none; white-space: nowrap; cursor: pointer; }
+    .primary-button { border: 1px solid #0f172a; background: #0f172a; color: #fff; }
+    .logout-button { border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; }
     .master-header { display: grid; gap: 16px; border-radius: 8px; border: 1px solid #e5e7eb; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eef2ff 100%); padding: clamp(22px, 5vw, 38px); box-shadow: 0 18px 50px rgba(15, 23, 42, .07); }
     .master-kicker { width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; padding: 7px 11px; font-size: 12px; font-weight: 950; }
     .master-title { margin: 0; color: #0f172a; font-size: clamp(34px, 7vw, 58px); line-height: .98; font-weight: 1000; letter-spacing: 0; }
     .master-subtitle { margin: 0; max-width: 700px; color: #475569; font-size: clamp(15px, 2vw, 18px); line-height: 1.5; font-weight: 750; }
-    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     .summary-card { display: grid; gap: 8px; min-height: 118px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; padding: 18px; box-shadow: 0 14px 38px rgba(15, 23, 42, .06); }
     .summary-label { color: #64748b; font-size: 12px; line-height: 1.25; font-weight: 900; }
     .summary-value { color: #0f172a; font-size: 36px; line-height: 1; font-weight: 1000; letter-spacing: 0; }
@@ -55,120 +67,347 @@ function formatNumber(value: unknown) {
     .store-panel-text { margin: 6px 0 0; color: #64748b; font-size: 14px; line-height: 1.4; font-weight: 750; }
     .store-count { flex: 0 0 auto; border-radius: 999px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #166534; padding: 8px 12px; font-size: 12px; font-weight: 1000; }
     .store-list { display: grid; }
-    .store-row { display: grid; grid-template-columns: minmax(180px, 1.35fr) 112px 110px minmax(130px, .9fr) 120px 240px; gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
+    .store-row { display: grid; grid-template-columns: minmax(180px, 1.35fr) 112px minmax(130px, .9fr) 130px minmax(240px, 1fr); gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
     .store-row:last-child { border-bottom: 0; }
     .store-row.is-head { background: #fff; color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; }
     .store-name { display: grid; gap: 5px; min-width: 0; }
     .store-name strong { color: #0f172a; font-size: 15px; line-height: 1.2; font-weight: 1000; overflow-wrap: anywhere; }
     .store-name span { color: #64748b; font-size: 12px; font-weight: 800; }
-    .status-pill, .featured-pill { width: max-content; max-width: 100%; border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 1000; }
+    .status-pill { width: max-content; max-width: 100%; border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 1000; }
     .status-pill.is-active { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
-    .status-pill.is-paused { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
-    .featured-pill { background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; }
-    .featured-pill.is-featured { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+    .status-pill.is-suspended { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
     .slug-text { color: #334155; font-size: 13px; font-weight: 900; overflow-wrap: anywhere; }
     .metric-text { color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-    .action-link, .action-button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border-radius: 8px; padding: 9px 11px; font-size: 12px; line-height: 1; font-weight: 1000; text-decoration: none; white-space: nowrap; }
     .action-link { border: 1px solid #0f172a; background: #0f172a; color: #fff; }
-    .action-button { border: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+    .action-button { border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; }
+    .action-button.status-danger { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
     .empty-master { padding: 22px; color: #64748b; font-size: 14px; font-weight: 800; }
+    .unauthorized-panel { border-radius: 8px; border: 1px solid #fecaca; background: #fff1f2; color: #991b1b; padding: 22px; }
+    .unauthorized-panel h1 { margin: 0; font-size: 28px; line-height: 1.05; font-weight: 1000; letter-spacing: 0; }
+    .unauthorized-panel p { margin: 8px 0 0; color: #7f1d1d; font-size: 14px; line-height: 1.45; font-weight: 800; }
+    .store-dialog { width: min(560px, calc(100vw - 28px)); border: 1px solid #e5e7eb; border-radius: 8px; padding: 0; color: #111827; box-shadow: 0 24px 80px rgba(15, 23, 42, .22); }
+    .store-dialog::backdrop { background: rgba(15, 23, 42, .45); }
+    .store-form { display: grid; gap: 16px; padding: 22px; background: #fff; }
+    .dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; }
+    .dialog-title { margin: 0; color: #0f172a; font-size: 24px; line-height: 1.05; font-weight: 1000; letter-spacing: 0; }
+    .dialog-subtitle { margin: 6px 0 0; color: #64748b; font-size: 13px; line-height: 1.4; font-weight: 800; }
+    .close-button { width: 36px; height: 36px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; font-size: 20px; line-height: 1; cursor: pointer; }
+    .field-grid { display: grid; gap: 12px; }
+    .field { display: grid; gap: 7px; }
+    .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; }
+    .field input, .field select { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 12px 13px; outline: none; font-size: 14px; font-weight: 800; }
+    .field input:focus, .field select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, .14); }
+    .form-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
+    .form-alert.is-visible { display: block; }
+    .form-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+    .secondary-button { min-height: 42px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; padding: 11px 14px; font-size: 13px; line-height: 1; font-weight: 1000; cursor: pointer; }
+    .save-button { min-height: 42px; border-radius: 8px; border: 1px solid #0f172a; background: #0f172a; color: #fff; padding: 11px 14px; font-size: 13px; line-height: 1; font-weight: 1000; cursor: pointer; }
+    .save-button:disabled, .action-button:disabled { opacity: .62; cursor: wait; }
 
     @media (max-width: 1120px) {
-      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .store-row { grid-template-columns: minmax(180px, 1fr) 110px 110px; }
+      .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .store-row { grid-template-columns: minmax(180px, 1fr) 110px 130px; }
       .store-row.is-head { display: none; }
-      .slug-text, .metric-text { grid-column: 1 / -1; }
+      .metric-text { grid-column: 1 / -1; }
       .actions { grid-column: 1 / -1; justify-content: flex-start; }
     }
 
     @media (max-width: 640px) {
       .master-shell { gap: 18px; }
+      .master-topline { display: grid; }
+      .topline-actions { justify-content: stretch; }
+      .primary-button, .logout-button { width: 100%; }
       .summary-grid { grid-template-columns: 1fr; }
       .store-panel-head { display: grid; align-items: start; }
       .store-count { width: max-content; }
       .store-row { grid-template-columns: 1fr; gap: 10px; padding: 16px; }
-      .actions { display: grid; grid-template-columns: 1fr; }
-      .action-link, .action-button { width: 100%; min-height: 42px; }
+      .actions, .form-actions { display: grid; grid-template-columns: 1fr; }
+      .action-link, .action-button, .secondary-button, .save-button { width: 100%; min-height: 42px; }
     }
   </style>
 
   <main class="master-shell">
-    <header class="master-header" aria-label="Panel Master Admin">
-      <span class="master-kicker">Tu Senda 84</span>
-      <div>
-        <h1 class="master-title">Panel Master Admin</h1>
-        <p class="master-subtitle">Administra tu Bazar principal y las tiendas publicas registradas.</p>
+    <div class="master-topline">
+      <span class="master-user">{displayName ? `Sesion: ${displayName}` : 'Sesion Master Admin'}</span>
+      <div class="topline-actions">
+        {!isUnauthorized && <button id="create-store" class="primary-button" type="button">Crear tienda</button>}
+        <button id="master-logout" class="logout-button" type="button">Cerrar sesion</button>
       </div>
-    </header>
+    </div>
 
-    <section class="summary-grid" aria-label="Resumen de tiendas">
-      <article class="summary-card">
-        <span class="summary-label">Tiendas totales</span>
-        <strong class="summary-value">{formatNumber(totalStores)}</strong>
-      </article>
-      <article class="summary-card">
-        <span class="summary-label">Tiendas activas</span>
-        <strong class="summary-value">{formatNumber(activeStores)}</strong>
-      </article>
-      <article class="summary-card">
-        <span class="summary-label">Tiendas destacadas</span>
-        <strong class="summary-value">{formatNumber(featuredStores)}</strong>
-      </article>
-      <article class="summary-card">
-        <span class="summary-label">Tiendas pausadas/suspendidas</span>
-        <strong class="summary-value">{formatNumber(pausedStores)}</strong>
-      </article>
-    </section>
-
-    <section class="store-panel" aria-label="Tiendas registradas">
-      <div class="store-panel-head">
-        <div>
-          <h2 class="store-panel-title">Tiendas registradas</h2>
-          <p class="store-panel-text">Vista general para revisar el estado comercial de cada tienda.</p>
-        </div>
-        <span class="store-count">{formatNumber(totalStores)} tiendas</span>
-      </div>
-
-      {stores.length > 0 ? (
-        <div class="store-list">
-          <div class="store-row is-head" aria-hidden="true">
-            <span>Nombre de tienda</span>
-            <span>Estado</span>
-            <span>Destacada</span>
-            <span>Slug</span>
-            <span>Actividad</span>
-            <span>Acciones</span>
+    {isUnauthorized ? (
+      <section class="unauthorized-panel" aria-label="Acceso no autorizado">
+        <h1>Acceso no autorizado</h1>
+        <p>Tu usuario no tiene rol Master Admin activo.</p>
+      </section>
+    ) : (
+      <>
+        <header class="master-header" aria-label="Panel Master">
+          <span class="master-kicker">Tu Senda 84</span>
+          <div>
+            <h1 class="master-title">Panel Master</h1>
+            <p class="master-subtitle">Gestion general de tiendas</p>
           </div>
-          {stores.map((store) => {
-            const active = String(store.status || '').toLowerCase() === ACTIVE_STORE_STATUS;
-            const href = active ? storeHref(store) : '';
-            return (
-              <article class="store-row">
-                <div class="store-name">
-                  <strong>{store.name || 'Tienda sin nombre'}</strong>
-                  {isPowerZona(store) && <span>Tienda principal PowerZona</span>}
-                </div>
-                <span class={`status-pill ${statusClass(store.status)}`}>{normalizeStatus(store.status)}</span>
-                <span class={`featured-pill ${store.featured === true ? 'is-featured' : ''}`}>{store.featured === true ? 'Si' : 'No'}</span>
-                <span class="slug-text">/{store.slug || 'sin-slug'}</span>
-                <span class="metric-text">{formatNumber(store.views_count)} visitas · {formatNumber(store.orders_count)} pedidos</span>
-                <div class="actions">
-                  {href ? (
-                    <a class="action-link" href={href}>Ver tienda</a>
-                  ) : (
-                    <button class="action-button" type="button" disabled>Ver tienda</button>
-                  )}
-                  <button class="action-button" type="button" disabled>Editar</button>
-                  <button class="action-button" type="button" disabled>{active ? 'Pausar' : 'Activar'}</button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      ) : (
-        <div class="empty-master">Proximamente veras aqui las tiendas registradas.</div>
-      )}
-    </section>
+        </header>
+
+        <section class="summary-grid" aria-label="Resumen de tiendas">
+          <article class="summary-card">
+            <span class="summary-label">Tiendas totales</span>
+            <strong class="summary-value">{formatNumber(totalStores)}</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Tiendas activas</span>
+            <strong class="summary-value">{formatNumber(activeStores)}</strong>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Tiendas suspendidas</span>
+            <strong class="summary-value">{formatNumber(suspendedStores)}</strong>
+          </article>
+        </section>
+
+        <section class="store-panel" aria-label="Tiendas registradas">
+          <div class="store-panel-head">
+            <div>
+              <h2 class="store-panel-title">Tiendas registradas</h2>
+              <p class="store-panel-text">Gestion comercial basica de las tiendas publicadas en Tu Senda 84.</p>
+            </div>
+            <span class="store-count">{formatNumber(totalStores)} tiendas</span>
+          </div>
+
+          {stores.length > 0 ? (
+            <div class="store-list">
+              <div class="store-row is-head" aria-hidden="true">
+                <span>Nombre de tienda</span>
+                <span>Estado</span>
+                <span>Slug</span>
+                <span>Actividad</span>
+                <span>Acciones</span>
+              </div>
+              {stores.map((store) => {
+                const active = String(store.status || '').toLowerCase() === ACTIVE_STORE_STATUS;
+                const href = storeHref(store);
+                return (
+                  <article
+                    class="store-row"
+                    data-store-id={store.id}
+                    data-store-name={store.name}
+                    data-store-slug={store.slug}
+                    data-store-status={active ? 'active' : 'suspended'}
+                    data-store-phone={store.owner_phone || ''}
+                  >
+                    <div class="store-name">
+                      <strong>{store.name || 'Tienda sin nombre'}</strong>
+                      {isPowerZona(store) && <span>Tienda principal PowerZona</span>}
+                    </div>
+                    <span class={`status-pill ${statusClass(store.status)}`}>{normalizeStatus(store.status)}</span>
+                    <span class="slug-text">/{store.slug || 'sin-slug'}</span>
+                    <span class="metric-text">{formatNumber(store.views_count)} visitas | {formatNumber(store.orders_count)} pedidos</span>
+                    <div class="actions">
+                      {href && <a class="action-link" href={href}>Ver tienda</a>}
+                      <button class="action-button edit-store" type="button">Editar</button>
+                      <button class={`action-button toggle-status ${active ? 'status-danger' : ''}`} type="button" data-next-status={active ? 'suspended' : 'active'}>
+                        {active ? 'Suspender' : 'Activar'}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div class="empty-master">Aun no hay tiendas registradas.</div>
+          )}
+        </section>
+      </>
+    )}
   </main>
+
+  <dialog id="store-dialog" class="store-dialog">
+    <form id="store-form" class="store-form" method="dialog">
+      <input id="store-id" name="store_id" type="hidden" />
+      <div class="dialog-head">
+        <div>
+          <h2 id="dialog-title" class="dialog-title">Crear tienda</h2>
+          <p class="dialog-subtitle">Datos principales para publicar y administrar la tienda.</p>
+        </div>
+        <button id="close-dialog" class="close-button" type="button" aria-label="Cerrar">x</button>
+      </div>
+
+      <div class="field-grid">
+        <div class="field">
+          <label for="store-name">Nombre de tienda</label>
+          <input id="store-name" name="name" type="text" maxlength="140" autocomplete="off" required />
+        </div>
+        <div class="field">
+          <label for="store-slug">Slug publico</label>
+          <input id="store-slug" name="slug" type="text" maxlength="80" autocomplete="off" required />
+        </div>
+        <div class="field">
+          <label for="store-phone">WhatsApp</label>
+          <input id="store-phone" name="owner_phone" type="tel" maxlength="60" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="store-status">Estado</label>
+          <select id="store-status" name="status">
+            <option value="active">Activa</option>
+            <option value="suspended">Suspendida</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="store-alert" class="form-alert" role="alert"></div>
+
+      <div class="form-actions">
+        <button id="cancel-dialog" class="secondary-button" type="button">Cancelar</button>
+        <button id="save-store" class="save-button" type="submit">Guardar tienda</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    import { logout } from '../../lib/auth';
+    import {
+      createStoreFromMaster,
+      normalizeStoreSlug,
+      setStoreStatusFromMaster,
+      updateStoreFromMaster,
+    } from '../../lib/stores';
+
+    const logoutButton = document.getElementById('master-logout');
+    const createButton = document.getElementById('create-store');
+    const dialog = document.getElementById('store-dialog') as HTMLDialogElement | null;
+    const form = document.getElementById('store-form') as HTMLFormElement | null;
+    const title = document.getElementById('dialog-title');
+    const storeIdInput = document.getElementById('store-id') as HTMLInputElement | null;
+    const nameInput = document.getElementById('store-name') as HTMLInputElement | null;
+    const slugInput = document.getElementById('store-slug') as HTMLInputElement | null;
+    const phoneInput = document.getElementById('store-phone') as HTMLInputElement | null;
+    const statusInput = document.getElementById('store-status') as HTMLSelectElement | null;
+    const saveButton = document.getElementById('save-store') as HTMLButtonElement | null;
+    const alertBox = document.getElementById('store-alert');
+
+    let slugWasManuallyEdited = false;
+
+    function showError(message: string) {
+      if (!alertBox) return;
+      alertBox.textContent = message;
+      alertBox.classList.add('is-visible');
+    }
+
+    function clearError() {
+      if (!alertBox) return;
+      alertBox.textContent = '';
+      alertBox.classList.remove('is-visible');
+    }
+
+    function setSaving(isSaving: boolean) {
+      if (!saveButton) return;
+      saveButton.disabled = isSaving;
+      saveButton.textContent = isSaving ? 'Guardando...' : 'Guardar tienda';
+    }
+
+    function openStoreDialog(store?: HTMLElement) {
+      if (!dialog || !form || !storeIdInput || !nameInput || !slugInput || !phoneInput || !statusInput || !title) return;
+      clearError();
+      form.reset();
+      slugWasManuallyEdited = !!store;
+
+      if (store) {
+        title.textContent = 'Editar tienda';
+        storeIdInput.value = store.dataset.storeId || '';
+        nameInput.value = store.dataset.storeName || '';
+        slugInput.value = store.dataset.storeSlug || '';
+        phoneInput.value = store.dataset.storePhone || '';
+        statusInput.value = store.dataset.storeStatus || 'active';
+      } else {
+        title.textContent = 'Crear tienda';
+        storeIdInput.value = '';
+        statusInput.value = 'active';
+      }
+
+      dialog.showModal();
+      nameInput.focus();
+    }
+
+    function closeStoreDialog() {
+      clearError();
+      dialog?.close();
+    }
+
+    logoutButton?.addEventListener('click', () => {
+      logout();
+      document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+      window.location.assign('/login');
+    });
+
+    createButton?.addEventListener('click', () => openStoreDialog());
+    document.getElementById('close-dialog')?.addEventListener('click', closeStoreDialog);
+    document.getElementById('cancel-dialog')?.addEventListener('click', closeStoreDialog);
+
+    nameInput?.addEventListener('input', () => {
+      if (!slugInput || slugWasManuallyEdited) return;
+      slugInput.value = normalizeStoreSlug(nameInput.value);
+    });
+
+    slugInput?.addEventListener('input', () => {
+      slugWasManuallyEdited = true;
+      slugInput.value = normalizeStoreSlug(slugInput.value);
+    });
+
+    document.querySelectorAll<HTMLElement>('.edit-store').forEach((button) => {
+      button.addEventListener('click', () => {
+        const store = button.closest<HTMLElement>('.store-row');
+        if (store) openStoreDialog(store);
+      });
+    });
+
+    document.querySelectorAll<HTMLButtonElement>('.toggle-status').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const store = button.closest<HTMLElement>('.store-row');
+        const storeId = store?.dataset.storeId || '';
+        const nextStatus = button.dataset.nextStatus || 'active';
+        if (!storeId) return;
+
+        button.disabled = true;
+        button.textContent = nextStatus === 'active' ? 'Activando...' : 'Suspendiendo...';
+
+        try {
+          await setStoreStatusFromMaster(storeId, nextStatus);
+          window.location.reload();
+        } catch (error: any) {
+          alert(error?.message || 'No se pudo actualizar el estado de la tienda.');
+          button.disabled = false;
+          button.textContent = nextStatus === 'active' ? 'Activar' : 'Suspender';
+        }
+      });
+    });
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!storeIdInput || !nameInput || !slugInput || !phoneInput || !statusInput) return;
+
+      clearError();
+      setSaving(true);
+
+      const payload = {
+        name: nameInput.value,
+        slug: slugInput.value,
+        owner_phone: phoneInput.value,
+        status: statusInput.value,
+      };
+
+      try {
+        if (storeIdInput.value) {
+          await updateStoreFromMaster(storeIdInput.value, payload);
+        } else {
+          await createStoreFromMaster(payload);
+        }
+
+        window.location.reload();
+      } catch (error: any) {
+        showError(error?.message || 'No se pudo guardar la tienda.');
+        setSaving(false);
+      }
+    });
+  </script>
 </Layout>
