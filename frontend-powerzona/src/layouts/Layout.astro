@@ -4,15 +4,15 @@ import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 
-const { isBazar = false } = Astro.props;
+const { isBazar = false, isMaster = false } = Astro.props;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const currentStore = isBazar ? { id: '', slug: '' } : await getCurrentStore(Astro);
+const hideStoreFloatingUi = Boolean(isBazar || isMaster);
+const currentStore = hideStoreFloatingUi ? { id: '', slug: '' } : await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
 const currentStoreSlug = currentStore.slug || 'powerzona';
 const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
 const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
-const hideStoreFloatingUi = Boolean(isBazar);
 ---
 
 <!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->

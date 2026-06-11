@@ -14,6 +14,17 @@ export type PublicStore = {
   [key: string]: any;
 };
 
+export type MasterStoreSummary = {
+  name: string;
+  slug: string;
+  status: string;
+  featured?: boolean;
+  views_count?: number;
+  orders_count?: number;
+  created?: string;
+  updated?: string;
+};
+
 function normalizeStoreFileValue(value: any) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return value ? [value] : [];
@@ -124,6 +135,24 @@ export async function getFeaturedStores(): Promise<PublicStore[]> {
   });
 
   return stores.map((store) => addStoreImages(store as PublicStore));
+}
+
+export async function getAllStoresForMaster(): Promise<MasterStoreSummary[]> {
+  const stores = await pb.collection('stores').getFullList({
+    fields: 'name,slug,status,featured,views_count,orders_count,created,updated',
+    sort: '-featured,status,name',
+  });
+
+  return stores.map((store: any) => ({
+    name: store.name || '',
+    slug: store.slug || '',
+    status: store.status || '',
+    featured: store.featured === true,
+    views_count: Number(store.views_count || 0),
+    orders_count: Number(store.orders_count || 0),
+    created: store.created || '',
+    updated: store.updated || '',
+  }));
 }
 
 export async function getCurrentStore(context?: unknown): Promise<PublicStore> {

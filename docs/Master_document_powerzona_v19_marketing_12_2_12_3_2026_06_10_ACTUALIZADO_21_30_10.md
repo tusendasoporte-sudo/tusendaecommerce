@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
 **Fecha de actualización:** 2026-06-10  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]` preparadas sin eliminar rutas actuales y carrito separado por store.
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona` y base visual del Master Admin en `/master`.
 
 ---
 
@@ -9177,6 +9177,9 @@ Estado actual:
 21.30.6 completado / rutas públicas por store preparadas sin eliminar rutas actuales
 21.30.6A completado / limpieza de duplicados generados durante la preparación de rutas por store
 21.30.7 completado / carrito separado por store para evitar mezcla entre Tiendas públicas
+21.30.8 completado / Bazar principal visual Tu Senda 84 preparado
+21.30.9 completado / verificación Bazar principal + tienda pública PowerZona
+21.30.10 completado / base visual del Master Admin creada en /master
 ```
 
 Regla oficial de nombres:
@@ -9227,10 +9230,13 @@ Si el cambio es una corrección menor dentro de un punto ya trabajado, debe usar
 21.30.5B
 21.30.6A
 21.30.7A
+21.30.8A
+21.30.9A
+21.30.10A
 
 Ejemplo:
-- Si 21.30.7 ya existe, el próximo punto grande debe ser 21.30.8.
-- Si se corrige algo de 21.30.7, usar 21.30.7A.
+- Si 21.30.10 ya existe, el próximo punto grande debe ser 21.30.11.
+- Si se corrige algo de 21.30.10, usar 21.30.10A.
 ```
 
 Regla de trabajo documental:
@@ -9775,7 +9781,313 @@ El carrito ya está preparado para convivir con varias Tiendas públicas sin mez
 
 ---
 
-#### 21.30.8. Sistema administrativo previsto
+#### 21.30.8. Bazar principal visual Tu Senda 84
+
+Se preparó la primera portada visual del Bazar principal de **Tu Senda 84**.
+
+Objetivo del bloque:
+
+```txt
+Separar oficialmente el Bazar principal de Tu Senda 84 de la tienda pública PowerZona.
+```
+
+Resultado principal:
+
+```txt
+Antes:
+/ = tienda pública PowerZona
+
+Ahora:
+/ = Bazar principal Tu Senda 84
+/t/powerzona = tienda pública PowerZona
+```
+
+Cambios implementados:
+
+```txt
+- `/` dejó de renderizar la tienda pública PowerZona.
+- `/` ahora muestra el Bazar principal visual de Tu Senda 84.
+- El Bazar lista tiendas activas/destacadas desde la colección `stores`.
+- PowerZona aparece como primera tienda pública destacada.
+- La tarjeta de PowerZona enlaza a `/t/powerzona`.
+- `/t/powerzona` conserva la tienda pública PowerZona.
+- Se separó la vista pública de tienda en un componente reutilizable.
+```
+
+Componente creado:
+
+```txt
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+```
+
+Uso del componente:
+
+```txt
+PublicStoreHome.astro contiene la plantilla pública global de tiendas.
+La ruta /t/[storeSlug]/index.astro usa este componente para renderizar la tienda pública correspondiente.
+```
+
+Rutas confirmadas:
+
+```txt
+/                            → Bazar principal Tu Senda 84
+/t/powerzona                 → Tienda pública PowerZona
+/t/powerzona/producto/...    → Producto dentro de PowerZona
+/t/powerzona/categoria/...   → Categoría dentro de PowerZona
+/t/powerzona/subcategoria/... → Subcategoría dentro de PowerZona
+/t/powerzona/buscar          → Buscar dentro de PowerZona
+/t/powerzona/checkout        → Checkout dentro de PowerZona
+/t/powerzona/regalos         → Regalos dentro de PowerZona
+```
+
+Helpers agregados o usados:
+
+```txt
+getActiveStores()
+getFeaturedStores()
+getPublicPath()
+getStorePathPrefix()
+getCurrentStore()
+```
+
+Ajuste en Layout:
+
+```txt
+Layout.astro permite modo Bazar mediante `isBazar`.
+```
+
+Regla del modo Bazar:
+
+```txt
+En `/` Bazar no debe aparecer:
+- carrito flotante de tienda
+- selector de moneda de tienda
+- scripts flotantes de tienda pública
+- menú público de PowerZona
+```
+
+Regla para tiendas públicas:
+
+```txt
+En `/t/powerzona` sí debe seguir funcionando:
+- carrito
+- moneda
+- menú público
+- promociones
+- cupones
+- regalos
+- checkout
+- WhatsApp
+```
+
+Archivos tocados:
+
+```txt
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+frontend-powerzona/src/pages/t/[storeSlug]/index.astro
+frontend-powerzona/src/pages/t/[storeSlug]/regalos/index.astro
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/lib/stores.ts
+```
+
+Confirmaciones:
+
+```txt
+- No se tocó panel admin.
+- No se implementaron usuarios.
+- No se implementaron roles.
+- No se implementó login.
+- No se creó panel master todavía.
+- No se cambió lógica comercial de promociones, cupones, regalos, monedas, envíos ni WhatsApp.
+```
+
+Validación técnica:
+
+```txt
+npm.cmd run build ejecutado correctamente.
+```
+
+Resultado:
+
+```txt
+Build correcto.
+Solo quedaron warnings conocidos de Astro sobre getStaticPaths() en rutas dinámicas antiguas server-rendered.
+```
+
+Nota técnica:
+
+```txt
+Durante una prueba local, el dev server falló por `Access is denied` durante la optimización de dependencias de Vite/Astro.
+Como el build de producción pasó correctamente, se considera un problema local de entorno/caché/permisos y no un bloqueo del código.
+```
+
+---
+
+#### 21.30.9. Verificación Bazar principal y tienda pública PowerZona
+
+Se verificó la separación entre el Bazar principal y la tienda pública PowerZona después del bloque 21.30.8.
+
+Objetivo:
+
+```txt
+Confirmar que `/` funciona como Bazar principal y que `/t/powerzona` conserva la tienda pública PowerZona sin enlaces rotos.
+```
+
+Corrección aplicada durante la verificación:
+
+```txt
+frontend-powerzona/src/pages/index.astro
+```
+
+Detalle:
+
+```txt
+Se aseguró que PowerZona se incluya siempre en el Bazar si está activa, aunque en el futuro existan otras tiendas marcadas como destacadas.
+```
+
+Confirmaciones del Bazar:
+
+```txt
+- `/` queda como Bazar principal Tu Senda 84.
+- El Bazar muestra texto comercial.
+- El Bazar muestra tiendas destacadas.
+- El Bazar muestra entrada a `/t/powerzona`.
+- PowerZona se incluye siempre en el Bazar si está activa.
+- El Bazar no carga Cart.
+- El Bazar no carga CurrencySwitcher.
+- El Bazar no carga cart-promotions.js.
+- El Bazar no carga scripts flotantes de tienda por `isBazar`.
+```
+
+Confirmaciones de PowerZona:
+
+```txt
+- `/t/powerzona` usa PublicStoreHome.astro.
+- `/t/powerzona` mantiene la tienda pública PowerZona.
+- Los enlaces internos usan getPublicPath.
+- Producto, categoría, subcategoría, búsqueda y regalos conservan el prefijo `/t/powerzona`.
+- El carrito en `/t/powerzona` apunta a `/t/powerzona/checkout`.
+- Checkout usa CURRENT_STORE_ID.
+- Checkout guarda orders.store = CURRENT_STORE_ID.
+- Checkout genera WhatsApp.
+- Checkout limpia CART_STORAGE_KEY / CHECKOUT_CART_STORAGE_KEY del store actual.
+- `/t/powerzona/regalos` existe y reutiliza la página pública de regalos.
+```
+
+Rutas antiguas:
+
+```txt
+Las rutas antiguas públicas se conservan y compilan.
+No se eliminan todavía para mantener compatibilidad temporal.
+```
+
+Alcance no tocado:
+
+```txt
+- No se tocó admin.
+- No se crearon usuarios.
+- No se crearon roles.
+- No se creó login.
+- No se creó Master Admin en este bloque.
+```
+
+Validación técnica:
+
+```txt
+npm.cmd run build falló dentro del sandbox por Access is denied durante optimización de dependencias.
+Reejecutado fuera del sandbox con aprobación: build OK.
+Solo quedaron warnings existentes de Astro sobre getStaticPaths() en rutas dinámicas antiguas.
+```
+
+Recomendación posterior:
+
+```txt
+Hacer smoke test visual/manual breve de:
+- /
+- /t/powerzona
+- /t/powerzona/buscar
+- /t/powerzona/regalos
+- checkout real con producto
+
+Si se ve bien, avanzar al primer bloque de Master Admin.
+```
+
+---
+
+#### 21.30.10. Base visual del Master Admin de Tu Senda 84
+
+Se creó la primera base visual del Panel Master Admin de Tu Senda 84.
+
+Ruta creada:
+
+```txt
+/master
+```
+
+Objetivo:
+
+```txt
+Crear una interfaz web propia para que el dueño de Tu Senda 84 pueda administrar el Bazar principal y las Tiendas públicas, sin depender del dashboard técnico de PocketBase.
+```
+
+Resultado:
+
+```txt
+- /master muestra un dashboard base.
+- El dashboard muestra “Tu Senda 84”.
+- El dashboard muestra “Panel Master Admin”.
+- PowerZona aparece en el listado de tiendas.
+- El botón “Ver tienda” de PowerZona apunta a /t/powerzona.
+- /master no renderiza carrito flotante.
+- /master no renderiza selector de moneda.
+- /master no carga cart-promotions.js ni scripts flotantes de tienda pública.
+- No se tocó /admin ni el panel admin de tienda.
+- No se implementaron usuarios, roles ni login todavía.
+- No se crearon migraciones nuevas.
+```
+
+Función nueva creada:
+
+```txt
+getAllStoresForMaster()
+```
+
+Archivos tocados:
+
+```txt
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/lib/stores.ts
+frontend-powerzona/src/pages/master/index.astro
+```
+
+Validación técnica:
+
+```txt
+Se validó /master, / y /t/powerzona con solicitudes locales mediante HTML/respuesta HTTP.
+npm.cmd run build ejecutado correctamente.
+```
+
+Resultado:
+
+```txt
+Build exitoso.
+Solo quedaron warnings existentes de Astro sobre getStaticPaths() en páginas dinámicas.
+```
+
+Regla actual del Master Admin:
+
+```txt
+/master existe como base visual.
+Todavía no tiene autenticación real.
+Todavía no tiene roles.
+Todavía no crea tiendas.
+Todavía no crea admins de tiendas.
+```
+
+---
+
+#### 21.30.11. Sistema administrativo previsto
 
 El panel admin actual que hoy controla PowerZona será la base del:
 
@@ -9817,26 +10129,15 @@ store_staff
 Regla:
 
 ```txt
-No se implementan todavía usuarios, roles, login ni redirecciones.
+Todavía no se implementan usuarios, roles, login ni redirecciones.
 Este punto queda como arquitectura prevista para fases posteriores.
 ```
 
 ---
 
-#### 21.30.9. Límites actuales del bloque multitienda
+#### 21.30.12. Límites actuales del bloque multitienda
 
-Todavía no está implementado:
-
-```txt
-- Bazar principal visual de Tu Senda 84.
-- Conversión de / en portada del Bazar.
-- Usuarios, roles y login multitienda.
-- Master Admin web.
-- Panel admin filtrado por store.
-- Reglas finales de permisos por tienda.
-```
-
-Ya quedó preparado como base:
+Ya quedó implementado como base:
 
 ```txt
 - Colección stores.
@@ -9846,18 +10147,34 @@ Ya quedó preparado como base:
 - Consultas públicas principales por store.
 - Rutas públicas /t/[storeSlug].
 - Carrito separado por store.
+- Bazar principal visual en `/`.
+- Tienda pública PowerZona en `/t/powerzona`.
+- Regalos preparados bajo `/t/[storeSlug]/regalos`.
+- Base visual del Master Admin en `/master`.
 ```
 
-Todavía no se debe cambiar:
+Todavía no está implementado:
 
 ```txt
-- Diseño público global.
+- Usuarios, roles y login multitienda.
+- Protección real de `/master`.
+- Creación de tiendas desde `/master`.
+- Creación/asignación de admins de tienda desde `/master`.
+- Panel admin filtrado por store.
+- Reglas finales de permisos por tienda.
+- Rutas `/t/[storeSlug]/admin`.
+```
+
+Todavía no se debe cambiar sin prompt específico:
+
+```txt
 - Lógica comercial de promociones.
 - Lógica comercial de cupones.
 - Lógica comercial de regalos.
 - Lógica de monedas.
 - Lógica de envíos.
 - Formato de WhatsApp.
+- Panel admin actual `/admin`.
 ```
 
 Regla importante:
@@ -9870,41 +10187,42 @@ Los cambios exclusivos del Bazar principal se trabajan separados de los cambios 
 
 ---
 
-#### 21.30.10. Próximo avance recomendado
+#### 21.30.13. Próximo avance recomendado
 
 Próximo paso recomendado:
 
 ```txt
-PROMPT 21.30.8 — Preparar Bazar principal visual de Tu Senda 84 sin romper /t/powerzona
+PROMPT 21.30.11 — Crear base de usuarios y roles para Master Admin y Admin de tienda
 ```
 
 Objetivo del próximo paso:
 
 ```txt
-Empezar la separación visual entre:
-- / = Bazar principal de Tu Senda 84.
-- /t/powerzona = Tienda pública PowerZona.
+Preparar la base de autenticación y roles para separar:
+- master_admin
+- store_admin
+- store_staff
 ```
 
 Reglas para el próximo paso:
 
 ```txt
-No romper /t/powerzona.
-No romper checkout de PowerZona.
-No tocar panel admin.
-No implementar usuarios, roles ni login todavía.
-No cambiar lógica comercial de promociones, cupones, regalos, monedas, envíos ni WhatsApp.
+No adaptar todavía todo el panel `/admin` por store.
+No mover todavía `/admin` a `/t/[storeSlug]/admin`.
+No crear todavía sistema completo de creación de tiendas.
+No crear todavía panel completo de usuarios.
+No romper `/`, `/t/powerzona`, `/master` ni `/admin`.
 ```
 
-Después de eso, los siguientes pasos recomendados serían:
+Orden recomendado después:
 
 ```txt
-21.30.9 Preparar usuarios, roles y login multitienda.
-21.30.10 Adaptar panel admin global de Tiendas públicas por store.
+21.30.12 Proteger /master para que solo entre master_admin.
+21.30.13 Adaptar /admin para que sea panel global de tiendas públicas filtrado por store.
+21.30.14 Crear desde /master una tienda nueva + asignar admin de tienda.
 ```
 
 ---
-
 
 ### 21.31. Bloque cerrado: Monedas tienda pública, cobro mixto, envío separado y resumen admin
 

@@ -1,0 +1,174 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { ACTIVE_STORE_STATUS, DEFAULT_STORE_SLUG, getAllStoresForMaster } from '../../lib/stores';
+
+// TODO interno: conectar autenticacion Master Admin cuando se implemente usuarios y roles.
+const stores = await getAllStoresForMaster();
+
+const totalStores = stores.length;
+const activeStores = stores.filter((store) => String(store.status || '').toLowerCase() === ACTIVE_STORE_STATUS).length;
+const featuredStores = stores.filter((store) => store.featured === true).length;
+const pausedStores = stores.filter((store) => String(store.status || '').toLowerCase() !== ACTIVE_STORE_STATUS).length;
+
+function normalizeStatus(status: string) {
+  const value = String(status || '').trim().toLowerCase();
+  if (value === ACTIVE_STORE_STATUS) return 'Activa';
+  if (value === 'paused' || value === 'pause') return 'Pausada';
+  if (value === 'suspended') return 'Suspendida';
+  if (value === 'inactive') return 'Inactiva';
+  return 'En revision';
+}
+
+function statusClass(status: string) {
+  return String(status || '').trim().toLowerCase() === ACTIVE_STORE_STATUS ? 'is-active' : 'is-paused';
+}
+
+function storeHref(store: any) {
+  const slug = String(store.slug || '').trim().toLowerCase();
+  if (!slug) return '';
+  return `/t/${encodeURIComponent(slug)}`;
+}
+
+function isPowerZona(store: any) {
+  return String(store.slug || '').trim().toLowerCase() === DEFAULT_STORE_SLUG;
+}
+
+function formatNumber(value: unknown) {
+  return new Intl.NumberFormat('es-VE').format(Number(value || 0));
+}
+---
+
+<Layout isMaster={true}>
+  <style>
+    .master-shell { display: grid; gap: 24px; color: #111827; }
+    .master-header { display: grid; gap: 16px; border-radius: 8px; border: 1px solid #e5e7eb; background: linear-gradient(135deg, #ffffff 0%, #f8fafc 58%, #eef2ff 100%); padding: clamp(22px, 5vw, 38px); box-shadow: 0 18px 50px rgba(15, 23, 42, .07); }
+    .master-kicker { width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; padding: 7px 11px; font-size: 12px; font-weight: 950; }
+    .master-title { margin: 0; color: #0f172a; font-size: clamp(34px, 7vw, 58px); line-height: .98; font-weight: 1000; letter-spacing: 0; }
+    .master-subtitle { margin: 0; max-width: 700px; color: #475569; font-size: clamp(15px, 2vw, 18px); line-height: 1.5; font-weight: 750; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .summary-card { display: grid; gap: 8px; min-height: 118px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; padding: 18px; box-shadow: 0 14px 38px rgba(15, 23, 42, .06); }
+    .summary-label { color: #64748b; font-size: 12px; line-height: 1.25; font-weight: 900; }
+    .summary-value { color: #0f172a; font-size: 36px; line-height: 1; font-weight: 1000; letter-spacing: 0; }
+    .store-panel { overflow: hidden; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 18px 50px rgba(15, 23, 42, .07); }
+    .store-panel-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+    .store-panel-title { margin: 0; color: #0f172a; font-size: 24px; line-height: 1.05; font-weight: 1000; letter-spacing: 0; }
+    .store-panel-text { margin: 6px 0 0; color: #64748b; font-size: 14px; line-height: 1.4; font-weight: 750; }
+    .store-count { flex: 0 0 auto; border-radius: 999px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #166534; padding: 8px 12px; font-size: 12px; font-weight: 1000; }
+    .store-list { display: grid; }
+    .store-row { display: grid; grid-template-columns: minmax(180px, 1.35fr) 112px 110px minmax(130px, .9fr) 120px 240px; gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
+    .store-row:last-child { border-bottom: 0; }
+    .store-row.is-head { background: #fff; color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; }
+    .store-name { display: grid; gap: 5px; min-width: 0; }
+    .store-name strong { color: #0f172a; font-size: 15px; line-height: 1.2; font-weight: 1000; overflow-wrap: anywhere; }
+    .store-name span { color: #64748b; font-size: 12px; font-weight: 800; }
+    .status-pill, .featured-pill { width: max-content; max-width: 100%; border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 1000; }
+    .status-pill.is-active { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
+    .status-pill.is-paused { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+    .featured-pill { background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; }
+    .featured-pill.is-featured { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
+    .slug-text { color: #334155; font-size: 13px; font-weight: 900; overflow-wrap: anywhere; }
+    .metric-text { color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .action-link, .action-button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; border-radius: 8px; padding: 9px 11px; font-size: 12px; line-height: 1; font-weight: 1000; text-decoration: none; white-space: nowrap; }
+    .action-link { border: 1px solid #0f172a; background: #0f172a; color: #fff; }
+    .action-button { border: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+    .empty-master { padding: 22px; color: #64748b; font-size: 14px; font-weight: 800; }
+
+    @media (max-width: 1120px) {
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .store-row { grid-template-columns: minmax(180px, 1fr) 110px 110px; }
+      .store-row.is-head { display: none; }
+      .slug-text, .metric-text { grid-column: 1 / -1; }
+      .actions { grid-column: 1 / -1; justify-content: flex-start; }
+    }
+
+    @media (max-width: 640px) {
+      .master-shell { gap: 18px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .store-panel-head { display: grid; align-items: start; }
+      .store-count { width: max-content; }
+      .store-row { grid-template-columns: 1fr; gap: 10px; padding: 16px; }
+      .actions { display: grid; grid-template-columns: 1fr; }
+      .action-link, .action-button { width: 100%; min-height: 42px; }
+    }
+  </style>
+
+  <main class="master-shell">
+    <header class="master-header" aria-label="Panel Master Admin">
+      <span class="master-kicker">Tu Senda 84</span>
+      <div>
+        <h1 class="master-title">Panel Master Admin</h1>
+        <p class="master-subtitle">Administra tu Bazar principal y las tiendas publicas registradas.</p>
+      </div>
+    </header>
+
+    <section class="summary-grid" aria-label="Resumen de tiendas">
+      <article class="summary-card">
+        <span class="summary-label">Tiendas totales</span>
+        <strong class="summary-value">{formatNumber(totalStores)}</strong>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">Tiendas activas</span>
+        <strong class="summary-value">{formatNumber(activeStores)}</strong>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">Tiendas destacadas</span>
+        <strong class="summary-value">{formatNumber(featuredStores)}</strong>
+      </article>
+      <article class="summary-card">
+        <span class="summary-label">Tiendas pausadas/suspendidas</span>
+        <strong class="summary-value">{formatNumber(pausedStores)}</strong>
+      </article>
+    </section>
+
+    <section class="store-panel" aria-label="Tiendas registradas">
+      <div class="store-panel-head">
+        <div>
+          <h2 class="store-panel-title">Tiendas registradas</h2>
+          <p class="store-panel-text">Vista general para revisar el estado comercial de cada tienda.</p>
+        </div>
+        <span class="store-count">{formatNumber(totalStores)} tiendas</span>
+      </div>
+
+      {stores.length > 0 ? (
+        <div class="store-list">
+          <div class="store-row is-head" aria-hidden="true">
+            <span>Nombre de tienda</span>
+            <span>Estado</span>
+            <span>Destacada</span>
+            <span>Slug</span>
+            <span>Actividad</span>
+            <span>Acciones</span>
+          </div>
+          {stores.map((store) => {
+            const active = String(store.status || '').toLowerCase() === ACTIVE_STORE_STATUS;
+            const href = active ? storeHref(store) : '';
+            return (
+              <article class="store-row">
+                <div class="store-name">
+                  <strong>{store.name || 'Tienda sin nombre'}</strong>
+                  {isPowerZona(store) && <span>Tienda principal PowerZona</span>}
+                </div>
+                <span class={`status-pill ${statusClass(store.status)}`}>{normalizeStatus(store.status)}</span>
+                <span class={`featured-pill ${store.featured === true ? 'is-featured' : ''}`}>{store.featured === true ? 'Si' : 'No'}</span>
+                <span class="slug-text">/{store.slug || 'sin-slug'}</span>
+                <span class="metric-text">{formatNumber(store.views_count)} visitas · {formatNumber(store.orders_count)} pedidos</span>
+                <div class="actions">
+                  {href ? (
+                    <a class="action-link" href={href}>Ver tienda</a>
+                  ) : (
+                    <button class="action-button" type="button" disabled>Ver tienda</button>
+                  )}
+                  <button class="action-button" type="button" disabled>Editar</button>
+                  <button class="action-button" type="button" disabled>{active ? 'Pausar' : 'Activar'}</button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div class="empty-master">Proximamente veras aqui las tiendas registradas.</div>
+      )}
+    </section>
+  </main>
+</Layout>
