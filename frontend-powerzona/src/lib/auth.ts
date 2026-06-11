@@ -33,7 +33,9 @@ function getPocketBaseUrl() {
 }
 
 export function createAuthClient() {
-  return new PocketBase(getPocketBaseUrl());
+  const authPb = new PocketBase(getPocketBaseUrl());
+  authPb.autoCancellation(false);
+  return authPb;
 }
 
 export function loadAuthClientFromCookie(cookieHeader = '') {
@@ -83,18 +85,34 @@ export function isStoreStaff(user: AuthUser | null | undefined) {
   return isActiveUser(user) && getCurrentUserRole(user || null) === USER_ROLES.STORE_STAFF;
 }
 
+export function isStoreUser(user: AuthUser | null | undefined) {
+  return isStoreAdmin(user) || isStoreStaff(user);
+}
+
 export function getUserStoreId(user: AuthUser | null | undefined) {
   const store = user?.store;
   if (Array.isArray(store)) return String(store[0] || '');
   return store ? String(store) : '';
 }
 
+export function getCurrentUserStoreId(user: AuthUser | null | undefined = getCurrentUser()) {
+  return getUserStoreId(user);
+}
+
 export function requireMasterAdmin(user: AuthUser | null = getCurrentUser()) {
   return isMasterAdmin(user) ? user : null;
 }
 
+export function requireAdminAuth(user: AuthUser | null = getCurrentUser()) {
+  return isMasterAdmin(user) || isStoreUser(user) ? user : null;
+}
+
+export function requireStoreAdminAuth(user: AuthUser | null = getCurrentUser()) {
+  return isStoreUser(user) ? user : null;
+}
+
 export function requireStoreAccess(user: AuthUser | null = getCurrentUser(), storeId?: string) {
-  if (!isStoreAdmin(user) && !isStoreStaff(user)) return false;
+  if (!isStoreUser(user)) return false;
   const userStoreId = getUserStoreId(user);
   if (!storeId) return !!userStoreId;
   return userStoreId === storeId;

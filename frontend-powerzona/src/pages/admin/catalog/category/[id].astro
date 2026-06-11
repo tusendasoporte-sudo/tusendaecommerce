@@ -1,8 +1,14 @@
 ---
 export const prerender = false;
 
+import { refreshAuthFromCookie } from '../../../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const categoryId = Astro.params.id;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
 ---
 <!-- PZ-CATALOG-ADMIN-CATEGORY-DETAIL-V1-20260603
   Bloque: Categorías admin visual
@@ -235,9 +241,11 @@ const categoryId = Astro.params.id;
       </section>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, categoryId }}>
+    <script define:vars={{ pocketbaseUrl, categoryId, currentStoreId }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CATEGORY_ID = String(categoryId || '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const AUTH_TOKEN_KEY = 'powerzona_admin_token';
 
       const loginView = document.getElementById('login-view');
@@ -411,6 +419,19 @@ const categoryId = Astro.params.id;
           page += 1;
         } while (page <= totalPages);
         return items;
+      }
+
+      function withStoreFilter(params = '') {
+        const query = new URLSearchParams(params || '');
+        const existing = query.get('filter');
+        if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
+        else query.set('filter', STORE_FILTER);
+        return query.toString();
+      }
+
+      function isCurrentStoreRecord(record) {
+        const value = record?.store;
+        return Array.isArray(value) ? value.includes(CURRENT_STORE_ID) : String(value || '') === CURRENT_STORE_ID;
       }
 
       function recordImageUrl(collection, record) {
@@ -589,10 +610,13 @@ const categoryId = Astro.params.id;
           categoryTitle.textContent = 'Cargando categoría...';
           const [categoryRecord, allCategories, subcategoryRecords, productRecords] = await Promise.all([
             apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`),
-            loadAllRecords('categories', 'sort=order,name'),
-            loadAllRecords('subcategories', `filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=order,name`),
-            loadAllRecords('products', `filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=name`),
+            loadAllRecords('categories', withStoreFilter('sort=order,name')),
+            loadAllRecords('subcategories', withStoreFilter(`filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=order,name`)),
+            loadAllRecords('products', withStoreFilter(`filter=category%3D%22${encodeURIComponent(CATEGORY_ID)}%22&sort=name`)),
           ]);
+          if (!isCurrentStoreRecord(categoryRecord)) {
+            throw new Error('Esta categoria no pertenece a tu tienda.');
+          }
           category = categoryRecord;
           categories = allCategories;
           subcategories = subcategoryRecords;
@@ -618,7 +642,7 @@ const categoryId = Astro.params.id;
         }
         setAlert(categoryAlert, 'Guardando categoría...', 'info');
         const imageFile = categoryImage.files?.[0];
-        const changes = { name, slug: slugify(name), active: categoryActive.checked };
+        const changes = { name, slug: slugify(name), active: categoryActive.checked, store: CURRENT_STORE_ID };
         if (imageFile) {
           const formData = new FormData();
           Object.entries(changes).forEach(([key, value]) => formData.append(key, String(value)));
@@ -652,6 +676,7 @@ const categoryId = Astro.params.id;
         formData.append('slug', slugify(name));
         formData.append('active', subcategoryActive.checked ? 'true' : 'false');
         formData.append('order', String(nextOrder(subcategories)));
+        formData.append('store', CURRENT_STORE_ID);
         if (subcategoryImage.files?.[0]) formData.append('image', await optimizeCatalogImageFile(subcategoryImage.files[0]));
         await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
         subcategoryForm.reset();

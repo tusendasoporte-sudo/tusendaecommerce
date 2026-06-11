@@ -1,5 +1,11 @@
 ---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
 ---
 <!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -654,8 +660,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const AUTH_TOKEN_KEY = 'powerzona_admin_token';
       let products = [];
       let categories = [];
@@ -759,6 +767,19 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           page += 1;
         } while (page <= totalPages);
         return items;
+      }
+
+      function withStoreFilter(params = '') {
+        const query = new URLSearchParams(params || '');
+        const existing = query.get('filter');
+        if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
+        else query.set('filter', STORE_FILTER);
+        return query.toString();
+      }
+
+      function isCurrentStoreRecord(record) {
+        const value = record?.store;
+        return Array.isArray(value) ? value.includes(CURRENT_STORE_ID) : String(value || '') === CURRENT_STORE_ID;
       }
       function parseProductImageOrder(product) {
         const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
@@ -938,10 +959,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           .map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
       }
       async function loadData() {
-        products = await loadAllRecords('products', 'sort=featured_order,name');
-        categories = await loadAllRecords('categories', 'sort=order,name');
+        products = await loadAllRecords('products', withStoreFilter('sort=featured_order,name'));
+        categories = await loadAllRecords('categories', withStoreFilter('sort=order,name'));
         try {
-          visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
+          visualItems = await loadAllRecords('store_visual_items', withStoreFilter('sort=sort_order,title'));
         } catch (error) {
           visualItems = [];
           showAlert(visualAlert, 'No existe todavía la colección store_visual_items. Reinicia PocketBase para aplicar la migración nueva.', 'error');
@@ -1075,6 +1096,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         event.preventDefault();
         const title = visualTitle.value.trim();
         if (!title) return showAlert(visualAlert, 'Escribe un título.', 'error');
+        if (visualCategory.value && !categories.some((category) => category.id === visualCategory.value && isCurrentStoreRecord(category))) {
+          return showAlert(visualAlert, 'La categoria seleccionada no pertenece a esta tienda.', 'error');
+        }
         const formData = new FormData();
         formData.append('type', visualType.value);
         formData.append('title', title);
@@ -1086,6 +1110,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         formData.append('category', visualCategory.value || '');
         formData.append('sort_order', String(Number(visualOrder.value || 0)));
         formData.append('active', visualActive.checked ? 'true' : 'false');
+        formData.append('store', CURRENT_STORE_ID);
         const imageFile = visualImage.files?.[0];
         const attachmentFile = visualAttachment.files?.[0];
         if (imageFile) formData.append('image', imageFile);
@@ -1201,10 +1226,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       else if (window.location.hash === '#monedas') showTab('monedas');
       else showTab('generales');
     </script>
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
       // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
+        const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const AUTH_TOKEN_KEY_PUBLIC_SETTINGS = 'powerzona_admin_token';
         const form = document.getElementById('settings-form');
         const alertBox = document.getElementById('settings-alert');
@@ -1288,8 +1315,36 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
           return result;
         }
+        function withStoreFilter(params = '') {
+          const query = new URLSearchParams(params || '');
+          const existing = query.get('filter');
+          if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER_PUBLIC_SETTINGS}`);
+          else query.set('filter', STORE_FILTER_PUBLIC_SETTINGS);
+          return query.toString();
+        }
+        async function findDefaultCurrencyId() {
+          const result = await api('/api/collections/currencies/records?filter=active%3Dtrue&sort=code&page=1&perPage=1');
+          return (result.items || [])[0]?.id || '';
+        }
+        async function createSettingsRecord() {
+          const payload = {
+            stored_name: fields.storeName.value.trim() || 'PowerZona',
+            store_name: fields.storeName.value.trim() || 'PowerZona',
+            whatsapp_number: fields.whatsapp.value.trim(),
+            order_prefix: normalizeOrderPrefix(fields.orderPrefix.value),
+            active: true,
+            store: CURRENT_STORE_ID_PUBLIC_SETTINGS,
+          };
+          const defaultCurrencyId = await findDefaultCurrencyId();
+          if (defaultCurrencyId) payload.default_currency = defaultCurrencyId;
+          return api('/api/collections/settings/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
         async function loadSettings() {
-          const result = await api('/api/collections/settings/records?filter=active%3Dtrue&sort=-updated&page=1&perPage=1');
+          const result = await api('/api/collections/settings/records?' + withStoreFilter('filter=active%3Dtrue&sort=-updated&page=1&perPage=1'));
           settingsRecord = (result.items || [])[0] || null;
           renderSettings();
         }
@@ -1331,9 +1386,17 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         }
         async function save(event) {
           event.preventDefault();
-          if (!settingsRecord || !settingsRecord.id) { show('No se encontró el registro activo de ajustes.', 'error'); return; }
+          if (!settingsRecord || !settingsRecord.id) {
+            try {
+              settingsRecord = await createSettingsRecord();
+            } catch (error) {
+              show(error.message || 'No se pudo crear el registro de ajustes de esta tienda.', 'error');
+              return;
+            }
+          }
           const data = new FormData();
           data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
+          data.append('stored_name', fields.storeName.value.trim() || 'PowerZona');
           data.append('order_prefix', normalizeOrderPrefix(fields.orderPrefix.value));
           data.append('whatsapp_number', fields.whatsapp.value.trim());
           data.append('welcome_text', fields.welcome.value.trim());
@@ -1341,6 +1404,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           data.append('business_hours', fields.hours.value.trim());
           data.append('public_services_text', fields.services.value.trim());
           data.append('reviews_text', fields.reviews.value.trim());
+          data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
           if (fields.logo.files && fields.logo.files[0]) data.append('logo_image', fields.logo.files[0]);
           if (fields.cover.files && fields.cover.files[0]) data.append('cover_image', await optimizeCoverImageFile(fields.cover.files[0]));
           await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
@@ -1351,7 +1415,14 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         }
         async function saveFooter(event) {
           event.preventDefault();
-          if (!settingsRecord || !settingsRecord.id) { showFooter('No se encontró el registro activo de ajustes.', 'error'); return; }
+          if (!settingsRecord || !settingsRecord.id) {
+            try {
+              settingsRecord = await createSettingsRecord();
+            } catch (error) {
+              showFooter(error.message || 'No se pudo crear el registro de ajustes de esta tienda.', 'error');
+              return;
+            }
+          }
           const data = new FormData();
           data.append('footer_title', fields.footerTitle.value.trim());
           data.append('footer_text', fields.footerText.value.trim());
@@ -1361,6 +1432,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           data.append('footer_link_1_url', fields.footerLink1Url.value.trim());
           data.append('footer_link_2_label', fields.footerLink2Label.value.trim());
           data.append('footer_link_2_url', fields.footerLink2Url.value.trim());
+          data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
           await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
           showFooter('Footer público guardado correctamente.', 'success');
           await loadSettings();
@@ -1377,10 +1449,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     </script>
 
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
       // PZ-AJUSTES-MONEDAS-CLIENT-V1-20260604
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const CURRENT_STORE_ID = String(currentStoreId || '');
+        const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const AUTH_TOKEN_KEY = 'powerzona_admin_token';
         const list = document.getElementById('currency-list');
         const alertBox = document.getElementById('currency-alert');
@@ -1415,11 +1489,18 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           const value = settingsRecord?.default_currency;
           return Array.isArray(value) ? value[0] : value || '';
         }
+        function withStoreFilter(params = '') {
+          const query = new URLSearchParams(params || '');
+          const existing = query.get('filter');
+          if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
+          else query.set('filter', STORE_FILTER);
+          return query.toString();
+        }
         async function loadCurrencies() {
           if (!token()) return;
           const [currencyResult, settingsResult] = await Promise.all([
             api('/api/collections/currencies/records?sort=code&perPage=100'),
-            api('/api/collections/settings/records?filter=active%3Dtrue&sort=-updated&page=1&perPage=1'),
+            api('/api/collections/settings/records?' + withStoreFilter('filter=active%3Dtrue&sort=-updated&page=1&perPage=1')),
           ]);
           currencies = currencyResult.items || [];
           settingsRecord = (settingsResult.items || [])[0] || null;

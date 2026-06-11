@@ -1,7 +1,13 @@
 ---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 // PZ-ADMIN-PRODUCTS-V26-10-OFERTA-TARJETA-GRIS-20260605
 // PZ-PRODUCTOS-ADMIN-V45-FIX-OFERTA-REGULAR-BLOQUEADO-20260605
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
 ---
 <!-- PZ-PRODUCTOS-INFO-ADICIONAL-V6-20260603
   Cambio: guarda Información adicional con PATCH JSON y requiere migración final extra_info.
@@ -1113,8 +1119,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       </div>
     </div>
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const AUTH_TOKEN_KEY = 'powerzona_admin_token';
       const TRACK_STOCK_FIELD = 'track_stock';
 
@@ -1959,6 +1967,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const type = variationTypeInput.value.trim() || 'Sabor';
         const value = variationValueInput.value.trim();
         if (!currentProductId) throw new Error('Primero guarda o abre un producto existente.');
+        if (!products.some((product) => product.id === currentProductId && isCurrentStoreRecord(product))) {
+          throw new Error('El producto padre no pertenece a esta tienda.');
+        }
         if (!value) throw new Error('Escribe el valor de la variación. Ej: Chocolate.');
         if (productTracksStock() && variationStockInput.value === '') throw new Error('Escribe el stock de la variación o desactiva Descontar stock en el producto padre.');
         const formData = new FormData();
@@ -2132,6 +2143,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const slug = slugify(name);
         const category = productCategoryInput.value;
         const subcategory = productSubcategoryInput.value;
+        if (category && !categories.some((item) => item.id === category && isCurrentStoreRecord(item))) {
+          throw new Error('La categoria seleccionada no pertenece a esta tienda.');
+        }
+        if (subcategory && !subcategories.some((item) => item.id === subcategory && item.category === category && isCurrentStoreRecord(item))) {
+          throw new Error('La subcategoria seleccionada no pertenece a esta tienda.');
+        }
         if (!name) throw new Error('Escribe el nombre del producto.');
         if (!slug) throw new Error('Escribe un nombre válido para generar el slug del producto.');
         const duplicate = findDuplicateProduct({
@@ -2154,6 +2171,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (trackStock && !shouldUseVariations && productStockInput.value === '') throw new Error('Este producto descuenta stock. Escribe un stock válido.');
         formData.append('name', name);
         formData.append('slug', slug);
+        formData.append('store', CURRENT_STORE_ID);
         if (isEditing || category) formData.append('category', category);
         if (isEditing || subcategory) formData.append('subcategory', subcategory);
         const offerState = getValidOfferState();
@@ -2201,6 +2219,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           formData.append('slug', slugify(name));
           formData.append('active', 'true');
           formData.append('order', String(nextOrder(categories)));
+          formData.append('store', CURRENT_STORE_ID);
           if (quickCategoryImage.files?.[0]) formData.append('image', quickCategoryImage.files[0]);
           const created = await apiRequest('/api/collections/categories/records', { method: 'POST', body: formData });
           categories = sortByOrderAndName([...categories, created]);
@@ -2227,6 +2246,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           setQuickAlert(quickSubcategoryAlert, 'Escribe el nombre de la subcategoría.', 'error');
           return;
         }
+        if (!categories.some((item) => item.id === categoryId && isCurrentStoreRecord(item))) {
+          setQuickAlert(quickSubcategoryAlert, 'La categoria seleccionada no pertenece a esta tienda.', 'error');
+          return;
+        }
         quickSubcategorySave.disabled = true;
         setQuickAlert(quickSubcategoryAlert, 'Creando subcategoría...', 'info');
         try {
@@ -2237,6 +2260,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           formData.append('category', categoryId);
           formData.append('active', 'true');
           formData.append('order', String(nextOrder(sameCategoryItems)));
+          formData.append('store', CURRENT_STORE_ID);
           if (quickSubcategoryImage.files?.[0]) formData.append('image', quickSubcategoryImage.files[0]);
           const created = await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
           subcategories = sortByOrderAndName([...subcategories, created]);
@@ -2410,6 +2434,19 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           page += 1;
         } while (page <= totalPages);
         return items;
+      }
+
+      function withStoreFilter(params = '') {
+        const query = new URLSearchParams(params || '');
+        const existing = query.get('filter');
+        if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
+        else query.set('filter', STORE_FILTER);
+        return query.toString();
+      }
+
+      function isCurrentStoreRecord(record) {
+        const value = record?.store;
+        return Array.isArray(value) ? value.includes(CURRENT_STORE_ID) : String(value || '') === CURRENT_STORE_ID;
       }
 
       function productImageUrl(product) {
@@ -2714,9 +2751,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         productsList.innerHTML = '<div class="empty-state">Cargando productos...</div>';
         try {
           const [categoryRecords, subcategoryRecords, productRecords] = await Promise.all([
-            loadAllRecords('categories', 'sort=order,name'),
-            loadAllRecords('subcategories', 'sort=order,name'),
-            loadAllRecords('products', 'sort=name'),
+            loadAllRecords('categories', withStoreFilter('sort=order,name')),
+            loadAllRecords('subcategories', withStoreFilter('sort=order,name')),
+            loadAllRecords('products', withStoreFilter('sort=name')),
           ]);
           categories = categoryRecords;
           subcategories = subcategoryRecords;

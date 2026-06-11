@@ -4,7 +4,17 @@
 // PowerZona admin resumen vencimientos y pedidos V13 - 2026-06-03
 // V14 - Ajuste visual pedidos recientes: fila tipo botón y estado resaltado inline.
 // V15 - Top 10 productos: filas modernas tipo cápsula con cantidad y total resaltados.
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreName = adminContext.store.name || 'tu tienda';
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreRoleLabel = adminContext.roleLabel;
+const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
+const adminAuthToken = authPb.authStore.token;
 ---
 
 <!doctype html>
@@ -2615,7 +2625,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				<div class="login-card">
 					<div class="brand-chip">PowerZona Admin</div>
 					<h1 class="login-title">Resumen del negocio</h1>
-					<p class="login-subtitle">Entra con tu administrador de PocketBase para ver las métricas reales de ventas, pedidos y productos.</p>
+					<p class="login-subtitle">Inicia sesión para ver las métricas reales de ventas, pedidos y productos.</p>
 
 					<form id="login-form" class="form-grid">
 						<div>
@@ -2640,8 +2650,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 						<div class="brand">
 							<span class="brand-logo">PZ</span>
 							<div>
-								<p class="brand-title">PowerZona</p>
-								<p class="brand-subtitle">Panel administrativo</p>
+								<p class="brand-title">{currentStoreName}</p>
+								<p class="brand-subtitle">{currentStoreRoleLabel}</p>
 							</div>
 							<button id="sidebar-close-btn" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
 						</div>
@@ -2679,13 +2689,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 						<div class="topbar-left">
 							<button id="sidebar-open-btn" class="menu-btn" type="button" aria-label="Abrir menú"><span class="menu-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M5 12h14M5 17h14" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="menu-btn-text">Menú</span></button>
 							<div>
-								<h1 class="page-title">General <span>› PowerZona</span></h1>
+								<h1 class="page-title">Panel de <span>{currentStoreName}</span></h1>
 								<p id="dashboard-subtitle" class="page-subtitle">Cargando resumen del negocio...</p>
 							</div>
 						</div>
 
 						<div class="topbar-actions">
-							<a class="action-btn" href="/"><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Ver catálogo</a>
+							<a class="action-btn" href={currentStoreSlug ? `/t/${encodeURIComponent(currentStoreSlug)}` : "/"}><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Ver catálogo</a>
 							<a class="action-btn" href="/admin/orders"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-3 2V5a2 2 0 0 1 2-2Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" stroke-linejoin="round"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"/></svg>Ver pedidos</a>
 						</div>
 					</header>
@@ -2889,9 +2899,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl }}>
+		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+			const SESSION_TOKEN = String(adminAuthToken || '');
+			const STORE_FILTER = String(currentStoreFilter || '');
 
 			const loginView = document.getElementById('login-view');
 			const adminView = document.getElementById('admin-view');
@@ -2991,7 +3003,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				adminView.classList.remove('hidden');
 			}
 
-			function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+			function getAdminToken() { return SESSION_TOKEN || localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
 			function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token); }
 			function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
 
@@ -3104,10 +3116,14 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				const perPage = 200;
 				let items = [];
 				let totalPages = 1;
+				const query = new URLSearchParams(params || '');
+				const collectionHasStore = collection !== 'order_items' && collection !== 'product_variations' && collection !== 'manual_coupon_usages';
+				if (collectionHasStore && STORE_FILTER && !query.has('filter')) query.set('filter', STORE_FILTER);
 
 				do {
-					const separator = params ? '&' : '';
-					const result = await apiRequest(`/api/collections/${collection}/records?${params}${separator}page=${page}&perPage=${perPage}`);
+					query.set('page', String(page));
+					query.set('perPage', String(perPage));
+					const result = await apiRequest(`/api/collections/${collection}/records?${query.toString()}`);
 					items = items.concat(result.items || []);
 					totalPages = result.totalPages || 1;
 					page += 1;
@@ -3774,7 +3790,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				orderItems = [];
 				products = [];
 				closeSidebar();
-				showLogin();
+				document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+				window.location.assign('/login');
 			});
 
 			if (!POCKETBASE_URL) {
@@ -3785,8 +3802,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 				loadDashboardData().catch((error) => {
 					console.error(error);
 					clearAdminToken();
-					showLogin();
-					setLoginAlert('Tu sesión admin no es válida o no se pudieron cargar los datos.');
+					kpiGrid.innerHTML = '<div class="card empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
 				});
 			} else {
 				showLogin();

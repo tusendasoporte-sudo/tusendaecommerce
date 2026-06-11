@@ -1,5 +1,11 @@
 ---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
 ---
 <!-- PZ-AJUSTES-GENERALES-PUBLICOS-MENU-PUBLICO-V5-20260603
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -1101,8 +1107,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const AUTH_TOKEN_KEY = 'powerzona_admin_token';
 
       const loginView = document.getElementById('login-view');
@@ -1604,6 +1612,19 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         return items;
       }
 
+      function withStoreFilter(params = '') {
+        const query = new URLSearchParams(params || '');
+        const existing = query.get('filter');
+        if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
+        else query.set('filter', STORE_FILTER);
+        return query.toString();
+      }
+
+      function isCurrentStoreRecord(record) {
+        const value = record?.store;
+        return Array.isArray(value) ? value.includes(CURRENT_STORE_ID) : String(value || '') === CURRENT_STORE_ID;
+      }
+
       function getCategory(id) {
         return categories.find((category) => category.id === id) || null;
       }
@@ -1801,7 +1822,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const alertBox = panel?.querySelector('.inline-subcategory-alert');
         const name = nameInput?.value.trim() || '';
 
-        if (!category) {
+        if (!category || !isCurrentStoreRecord(category)) {
           setAlert(alertBox, 'No se encontró la categoría padre.', 'error');
           return;
         }
@@ -1822,6 +1843,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         formData.append('slug', slugify(name));
         formData.append('active', activeInput?.checked ? 'true' : 'false');
         formData.append('order', String(nextOrder(siblings)));
+        formData.append('store', CURRENT_STORE_ID);
         if (imageInput?.files?.[0]) formData.append('image', await optimizeCatalogImageFile(imageInput.files[0]));
 
         await apiRequest('/api/collections/subcategories/records', {
@@ -1987,9 +2009,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         subcategoriesList.innerHTML = '<div class="empty-state">Cargando subcategorías...</div>';
         try {
           const [categoryRecords, subcategoryRecords, productRecords] = await Promise.all([
-            loadAllRecords('categories', 'sort=order,name'),
-            loadAllRecords('subcategories', 'sort=order,name'),
-            loadAllRecords('products', 'sort=name'),
+            loadAllRecords('categories', withStoreFilter('sort=order,name')),
+            loadAllRecords('subcategories', withStoreFilter('sort=order,name')),
+            loadAllRecords('products', withStoreFilter('sort=name')),
           ]);
           categories = categoryRecords;
           subcategories = subcategoryRecords;
@@ -2023,6 +2045,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         formData.append('slug', slugify(name));
         formData.append('active', categoryActive.checked ? 'true' : 'false');
         formData.append('order', String(nextOrder(categories)));
+        formData.append('store', CURRENT_STORE_ID);
         if (categoryImage.files?.[0]) formData.append('image', await optimizeCatalogImageFile(categoryImage.files[0]));
 
         try {
@@ -2057,6 +2080,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           return;
         }
 
+        if (!categories.some((category) => category.id === categoryId && isCurrentStoreRecord(category))) {
+          setAlert(subcategoryAlert, 'La categoria seleccionada no pertenece a esta tienda.', 'error');
+          return;
+        }
+
         setAlert(subcategoryAlert, 'Creando subcategoría...', 'info');
         const siblings = subcategories.filter((item) => item.category === categoryId);
         const formData = new FormData();
@@ -2065,6 +2093,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         formData.append('slug', slugify(name));
         formData.append('active', subcategoryActive.checked ? 'true' : 'false');
         formData.append('order', String(nextOrder(siblings)));
+        formData.append('store', CURRENT_STORE_ID);
         if (subcategoryImage.files?.[0]) formData.append('image', await optimizeCatalogImageFile(subcategoryImage.files[0]));
 
         try {

@@ -7,6 +7,7 @@ if (!pocketbaseUrl) {
 }
 
 export const pb = new PocketBase(pocketbaseUrl);
+pb.autoCancellation(false);
 
 export function getPocketBaseFileUrl(
   collectionIdOrName: string,
