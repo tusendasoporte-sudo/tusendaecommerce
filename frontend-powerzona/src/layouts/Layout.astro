@@ -4,12 +4,15 @@ import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 
+const { isBazar = false } = Astro.props;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const currentStore = await getCurrentStore(Astro);
+const currentStore = isBazar ? { id: '', slug: '' } : await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
+const currentStoreSlug = currentStore.slug || 'powerzona';
 const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
 const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
+const hideStoreFloatingUi = Boolean(isBazar);
 ---
 
 <!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
@@ -22,6 +25,77 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 		<title>Power Zona E-commerce</title>
 	</head>
 	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden">
+		{!hideStoreFloatingUi && <script define:vars={{ currentStoreId, currentStoreSlug, publicPathPrefix }}>
+			(() => {
+				const storeId = String(currentStoreId || '').trim();
+				const storeSlug = String(currentStoreSlug || '').trim().toLowerCase();
+				const storageStoreId = storeId || storeSlug || 'powerzona';
+				const cartStorageKey = `tusenda84_cart_${storageStoreId}`;
+				const checkoutCartStorageKey = `${cartStorageKey}_checkout`;
+				const legacyCartStorageKey = 'powerzona_cart';
+				const legacyCheckoutCartStorageKey = 'powerzona_checkout_cart';
+				const shouldMigrateLegacy = storeSlug === 'powerzona' || !String(publicPathPrefix || '').trim();
+
+				function parseCart(value) {
+					try {
+						const parsed = JSON.parse(value || '[]');
+						return Array.isArray(parsed) ? parsed : [];
+					} catch (_) {
+						return [];
+					}
+				}
+
+				function migrateLegacyCart() {
+					if (!shouldMigrateLegacy) return;
+					const currentCart = parseCart(localStorage.getItem(cartStorageKey));
+					if (currentCart.length) return;
+					const legacyCart = parseCart(localStorage.getItem(legacyCartStorageKey));
+					if (!legacyCart.length) return;
+					const payload = JSON.stringify(legacyCart);
+					localStorage.setItem(cartStorageKey, payload);
+					if (!sessionStorage.getItem(checkoutCartStorageKey)) {
+						sessionStorage.setItem(checkoutCartStorageKey, payload);
+					}
+				}
+
+				function readCart() {
+					migrateLegacyCart();
+					const cart = parseCart(localStorage.getItem(cartStorageKey));
+					if (cart.length) return cart;
+					const checkoutBackup = parseCart(sessionStorage.getItem(checkoutCartStorageKey));
+					if (checkoutBackup.length) {
+						localStorage.setItem(cartStorageKey, JSON.stringify(checkoutBackup));
+						return checkoutBackup;
+					}
+					return [];
+				}
+
+				function writeCart(cart) {
+					const safeCart = Array.isArray(cart) ? cart : [];
+					const payload = JSON.stringify(safeCart);
+					localStorage.setItem(cartStorageKey, payload);
+					if (safeCart.length) sessionStorage.setItem(checkoutCartStorageKey, payload);
+					else sessionStorage.removeItem(checkoutCartStorageKey);
+					return safeCart;
+				}
+
+				window.PZ_CURRENT_STORE_ID = storeId;
+				window.PZ_PUBLIC_PATH_PREFIX = publicPathPrefix || '';
+				window.PZ_CART_STORAGE_KEY = cartStorageKey;
+				window.PZ_CHECKOUT_CART_STORAGE_KEY = checkoutCartStorageKey;
+				window.PZCartStorage = {
+					legacyCartStorageKey,
+					legacyCheckoutCartStorageKey,
+					getCartStorageKey: () => cartStorageKey,
+					getCheckoutStorageKey: () => checkoutCartStorageKey,
+					migrateLegacyCart,
+					readCart,
+					writeCart,
+					parseCart,
+				};
+				migrateLegacyCart();
+			})();
+		</script>}
 		
 		<main class="flex flex-col min-h-screen w-full min-w-0">
 			<div class="w-full max-w-7xl mx-auto p-4 sm:p-6">
@@ -29,8 +103,8 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 			</div>
 		</main>
 
-		<script is:inline src="/cart-promotions.js"></script>
-		<script define:vars={{ pocketbaseUrl, currentStoreId, publicPathPrefix }}>
+		{!hideStoreFloatingUi && <script is:inline src="/cart-promotions.js"></script>}
+		{!hideStoreFloatingUi && <script define:vars={{ pocketbaseUrl, currentStoreId, publicPathPrefix }}>
 			window.PZ_POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			window.PZ_CURRENT_STORE_ID = currentStoreId || '';
 			window.PZ_PUBLIC_PATH_PREFIX = publicPathPrefix || '';
@@ -245,9 +319,9 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 					});
 				});
 			})();
-		</script>
-		<CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />
-		<Cart />
+		</script>}
+		{!hideStoreFloatingUi && <CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />}
+		{!hideStoreFloatingUi && <Cart />}
 
 	</body>
 </html>

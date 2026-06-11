@@ -1,4 +1,4 @@
-import { pb } from './pocketbase';
+import { pb, getPocketBaseFileUrl } from './pocketbase';
 
 export const DEFAULT_STORE_SLUG = 'powerzona';
 export const ACTIVE_STORE_STATUS = 'active';
@@ -13,6 +13,22 @@ export type PublicStore = {
   protected?: boolean;
   [key: string]: any;
 };
+
+function normalizeStoreFileValue(value: any) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return value ? [value] : [];
+}
+
+function addStoreImages(store: PublicStore) {
+  const logo = normalizeStoreFileValue(store.logo || store.logo_image || store.logo_file)[0] || '';
+  const banner = normalizeStoreFileValue(store.banner || store.banner_image || store.cover_image)[0] || '';
+
+  return {
+    ...store,
+    logoUrl: logo ? getPocketBaseFileUrl('stores', store.id, logo) : null,
+    bannerUrl: banner ? getPocketBaseFileUrl('stores', store.id, banner) : null,
+  };
+}
 
 export class StoreResolutionError extends Error {
   constructor(message: string) {
@@ -90,6 +106,24 @@ export async function getDefaultStore(): Promise<PublicStore> {
   }
 
   return store;
+}
+
+export async function getActiveStores(): Promise<PublicStore[]> {
+  const stores = await pb.collection('stores').getFullList({
+    filter: `status="${ACTIVE_STORE_STATUS}"`,
+    sort: '-featured,-orders_count,-views_count,-created',
+  });
+
+  return stores.map((store) => addStoreImages(store as PublicStore));
+}
+
+export async function getFeaturedStores(): Promise<PublicStore[]> {
+  const stores = await pb.collection('stores').getFullList({
+    filter: `status="${ACTIVE_STORE_STATUS}" && featured=true`,
+    sort: '-orders_count,-views_count,-created',
+  });
+
+  return stores.map((store) => addStoreImages(store as PublicStore));
 }
 
 export async function getCurrentStore(context?: unknown): Promise<PublicStore> {

@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
 **Fecha de actualización:** 2026-06-10  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store y rutas públicas `/t/[storeSlug]` preparadas sin eliminar rutas actuales.
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]` preparadas sin eliminar rutas actuales y carrito separado por store.
 
 ---
 
@@ -9176,6 +9176,7 @@ Estado actual:
 21.30.5A completado / limpieza de duplicados generados durante la adaptación por store
 21.30.6 completado / rutas públicas por store preparadas sin eliminar rutas actuales
 21.30.6A completado / limpieza de duplicados generados durante la preparación de rutas por store
+21.30.7 completado / carrito separado por store para evitar mezcla entre Tiendas públicas
 ```
 
 Regla oficial de nombres:
@@ -9225,10 +9226,11 @@ Si el cambio es una corrección menor dentro de un punto ya trabajado, debe usar
 21.30.5A
 21.30.5B
 21.30.6A
+21.30.7A
 
 Ejemplo:
-- Si 21.30.6 ya existe, el próximo punto grande debe ser 21.30.7.
-- Si se corrige algo de 21.30.6, usar 21.30.6A.
+- Si 21.30.7 ya existe, el próximo punto grande debe ser 21.30.8.
+- Si se corrige algo de 21.30.7, usar 21.30.7A.
 ```
 
 Regla de trabajo documental:
@@ -9674,7 +9676,106 @@ Solo quedaron warnings conocidos de Astro sobre getStaticPaths() ignorado en pá
 
 ---
 
-#### 21.30.7. Sistema administrativo previsto
+#### 21.30.7. Carrito separado por store
+
+Se separó el carrito por store para evitar que, en el futuro, productos de diferentes Tiendas públicas se mezclen en un mismo carrito.
+
+Objetivo:
+
+```txt
+Cada Tienda pública debe tener su propio carrito local.
+```
+
+Ejemplos:
+
+```txt
+/ o /t/powerzona usa el carrito de PowerZona.
+/t/otra-tienda usará el carrito de otra tienda pública.
+El carrito de una tienda no debe mostrarse ni mezclarse con el carrito de otra.
+```
+
+Nueva clave oficial de carrito:
+
+```txt
+tusenda84_cart_${storeId}
+```
+
+Backup temporal de checkout:
+
+```txt
+tusenda84_cart_${storeId}_checkout
+```
+
+Compatibilidad legacy:
+
+```txt
+El carrito viejo powerzona_cart solo queda como clave legacy para migración suave.
+Si existe powerzona_cart y no existe carrito nuevo para PowerZona, se copia a la nueva clave del store actual.
+No se borra powerzona_cart todavía en esta fase para evitar pérdida de carritos existentes.
+```
+
+Archivo principal donde se centraliza la lógica:
+
+```txt
+frontend-powerzona/src/layouts/Layout.astro
+```
+
+Variables globales disponibles:
+
+```txt
+window.PZ_CURRENT_STORE_ID
+window.PZ_PUBLIC_PATH_PREFIX
+window.PZ_CART_STORAGE_KEY
+window.PZ_CHECKOUT_CART_STORAGE_KEY
+window.PZCartStorage
+```
+
+Archivos verificados:
+
+```txt
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/components/Cart.astro
+frontend-powerzona/src/components/CurrencySwitcher.astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/checkout.astro
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/regalos/index.astro
+frontend-powerzona/public/cart-promotions.js
+```
+
+Confirmaciones:
+
+```txt
+Cart.astro usa PZCartStorage o la clave nueva por store.
+producto/[slug].astro guarda productos usando getStoreCart() / saveStoreCart().
+checkout.astro lee, guarda y limpia solo el carrito del store actual.
+index.astro y regalos/index.astro usan la lógica nueva para regalos/carrito.
+CurrencySwitcher.astro no tiene const cart duplicado.
+cart-promotions.js no lee ni escribe carrito.
+powerzona_cart y powerzona_checkout_cart solo quedan como claves legacy en Layout.astro.
+No se tocó panel admin.
+No se implementaron usuarios, roles ni login.
+No se creó Bazar principal todavía.
+```
+
+Validación técnica:
+
+```txt
+npm.cmd run build ejecutado correctamente en frontend-powerzona.
+Build correcto.
+Solo quedaron warnings conocidos de Astro sobre getStaticPaths() en páginas dinámicas server-rendered.
+```
+
+Resultado:
+
+```txt
+21.30.7 queda cerrado como base funcional.
+El carrito ya está preparado para convivir con varias Tiendas públicas sin mezclar productos entre stores.
+```
+
+---
+
+#### 21.30.8. Sistema administrativo previsto
 
 El panel admin actual que hoy controla PowerZona será la base del:
 
@@ -9722,7 +9823,7 @@ Este punto queda como arquitectura prevista para fases posteriores.
 
 ---
 
-#### 21.30.8. Límites actuales del bloque multitienda
+#### 21.30.9. Límites actuales del bloque multitienda
 
 Todavía no está implementado:
 
@@ -9732,8 +9833,19 @@ Todavía no está implementado:
 - Usuarios, roles y login multitienda.
 - Master Admin web.
 - Panel admin filtrado por store.
-- Separación del carrito por store.
 - Reglas finales de permisos por tienda.
+```
+
+Ya quedó preparado como base:
+
+```txt
+- Colección stores.
+- PowerZona como primer store.
+- Relación store en colecciones principales.
+- Helper central de store actual.
+- Consultas públicas principales por store.
+- Rutas públicas /t/[storeSlug].
+- Carrito separado por store.
 ```
 
 Todavía no se debe cambiar:
@@ -9758,30 +9870,35 @@ Los cambios exclusivos del Bazar principal se trabajan separados de los cambios 
 
 ---
 
-#### 21.30.9. Próximo avance recomendado
+#### 21.30.10. Próximo avance recomendado
 
 Próximo paso recomendado:
 
 ```txt
-PROMPT 21.30.7 — Separar carrito por store para evitar mezcla entre tiendas públicas
+PROMPT 21.30.8 — Preparar Bazar principal visual de Tu Senda 84 sin romper /t/powerzona
 ```
 
 Objetivo del próximo paso:
 
 ```txt
-Evitar que en el futuro el carrito de /t/powerzona se mezcle con el carrito de otra tienda pública.
+Empezar la separación visual entre:
+- / = Bazar principal de Tu Senda 84.
+- /t/powerzona = Tienda pública PowerZona.
 ```
 
-Regla:
+Reglas para el próximo paso:
 
 ```txt
-Antes de convertir / en Bazar principal o crear tiendas reales adicionales, el carrito debe poder separarse por store.
+No romper /t/powerzona.
+No romper checkout de PowerZona.
+No tocar panel admin.
+No implementar usuarios, roles ni login todavía.
+No cambiar lógica comercial de promociones, cupones, regalos, monedas, envíos ni WhatsApp.
 ```
 
 Después de eso, los siguientes pasos recomendados serían:
 
 ```txt
-21.30.8 Preparar Bazar principal visual de Tu Senda 84 sin romper /t/powerzona.
 21.30.9 Preparar usuarios, roles y login multitienda.
 21.30.10 Adaptar panel admin global de Tiendas públicas por store.
 ```

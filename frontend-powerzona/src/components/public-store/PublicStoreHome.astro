@@ -1,0 +1,509 @@
+---
+// PZ-PUBLIC-HOME-V8-MENU-MONEDA-ACTIVA-20260604
+// PowerZona Ajustes Visuales V23 - nombres de categorías fuera y encima de la tarjeta
+// PZ-INDEX-V28-CATEGORIAS-IMAGEN-16X9-20260605
+import Layout from '../../layouts/Layout.astro';
+import ProductCard from '../ProductCard.astro';
+import PublicFooter from '../PublicFooter.astro';
+import PromoBar from '../PromoBar.astro';
+import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
+import { getCurrentStore, getPublicPath } from '../../lib/stores';
+
+const currentStore = await getCurrentStore(Astro);
+const storeQuery = { storeId: currentStore.id };
+const currentPathname = Astro.url.pathname;
+const settings = await getSettings(storeQuery);
+const categories = await getCategories(storeQuery);
+const subcategories = await getSubcategories(storeQuery);
+const products = await getProducts(storeQuery);
+const featuredProducts = await getFeaturedProducts(storeQuery);
+const visualItems = await getStoreVisualItems(storeQuery);
+const gifts = await getPublicGifts(storeQuery);
+const automaticPromotions = await getAutomaticPromotions(storeQuery);
+
+// Regla pública:
+// - La portada no abre categorías en la misma página.
+// - Categoría y subcategoría abren en página propia.
+// - Productos destacados usan vista más compacta que las páginas de categoría.
+// - Productos sin categoría se mantienen en portada.
+const homepageProducts = products.filter((product) => !product.category && product.featured !== true);
+const promoVisualItems = visualItems.filter((item) => item.type === 'promo_visual');
+const quickAccessItems = visualItems.filter((item) => item.type === 'acceso_rapido');
+
+const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const welcomeText = settings?.welcome_text || 'Descubre nuestras mejores ofertas y productos destacados.';
+const address = settings?.address || '';
+const businessHours = settings?.business_hours || '';
+const servicesText = settings?.public_services_text || '';
+const reviewsText = settings?.reviews_text || '';
+const logoImageUrl = settings?.logoImageUrl || '';
+const coverImageUrl = settings?.coverImageUrl || '';
+const giftsPublicActive = settings?.gifts_public_active !== false;
+const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
+const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
+const homePath = getPublicPath('/', currentStore, currentPathname);
+const searchPath = getPublicPath('/buscar', currentStore, currentPathname);
+const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPathname);
+const productAnchorPath = getPublicPath('/#destacados', currentStore, currentPathname);
+const servicesAnchorPath = getPublicPath('/#servicios', currentStore, currentPathname);
+const hoursAnchorPath = getPublicPath('/#horarios', currentStore, currentPathname);
+const reviewsAnchorPath = getPublicPath('/#resena', currentStore, currentPathname);
+const giftsPath = getPublicPath('/regalos', currentStore, currentPathname);
+
+function cleanWhatsappNumber(value: string | undefined) {
+  return String(value || '').replace(/[^0-9]/g, '');
+}
+
+function subcategoriesByCategory(categoryId: string) {
+  return subcategories.filter((subcategory) => subcategory.category === categoryId);
+}
+
+function productCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'producto' : 'productos'}`;
+}
+
+function productsByCategoryTotal(categoryId: string) {
+  const childSubcategoryIds = new Set(subcategoriesByCategory(categoryId).map((subcategory) => subcategory.id));
+  const categoryProducts = products.filter((product) => product.category === categoryId || childSubcategoryIds.has(product.subcategory));
+  return Array.from(new Map(categoryProducts.map((product) => [product.id, product])).values());
+}
+
+const whatsappNumber = cleanWhatsappNumber(settings?.whatsapp_number);
+const whatsappStoreHref = whatsappNumber
+  ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola ${storeName}, quiero información.`)}`
+  : '#';
+
+function visualItemHref(item: any) {
+  const actionType = item.action_type || 'whatsapp';
+  if (actionType === 'url' && item.target_url) return item.target_url;
+  if (actionType === 'archivo' && item.attachmentUrl) return item.attachmentUrl;
+  if (actionType === 'categoria' && item.expand?.category?.slug) return getPublicPath(`/categoria/${item.expand.category.slug}`, currentStore, currentPathname);
+  if (actionType === 'whatsapp') {
+    const text = encodeURIComponent(item.whatsapp_message || `Hola ${storeName}, quiero información sobre ${item.title || 'esta promo'}.`);
+    return whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${text}` : '#';
+  }
+  return item.target_url || '#';
+}
+
+function visualButtonText(item: any) {
+  if (item.button_text) return item.button_text;
+  if (item.action_type === 'archivo') return 'Ver archivo';
+  if (item.action_type === 'url') return 'Abrir enlace';
+  if (item.action_type === 'categoria') return 'Ver categoría';
+  return 'Contactar por WhatsApp';
+}
+function getProductOfferView(product: any) {
+  const activePrice = Number(product?.base_price_usd || 0);
+  const regularPrice = Number(product?.regular_price_usd || activePrice);
+  const isOffer = Boolean(product?.is_offer) && activePrice > 0 && regularPrice > activePrice;
+  return {
+    price: activePrice,
+    regularPrice: isOffer ? regularPrice : activePrice,
+    isOffer,
+  };
+}
+
+---
+
+<!-- PZ-INDEX-V24-FOOTER-PUBLICO-NAVEGACION-20260603 -->
+<Layout>
+  <style>
+    .public-store-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .public-store-brand { min-width: 0; display: flex; align-items: center; gap: 12px; }
+    .public-store-logo { width: 50px; height: 50px; border-radius: 18px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; box-shadow: 0 12px 28px rgba(15,23,42,.12); flex: 0 0 auto; }
+    .public-store-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .public-store-name { margin: 1px 0 0; font-size: 19px; color: #111827; font-weight: 1000; letter-spacing: -.035em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .public-header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+    .public-action-btn { width: 44px; height: 44px; border: 1px solid rgba(226,232,240,.95); background: rgba(255,255,255,.96); color: #111827; border-radius: 999px; box-shadow: 0 14px 32px rgba(15,23,42,.11); font-size: 20px; line-height: 1; font-weight: 1000; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+    .public-menu-btn { font-size: 26px; padding-bottom: 4px; }
+    .public-drawer-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.36); z-index: 80; opacity: 0; pointer-events: none; transition: opacity .2s ease; backdrop-filter: blur(2px); }
+    .public-drawer { position: fixed; top: 16px; right: 16px; bottom: 16px; z-index: 90; width: min(330px, calc(100vw - 32px)); transform: translateX(calc(100% + 24px)); transition: transform .22s ease; border-radius: 30px; background: linear-gradient(180deg,#fff,#f8fafc); border: 1px solid rgba(226,232,240,.95); box-shadow: 0 28px 80px rgba(15,23,42,.22); padding: 18px; overflow: auto; display: flex; flex-direction: column; }
+    body.public-menu-open .public-drawer-overlay { opacity: 1; pointer-events: auto; }
+    body.public-menu-open .public-drawer { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
+    .drawer-logo { width: 46px; height: 46px; border-radius: 18px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; overflow: hidden; }
+    .drawer-logo img { width: 100%; height: 100%; object-fit: cover; }
+    .drawer-title { margin: 0; font-size: 16px; font-weight: 1000; color: #111827; letter-spacing: -.02em; text-decoration: none; }
+    .drawer-close { margin-left: auto; width: 38px; height: 38px; border-radius: 14px; border: 1px solid #e5e7eb; background: #fff; font-size: 18px; font-weight: 1000; }
+    .drawer-nav { display: grid; gap: 8px; }
+    .drawer-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px; border-radius: 18px; background: #fff; border: 1px solid #e5e7eb; color: #111827; font-size: 14px; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.05); }
+    .drawer-link span { color: #94a3b8; }
+    .drawer-admin-action { margin-top: auto; padding-top: 14px; border-top: 1px solid #e5e7eb; }
+    .drawer-admin-link { justify-content: center; background: transparent; color: #475569; box-shadow: none; }
+    .drawer-currency-card { display: grid; gap: 10px; padding: 14px; border-radius: 20px; background: #0f172a; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 14px 30px rgba(15,23,42,.14); }
+    .drawer-currency-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #fff; font-size: 14px; font-weight: 1000; }
+    .drawer-currency-head span { color: rgba(255,255,255,.62); font-size: 18px; }
+    .drawer-currency-select { width: 100%; border: 1px solid rgba(255,255,255,.14); outline: none; border-radius: 16px; background: #fff; color: #111827; padding: 12px 13px; font-size: 14px; font-weight: 1000; }
+    .public-hero { position: relative; overflow: hidden; border-radius: 32px; border: 1px solid rgba(226,232,240,.95); background: #111827; min-height: 260px; margin-bottom: 12px; box-shadow: 0 24px 70px rgba(15,23,42,.15); }
+    .public-hero-cover { position: absolute; inset: 0; background: radial-gradient(circle at 16% 0%, rgba(34,197,94,.22), transparent 34%), linear-gradient(135deg,#111827,#1f2937); }
+    .public-hero-cover img { width: 100%; height: 100%; object-fit: cover; opacity: .72; display: block; }
+    .public-hero-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,23,42,.82), rgba(15,23,42,.34), rgba(15,23,42,.12)); }
+    .public-hero-content { position: relative; z-index: 1; padding: clamp(22px, 5vw, 42px); color: #fff; display: grid; gap: 14px; max-width: 780px; }
+    .public-hero-title { margin: 0; font-size: clamp(32px, 8vw, 62px); line-height: .95; font-weight: 1000; letter-spacing: -.06em; }
+    .public-hero-text { margin: 0; max-width: 620px; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.55; font-weight: 750; }
+    .public-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 28px; }
+    .hero-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 20px; padding: 13px 18px; font-size: 14px; font-weight: 1000; background: #16a34a; color: #fff; box-shadow: 0 14px 32px rgba(22,163,74,.18); }
+    .hero-btn.secondary { background: #fff; color: #111827; border: 1px solid #e5e7eb; box-shadow: 0 12px 28px rgba(15,23,42,.07); }
+    .public-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 28px; }
+    .public-info-card { background: #fff; border: 1px solid #eef2f7; border-radius: 24px; padding: 18px; box-shadow: 0 12px 34px rgba(15,23,42,.06); }
+    .public-info-card h2 { margin: 0 0 8px; font-size: 15px; color: #111827; font-weight: 1000; }
+    .public-info-card p { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; font-weight: 750; white-space: pre-line; }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .section-title { margin: 0; color: #111827; font-size: 22px; font-weight: 1000; letter-spacing: -.04em; }
+    .section-subtitle { margin: 3px 0 0; color: #64748b; font-size: 13px; font-weight: 800; }
+    .featured-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(165px, 220px); gap: 14px; overflow-x: auto; padding: 2px 2px 14px; scroll-snap-type: x mandatory; }
+    .featured-strip > a { scroll-snap-align: start; }
+    .public-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 16px; }
+    .public-category-link { display: grid; gap: 10px; color: #111827; text-decoration: none; align-content: start; }
+    .public-category-title-outside { margin: 0; font-size: clamp(18px, 3.3vw, 24px); font-weight: 1000; letter-spacing: -.04em; line-height: 1.06; color: #111827; padding: 0 4px; }
+    .public-category-meta { margin: 1px 0 0; display: flex; flex-wrap: wrap; gap: 7px; padding: 0 4px; }
+    .public-category-pill { display: inline-flex; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 6px 9px; color: #334155; font-size: 11px; font-weight: 950; }
+    .public-category-card { position: relative; width: 100%; aspect-ratio: 16 / 10; min-height: 0; border-radius: 30px; overflow: hidden; background: #111827; box-shadow: 0 20px 50px rgba(15,23,42,.15); border: 1px solid rgba(226,232,240,.9); }
+    .public-category-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: .98; transition: transform .35s ease; }
+    .public-category-link:hover .public-category-card img { transform: scale(1.04); }
+    .public-category-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at top left, #334155, #111827); color: rgba(255,255,255,.7); font-size: 42px; font-weight: 1000; }
+    .public-category-go { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 999px; background: rgba(255,255,255,.92); color: #111827; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 1000; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
+    .public-gift-banner-link { display: grid; gap: 14px; color: inherit; text-decoration: none; }
+    .public-gift-copy { display: grid; gap: 10px; }
+    .public-gift-copy-top { display: grid; gap: 12px; justify-items: start; }
+    .public-gift-copy-main { display: grid; gap: 8px; min-width: 0; }
+    .public-gift-banner { position: relative; width: 100%; min-height: 235px; aspect-ratio: 16 / 5.2; border-radius: 34px; overflow: hidden; background: #111827; box-shadow: 0 24px 60px rgba(15,23,42,.18); border: 1px solid rgba(226,232,240,.9); }
+    .public-gift-banner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; opacity: .98; transition: transform .35s ease; }
+    .public-gift-banner-link:hover .public-gift-banner img { transform: scale(1.035); }
+    .public-gift-banner-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at top left, #334155, #111827); color: rgba(255,255,255,.35); font-size: 74px; font-weight: 1000; }
+    .public-gift-kicker { display: inline-flex; width: max-content; max-width: 100%; border-radius: 999px; padding: 7px 11px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; font-size: 11px; font-weight: 1000; }
+    .public-gift-title { margin: 0; color: #111827; font-size: clamp(28px, 5.6vw, 44px); line-height: .95; font-weight: 1000; letter-spacing: -.06em; }
+    .public-gift-text { margin: 0; color: #64748b; font-size: clamp(13px, 2.2vw, 16px); line-height: 1.45; font-weight: 850; max-width: 560px; }
+    .public-gift-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+    .public-gift-pill { display: inline-flex; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 7px 10px; color: #334155; font-size: 11px; font-weight: 950; }
+    .public-gift-cta { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 18px; padding: 12px 16px; background: #111827; color: #fff; font-size: 13px; font-weight: 1000; box-shadow: 0 14px 32px rgba(15,23,42,.14); white-space: nowrap; flex: 0 0 auto; }
+    .homepage-products-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .gift-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .gift-card { background:#fff; border:1px solid #eef2f7; border-radius:28px; overflow:hidden; box-shadow:0 14px 34px rgba(15,23,42,.07); display:flex; flex-direction:column; min-width:0; }
+    .gift-image { width:100%; aspect-ratio:1/1; background:#f8fafc; object-fit:contain; padding:10px; }
+    .gift-body { padding:14px; display:flex; flex-direction:column; gap:8px; flex:1; }
+    .gift-title { margin:0; font-size:15px; font-weight:1000; color:#111827; line-height:1.15; }
+    .gift-description { margin:0; color:#64748b; font-size:12px; line-height:1.35; font-weight:750; }
+    .gift-meta { display:flex; flex-wrap:wrap; gap:6px; }
+    .gift-pill { display:inline-flex; width:max-content; max-width:100%; border-radius:999px; padding:6px 8px; font-size:10px; font-weight:1000; background:#ecfdf5; color:#166534; border:1px solid #bbf7d0; }
+    .gift-btn { margin-top:auto; border:0; border-radius:17px; padding:11px 12px; font-size:12px; font-weight:1000; background:#111827; color:#fff; box-shadow:0 12px 24px rgba(15,23,42,.14); cursor:pointer; }
+    .gift-btn:disabled { background:#e5e7eb; color:#64748b; box-shadow:none; cursor:not-allowed; }
+    .gift-info-alert { display:none; margin:0 0 12px; border-radius:18px; padding:12px 14px; font-size:13px; font-weight:900; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+
+    @media (min-width: 768px) {
+      .public-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 22px; }
+      .public-category-card { min-height: 0; }
+      .public-gift-banner { min-height: 260px; }
+      .homepage-products-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+      .gift-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+      .featured-strip { grid-auto-columns: minmax(190px, 235px); }
+    }
+    @media (max-width: 760px) {
+      .public-info-grid { grid-template-columns: 1fr; }
+      .public-store-head { margin-bottom: 12px; }
+      .public-store-name { font-size: 17px; max-width: 52vw; }
+      .public-hero { border-radius: 26px; }
+      .public-category-grid { gap: 28px 14px; }
+      .public-category-card { min-height: 0; border-radius: 24px; }
+      .public-gift-banner { min-height: 205px; aspect-ratio: 16 / 9; border-radius: 26px; }
+      .public-gift-text { max-width: none; }
+      .public-gift-cta { width: max-content; padding: 11px 14px; }
+      .public-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .hero-btn { padding: 13px 10px; }
+    }
+  </style>
+
+  <div class="public-store-head" aria-label="Acciones principales">
+    <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
+      <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+    </a>
+    <div class="public-header-actions">
+      <a class="public-action-btn" href={searchPath} aria-label="Buscar productos y categorías">⌕</a>
+      <button id="public-menu-open" class="public-action-btn public-menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false">⋯</button>
+    </div>
+  </div>
+
+  <div id="public-drawer-overlay" class="public-drawer-overlay" hidden></div>
+  <aside id="public-drawer" class="public-drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <a class="drawer-logo" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</a>
+      <button id="public-menu-close" class="drawer-close" type="button" aria-label="Cerrar menú">×</button>
+    </div>
+    <nav class="drawer-nav">
+      <a class="drawer-link" href={giftsPath}>Regalos <span>›</span></a>
+      <a class="drawer-link" href={categoryAnchorPath}>Categorías <span>›</span></a>
+      <a class="drawer-link" href={productAnchorPath}>Productos destacados <span>›</span></a>
+      <a class="drawer-link" href={servicesAnchorPath}>Servicios <span>›</span></a>
+      <div class="drawer-currency-card" data-pz-currency-menu hidden>
+        <div class="drawer-currency-head">Moneda <span>⌄</span></div>
+        <select class="drawer-currency-select" data-pz-currency-select aria-label="Moneda visual en menú"></select>
+      </div>
+      <a class="drawer-link" href={hoursAnchorPath}>Horarios <span>›</span></a>
+      <a class="drawer-link" href={reviewsAnchorPath}>Reseña <span>›</span></a>
+      <a class="drawer-link" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp <span>↗</span></a>
+    </nav>
+    <div class="drawer-admin-action">
+      <a class="drawer-link drawer-admin-link" href="/admin">Ir al panel de administración</a>
+    </div>
+  </aside>
+
+  <section class="public-hero">
+    <div class="public-hero-cover">{coverImageUrl && <img src={coverImageUrl} alt={`Portada de ${storeName}`} />}</div>
+    <div class="public-hero-content">
+      <h1 class="public-hero-title">{storeName}</h1>
+      <p class="public-hero-text">{welcomeText}</p>
+
+    </div>
+  </section>
+
+  <div class="public-hero-actions" aria-label="Acciones después de la portada">
+    <a class="hero-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp</a>
+    <a class="hero-btn secondary" href={categoryAnchorPath}>Ver categorías</a>
+  </div>
+
+  <PromoBar settings={settings} />
+
+  {(address || businessHours || servicesText || reviewsText) && (
+    <section class="public-info-grid">
+      {servicesText && <article id="servicios" class="public-info-card"><h2>Servicios</h2><p>{servicesText}</p></article>}
+      {businessHours && <article id="horarios" class="public-info-card"><h2>Horarios</h2><p>{businessHours}</p></article>}
+      {address && <article class="public-info-card"><h2>Dirección</h2><p>{address}</p></article>}
+      {reviewsText && <article id="resena" class="public-info-card"><h2>Reseña</h2><p>{reviewsText}</p></article>}
+      <article id="moneda" class="public-info-card"><h2>Moneda</h2><p>Puedes elegir la moneda visual. El cliente verá la moneda elegida; el envío muestra USD y equivalente cuando aplique.</p></article>
+    </section>
+  )}
+
+  {promoVisualItems.length > 0 && (
+    <div class="mb-8">
+      <div class="section-head"><div><h2 class="section-title">Promociones</h2><p class="section-subtitle">Accesos visuales y ofertas del negocio.</p></div></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {promoVisualItems.map((item) => (
+          <article class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            {item.imageUrl && <img src={item.imageUrl} alt={item.title} class="w-full h-44 object-cover" />}
+            <div class="p-5">
+              <h3 class="text-lg font-extrabold text-gray-900">{item.title}</h3>
+              {item.description && <p class="text-sm text-gray-500 mt-2 leading-relaxed">{item.description}</p>}
+              <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="inline-flex mt-4 rounded-2xl bg-gray-900 text-white px-4 py-3 text-sm font-extrabold">
+                {visualButtonText(item)}
+              </a>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {quickAccessItems.length > 0 && (
+    <div class="mb-8">
+      <div class="section-head"><div><h2 class="section-title">Accesos rápidos</h2><p class="section-subtitle">Entradas directas a zonas importantes.</p></div></div>
+      <div class="flex gap-3 overflow-x-auto pb-2">
+        {quickAccessItems.map((item) => (
+          <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="min-w-[170px] bg-white rounded-2xl shadow-sm border border-gray-100 p-4 block">
+            {item.imageUrl ? <img src={item.imageUrl} alt={item.title} class="w-full h-24 object-cover rounded-xl mb-3" /> : <div class="w-full h-24 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-2xl mb-3">⚡</div>}
+            <p class="font-extrabold text-gray-900 text-sm">{item.title}</p>
+            {item.description && <p class="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>}
+          </a>
+        ))}
+      </div>
+    </div>
+  )}
+
+  {featuredProducts.length > 0 && (
+    <section id="destacados" class="mb-8 scroll-mt-24">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Productos destacados</h2>
+        </div>
+      </div>
+      <div class="featured-strip" aria-label="Carrusel de productos destacados">
+        {featuredProducts.map((product) => (
+          <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+
+
+  {giftsPublicActive && gifts.length > 0 && (
+    <section id="regalos" class="mb-8 scroll-mt-24" aria-label={giftsPublicTitle}>
+      <a href={giftsPath} class="public-gift-banner-link" aria-label={`Abrir ${giftsPublicTitle}`}>
+        <div class="public-gift-copy">
+          <span class="public-gift-kicker">Especial para tu compra</span>
+          <div class="public-gift-copy-top">
+            <div class="public-gift-copy-main">
+              <h2 class="public-gift-title">{giftsPublicTitle}</h2>
+              <p class="public-gift-text">Descubre los regalos disponibles y elige uno cuando tu pedido califique.</p>
+            </div>
+            <span class="public-gift-cta">Ver regalos <span aria-hidden="true">›</span></span>
+          </div>
+          <div class="public-gift-meta">
+            <span class="public-gift-pill">{gifts.length} regalos</span>
+            <span class="public-gift-pill">1 por orden</span>
+          </div>
+        </div>
+        <div class="public-gift-banner">
+          {giftsPublicImageUrl ? <img src={giftsPublicImageUrl} alt={giftsPublicTitle} loading="lazy" /> : <div class="public-gift-banner-fallback">🎁</div>}
+        </div>
+      </a>
+    </section>
+  )}
+
+  {categories.length > 0 && (
+    <section id="categorias" class="mb-8 scroll-mt-24">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Categorías</h2>
+        </div>
+      </div>
+      <div class="public-category-grid">
+        {categories.map((category) => {
+          const categoryProducts = productsByCategoryTotal(category.id);
+          return (
+            <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
+              <h3 class="public-category-title-outside">{category.name}</h3>
+              <div class="public-category-card">
+                {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="public-category-fallback">PZ</div>}
+                <span class="public-category-go">›</span>
+              </div>
+              <div class="public-category-meta">
+                <span class="public-category-pill">{productCountLabel(categoryProducts.length)}</span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  )}
+
+  {homepageProducts.length > 0 && (
+    <section class="mb-8">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Productos</h2>
+          <p class="section-subtitle">Productos publicados directamente en portada.</p>
+        </div>
+      </div>
+      <div class="homepage-products-grid">
+        {homepageProducts.map((product) => (
+          <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <PublicFooter settings={settings} />
+
+  <script>
+    const openPublicMenuBtn = document.getElementById('public-menu-open');
+    const closePublicMenuBtn = document.getElementById('public-menu-close');
+    const publicDrawer = document.getElementById('public-drawer');
+    const publicOverlay = document.getElementById('public-drawer-overlay');
+    function openPublicMenu() {
+      document.body.classList.add('public-menu-open');
+      publicDrawer?.setAttribute('aria-hidden', 'false');
+      openPublicMenuBtn?.setAttribute('aria-expanded', 'true');
+      if (publicOverlay) publicOverlay.hidden = false;
+    }
+    function closePublicMenu() {
+      document.body.classList.remove('public-menu-open');
+      publicDrawer?.setAttribute('aria-hidden', 'true');
+      openPublicMenuBtn?.setAttribute('aria-expanded', 'false');
+      setTimeout(() => { if (!document.body.classList.contains('public-menu-open') && publicOverlay) publicOverlay.hidden = true; }, 220);
+    }
+    openPublicMenuBtn?.addEventListener('click', openPublicMenu);
+    closePublicMenuBtn?.addEventListener('click', closePublicMenu);
+    publicOverlay?.addEventListener('click', closePublicMenu);
+    publicDrawer?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closePublicMenu));
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closePublicMenu(); });
+
+    function getStoreCartFallbackKey() {
+      return window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
+    }
+    function getStoreCheckoutCartFallbackKey() {
+      return window.PZ_CHECKOUT_CART_STORAGE_KEY || `${getStoreCartFallbackKey()}_checkout`;
+    }
+    function getGiftCart() {
+      if (window.PZCartStorage?.readCart) return window.PZCartStorage.readCart();
+      try { return JSON.parse(localStorage.getItem(getStoreCartFallbackKey()) || '[]'); } catch (_) { return []; }
+    }
+    function saveGiftCart(cart) {
+      const currentStoreId = String(window.PZ_CURRENT_STORE_ID || '');
+      const nextCart = Array.isArray(cart)
+        ? cart.map((item) => ({ ...item, store_id: item?.store_id || currentStoreId }))
+        : [];
+      if (window.PZCartStorage?.writeCart) {
+        window.PZCartStorage.writeCart(nextCart);
+      } else {
+        const payload = JSON.stringify(nextCart);
+        localStorage.setItem(getStoreCartFallbackKey(), payload);
+        if (nextCart.length) sessionStorage.setItem(getStoreCheckoutCartFallbackKey(), payload);
+        else sessionStorage.removeItem(getStoreCheckoutCartFallbackKey());
+      }
+      window.dispatchEvent(new Event('cart-updated'));
+    }
+    function getGiftCartSubtotal(cart = getGiftCart()) {
+      return cart.filter((item) => !item.is_gift).reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0);
+    }
+    function showGiftInfo(message) {
+      const alert = document.getElementById('gift-info-alert');
+      if (!alert) return;
+      alert.textContent = message;
+      alert.style.display = message ? 'block' : 'none';
+      if (message) alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function syncGiftButtons() {
+      const subtotal = getGiftCartSubtotal();
+      document.querySelectorAll('[data-gift-card]').forEach((card) => {
+        const min = Number(card.dataset.giftMin || 0);
+        const stock = Number(card.dataset.giftStock || 0);
+        const btn = card.querySelector('[data-gift-button]');
+        if (!btn) return;
+        const canAdd = subtotal >= min && stock > 0;
+        btn.disabled = !canAdd;
+        btn.textContent = stock <= 0 ? 'Agotado' : canAdd ? 'Agregar regalo' : `Disponible desde $${min.toFixed(2)} USD`;
+      });
+    }
+    function addGiftFromCard(card) {
+      const cart = getGiftCart();
+      const min = Number(card.dataset.giftMin || 0);
+      const subtotal = getGiftCartSubtotal(cart);
+      if (subtotal < min) {
+        showGiftInfo(`Este regalo estará disponible cuando tu carrito llegue a $${min.toFixed(2)} USD.`);
+        return;
+      }
+      const existingGift = cart.find((item) => item.is_gift);
+      if (existingGift && existingGift.gift_id !== card.dataset.giftId) {
+        const replace = window.confirm('Ya tienes un regalo seleccionado. ¿Quieres reemplazarlo por este?');
+        if (!replace) return;
+      }
+      const withoutGifts = cart.filter((item) => !item.is_gift);
+      withoutGifts.push({
+        id: `gift-${card.dataset.giftId}`,
+        gift_id: card.dataset.giftId,
+        title: card.dataset.giftName || 'Regalo',
+        image: card.dataset.giftImage || 'https://placehold.co/500x500?text=Regalo',
+        price: 0,
+        quantity: 1,
+        stock: Number(card.dataset.giftStock || 0),
+        min_order_usd: min,
+        is_gift: true,
+        track_stock: true,
+      });
+      saveGiftCart(withoutGifts);
+      showGiftInfo('Regalo agregado al carrito. Solo puedes llevar 1 regalo por orden.');
+    }
+    document.querySelectorAll('[data-gift-button]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const card = button.closest('[data-gift-card]');
+        if (card) addGiftFromCard(card);
+      });
+    });
+    window.addEventListener('cart-updated', syncGiftButtons);
+    syncGiftButtons();
+
+  </script>
+</Layout>

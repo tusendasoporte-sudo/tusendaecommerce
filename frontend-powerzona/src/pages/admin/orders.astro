@@ -710,6 +710,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                   <div id="detail-items" class="order-products-clean-list"></div>
                 </div>
 
+                <div id="detail-coupon" class="hidden"></div>
+
                 <div class="edit-order-header">
                   <h3 class="section-title">Editar Datos del Cliente</h3>
                   <button id="toggle-edit-order-btn" class="btn btn-secondary" type="button">✏️ Editar Datos del Cliente</button>
@@ -820,6 +822,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const detailAddressBox = document.getElementById('detail-address-box');
       const detailAddress = document.getElementById('detail-address');
       const detailItems = document.getElementById('detail-items');
+      const detailCoupon = document.getElementById('detail-coupon');
       const toggleAddProductBtn = document.getElementById('toggle-add-product-btn');
       const addProductPanel = document.getElementById('add-product-panel');
       const closeAddProductBtn = document.getElementById('close-add-product-btn');
@@ -952,6 +955,59 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (compact) return visibleHtml;
         return `${visibleHtml}<div style="margin-top:6px;color:#64748b;font-size:11px;font-weight:850;line-height:1.25;">Interno USD: productos ${formatUSD(data.subtotalUSD)} + envío ${formatUSD(data.shippingUSD)} = ${formatUSD(data.totalInternalUSD)}</div>`;
       }
+      function getOrderCouponInfo(order) {
+        if (!order) return null;
+        const code = String(order.coupon_code || order.manual_coupon_code || order.applied_coupon_code || order.selected_coupon_code || '').trim();
+        const couponId = String(order.coupon_id || order.manual_coupon || '').trim();
+        const productDiscount = Number(order.coupon_discount_usd || order.coupon_discount_amount_usd || 0);
+        const shippingDiscount = Number(order.shipping_discount_usd || 0);
+        const totalDiscount = Math.max(0, productDiscount + shippingDiscount);
+        const summary = String(order.coupon_summary || order.discount_summary || order.final_discount_label || '').trim();
+        if (!code && !couponId && totalDiscount <= 0 && !summary) return null;
+        return { code, couponId, productDiscount, shippingDiscount, totalDiscount, summary };
+      }
+
+      function renderOrderCouponBadge(order) {
+        const coupon = getOrderCouponInfo(order);
+        if (!coupon) return '';
+        const discountText = coupon.totalDiscount > 0 ? ` -${formatUSD(coupon.totalDiscount)}` : '';
+        return `<span style="display:inline-flex !important; align-items:center !important; gap:6px !important; padding:8px 10px !important; border-radius:999px !important; background:#ecfdf5 !important; border:1px solid #bbf7d0 !important; color:#166534 !important; font-size:12px !important; line-height:1 !important; font-weight:1000 !important; box-shadow:0 8px 16px rgba(22,163,74,.08),inset 0 1px 0 rgba(255,255,255,.95) !important;">Cupon${coupon.code ? `: ${escapeHtml(coupon.code)}` : ''}${escapeHtml(discountText)}</span>`;
+      }
+
+      function renderOrderCouponCard(order) {
+        const coupon = getOrderCouponInfo(order);
+        if (!coupon) return '';
+        const detailLines = [];
+        if (coupon.code) detailLines.push(['Codigo', coupon.code]);
+        if (coupon.totalDiscount > 0) detailLines.push(['Descuento', `-${formatUSD(coupon.totalDiscount)}`]);
+        if (coupon.shippingDiscount > 0) detailLines.push(['Envio descontado', `-${formatUSD(coupon.shippingDiscount)}`]);
+        detailLines.push(['Tipo', 'Cupon manual']);
+        if (coupon.summary && coupon.summary.toLowerCase() !== coupon.code.toLowerCase()) detailLines.push(['Detalle', coupon.summary]);
+
+        return `
+          <section class="coupon-summary-card" style="margin:16px 0 18px;padding:15px;border-radius:20px;background:linear-gradient(145deg,#ecfdf5 0%,#ffffff 72%);border:1px solid rgba(187,247,208,.95);box-shadow:0 14px 30px rgba(15,23,42,.07),inset 0 1px 0 rgba(255,255,255,.95);">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+              <h3 class="section-title" style="margin:0;font-size:15px;">Cupon aplicado</h3>
+              <span style="display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #bbf7d0;font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.06em;">Manual</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+              ${detailLines.map(([label, value]) => `
+                <div style="min-width:0;padding:10px 11px;border-radius:15px;background:rgba(255,255,255,.86);border:1px solid rgba(226,232,240,.9);">
+                  <div style="font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.07em;color:#64748b;margin-bottom:4px;">${escapeHtml(label)}</div>
+                  <div style="font-size:13px;font-weight:950;color:#0f172a;line-height:1.3;word-break:break-word;">${escapeHtml(value)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </section>`;
+      }
+
+      function renderDetailCoupon(order) {
+        if (!detailCoupon) return;
+        const html = renderOrderCouponCard(order);
+        detailCoupon.innerHTML = html;
+        detailCoupon.classList.toggle('hidden', !html);
+      }
+
       function formatDate(value) {
         if (!value) return 'Sin fecha';
         return new Intl.DateTimeFormat('es-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
@@ -1688,6 +1744,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
                     <span style="display:inline-flex !important; align-items:center !important; gap:6px !important; padding:8px 10px !important; border-radius:999px !important; background:#ffffff !important; border:1px solid #e2e8f0 !important; color:#334155 !important; font-size:12px !important; line-height:1 !important; font-weight:900 !important; box-shadow:0 8px 16px rgba(15,23,42,.05),inset 0 1px 0 rgba(255,255,255,.95) !important;">🚚 ${escapeHtml(deliveryLabels[order.delivery_method] || order.delivery_method || 'Sin entrega')}</span>
                     <span style="display:inline-flex !important; align-items:center !important; gap:6px !important; padding:8px 10px !important; border-radius:999px !important; background:#ffffff !important; border:1px solid #e2e8f0 !important; color:#334155 !important; font-size:12px !important; line-height:1 !important; font-weight:900 !important; box-shadow:0 8px 16px rgba(15,23,42,.05),inset 0 1px 0 rgba(255,255,255,.95) !important;">🕒 ${formatDate(order.created)}</span>
                   </div>
+                  ${renderOrderCouponBadge(order)}
                   ${getOrderItemsSummary(order) ? `<div style="margin-top:10px !important; color:#475569 !important; font-size:12px !important; line-height:1.35 !important; font-weight:900 !important; overflow:hidden !important; text-overflow:ellipsis !important; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important;">🛒 ${escapeHtml(getOrderItemsSummary(order))}</div>` : ''}
                 </div>
                 <div style="display:flex !important; flex-direction:column !important; align-items:flex-end !important; justify-content:center !important; gap:10px !important; flex:0 0 auto !important;">
@@ -1767,6 +1824,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         orderDetailEmpty.classList.remove('hidden');
         orderDetail.classList.add('hidden');
         detailActionsArea?.classList.add('hidden');
+        renderDetailCoupon(null);
         setAddProductPanel(false);
         setEditOrderPanel(false);
         renderOrders();
@@ -1809,6 +1867,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         detailPhone.textContent = order.customer_phone || 'Sin teléfono';
         detailDelivery.textContent = deliveryText;
         detailTotal.innerHTML = renderOrderAdminSummary(order, selectedItems);
+        renderDetailCoupon(order);
         if (detailAddressBox) detailAddressBox.classList.toggle('hidden', !isDeliveryOrder);
         detailAddress.textContent = isDeliveryOrder ? (order.customer_address || 'Sin dirección / no aplica') : 'No aplica';
         detailStatus.value = normalizeStatus(order.status);

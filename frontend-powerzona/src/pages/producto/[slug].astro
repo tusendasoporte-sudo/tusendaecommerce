@@ -847,6 +847,38 @@ const variationItems = variations.map((variation) => {
 					return item.variation_id ? `${item.id}::${item.variation_id}` : item.id;
 				}
 
+				function parseCart(value) {
+					try {
+						const parsed = JSON.parse(value || '[]');
+						return Array.isArray(parsed) ? parsed : [];
+					} catch (_) {
+						return [];
+					}
+				}
+
+				function getStoreCart() {
+					if (window.PZCartStorage?.readCart) return window.PZCartStorage.readCart();
+					const fallbackKey = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
+					return parseCart(localStorage.getItem(fallbackKey));
+				}
+
+				function saveStoreCart(cart) {
+					const currentStoreId = String(window.PZ_CURRENT_STORE_ID || '');
+					const nextCart = Array.isArray(cart)
+						? cart.map((item) => ({ ...item, store_id: item?.store_id || currentStoreId }))
+						: [];
+					if (window.PZCartStorage?.writeCart) {
+						window.PZCartStorage.writeCart(nextCart);
+						return;
+					}
+					const fallbackKey = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${currentStoreId || 'powerzona'}`;
+					const checkoutFallbackKey = window.PZ_CHECKOUT_CART_STORAGE_KEY || `${fallbackKey}_checkout`;
+					const payload = JSON.stringify(nextCart);
+					localStorage.setItem(fallbackKey, payload);
+					if (nextCart.length) sessionStorage.setItem(checkoutFallbackKey, payload);
+					else sessionStorage.removeItem(checkoutFallbackKey);
+				}
+
 				function syncButtonState({ stock, isOutOfStock, canPreorder }) {
 					if (!addToCartBtn) return;
 					const disabled = isOutOfStock && !canPreorder;
@@ -1011,9 +1043,10 @@ const variationItems = variations.map((variation) => {
 						regular_price_usd: Number(addToCartBtn.dataset.regularPrice || addToCartBtn.dataset.price || 0),
 						is_offer: addToCartBtn.dataset.isOffer === 'true',
 						savings_usd: Number(addToCartBtn.dataset.savingsUsd || 0),
+						store_id: String(window.PZ_CURRENT_STORE_ID || ''),
 					};
 
-					let cart = JSON.parse(localStorage.getItem('powerzona_cart') || '[]');
+					let cart = getStoreCart();
 					const productKey = getCartItemKey(product);
 					const existingProduct = cart.find((item) => getCartItemKey(item) === productKey);
 
@@ -1036,11 +1069,12 @@ const variationItems = variations.map((variation) => {
 						existingProduct.regular_price_usd = product.regular_price_usd;
 						existingProduct.is_offer = product.is_offer;
 						existingProduct.savings_usd = product.savings_usd;
+						existingProduct.store_id = product.store_id;
 					} else {
 						cart.push(product);
 					}
 
-					localStorage.setItem('powerzona_cart', JSON.stringify(cart));
+					saveStoreCart(cart);
 					window.dispatchEvent(new Event('cart-updated'));
 					setPrimaryButtonText('Agregado al pedido ✅');
 

@@ -49,7 +49,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
   (() => {
     const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
     const STORAGE_KEY = 'powerzona_currency';
-    const CART_STORAGE_KEY = 'powerzona_cart';
+    const getCartStorageKey = () => window.PZ_CART_STORAGE_KEY || window.PZCartStorage?.getCartStorageKey?.() || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
     const switcher = document.getElementById('pz-currency-switcher');
     const select = document.getElementById('pz-currency-select');
     const state = {
@@ -156,7 +156,9 @@ const { hideFloatingSwitcher = false } = Astro.props;
 
     function getCartItems() {
       try {
-        const cart = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+        const cart = window.PZCartStorage?.readCart
+          ? window.PZCartStorage.readCart()
+          : JSON.parse(localStorage.getItem(getCartStorageKey()) || '[]');
         return Array.isArray(cart) ? cart : [];
       } catch (_) {
         return [];
@@ -238,7 +240,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
     document.addEventListener('DOMContentLoaded', () => updatePriceNodes());
     window.addEventListener('cart-updated', updateFloatingSwitcherVisibility);
     window.addEventListener('storage', (event) => {
-      if (event.key === CART_STORAGE_KEY) updateFloatingSwitcherVisibility();
+      if (event.key === getCartStorageKey()) updateFloatingSwitcherVisibility();
     });
     loadCurrencyConfig();
   })();

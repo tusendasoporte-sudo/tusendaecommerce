@@ -3,14 +3,20 @@
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import { getSettings, getPublicGifts } from '../../lib/api';
+import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
-const settings = await getSettings();
-const gifts = await getPublicGifts();
+const currentStore = await getCurrentStore(Astro);
+const storeQuery = { storeId: currentStore.id };
+const currentPathname = Astro.url.pathname;
+const settings = await getSettings(storeQuery);
+const gifts = await getPublicGifts(storeQuery);
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';
 const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
+const homePath = getPublicPath('/', currentStore, currentPathname);
+const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPathname);
 ---
 
 <Layout>
@@ -45,11 +51,11 @@ const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
   </style>
 
   <div class="gift-page-head">
-    <a class="gift-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
+    <a class="gift-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
       <div class="gift-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
       <p class="gift-brand-text">INICIO</p>
     </a>
-    <a class="back-link" href="/#categorias">Categorías</a>
+    <a class="back-link" href={categoryAnchorPath}>Categorías</a>
   </div>
 
   <div class="gift-hero-copy">
@@ -89,14 +95,29 @@ const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
   <PublicFooter settings={settings} />
 
   <script>
+    function getStoreCartFallbackKey() {
+      return window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
+    }
+    function getStoreCheckoutCartFallbackKey() {
+      return window.PZ_CHECKOUT_CART_STORAGE_KEY || `${getStoreCartFallbackKey()}_checkout`;
+    }
     function getGiftCart() {
-      try { return JSON.parse(localStorage.getItem('powerzona_cart') || '[]'); } catch (_) { return []; }
+      if (window.PZCartStorage?.readCart) return window.PZCartStorage.readCart();
+      try { return JSON.parse(localStorage.getItem(getStoreCartFallbackKey()) || '[]'); } catch (_) { return []; }
     }
     function saveGiftCart(cart) {
-      const payload = JSON.stringify(cart);
-      localStorage.setItem('powerzona_cart', payload);
-      if (cart.length) sessionStorage.setItem('powerzona_checkout_cart', payload);
-      else sessionStorage.removeItem('powerzona_checkout_cart');
+      const currentStoreId = String(window.PZ_CURRENT_STORE_ID || '');
+      const nextCart = Array.isArray(cart)
+        ? cart.map((item) => ({ ...item, store_id: item?.store_id || currentStoreId }))
+        : [];
+      if (window.PZCartStorage?.writeCart) {
+        window.PZCartStorage.writeCart(nextCart);
+      } else {
+        const payload = JSON.stringify(nextCart);
+        localStorage.setItem(getStoreCartFallbackKey(), payload);
+        if (nextCart.length) sessionStorage.setItem(getStoreCheckoutCartFallbackKey(), payload);
+        else sessionStorage.removeItem(getStoreCheckoutCartFallbackKey());
+      }
       window.dispatchEvent(new Event('cart-updated'));
     }
     function getGiftCartSubtotal(cart = getGiftCart()) {

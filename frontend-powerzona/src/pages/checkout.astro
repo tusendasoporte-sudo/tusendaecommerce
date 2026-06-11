@@ -369,6 +369,9 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const PENDING_ORDER_KEY = 'powerzona_pending_checkout_order';
 		const SAVED_COUPONS_KEY = 'powerzona_saved_coupons';
 		const CURRENT_STORE_ID = currentStoreId || '';
+		const CART_STORAGE_KEY = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${CURRENT_STORE_ID || 'powerzona'}`;
+		const CHECKOUT_CART_STORAGE_KEY = window.PZ_CHECKOUT_CART_STORAGE_KEY || `${CART_STORAGE_KEY}_checkout`;
+		const cartStorage = window.PZCartStorage || null;
 
 			function parseStoredCart(value) {
 				try {
@@ -381,12 +384,13 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 
 			function getCart() {
-				const localCart = parseStoredCart(localStorage.getItem('powerzona_cart'));
+				if (cartStorage?.readCart) return cartStorage.readCart();
+				const localCart = parseStoredCart(localStorage.getItem(CART_STORAGE_KEY));
 				if (localCart.length) return localCart;
 
-				const checkoutBackup = parseStoredCart(sessionStorage.getItem('powerzona_checkout_cart'));
+				const checkoutBackup = parseStoredCart(sessionStorage.getItem(CHECKOUT_CART_STORAGE_KEY));
 				if (checkoutBackup.length) {
-					localStorage.setItem('powerzona_cart', JSON.stringify(checkoutBackup));
+					localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(checkoutBackup));
 					return checkoutBackup;
 				}
 
@@ -395,10 +399,16 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 			function saveCart(cart) {
 				if (checkoutLocked) return;
-				const payload = JSON.stringify(cart);
-				localStorage.setItem('powerzona_cart', payload);
-				if (cart.length) sessionStorage.setItem('powerzona_checkout_cart', payload);
-				else sessionStorage.removeItem('powerzona_checkout_cart');
+				const nextCart = Array.isArray(cart)
+					? cart.map((item) => ({ ...item, store_id: item?.store_id || CURRENT_STORE_ID }))
+					: [];
+				if (cartStorage?.writeCart) cartStorage.writeCart(nextCart);
+				else {
+					const payload = JSON.stringify(nextCart);
+					localStorage.setItem(CART_STORAGE_KEY, payload);
+					if (nextCart.length) sessionStorage.setItem(CHECKOUT_CART_STORAGE_KEY, payload);
+					else sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
+				}
 				window.dispatchEvent(new Event('cart-updated'));
 				renderCheckout();
 			}
@@ -487,8 +497,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function completeCheckoutAfterWhatsApp() {
-			localStorage.removeItem('powerzona_cart');
-			sessionStorage.removeItem('powerzona_checkout_cart');
+			localStorage.removeItem(CART_STORAGE_KEY);
+			sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
 			localStorage.removeItem('powerzona_checkout_draft');
 			clearPendingCheckoutOrder();
 			window.dispatchEvent(new Event('cart-updated'));
@@ -1045,12 +1055,17 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			if (!removed && validGifts.length === gifts.length) return cart;
 
 			const nextCart = cart.filter((item) => !item.is_gift).concat(validGifts.slice(0, 1));
-			const payload = JSON.stringify(nextCart);
-			localStorage.setItem('powerzona_cart', payload);
-			if (nextCart.length) sessionStorage.setItem('powerzona_checkout_cart', payload);
-			else sessionStorage.removeItem('powerzona_checkout_cart');
+			const nextStoreCart = nextCart.map((item) => ({ ...item, store_id: item?.store_id || CURRENT_STORE_ID }));
+			if (cartStorage?.writeCart) {
+				cartStorage.writeCart(nextStoreCart);
+			} else {
+				const payload = JSON.stringify(nextStoreCart);
+				localStorage.setItem(CART_STORAGE_KEY, payload);
+				if (nextStoreCart.length) sessionStorage.setItem(CHECKOUT_CART_STORAGE_KEY, payload);
+				else sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
+			}
 			sessionStorage.setItem('powerzona_gift_notice', 'Tu compra no cumplía con las reglas del regalo. Por favor, vuelve a agregarlo después de agregar algo más a tu carrito.');
-			return nextCart;
+			return nextStoreCart;
 		}
 
 		function getStockProblemItems(cart) {
