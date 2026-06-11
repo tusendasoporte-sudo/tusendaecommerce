@@ -7,10 +7,11 @@ import ProductCard from '../components/ProductCard.astro';
 import PublicFooter from '../components/PublicFooter.astro';
 import PromoBar from '../components/PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../lib/api';
-import { getCurrentStore } from '../lib/stores';
+import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
+const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
 const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
@@ -40,6 +41,13 @@ const coverImageUrl = settings?.coverImageUrl || '';
 const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
+const homePath = getPublicPath('/', currentStore, currentPathname);
+const searchPath = getPublicPath('/buscar', currentStore, currentPathname);
+const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPathname);
+const productAnchorPath = getPublicPath('/#destacados', currentStore, currentPathname);
+const servicesAnchorPath = getPublicPath('/#servicios', currentStore, currentPathname);
+const hoursAnchorPath = getPublicPath('/#horarios', currentStore, currentPathname);
+const reviewsAnchorPath = getPublicPath('/#resena', currentStore, currentPathname);
 
 function cleanWhatsappNumber(value: string | undefined) {
   return String(value || '').replace(/[^0-9]/g, '');
@@ -68,7 +76,7 @@ function visualItemHref(item: any) {
   const actionType = item.action_type || 'whatsapp';
   if (actionType === 'url' && item.target_url) return item.target_url;
   if (actionType === 'archivo' && item.attachmentUrl) return item.attachmentUrl;
-  if (actionType === 'categoria' && item.expand?.category?.slug) return `/categoria/${item.expand.category.slug}`;
+  if (actionType === 'categoria' && item.expand?.category?.slug) return getPublicPath(`/categoria/${item.expand.category.slug}`, currentStore, currentPathname);
   if (actionType === 'whatsapp') {
     const text = encodeURIComponent(item.whatsapp_message || `Hola ${storeName}, quiero información sobre ${item.title || 'esta promo'}.`);
     return whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${text}` : '#';
@@ -205,11 +213,11 @@ function getProductOfferView(product: any) {
   </style>
 
   <div class="public-store-head" aria-label="Acciones principales">
-    <a class="public-store-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
+    <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
       <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
     </a>
     <div class="public-header-actions">
-      <a class="public-action-btn" href="/buscar" aria-label="Buscar productos y categorías">⌕</a>
+      <a class="public-action-btn" href={searchPath} aria-label="Buscar productos y categorías">⌕</a>
       <button id="public-menu-open" class="public-action-btn public-menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false">⋯</button>
     </div>
   </div>
@@ -217,20 +225,20 @@ function getProductOfferView(product: any) {
   <div id="public-drawer-overlay" class="public-drawer-overlay" hidden></div>
   <aside id="public-drawer" class="public-drawer" aria-hidden="true">
     <div class="drawer-head">
-      <a class="drawer-logo" href="/" aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</a>
+      <a class="drawer-logo" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</a>
       <button id="public-menu-close" class="drawer-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
     <nav class="drawer-nav">
       <a class="drawer-link" href="/regalos">Regalos <span>›</span></a>
-      <a class="drawer-link" href="#categorias">Categorías <span>›</span></a>
-      <a class="drawer-link" href="#destacados">Productos destacados <span>›</span></a>
-      <a class="drawer-link" href="#servicios">Servicios <span>›</span></a>
+      <a class="drawer-link" href={categoryAnchorPath}>Categorías <span>›</span></a>
+      <a class="drawer-link" href={productAnchorPath}>Productos destacados <span>›</span></a>
+      <a class="drawer-link" href={servicesAnchorPath}>Servicios <span>›</span></a>
       <div class="drawer-currency-card" data-pz-currency-menu hidden>
         <div class="drawer-currency-head">Moneda <span>⌄</span></div>
         <select class="drawer-currency-select" data-pz-currency-select aria-label="Moneda visual en menú"></select>
       </div>
-      <a class="drawer-link" href="#horarios">Horarios <span>›</span></a>
-      <a class="drawer-link" href="#resena">Reseña <span>›</span></a>
+      <a class="drawer-link" href={hoursAnchorPath}>Horarios <span>›</span></a>
+      <a class="drawer-link" href={reviewsAnchorPath}>Reseña <span>›</span></a>
       <a class="drawer-link" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp <span>↗</span></a>
     </nav>
     <div class="drawer-admin-action">
@@ -249,7 +257,7 @@ function getProductOfferView(product: any) {
 
   <div class="public-hero-actions" aria-label="Acciones después de la portada">
     <a class="hero-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp</a>
-    <a class="hero-btn secondary" href="#categorias">Ver categorías</a>
+    <a class="hero-btn secondary" href={categoryAnchorPath}>Ver categorías</a>
   </div>
 
   <PromoBar settings={settings} />
@@ -308,7 +316,7 @@ function getProductOfferView(product: any) {
       </div>
       <div class="featured-strip" aria-label="Carrusel de productos destacados">
         {featuredProducts.map((product) => (
-          <a href={`/producto/${product.slug}`} class="block">
+          <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
             <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
           </a>
         ))}
@@ -352,7 +360,7 @@ function getProductOfferView(product: any) {
         {categories.map((category) => {
           const categoryProducts = productsByCategoryTotal(category.id);
           return (
-            <a href={`/categoria/${category.slug}`} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
+            <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
               <h3 class="public-category-title-outside">{category.name}</h3>
               <div class="public-category-card">
                 {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="public-category-fallback">PZ</div>}
@@ -378,7 +386,7 @@ function getProductOfferView(product: any) {
       </div>
       <div class="homepage-products-grid">
         {homepageProducts.map((product) => (
-          <a href={`/producto/${product.slug}`} class="block">
+          <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
             <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
           </a>
         ))}

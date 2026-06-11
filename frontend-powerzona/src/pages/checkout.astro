@@ -1,18 +1,20 @@
 ---
 // PZ-PATCH-V26.5-OFERTA-FINAL-ESTABLE-20260605
 import Layout from '../layouts/Layout.astro';
-import { getCurrentStore } from '../lib/stores';
+import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
+const currentPathname = Astro.url.pathname;
+const homePath = getPublicPath('/', currentStore, currentPathname);
 ---
 
 <!-- PZ-CHECKOUT-V19-OFERTA-AHORRO-20260605 -->
 <Layout>
 	<section class="max-w-5xl mx-auto">
 		<div class="mb-6">
-			<a href="/" class="inline-flex items-center text-sm text-blue-600 font-semibold mb-4">
+			<a href={homePath} class="inline-flex items-center text-sm text-blue-600 font-semibold mb-4">
 				← Seguir comprando
 			</a>
 
@@ -37,7 +39,7 @@ const currentStoreId = currentStore.id;
 			</p>
 
 			<a
-				href="/"
+				href={homePath}
 				class="inline-flex bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-2xl transition"
 			>
 				Volver al catálogo
@@ -72,7 +74,7 @@ const currentStoreId = currentStore.id;
 							</div>
 
 							<a
-								href="/"
+								href={homePath}
 								class="inline-flex justify-center items-center bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-3 rounded-2xl transition"
 							>
 								Volver al catálogo
@@ -317,7 +319,7 @@ const currentStoreId = currentStore.id;
 		</div>
 	</section>
 
-	<script define:vars={{ pocketbaseUrl, currentStoreId }}>
+	<script define:vars={{ pocketbaseUrl, currentStoreId, homePath }}>
 		const checkoutEmpty = document.getElementById('checkout-empty');
 		const checkoutContent = document.getElementById('checkout-content');
 		const checkoutItems = document.getElementById('checkout-items');
@@ -493,7 +495,7 @@ const currentStoreId = currentStore.id;
 			checkoutContent?.classList.add('hidden');
 			checkoutEmpty?.classList.remove('hidden');
 			setTimeout(() => {
-				window.location.href = '/';
+				window.location.href = homePath || '/';
 			}, 900);
 		}
 
@@ -1187,7 +1189,7 @@ const currentStoreId = currentStore.id;
 				checkoutContent.classList.add('hidden');
 
 				setTimeout(() => {
-					window.location.href = '/';
+					window.location.href = homePath || '/';
 				}, 1800);
 
 				return;

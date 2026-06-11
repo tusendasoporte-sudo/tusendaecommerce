@@ -1,4 +1,6 @@
 ---
+import { getCurrentStore, getPublicPath } from '../lib/stores';
+
 interface CategoryItem {
   id: string;
   name: string;
@@ -16,6 +18,9 @@ const {
   categories?: CategoryItem[];
   currentCategoryId?: string;
 };
+
+const currentStore = await getCurrentStore(Astro);
+const currentPathname = Astro.url.pathname;
 ---
 
 <div class="public-category-actions" data-public-category-actions data-share-title={title} data-share-text={text}>
@@ -49,7 +54,7 @@ const {
           {categories.map((category) => (
             <a
               class:list={['category-options-link', category.id === currentCategoryId && 'is-active']}
-              href={`/categoria/${category.slug}`}
+              href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)}
               aria-current={category.id === currentCategoryId ? 'page' : undefined}
             >
               {category.name}

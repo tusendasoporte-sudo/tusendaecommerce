@@ -2,10 +2,11 @@
 // PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603
 import Layout from '../layouts/Layout.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
-import { getCurrentStore } from '../lib/stores';
+import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
+const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
 const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
@@ -13,6 +14,7 @@ const products = await getProducts(storeQuery);
 
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';
+const homePath = getPublicPath('/', currentStore, currentPathname);
 const rawQuery = Astro.url.searchParams.get('q') || '';
 const initialQuery = rawQuery.trim();
 
@@ -39,7 +41,7 @@ const searchItems = [
     subtitle: [getCategoryNameById(product.category), getSubcategoryNameById(product.subcategory)].filter(Boolean).join(' · ') || 'Producto',
     description: product.description || product.short_description || '',
     slug: product.slug || '',
-    url: `/producto/${product.slug}`,
+    url: getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname),
     image: product.imageUrls?.[0] || '',
     price: product.base_price_usd ?? '',
     regularPrice: Number(product.regular_price_usd || product.base_price_usd || 0),
@@ -53,7 +55,7 @@ const searchItems = [
     subtitle: 'Categoría',
     description: '',
     slug: category.slug || '',
-    url: `/categoria/${category.slug}`,
+    url: getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname),
     image: category.imageUrl || '',
     price: '',
     onlyUsd: false,
@@ -65,7 +67,7 @@ const searchItems = [
     subtitle: subcategory.expand?.category?.name ? `Subcategoría de ${subcategory.expand.category.name}` : 'Subcategoría',
     description: '',
     slug: subcategory.slug || '',
-    url: `/subcategoria/${subcategory.slug}`,
+    url: getPublicPath(`/subcategoria/${subcategory.slug}`, currentStore, currentPathname),
     image: '',
     price: '',
     onlyUsd: false,
@@ -113,11 +115,11 @@ const searchItems = [
 
   <div class="search-shell">
     <div class="search-head">
-      <a class="search-brand" href="/" aria-label={`Volver a ${storeName}`}>
+      <a class="search-brand" href={homePath} aria-label={`Volver a ${storeName}`}>
         <div class="search-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
         <p class="search-store">INICIO</p>
       </a>
-      <a class="back-btn" href="/">Volver</a>
+      <a class="back-btn" href={homePath}>Volver</a>
     </div>
 
     <section class="search-panel">

@@ -2,12 +2,14 @@
 import '../styles/global.css';
 import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
-import { getCurrentStore } from '../lib/stores';
+import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 
-const isCheckoutPage = Astro.url.pathname.replace(/\/$/, '') === '/checkout';
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
+const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
+const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
+const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
 ---
 
 <!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
@@ -28,9 +30,10 @@ const currentStoreId = currentStore.id;
 		</main>
 
 		<script is:inline src="/cart-promotions.js"></script>
-		<script define:vars={{ pocketbaseUrl, currentStoreId }}>
+		<script define:vars={{ pocketbaseUrl, currentStoreId, publicPathPrefix }}>
 			window.PZ_POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			window.PZ_CURRENT_STORE_ID = currentStoreId || '';
+			window.PZ_PUBLIC_PATH_PREFIX = publicPathPrefix || '';
 			window.PZ_PROMOTIONS_READY = window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID).then((promotions) => {
 				window.PZ_AUTOMATIC_PROMOTIONS = promotions;
 				window.dispatchEvent(new Event('pz-promotions-updated'));

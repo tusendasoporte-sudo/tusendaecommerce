@@ -71,7 +71,9 @@
   const cartItemsContainer = document.getElementById('cart-items-container');
   const cartTotal = document.getElementById('cart-total');
   const checkoutBtn = document.getElementById('checkout-btn');
-  const isCheckoutPage = window.location.pathname === '/checkout';
+  const publicPathPrefix = String(window.PZ_PUBLIC_PATH_PREFIX || '').replace(/\/$/, '');
+  const checkoutPath = `${publicPathPrefix}/checkout`;
+  const isCheckoutPage = window.location.pathname.replace(/\/$/, '') === checkoutPath.replace(/\/$/, '');
   const itemTracksStock = (item) => item?.track_stock !== false;
   const getSelectedCurrencyCode = () => window.PZCurrency?.selected?.code || 'USD';
   const formatCartPrice = (amountUsd, item = {}) => {
@@ -99,7 +101,7 @@ if (isCheckoutPage) {
       console.warn('No se pudo crear respaldo del carrito para checkout.', error);
     }
 
-    window.location.href = '/checkout';
+    window.location.href = checkoutPath;
   });
 
   function getCart() {

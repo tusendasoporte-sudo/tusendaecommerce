@@ -2,7 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
-import { getCurrentStore } from '../../lib/stores';
+import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 export async function getStaticPaths() {
 	const products = await getProducts();
@@ -17,8 +17,14 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
+const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
-const product = await getProductBySlug(slug as string, storeQuery);
+let product;
+try {
+	product = await getProductBySlug(slug as string, storeQuery);
+} catch (_) {
+	return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
+}
 const variations = product.has_variations ? await getProductVariations(product.id) : [];
 const automaticPromotions = await getAutomaticPromotions(storeQuery);
 const automaticPromotionText = getProductAutomaticPromotionText(product, automaticPromotions);
@@ -28,11 +34,13 @@ const mainImage = productGalleryImages[0];
 const categoryName = product.expand?.category?.name ?? 'Sin categoría';
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';
+const homePath = getPublicPath('/', currentStore, currentPathname);
+const searchPath = getPublicPath('/buscar', currentStore, currentPathname);
 const productBackHref = product.expand?.subcategory?.slug
-	? `/subcategoria/${product.expand.subcategory.slug}`
+	? getPublicPath(`/subcategoria/${product.expand.subcategory.slug}`, currentStore, currentPathname)
 	: product.expand?.category?.slug
-		? `/categoria/${product.expand.category.slug}`
-		: '/';
+		? getPublicPath(`/categoria/${product.expand.category.slug}`, currentStore, currentPathname)
+		: homePath;
 const productBackLabel = product.expand?.subcategory?.name
 	? `← Volver a ${product.expand.subcategory.name}`
 	: product.expand?.category?.name
@@ -288,13 +296,13 @@ const variationItems = variations.map((variation) => {
 	</style>
 
 	<div class="product-public-top">
-		<a class="product-public-brand" href="/" aria-label={`Ir al inicio de ${storeName}`}>
+		<a class="product-public-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
 			<div class="product-public-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
 			<p class="product-public-name">INICIO</p>
 		</a>
 		<div class="product-public-actions">
 			<a href={productBackHref} class="product-back-btn">{productBackLabel}</a>
-			<a href="/buscar" class="product-top-icon-btn" aria-label="Buscar productos" title="Buscar productos">
+			<a href={searchPath} class="product-top-icon-btn" aria-label="Buscar productos" title="Buscar productos">
 				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
 					<path d="M10.8 18.1a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
 					<path d="m16 16 4.2 4.2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -1052,7 +1060,7 @@ const variationItems = variations.map((variation) => {
 				{relatedProducts.map((item: any) => {
 					const offer = getProductOfferState(item);
 					return (
-						<a class="related-card" href={`/producto/${item.slug}`}>
+						<a class="related-card" href={getPublicPath(`/producto/${item.slug}`, currentStore, currentPathname)}>
 							<img class="related-image" src={getProductCardImage(item)} alt={item.name} loading="lazy" />
 							<div>
 								{offer.hasOffer && <span class="related-badge">Oferta</span>}

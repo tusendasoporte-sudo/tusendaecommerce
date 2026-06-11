@@ -5,7 +5,7 @@ import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
-import { getCurrentStore } from '../../lib/stores';
+import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 export async function getStaticPaths() {
   const subcategories = await getSubcategories();
@@ -15,6 +15,7 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
+const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
 const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
@@ -22,11 +23,15 @@ const products = await getProducts(storeQuery);
 const automaticPromotions = await getAutomaticPromotions(storeQuery);
 
 const subcategory = subcategories.find((item) => item.slug === slug);
-if (!subcategory) return Astro.redirect('/');
+if (!subcategory) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 
 const category = categories.find((item) => item.id === subcategory.category);
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';
+const homePath = getPublicPath('/', currentStore, currentPathname);
+const categoryBackPath = category
+  ? getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)
+  : getPublicPath('/#categorias', currentStore, currentPathname);
 const subcategoryProducts = products.filter((product) => product.subcategory === subcategory.id);
 const productCountLabel = `${subcategoryProducts.length} ${subcategoryProducts.length === 1 ? 'producto' : 'productos'}`;
 function getProductOfferView(product: any) {
@@ -63,12 +68,12 @@ function getProductOfferView(product: any) {
   </style>
 
   <div class="top">
-    <a class="brand-link" href="/">
+    <a class="brand-link" href={homePath}>
       <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
       <p class="brand-name">INICIO</p>
     </a>
     <div class="top-actions">
-      <a class="back-btn" href={category ? `/categoria/${category.slug}` : '/#categorias'}>← Volver</a>
+      <a class="back-btn" href={categoryBackPath}>← Volver</a>
       <PublicCategoryActions title={subcategory.name} text={`Subcategoría ${subcategory.name}`} categories={categories} currentCategoryId={category?.id || ''} />
     </div>
   </div>
@@ -82,7 +87,7 @@ function getProductOfferView(product: any) {
   {subcategoryProducts.length > 0 ? (
     <div class="product-grid">
       {subcategoryProducts.map((product) => (
-        <a href={`/producto/${product.slug}`} class="block">
+        <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
           <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
         </a>
       ))}

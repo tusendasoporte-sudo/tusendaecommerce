@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
 **Fecha de actualización:** 2026-06-10  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado: base multitienda stores creada.
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store y rutas públicas `/t/[storeSlug]` preparadas sin eliminar rutas actuales.
 
 ---
 
@@ -9161,126 +9161,38 @@ USD sigue siendo moneda base real. El admin configura monedas activas y tasa de 
 
 ---
 
-### 21.30. Bloque iniciado: Tu Senda 84 - Plataforma multitienda + Bazar principal
+### 21.30. Bloque iniciado: Tu Senda 84 — Plataforma multitienda + Bazar principal
 
-Esta sección documenta el inicio oficial de la base multitienda de Tu Senda 84.
+Esta sección documenta el inicio oficial de la base multitienda de **Tu Senda 84** y debe mantenerse como la fuente principal del bloque 21.30.
 
-Estado:
+Estado actual:
 
 ```txt
-21.30.1 iniciado / base stores creada
-21.30.2 completado / relacion store agregada a colecciones principales
-21.30.4 iniciado / helper central para resolver store actual
-21.30.5 completado / helper de store usado en consultas publicas principales con PowerZona como default
+21.30.1 completado / base stores creada
+21.30.2 completado / relación store agregada a colecciones principales
+21.30.3 completado / verificación base multitienda correcta
+21.30.4 completado / helper central para resolver store actual
+21.30.5 completado / helper de store usado en consultas públicas principales con PowerZona como default
+21.30.5A completado / limpieza de duplicados generados durante la adaptación por store
+21.30.6 completado / rutas públicas por store preparadas sin eliminar rutas actuales
+21.30.6A completado / limpieza de duplicados generados durante la preparación de rutas por store
 ```
 
-Regla oficial:
+Regla oficial de nombres:
 
 ```txt
-La plataforma se llama Tu Senda 84.
-El dominio futuro será tusenda84.
-Bazar principal = portada/plataforma principal donde se publican tiendas, promociones, anuncios y destacados.
-Tiendas públicas = plantilla pública global usada por todas las tiendas dentro del Bazar.
+Tu Senda 84 = plataforma completa.
+Dominio futuro = tusenda84.
+Bazar principal = portada/plataforma principal donde se publican tiendas, promociones, anuncios, tiendas destacadas y tiendas en tendencia.
+Tiendas públicas = tiendas dentro del Bazar que usan la plantilla pública global.
+Store = nombre técnico interno de cada tienda pública.
 PowerZona = primera Tienda pública oficial dentro de Tu Senda 84.
-Internamente cada tienda pública se manejará como store.
-Todas las tiendas públicas comparten el mismo diseño visual, carrito, checkout y experiencia pública.
-Cada tienda solo cambia sus datos propios: productos, categorías, promociones, cupones, regalos, pedidos, envíos, WhatsApp, horarios y ajustes comerciales.
 ```
 
----
-
-#### 21.30.1. Bazar principal
-
-El Bazar principal es la portada/plataforma principal de Tu Senda 84.
-
-Debe servir para publicar:
+Regla oficial de tienda pública global:
 
 ```txt
-- Tiendas.
-- Promociones.
-- Anuncios.
-- Tiendas destacadas.
-- Tiendas en tendencia.
-```
-
----
-
-#### 21.30.2. Relación store en colecciones principales
-
-Esta fase agrega la relación técnica `store` a las colecciones principales actuales.
-
-Objetivo:
-
-```txt
-Todos los datos actuales quedan asociados al store PowerZona.
-```
-
-Colecciones incluidas en esta fase:
-
-```txt
-products
-categories
-subcategories
-settings
-shipping_zones
-gifts
-automatic_promotions
-manual_coupons
-orders
-store_visual_items
-```
-
-Colecciones que no se modifican en esta fase:
-
-```txt
-product_variations
-order_items
-manual_coupon_usages
-```
-
-Razón:
-
-```txt
-Estas colecciones dependen de producto, orden o cupón. Por ahora no se agrega store directo para evitar duplicar datos o romper relaciones existentes.
-```
-
-Reglas de esta fase:
-
-```txt
-Todavía no se filtra por store en frontend/admin.
-Todavía no se cambian rutas públicas.
-Todavía no existen rutas /t/[storeSlug].
-Todavía no hay usuarios/roles/login multitienda.
-PowerZona sigue funcionando como antes mientras se prepara la base multitienda.
-No se implementan usuarios, roles, login, permisos ni redirecciones.
-```
-
-Verificación 21.30.3:
-
-```txt
-stores creado.
-PowerZona creado como primer store protegido.
-Colecciones principales conectadas a store.
-Datos existentes migrados a PowerZona.
-La tienda pública actual debe seguir funcionando igual.
-```
-
----
-
-#### 21.30.3. Tiendas públicas
-
-Las tiendas dentro del Bazar se llaman Tiendas públicas.
-
-Regla visual:
-
-```txt
-Todas las Tiendas públicas comparten la misma plantilla visual global.
-Todas comparten el mismo diseño visual, carrito, checkout y experiencia pública.
-```
-
-Regla de datos:
-
-```txt
+Todas las Tiendas públicas comparten el mismo diseño visual, carrito, checkout, buscador, promociones, cupones, regalos, WhatsApp y experiencia pública.
 Cada tienda solo cambia sus datos propios:
 - productos
 - categorías
@@ -9295,114 +9207,49 @@ Cada tienda solo cambia sus datos propios:
 - ajustes comerciales
 ```
 
----
-
-#### 21.30.4. Helper central de store actual
-
-Se crea un helper central en el frontend para resolver el store actual sin cambiar rutas públicas ni comportamiento visible.
-
-Archivo:
+Regla oficial sobre Bazar vs Tiendas públicas:
 
 ```txt
-frontend-powerzona/src/lib/stores.ts
+Cuando el usuario diga “Bazar” o “cambios al Bazar”, se refiere al Bazar principal de Tu Senda 84.
+Cuando el usuario diga “Tiendas públicas” o “cambios a tiendas”, se refiere a la plantilla pública global usada por todas las tiendas/store dentro del Bazar, incluida PowerZona.
 ```
 
-Funciones base:
+Regla obligatoria de numeración para Codex:
 
 ```txt
-getDefaultStore()
-getStoreBySlug(slug)
-getCurrentStore(context opcional)
+Cuando Codex actualice el Master Document, debe continuar la secuencia existente dentro de 21.30.
+No debe duplicar numeraciones ya usadas.
+No debe crear dos secciones con el mismo número.
+No debe correr la numeración existente si solo está agregando una nota.
+Si el cambio es una corrección menor dentro de un punto ya trabajado, debe usar sufijo:
+21.30.5A
+21.30.5B
+21.30.6A
+
+Ejemplo:
+- Si 21.30.6 ya existe, el próximo punto grande debe ser 21.30.7.
+- Si se corrige algo de 21.30.6, usar 21.30.6A.
 ```
 
-Regla actual:
+Regla de trabajo documental:
 
 ```txt
-Por ahora el store actual siempre será PowerZona.
-getCurrentStore() devuelve getDefaultStore().
-getDefaultStore() busca stores.slug = "powerzona".
-getStoreBySlug(slug) busca stores activos por slug.
-```
-
-Objetivo futuro:
-
-```txt
-Este helper permitirá más adelante activar rutas /t/[storeSlug] y filtros por tienda.
-```
-
-Límites:
-
-```txt
-No se cambia todavía la tienda pública.
-No se cambia todavía el panel admin.
-No se filtran todavía todas las consultas por store.
-No se implementan rutas /t/[storeSlug].
+Codex debe enfocarse principalmente en modificar código.
+Las actualizaciones importantes del Master Document se normalizarán desde ChatGPT para evitar numeraciones duplicadas, archivos duplicados o pérdida del documento oficial.
+Si Codex necesita documentar algo, debe responderlo en texto y no modificar el Master Document automáticamente, salvo instrucción explícita.
 ```
 
 ---
 
-#### 21.30.5. PowerZona dentro de Tu Senda 84
+#### 21.30.1. Base `stores` creada
 
-PowerZona es la primera Tienda pública oficial dentro de Tu Senda 84.
-
-Internamente, cada Tienda pública se manejará como un `store`.
-
-Registro inicial de PowerZona:
-
-```txt
-name: PowerZona
-slug: powerzona
-status: active
-plan: premium
-featured: true
-protected: true
-```
-
-Actualizacion 21.30.5 - consultas publicas principales:
-
-```txt
-Se empieza a usar el helper central de store actual en las consultas publicas principales.
-PowerZona sigue siendo el store default mediante getCurrentStore() -> getDefaultStore().
-Las rutas publicas actuales no cambian:
-/
-/producto/[slug]
-/categoria/[slug]
-/subcategoria/[slug]
-/buscar
-/checkout
-Todavia no existen rutas /t/[storeSlug].
-Todavia no se adapta el panel admin por store.
-Todavia no hay usuarios, roles ni login multitienda.
-Checkout guarda orders.store = PowerZona al crear una orden nueva.
-La tienda publica debe seguir viendose igual.
-```
-
-Archivos tocados en 21.30.5:
-
-```txt
-frontend-powerzona/src/lib/api.ts
-frontend-powerzona/src/layouts/Layout.astro
-frontend-powerzona/public/cart-promotions.js
-frontend-powerzona/src/pages/index.astro
-frontend-powerzona/src/pages/producto/[slug].astro
-frontend-powerzona/src/pages/categoria/[slug].astro
-frontend-powerzona/src/pages/subcategoria/[slug].astro
-frontend-powerzona/src/pages/buscar.astro
-frontend-powerzona/src/pages/checkout.astro
-docs/Master_document_powerzona_v19_marketing_12_2_12_3_2026_06_10.md
-```
-
----
-
-#### 21.30.6. Colección `stores`
-
-La base inicial ya crea la colección:
+Se creó la colección técnica:
 
 ```txt
 stores
 ```
 
-Campos base de esta primera fase:
+Campos base de la colección:
 
 ```txt
 name
@@ -9422,6 +9269,17 @@ created
 updated
 ```
 
+PowerZona fue creado como primer store oficial:
+
+```txt
+name: PowerZona
+slug: powerzona
+status: active
+plan: premium
+featured: true
+protected: true
+```
+
 Regla crítica de borrado:
 
 ```txt
@@ -9430,11 +9288,399 @@ protected != true && @request.auth.id != ""
 
 Esto evita borrar accidentalmente stores protegidos como PowerZona.
 
+Migración relacionada:
+
+```txt
+backend-powerzona/pb_migrations/1780469000_created_stores_multistore_base.js
+```
+
+Regla:
+
+```txt
+Esta migración se conserva.
+No se debe borrar.
+No reemplaza migraciones anteriores.
+```
+
+---
+
+#### 21.30.2. Relación `store` en colecciones principales
+
+Se agregó la relación técnica:
+
+```txt
+store
+```
+
+a las colecciones principales actuales.
+
+Objetivo:
+
+```txt
+Todos los datos existentes quedan asociados al store PowerZona.
+```
+
+Colecciones conectadas directamente a `store`:
+
+```txt
+products
+categories
+subcategories
+settings
+shipping_zones
+gifts
+automatic_promotions
+manual_coupons
+orders
+store_visual_items
+```
+
+Colecciones que no recibieron `store` directo en esta fase:
+
+```txt
+product_variations
+order_items
+manual_coupon_usages
+```
+
+Razón:
+
+```txt
+Estas colecciones dependen de producto, orden o cupón.
+Por ahora no se agrega store directo para evitar duplicar datos o romper relaciones existentes.
+```
+
+Relación esperada:
+
+```txt
+product_variations → product → store
+order_items → order → store
+manual_coupon_usages → manual_coupon → store
+```
+
+Migración relacionada:
+
+```txt
+backend-powerzona/pb_migrations/1780469100_add_store_relation_to_main_collections.js
+```
+
+Regla:
+
+```txt
+Esta migración se conserva.
+No se debe borrar.
+No reemplaza la migración de stores.
+```
+
+---
+
+#### 21.30.3. Verificación base multitienda
+
+Se verificó que la base multitienda quedó aplicada correctamente.
+
+Resultado esperado confirmado:
+
+```txt
+stores creado.
+PowerZona creado como primer store protegido.
+Colecciones principales conectadas a store.
+Datos existentes migrados a PowerZona.
+La tienda pública actual sigue funcionando igual.
+```
+
+Reglas confirmadas:
+
+```txt
+Todavía no se filtra todo el frontend/admin por store.
+Todavía no se cambian rutas públicas.
+Todavía no existen rutas /t/[storeSlug] como ruta principal obligatoria.
+Todavía no hay usuarios/roles/login multitienda.
+PowerZona sigue funcionando como antes mientras se prepara la base multitienda.
+No se implementan usuarios, roles, login, permisos ni redirecciones en esta fase.
+```
+
+---
+
+#### 21.30.4. Helper central de store actual
+
+Se creó un helper central para resolver el store actual.
+
+Archivo:
+
+```txt
+frontend-powerzona/src/lib/stores.ts
+```
+
+Funciones disponibles:
+
+```txt
+getDefaultStore()
+getStoreBySlug(slug)
+getCurrentStore(context opcional)
+```
+
+Regla inicial:
+
+```txt
+getCurrentStore() devuelve PowerZona como store default.
+```
+
+Objetivo:
+
+```txt
+Preparar la transición multitienda sin romper la tienda pública actual.
+```
+
+Uso previsto:
+
+```txt
+Hoy:
+getCurrentStore() → PowerZona
+
+Futuro:
+/t/powerzona → PowerZona
+/t/otra-tienda → Otra tienda pública
+```
+
+Reglas de esta fase:
+
+```txt
+No cambia comportamiento público.
+No cambia rutas.
+No cambia checkout.
+No cambia carrito.
+No cambia panel admin.
+No crea usuarios, roles ni login.
+```
+
+---
+
+#### 21.30.5. Helper de store usado en consultas públicas principales
+
+Se empezó a usar el helper de store actual en consultas públicas principales, manteniendo PowerZona como default.
+
+Objetivo:
+
+```txt
+La tienda pública sigue viéndose igual, pero las consultas principales ya pueden trabajar con store actual.
+```
+
+Archivos relacionados:
+
+```txt
+frontend-powerzona/src/lib/api.ts
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/public/cart-promotions.js
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+frontend-powerzona/src/pages/buscar.astro
+frontend-powerzona/src/pages/checkout.astro
+```
+
+Reglas aplicadas:
+
+```txt
+PowerZona sigue siendo store default.
+Las rutas públicas actuales no cambian.
+No se crea todavía /t/[storeSlug] como ruta principal.
+No se toca panel admin.
+No se implementan usuarios, roles ni login.
+La tienda pública debe seguir viéndose igual.
+```
+
+Checkout:
+
+```txt
+Al crear una orden nueva, orders.store debe guardar el store actual.
+En esta fase, el store actual sigue siendo PowerZona.
+```
+
+---
+
+#### 21.30.5A. Limpieza de duplicados del filtro store en consultas públicas
+
+Se limpiaron duplicados generados durante la adaptación de consultas públicas por store.
+
+Problemas revisados:
+
+```txt
+imports duplicados
+funciones duplicadas
+scripts define:vars duplicados
+filtros PocketBase duplicados
+declaraciones const duplicadas
+```
+
+Archivos revisados:
+
+```txt
+frontend-powerzona/src/lib/api.ts
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/public/cart-promotions.js
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+frontend-powerzona/src/pages/buscar.astro
+frontend-powerzona/src/pages/checkout.astro
+```
+
+Resultado:
+
+```txt
+No se cambió comportamiento público.
+No se cambiaron rutas.
+No se cambió diseño.
+No se tocó panel admin.
+No se implementaron usuarios, roles ni login.
+```
+
+---
+
+#### 21.30.6. Rutas públicas por store preparadas
+
+Se prepararon rutas públicas nuevas por store sin eliminar ni romper las rutas actuales.
+
+Rutas actuales que deben seguir funcionando:
+
+```txt
+/
+/producto/[slug]
+/categoria/[slug]
+/subcategoria/[slug]
+/buscar
+/checkout
+```
+
+Rutas nuevas preparadas:
+
+```txt
+/t/[storeSlug]
+/t/[storeSlug]/producto/[slug]
+/t/[storeSlug]/categoria/[slug]
+/t/[storeSlug]/subcategoria/[slug]
+/t/[storeSlug]/buscar
+/t/[storeSlug]/checkout
+```
+
+Primera prueba esperada:
+
+```txt
+/t/powerzona debe mostrar la misma tienda pública que actualmente se ve en /
+/ debe seguir funcionando igual que ahora mostrando PowerZona
+```
+
+Implementación del helper:
+
+```txt
+frontend-powerzona/src/lib/stores.ts detecta /t/[storeSlug] desde el pathname.
+```
+
+Helpers agregados o usados:
+
+```txt
+getStoreSlugFromPath(pathname)
+isStoreRoute(pathname)
+getStorePathPrefix(store, pathname)
+getPublicPath(path, store, pathname)
+```
+
+Reglas aplicadas:
+
+```txt
+/ sigue funcionando como PowerZona.
+/t/powerzona queda preparado como primera prueba de tienda pública por slug.
+El Bazar principal Tu Senda 84 queda para una fase posterior.
+No se toca panel admin.
+No hay usuarios, roles ni login multitienda todavía.
+No se convierte / en Bazar principal todavía.
+```
+
+Carrito y checkout:
+
+```txt
+El carrito usa window.PZ_PUBLIC_PATH_PREFIX para enviar a /t/powerzona/checkout cuando corresponde.
+Checkout sigue guardando orders.store con el store actual resuelto por getCurrentStore(Astro).
+```
+
+Validación técnica reportada:
+
+```txt
+npm.cmd run build ejecutado correctamente en frontend-powerzona.
+Astro compila.
+Quedan solo warnings conocidos de getStaticPaths ignorado en páginas dinámicas server-rendered.
+```
+
+---
+
+#### 21.30.6A. Limpieza de duplicados de rutas `/t/[storeSlug]`
+
+Se revisaron y limpiaron duplicados generados durante la preparación de rutas públicas por store.
+
+Problemas revisados:
+
+```txt
+imports duplicados
+const duplicados
+href duplicados
+scripts define:vars duplicados
+getCurrentStore duplicado
+wrappers /t/[storeSlug]
+```
+
+Archivos principales revisados:
+
+```txt
+frontend-powerzona/src/components/Cart.astro
+frontend-powerzona/src/components/PublicCategoryActions.astro
+frontend-powerzona/src/components/PublicFooter.astro
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/lib/stores.ts
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/pages/producto/[slug].astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+frontend-powerzona/src/pages/subcategoria/[slug].astro
+frontend-powerzona/src/pages/buscar.astro
+frontend-powerzona/src/pages/checkout.astro
+frontend-powerzona/src/pages/t/[storeSlug]/index.astro
+frontend-powerzona/src/pages/t/[storeSlug]/producto/[slug].astro
+frontend-powerzona/src/pages/t/[storeSlug]/categoria/[slug].astro
+frontend-powerzona/src/pages/t/[storeSlug]/subcategoria/[slug].astro
+frontend-powerzona/src/pages/t/[storeSlug]/buscar.astro
+frontend-powerzona/src/pages/t/[storeSlug]/checkout.astro
+```
+
+Confirmaciones:
+
+```txt
+Layout.astro quedó limpio.
+Cart.astro quedó limpio.
+producto/[slug].astro quedó limpio.
+stores.ts quedó limpio.
+/ sigue preparado para funcionar como PowerZona.
+/t/powerzona sigue preparado como PowerZona.
+No se tocó admin, usuarios, roles ni login.
+No se avanzó a 21.30.7 en esta corrección.
+```
+
+Validación técnica:
+
+```txt
+npm.cmd run build compiló correctamente.
+Solo quedaron warnings conocidos de Astro sobre getStaticPaths() ignorado en páginas dinámicas server-rendered.
+```
+
 ---
 
 #### 21.30.7. Sistema administrativo previsto
 
-El panel admin actual que hoy controla PowerZona será la base del Panel Admin Global de Tiendas Públicas.
+El panel admin actual que hoy controla PowerZona será la base del:
+
+```txt
+Panel Admin Global de Tiendas Públicas
+```
 
 Regla futura del panel:
 
@@ -9451,49 +9697,97 @@ PocketBase quedará solo como acceso técnico privado del Master Admin.
 El Master Admin tendrá un panel web aparte para administrar Tu Senda 84.
 ```
 
----
-
-#### 21.30.8. Límites de esta fase
-
-Esta fase agrega la relación `store`, asocia datos existentes a PowerZona y crea el helper central de store actual.
-
-Todavía no se debe cambiar comportamiento público ni filtrar datos por `store` en:
+Rutas conceptuales previstas:
 
 ```txt
-products
-categories
-subcategories
-orders
-settings
-shipping_zones
-automatic_promotions
-manual_coupons
-gifts
+/_/ = PocketBase técnico, solo Master Admin.
+/master = panel web del Master Admin de Tu Senda 84.
+/t/[storeSlug]/admin = panel admin global de tienda pública, filtrado por store.
 ```
 
-Tampoco se debe cambiar todavía:
+Roles previstos:
 
 ```txt
-- Rutas públicas.
-- Checkout.
-- Carrito.
-- Productos.
-- Diseño público.
-- Movimiento de PowerZona a /t/powerzona.
+master_admin
+store_admin
+store_staff
+```
+
+Regla:
+
+```txt
+No se implementan todavía usuarios, roles, login ni redirecciones.
+Este punto queda como arquitectura prevista para fases posteriores.
+```
+
+---
+
+#### 21.30.8. Límites actuales del bloque multitienda
+
+Todavía no está implementado:
+
+```txt
+- Bazar principal visual de Tu Senda 84.
+- Conversión de / en portada del Bazar.
+- Usuarios, roles y login multitienda.
+- Master Admin web.
+- Panel admin filtrado por store.
+- Separación del carrito por store.
+- Reglas finales de permisos por tienda.
+```
+
+Todavía no se debe cambiar:
+
+```txt
+- Diseño público global.
+- Lógica comercial de promociones.
+- Lógica comercial de cupones.
+- Lógica comercial de regalos.
+- Lógica de monedas.
+- Lógica de envíos.
+- Formato de WhatsApp.
+```
+
+Regla importante:
+
+```txt
+Las Tiendas públicas comparten una plantilla global.
+Cualquier cambio general al diseño o experiencia pública de las Tiendas públicas afectará a todas las tiendas.
+Los cambios exclusivos del Bazar principal se trabajan separados de los cambios a Tiendas públicas.
 ```
 
 ---
 
 #### 21.30.9. Próximo avance recomendado
 
-Antes de filtrar frontend/admin por `store`, se deben preparar las reglas PocketBase por tienda y validar la migración de datos.
+Próximo paso recomendado:
 
-La tienda pública actual debe seguir funcionando igual hasta aprobar el siguiente paso multitienda.
+```txt
+PROMPT 21.30.7 — Separar carrito por store para evitar mezcla entre tiendas públicas
+```
 
+Objetivo del próximo paso:
 
+```txt
+Evitar que en el futuro el carrito de /t/powerzona se mezcle con el carrito de otra tienda pública.
+```
 
+Regla:
+
+```txt
+Antes de convertir / en Bazar principal o crear tiendas reales adicionales, el carrito debe poder separarse por store.
+```
+
+Después de eso, los siguientes pasos recomendados serían:
+
+```txt
+21.30.8 Preparar Bazar principal visual de Tu Senda 84 sin romper /t/powerzona.
+21.30.9 Preparar usuarios, roles y login multitienda.
+21.30.10 Adaptar panel admin global de Tiendas públicas por store.
+```
 
 ---
+
 
 ### 21.31. Bloque cerrado: Monedas tienda pública, cobro mixto, envío separado y resumen admin
 
