@@ -8,7 +8,7 @@ const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') |
 const masterUser = requireMasterAdmin(authPb.authStore.record as any);
 
 if (!authPb.authStore.isValid || !authPb.authStore.record) {
-  return Astro.redirect('/login');
+  return Astro.redirect('/master-login');
 }
 
 const isUnauthorized = !masterUser;
@@ -221,10 +221,11 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
                     <span class={`status-pill ${statusClass(store.status)}`}>{normalizeStatus(store.status)}</span>
                     <span class="slug-text">/{store.slug || 'sin-slug'}</span>
                     <span class="metric-text">
-                      {formatNumber(store.views_count)} visitas | {formatNumber(store.orders_count)} pedidos | {formatNumber(storeUserCount(store.id))} usuarios
+                      {formatNumber(store.views_count)} visitas | {formatNumber(store.orders_count)} pedidos | {formatNumber(storeUserCount(store.id))} usuarios | {store.featured ? 'Destacada' : 'No destacada'}
                     </span>
                     <div class="actions">
                       {href && <a class="action-link" href={href}>Ver tienda</a>}
+                      <button class="action-button toggle-featured" type="button" data-next-featured={store.featured ? 'false' : 'true'}>{store.featured ? 'Quitar destacada' : 'Destacar'}</button>
                       <button class="action-button user-action create-user" type="button">Crear usuario</button>
                       <button class="action-button edit-store" type="button">Editar</button>
                       <button class={`action-button toggle-status ${active ? 'status-danger' : ''}`} type="button" data-next-status={active ? 'suspended' : 'active'}>
@@ -340,10 +341,11 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
 
   <script>
     import { logout } from '../../lib/auth';
-    import { createStoreUserFromMaster } from '../../lib/masterUsers';
+    import { createStoreUserFromMaster, getStoreUserCreateErrorMessage } from '../../lib/masterUsers';
     import {
       createStoreFromMaster,
       normalizeStoreSlug,
+      setStoreFeaturedFromMaster,
       setStoreStatusFromMaster,
       updateStoreFromMaster,
     } from '../../lib/stores';
@@ -517,6 +519,27 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
       });
     });
 
+    document.querySelectorAll<HTMLButtonElement>('.toggle-featured').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const store = button.closest<HTMLElement>('.store-row');
+        const storeId = store?.dataset.storeId || '';
+        const nextFeatured = button.dataset.nextFeatured === 'true';
+        if (!storeId) return;
+
+        button.disabled = true;
+        button.textContent = nextFeatured ? 'Destacando...' : 'Quitando...';
+
+        try {
+          await setStoreFeaturedFromMaster(storeId, nextFeatured, nextFeatured ? 10 : 0);
+          window.location.reload();
+        } catch (error: any) {
+          alert(error?.message || 'No se pudo actualizar la tienda destacada.');
+          button.disabled = false;
+          button.textContent = nextFeatured ? 'Destacar' : 'Quitar destacada';
+        }
+      });
+    });
+
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!storeIdInput || !nameInput || !slugInput || !phoneInput || !statusInput) return;
@@ -566,7 +589,9 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
         await createStoreUserFromMaster(payload);
         window.location.reload();
       } catch (error: any) {
-        showUserError(error?.message || 'No se pudo crear el usuario de tienda.');
+        console.error('Create store user error', error);
+        console.error('PocketBase data', error?.data);
+        showUserError(getStoreUserCreateErrorMessage(error));
         setUserSaving(false);
       }
     });

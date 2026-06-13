@@ -32,6 +32,8 @@ const quickAccessItems = visualItems.filter((item) => item.type === 'acceso_rapi
 
 const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
 const welcomeText = settings?.welcome_text || 'Descubre nuestras mejores ofertas y productos destacados.';
+const storeDescription = String(settings?.store_description || '').trim();
+const publicCategoryColumns = String(settings?.public_category_columns || '2') === '1' ? '1' : '2';
 const address = settings?.address || '';
 const businessHours = settings?.business_hours || '';
 const servicesText = settings?.public_services_text || '';
@@ -49,6 +51,13 @@ const servicesAnchorPath = getPublicPath('/#servicios', currentStore, currentPat
 const hoursAnchorPath = getPublicPath('/#horarios', currentStore, currentPathname);
 const reviewsAnchorPath = getPublicPath('/#resena', currentStore, currentPathname);
 const giftsPath = getPublicPath('/regalos', currentStore, currentPathname);
+const adminLoginPath = getPublicPath('/admin', currentStore, currentPathname);
+const featuredCategories = categories
+  .filter((category) => category.featured_on_home === true)
+  .sort((a, b) => Number(a.featured_order || 0) - Number(b.featured_order || 0) || String(a.name || '').localeCompare(String(b.name || '')))
+  .slice(0, 2);
+const featuredCategoryIds = new Set(featuredCategories.map((category) => category.id));
+const normalCategories = categories.filter((category) => !featuredCategoryIds.has(category.id));
 
 function storeInitials(name: string) {
   return String(name || 'Tienda')
@@ -151,6 +160,7 @@ function getProductOfferView(product: any) {
     .public-hero-title { margin: 0; font-size: clamp(32px, 8vw, 62px); line-height: .95; font-weight: 1000; letter-spacing: -.06em; }
     .public-hero-text { margin: 0; max-width: 620px; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.55; font-weight: 750; }
     .public-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 28px; }
+    .public-store-description { flex: 1 0 100%; margin: 0 0 2px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #475569; padding: 16px 18px; font-size: 15px; line-height: 1.55; font-weight: 800; box-shadow: 0 12px 30px rgba(15,23,42,.06); }
     .hero-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 20px; padding: 13px 18px; font-size: 14px; font-weight: 1000; background: #16a34a; color: #fff; box-shadow: 0 14px 32px rgba(22,163,74,.18); }
     .hero-btn.secondary { background: #fff; color: #111827; border: 1px solid #e5e7eb; box-shadow: 0 12px 28px rgba(15,23,42,.07); }
     .public-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 28px; }
@@ -163,6 +173,8 @@ function getProductOfferView(product: any) {
     .featured-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(165px, 220px); gap: 14px; overflow-x: auto; padding: 2px 2px 14px; scroll-snap-type: x mandatory; }
     .featured-strip > a { scroll-snap-align: start; }
     .public-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 16px; }
+    .public-category-grid.columns-1 { grid-template-columns: 1fr; }
+    .featured-category-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
     .public-category-link { display: grid; gap: 10px; color: #111827; text-decoration: none; align-content: start; }
     .public-category-title-outside { margin: 0; font-size: clamp(18px, 3.3vw, 24px); font-weight: 1000; letter-spacing: -.04em; line-height: 1.06; color: #111827; padding: 0 4px; }
     .public-category-meta { margin: 1px 0 0; display: flex; flex-wrap: wrap; gap: 7px; padding: 0 4px; }
@@ -218,6 +230,7 @@ function getProductOfferView(product: any) {
       .public-gift-text { max-width: none; }
       .public-gift-cta { width: max-content; padding: 11px 14px; }
       .public-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .public-store-description { grid-column: 1 / -1; }
       .hero-btn { padding: 13px 10px; }
     }
   </style>
@@ -252,7 +265,7 @@ function getProductOfferView(product: any) {
       <a class="drawer-link" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp <span>↗</span></a>
     </nav>
     <div class="drawer-admin-action">
-      <a class="drawer-link drawer-admin-link" href="/admin">Ir al panel de administración</a>
+      <a class="drawer-link drawer-admin-link" href={adminLoginPath}>Ir al panel de administración</a>
     </div>
   </aside>
 
@@ -266,6 +279,7 @@ function getProductOfferView(product: any) {
   </section>
 
   <div class="public-hero-actions" aria-label="Acciones después de la portada">
+    {storeDescription && <p class="public-store-description">{storeDescription}</p>}
     <a class="hero-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp</a>
     <a class="hero-btn secondary" href={categoryAnchorPath}>Ver categorías</a>
   </div>
@@ -334,6 +348,32 @@ function getProductOfferView(product: any) {
     </section>
   )}
 
+  {featuredCategories.length > 0 && (
+    <section class="mb-8 scroll-mt-24">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Categorías destacadas</h2>
+        </div>
+      </div>
+      <div class="featured-category-grid">
+        {featuredCategories.map((category) => {
+          const categoryProducts = productsByCategoryTotal(category.id);
+          return (
+            <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
+              <h3 class="public-category-title-outside">{category.name}</h3>
+              <div class="public-category-card">
+                {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="public-category-fallback">PZ</div>}
+                <span class="public-category-go">›</span>
+              </div>
+              <div class="public-category-meta">
+                <span class="public-category-pill">{productCountLabel(categoryProducts.length)}</span>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </section>
+  )}
 
   {giftsPublicActive && gifts.length > 0 && (
     <section id="regalos" class="mb-8 scroll-mt-24" aria-label={giftsPublicTitle}>
@@ -359,15 +399,15 @@ function getProductOfferView(product: any) {
     </section>
   )}
 
-  {categories.length > 0 && (
+  {normalCategories.length > 0 && (
     <section id="categorias" class="mb-8 scroll-mt-24">
       <div class="section-head">
         <div>
           <h2 class="section-title">Categorías</h2>
         </div>
       </div>
-      <div class="public-category-grid">
-        {categories.map((category) => {
+      <div class={`public-category-grid columns-${publicCategoryColumns}`}>
+        {normalCategories.map((category) => {
           const categoryProducts = productsByCategoryTotal(category.id);
           return (
             <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>

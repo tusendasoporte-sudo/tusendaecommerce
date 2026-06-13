@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
-import { refreshAuthFromCookie } from './lib/auth';
+import { isMasterAdmin, isStoreUser, refreshAuthFromCookie } from './lib/auth';
+import { getLegacyAdminSection, getStoreAdminBasePath, getStoreAdminPath } from './lib/adminRoutes';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from './lib/storeContext';
 
 function renderAdminBlock(message: string) {
@@ -36,23 +37,49 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const pathname = context.url.pathname;
   const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
   const isMasterRoute = pathname === '/master' || pathname.startsWith('/master/');
+  const professionalAdminMatch = pathname.match(/^\/t\/([^/]+)\/admin(?:\/(.*))?$/);
+  const isProfessionalAdminRoute = Boolean(professionalAdminMatch);
 
-  if (!isAdminRoute && !isMasterRoute) {
+  if (!isAdminRoute && !isMasterRoute && !isProfessionalAdminRoute) {
     return next();
   }
 
   const authPb = await refreshAuthFromCookie(context.request.headers.get('cookie') || '');
 
   if (!authPb.authStore.isValid || !authPb.authStore.record) {
-    return context.redirect('/login');
+    if (isProfessionalAdminRoute) {
+      const storeSlug = professionalAdminMatch?.[1] || '';
+      return pathname === getStoreAdminBasePath(storeSlug) ? next() : context.redirect(getStoreAdminBasePath(storeSlug));
+    }
+    return context.redirect(isMasterRoute ? '/master-login' : '/login');
   }
 
   if (isMasterRoute) {
+    if (!isMasterAdmin(authPb.authStore.record as any)) {
+      if (isStoreUser(authPb.authStore.record as any)) return context.redirect('/admin');
+      return renderAdminBlock('Este acceso es solo para administracion principal.');
+    }
     return next();
   }
 
+  if (isMasterAdmin(authPb.authStore.record as any)) {
+    return context.redirect('/master');
+  }
+
   try {
-    await requireCurrentStoreForAdmin(authPb);
+    const adminContext = await requireCurrentStoreForAdmin(authPb);
+    const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
+
+    if (isAdminRoute) {
+      return context.redirect(getStoreAdminPath(currentStoreSlug, getLegacyAdminSection(pathname)));
+    }
+
+    if (isProfessionalAdminRoute) {
+      const routeStoreSlug = String(professionalAdminMatch?.[1] || '').trim().toLowerCase();
+      if (routeStoreSlug !== currentStoreSlug) {
+        return renderAdminBlock('Este usuario no pertenece a esta tienda.');
+      }
+    }
   } catch (error) {
     if (error instanceof StoreContextError) {
       if (error.code === STORE_CONTEXT_ERRORS.MASTER_ADMIN) {

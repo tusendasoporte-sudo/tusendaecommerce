@@ -1,5 +1,6 @@
 ---
 import { refreshAuthFromCookie } from '../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 
 // PZ-ADMIN-PRODUCTS-V26-10-OFERTA-TARJETA-GRIS-20260605
@@ -8,6 +9,18 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
 ---
 <!-- PZ-PRODUCTOS-INFO-ADICIONAL-V6-20260603
   Cambio: guarda Información adicional con PATCH JSON y requiere migración final extra_info.
@@ -17,7 +30,7 @@ const currentStoreId = adminContext.storeId;
 -->
 <!-- PZ-PRODUCTOS-V25-VISTA-VARIACIONES-20260601
   Bloque: Gestión de catálogo - Crear y editar productos
-  Cambio base: formulario real para crear y editar productos en PocketBase desde /admin/products.
+  Cambio base: formulario real para crear y editar productos en la plataforma desde /admin/products.
   V3: Limpieza visual: al crear o editar se ocultan resumen, buscador y listado de productos existentes.
   V4: Categoría y subcategoría se pueden crear rápido desde el formulario de producto, con foto opcional.
   V5: Creación rápida movida a modal flotante sin salir del producto.
@@ -717,17 +730,17 @@ const currentStoreId = adminContext.storeId;
 
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
-            <a class="nav-item active" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item active" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
           </nav>
 
           <p class="sidebar-label">Tienda</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
         </div>
       </aside>
@@ -736,8 +749,8 @@ const currentStoreId = adminContext.storeId;
         <header class="topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
-            <a class="action-btn" href="/admin/catalog">Categorías</a>
-            <a class="action-btn" href="/">Ver catálogo público</a>
+            <a class="action-btn" href={adminCatalogPath}>Categorías</a>
+            <a class="action-btn" href={publicStorePath}>Ver catálogo público</a>
             <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
           </div>
         </header>
@@ -752,25 +765,7 @@ const currentStoreId = adminContext.storeId;
             <button id="new-product-btn" class="action-btn dark" type="button">+ Nuevo producto</button>
           </div>
         </section>
-
-        <section id="login-view" class="panel-card login-card hidden">
-          <h2 class="page-title" style="font-size: 24px; margin: 0;">Entrar como admin</h2>
-          <p class="page-subtitle">Usa el mismo usuario administrador de PocketBase para ver productos ocultos y preparar la edición.</p>
-          <form id="login-form" class="form-grid" style="margin-top: 18px;">
-            <div class="field">
-              <label for="admin-email">Email</label>
-              <input id="admin-email" type="email" autocomplete="username" required />
-            </div>
-            <div class="field">
-              <label for="admin-password">Contraseña</label>
-              <input id="admin-password" type="password" autocomplete="current-password" required />
-            </div>
-            <button id="login-btn" class="submit-btn" type="submit">Entrar al panel</button>
-            <div id="login-alert" class="alert alert-error hidden"></div>
-          </form>
-        </section>
-
-        <section id="admin-view" class="hidden">
+        <section id="admin-view">
 
           <section id="product-editor" class="panel-card editor-card hidden">
             <div class="editor-head">
@@ -1119,11 +1114,11 @@ const currentStoreId = adminContext.storeId;
       </div>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const TRACK_STOCK_FIELD = 'track_stock';
 
       let categories = [];
@@ -1141,11 +1136,8 @@ const currentStoreId = adminContext.storeId;
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
-      const loginView = document.getElementById('login-view');
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
-      const loginForm = document.getElementById('login-form');
-      const loginAlert = document.getElementById('login-alert');
       const productsList = document.getElementById('products-list');
       const catalogOverview = document.getElementById('catalog-overview');
       const refreshBtn = document.getElementById('refresh-btn');
@@ -1293,11 +1285,9 @@ const currentStoreId = adminContext.storeId;
       function formatUsd(value) {
         return `${Number(value || 0).toFixed(2)} USD`;
       }
-      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
-      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token); }
-      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
-      function showLogin() { loginView.classList.remove('hidden'); adminView.classList.add('hidden'); logoutBtn.classList.add('hidden'); }
-      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); }
+      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function clearAdminToken() { document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax'; }
+      function showAdmin() { adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); }
       function setAlert(element, message) {
         element.textContent = message || '';
         element.classList.toggle('hidden', !message);
@@ -2386,7 +2376,7 @@ const currentStoreId = adminContext.storeId;
         await apiRequest(`/api/collections/products/records/${productId}`, { method: 'DELETE' });
       }
 
-      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con PocketBase.') {
+      function pocketBaseErrorMessage(result, fallback = 'Error de comunicacion con la plataforma.') {
         const base = result?.message || fallback;
         const fieldErrors = result?.data && typeof result.data === 'object'
           ? Object.entries(result.data).map(([field, info]) => {
@@ -2404,22 +2394,6 @@ const currentStoreId = adminContext.storeId;
         const result = await response.json().catch(() => null);
         if (!response.ok) throw new Error(pocketBaseErrorMessage(result));
         return result;
-      }
-      async function loginAsAdmin(email, password) {
-        const payload = { identity: email, password };
-        try {
-          const result = await apiRequest('/api/collections/_superusers/auth-with-password', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-          });
-          setAdminToken(result.token);
-          return result;
-        } catch (error) {
-          const result = await apiRequest('/api/admins/auth-with-password', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
-          });
-          setAdminToken(result.token);
-          return result;
-        }
       }
       async function loadAllRecords(collection, params = '') {
         let page = 1;
@@ -2770,26 +2744,9 @@ const currentStoreId = adminContext.storeId;
           if (refreshBtn) refreshBtn.disabled = false;
         }
       }
-
-      loginForm?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        setAlert(loginAlert, '');
-        const email = document.getElementById('admin-email').value.trim();
-        const password = document.getElementById('admin-password').value;
-        try {
-          await loginAsAdmin(email, password);
-          showAdmin();
-          await loadProducts({ openFromUrl: true });
-        } catch (error) {
-          setAlert(loginAlert, error.message || 'No se pudo iniciar sesión.');
-        }
-      });
       logoutBtn?.addEventListener('click', () => {
         clearAdminToken();
-        categories = [];
-        subcategories = [];
-        products = [];
-        showLogin();
+        window.location.assign('/login');
       });
       refreshBtn?.addEventListener('click', loadProducts);
       relatedProductsOpenBtn?.addEventListener('click', openRelatedProductsModal);
@@ -3101,13 +3058,14 @@ const currentStoreId = adminContext.storeId;
       });
 
       if (!POCKETBASE_URL) {
-        showLogin();
-        setAlert(loginAlert, 'Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+        showAdmin();
+        productsList.innerHTML = '<div class="empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
       } else if (getAdminToken()) {
         showAdmin();
         loadProducts({ openFromUrl: true });
       } else {
-        showLogin();
+        showAdmin();
+        productsList.innerHTML = '<div class="empty-state">No se pudo validar la sesion administrativa.</div>';
       }
     </script>
   </body>

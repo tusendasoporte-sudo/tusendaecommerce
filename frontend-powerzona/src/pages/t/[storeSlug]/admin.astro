@@ -1,0 +1,185 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AdminDashboard from '../../admin/index.astro';
+import { getSettings } from '../../../lib/api';
+import { isMasterAdmin, refreshAuthFromCookie } from '../../../lib/auth';
+import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../lib/storeContext';
+import { ACTIVE_STORE_STATUS, getStoreBySlugAnyStatus } from '../../../lib/stores';
+
+const storeSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+const store = await getStoreBySlugAnyStatus(storeSlug);
+
+if (!store) {
+  return Astro.redirect('/');
+}
+
+const settings = await getSettings({ storeId: store.id }).catch(() => null);
+const storeName = store.name || settings?.store_name || settings?.stored_name || 'Tienda';
+const logoUrl = store.logoUrl || settings?.logoImageUrl || '';
+const bannerUrl = store.bannerUrl || settings?.coverImageUrl || '';
+const storeStatus = String(store.status || '').toLowerCase();
+const isSuspended = storeStatus !== ACTIVE_STORE_STATUS;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+let showDashboard = false;
+let loginBlockMessage = '';
+
+if (authPb.authStore.isValid && authPb.authStore.record) {
+  if (isMasterAdmin(authPb.authStore.record as any)) {
+    return Astro.redirect('/master');
+  }
+
+  try {
+    const adminContext = await requireCurrentStoreForAdmin(authPb);
+    if (String(adminContext.store.slug || '').trim().toLowerCase() === storeSlug) {
+      showDashboard = true;
+    } else {
+      loginBlockMessage = 'Este usuario no pertenece a esta tienda.';
+    }
+  } catch (error) {
+    if (error instanceof StoreContextError) {
+      if (error.code === STORE_CONTEXT_ERRORS.MASTER_ADMIN) return Astro.redirect('/master');
+      if (error.code !== STORE_CONTEXT_ERRORS.UNAUTHENTICATED) loginBlockMessage = error.message;
+    } else {
+      loginBlockMessage = 'No se pudo validar el acceso administrativo. Intenta nuevamente.';
+    }
+  }
+}
+
+function storeInitials(name: string) {
+  return String(name || 'Tienda')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'T';
+}
+---
+
+{showDashboard ? (
+  <AdminDashboard />
+) : (
+<Layout isMaster={true}>
+  <style>
+    .store-login-shell { min-height: calc(100vh - 48px); display: grid; place-items: center; color: #111827; }
+    .store-login-panel { width: min(520px, 100%); overflow: hidden; display: grid; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 22px 62px rgba(15,23,42,.12); }
+    .store-login-banner { min-height: 170px; background: linear-gradient(135deg,#111827,#334155); position: relative; display: grid; place-items: center; color: #fff; }
+    .store-login-banner img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .72; }
+    .store-login-logo { position: relative; z-index: 1; width: 82px; height: 82px; border-radius: 26px; display: grid; place-items: center; overflow: hidden; background: #0f172a; border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 26px; font-weight: 1000; box-shadow: 0 18px 42px rgba(15,23,42,.22); }
+    .store-login-logo img { position: static; opacity: 1; width: 100%; height: 100%; object-fit: cover; }
+    .store-login-body { display: grid; gap: 18px; padding: clamp(22px, 5vw, 34px); }
+    .store-login-kicker { width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #166534; padding: 7px 11px; font-size: 12px; font-weight: 950; }
+    .store-login-title { margin: 0; color: #0f172a; font-size: clamp(28px, 6vw, 40px); line-height: 1; font-weight: 1000; letter-spacing: 0; }
+    .store-login-text { margin: 6px 0 0; color: #64748b; font-size: 14px; line-height: 1.5; font-weight: 750; }
+    .store-login-form { display: grid; gap: 14px; }
+    .field { display: grid; gap: 7px; }
+    .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; }
+    .field input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 13px 14px; outline: none; font-size: 15px; font-weight: 800; }
+    .field input:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.14); }
+    .store-login-button { min-height: 46px; border: 1px solid #0f172a; border-radius: 8px; background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; line-height: 1; font-weight: 1000; cursor: pointer; }
+    .store-login-button:disabled { opacity: .62; cursor: wait; }
+    .store-login-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
+    .store-login-alert.is-visible { display: block; }
+  </style>
+
+  <main class="store-login-shell">
+    <section class="store-login-panel" aria-label={`Acceso administrativo ${storeName}`}>
+      <div class="store-login-banner">
+        {bannerUrl && <img src={bannerUrl} alt={`Portada de ${storeName}`} />}
+        <div class="store-login-logo">{logoUrl ? <img src={logoUrl} alt={storeName} /> : storeInitials(storeName)}</div>
+      </div>
+      <div class="store-login-body">
+        <span class="store-login-kicker">{storeName}</span>
+        <div>
+          <h1 class="store-login-title">Acceso administrativo</h1>
+          <p class="store-login-text">Entra al panel profesional de esta tienda.</p>
+        </div>
+
+        {loginBlockMessage ? (
+          <div class="store-login-alert is-visible" role="alert">{loginBlockMessage}</div>
+        ) : isSuspended ? (
+          <div class="store-login-alert is-visible" role="alert">Esta tienda esta suspendida. Contacta al administrador principal.</div>
+        ) : (
+          <form id="store-login-form" class="store-login-form" data-store-id={store.id}>
+            <div class="field">
+              <label for="store-login-email">Email</label>
+              <input id="store-login-email" name="email" type="email" autocomplete="email" required />
+            </div>
+            <div class="field">
+              <label for="store-login-password">Contrasena</label>
+              <input id="store-login-password" name="password" type="password" autocomplete="current-password" required />
+            </div>
+            <button id="store-login-button" class="store-login-button" type="submit">Entrar al panel</button>
+            <div id="store-login-alert" class="store-login-alert" role="alert"></div>
+          </form>
+        )}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    import { exportAuthCookie, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout } from '../../../lib/auth';
+
+    const form = document.getElementById('store-login-form') as HTMLFormElement | null;
+    const button = document.getElementById('store-login-button') as HTMLButtonElement | null;
+    const alertBox = document.getElementById('store-login-alert');
+    const storeId = form?.dataset.storeId || '';
+
+    function showError(message: string) {
+      if (!alertBox) return;
+      alertBox.textContent = message;
+      alertBox.classList.add('is-visible');
+    }
+
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!button) return;
+      alertBox?.classList.remove('is-visible');
+      const formData = new FormData(form);
+      const email = String(formData.get('email') || '').trim();
+      const password = String(formData.get('password') || '');
+      button.disabled = true;
+      button.textContent = 'Entrando...';
+
+      try {
+        const user = await loginWithPassword(email, password);
+
+        if (isMasterAdmin(user)) {
+          logout();
+          document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+          showError('Usa el acceso principal de la plataforma.');
+          return;
+        }
+
+        if (!isActiveUser(user)) {
+          logout();
+          document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+          showError('Tu usuario esta suspendido.');
+          return;
+        }
+
+        if (!isStoreUser(user)) {
+          logout();
+          document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+          showError('Tu usuario no tiene acceso administrativo a tiendas.');
+          return;
+        }
+
+        if (getUserStoreId(user) !== storeId) {
+          logout();
+          document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+          showError('Este usuario no pertenece a esta tienda.');
+          return;
+        }
+
+        document.cookie = exportAuthCookie();
+        window.location.assign(window.location.pathname);
+      } catch (_) {
+        showError('Email o contrasena incorrectos.');
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Entrar al panel';
+      }
+    });
+  </script>
+</Layout>
+)}

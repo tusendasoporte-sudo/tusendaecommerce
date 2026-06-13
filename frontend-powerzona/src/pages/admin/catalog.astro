@@ -1,11 +1,24 @@
 ---
 import { refreshAuthFromCookie } from '../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
 ---
 <!-- PZ-AJUSTES-GENERALES-PUBLICOS-MENU-PUBLICO-V5-20260603
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -942,17 +955,17 @@ const currentStoreId = adminContext.storeId;
 
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item active" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item active" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
           </nav>
 
           <p class="sidebar-label">Tienda</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
 
         </div>
@@ -962,9 +975,9 @@ const currentStoreId = adminContext.storeId;
         <header class="topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
-            <a class="action-btn" href="/admin/orders">Ver pedidos</a>
-            <a class="action-btn" href="/admin/products">Productos</a>
-            <a class="action-btn" href="/">Ver catálogo público</a>
+            <a class="action-btn" href={adminOrdersPath}>Ver pedidos</a>
+            <a class="action-btn" href={adminProductsPath}>Productos</a>
+            <a class="action-btn" href={publicStorePath}>Ver catálogo público</a>
             <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
           </div>
         </header>
@@ -976,25 +989,7 @@ const currentStoreId = adminContext.storeId;
             <p id="admin-subtitle" class="page-subtitle">Administra categorías, subcategorías y productos directos de la tienda.</p>
           </div>
         </section>
-
-      <section id="login-view" class="panel-card login-card hidden">
-        <h2 class="panel-title">Entrar como admin</h2>
-        <p class="panel-text">Usa el mismo usuario administrador de PocketBase para poder ver y editar categorías ocultas.</p>
-        <form id="login-form" class="form-grid">
-          <div class="field">
-            <label for="admin-email">Email</label>
-            <input id="admin-email" type="email" autocomplete="username" required />
-          </div>
-          <div class="field">
-            <label for="admin-password">Contraseña</label>
-            <input id="admin-password" type="password" autocomplete="current-password" required />
-          </div>
-          <button id="login-btn" class="submit-btn" type="submit">Entrar al panel</button>
-          <div id="login-alert" class="alert alert-error hidden"></div>
-        </form>
-      </section>
-
-      <section id="admin-view" class="hidden">
+      <section id="admin-view">
         <div id="catalog-grid" class="grid">
           <div id="catalog-tools-panel" class="section-stack">
             <section id="subcategory-create-card" class="panel-card create-accordion-card hidden">
@@ -1056,7 +1051,12 @@ const currentStoreId = adminContext.storeId;
                     <input id="category-name" type="text" placeholder="Ej: Proteínas" required />
                   </div>
                   <div class="field">
-                    <label for="category-image">Foto de la categoría</label>
+                    <label for="category-description">Descripcion</label>
+                    <input id="category-description" type="text" placeholder="Texto corto para explicar esta categoria." />
+                    <p class="image-help">Texto corto para explicar esta categoria en la tienda publica.</p>
+                  </div>
+                  <div class="field">
+                    <label for="category-image">Foto de la categoria</label>
                     <input id="category-image" type="file" accept="image/*" />
                     <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
                   </div>
@@ -1107,23 +1107,21 @@ const currentStoreId = adminContext.storeId;
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminCatalogPath, adminProductsPath, adminAuthToken }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_CATALOG_PATH = String(adminCatalogPath || '/admin/catalog');
+      const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
-
-      const loginView = document.getElementById('login-view');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
-      const loginForm = document.getElementById('login-form');
-      const loginBtn = document.getElementById('login-btn');
-      const loginAlert = document.getElementById('login-alert');
       const adminSubtitle = document.getElementById('admin-subtitle');
       const refreshBtn = document.getElementById('refresh-btn');
 
       const categoryForm = document.getElementById('category-form');
       const categoryName = document.getElementById('category-name');
+      const categoryDescription = document.getElementById('category-description');
       const categoryImage = document.getElementById('category-image');
       const categoryActive = document.getElementById('category-active');
       const categoryAlert = document.getElementById('category-alert');
@@ -1212,7 +1210,7 @@ const currentStoreId = adminContext.storeId;
 
 
       // PZ-CATALOG-IMAGE-OPTIMIZER-V28-20260605
-      // Optimiza fotos de categorías/subcategorías antes de enviarlas a PocketBase.
+      // Optimiza fotos de categorías/subcategorías antes de enviarlas a la plataforma.
       async function optimizeCatalogImageFile(file) {
         if (!file || !file.type?.startsWith('image/')) return file;
         let objectUrl = '';
@@ -1559,12 +1557,8 @@ const currentStoreId = adminContext.storeId;
         element.className = `alert alert-${type}`;
         element.classList.toggle('hidden', !message);
       }
-
-      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
-      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token); }
-      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
-      function showLogin() { loginView.classList.remove('hidden'); adminView.classList.add('hidden'); logoutBtn.classList.add('hidden'); }
-      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); }
+      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function showAdmin() { adminView?.classList.remove('hidden'); logoutBtn?.classList.remove('hidden'); }
 
       async function apiRequest(path, options = {}) {
         const headers = { ...(options.headers || {}) };
@@ -1572,29 +1566,8 @@ const currentStoreId = adminContext.storeId;
         if (token) headers.Authorization = `Bearer ${token}`;
         const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
         const result = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con PocketBase.');
+        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
         return result;
-      }
-
-      async function loginAsAdmin(email, password) {
-        const payload = { identity: email, password };
-        try {
-          const result = await apiRequest('/api/collections/_superusers/auth-with-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          setAdminToken(result.token);
-          return result;
-        } catch (error) {
-          const result = await apiRequest('/api/admins/auth-with-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          setAdminToken(result.token);
-          return result;
-        }
       }
 
       async function loadAllRecords(collection, params = '') {
@@ -1671,12 +1644,13 @@ const currentStoreId = adminContext.storeId;
                 <button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>
               </div>
 
+
               <div class="catalog-order-actions" aria-label="Ordenar subcategoría">
                 <button class="catalog-icon-btn js-inline-subcategory-up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
                 <button class="catalog-icon-btn js-inline-subcategory-down" type="button" ${index === childSubcategories.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
               </div>
 
-              <a class="catalog-open-btn js-category-open" href="/admin/catalog/category/${category.id}" title="Abrir categoría">Abrir →</a>
+              <a class="catalog-open-btn js-category-open" href="${ADMIN_CATALOG_PATH}/category/${category.id}" title="Abrir categoría">Abrir →</a>
 
               <div class="catalog-menu-wrap">
                 <button class="catalog-icon-btn js-menu-toggle" type="button" title="Más opciones">⋮</button>
@@ -1840,6 +1814,7 @@ const currentStoreId = adminContext.storeId;
         const formData = new FormData();
         formData.append('category', category.id);
         formData.append('name', name);
+        formData.append('description', categoryDescription?.value?.trim() || '');
         formData.append('slug', slugify(name));
         formData.append('active', activeInput?.checked ? 'true' : 'false');
         formData.append('order', String(nextOrder(siblings)));
@@ -1879,6 +1854,7 @@ const currentStoreId = adminContext.storeId;
           const statusClass = category.active ? '' : 'hidden-state';
           const statusText = category.active ? 'Visible' : 'Oculta';
           const toggleText = category.active ? 'Desactivar' : 'Activar';
+          const featuredText = category.featured_on_home === true ? 'Quitar destacado' : 'Destacar categoria';
           return `
             <article class="catalog-hierarchy-row" data-category-id="${category.id}">
               <div class="catalog-row-main">
@@ -1890,6 +1866,8 @@ const currentStoreId = adminContext.storeId;
               </div>
 
               <button class="visibility-btn ${statusClass} js-category-toggle" type="button" title="Cambiar visibilidad">👁 ${statusText}</button>
+
+              <button class="visibility-btn js-category-featured" type="button" title="Destacar en portada">${escapeHtml(category.featured_on_home === true ? 'Destacada' : 'Destacar')}</button>
 
               <div class="catalog-order-actions" aria-label="Ordenar categoría">
                 <button class="catalog-icon-btn js-category-up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
@@ -2056,7 +2034,7 @@ const currentStoreId = adminContext.storeId;
           categoryForm.reset();
           categoryActive.checked = true;
           setAlert(categoryAlert, 'Categoría creada correctamente. Abriendo su página...', 'success');
-          window.location.href = `/admin/catalog/category/${createdCategory.id}`;
+          window.location.href = `${ADMIN_CATALOG_PATH}/category/${createdCategory.id}`;
         } catch (error) {
           console.error(error);
           setAlert(categoryAlert, error.message || 'No se pudo crear la categoría.', 'error');
@@ -2130,6 +2108,27 @@ const currentStoreId = adminContext.storeId;
             body: JSON.stringify(changes),
           });
         }
+        await loadCatalog();
+      }
+
+      async function toggleCategoryFeatured(category) {
+        if (!category || !category.id) return;
+        const nextFeatured = category.featured_on_home !== true;
+        const featuredCategories = categories.filter((item) => item.featured_on_home === true && item.id !== category.id);
+        if (nextFeatured && featuredCategories.length >= 2) {
+          alert('Solo puedes destacar hasta 2 categorias.');
+          return;
+        }
+
+        await apiRequest(`/api/collections/categories/records/${category.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            featured_on_home: nextFeatured,
+            featured_order: nextFeatured ? (featuredCategories.length + 1) * 10 : 0,
+            store: CURRENT_STORE_ID,
+          }),
+        });
         await loadCatalog();
       }
 
@@ -2238,31 +2237,9 @@ const currentStoreId = adminContext.storeId;
       document.addEventListener('click', (event) => {
         if (!event.target.closest('.catalog-menu-wrap')) closeCatalogMenus();
       });
-
-      loginForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        setAlert(loginAlert, '', 'error');
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Entrando...';
-        try {
-          await loginAsAdmin(document.getElementById('admin-email').value, document.getElementById('admin-password').value);
-          showAdmin();
-          await loadCatalog();
-        } catch (error) {
-          console.error(error);
-          setAlert(loginAlert, 'No se pudo iniciar sesión. Revisa el email y la contraseña de PocketBase.', 'error');
-        } finally {
-          loginBtn.disabled = false;
-          loginBtn.textContent = 'Entrar al panel';
-        }
-      });
-
-      logoutBtn.addEventListener('click', () => {
-        clearAdminToken();
-        categories = [];
-        subcategories = [];
-        products = [];
-        showLogin();
+      logoutBtn?.addEventListener('click', () => {
+        document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+        window.location.assign('/login');
       });
 
       function productCreateUrl(categoryId = '', subcategoryId = '') {
@@ -2270,12 +2247,12 @@ const currentStoreId = adminContext.storeId;
         params.set('new', '1');
         if (categoryId) params.set('category', categoryId);
         if (subcategoryId) params.set('subcategory', subcategoryId);
-        return `/admin/products?${params.toString()}`;
+        return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
       }
       function productEditUrl(productId = '') {
         const params = new URLSearchParams();
         if (productId) params.set('product', productId);
-        return `/admin/products?${params.toString()}`;
+        return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
       }
       refreshBtn?.addEventListener('click', loadCatalog);
       contentViewParentBack?.addEventListener('click', () => {
@@ -2422,7 +2399,7 @@ const currentStoreId = adminContext.storeId;
           const row = mainClick.closest('[data-category-id]');
           if (row?.dataset?.categoryId) {
             closeCatalogMenus();
-            window.location.href = `/admin/catalog/category/${row.dataset.categoryId}`;
+            window.location.href = `${ADMIN_CATALOG_PATH}/category/${row.dataset.categoryId}`;
           }
           return;
         }
@@ -2450,7 +2427,7 @@ const currentStoreId = adminContext.storeId;
           }
           if (button.classList.contains('js-category-edit')) {
             closeCatalogMenus();
-            window.location.href = `/admin/catalog/category/${category.id}`;
+            window.location.href = `${ADMIN_CATALOG_PATH}/category/${category.id}`;
             return;
           }
           if (button.classList.contains('js-category-cancel-edit')) {
@@ -2460,6 +2437,11 @@ const currentStoreId = adminContext.storeId;
           if (button.classList.contains('js-category-view')) {
             closeCatalogMenus();
             showCategoryContent(category.id);
+            return;
+          }
+          if (button.classList.contains('js-category-featured')) {
+            closeCatalogMenus();
+            await toggleCategoryFeatured(category);
             return;
           }
           if (button.classList.contains('js-category-delete-soon')) {
@@ -2578,15 +2560,11 @@ const currentStoreId = adminContext.storeId;
           button.disabled = false;
         }
       });
-
-      if (!POCKETBASE_URL) {
-        showLogin();
-        setAlert(loginAlert, 'Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.', 'error');
-      } else if (getAdminToken()) {
-        showAdmin();
+      showAdmin();
+      if (POCKETBASE_URL && getAdminToken()) {
         loadCatalog();
       } else {
-        showLogin();
+        setAlert(categoryAlert, 'No se pudo validar la sesion administrativa.', 'error');
       }
     </script>
   </body>

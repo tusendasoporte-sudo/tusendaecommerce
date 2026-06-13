@@ -65,6 +65,7 @@ function getProductOfferView(product: any) {
     .category-copy { display: grid; gap: 12px; margin-bottom: 16px; }
     .category-kicker { margin: 0; color: #16a34a; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .11em; }
     .category-title { margin: 0; font-size: clamp(34px, 8vw, 64px); line-height: .96; font-weight: 1000; letter-spacing: -.065em; color: #111827; }
+    .category-description { margin: 0; max-width: 760px; color: #475569; font-size: 15px; line-height: 1.55; font-weight: 800; white-space: pre-line; }
     .category-meta { display: flex; flex-wrap: wrap; gap: 8px; }
     .category-pill { display: inline-flex; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px 11px; color: #334155; font-size: 12px; font-weight: 950; }
     .category-hero { position: relative; min-height: 260px; aspect-ratio: 16 / 9; border-radius: 34px; overflow: hidden; background: #111827; border: 1px solid rgba(226,232,240,.9); box-shadow: 0 24px 70px rgba(15,23,42,.15); margin-bottom: 24px; }
@@ -106,6 +107,7 @@ function getProductOfferView(product: any) {
   <div class="category-copy">
     <p class="category-kicker">Categoría</p>
     <h1 class="category-title">{category.name}</h1>
+    {category.description && <p class="category-description">{category.description}</p>}
     <div class="category-meta">
       <span class="category-pill">{categoryProductCountLabel}</span>
       {categorySubcategories.length > 0 && <span class="category-pill">{categorySubcategories.length} subcategorías</span>}

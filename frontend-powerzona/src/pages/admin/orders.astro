@@ -1,5 +1,23 @@
 ---
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
 ---
 
 <!doctype html>
@@ -525,21 +543,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 </head>
   <body>
     <main>
-      <section id="login-view" class="login-wrap hidden">
-        <div class="login-card">
-          <div class="brand-chip">⚡ PowerZona Admin</div>
-          <h1 class="login-title">Pedidos del negocio</h1>
-          <p class="login-subtitle">Entra con tu administrador de PocketBase para revisar órdenes, editar datos del cliente, cambiar estados y eliminar pedidos de prueba.</p>
-          <form id="login-form" class="form-grid">
-            <div><label for="admin-email">Email admin</label><input id="admin-email" type="email" autocomplete="username" placeholder="admin@email.com" required /></div>
-            <div><label for="admin-password">Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" placeholder="Contraseña" required /></div>
-            <button id="login-btn" class="btn btn-primary" type="submit">Entrar al panel</button>
-            <div id="login-alert" class="alert alert-error hidden"></div>
-          </form>
-        </div>
-      </section>
-
-      <section id="admin-view" class="hidden">
+      <section id="admin-view">
         <div id="sidebar-overlay" class="sidebar-overlay"></div>
         <aside id="admin-sidebar" class="sidebar">
           <div class="sidebar-top">
@@ -549,31 +553,31 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           <nav>
             <div class="nav-group">
               <p class="nav-label">General</p>
-              <a class="nav-link" href="/admin">
+              <a class="nav-link" href={adminBasePath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Z"></path><path d="M14 20h6V4h-6v16Z"></path><path d="M4 20h6v-3H4v3Z"></path></svg></span> Resumen</span>
               </a>
             </div>
             <div class="nav-group">
               <p class="nav-label">Ventas</p>
-              <a class="nav-link active" href="/admin/orders">
+              <a class="nav-link active" href={adminOrdersPath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h10l2 2v16l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h4"></path></svg></span> Pedidos</span>
               </a>
             </div>
             <div class="nav-group">
               <p class="nav-label">Tienda</p>
-              <a class="nav-link" href="/admin/catalog">
+              <a class="nav-link" href={adminCatalogPath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Z"></path><path d="M3 11h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"></path></svg></span> Categorías</span>
               </a>
-              <a class="nav-link" href="/admin/products">
+              <a class="nav-link" href={adminProductsPath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5Z"></path><path d="M5 10.7V17l6 3v-6.3l-6-3Z"></path><path d="M13 20l6-3v-6.3l-6 3V20Z"></path></svg></span> Productos</span>
               </a>
-              <a class="nav-link" href="/admin/gifts">
+              <a class="nav-link" href={adminGiftsPath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1Z"></path><path d="M6 12v7h12v-7"></path><path d="M12 21V8"></path></svg></span> Regalos</span>
               </a>
-              <a class="nav-link" href="/admin/shipping">
+              <a class="nav-link" href={adminShippingPath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Z"></path><path d="M5 7v7.17A3 3 0 0 1 8.83 16H13V7H5Z"></path><path d="M17 13h2"></path><path d="M6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path d="M16 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path></svg></span> Envíos</span>
               </a>
-              <a class="nav-link" href="/admin/store-settings">
+              <a class="nav-link" href={adminStoreSettingsPath}>
                 <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1Z"></path><path d="M6 12v7h12v-7"></path><path d="M12 21V8"></path></svg></span> Ajustes de tienda</span>
               </a>
             </div>
@@ -597,8 +601,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             </div>
             <div class="topbar-right">
               <button id="cleanup-orders-open-btn" class="action-btn" type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-.8 13H7.8L7 7Z" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><path d="M9 7V5h6v2M10 11v5M14 11v5" stroke="#991B1B" stroke-width="2" stroke-linecap="round"/></svg>Borrar órdenes</button>
-              <a class="action-btn" href="/admin"><svg viewBox="0 0 24 24" fill="none"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z" fill="#2563EB"/><path d="M4 13h6V4H4v9Z" fill="#38BDF8"/></svg>Ir al resumen</a>
-              <a class="action-btn" href="/"><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Ver catálogo</a>
+              <a class="action-btn" href={adminBasePath}><svg viewBox="0 0 24 24" fill="none"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z" fill="#2563EB"/><path d="M4 13h6V4H4v9Z" fill="#38BDF8"/></svg>Ir al resumen</a>
+              <a class="action-btn" href={publicStorePath}><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Ver catálogo</a>
             </div>
           </header>
 
@@ -769,16 +773,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       </div>
     </main>
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, adminAuthToken }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
-      const loginView = document.getElementById('login-view');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const adminView = document.getElementById('admin-view');
-      const loginForm = document.getElementById('login-form');
-      const adminEmail = document.getElementById('admin-email');
-      const adminPassword = document.getElementById('admin-password');
-      const loginBtn = document.getElementById('login-btn');
-      const loginAlert = document.getElementById('login-alert');
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
       const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
@@ -1044,7 +1042,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         };
         return base + (styles[normalized] || styles.pending);
       }
-      function setLoginAlert(message) { loginAlert.textContent = message; loginAlert.classList.toggle('hidden', !message); }
       function setDetailAlert(message, type = 'info') { detailAlert.textContent = message; detailAlert.className = `alert alert-${type}`; detailAlert.classList.toggle('hidden', !message); }
       function setOrdersAdminAlert(message = '', type = 'info') {
         if (!ordersAdminAlert) return;
@@ -1105,11 +1102,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
         }
       }
-      function showLogin() { loginView.classList.remove('hidden'); adminView.classList.add('hidden'); }
-      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); }
-      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
-      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token); }
-      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
+      function showAdmin() { adminView.classList.remove('hidden'); }
+      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function clearAdminToken() { document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax'; }
 
       async function apiRequest(path, options = {}) {
         const headers = { ...(options.headers || {}) };
@@ -1117,23 +1112,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (token) headers.Authorization = `Bearer ${token}`;
         const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
         const result = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con PocketBase.');
+        if (!response.ok) throw new Error(result?.message || 'Error de comunicacion con la plataforma.');
         return result;
       }
-
-      async function loginAsAdmin(email, password) {
-        const payload = { identity: email, password };
-        try {
-          const result = await apiRequest('/api/collections/_superusers/auth-with-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          setAdminToken(result.token);
-          return result;
-        } catch (error) {
-          const result = await apiRequest('/api/admins/auth-with-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          setAdminToken(result.token);
-          return result;
-        }
-      }
-
       async function loadOrders() {
         ordersList.innerHTML = '<div class="empty-state">Cargando órdenes...</div>';
         refreshBtn.disabled = true;
@@ -1147,7 +1128,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           if (selectedOrder && !orders.some((order) => order.id === selectedOrder.id)) clearDetail();
         } catch (error) {
           console.error(error);
-          ordersList.innerHTML = '<div class="empty-state">No se pudieron cargar las órdenes. Revisa tu sesión admin y las reglas de PocketBase.</div>';
+          ordersList.innerHTML = '<div class="empty-state">No se pudieron cargar las órdenes. Revisa tu sesion admin o las reglas administrativas.</div>';
         } finally {
           refreshBtn.disabled = false;
         }
@@ -1376,7 +1357,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           setDetailAlert('Cambios guardados automáticamente.', 'success');
         } catch (error) {
           console.error(error);
-          setDetailAlert('No se pudieron guardar automáticamente los datos de la orden. Revisa tu sesión admin o las reglas de PocketBase.', 'error');
+          setDetailAlert('No se pudieron guardar automáticamente los datos de la orden. Revisa tu sesion admin o las reglas administrativas.', 'error');
         } finally {
           orderAutoSaveRunning = false;
           if (orderAutoSavePending) {
@@ -2562,7 +2543,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             detailStatus.value = previousStatus;
             setDetailAlert(error?.message || 'No se pudo completar el movimiento de inventario. La orden no fue actualizada.', 'error');
           } else {
-            setDetailAlert('No se pudo actualizar la orden. Revisa tu sesión admin o las reglas de PocketBase.', 'error');
+            setDetailAlert('No se pudo actualizar la orden. Revisa tu sesion admin o las reglas administrativas.', 'error');
           }
         } finally {
           saveOrderBtn.disabled = false;
@@ -2757,7 +2738,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               renderCleanupOrdersList();
               setOrdersAdminAlert('Orden eliminada correctamente. El inventario no fue modificado.', 'success');
             } catch (error) {
-              setDetailAlert('No se pudo eliminar la orden. Revisa las reglas delete de orders y order_items en PocketBase.', 'error');
+              setDetailAlert('No se pudo eliminar la orden. Revisa las reglas administrativas de borrado.', 'error');
               throw error;
             } finally {
               deleteCancelledOrderBtn.disabled = false;
@@ -2851,7 +2832,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               updateCleanupSelectionUI();
               setOrdersAdminAlert('Órdenes borradas correctamente. El inventario no fue modificado.', 'success');
             } catch (error) {
-              setOrdersAdminAlert('No se pudieron borrar todas las órdenes. Revisa las reglas delete de orders y order_items en PocketBase.', 'error');
+              setOrdersAdminAlert('No se pudieron borrar todas las órdenes. Revisa las reglas administrativas de borrado.', 'error');
               throw error;
             } finally {
               cleanupDeleteSelectedBtn.disabled = false;
@@ -2864,32 +2845,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
       function openSidebar() { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); }
       function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('show'); }
-
-      loginForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        setLoginAlert('');
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Entrando...';
-        try {
-          await loginAsAdmin(adminEmail.value.trim(), adminPassword.value);
-          adminPassword.value = '';
-          showAdmin();
-          await loadProductCatalog();
-          await loadShippingZones();
-          await loadOrders();
-        } catch (error) {
-          console.error(error);
-          setLoginAlert('No se pudo entrar. Revisa el email y la contraseña del administrador de PocketBase.');
-        } finally {
-          loginBtn.disabled = false;
-          loginBtn.textContent = 'Entrar al panel';
-        }
-      });
-
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
-      sidebarLogoutBtn?.addEventListener('click', () => { clearAdminToken(); orders = []; selectedOrder = null; closeSidebar(); showLogin(); });
+      sidebarLogoutBtn?.addEventListener('click', () => { clearAdminToken(); window.location.assign('/login'); });
       refreshBtn.addEventListener('click', loadOrders);
       searchInput.addEventListener('input', () => { currentOrdersPage = 1; renderOrders(); });
       statusFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
@@ -2938,15 +2897,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       });
 
       if (!POCKETBASE_URL) {
-        showLogin();
-        setLoginAlert('Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+        showAdmin();
+        ordersList.innerHTML = '<div class="empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
       } else if (getAdminToken()) {
         showAdmin();
         loadProductCatalog();
         loadShippingZones();
         loadOrders();
       } else {
-        showLogin();
+        showAdmin();
+        ordersList.innerHTML = '<div class="empty-state">No se pudo validar la sesion administrativa.</div>';
       }
     </script>
   </body>

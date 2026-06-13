@@ -1,14 +1,17 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { DEFAULT_STORE_SLUG, getActiveStores } from '../lib/stores';
+import { getFeaturedStores } from '../lib/stores';
+import { getSettings } from '../lib/api';
 
-const stores = await getActiveStores();
-const featuredStores = stores.filter((store) => store.featured === true);
-const powerZonaStore = stores.find((store) => String(store.slug || '').toLowerCase() === DEFAULT_STORE_SLUG);
-const visibleStores = Array.from(new Map([
-  ...(powerZonaStore ? [[powerZonaStore.id, powerZonaStore]] : []),
-  ...((featuredStores.length ? featuredStores : stores).map((store) => [store.id, store])),
-]).values());
+const featuredStores = await getFeaturedStores();
+const visibleStores = await Promise.all(featuredStores.map(async (store) => {
+  const settings = await getSettings({ storeId: store.id }).catch(() => null);
+  return {
+    ...store,
+    bazarImageUrl: store.bazaarImageUrl || settings?.logoImageUrl || settings?.coverImageUrl || store.logoUrl || store.bannerUrl || '',
+    description: String(settings?.store_description || '').trim(),
+  };
+}));
 
 function storeInitials(name: string) {
   return String(name || 'TS')
@@ -92,7 +95,7 @@ function storeHref(store: any) {
           {visibleStores.map((store) => (
             <a class="store-card" href={storeHref(store)} aria-label={`Entrar a ${store.name}`}>
               <div class="store-banner">
-                {store.bannerUrl ? <img src={store.bannerUrl} alt={store.name} loading="lazy" /> : <div class="store-fallback">{store.logoUrl ? <img src={store.logoUrl} alt={store.name} loading="lazy" /> : storeInitials(store.name)}</div>}
+                {store.bazarImageUrl ? <img src={store.bazarImageUrl} alt={store.name} loading="lazy" /> : <div class="store-fallback">{storeInitials(store.name)}</div>}
                 {store.featured === true && <span class="store-featured">Destacada</span>}
               </div>
               <div class="store-body">
@@ -100,8 +103,8 @@ function storeHref(store: any) {
                   <h3 class="store-name">{store.name || 'Tienda'}</h3>
                   <span class="store-status">Abierta</span>
                 </div>
-                <p class="store-description">Productos, ofertas y atención directa desde su tienda pública.</p>
-                <span class="store-cta">Entrar a la tienda</span>
+                {store.description && <p class="store-description">{store.description}</p>}
+                <span class="store-cta">Ver tienda</span>
               </div>
             </a>
           ))}

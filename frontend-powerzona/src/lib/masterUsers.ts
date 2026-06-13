@@ -33,11 +33,14 @@ function requireMasterClient(client: PocketBase) {
 }
 
 function normalizeStoreUserRole(value: string | undefined): StoreUserRole {
-  return value === USER_ROLES.STORE_STAFF ? USER_ROLES.STORE_STAFF : USER_ROLES.STORE_ADMIN;
+  if (value === USER_ROLES.STORE_ADMIN || value === USER_ROLES.STORE_STAFF) return value;
+  throw new Error('El rol seleccionado no es valido.');
 }
 
 function normalizeUserStatus(value: string | undefined) {
-  return String(value || 'active').toLowerCase() === 'suspended' ? 'suspended' : 'active';
+  const status = String(value || 'active').toLowerCase();
+  if (status === 'active' || status === 'suspended') return status;
+  throw new Error('El estado seleccionado no es valido.');
 }
 
 function getStoreUserPayload(input: MasterStoreUserInput) {
@@ -51,18 +54,55 @@ function getStoreUserPayload(input: MasterStoreUserInput) {
   if (password.length < 8) throw new Error('La contrasena debe tener al menos 8 caracteres.');
   if (!displayName) throw new Error('Escribe el nombre del usuario.');
 
-  return {
+  const payload: Record<string, any> = {
     email,
     emailVisibility: true,
-    verified: true,
     password,
     passwordConfirm: password,
     display_name: displayName,
-    phone: String(input.phone || '').trim(),
     role: normalizeStoreUserRole(input.role),
     store,
     status: normalizeUserStatus(input.status),
   };
+
+  const phone = String(input.phone || '').trim();
+  if (phone) payload.phone = phone;
+
+  return payload;
+}
+
+export function getStoreUserCreateErrorMessage(error: any) {
+  const data = error?.data?.data || error?.data || {};
+  const message = String(error?.message || '').toLowerCase();
+  const status = Number(error?.status || error?.response?.status || 0);
+  const emailCode = String(data?.email?.code || data?.email?.message || '').toLowerCase();
+  const passwordCode = String(data?.password?.code || data?.password?.message || '').toLowerCase();
+  const storeCode = String(data?.store?.code || data?.store?.message || '').toLowerCase();
+  const roleCode = String(data?.role?.code || data?.role?.message || '').toLowerCase();
+  const statusCode = String(data?.status?.code || data?.status?.message || '').toLowerCase();
+  const verifiedCode = String(data?.verified?.code || data?.verified?.message || '').toLowerCase();
+  const emailVisibilityCode = String(data?.emailVisibility?.code || data?.emailVisibility?.message || '').toLowerCase();
+  const permissionCode = String(data?.permission?.code || data?.permission?.message || '').toLowerCase();
+
+  if (status === 403 || message.includes('forbidden')) return 'No tienes permisos para crear usuarios de tienda.';
+
+  if (emailCode.includes('validation_not_unique') || emailCode.includes('unique')) return 'Este email ya existe.';
+  if (passwordCode.includes('min') || message.includes('password')) return 'La contrasena debe tener al menos 8 caracteres.';
+  if (message.includes('confirm')) return 'Las contrasenas no coinciden.';
+  if (storeCode || message.includes('store')) return 'No se pudo asignar la tienda al usuario.';
+  if (roleCode) return 'El rol seleccionado no es valido.';
+  if (statusCode) return 'El estado seleccionado no es valido.';
+  if (verifiedCode) return 'PocketBase rechazó el campo: verified.';
+  if (emailVisibilityCode) return 'PocketBase rechazó el campo: emailVisibility.';
+  if (permissionCode || message.includes('permission')) return 'No tienes permisos para crear usuarios de tienda.';
+
+  const rejectedField = Object.keys(data || {}).find((field) => {
+    const value = data[field];
+    return value && typeof value === 'object';
+  });
+  if (rejectedField) return `PocketBase rechazó el campo: ${rejectedField}.`;
+
+  return 'No se pudo crear el usuario. Revisa los datos e intentalo otra vez.';
 }
 
 export async function getStoreUsersForMaster(client = pb): Promise<MasterStoreUser[]> {
@@ -90,6 +130,15 @@ export async function getStoreUsersForMaster(client = pb): Promise<MasterStoreUs
 export async function createStoreUserFromMaster(input: MasterStoreUserInput, client = pb) {
   requireMasterClient(client);
   const payload = getStoreUserPayload(input);
+  console.debug('Create store user payload', {
+    email: payload.email,
+    display_name: payload.display_name,
+    role: payload.role,
+    store: payload.store,
+    status: payload.status,
+    tienePassword: Boolean(payload.password),
+    tienePasswordConfirm: Boolean(payload.passwordConfirm),
+  });
 
   return client.collection('users').create(payload);
 }

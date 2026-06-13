@@ -1,11 +1,24 @@
 ---
 import { refreshAuthFromCookie } from '../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
 ---
 <!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -394,19 +407,19 @@ const currentStoreId = adminContext.storeId;
 
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
-            <a class="nav-item" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item active" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item active" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
 
           <p class="sidebar-label">Divisiones</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin/promos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
-            <a class="nav-item" href="/admin/organization"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
+            <a class="nav-item" href={adminPromosPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
+            <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
           </nav>
 
         </div>
@@ -416,8 +429,8 @@ const currentStoreId = adminContext.storeId;
         <header class="topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
-            <a class="action-btn" href="/admin/products">Productos</a>
-            <a class="action-btn" href="/">Ver tienda pública</a>
+            <a class="action-btn" href={adminProductsPath}>Productos</a>
+            <a class="action-btn" href={publicStorePath}>Ver tienda pública</a>
             <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
           </div>
         </header>
@@ -432,19 +445,7 @@ const currentStoreId = adminContext.storeId;
             
           </div>
         </section>
-
-        <section id="login-view" class="panel-card login-card hidden">
-          <h2 class="page-title" style="font-size: 24px; margin: 0;">Entrar como admin</h2>
-          <p class="page-subtitle">Usa el mismo usuario administrador de PocketBase para modificar ajustes de tienda.</p>
-          <form id="login-form" class="form-grid" style="margin-top: 18px;">
-            <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
-            <div class="field"><label for="admin-password">Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
-            <button id="login-btn" class="submit-btn" type="submit">Entrar al panel</button>
-            <div id="login-alert" class="alert alert-error hidden"></div>
-          </form>
-        </section>
-
-        <section id="admin-view" class="hidden">
+        <section id="admin-view">
           <div class="tabs">
             <button class="tab-btn active" data-tab="generales" type="button">Ajustes generales</button>
             <button class="tab-btn" data-tab="footer" type="button">Footer público</button>
@@ -475,7 +476,9 @@ const currentStoreId = adminContext.storeId;
               <div class="field"><label for="settings-whatsapp-number">WhatsApp principal</label><input id="settings-whatsapp-number" type="text" placeholder="Ej: +53 5 000 0000" required /></div>
               <div class="field"><label for="settings-logo-image">Icono o logo del negocio</label><input id="settings-logo-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen cuadrada, mínimo 512 x 512 px.</p><p id="settings-current-logo" class="settings-current-file"></p></div>
               <div class="field"><label for="settings-cover-image">Foto de portada / banner</label><input id="settings-cover-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1600 x 900 px.</p><p class="settings-current-file">La portada se optimiza automáticamente con calidad alta para cargar rápido sin perder brillo.</p><p id="settings-current-cover" class="settings-current-file"></p></div>
+              <div class="field full"><label for="settings-store-description">DescripciÃ³n de la tienda</label><textarea id="settings-store-description" placeholder="Texto corto para mostrar tu tienda en el Bazar y debajo de la portada."></textarea><p class="form-help">Texto corto para mostrar tu tienda en el Bazar y debajo de la portada.</p></div>
               <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
+              <div class="field"><label for="settings-public-category-columns">Vista de categorÃ­as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div>
               <div class="field"><label for="settings-address">Dirección</label><textarea id="settings-address" placeholder="Dirección pública de la tienda"></textarea></div>
               <div class="field"><label for="settings-business-hours">Horarios</label><textarea id="settings-business-hours" placeholder="Ej: Lunes a sábado · 9:00 AM - 6:00 PM"></textarea></div>
               <div class="field full"><label for="settings-public-services-text">Servicios</label><textarea id="settings-public-services-text" placeholder="Ej: Envíos, recogida, asesoría por WhatsApp..."></textarea></div>
@@ -660,11 +663,12 @@ const currentStoreId = adminContext.storeId;
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, adminAuthToken }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       let products = [];
       let categories = [];
       let visualItems = [];
@@ -674,11 +678,8 @@ const currentStoreId = adminContext.storeId;
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
-      const loginView = document.getElementById('login-view');
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
-      const loginForm = document.getElementById('login-form');
-      const loginAlert = document.getElementById('login-alert');
       const featuredProductSelect = document.getElementById('featured-product-select');
       const markFeaturedBtn = document.getElementById('mark-featured-btn');
       const featuredList = document.getElementById('featured-list');
@@ -710,10 +711,8 @@ const currentStoreId = adminContext.storeId;
       const visualCurrentAttachment = document.getElementById('visual-current-attachment');
       const visualActive = document.getElementById('visual-active');
       const visualCancelBtn = document.getElementById('visual-cancel-btn');
-
-      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
-      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token || ''); }
-      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
+      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function clearAdminToken() { document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax'; }
       function showAlert(el, message = '', type = 'info') {
         if (!el) return;
         if (!message) { el.className = 'alert alert-info hidden'; el.textContent = ''; return; }
@@ -723,7 +722,7 @@ const currentStoreId = adminContext.storeId;
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
       }
-      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con PocketBase.') {
+      function pocketBaseErrorMessage(result, fallback = 'Error de comunicacion con la plataforma.') {
         const base = result?.message || fallback;
         const fieldErrors = result?.data && typeof result.data === 'object'
           ? Object.entries(result.data).map(([field, info]) => {
@@ -741,18 +740,6 @@ const currentStoreId = adminContext.storeId;
         const result = await response.json().catch(() => null);
         if (!response.ok) throw new Error(pocketBaseErrorMessage(result));
         return result;
-      }
-      async function loginAsAdmin(email, password) {
-        const payload = { identity: email, password };
-        try {
-          const result = await apiRequest('/api/collections/_superusers/auth-with-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          setAdminToken(result.token);
-          return result;
-        } catch (error) {
-          const result = await apiRequest('/api/admins/auth-with-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          setAdminToken(result.token);
-          return result;
-        }
       }
       async function loadAllRecords(collection, params = '') {
         let page = 1;
@@ -851,7 +838,7 @@ const currentStoreId = adminContext.storeId;
             </div>
             <div class="item-actions">
               <span class="pill pill-visible">Destacado</span>
-              <a class="mini-btn" href="/admin/products?product=${encodeURIComponent(product.id)}">Editar producto</a>
+              <a class="mini-btn" href="${ADMIN_PRODUCTS_PATH}?product=${encodeURIComponent(product.id)}">Editar producto</a>
               <button class="mini-btn danger js-unfeature" type="button">Quitar</button>
             </div>
           </article>
@@ -965,7 +952,7 @@ const currentStoreId = adminContext.storeId;
           visualItems = await loadAllRecords('store_visual_items', withStoreFilter('sort=sort_order,title'));
         } catch (error) {
           visualItems = [];
-          showAlert(visualAlert, 'No existe todavía la colección store_visual_items. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+          showAlert(visualAlert, 'No existe todavía la colección store_visual_items. Reinicia la plataforma para aplicar la migración nueva.', 'error');
         }
         renderAll();
       }
@@ -1140,24 +1127,13 @@ const currentStoreId = adminContext.storeId;
       }
       function openSidebar() { document.body.classList.add('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'false'); sidebarOverlay.hidden = false; sidebarOpenBtn?.setAttribute('aria-expanded', 'true'); }
       function closeSidebar() { document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'true'); sidebarOpenBtn?.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!document.body.classList.contains('sidebar-open')) sidebarOverlay.hidden = true; }, 220); }
-      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
-      function showLogin() { adminView.classList.add('hidden'); loginView.classList.remove('hidden'); logoutBtn.classList.add('hidden'); }
+      function showAdmin() { adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
 
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeSidebar(); });
-      loginForm?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        showAlert(loginAlert, '');
-        try {
-          await loginAsAdmin(document.getElementById('admin-email').value.trim(), document.getElementById('admin-password').value);
-          showAdmin();
-        } catch (error) {
-          showAlert(loginAlert, error.message || 'No se pudo iniciar sesión.', 'error');
-        }
-      });
-      logoutBtn?.addEventListener('click', () => { clearAdminToken(); showLogin(); });
+      logoutBtn?.addEventListener('click', () => { clearAdminToken(); window.location.assign('/login'); });
       markFeaturedBtn?.addEventListener('click', () => markFeatured().catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error')));
       refreshBtn?.addEventListener('click', () => loadData());
       refreshOrgBtn?.addEventListener('click', () => loadData());
@@ -1221,18 +1197,18 @@ const currentStoreId = adminContext.storeId;
       });
 
 
-      if (getAdminToken()) showAdmin(); else showLogin();
+      if (getAdminToken()) showAdmin(); else { showAdmin(); showAlert(featuredAlert, 'No se pudo validar la sesion administrativa.', 'error'); }
       if (window.location.hash === '#footer') showTab('footer');
       else if (window.location.hash === '#monedas') showTab('monedas');
       else showTab('generales');
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
       // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
         const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-        const AUTH_TOKEN_KEY_PUBLIC_SETTINGS = 'powerzona_admin_token';
+        const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(adminAuthToken || '');
         const form = document.getElementById('settings-form');
         const alertBox = document.getElementById('settings-alert');
         const refreshBtn = document.getElementById('settings-refresh-btn');
@@ -1243,7 +1219,9 @@ const currentStoreId = adminContext.storeId;
           whatsapp: document.getElementById('settings-whatsapp-number'),
           logo: document.getElementById('settings-logo-image'),
           cover: document.getElementById('settings-cover-image'),
+          storeDescription: document.getElementById('settings-store-description'),
           welcome: document.getElementById('settings-welcome-text'),
+          categoryColumns: document.getElementById('settings-public-category-columns'),
           address: document.getElementById('settings-address'),
           hours: document.getElementById('settings-business-hours'),
           services: document.getElementById('settings-public-services-text'),
@@ -1264,7 +1242,7 @@ const currentStoreId = adminContext.storeId;
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
         const footerRefreshBtn = document.getElementById('footer-settings-refresh-btn');
-        function token() { return localStorage.getItem(AUTH_TOKEN_KEY_PUBLIC_SETTINGS) || ''; }
+        function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
           if (!message) { box.className = 'alert alert-info hidden'; box.textContent = ''; return; }
@@ -1312,7 +1290,7 @@ const currentStoreId = adminContext.storeId;
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL_PUBLIC_SETTINGS + path, Object.assign({}, options, { headers }));
           const result = await response.json().catch(() => null);
-          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicacion con la plataforma.');
           return result;
         }
         function withStoreFilter(params = '') {
@@ -1331,6 +1309,8 @@ const currentStoreId = adminContext.storeId;
             stored_name: fields.storeName.value.trim() || 'PowerZona',
             store_name: fields.storeName.value.trim() || 'PowerZona',
             whatsapp_number: fields.whatsapp.value.trim(),
+            store_description: fields.storeDescription.value.trim(),
+            public_category_columns: fields.categoryColumns.value || '2',
             order_prefix: normalizeOrderPrefix(fields.orderPrefix.value),
             active: true,
             store: CURRENT_STORE_ID_PUBLIC_SETTINGS,
@@ -1366,7 +1346,9 @@ const currentStoreId = adminContext.storeId;
           fields.storeName.value = record.store_name || record.stored_name || 'PowerZona';
           fields.orderPrefix.value = normalizeOrderPrefix(record.order_prefix || 'PP');
           fields.whatsapp.value = record.whatsapp_number || '';
+          fields.storeDescription.value = record.store_description || '';
           fields.welcome.value = record.welcome_text || '';
+          fields.categoryColumns.value = String(record.public_category_columns || '2') === '1' ? '1' : '2';
           fields.address.value = record.address || '';
           fields.hours.value = record.business_hours || '';
           fields.services.value = record.public_services_text || '';
@@ -1399,7 +1381,9 @@ const currentStoreId = adminContext.storeId;
           data.append('stored_name', fields.storeName.value.trim() || 'PowerZona');
           data.append('order_prefix', normalizeOrderPrefix(fields.orderPrefix.value));
           data.append('whatsapp_number', fields.whatsapp.value.trim());
+          data.append('store_description', fields.storeDescription.value.trim());
           data.append('welcome_text', fields.welcome.value.trim());
+          data.append('public_category_columns', fields.categoryColumns.value || '2');
           data.append('address', fields.address.value.trim());
           data.append('business_hours', fields.hours.value.trim());
           data.append('public_services_text', fields.services.value.trim());
@@ -1449,13 +1433,13 @@ const currentStoreId = adminContext.storeId;
     </script>
 
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
       // PZ-AJUSTES-MONEDAS-CLIENT-V1-20260604
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-        const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
         const list = document.getElementById('currency-list');
         const alertBox = document.getElementById('currency-alert');
         const refreshBtn = document.getElementById('currency-refresh-btn');
@@ -1466,7 +1450,7 @@ const currentStoreId = adminContext.storeId;
         const rateInput = document.getElementById('currency-rate');
         let currencies = [];
         let settingsRecord = null;
-        function token() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+        function token() { return ADMIN_AUTH_TOKEN; }
         function show(message = '', type = 'info') {
           if (!alertBox) return;
           if (!message) { alertBox.className = 'alert alert-info hidden'; alertBox.textContent = ''; return; }
@@ -1479,7 +1463,7 @@ const currentStoreId = adminContext.storeId;
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL + path, Object.assign({}, options, { headers }));
           const result = await response.json().catch(() => null);
-          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicacion con la plataforma.');
           return result;
         }
         function escapeHtml(value) {

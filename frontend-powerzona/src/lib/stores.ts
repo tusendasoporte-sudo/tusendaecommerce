@@ -23,6 +23,7 @@ export type MasterStoreSummary = {
   status: string;
   plan?: string;
   featured?: boolean;
+  featured_order?: number;
   protected?: boolean;
   owner_phone?: string;
   views_count?: number;
@@ -46,11 +47,13 @@ function normalizeStoreFileValue(value: any) {
 function addStoreImages(store: PublicStore) {
   const logo = normalizeStoreFileValue(store.logo || store.logo_image || store.logo_file)[0] || '';
   const banner = normalizeStoreFileValue(store.banner || store.banner_image || store.cover_image)[0] || '';
+  const bazaar = normalizeStoreFileValue(store.bazaar_image)[0] || '';
 
   return {
     ...store,
     logoUrl: logo ? getPocketBaseFileUrl('stores', store.id, logo) : null,
     bannerUrl: banner ? getPocketBaseFileUrl('stores', store.id, banner) : null,
+    bazaarImageUrl: bazaar ? getPocketBaseFileUrl('stores', store.id, bazaar) : null,
   };
 }
 
@@ -166,9 +169,25 @@ export async function getStoreBySlug(slug: string): Promise<PublicStore | null> 
   if (!normalizedSlug) return null;
 
   try {
-    return await pb.collection('stores').getFirstListItem(
+    const store = await pb.collection('stores').getFirstListItem(
       `slug="${escapePocketBaseValue(normalizedSlug)}" && status="${ACTIVE_STORE_STATUS}"`
     ) as PublicStore;
+    return addStoreImages(store);
+  } catch (error: any) {
+    if (error?.status === 404) return null;
+    throw error;
+  }
+}
+
+export async function getStoreBySlugAnyStatus(slug: string): Promise<PublicStore | null> {
+  const normalizedSlug = String(slug || '').trim().toLowerCase();
+  if (!normalizedSlug) return null;
+
+  try {
+    const store = await pb.collection('stores').getFirstListItem(
+      `slug="${escapePocketBaseValue(normalizedSlug)}"`
+    ) as PublicStore;
+    return addStoreImages(store);
   } catch (error: any) {
     if (error?.status === 404) return null;
     throw error;
@@ -197,7 +216,7 @@ export async function getActiveStores(): Promise<PublicStore[]> {
 export async function getFeaturedStores(): Promise<PublicStore[]> {
   const stores = await pb.collection('stores').getFullList({
     filter: `status="${ACTIVE_STORE_STATUS}" && featured=true`,
-    sort: '-orders_count,-views_count,-created',
+    sort: 'featured_order,name,-created',
   });
 
   return stores.map((store) => addStoreImages(store as PublicStore));
@@ -205,8 +224,8 @@ export async function getFeaturedStores(): Promise<PublicStore[]> {
 
 export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSummary[]> {
   const stores = await client.collection('stores').getFullList({
-    fields: 'id,name,slug,status,plan,featured,protected,owner_phone,views_count,orders_count,created,updated',
-    sort: '-featured,status,name',
+    fields: 'id,name,slug,status,plan,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    sort: '-featured,featured_order,status,name',
   });
 
   return stores.map((store: any) => ({
@@ -216,6 +235,7 @@ export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSum
     status: store.status || '',
     plan: store.plan || '',
     featured: store.featured === true,
+    featured_order: Number(store.featured_order || 0),
     protected: store.protected === true,
     owner_phone: store.owner_phone || '',
     views_count: Number(store.views_count || 0),
@@ -234,6 +254,7 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
     ...payload,
     plan: 'basic',
     featured: false,
+    featured_order: 0,
     views_count: 0,
     orders_count: 0,
     protected: false,
@@ -258,6 +279,17 @@ export async function setStoreStatusFromMaster(storeId: string, status: string, 
 
   return client.collection('stores').update(id, {
     status: normalizeStoreStatus(status),
+  });
+}
+
+export async function setStoreFeaturedFromMaster(storeId: string, featured: boolean, featuredOrder = 0, client = pb) {
+  requireMasterClient(client);
+  const id = String(storeId || '').trim();
+  if (!id) throw new Error('No se encontro la tienda.');
+
+  return client.collection('stores').update(id, {
+    featured: featured === true,
+    featured_order: Math.max(0, Number(featuredOrder || 0)),
   });
 }
 

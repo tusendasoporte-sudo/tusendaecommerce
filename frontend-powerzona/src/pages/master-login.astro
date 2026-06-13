@@ -5,15 +5,15 @@ import Layout from '../layouts/Layout.astro';
 <Layout isMaster={true}>
   <style>
     .login-shell { min-height: calc(100vh - 48px); display: grid; place-items: center; color: #111827; }
-    .login-panel { width: min(460px, 100%); display: grid; gap: 18px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; padding: clamp(22px, 5vw, 34px); box-shadow: 0 20px 55px rgba(15, 23, 42, .10); }
-    .login-kicker { width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3; padding: 7px 11px; font-size: 12px; font-weight: 950; }
+    .login-panel { width: min(480px, 100%); display: grid; gap: 18px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; padding: clamp(22px, 5vw, 34px); box-shadow: 0 20px 55px rgba(15,23,42,.10); }
+    .login-kicker { width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #166534; padding: 7px 11px; font-size: 12px; font-weight: 950; }
     .login-title { margin: 0; color: #0f172a; font-size: clamp(30px, 7vw, 44px); line-height: 1; font-weight: 1000; letter-spacing: 0; }
     .login-text { margin: 0; color: #64748b; font-size: 14px; line-height: 1.5; font-weight: 750; }
     .login-form { display: grid; gap: 14px; }
     .field { display: grid; gap: 7px; }
     .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; }
     .field input { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 13px 14px; outline: none; font-size: 15px; font-weight: 800; }
-    .field input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, .14); }
+    .field input:focus { border-color: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.14); }
     .login-button { min-height: 46px; border: 1px solid #0f172a; border-radius: 8px; background: #0f172a; color: #fff; padding: 12px 16px; font-size: 14px; line-height: 1; font-weight: 1000; cursor: pointer; }
     .login-button:disabled { opacity: .62; cursor: wait; }
     .login-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
@@ -21,34 +21,34 @@ import Layout from '../layouts/Layout.astro';
   </style>
 
   <main class="login-shell">
-    <section class="login-panel" aria-label="Inicio de sesion de tienda">
+    <section class="login-panel" aria-label="Acceso Master Admin">
       <span class="login-kicker">Tu Senda 84</span>
       <div>
-        <h1 class="login-title">Acceso administrativo de tienda</h1>
-        <p class="login-text">Entra para gestionar tu tienda.</p>
+        <h1 class="login-title">Acceso Master Admin</h1>
+        <p class="login-text">Administra Tu Senda 84 y las tiendas registradas.</p>
       </div>
 
-      <form id="login-form" class="login-form">
+      <form id="master-login-form" class="login-form">
         <div class="field">
-          <label for="login-email">Email</label>
-          <input id="login-email" name="email" type="email" autocomplete="email" required />
+          <label for="master-login-email">Email</label>
+          <input id="master-login-email" name="email" type="email" autocomplete="email" required />
         </div>
         <div class="field">
-          <label for="login-password">Contrasena</label>
-          <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+          <label for="master-login-password">Contrasena</label>
+          <input id="master-login-password" name="password" type="password" autocomplete="current-password" required />
         </div>
-        <button id="login-button" class="login-button" type="submit">Entrar al panel</button>
-        <div id="login-alert" class="login-alert" role="alert"></div>
+        <button id="master-login-button" class="login-button" type="submit">Entrar al Master</button>
+        <div id="master-login-alert" class="login-alert" role="alert"></div>
       </form>
     </section>
   </main>
 
   <script>
-    import { exportAuthCookie, getRedirectPathForRole, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout } from '../lib/auth';
+    import { exportAuthCookie, isActiveUser, isMasterAdmin, loginWithPassword, logout } from '../lib/auth';
 
-    const form = document.getElementById('login-form') as HTMLFormElement | null;
-    const button = document.getElementById('login-button') as HTMLButtonElement | null;
-    const alertBox = document.getElementById('login-alert');
+    const form = document.getElementById('master-login-form') as HTMLFormElement | null;
+    const button = document.getElementById('master-login-button') as HTMLButtonElement | null;
+    const alertBox = document.getElementById('master-login-alert');
 
     function showError(message: string) {
       if (!alertBox) return;
@@ -56,27 +56,18 @@ import Layout from '../layouts/Layout.astro';
       alertBox.classList.add('is-visible');
     }
 
-    function clearError() {
-      if (!alertBox) return;
-      alertBox.textContent = '';
-      alertBox.classList.remove('is-visible');
-    }
-
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
-      clearError();
       if (!button) return;
-
+      alertBox?.classList.remove('is-visible');
       const formData = new FormData(form);
       const email = String(formData.get('email') || '').trim();
       const password = String(formData.get('password') || '');
-
       button.disabled = true;
       button.textContent = 'Entrando...';
 
       try {
         const user = await loginWithPassword(email, password);
-
         if (!isActiveUser(user)) {
           logout();
           document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
@@ -84,33 +75,20 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
 
-        if (isMasterAdmin(user)) {
-          document.cookie = exportAuthCookie();
-          window.location.assign('/master');
-          return;
-        }
-
-        if (!isStoreUser(user)) {
+        if (!isMasterAdmin(user)) {
           logout();
           document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
-          showError('Tu usuario no tiene un acceso de tienda activo.');
-          return;
-        }
-
-        if (!getUserStoreId(user)) {
-          logout();
-          document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
-          showError('Tu usuario no tiene una tienda asignada.');
+          showError('Este acceso es solo para administracion principal.');
           return;
         }
 
         document.cookie = exportAuthCookie();
-        window.location.assign(getRedirectPathForRole(user));
+        window.location.assign('/master');
       } catch (_) {
         showError('Email o contrasena incorrectos.');
       } finally {
         button.disabled = false;
-        button.textContent = 'Entrar al panel';
+        button.textContent = 'Entrar al Master';
       }
     });
   </script>
