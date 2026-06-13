@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-11  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada y creación de usuarios de tienda desde Master Admin implementada pendiente de prueba manual completa.
+**Fecha de actualización:** 2026-06-13  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil.
 
 ---
 
@@ -176,7 +176,7 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🟡 Bloque actual: 21.30 Tu Senda 84 — multitienda, Master Admin y gestión de tiendas.
+🟡 Bloque actual: 21.30 Tu Senda 84 — multitienda, Master Admin, rutas profesionales de tienda y aislamiento operativo.
 ```
 
 Estado del bloque anterior:
@@ -193,7 +193,7 @@ Estado del bloque anterior:
 Objetivo inmediato recomendado:
 
 ```txt
-Continuar y cerrar 12.3 Cupón manual, manteniendo el panel admin simple, el checkout claro para el cliente y la lógica de una sola promoción final por pedido.
+Cerrar la base multitienda operativa revisando los módulos que faltan por aislamiento de tienda: envíos, promociones automáticas, cupones manuales, regalos, WhatsApp/settings y cualquier consulta global restante. Después continuar 12.3 Cupón manual.
 ```
 
 Checklist clave del bloque 12.3:
@@ -9182,7 +9182,12 @@ Estado actual:
 21.30.10 completado / base visual del Master Admin creada en /master
 21.30.11 completado y validado / base de usuarios, roles y login administrativo creada
 21.30.12 completado y validado / gestión básica de tiendas desde Master Admin
-21.30.13 implementado / creación de usuarios de tienda desde Master Admin pendiente de prueba manual completa
+21.30.13 corregido y validado / creación de usuarios de tienda desde Master Admin funcionando sin enviar verified
+21.30.14 completado / protección central de /admin por users.store + hotfix de autoCancellation y middleware
+21.30.15 completado / aislamiento por tienda en ajustes, catálogo, productos, settings y visual items
+21.30.16 implementado / accesos profesionales, descripción de tienda, Bazar destacado y categorías destacadas
+21.30.17 implementado / rutas profesionales del admin por tienda y eliminación de login interno viejo
+21.30.18 implementado / detalle de pedido en página completa + hotfix de acciones y botón eliminar
 ```
 
 Regla oficial de nombres:
@@ -10670,6 +10675,454 @@ Orden recomendado después:
 21.30.14 — Proteger /admin por login y preparar acceso de store_admin/store_staff.
 21.30.15 — Filtrar panel admin por store.
 21.30.16 — Evaluar ruta futura /t/[storeSlug]/admin.
+```
+
+
+---
+
+#### 21.30.14. Protección central de `/admin` por tienda + hotfix de rutas públicas
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO Y VALIDADO COMO BASE FUNCIONAL
+```
+
+Objetivo:
+
+```txt
+Hacer que el panel /admin use la tienda asignada en users.store como contexto principal para usuarios store_admin y store_staff.
+```
+
+Archivos principales tocados:
+
+```txt
+frontend-powerzona/src/lib/auth.ts
+frontend-powerzona/src/lib/storeContext.ts
+frontend-powerzona/src/middleware.ts
+frontend-powerzona/src/pages/admin/index.astro
+frontend-powerzona/src/lib/pocketbase.ts
+```
+
+Resumen implementado:
+
+```txt
+/admin queda protegido por middleware central.
+Sin sesión: redirige a /login.
+master_admin: redirige a /master.
+store_admin/store_staff: exige users.store.
+Usuario suspendido, tienda sin asignar o tienda suspendida: bloquea con mensaje profesional.
+storeContext.ts centraliza currentStore, storeId, rol visual y filtro por tienda.
+El panel /admin muestra nombre de tienda y rol visual: Administrador o Colaborador.
+```
+
+Hotfix aplicado después del bloque:
+
+```txt
+Se desactivó autoCancellation del SDK de PocketBase en el cliente central.
+Se desactivó autoCancellation en clientes auth SSR.
+Se limitó el middleware solo a rutas administrativas:
+- /admin
+- /admin/*
+- /master
+- /master/*
+```
+
+Motivo del hotfix:
+
+```txt
+Las rutas públicas de tienda, categorías, subcategorías, productos y búsqueda empezaron a mostrar errores de request aborted / autocancelled.
+```
+
+Resultado:
+
+```txt
+La tienda pública volvió a navegar correctamente.
+El middleware ya no ejecuta lógica administrativa en rutas públicas.
+No se creó migración nueva en este hotfix.
+```
+
+Regla aprendida:
+
+```txt
+Un bloque administrativo no puede romper la tienda pública.
+Si se toca middleware, auth o contexto de tienda, validar siempre:
+/
+/t/powerzona
+/t/powerzona/categoria/[slug]
+/t/powerzona/subcategoria/[slug]
+/t/powerzona/producto/[slug]
+/t/powerzona/buscar
+```
+
+---
+
+#### 21.30.15. Aislamiento por tienda en Ajustes, Categorías, Subcategorías y Productos
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO / REQUIERE PRUEBAS MANUALES REGULARES CON DOS TIENDAS
+```
+
+Objetivo:
+
+```txt
+Aplicar aislamiento real por tienda en los módulos base del admin:
+- Ajustes generales / store-settings.
+- Categorías.
+- Subcategorías.
+- Productos.
+- Variaciones por relación con producto.
+- Store visual items.
+```
+
+Archivos tocados:
+
+```txt
+frontend-powerzona/src/pages/admin/catalog.astro
+frontend-powerzona/src/pages/admin/products.astro
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/pages/admin/catalog/category/[id].astro
+backend-powerzona/pb_migrations/1780469700_updated_base_collections_store_isolation.js
+```
+
+Migración nueva:
+
+```txt
+backend-powerzona/pb_migrations/1780469700_updated_base_collections_store_isolation.js
+```
+
+Regla:
+
+```txt
+Esta migración se conserva.
+No se deben borrar migraciones anteriores.
+Se debe reiniciar PocketBase para aplicarla.
+```
+
+Resumen implementado:
+
+```txt
+Admin de catálogo, productos, ajustes y detalle de categoría cargan datos filtrados por currentStoreId.
+Categorías, subcategorías, productos, settings y visual items se crean/guardan con store de la tienda actual.
+Productos valida que categoría/subcategoría pertenezcan a la tienda.
+Variaciones quedan aisladas por product.store.
+store-settings carga settings por tienda y puede crear un registro base si una tienda aún no tiene ajustes.
+La migración agrega reglas PocketBase para aislar settings, categories, subcategories, products, store_visual_items y product_variations.
+```
+
+Validación requerida para cerrar cada entorno:
+
+```txt
+- Crear categoría en PowerZona y confirmar que no aparece en otra tienda.
+- Crear producto en PowerZona y confirmar que no aparece en otra tienda.
+- Crear categoría en Tienda Prueba y confirmar que no aparece en PowerZona.
+- Confirmar que los desplegables de categoría/subcategoría solo muestran datos de la tienda actual.
+```
+
+---
+
+#### 21.30.16. Accesos profesionales, usuarios desde Master, descripción de tienda, Bazar y categorías destacadas
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO / VALIDADO EN FLUJO PRINCIPAL CON HOTFIX DE USUARIOS
+```
+
+Objetivo:
+
+```txt
+Cerrar la base profesional de accesos administrativos y mejorar la portada pública/Bazar:
+- Login profesional por tienda.
+- Login privado Master Admin.
+- Creación de usuarios desde /master corregida.
+- Descripción comercial de tienda.
+- Tiendas destacadas controladas desde Master Admin.
+- Categorías destacadas y vista de categorías configurable.
+- Descripción de categorías.
+```
+
+Archivos principales tocados:
+
+```txt
+frontend-powerzona/src/pages/t/[storeSlug]/admin.astro
+frontend-powerzona/src/pages/master-login.astro
+frontend-powerzona/src/pages/login.astro
+frontend-powerzona/src/middleware.ts
+frontend-powerzona/src/lib/stores.ts
+frontend-powerzona/src/lib/masterUsers.ts
+frontend-powerzona/src/pages/master/index.astro
+frontend-powerzona/src/pages/index.astro
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/pages/admin/catalog.astro
+frontend-powerzona/src/pages/admin/catalog/category/[id].astro
+frontend-powerzona/src/pages/categoria/[slug].astro
+```
+
+Migraciones nuevas:
+
+```txt
+backend-powerzona/pb_migrations/1780469900_updated_settings_store_description.js
+backend-powerzona/pb_migrations/1780470000_updated_stores_bazaar_featured.js
+backend-powerzona/pb_migrations/1780470100_updated_categories_featured_home.js
+backend-powerzona/pb_migrations/1780470200_updated_settings_public_category_columns.js
+backend-powerzona/pb_migrations/1780470300_updated_categories_description.js
+```
+
+Regla:
+
+```txt
+Estas migraciones se conservan.
+No se deben borrar migraciones anteriores.
+Se debe reiniciar PocketBase para aplicarlas.
+```
+
+Funciones implementadas:
+
+```txt
+/master-login creado y reservado para Master Admin.
+/login queda como fallback general de tienda.
+/t/[storeSlug]/admin creado como acceso profesional de cada tienda.
+El acceso por tienda muestra identidad visual de la tienda y valida usuario/tienda.
+El Bazar principal depende de stores.featured y ya no deja PowerZona destacada fija por código.
+El Bazar muestra imagen, nombre y settings.store_description si existen.
+La tienda pública muestra store_description debajo de portada/banner y antes de los botones principales.
+Ajustes de tienda permite guardar Descripción de la tienda y Vista de categorías 1/2.
+El admin puede destacar/quitar destacada una tienda desde /master.
+El admin de tienda puede destacar hasta 2 categorías.
+Las categorías destacadas no se repiten en el bloque normal de categorías.
+Cada categoría puede tener descripción visible en su página pública.
+```
+
+Hotfix de creación de usuarios desde `/master`:
+
+```txt
+Se corrigió el payload de creación de usuarios desde Master Admin.
+Se eliminó el campo verified del payload enviado a PocketBase.
+Se mantiene passwordConfirm.
+Ya se pudo crear usuario desde /master.
+El usuario creado pudo entrar correctamente al panel de la tienda asignada.
+```
+
+Regla aprendida:
+
+```txt
+Desde frontend /master no se debe enviar verified al crear usuarios.
+El Master Admin de la app no es el superusuario interno de PocketBase.
+```
+
+---
+
+#### 21.30.17. Rutas profesionales del admin por tienda y limpieza de login interno viejo
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO Y VALIDADO EN FLUJO PRINCIPAL
+```
+
+Objetivo:
+
+```txt
+Evitar confusión entre Bazar, tienda pública y panel administrativo de tienda.
+El admin de tienda debe navegar visualmente bajo su propia ruta:
+/t/[storeSlug]/admin/...
+```
+
+Rutas profesionales definidas:
+
+```txt
+/t/[storeSlug]/admin
+/t/[storeSlug]/admin/catalog
+/t/[storeSlug]/admin/products
+/t/[storeSlug]/admin/orders
+/t/[storeSlug]/admin/store-settings
+```
+
+Reglas:
+
+```txt
+/ queda reservado como Bazar principal Tu Senda 84.
+/t/[storeSlug] queda como tienda pública.
+/master-login y /master quedan reservados para Master Admin.
+/admin queda como fallback/redirección, no como ruta principal visible para tiendas.
+```
+
+Correcciones aplicadas:
+
+```txt
+El login desde /t/powerzona/admin ya no debe dejar visualmente al usuario en /admin.
+Los enlaces del menú admin deben apuntar a /t/[storeSlug]/admin/...
+El botón “Ver catálogo público” desde admin debe abrir /t/[storeSlug], no el Bazar /.
+Los enlaces públicos desde admin deben usar rutas con slug de tienda:
+- /t/[storeSlug]/categoria/[slug]
+- /t/[storeSlug]/subcategoria/[slug]
+- /t/[storeSlug]/producto/[slug]
+```
+
+Hotfix de login interno viejo:
+
+```txt
+Se eliminó el formulario interno viejo de /admin/catalog que pedía “Entrar como admin” y mencionaba PocketBase.
+Ese formulario pertenecía a una etapa antigua y no debe existir en el sistema multitienda.
+El panel admin debe usar únicamente la sesión de users:
+- role = store_admin o store_staff
+- store = tienda asignada
+- status = active
+```
+
+Regla aprendida:
+
+```txt
+Ninguna página admin debe pedir usuario/contraseña de PocketBase ni mostrar textos como “Usa el mismo usuario administrador de PocketBase”.
+```
+
+---
+
+#### 21.30.18. Detalle de pedido en página completa para admin de tienda
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO / PENDIENTE DE PRUEBAS AMPLIAS DE REGRESIÓN EN PEDIDOS
+```
+
+Objetivo:
+
+```txt
+Mejorar la experiencia móvil del admin de tienda en Pedidos.
+Al tocar una orden, se abre una página completa dedicada al pedido, mostrando el mismo contenido, acciones y lógica que ya existían.
+```
+
+Rutas:
+
+```txt
+Listado:
+ /t/[storeSlug]/admin/orders
+
+Detalle:
+ /t/[storeSlug]/admin/orders/[id]
+```
+
+Regla principal:
+
+```txt
+No rediseñar pedidos.
+No cambiar inventario.
+No cambiar estados.
+No cambiar WhatsApp.
+No cambiar totales.
+No cambiar agregar/editar productos.
+Solo mover/reutilizar el detalle actual del pedido en una página completa.
+```
+
+Implementado:
+
+```txt
+El listado de pedidos queda más limpio.
+Tocar una orden abre /t/[storeSlug]/admin/orders/[id].
+La página individual muestra el detalle completo de la orden.
+Incluye botón/enlace para volver a pedidos.
+Mantiene lógica existente de guardar, estados, WhatsApp, productos e inventario.
+```
+
+Hotfix de acciones en página individual:
+
+```txt
+Se corrigió el error “Only superusers can perform this action” al confirmar o guardar desde la página individual.
+Las acciones deben usar la sesión normal store_admin/store_staff y no requerir superuser de PocketBase.
+```
+
+Botón eliminar en página individual:
+
+```txt
+Se agregó botón flotante “Eliminar pedido” en la página individual.
+El botón abre confirmación visual antes de borrar.
+Eliminar pedido no modifica inventario.
+Después de borrar, redirige a /t/[storeSlug]/admin/orders.
+```
+
+Hotfix visual de botón eliminar:
+
+```txt
+Si la orden está cancelada, ya aparece un botón Eliminar dentro de la tarjeta/resumen.
+En ese caso, el botón flotante externo debe ocultarse para evitar duplicación visual.
+```
+
+Reglas finales:
+
+```txt
+Orden cancelada:
+- Mostrar solo el botón Eliminar interno de la tarjeta.
+- Ocultar botón flotante externo.
+
+Orden no cancelada:
+- Mantener comportamiento actual del botón flotante, según la lógica existente.
+```
+
+Pruebas recomendadas:
+
+```txt
+- Confirmar orden desde página individual.
+- Cancelar orden confirmada y verificar devolución de stock.
+- Volver confirmada a pendiente y verificar edición.
+- Agregar producto desde página individual.
+- Editar cantidad/precio.
+- Contactar cliente por WhatsApp.
+- Notificar confirmación.
+- Borrar orden desde página individual.
+- Confirmar que borrar no modifica inventario.
+- Confirmar que una orden de otra tienda no se puede abrir por ID.
+```
+
+---
+
+#### 21.30.19. Próximo bloque recomendado: completar aislamiento operativo por tienda
+
+Estado:
+
+```txt
+🔜 PRÓXIMO BLOQUE RECOMENDADO
+```
+
+Objetivo recomendado:
+
+```txt
+Completar los módulos que todavía pueden necesitar aislamiento por tienda y revisión de rutas profesionales:
+- Envíos / shipping_zones.
+- Promociones automáticas.
+- Cupones manuales.
+- Regalos.
+- Ajustes de WhatsApp y mensajes.
+- Pedidos y reportes si queda alguna consulta global.
+```
+
+Motivo:
+
+```txt
+Ya existe base multitienda, usuarios por tienda, rutas profesionales y aislamiento base de catálogo/ajustes/productos.
+Antes de avanzar con funciones nuevas grandes, conviene revisar que ningún módulo admin mezcle datos entre tiendas.
+```
+
+Orden sugerido:
+
+```txt
+1. Revisar Envíos por tienda.
+2. Revisar promociones automáticas por tienda.
+3. Revisar cupones manuales por tienda.
+4. Revisar regalos por tienda.
+5. Revisar settings de WhatsApp y mensajes por tienda.
+6. Confirmar que el admin de una tienda nunca ve datos de otra.
+7. Después continuar 12.3 Cupón manual o mejoras visuales pendientes.
+```
+
+Mensaje sugerido para próximo chat:
+
+```txt
+PowerZona / Tu Senda 84 — Bloque 21.30.19: completar aislamiento operativo por tienda. Source actualizado.
 ```
 
 ---
