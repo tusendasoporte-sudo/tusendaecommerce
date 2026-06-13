@@ -129,6 +129,20 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
       .section-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
       .section-subtitle { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 800; line-height: 1.45; }
+      .option-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+      .option-card { display: grid; gap: 6px; align-content: start; border: 1px solid #e2e8f0; border-radius: 22px; padding: 15px; background: #fff; cursor: pointer; min-height: 116px; }
+      .option-card:hover { border-color: #94a3b8; }
+      .option-card:has(input:checked) { border-color: #0f172a; background: #f8fafc; box-shadow: 0 12px 26px rgba(15,23,42,.08); }
+      .option-card input { margin: 0; }
+      .option-title { font-size: 14px; color: #0f172a; font-weight: 1000; }
+      .option-text { color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 800; }
+      .hours-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .day-card { display: grid; gap: 12px; border: 1px solid #e2e8f0; border-radius: 22px; padding: 14px; background: #fff; }
+      .day-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .day-name { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; }
+      .day-toggle { display: inline-flex; align-items: center; gap: 8px; color: #334155; font-size: 12px; font-weight: 950; }
+      .day-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .toggle-row { display: inline-flex; align-items: center; gap: 9px; color: #334155; font-size: 13px; font-weight: 950; }
       .product-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
       .items-list { display: grid; gap: 10px; }
       .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.88); }
@@ -152,7 +166,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .order-btn { min-width: 42px; padding-left: 12px; padding-right: 12px; }
       .mini-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
       .mini-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } }
+      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } }
+      @media (max-width: 520px) { .day-times { grid-template-columns: 1fr; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } }
     
 
@@ -450,6 +465,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <button class="tab-btn active" data-tab="generales" type="button">Ajustes generales</button>
             <button class="tab-btn" data-tab="footer" type="button">Footer público</button>
             <button class="tab-btn" data-tab="monedas" type="button">Monedas</button>
+            <button class="tab-btn" data-tab="horario" type="button">Horario</button>
           </div>
 
           <div class="stats-grid hidden">
@@ -480,7 +496,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
               <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
               <div class="field"><label for="settings-public-category-columns">Vista de categorÃ­as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div>
               <div class="field"><label for="settings-address">Dirección</label><textarea id="settings-address" placeholder="Dirección pública de la tienda"></textarea></div>
-              <div class="field"><label for="settings-business-hours">Horarios</label><textarea id="settings-business-hours" placeholder="Ej: Lunes a sábado · 9:00 AM - 6:00 PM"></textarea></div>
               <div class="field full"><label for="settings-public-services-text">Servicios</label><textarea id="settings-public-services-text" placeholder="Ej: Envíos, recogida, asesoría por WhatsApp..."></textarea></div>
               <div class="field full"><label for="settings-reviews-text">Reseña / texto de confianza</label><textarea id="settings-reviews-text" placeholder="Ej: Gracias por elegir PowerZona. Atención personalizada y productos seleccionados."></textarea></div>
               <div id="settings-alert" class="alert alert-info hidden full"></div>
@@ -509,6 +524,59 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 <button class="submit-btn" type="submit">Guardar footer público</button>
                 <button id="footer-settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
               </div>
+            </form>
+          </section>
+
+
+          <section id="tab-horario" class="panel-card tab-panel hidden">
+            <div class="section-head">
+              <div>
+                <h2 class="section-title">Horario</h2>
+                <p class="section-subtitle">Configura cuándo tu tienda aparece como disponible. Aunque esté fuera de horario, los clientes pueden dejar su pedido para ser atendidos luego.</p>
+              </div>
+              <button id="business-hours-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+            </div>
+            <form id="business-hours-form" class="visual-form-grid">
+              <div class="field full">
+                <label>Disponibilidad</label>
+                <div class="option-grid">
+                  <label class="option-card">
+                    <input type="radio" name="business_hours_mode" value="always_available" checked />
+                    <span class="option-title">Siempre disponible</span>
+                    <span class="option-text">La tienda se muestra como disponible y no se muestra aviso de cerrado.</span>
+                  </label>
+                  <label class="option-card">
+                    <input type="radio" name="business_hours_mode" value="custom" />
+                    <span class="option-title">Horario personalizado</span>
+                    <span class="option-text">Configura días y horas. Fuera de horario se muestra un aviso.</span>
+                  </label>
+                  <label class="option-card">
+                    <input type="radio" name="business_hours_mode" value="temporarily_closed" />
+                    <span class="option-title">Cerrado temporalmente</span>
+                    <span class="option-text">Para pausas, vacaciones o mantenimiento con aviso visible.</span>
+                  </label>
+                </div>
+              </div>
+
+              <div id="business-hours-days" class="field full">
+                <label>Días y horas</label>
+                <div class="hours-grid" id="business-hours-days-grid"></div>
+              </div>
+
+              <div class="field full">
+                <label for="closed-message">Mensaje fuera de horario</label>
+                <textarea id="closed-message" placeholder="Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral."></textarea>
+              </div>
+              <div class="field full">
+                <label for="temporarily-closed-message">Mensaje cerrado temporalmente</label>
+                <textarea id="temporarily-closed-message" placeholder="Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto."></textarea>
+              </div>
+              <div class="field full">
+                <label class="toggle-row"><input id="allow-orders-when-closed" type="checkbox" checked /> Permitir pedidos fuera de horario</label>
+                <p class="form-help">Si lo desactivas, el checkout bloqueará el botón de realizar pedido cuando la tienda esté cerrada.</p>
+              </div>
+              <div id="business-hours-alert" class="alert alert-info hidden full"></div>
+              <div class="editor-actions full"><button class="submit-btn" type="submit">Guardar horario</button></div>
             </form>
           </section>
 
@@ -1200,6 +1268,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       if (getAdminToken()) showAdmin(); else { showAdmin(); showAlert(featuredAlert, 'No se pudo validar la sesion administrativa.', 'error'); }
       if (window.location.hash === '#footer') showTab('footer');
       else if (window.location.hash === '#monedas') showTab('monedas');
+      else if (window.location.hash === '#horario') showTab('horario');
       else showTab('generales');
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
@@ -1223,7 +1292,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           welcome: document.getElementById('settings-welcome-text'),
           categoryColumns: document.getElementById('settings-public-category-columns'),
           address: document.getElementById('settings-address'),
-          hours: document.getElementById('settings-business-hours'),
           services: document.getElementById('settings-public-services-text'),
           reviews: document.getElementById('settings-reviews-text'),
           currentLogo: document.getElementById('settings-current-logo'),
@@ -1350,7 +1418,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           fields.welcome.value = record.welcome_text || '';
           fields.categoryColumns.value = String(record.public_category_columns || '2') === '1' ? '1' : '2';
           fields.address.value = record.address || '';
-          fields.hours.value = record.business_hours || '';
           fields.services.value = record.public_services_text || '';
           fields.reviews.value = record.reviews_text || '';
           fields.footerTitle.value = record.footer_title || '';
@@ -1385,7 +1452,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           data.append('welcome_text', fields.welcome.value.trim());
           data.append('public_category_columns', fields.categoryColumns.value || '2');
           data.append('address', fields.address.value.trim());
-          data.append('business_hours', fields.hours.value.trim());
           data.append('public_services_text', fields.services.value.trim());
           data.append('reviews_text', fields.reviews.value.trim());
           data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
@@ -1428,6 +1494,185 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
         footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch((error) => showFooter(error.message || 'No se pudo guardar el footer.', 'error')));
         footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => loadSettings().catch((error) => showFooter(error.message || 'No se pudieron cargar los ajustes.', 'error')));
+        if (token()) loadSettings().catch(() => {});
+      })();
+    </script>
+
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
+      (() => {
+        const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const CURRENT_STORE_ID = String(currentStoreId || '');
+        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+        const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
+        const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto.';
+        const DAYS = [
+          ['monday', 'Lunes'],
+          ['tuesday', 'Martes'],
+          ['wednesday', 'Miércoles'],
+          ['thursday', 'Jueves'],
+          ['friday', 'Viernes'],
+          ['saturday', 'Sábado'],
+          ['sunday', 'Domingo'],
+        ];
+        const DEFAULT_HOURS = Object.fromEntries(DAYS.map(([key]) => [key, { enabled: false, open: '09:00', close: '18:00' }]));
+        const form = document.getElementById('business-hours-form');
+        const alertBox = document.getElementById('business-hours-alert');
+        const refreshBtn = document.getElementById('business-hours-refresh-btn');
+        const daysBox = document.getElementById('business-hours-days');
+        const daysGrid = document.getElementById('business-hours-days-grid');
+        const closedMessage = document.getElementById('closed-message');
+        const temporarilyClosedMessage = document.getElementById('temporarily-closed-message');
+        const allowOrders = document.getElementById('allow-orders-when-closed');
+        let settingsRecord = null;
+
+        function token() { return ADMIN_AUTH_TOKEN; }
+        function show(message = '', type = 'info') {
+          if (!alertBox) return;
+          if (!message) { alertBox.className = 'alert alert-info hidden'; alertBox.textContent = ''; return; }
+          alertBox.className = 'alert alert-' + type;
+          alertBox.textContent = message;
+        }
+        async function api(path, options = {}) {
+          const headers = Object.assign({}, options.headers || {});
+          if (token()) headers.Authorization = 'Bearer ' + token();
+          const response = await fetch(POCKETBASE_URL + path, Object.assign({}, options, { headers }));
+          const result = await response.json().catch(() => null);
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicacion con la plataforma.');
+          return result;
+        }
+        function withStoreFilter(params = '') {
+          const query = new URLSearchParams(params || '');
+          const existing = query.get('filter');
+          if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
+          else query.set('filter', STORE_FILTER);
+          return query.toString();
+        }
+        function parseHours(value) {
+          if (!value) return { ...DEFAULT_HOURS };
+          if (typeof value === 'string') {
+            try {
+              const parsed = JSON.parse(value);
+              return parsed && typeof parsed === 'object' ? mergeHours(parsed) : { ...DEFAULT_HOURS };
+            } catch (_) {
+              return { ...DEFAULT_HOURS };
+            }
+          }
+          return mergeHours(value);
+        }
+        function mergeHours(value) {
+          const next = {};
+          DAYS.forEach(([key]) => {
+            const day = value?.[key] || {};
+            next[key] = {
+              enabled: day.enabled === true,
+              open: /^\d{2}:\d{2}$/.test(String(day.open || '')) ? day.open : '09:00',
+              close: /^\d{2}:\d{2}$/.test(String(day.close || '')) ? day.close : '18:00',
+            };
+          });
+          return next;
+        }
+        function selectedMode() {
+          return document.querySelector('input[name="business_hours_mode"]:checked')?.value || 'always_available';
+        }
+        function setMode(mode) {
+          const input = document.querySelector(`input[name="business_hours_mode"][value="${mode || 'always_available'}"]`);
+          if (input) input.checked = true;
+          updateModeUI();
+        }
+        function updateModeUI() {
+          if (daysBox) daysBox.classList.toggle('hidden', selectedMode() !== 'custom');
+        }
+        function renderDays(hours = DEFAULT_HOURS) {
+          if (!daysGrid) return;
+          daysGrid.innerHTML = DAYS.map(([key, label]) => {
+            const day = hours[key] || DEFAULT_HOURS[key];
+            return `
+              <article class="day-card" data-day="${key}">
+                <div class="day-card-head">
+                  <p class="day-name">${label}</p>
+                  <label class="day-toggle"><input class="js-day-enabled" type="checkbox" ${day.enabled ? 'checked' : ''} /> Activo</label>
+                </div>
+                <div class="day-times">
+                  <div class="field"><label>Apertura</label><input class="js-day-open" type="time" value="${day.open || '09:00'}" /></div>
+                  <div class="field"><label>Cierre</label><input class="js-day-close" type="time" value="${day.close || '18:00'}" /></div>
+                </div>
+              </article>
+            `;
+          }).join('');
+        }
+        function readDays() {
+          const next = {};
+          document.querySelectorAll('[data-day]').forEach((row) => {
+            const key = row.dataset.day;
+            next[key] = {
+              enabled: row.querySelector('.js-day-enabled')?.checked === true,
+              open: row.querySelector('.js-day-open')?.value || '09:00',
+              close: row.querySelector('.js-day-close')?.value || '18:00',
+            };
+          });
+          return mergeHours(next);
+        }
+        async function findDefaultCurrencyId() {
+          const result = await api('/api/collections/currencies/records?filter=active%3Dtrue&sort=code&page=1&perPage=1');
+          return (result.items || [])[0]?.id || '';
+        }
+        async function createSettingsRecord() {
+          const payload = {
+            stored_name: 'PowerZona',
+            store_name: 'PowerZona',
+            active: true,
+            store: CURRENT_STORE_ID,
+            business_hours_mode: selectedMode(),
+            business_hours: JSON.stringify(readDays()),
+            closed_message: closedMessage?.value?.trim() || CLOSED_MESSAGE_DEFAULT,
+            temporarily_closed_message: temporarilyClosedMessage?.value?.trim() || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
+            allow_orders_when_closed: allowOrders?.checked !== false,
+          };
+          const defaultCurrencyId = await findDefaultCurrencyId();
+          if (defaultCurrencyId) payload.default_currency = defaultCurrencyId;
+          return api('/api/collections/settings/records', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+        async function loadSettings() {
+          const result = await api('/api/collections/settings/records?' + withStoreFilter('filter=active%3Dtrue&sort=-updated&page=1&perPage=1'));
+          settingsRecord = (result.items || [])[0] || null;
+          const record = settingsRecord || {};
+          setMode(record.business_hours_mode || 'always_available');
+          renderDays(parseHours(record.business_hours));
+          if (closedMessage) closedMessage.value = record.closed_message || CLOSED_MESSAGE_DEFAULT;
+          if (temporarilyClosedMessage) temporarilyClosedMessage.value = record.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT;
+          if (allowOrders) allowOrders.checked = record.allow_orders_when_closed !== false;
+        }
+        async function save(event) {
+          event.preventDefault();
+          if (!settingsRecord?.id) settingsRecord = await createSettingsRecord();
+          const payload = {
+            business_hours_mode: selectedMode(),
+            business_hours: JSON.stringify(readDays()),
+            closed_message: closedMessage?.value?.trim() || CLOSED_MESSAGE_DEFAULT,
+            temporarily_closed_message: temporarilyClosedMessage?.value?.trim() || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
+            allow_orders_when_closed: allowOrders?.checked !== false,
+            store: CURRENT_STORE_ID,
+          };
+          await api('/api/collections/settings/records/' + settingsRecord.id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          show('Horario guardado correctamente.', 'success');
+          await loadSettings();
+        }
+
+        document.querySelectorAll('input[name="business_hours_mode"]').forEach((input) => input.addEventListener('change', updateModeUI));
+        form?.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar el horario.', 'error')));
+        refreshBtn?.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudo cargar el horario.', 'error')));
+        document.querySelector('[data-tab="horario"]')?.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudo cargar el horario.', 'error')));
+        renderDays(DEFAULT_HOURS);
+        updateModeUI();
         if (token()) loadSettings().catch(() => {});
       })();
     </script>

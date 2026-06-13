@@ -7,6 +7,7 @@ import ProductCard from '../ProductCard.astro';
 import PublicFooter from '../PublicFooter.astro';
 import PromoBar from '../PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
+import { getBusinessHoursStatus } from '../../lib/businessHours';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 const currentStore = Astro.props.currentStore || await getCurrentStore(Astro);
@@ -35,7 +36,9 @@ const welcomeText = settings?.welcome_text || 'Descubre nuestras mejores ofertas
 const storeDescription = String(settings?.store_description || '').trim();
 const publicCategoryColumns = String(settings?.public_category_columns || '2') === '1' ? '1' : '2';
 const address = settings?.address || '';
-const businessHours = settings?.business_hours || '';
+const businessHoursStatus = getBusinessHoursStatus(settings);
+const rawBusinessHours = settings?.business_hours || '';
+const businessHours = typeof rawBusinessHours === 'string' && !rawBusinessHours.trim().startsWith('{') ? rawBusinessHours : '';
 const servicesText = settings?.public_services_text || '';
 const reviewsText = settings?.reviews_text || '';
 const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
@@ -58,6 +61,7 @@ const featuredCategories = categories
   .slice(0, 2);
 const featuredCategoryIds = new Set(featuredCategories.map((category) => category.id));
 const normalCategories = categories.filter((category) => !featuredCategoryIds.has(category.id));
+const quickCategories = categories.filter((category) => !category.parent && !category.parent_category && !category.category);
 
 function storeInitials(name: string) {
   return String(name || 'Tienda')
@@ -66,6 +70,10 @@ function storeInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'T';
+}
+
+function categoryInitial(name: string) {
+  return String(name || 'C').trim()[0]?.toUpperCase() || 'C';
 }
 
 function cleanWhatsappNumber(value: string | undefined) {
@@ -161,8 +169,41 @@ function getProductOfferView(product: any) {
     .public-hero-text { margin: 0; max-width: 620px; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.55; font-weight: 750; }
     .public-hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 28px; }
     .public-store-description { flex: 1 0 100%; margin: 0 0 2px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #475569; padding: 16px 18px; font-size: 15px; line-height: 1.55; font-weight: 800; box-shadow: 0 12px 30px rgba(15,23,42,.06); }
+    .business-status { flex: 1 0 100%; display: grid; gap: 4px; margin: 0 0 2px; border-radius: 18px; border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; padding: 14px 16px; box-shadow: 0 12px 30px rgba(15,23,42,.06); }
+    .business-status.closed { border-color: #fed7aa; background: #fff7ed; color: #9a3412; }
+    .business-status strong { font-size: 14px; font-weight: 1000; }
+    .business-status p { margin: 0; font-size: 13px; line-height: 1.45; font-weight: 800; }
     .hero-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 20px; padding: 13px 18px; font-size: 14px; font-weight: 1000; background: #16a34a; color: #fff; box-shadow: 0 14px 32px rgba(22,163,74,.18); }
     .hero-btn.secondary { background: #fff; color: #111827; border: 1px solid #e5e7eb; box-shadow: 0 12px 28px rgba(15,23,42,.07); }
+    .quick-categories-section { margin: -8px 0 24px; }
+    .quick-categories-top { display: flex; justify-content: flex-end; margin: 0 2px 9px; }
+    .quick-categories-view-all { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid #e2e8f0; background: rgba(255,255,255,.96); color: #111827; border-radius: 999px; padding: 9px 13px; box-shadow: 0 10px 24px rgba(15,23,42,.06); cursor: pointer; font-size: 12px; line-height: 1; font-weight: 1000; white-space: nowrap; }
+    .quick-categories-view-all::after { content: '›'; color: #94a3b8; font-size: 15px; line-height: 1; }
+    .quick-categories-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(118px, 138px); gap: 12px; overflow-x: auto; padding: 2px 2px 14px; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.55) transparent; }
+    .quick-categories-strip::-webkit-scrollbar { height: 6px; }
+    .quick-categories-strip::-webkit-scrollbar-track { background: transparent; }
+    .quick-categories-strip::-webkit-scrollbar-thumb { background: rgba(148,163,184,.45); border-radius: 999px; }
+    .quick-category-card { scroll-snap-align: start; display: grid; gap: 9px; align-content: start; min-width: 0; padding: 10px; border-radius: 22px; background: #fff; border: 1px solid #eef2f7; box-shadow: 0 14px 34px rgba(15,23,42,.08); color: #111827; text-decoration: none; }
+    .quick-category-thumb { width: 100%; aspect-ratio: 1 / 1; border-radius: 17px; overflow: hidden; background: #f8fafc; display: flex; align-items: center; justify-content: center; }
+    .quick-category-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .quick-category-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 20% 0%, #dbeafe, #f8fafc 44%, #ecfdf5); color: #0f172a; font-size: 31px; font-weight: 1000; }
+    .quick-category-name { margin: 0; color: #111827; text-align: center; font-size: 12px; line-height: 1.15; font-weight: 1000; overflow-wrap: anywhere; }
+    .quick-category-count { margin: -4px 0 0; color: #64748b; text-align: center; font-size: 10px; line-height: 1.2; font-weight: 900; }
+    .quick-categories-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.48); opacity: 0; pointer-events: none; transition: opacity .2s ease; backdrop-filter: blur(3px); }
+    .quick-categories-overlay[hidden] { display: none; }
+    body.quick-categories-open { overflow: hidden; }
+    body.quick-categories-open .quick-categories-overlay { opacity: 1; pointer-events: auto; }
+    .quick-categories-modal { width: min(560px, 100%); max-height: min(84dvh, 720px); overflow: hidden; border-radius: 30px; background: linear-gradient(180deg,#fff,#f8fafc); border: 1px solid rgba(226,232,240,.95); box-shadow: 0 28px 80px rgba(15,23,42,.28); padding: 18px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 15px; }
+    .quick-categories-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid #e5e7eb; }
+    .quick-categories-modal-title { margin: 0; color: #111827; font-size: 20px; font-weight: 1000; letter-spacing: -.035em; }
+    .quick-categories-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-size: 22px; line-height: 1; font-weight: 1000; cursor: pointer; }
+    .quick-categories-modal-grid { max-height: 75dvh; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; display: grid; grid-template-columns: 1fr; gap: 10px; padding: 2px 2px 4px; }
+    .quick-categories-modal-card { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 82px; border-radius: 20px; background: #fff; border: 1px solid #eef2f7; color: #111827; text-decoration: none; padding: 9px 11px 9px 9px; box-shadow: 0 10px 24px rgba(15,23,42,.06); }
+    .quick-categories-modal-thumb { width: 64px; aspect-ratio: 1 / 1; border-radius: 16px; overflow: hidden; background: #f8fafc; display: flex; align-items: center; justify-content: center; }
+    .quick-categories-modal-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .quick-categories-modal-text { min-width: 0; display: grid; gap: 3px; }
+    .quick-categories-modal-name { margin: 0; color: #111827; font-size: 13px; line-height: 1.15; font-weight: 1000; overflow-wrap: anywhere; }
+    .quick-categories-modal-count { margin: 0; color: #64748b; font-size: 11px; line-height: 1.2; font-weight: 900; }
     .public-info-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 28px; }
     .public-info-card { background: #fff; border: 1px solid #eef2f7; border-radius: 24px; padding: 18px; box-shadow: 0 12px 34px rgba(15,23,42,.06); }
     .public-info-card h2 { margin: 0 0 8px; font-size: 15px; color: #111827; font-weight: 1000; }
@@ -230,8 +271,12 @@ function getProductOfferView(product: any) {
       .public-gift-text { max-width: none; }
       .public-gift-cta { width: max-content; padding: 11px 14px; }
       .public-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-      .public-store-description { grid-column: 1 / -1; }
+      .public-store-description, .business-status { grid-column: 1 / -1; }
       .hero-btn { padding: 13px 10px; }
+      .quick-categories-section { margin-top: -10px; }
+      .quick-categories-strip { grid-auto-columns: minmax(112px, 126px); gap: 10px; }
+      .quick-categories-modal { max-height: min(88dvh, 720px); border-radius: 26px; padding: 15px; }
+      .quick-categories-modal-grid { max-height: 76dvh; }
     }
   </style>
 
@@ -280,9 +325,67 @@ function getProductOfferView(product: any) {
 
   <div class="public-hero-actions" aria-label="Acciones después de la portada">
     {storeDescription && <p class="public-store-description">{storeDescription}</p>}
+    {businessHoursStatus.mode === 'custom' && businessHoursStatus.isAvailable && <div class="business-status"><strong>Disponible ahora</strong></div>}
+    {businessHoursStatus.isClosed && (
+      <div class="business-status closed">
+        <strong>{businessHoursStatus.title}</strong>
+        <p>{businessHoursStatus.message}</p>
+      </div>
+    )}
     <a class="hero-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp</a>
     <a class="hero-btn secondary" href={categoryAnchorPath}>Ver categorías</a>
   </div>
+
+  {quickCategories.length > 0 && (
+    <>
+      <section class="quick-categories-section" aria-label="Categorías rápidas">
+        <div class="quick-categories-top">
+          <button id="quick-categories-open" class="quick-categories-view-all" type="button" aria-haspopup="dialog" aria-controls="quick-categories-modal">
+            Ver todas
+          </button>
+        </div>
+        <div class="quick-categories-strip" aria-label="Accesos rápidos a categorías">
+          {quickCategories.map((category) => {
+            const categoryProducts = productsByCategoryTotal(category.id);
+            return (
+              <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-category-card" aria-label={`Abrir categoría ${category.name}`}>
+                <div class="quick-category-thumb">
+                  {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{categoryInitial(category.name)}</div>}
+                </div>
+                <p class="quick-category-name">{category.name}</p>
+                <p class="quick-category-count">{productCountLabel(categoryProducts.length)}</p>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <div id="quick-categories-overlay" class="quick-categories-overlay" hidden>
+        <section id="quick-categories-modal" class="quick-categories-modal" role="dialog" aria-modal="true" aria-labelledby="quick-categories-modal-title">
+          <div class="quick-categories-modal-head">
+            <h2 id="quick-categories-modal-title" class="quick-categories-modal-title">Selecciona una opción</h2>
+            <button id="quick-categories-close" class="quick-categories-close" type="button" aria-label="Cerrar categorías">×</button>
+          </div>
+          <div class="quick-categories-modal-grid">
+            {quickCategories.map((category) => {
+              const categoryProducts = productsByCategoryTotal(category.id);
+              return (
+                <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-categories-modal-card" aria-label={`Abrir categoría ${category.name}`}>
+                  <div class="quick-categories-modal-thumb">
+                    {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{categoryInitial(category.name)}</div>}
+                  </div>
+                  <div class="quick-categories-modal-text">
+                    <p class="quick-categories-modal-name">{category.name}</p>
+                    <p class="quick-categories-modal-count">{productCountLabel(categoryProducts.length)}</p>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    </>
+  )}
 
   <PromoBar settings={settings} />
 
@@ -468,6 +571,44 @@ function getProductOfferView(product: any) {
     publicOverlay?.addEventListener('click', closePublicMenu);
     publicDrawer?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closePublicMenu));
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closePublicMenu(); });
+
+    const quickCategoriesOpenBtn = document.getElementById('quick-categories-open');
+    const quickCategoriesCloseBtn = document.getElementById('quick-categories-close');
+    const quickCategoriesOverlay = document.getElementById('quick-categories-overlay');
+    const quickCategoriesModal = document.getElementById('quick-categories-modal');
+    const quickCategoriesList = quickCategoriesModal?.querySelector('.quick-categories-modal-grid');
+    let quickCategoriesScrollY = 0;
+    function openQuickCategories() {
+      if (!quickCategoriesOverlay) return;
+      quickCategoriesScrollY = window.scrollY || window.pageYOffset || 0;
+      quickCategoriesOverlay.hidden = false;
+      document.body.style.top = `-${quickCategoriesScrollY}px`;
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      requestAnimationFrame(() => document.body.classList.add('quick-categories-open'));
+    }
+    function closeQuickCategories() {
+      if (!document.body.classList.contains('quick-categories-open')) return;
+      const scrollY = quickCategoriesScrollY;
+      document.body.classList.remove('quick-categories-open');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+      setTimeout(() => {
+        if (!document.body.classList.contains('quick-categories-open') && quickCategoriesOverlay) quickCategoriesOverlay.hidden = true;
+      }, 200);
+    }
+    quickCategoriesOpenBtn?.addEventListener('click', openQuickCategories);
+    quickCategoriesCloseBtn?.addEventListener('click', closeQuickCategories);
+    quickCategoriesOverlay?.addEventListener('click', (event) => {
+      if (event.target === quickCategoriesOverlay) closeQuickCategories();
+    });
+    quickCategoriesOverlay?.addEventListener('touchmove', (event) => {
+      if (!quickCategoriesList?.contains(event.target)) event.preventDefault();
+    }, { passive: false });
+    quickCategoriesModal?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeQuickCategories));
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeQuickCategories(); });
 
     function getStoreCartFallbackKey() {
       return window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;

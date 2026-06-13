@@ -12,6 +12,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreName = adminContext.store.name || 'tu tienda';
+const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreRoleLabel = adminContext.roleLabel;
 const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
@@ -2889,10 +2890,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, adminProductsPath }}>
+		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminProductsPath }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const SESSION_TOKEN = String(adminAuthToken || '');
 			const STORE_FILTER = String(currentStoreFilter || '');
+			const CURRENT_STORE_ID = String(currentStoreId || '');
+			const ORDER_ITEMS_STORE_FILTER = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22` : '';
 			const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
@@ -3651,7 +3654,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
 				const [ordersResult, itemsResult, productsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
-					loadAllRecords('order_items', 'sort=-created&expand=product,variation'),
+					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
 					loadAllRecords('products', 'sort=expiration_date&expand=category,subcategory'),
 				]);
 

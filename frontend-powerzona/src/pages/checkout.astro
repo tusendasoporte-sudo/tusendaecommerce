@@ -301,6 +301,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					<div id="summary-alerts" class="mt-5 space-y-2"></div>
 					<div id="checkout-validation-alert" class="mt-4 hidden bg-red-50 border border-red-100 text-red-700 rounded-2xl p-3 text-xs font-semibold"></div>
 					<div id="checkout-success-alert" class="mt-4 hidden bg-green-50 border border-green-100 text-green-700 rounded-2xl p-3 text-xs font-semibold"></div>
+					<div id="checkout-business-hours-alert" class="mt-4 hidden rounded-2xl border p-3 text-xs font-bold"></div>
 
 					<button
 						type="button"
@@ -348,6 +349,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const summaryAlerts = document.getElementById('summary-alerts');
 		const checkoutValidationAlert = document.getElementById('checkout-validation-alert');
 		const checkoutSuccessAlert = document.getElementById('checkout-success-alert');
+		const checkoutBusinessHoursAlert = document.getElementById('checkout-business-hours-alert');
 		const continueWhatsappBtn = document.getElementById('continue-whatsapp-btn');
 		const deliveryHelper = document.getElementById('delivery-helper');
 		const manualCouponInput = document.getElementById('manual-coupon-input');
@@ -364,14 +366,110 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		let savedOrderNumber = '';
 		let pendingOrderFingerprint = '';
 		let checkoutLocked = false;
-		let selectedManualCouponCode = localStorage.getItem('powerzona_selected_coupon') || '';
-
-		const PENDING_ORDER_KEY = 'powerzona_pending_checkout_order';
-		const SAVED_COUPONS_KEY = 'powerzona_saved_coupons';
+		let activeSettingsCache = null;
+		let businessHoursStatus = { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
 		const CURRENT_STORE_ID = currentStoreId || '';
+		const COUPON_STORE_KEY = CURRENT_STORE_ID || 'powerzona';
+		const SAVED_COUPONS_KEY = `powerzona_saved_coupons_${COUPON_STORE_KEY}`;
+		const SELECTED_COUPON_KEY = `powerzona_selected_coupon_${COUPON_STORE_KEY}`;
+		if (COUPON_STORE_KEY === 'powerzona' && !localStorage.getItem(SAVED_COUPONS_KEY)) {
+			const legacySavedCoupons = localStorage.getItem('powerzona_saved_coupons');
+			if (legacySavedCoupons) localStorage.setItem(SAVED_COUPONS_KEY, legacySavedCoupons);
+		}
+		if (COUPON_STORE_KEY === 'powerzona' && !localStorage.getItem(SELECTED_COUPON_KEY)) {
+			const legacySelectedCoupon = localStorage.getItem('powerzona_selected_coupon');
+			if (legacySelectedCoupon) localStorage.setItem(SELECTED_COUPON_KEY, legacySelectedCoupon);
+		}
+		let selectedManualCouponCode = localStorage.getItem(SELECTED_COUPON_KEY) || '';
+
+		const PENDING_ORDER_KEY = `powerzona_pending_checkout_order_${COUPON_STORE_KEY}`;
 		const CART_STORAGE_KEY = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${CURRENT_STORE_ID || 'powerzona'}`;
 		const CHECKOUT_CART_STORAGE_KEY = window.PZ_CHECKOUT_CART_STORAGE_KEY || `${CART_STORAGE_KEY}_checkout`;
 		const cartStorage = window.PZCartStorage || null;
+		const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
+		const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto.';
+		const BUSINESS_DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+		const DEFAULT_BUSINESS_HOURS = {
+			monday: { enabled: false, open: '09:00', close: '18:00' },
+			tuesday: { enabled: false, open: '09:00', close: '18:00' },
+			wednesday: { enabled: false, open: '09:00', close: '18:00' },
+			thursday: { enabled: false, open: '09:00', close: '18:00' },
+			friday: { enabled: false, open: '09:00', close: '18:00' },
+			saturday: { enabled: false, open: '09:00', close: '18:00' },
+			sunday: { enabled: false, open: '09:00', close: '18:00' },
+		};
+
+		function parseBusinessHours(value) {
+			if (!value) return DEFAULT_BUSINESS_HOURS;
+			if (typeof value === 'string') {
+				try {
+					const parsed = JSON.parse(value);
+					return parsed && typeof parsed === 'object' ? parsed : DEFAULT_BUSINESS_HOURS;
+				} catch (_) {
+					return DEFAULT_BUSINESS_HOURS;
+				}
+			}
+			return value && typeof value === 'object' ? value : DEFAULT_BUSINESS_HOURS;
+		}
+
+		function timeToMinutes(value) {
+			const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+			if (!match) return null;
+			const hours = Number(match[1]);
+			const minutes = Number(match[2]);
+			if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+			return hours * 60 + minutes;
+		}
+
+		function getHavanaNow() {
+			const parts = new Intl.DateTimeFormat('en-US', {
+				timeZone: 'America/Havana',
+				weekday: 'short',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: false,
+			}).formatToParts(new Date());
+			const part = (type) => parts.find((item) => item.type === type)?.value || '';
+			const weekdays = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+			return { dayIndex: weekdays[part('weekday')] ?? 0, minutes: Number(part('hour')) * 60 + Number(part('minute')) };
+		}
+
+		function isDayOpen(day, minutes) {
+			if (!day || day.enabled !== true) return false;
+			const open = timeToMinutes(day.open);
+			const close = timeToMinutes(day.close);
+			if (open === null || close === null || open === close) return false;
+			if (open < close) return minutes >= open && minutes < close;
+			return minutes >= open || minutes < close;
+		}
+
+		function getBusinessHoursStatus(settings) {
+			const mode = settings?.business_hours_mode || 'always_available';
+			if (mode === 'temporarily_closed') {
+				return {
+					mode,
+					isAvailable: false,
+					isClosed: true,
+					title: 'Cerrado temporalmente',
+					message: settings?.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
+					note: 'Nota: pedido realizado mientras la tienda estaba cerrada temporalmente.',
+					allowOrders: settings?.allow_orders_when_closed !== false,
+				};
+			}
+			if (mode !== 'custom') return { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
+			const now = getHavanaNow();
+			const hours = parseBusinessHours(settings?.business_hours);
+			const isAvailable = isDayOpen(hours[BUSINESS_DAY_KEYS[now.dayIndex]], now.minutes);
+			return {
+				mode,
+				isAvailable,
+				isClosed: !isAvailable,
+				title: isAvailable ? 'Disponible ahora' : 'Fuera de horario',
+				message: isAvailable ? '' : (settings?.closed_message || CLOSED_MESSAGE_DEFAULT),
+				note: isAvailable ? '' : 'Nota: pedido realizado fuera de horario laboral.',
+				allowOrders: settings?.allow_orders_when_closed !== false,
+			};
+		}
 
 			function parseStoredCart(value) {
 				try {
@@ -519,7 +617,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function selectedCurrencyCode() {
-			return window.PZCurrency?.selected?.code || localStorage.getItem('powerzona_currency') || 'USD';
+			return window.PZCurrency?.selected?.code || localStorage.getItem(`powerzona_currency_${COUPON_STORE_KEY}`) || localStorage.getItem('powerzona_currency') || 'USD';
 		}
 
 		function formatVisualFromUsd(value, options = {}) {
@@ -570,7 +668,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			if (!codes.includes(normalized)) codes.push(normalized);
 			localStorage.setItem(SAVED_COUPONS_KEY, JSON.stringify(codes.slice(-12)));
 			selectedManualCouponCode = normalized;
-			localStorage.setItem('powerzona_selected_coupon', normalized);
+			localStorage.setItem(SELECTED_COUPON_KEY, normalized);
 		}
 
 		function writeSavedCouponCodes(codes) {
@@ -587,7 +685,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		function clearSelectedCoupon() {
 			selectedManualCouponCode = '';
-			localStorage.removeItem('powerzona_selected_coupon');
+			localStorage.removeItem(SELECTED_COUPON_KEY);
 		}
 
 		function getActiveManualCoupons() {
@@ -1093,6 +1191,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				municipality: requiresAddress && data.customer_municipality.length < 2,
 				shipping_zone: requiresAddress && !data.shipping_zone,
 				address: requiresAddress && data.customer_address.length < 5,
+				business_hours: businessHoursStatus.isClosed && businessHoursStatus.allowOrders === false,
 			};
 
 			if (showErrors) {
@@ -1113,6 +1212,11 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			if (errors.stock) {
 				const names = stockProblemItems.map((item) => item.title).filter(Boolean).join(', ');
 				checkoutValidationAlert.textContent = `Hay productos agotados o con cantidad mayor al stock disponible: ${names}. Elimínalos o ajusta la cantidad para continuar.`;
+				checkoutValidationAlert.classList.remove('hidden');
+			}
+
+			if (!errors.stock && errors.business_hours) {
+				checkoutValidationAlert.textContent = 'La tienda no acepta pedidos fuera de horario en este momento.';
 				checkoutValidationAlert.classList.remove('hidden');
 			}
 
@@ -1187,6 +1291,26 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			} else if (totals?.manualCouponStatus?.message) {
 				setCouponAlert(totals.manualCouponStatus.message, totals.manualCouponStatus.ok ? 'info' : 'error');
 			}
+		}
+
+		function renderBusinessHoursAlert() {
+			if (!checkoutBusinessHoursAlert) return;
+			if (!businessHoursStatus.isClosed) {
+				checkoutBusinessHoursAlert.className = 'mt-4 hidden rounded-2xl border p-3 text-xs font-bold';
+				checkoutBusinessHoursAlert.textContent = '';
+				return;
+			}
+			const blocks = [
+				businessHoursStatus.title,
+				businessHoursStatus.message,
+				businessHoursStatus.allowOrders
+					? 'Puedes completar tu pedido. Lo atenderemos en horario laboral.'
+					: 'La tienda no acepta pedidos fuera de horario en este momento.',
+			].filter(Boolean);
+			checkoutBusinessHoursAlert.className = businessHoursStatus.allowOrders
+				? 'mt-4 rounded-2xl border border-orange-100 bg-orange-50 text-orange-800 p-3 text-xs font-bold'
+				: 'mt-4 rounded-2xl border border-red-100 bg-red-50 text-red-700 p-3 text-xs font-bold';
+			checkoutBusinessHoursAlert.innerHTML = blocks.map((line, index) => index === 0 ? `<strong class="block mb-1">${escapeHtml(line)}</strong>` : `<p class="mt-1">${escapeHtml(line)}</p>`).join('');
 		}
 
 		function renderCheckout() {
@@ -1435,6 +1559,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 			updateDeliveryOptions(cart);
 			updateDeliveryUI();
+			renderBusinessHoursAlert();
 			validateCheckout(false);
 
 			document.querySelectorAll('.increase-checkout-item').forEach((btn) => {
@@ -1714,6 +1839,11 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				throw new Error('La configuración activa no tiene moneda principal asignada.');
 			}
 
+			activeSettingsCache = settings;
+			businessHoursStatus = getBusinessHoursStatus(settings);
+			renderBusinessHoursAlert();
+			validateCheckout(false);
+
 			return settings;
 		}
 
@@ -1781,6 +1911,10 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		? `
 *Nota*: ${checkoutData.customer_note}`
 		: '';
+	const businessNoteText = businessHoursStatus?.note
+		? `
+${businessHoursStatus.note}`
+		: '';
 
 	let totalText = '';
 	if (selectedCode !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal > 0) {
@@ -1803,7 +1937,7 @@ ${formatWhatsAppDiscount(totals)}${promotionReasonText ? `
 *Cliente*: ${checkoutData.customer_name}
 *Teléfono*: ${checkoutData.customer_phone}
 *Tipo servicio*: ${getDeliveryMethodText(checkoutData.delivery_method)}
-*Moneda elegida*: ${selectedCode}${addressText}${noteText}
+*Moneda elegida*: ${selectedCode}${addressText}${noteText}${businessNoteText}
 
 *Productos:*
 ${productLines.join('\n')}${giftLines.length ? `\n\n*Regalo incluido:*\n${giftLines.join('\n')}` : ''}
@@ -1828,6 +1962,9 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			}
 
 			const settings = await getActiveSettings();
+			if (businessHoursStatus.isClosed && businessHoursStatus.allowOrders === false) {
+				throw new Error('La tienda no acepta pedidos fuera de horario en este momento.');
+			}
 			const whatsappNumber = normalizeWhatsAppNumber(settings.whatsapp_number);
 
 			if (!whatsappNumber) {
@@ -2045,6 +2182,10 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 		window.addEventListener('pz-currency-changed', () => renderCheckout());
 		window.addEventListener('pz-promotions-updated', () => renderCheckout());
 		window.addEventListener('pz-coupons-updated', () => renderCheckout());
+
+		getActiveSettings().catch((error) => {
+			console.warn('No se pudo cargar el horario de la tienda en checkout.', error);
+		});
 
 		loadShippingZones()
 			.catch((error) => {

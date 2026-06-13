@@ -1,5 +1,25 @@
 ---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
+const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
 <!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -448,19 +468,19 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
-            <a class="nav-item" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
 
           <p class="sidebar-label">Divisiones</p>
           <nav class="nav-list">
-            <a class="nav-item active" href="/admin/promos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
-            <a class="nav-item" href="/admin/organization"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
+            <a class="nav-item active" href={adminPromosPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
+            <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
           </nav>
 
         </div>
@@ -470,7 +490,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         <header class="topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
-            <a class="action-btn" href="/admin/products">Productos</a>
+            <a class="action-btn" href={adminProductsPath}>Productos</a>
             <a class="action-btn" href="/">Ver tienda pública</a>
             <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
           </div>
@@ -1081,9 +1101,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
+      const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
+      const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
       let products = [];
       let categories = [];
       let subcategories = [];
@@ -1208,9 +1232,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       const couponMaxUses = document.getElementById('coupon-max-uses');
       const couponActive = document.getElementById('coupon-active');
 
-      function getAdminToken() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
-      function setAdminToken(token) { localStorage.setItem(AUTH_TOKEN_KEY, token || ''); }
-      function clearAdminToken() { localStorage.removeItem(AUTH_TOKEN_KEY); }
+      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function setAdminToken(_token) {}
+      function clearAdminToken() {}
       function showAlert(el, message = '', type = 'info') {
         if (!el) return;
         if (!message) { el.className = 'alert alert-info hidden'; el.textContent = ''; return; }
@@ -1242,17 +1266,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (!response.ok) throw new Error(pocketBaseErrorMessage(result));
         return result;
       }
-      async function loginAsAdmin(email, password) {
-        const payload = { identity: email, password };
-        try {
-          const result = await apiRequest('/api/collections/_superusers/auth-with-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          setAdminToken(result.token);
-          return result;
-        } catch (error) {
-          const result = await apiRequest('/api/admins/auth-with-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          setAdminToken(result.token);
-          return result;
-        }
+      function withStoreFilter(params = '') {
+        if (!STORE_FILTER) return params;
+        const query = new URLSearchParams(params || '');
+        const current = query.get('filter');
+        query.set('filter', current ? `(${current}) && ${STORE_FILTER}` : STORE_FILTER);
+        return query.toString();
       }
       async function loadAllRecords(collection, params = '') {
         let page = 1;
@@ -1261,7 +1280,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         let totalPages = 1;
         do {
           const separator = params ? '&' : '';
-          const result = await apiRequest(`/api/collections/${collection}/records?${params}${separator}page=${page}&perPage=${perPage}`);
+          const scopedParams = withStoreFilter(params);
+          const scopedSeparator = scopedParams ? '&' : '';
+          const result = await apiRequest(`/api/collections/${collection}/records?${scopedParams}${scopedSeparator}page=${page}&perPage=${perPage}`);
           items = items.concat(result.items || []);
           totalPages = result.totalPages || 1;
           page += 1;
@@ -2020,6 +2041,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           unlimited_uses: couponUsesMode.value !== 'limited',
           max_uses: couponUsesMode.value === 'limited' ? Number(couponMaxUses.value || 0) : 0,
           used_count: Number(manualCoupons.find((item) => item.id === couponId.value)?.used_count || 0),
+          store: CURRENT_STORE_ID,
         };
         const id = couponId.value;
         const error = validateCouponPayload(payload, id);
@@ -2280,6 +2302,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         formData.append('category', visualCategory.value || '');
         formData.append('sort_order', String(Number(visualOrder.value || 0)));
         formData.append('active', visualActive.checked ? 'true' : 'false');
+        formData.append('store', CURRENT_STORE_ID);
         const imageFile = visualImage.files?.[0];
         const attachmentFile = visualAttachment.files?.[0];
         if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
@@ -2391,6 +2414,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           badge_text: promotionBadge.value.trim(),
           priority: 0,
           stackable: false,
+          store: CURRENT_STORE_ID,
         };
         const error = validatePromotionPayload(payload);
         if (error) return showAlert(promotionAlert, error, 'error');
@@ -2455,17 +2479,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeSidebar(); });
-      loginForm?.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        showAlert(loginAlert, '');
-        try {
-          await loginAsAdmin(document.getElementById('admin-email').value.trim(), document.getElementById('admin-password').value);
-          showAdmin();
-        } catch (error) {
-          showAlert(loginAlert, error.message || 'No se pudo iniciar sesión.', 'error');
-        }
-      });
-      logoutBtn?.addEventListener('click', () => { clearAdminToken(); showLogin(); });
+      logoutBtn?.addEventListener('click', () => { window.location.href = publicStorePath; });
       markFeaturedBtn?.addEventListener('click', () => markFeatured().catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error')));
       featuredProductSearch?.addEventListener('input', renderFeaturedProductResults);
       featuredProductResults?.addEventListener('click', (event) => {
@@ -2714,15 +2728,19 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (!event.target.closest('.promotion-menu-wrap')) closePromotionMenus();
       });
 
-      if (getAdminToken()) showAdmin(); else showLogin();
+      showAdmin();
       if (window.location.hash === '#visuales') showTab('visuales');
       else showTab('destacados');
     </script>
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
-        const AUTH_TOKEN_KEY_PUBLIC_SETTINGS = 'powerzona_admin_token';
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
+      const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
+      const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
         const form = document.getElementById('settings-form');
         const alertBox = document.getElementById('settings-alert');
         const refreshBtn = document.getElementById('settings-refresh-btn');
@@ -2777,7 +2795,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const marketingOfferCloseBtn = document.getElementById('marketing-offer-close-btn');
         const marketingOfferCancelBtn = document.getElementById('marketing-offer-cancel-btn');
         const marketingBarAdvancedNodes = Array.from(document.querySelectorAll('[data-marketing-bar-advanced]'));
-        function token() { return localStorage.getItem(AUTH_TOKEN_KEY_PUBLIC_SETTINGS) || ''; }
+        function token() { return ADMIN_AUTH_TOKEN; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
           if (!message) { box.className = 'alert alert-info hidden'; box.textContent = ''; return; }
@@ -2936,7 +2954,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           return result;
         }
         async function loadSettings() {
-          const result = await api('/api/collections/settings/records?filter=active%3Dtrue&sort=-updated&page=1&perPage=1');
+          const result = await api('/api/collections/settings/records?filter=' + encodeURIComponent(ACTIVE_STORE_FILTER) + '&sort=-updated&page=1&perPage=1');
           settingsRecord = (result.items || [])[0] || null;
           renderSettings();
         }
@@ -2982,6 +3000,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           if (!settingsRecord || !settingsRecord.id) { show('No se encontró el registro activo de ajustes.', 'error'); return; }
           const data = new FormData();
           data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
+          data.append('store', CURRENT_STORE_ID);
           data.append('whatsapp_number', fields.whatsapp.value.trim());
           data.append('welcome_text', fields.welcome.value.trim());
           data.append('address', fields.address.value.trim());
@@ -3152,11 +3171,15 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     </script>
 
 
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       // PZ-AJUSTES-MONEDAS-CLIENT-V1-20260604
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-        const AUTH_TOKEN_KEY = 'powerzona_admin_token';
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
+      const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
+      const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
         const list = document.getElementById('currency-list');
         const alertBox = document.getElementById('currency-alert');
         const refreshBtn = document.getElementById('currency-refresh-btn');
@@ -3167,7 +3190,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const rateInput = document.getElementById('currency-rate');
         let currencies = [];
         let settingsRecord = null;
-        function token() { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; }
+        function token() { return ADMIN_AUTH_TOKEN; }
         function show(message = '', type = 'info') {
           if (!alertBox) return;
           if (!message) { alertBox.className = 'alert alert-info hidden'; alertBox.textContent = ''; return; }
@@ -3193,7 +3216,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           if (!token()) return;
           const [currencyResult, settingsResult] = await Promise.all([
             api('/api/collections/currencies/records?sort=code&perPage=100'),
-            api('/api/collections/settings/records?filter=active%3Dtrue&sort=-updated&page=1&perPage=1'),
+            api('/api/collections/settings/records?filter=' + encodeURIComponent(ACTIVE_STORE_FILTER) + '&sort=-updated&page=1&perPage=1'),
           ]);
           currencies = currencyResult.items || [];
           settingsRecord = (settingsResult.items || [])[0] || null;

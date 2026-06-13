@@ -48,14 +48,16 @@ const { hideFloatingSwitcher = false } = Astro.props;
 <script define:vars={{ pocketbaseUrl }}>
   (() => {
     const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-    const STORAGE_KEY = 'powerzona_currency';
+    const STORE_ID = String(window.PZ_CURRENT_STORE_ID || 'powerzona');
+    const STORAGE_KEY = `powerzona_currency_${STORE_ID}`;
+    const LEGACY_STORAGE_KEY = 'powerzona_currency';
     const getCartStorageKey = () => window.PZ_CART_STORAGE_KEY || window.PZCartStorage?.getCartStorageKey?.() || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
     const switcher = document.getElementById('pz-currency-switcher');
     const select = document.getElementById('pz-currency-select');
     const state = {
       currencies: [],
       defaultCode: 'USD',
-      selectedCode: localStorage.getItem(STORAGE_KEY) || '',
+      selectedCode: localStorage.getItem(STORAGE_KEY) || (STORE_ID === 'powerzona' ? localStorage.getItem(LEGACY_STORAGE_KEY) : '') || '',
       ready: false,
     };
 
@@ -195,7 +197,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
         if (!POCKETBASE_URL) throw new Error('PUBLIC_POCKETBASE_URL no configurado.');
         const [currenciesResponse, settingsResponse] = await Promise.all([
           fetch(`${POCKETBASE_URL}/api/collections/currencies/records?filter=${encodeURIComponent('active = true')}&sort=code&perPage=100`),
-          fetch(`${POCKETBASE_URL}/api/collections/settings/records?filter=${encodeURIComponent('active = true')}&expand=default_currency&sort=-updated&perPage=1`),
+          fetch(`${POCKETBASE_URL}/api/collections/settings/records?filter=${encodeURIComponent(STORE_ID ? `active = true && store = "${STORE_ID}"` : 'active = true')}&expand=default_currency&sort=-updated&perPage=1`),
         ]);
         const currenciesResult = await currenciesResponse.json().catch(() => null);
         const settingsResult = await settingsResponse.json().catch(() => null);

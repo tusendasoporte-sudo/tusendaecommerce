@@ -1,7 +1,25 @@
 ---
-// PZ-ADMIN-GIFTS-V25M-SIN-NOTAS-INTERNAS-20260605
-// Ajuste visible: interfaz final sin notas internas en regalos.
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
+const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
 
 <!doctype html>
@@ -324,23 +342,23 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           </div>
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
           </nav>
           <p class="sidebar-label">Tienda</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item active" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm3 3h10V6H7v2Zm0 4h10v-2H7v2Zm0 4h6v-2H7v2Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item active" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm3 3h10V6H7v2Zm0 4h10v-2H7v2Zm0 4h6v-2H7v2Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
           
         </div>
       </aside>
       <div class="topbar">
         <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
-        <div class="top-actions"><a class="action-btn" href="/admin">Resumen</a><a class="action-btn" href="/admin/products">Productos</a><a class="action-btn" href="/admin/catalog">Catálogo</a><button id="logout-btn" class="action-btn danger" type="button">Salir</button></div>
+        <div class="top-actions"><a class="action-btn" href={adminBasePath}>Resumen</a><a class="action-btn" href={adminProductsPath}>Productos</a><a class="action-btn" href={adminCatalogPath}>Catálogo</a><button id="logout-btn" class="action-btn danger" type="button">Salir</button></div>
       </div>
       <div style="margin-bottom:18px;"><span class="brand">Regalos</span><h1>Gestión de regalos</h1><p>Administra los regalos disponibles para promociones de la tienda.</p></div>
       <div id="alert" class="alert alert-info hidden"></div>
@@ -379,8 +397,13 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       </section>
     </main>
 
-    <script define:vars={{ pocketbaseUrl }}>
-      const POCKETBASE_URL = pocketbaseUrl;
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
+      const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
+      const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
       const TOKEN_KEY = 'pb_admin_token';
       const loginView = document.getElementById('login-view');
       const adminView = document.getElementById('admin-view');
@@ -403,9 +426,9 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       let gifts = [];
       let settings = null;
 
-      const token = () => localStorage.getItem(TOKEN_KEY);
-      const setToken = (value) => localStorage.setItem(TOKEN_KEY, value);
-      const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+      const token = () => ADMIN_AUTH_TOKEN;
+      const setToken = (_value) => {};
+      const clearToken = () => {};
       const show = (view) => { loginView.classList.toggle('hidden', view !== 'login'); adminView.classList.toggle('hidden', view !== 'admin'); };
       function openSidebar(){ document.body.classList.add('sidebar-open'); if(sidebarOverlay) sidebarOverlay.hidden = false; if(sidebar) sidebar.setAttribute('aria-hidden','false'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','true'); }
       function closeSidebar(){ document.body.classList.remove('sidebar-open'); if(sidebar) sidebar.setAttribute('aria-hidden','true'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','false'); setTimeout(()=>{ if(!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true; }, 220); }
@@ -479,13 +502,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if(!res.ok) throw new Error(data?.message || 'Error de comunicación con PocketBase.');
         return data;
       }
-      async function login(email, password){
-        try { return await api('/api/collections/_superusers/auth-with-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ identity:email, password }) }); }
-        catch (_) { return await api('/api/admins/auth-with-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ identity:email, password }) }); }
+      async function createStoreSettings(){
+        await api('/api/collections/settings/records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active:true, store:CURRENT_STORE_ID, store_name:'PowerZona', gifts_public_active:true, gifts_public_title:'Regalos' }) });
       }
       async function loadSettings(){
-        const filter = encodeURIComponent('active = true');
-        const result = await api(`/api/collections/settings/records?filter=${filter}&perPage=1`);
+        const filter = encodeURIComponent(ACTIVE_STORE_FILTER);
+        const result = await api(`/api/collections/settings/records?filter=${filter}&sort=-updated&perPage=1`);
         settings = result.items?.[0] || null;
         document.getElementById('gifts-public-active').checked = settings?.gifts_public_active !== false;
         document.getElementById('gifts-public-title').value = settings?.gifts_public_title || 'Regalos';
@@ -495,7 +517,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       async function loadGifts(){
         giftsList.innerHTML = '<div class="empty">Cargando regalos...</div>';
-        const result = await api('/api/collections/gifts/records?sort=sort_order,name&perPage=200');
+        const result = await api(`/api/collections/gifts/records?filter=${encodeURIComponent(STORE_FILTER)}&sort=sort_order,name&perPage=200`);
         gifts = result.items || [];
         renderGifts();
       }
@@ -539,6 +561,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         fd.set('active', document.getElementById('gift-active').checked ? 'true' : 'false');
         const image = document.getElementById('gift-image').files?.[0];
         if(image) fd.append('image', await optimizeGiftImageFile(image));
+        fd.set('store', CURRENT_STORE_ID);
         if(id) await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', body:fd });
         else await api('/api/collections/gifts/records', { method:'POST', body:fd });
         resetForm(); await loadGifts(); showAlert('Regalo guardado correctamente.', 'ok');
@@ -570,9 +593,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           saveSettingsBtn.textContent = 'Guardar categoría';
         }
       }
-      async function boot(){ if(!POCKETBASE_URL){ loginAlert.textContent='Falta PUBLIC_POCKETBASE_URL en .env'; loginAlert.classList.remove('hidden'); return; } if(!token()){ show('login'); return; } try{ show('admin'); await loadSettings(); await loadGifts(); } catch(error){ console.error(error); clearToken(); show('login'); loginAlert.textContent='Sesión vencida o falta aplicar migraciones de regalos. Entra nuevamente después de reiniciar PocketBase.'; loginAlert.classList.remove('hidden'); } }
-      loginForm.addEventListener('submit', async (event)=>{ event.preventDefault(); loginAlert.classList.add('hidden'); try{ const result = await login(document.getElementById('admin-email').value.trim(), document.getElementById('admin-password').value); setToken(result.token); await boot(); } catch(error){ loginAlert.textContent='No se pudo iniciar sesión.'; loginAlert.classList.remove('hidden'); }});
-      giftForm.addEventListener('submit', saveGift); cancelEditBtn.addEventListener('click', resetForm); refreshBtn.addEventListener('click', loadGifts); saveSettingsBtn.addEventListener('click', saveSettings); logoutBtn.addEventListener('click', ()=>{ clearToken(); closeSidebar(); show('login'); });
+      async function boot(){ if(!POCKETBASE_URL){ loginAlert.textContent='Falta PUBLIC_POCKETBASE_URL en .env'; loginAlert.classList.remove('hidden'); return; } try{ show('admin'); await loadSettings(); await loadGifts(); } catch(error){ console.error(error); show('admin'); showAlert(error.message || 'No se pudieron cargar los datos de esta tienda.', 'error'); } } loginAlert.classList.add('hidden'); try{ const result = await login(document.getElementById('admin-email').value.trim(), document.getElementById('admin-password').value); setToken(result.token); await boot(); } catch(error){ loginAlert.textContent='No se pudo iniciar sesión.'; loginAlert.classList.remove('hidden'); }});
+      giftForm.addEventListener('submit', saveGift); cancelEditBtn.addEventListener('click', resetForm); refreshBtn.addEventListener('click', loadGifts); saveSettingsBtn.addEventListener('click', saveSettings); logoutBtn.addEventListener('click', ()=>{ window.location.href = publicStorePath; });
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);

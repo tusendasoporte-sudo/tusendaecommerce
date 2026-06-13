@@ -1,5 +1,25 @@
 ---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
+const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
 <!doctype html>
 <html lang="es">
@@ -34,18 +54,18 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           </div>
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href="/admin/orders"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href="/admin/catalog"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
-            <a class="nav-item" href="/admin/products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item" href="/admin/gifts"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item active" href="/admin/shipping"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href="/admin/store-settings"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+            <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+            <a class="nav-item active" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
           <p class="sidebar-label">Divisiones</p>
           <nav class="nav-list">
-            <a class="nav-item" href="/admin/promos"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7M3 8h18v4H3V8ZM12 21V8M12 8H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm0 0h3.5A2.5 2.5 0 1 0 13 5.5L12 8Z"/></svg></span><span>Marketing</span></a>
-            <a class="nav-item" href="/admin/organization"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
+            <a class="nav-item" href={adminPromosPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7M3 8h18v4H3V8ZM12 21V8M12 8H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm0 0h3.5A2.5 2.5 0 1 0 13 5.5L12 8Z"/></svg></span><span>Marketing</span></a>
+            <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
           </nav>
         </div>
       </aside>
@@ -53,8 +73,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         <header class="topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
-            <a class="action-btn" href="/admin/orders">Pedidos</a>
-            <a class="action-btn" href="/checkout">Ver checkout</a>
+            <a class="action-btn" href={adminOrdersPath}>Pedidos</a>
+            <a class="action-btn" href={publicCheckoutPath}>Ver checkout</a>
             <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
           </div>
         </header>
@@ -136,10 +156,11 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         </section>
       </main>
     </div>
-    <script define:vars={{ pocketbaseUrl }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-      const AUTH_TOKEN_KEY = 'powerzona_admin_token';
-      const AUTH_MODEL_KEY = 'powerzona_admin_model';
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\"')}"`;
       const sidebarOpen = document.getElementById('sidebar-open');
       const sidebarClose = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -183,7 +204,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       let shippingZones = [];
       let editingId = '';
       const expandedMunicipalities = new Set();
-      function token(){return localStorage.getItem(AUTH_TOKEN_KEY)||'';}
+      function token(){return ADMIN_AUTH_TOKEN;}
       function showAlert(element,message='',type='info'){
         if(!element)return;
         if(!message){element.className='alert alert-info hidden';element.textContent='';return;}
@@ -203,16 +224,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if(!response.ok)throw new Error((result&&result.message)||'Error de comunicación con PocketBase.');
         return result;
       }
-      async function loginAsAdmin(email,password){
-        const payload={identity:email,password};
-        try{
-          const result=await api('/api/collections/_superusers/auth-with-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          localStorage.setItem(AUTH_TOKEN_KEY,result.token);localStorage.setItem(AUTH_MODEL_KEY,JSON.stringify(result.record||{}));return;
-        }catch(error){
-          const result=await api('/api/admins/auth-with-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          localStorage.setItem(AUTH_TOKEN_KEY,result.token);localStorage.setItem(AUTH_MODEL_KEY,JSON.stringify(result.admin||{}));
-        }
-      }
       function showAdmin(){loginView.classList.add('hidden');adminView.classList.remove('hidden');logoutBtn.classList.remove('hidden');loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envíos.','error'));}
       function showLogin(){adminView.classList.add('hidden');loginView.classList.remove('hidden');logoutBtn.classList.add('hidden');}
       function getPayload(){
@@ -222,7 +233,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const price=Number(priceRaw||0);
         if(municipality.length<2)throw new Error('Escribe el municipio.');
         if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio único USD válido.');
-        return {municipality,zone,price_usd:price,active:fields.active.checked,note:fields.note.value.trim()};
+        return {municipality,zone,price_usd:price,active:fields.active.checked,note:fields.note.value.trim(),store:CURRENT_STORE_ID};
       }
       function showMainForm(){document.getElementById('form-panel').classList.remove('hidden');newZoneTopBtn?.setAttribute('aria-expanded','true');if(newZoneTopBtn)newZoneTopBtn.textContent='Cerrar panel';}
       function hideMainForm(){document.getElementById('form-panel').classList.add('hidden');newZoneTopBtn?.setAttribute('aria-expanded','false');if(newZoneTopBtn)newZoneTopBtn.textContent='Agregar envío';}
@@ -230,7 +241,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envío';formSubtitle.textContent='Modifica municipio, zona, precio único o estado.';cancelEditBtn.classList.remove('hidden');document.getElementById('save-zone-btn').textContent='Guardar cambios';document.getElementById('form-panel').scrollIntoView({behavior:'smooth',block:'start'});}
       function openZoneModal(municipality){closeZoneMenus();zoneModalForm.reset();zoneModalFields.active.checked=true;zoneModalFields.municipality.value=municipality||'';zoneModalSubtitle.textContent='Nueva zona para '+(municipality||'el municipio seleccionado')+'.';showAlert(zoneModalAlert,'');zoneModal.classList.remove('hidden');zoneModal.setAttribute('aria-hidden','false');setTimeout(()=>zoneModalFields.zone.focus(),60);}
       function closeZoneModal(){zoneModal.classList.add('hidden');zoneModal.setAttribute('aria-hidden','true');showAlert(zoneModalAlert,'');}
-      function getZoneModalPayload(){const municipality=zoneModalFields.municipality.value.trim();const zone=zoneModalFields.zone.value.trim();const priceRaw=String(zoneModalFields.price.value||'').replace(',', '.').trim();const price=Number(priceRaw||0);if(municipality.length<2)throw new Error('Falta el municipio.');if(zone.length<2)throw new Error('Escribe el nombre de la zona.');if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio único USD válido.');return {municipality,zone,price_usd:price,active:zoneModalFields.active.checked,note:zoneModalFields.note.value.trim()};}
+      function getZoneModalPayload(){const municipality=zoneModalFields.municipality.value.trim();const zone=zoneModalFields.zone.value.trim();const priceRaw=String(zoneModalFields.price.value||'').replace(',', '.').trim();const price=Number(priceRaw||0);if(municipality.length<2)throw new Error('Falta el municipio.');if(zone.length<2)throw new Error('Escribe el nombre de la zona.');if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio único USD válido.');return {municipality,zone,price_usd:price,active:zoneModalFields.active.checked,note:zoneModalFields.note.value.trim(),store:CURRENT_STORE_ID};}
       async function saveZoneFromModal(event){event.preventDefault();showAlert(zoneModalAlert,'');const payload=getZoneModalPayload();await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});showAlert(zoneModalAlert,'Zona agregada correctamente.','success');closeZoneModal();await loadZones();}
       async function saveZone(event){
         event.preventDefault();showAlert(formAlert,'');
@@ -248,7 +259,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       async function loadZones(){
         showAlert(listAlert,'');
-        const result=await api('/api/collections/shipping_zones/records?sort=municipality,zone&perPage=500');
+        const result=await api(`/api/collections/shipping_zones/records?filter=${encodeURIComponent(STORE_FILTER)}&sort=municipality,zone&perPage=500`);
         shippingZones=result.items||[];renderStats();renderZones();
       }
       function renderStats(){
@@ -373,9 +384,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       zoneModal.addEventListener('click',(event)=>{if(event.target===zoneModal)closeZoneModal();});
       refreshBtn.addEventListener('click',()=>loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envíos.','error')));
       searchInput.addEventListener('input',renderZones);statusFilter.addEventListener('change',renderZones);clearFiltersBtn.addEventListener('click',()=>{searchInput.value='';statusFilter.value='all';renderZones();});
-      loginForm.addEventListener('submit',async(event)=>{event.preventDefault();showAlert(loginAlert,'');try{await loginAsAdmin(document.getElementById('admin-email').value.trim(),document.getElementById('admin-password').value);showAdmin();}catch(error){showAlert(loginAlert,error.message||'No se pudo iniciar sesión.','error');}});
-      logoutBtn.addEventListener('click',()=>{localStorage.removeItem(AUTH_TOKEN_KEY);localStorage.removeItem(AUTH_MODEL_KEY);showLogin();});
-      if(token())showAdmin();else showLogin();
+      logoutBtn.addEventListener('click',()=>{window.location.href=publicStorePath;});
+      showAdmin();
     </script>
   </body>
 </html>
