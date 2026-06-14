@@ -11,6 +11,7 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -21,6 +22,13 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el admin de productos de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Productos Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
 <!-- PZ-PRODUCTOS-INFO-ADICIONAL-V6-20260603
   Cambio: guarda Información adicional con PATCH JSON y requiere migración final extra_info.
@@ -197,12 +205,17 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .duplicate-toast span:last-child { display: block; margin-top: 2px; font-size: 11px; font-weight: 850; color: #7f1d1d; }
 
       .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
-      .stat-card { padding: 18px; border-radius: 24px; background: rgba(255,255,255,.92); border: 1px solid rgba(226,232,240,.96); box-shadow: 0 14px 34px rgba(15,23,42,.06); }
+      .stat-card { position: relative; overflow: hidden; padding: 18px; border-radius: 24px; background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.96); box-shadow: 0 14px 34px rgba(15,23,42,.06); }
+      .stat-card::after { content: ""; position: absolute; right: 16px; top: 16px; width: 38px; height: 38px; border-radius: 14px; background: #eff6ff; border: 1px solid #dbeafe; }
+      .stat-card.ok::after { background: #dcfce7; border-color: #bbf7d0; }
+      .stat-card.warn::after { background: #ffedd5; border-color: #fed7aa; }
+      .stat-card.muted::after { background: #f1f5f9; border-color: #e2e8f0; }
       .stat-label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .05em; }
       .stat-value { margin: 7px 0 0; font-size: 25px; font-weight: 1000; letter-spacing: -.04em; }
-      .toolbar { padding: 18px; display: grid; grid-template-columns: 1.2fr .8fr .8fr auto; gap: 12px; align-items: end; margin-bottom: 18px; }
+      .toolbar { padding: 18px; display: grid; grid-template-columns: minmax(220px, 1.2fr) minmax(150px, .7fr) minmax(150px, .7fr) minmax(140px, .55fr) minmax(130px, .5fr) auto; gap: 12px; align-items: end; margin-bottom: 18px; }
+      .list-head { display: grid; grid-template-columns: minmax(260px, 1.2fr) minmax(180px, .65fr) minmax(130px, .45fr) minmax(135px, .4fr) minmax(120px, .4fr) minmax(180px, auto); gap: 14px; padding: 14px 18px; border-bottom: 1px solid #eef2f7; color: #64748b; font-size: 11px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
       .products-list { display: grid; gap: 0; overflow: visible; }
-      .product-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(160px, .6fr) minmax(130px, .45fr) minmax(140px, .45fr) minmax(180px, auto); gap: 14px; align-items: center; padding: 16px 18px; border-bottom: 1px solid #eef2f7; }
+      .product-row { display: grid; grid-template-columns: minmax(260px, 1.2fr) minmax(180px, .65fr) minmax(130px, .45fr) minmax(135px, .4fr) minmax(120px, .4fr) minmax(180px, auto); gap: 14px; align-items: center; padding: 16px 18px; border-bottom: 1px solid #eef2f7; }
       .product-row:last-child { border-bottom: 0; }
       .product-row:hover { background: #fbfdff; }
       .product-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -218,6 +231,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .pill-soldout { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
       .price { font-size: 15px; font-weight: 1000; }
       .stock { font-size: 15px; font-weight: 950; color: #334155; }
+      .category-cell { min-width: 0; }
+      .category-name { display: block; color: #0f172a; font-size: 13px; font-weight: 1000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .category-sub { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .row-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; position: relative; }
       .actions-wrap { position: relative; display: inline-flex; justify-content: flex-end; }
       .actions-trigger { min-width: 44px; padding-inline: 13px; font-size: 18px; line-height: 1; }
@@ -455,6 +471,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .mini-pill.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
       .mini-pill.delivery { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
       .empty-state { padding: 28px; color: var(--muted); font-size: 14px; font-weight: 850; text-align: center; }
+      .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-top: 1px solid #eef2f7; flex-wrap: wrap; }
+      .pagination-summary { margin: 0; color: #64748b; font-size: 12px; font-weight: 900; }
+      .pagination-actions { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+      .page-btn { min-width: 38px; height: 38px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; color: #0f172a; font-size: 12px; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
+      .page-btn.is-active { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 12px 24px rgba(37,99,235,.22); }
+      .page-btn:disabled { background: #f8fafc; color: #94a3b8; box-shadow: none; }
 
 
       .variation-manager { margin-top: 18px; border: 1px solid #e2e8f0; border-radius: 26px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 18px; box-shadow: 0 12px 28px rgba(15,23,42,.05); }
@@ -481,7 +503,15 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .variation-empty { border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 22px; padding: 16px; color: #64748b; font-size: 13px; font-weight: 850; line-height: 1.45; }
       @media (max-width: 1120px) { .variation-grid, .variation-row, .variation-checks { grid-template-columns: 1fr; } .variation-grid .wide { grid-column: 1 / -1; } .variation-mini-actions { justify-content: flex-start; } }
 
-      @media (max-width: 1120px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .toolbar, .product-row, .product-form-grid, .check-grid, .quick-create-grid { grid-template-columns: 1fr; } .row-actions { justify-content: flex-start; } }
+      @media (min-width: 1121px) {
+        .app-shell { width: 100%; max-width: 1600px; padding: 24px 28px 32px 330px; }
+        .sidebar, #admin-sidebar { transform: translateX(0) !important; }
+        .sidebar-close, #sidebar-close { display: none !important; }
+        .sidebar-overlay, #sidebar-overlay { display: none !important; }
+        .menu-btn { display: none; }
+        .topbar { justify-content: flex-end; }
+      }
+      @media (max-width: 1120px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .toolbar, .product-row, .product-form-grid, .check-grid, .quick-create-grid { grid-template-columns: 1fr; } .list-head { display: none; } .product-row { margin: 12px; border: 1px solid #eef2f7; border-radius: 22px; box-shadow: 0 12px 28px rgba(15,23,42,.05); } .row-actions { justify-content: flex-start; } .price-offer-admin { align-items:flex-start; } }
       @media (max-width: 980px) { .hero-card { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .stats-grid { grid-template-columns: 1fr; } }
     
@@ -712,18 +742,918 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
       }
 
+      /* PZ-V26-PRODUCTOS-DASHBOARD-CORRECCION-VISUAL-20260614 */
+      body {
+        background: #f6f8fb !important;
+        color: #111827;
+      }
+      .admin-dashboard-shell,
+      .app-shell {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .admin-sidebar,
+      #admin-sidebar {
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 248px !important;
+        border-radius: 0 !important;
+        padding: 22px 16px !important;
+        background: #ffffff !important;
+        border: 0 !important;
+        border-right: 1px solid #e5e7eb !important;
+        box-shadow: none !important;
+        transform: translateX(0) !important;
+      }
+      .admin-sidebar::before,
+      #admin-sidebar::before {
+        display: none !important;
+      }
+      .sidebar-inner {
+        min-height: 100% !important;
+        height: 100% !important;
+      }
+      .brand {
+        padding: 0 4px 22px !important;
+        border-bottom: 0 !important;
+        margin-bottom: 8px !important;
+      }
+      .brand-logo {
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 12px !important;
+        background: #2563eb !important;
+        box-shadow: 0 10px 22px rgba(37, 99, 235, .22) !important;
+      }
+      .brand-title {
+        max-width: 142px !important;
+        font-size: 17px !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      .brand-subtitle {
+        color: #6b7280 !important;
+        font-size: 11px !important;
+      }
+      .sidebar-label {
+        margin: 18px 10px 8px !important;
+        color: #9ca3af !important;
+        letter-spacing: .08em !important;
+      }
+      .nav-item,
+      .sidebar-action {
+        min-height: 42px !important;
+        padding: 8px 10px !important;
+        border-radius: 12px !important;
+        color: #4b5563 !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        font-size: 13px !important;
+        font-weight: 850 !important;
+      }
+      button.nav-item {
+        text-align: left !important;
+        font: inherit !important;
+      }
+      .nav-icon {
+        width: 30px !important;
+        height: 30px !important;
+        min-width: 30px !important;
+        border-radius: 10px !important;
+        background: #f3f4f6 !important;
+        color: #6b7280 !important;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      .nav-item:hover:not(.active) {
+        transform: none !important;
+        background: #f9fafb !important;
+        color: #111827 !important;
+        box-shadow: none !important;
+      }
+      .nav-item.active {
+        position: relative !important;
+        background: #eff6ff !important;
+        color: #1d4ed8 !important;
+        border-color: #dbeafe !important;
+        box-shadow: none !important;
+      }
+      .nav-item.active::before {
+        content: "" !important;
+        position: absolute !important;
+        left: -6px !important;
+        top: 10px !important;
+        bottom: 10px !important;
+        width: 3px !important;
+        border-radius: 999px !important;
+        background: #2563eb !important;
+      }
+      .nav-item.active .nav-icon,
+      .nav-item:hover:not(.active) .nav-icon {
+        background: #dbeafe !important;
+        color: #2563eb !important;
+        border: 0 !important;
+        box-shadow: none !important;
+      }
+      .sidebar-footer {
+        margin-top: auto !important;
+        border-radius: 14px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e5e7eb !important;
+        padding: 13px !important;
+        box-shadow: none !important;
+      }
+      .admin-main,
+      .main-wrap {
+        min-height: 100vh !important;
+        margin-left: 248px !important;
+        padding: 38px 40px 48px !important;
+      }
+      .mobile-topbar {
+        display: none !important;
+      }
+      .products-page-header,
+      .hero-card {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 18px !important;
+        padding: 0 !important;
+        margin: 0 0 24px !important;
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        overflow: visible !important;
+      }
+      .hero-card::after {
+        display: none !important;
+      }
+      .hero-actions {
+        align-items: center !important;
+      }
+      .badge {
+        display: none !important;
+      }
+      .page-title {
+        margin: 0 !important;
+        font-size: 32px !important;
+        line-height: 1.1 !important;
+        letter-spacing: 0 !important;
+        color: #111827 !important;
+      }
+      .page-title span {
+        color: inherit !important;
+      }
+      .page-subtitle {
+        margin: 8px 0 0 !important;
+        color: #6b7280 !important;
+        font-size: 14px !important;
+        line-height: 1.45 !important;
+      }
+      #new-product-btn {
+        min-height: 46px !important;
+        border-radius: 12px !important;
+        background: #2563eb !important;
+        border-color: #2563eb !important;
+        color: #fff !important;
+        box-shadow: 0 12px 24px rgba(37,99,235,.20) !important;
+      }
+      .notifications-btn {
+        position: relative !important;
+        width: 46px !important;
+        height: 46px !important;
+        flex: 0 0 46px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 14px !important;
+        border: 1px solid #e5e7eb !important;
+        background: #fff !important;
+        color: #111827 !important;
+        box-shadow: 0 10px 22px rgba(15,23,42,.05) !important;
+      }
+      .notifications-btn svg {
+        width: 21px !important;
+        height: 21px !important;
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 1.9 !important;
+        stroke-linecap: round !important;
+        stroke-linejoin: round !important;
+      }
+      .notifications-badge {
+        position: absolute !important;
+        top: 9px !important;
+        right: 9px !important;
+        width: 8px !important;
+        height: 8px !important;
+        border-radius: 999px !important;
+        background: #ef4444 !important;
+        border: 2px solid #fff !important;
+      }
+      .stats-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 16px !important;
+        margin-bottom: 18px !important;
+      }
+      .stat-card {
+        min-height: 105px !important;
+        display: grid !important;
+        align-content: center !important;
+        padding: 20px 18px 18px 68px !important;
+        border-radius: 16px !important;
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+      }
+      .stat-card::after {
+        display: none !important;
+      }
+      .stat-icon {
+        position: absolute !important;
+        left: 18px !important;
+        top: 24px !important;
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 999px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #eff6ff !important;
+        color: #2563eb !important;
+      }
+      .stat-icon svg {
+        width: 22px !important;
+        height: 22px !important;
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 1.9 !important;
+        stroke-linecap: round !important;
+        stroke-linejoin: round !important;
+      }
+      .stat-active-card .stat-icon {
+        background: #dcfce7 !important;
+        color: #16a34a !important;
+      }
+      .stat-stock-card .stat-icon {
+        background: #ffedd5 !important;
+        color: #f97316 !important;
+      }
+      .stat-hidden-card .stat-icon {
+        background: #f3e8ff !important;
+        color: #7c3aed !important;
+      }
+      .stat-label {
+        color: #6b7280 !important;
+        font-size: 12px !important;
+        letter-spacing: 0 !important;
+        text-transform: none !important;
+      }
+      .stat-value {
+        margin-top: 6px !important;
+        font-size: 28px !important;
+      }
+      .products-toolbar,
+      .toolbar {
+        display: grid !important;
+        grid-template-columns: minmax(280px, 1.4fr) minmax(160px, .7fr) minmax(150px, .65fr) minmax(140px, .58fr) minmax(120px, .5fr) auto !important;
+        gap: 12px !important;
+        align-items: end !important;
+        padding: 16px !important;
+        margin-bottom: 18px !important;
+        border-radius: 16px !important;
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+      }
+      .filters-toggle {
+        display: none !important;
+      }
+      .field label {
+        color: #6b7280 !important;
+        font-size: 11px !important;
+        letter-spacing: 0 !important;
+      }
+      .field input,
+      .field select {
+        min-height: 48px !important;
+        border-radius: 12px !important;
+        border-color: #e5e7eb !important;
+        box-shadow: none !important;
+      }
+      .products-table-card,
+      .list-card {
+        border-radius: 16px !important;
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+        overflow: visible !important;
+      }
+      .list-head,
+      .product-row {
+        grid-template-columns: minmax(250px, 1.35fr) minmax(150px, .72fr) minmax(110px, .48fr) minmax(120px, .5fr) minmax(96px, .42fr) minmax(128px, auto) !important;
+      }
+      .list-head {
+        padding: 13px 18px !important;
+        color: #9ca3af !important;
+        font-size: 11px !important;
+        letter-spacing: .04em !important;
+      }
+      .product-row {
+        min-height: 78px !important;
+        padding: 12px 18px !important;
+        gap: 12px !important;
+      }
+      .product-thumb {
+        width: 48px !important;
+        height: 48px !important;
+        flex-basis: 48px !important;
+        border-radius: 12px !important;
+        box-shadow: none !important;
+      }
+      .product-title {
+        font-size: 14px !important;
+        letter-spacing: 0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+      }
+      .product-meta,
+      .category-sub {
+        font-size: 11px !important;
+      }
+      .pill {
+        width: fit-content !important;
+        min-width: 0 !important;
+        padding: 6px 9px !important;
+        font-size: 10px !important;
+      }
+      .mini-btn {
+        min-height: 36px !important;
+        padding: 8px 11px !important;
+        border-radius: 11px !important;
+        box-shadow: none !important;
+      }
+      .editor-card {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        overflow: visible !important;
+      }
+      .editor-head {
+        margin-bottom: 18px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        align-items: center !important;
+      }
+      .editor-title {
+        font-size: 30px !important;
+        letter-spacing: 0 !important;
+      }
+      .editor-subtitle {
+        max-width: 620px !important;
+      }
+      .editor-body {
+        padding: 0 !important;
+      }
+      .admin-product-editor-page {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 360px) !important;
+        gap: 24px !important;
+        align-items: start !important;
+      }
+      .editor-main-column {
+        min-width: 0 !important;
+        display: grid !important;
+        gap: 18px !important;
+      }
+      .product-form-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+      }
+      .product-form-grid > .field,
+      .price-offer-card,
+      .variation-manager,
+      .related-products-panel,
+      .product-extra-editor {
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 18px !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+      }
+      .product-form-grid > .field {
+        padding: 16px !important;
+      }
+      .product-form-grid > .field:not(.full) {
+        min-height: 108px !important;
+      }
+      .editor-section-heading {
+        padding: 16px 18px !important;
+        border-radius: 18px !important;
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+      }
+      .editor-section-heading h3 {
+        margin: 2px 0 0 !important;
+        color: #111827 !important;
+        font-size: 18px !important;
+        line-height: 1.2 !important;
+        font-weight: 1000 !important;
+      }
+      .editor-section-heading span {
+        display: block !important;
+        margin-top: 6px !important;
+        color: #6b7280 !important;
+        font-size: 13px !important;
+        font-weight: 750 !important;
+        line-height: 1.45 !important;
+      }
+      .editor-section-kicker,
+      .side-card-kicker {
+        margin: 0 !important;
+        color: #2563eb !important;
+        font-size: 11px !important;
+        font-weight: 1000 !important;
+        letter-spacing: .06em !important;
+        text-transform: uppercase !important;
+      }
+      .price-offer-card {
+        padding: 18px !important;
+      }
+      .price-offer-card-title {
+        font-size: 18px !important;
+      }
+      .switch-card {
+        min-height: 48px !important;
+        background: #f8fafc !important;
+      }
+      .product-upload-dropzone {
+        display: grid !important;
+        justify-items: center !important;
+        gap: 6px !important;
+        margin: 8px 0 12px !important;
+        padding: 22px !important;
+        border: 1.5px dashed #bfdbfe !important;
+        border-radius: 18px !important;
+        background: #eff6ff !important;
+        text-align: center !important;
+      }
+      .product-upload-dropzone strong {
+        color: #111827 !important;
+        font-size: 14px !important;
+      }
+      .product-upload-dropzone span {
+        color: #6b7280 !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+      }
+      .product-upload-dropzone em {
+        margin-top: 5px !important;
+        display: inline-flex !important;
+        border-radius: 999px !important;
+        background: #fff !important;
+        border: 1px solid #dbeafe !important;
+        color: #2563eb !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        font-style: normal !important;
+        font-weight: 1000 !important;
+      }
+      .editor-side-column {
+        position: sticky !important;
+        top: 24px !important;
+        display: grid !important;
+        gap: 14px !important;
+        min-width: 0 !important;
+      }
+      .editor-preview-card,
+      .editor-status-card,
+      .editor-actions-card {
+        padding: 18px !important;
+        border-radius: 20px !important;
+        background: #fff !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04) !important;
+      }
+      .preview-thumb {
+        margin-top: 14px !important;
+        width: 100% !important;
+        aspect-ratio: 4 / 3 !important;
+        border-radius: 18px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: linear-gradient(135deg, #eff6ff, #f8fafc) !important;
+        color: #2563eb !important;
+        font-size: 30px !important;
+        font-weight: 1000 !important;
+        border: 1px solid #dbeafe !important;
+        overflow: hidden !important;
+      }
+      .preview-thumb img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+      }
+      .editor-preview-card strong {
+        display: block !important;
+        margin-top: 13px !important;
+        color: #111827 !important;
+        font-size: 16px !important;
+        line-height: 1.25 !important;
+      }
+      .editor-preview-card span {
+        display: block !important;
+        margin-top: 5px !important;
+        color: #2563eb !important;
+        font-size: 15px !important;
+        font-weight: 1000 !important;
+      }
+      .editor-preview-card small {
+        display: block !important;
+        margin-top: 8px !important;
+        color: #6b7280 !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+      }
+      .editor-status-chips {
+        display: flex !important;
+        gap: 8px !important;
+        flex-wrap: wrap !important;
+        margin-top: 12px !important;
+      }
+      .editor-actions-card {
+        display: grid !important;
+        gap: 10px !important;
+      }
+      .side-save-btn,
+      .side-cancel-btn,
+      .side-back-btn {
+        width: 100% !important;
+        min-height: 44px !important;
+      }
+      .editor-actions {
+        display: none !important;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          background: #f6f8fb !important;
+        }
+        .admin-sidebar,
+        #admin-sidebar {
+          top: 0 !important;
+          left: 0 !important;
+          bottom: 0 !important;
+          width: min(286px, 82vw) !important;
+          border-radius: 0 20px 20px 0 !important;
+          box-shadow: 20px 0 60px rgba(15,23,42,.18) !important;
+          transform: translateX(-100%) !important;
+        }
+        body.sidebar-open .admin-sidebar,
+        body.sidebar-open #admin-sidebar,
+        .admin-sidebar.is-open {
+          transform: translateX(0) !important;
+        }
+        .sidebar-close,
+        #sidebar-close {
+          display: inline-flex !important;
+        }
+        .sidebar-overlay,
+        #sidebar-overlay {
+          display: block !important;
+        }
+        .admin-main,
+        .main-wrap {
+          margin-left: 0 !important;
+          padding: 14px 14px 28px !important;
+        }
+        .mobile-topbar {
+          display: grid !important;
+          grid-template-columns: 42px 1fr 42px !important;
+          align-items: center !important;
+          gap: 8px !important;
+          margin: 0 0 14px !important;
+        }
+        .mobile-topbar strong {
+          text-align: center !important;
+          font-size: 17px !important;
+          font-weight: 1000 !important;
+        }
+        .menu-btn,
+        .mobile-topbar-slot {
+          width: 42px !important;
+          height: 42px !important;
+          padding: 0 !important;
+          border-radius: 14px !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          background: #fff !important;
+          color: #111827 !important;
+          border: 1px solid #e5e7eb !important;
+          box-shadow: 0 8px 18px rgba(15,23,42,.05) !important;
+          font-weight: 1000 !important;
+        }
+        .mobile-topbar-slot {
+          background: transparent !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
+        }
+        .notifications-btn {
+          position: fixed !important;
+          top: 14px !important;
+          right: 14px !important;
+          z-index: 20 !important;
+          width: 42px !important;
+          height: 42px !important;
+          flex-basis: 42px !important;
+          border-radius: 14px !important;
+        }
+        .notifications-btn svg {
+          width: 20px !important;
+          height: 20px !important;
+        }
+        .notifications-badge {
+          top: 8px !important;
+          right: 8px !important;
+        }
+        .products-page-header,
+        .hero-card {
+          margin-bottom: 14px !important;
+          display: block !important;
+        }
+        .page-title {
+          font-size: 24px !important;
+        }
+        .page-subtitle {
+          font-size: 13px !important;
+          max-width: 320px !important;
+        }
+        .hero-actions {
+          width: 100% !important;
+          margin-top: 14px !important;
+        }
+        #new-product-btn {
+          width: 100% !important;
+          min-height: 48px !important;
+        }
+        .editor-head {
+          display: grid !important;
+          gap: 12px !important;
+          margin-bottom: 14px !important;
+        }
+        .editor-title {
+          font-size: 24px !important;
+        }
+        .admin-product-editor-page {
+          grid-template-columns: 1fr !important;
+          gap: 14px !important;
+        }
+        .product-form-grid {
+          grid-template-columns: 1fr !important;
+          gap: 12px !important;
+        }
+        .product-form-grid > .field,
+        .editor-section-heading,
+        .price-offer-card,
+        .variation-manager {
+          border-radius: 16px !important;
+          padding: 14px !important;
+        }
+        .editor-side-column {
+          position: static !important;
+          order: 2 !important;
+        }
+        .editor-preview-card {
+          display: none !important;
+        }
+        .editor-actions-card {
+          position: sticky !important;
+          bottom: 10px !important;
+          z-index: 35 !important;
+          grid-template-columns: 1fr 1fr !important;
+          background: rgba(255,255,255,.96) !important;
+          backdrop-filter: blur(10px) !important;
+        }
+        .editor-actions-card .side-card-kicker,
+        .editor-status-card {
+          display: none !important;
+        }
+        .side-save-btn {
+          grid-column: 1 / -1 !important;
+        }
+        .side-cancel-btn,
+        .side-back-btn {
+          min-height: 42px !important;
+        }
+        .product-upload-dropzone {
+          padding: 16px !important;
+        }
+        .stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 10px !important;
+          margin-bottom: 12px !important;
+        }
+        .stat-card {
+          min-height: 86px !important;
+          padding: 13px 12px 12px 48px !important;
+          border-radius: 14px !important;
+        }
+        .stat-icon {
+          left: 12px !important;
+          top: 16px !important;
+          width: 28px !important;
+          height: 28px !important;
+        }
+        .stat-icon svg {
+          width: 16px !important;
+          height: 16px !important;
+        }
+        .stat-label {
+          font-size: 11px !important;
+          line-height: 1.2 !important;
+        }
+        .stat-value {
+          font-size: 22px !important;
+        }
+        .products-toolbar,
+        .toolbar {
+          grid-template-columns: 1fr !important;
+          gap: 10px !important;
+          padding: 0 !important;
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          margin-bottom: 12px !important;
+        }
+        .products-toolbar > .field:first-child {
+          display: grid !important;
+        }
+        .filters-toggle {
+          display: inline-flex !important;
+          width: 100% !important;
+          min-height: 46px !important;
+          border-radius: 12px !important;
+          background: #fff !important;
+          border-color: #e5e7eb !important;
+          color: #111827 !important;
+          box-shadow: 0 8px 18px rgba(15,23,42,.04) !important;
+        }
+        .filter-field {
+          display: none !important;
+        }
+        #catalog-overview.filters-open .filter-field {
+          display: grid !important;
+        }
+        #catalog-overview.filters-open #refresh-btn.filter-field {
+          display: inline-flex !important;
+        }
+        .field input,
+        .field select {
+          min-height: 46px !important;
+          background: #fff !important;
+        }
+        .products-table-card,
+        .list-card {
+          border-radius: 16px !important;
+          overflow: visible !important;
+        }
+        .list-head {
+          display: none !important;
+        }
+        .products-list {
+          gap: 0 !important;
+        }
+        .product-row {
+          position: relative !important;
+          display: grid !important;
+          grid-template-columns: 48px minmax(0, 1fr) 38px !important;
+          gap: 10px !important;
+          min-height: 82px !important;
+          margin: 0 !important;
+          padding: 12px !important;
+          border: 0 !important;
+          border-bottom: 1px solid #eef2f7 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          align-items: center !important;
+        }
+        .product-row:last-child {
+          border-bottom: 0 !important;
+        }
+        .product-main {
+          display: contents !important;
+        }
+        .product-main > div {
+          min-width: 0 !important;
+          grid-column: 2 !important;
+        }
+        .product-thumb {
+          grid-column: 1 !important;
+          width: 48px !important;
+          height: 48px !important;
+          flex-basis: 48px !important;
+        }
+        .product-title {
+          max-width: 100% !important;
+          font-size: 13px !important;
+          line-height: 1.25 !important;
+          white-space: nowrap !important;
+        }
+        .product-meta,
+        .category-cell,
+        .mini-pill.delivery,
+        .mini-pill.usd,
+        .mini-pill.featured {
+          display: none !important;
+        }
+        .product-badges {
+          margin-top: 6px !important;
+          gap: 5px !important;
+        }
+        .price,
+        .stock,
+        .pill {
+          grid-column: 2 !important;
+          align-self: end !important;
+          font-size: 11px !important;
+          line-height: 1.2 !important;
+        }
+        .price {
+          margin-top: 2px !important;
+          color: #111827 !important;
+        }
+        .stock {
+          color: #6b7280 !important;
+        }
+        .price-offer-admin {
+          flex-direction: row !important;
+          align-items: center !important;
+          gap: 5px !important;
+        }
+        .pill {
+          justify-self: start !important;
+          padding: 4px 7px !important;
+          font-size: 9px !important;
+        }
+        .row-actions {
+          grid-column: 3 !important;
+          grid-row: 1 / span 4 !important;
+          align-self: center !important;
+          justify-self: end !important;
+        }
+        .row-actions .js-product-toggle {
+          display: none !important;
+        }
+        .actions-trigger {
+          width: 36px !important;
+          height: 36px !important;
+          min-width: 36px !important;
+          padding: 0 !important;
+          border-radius: 12px !important;
+        }
+        .actions-menu {
+          right: 0 !important;
+          width: 196px !important;
+        }
+        .product-delete-confirm {
+          grid-column: 1 / -1 !important;
+          margin: 8px 0 0 !important;
+        }
+        .pagination-bar {
+          justify-content: center !important;
+          padding: 12px !important;
+        }
+        .pagination-summary {
+          width: 100% !important;
+          text-align: center !important;
+        }
+      }
+
       </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <div class="app-shell">
-      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
+    <div class="app-shell admin-dashboard-shell">
+      <aside id="admin-sidebar" class="sidebar admin-sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
         <div class="sidebar-inner">
           <div class="brand">
             <span class="brand-logo">PZ</span>
             <div>
               <p class="brand-title">PowerZona</p>
-              <p class="brand-subtitle">Panel administrativo</p>
+              <p class="brand-subtitle">Admin Panel</p>
             </div>
             <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
           </div>
@@ -742,26 +1672,48 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
             <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
+
+          <p class="sidebar-label">Accesos</p>
+          <nav class="nav-list">
+            <a class="nav-item" href={publicStorePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 4.5 10 7-1 2.5-5 7-10 7S3 14.5 2 12c1-2.5 5-7 10-7Zm0 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0-2.2a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6Z"/></svg></span><span>Ver tienda</span></a>
+            <button id="logout-btn" class="nav-item sidebar-action hidden" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 3h9a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-9v-2h8V5h-8V3Zm1.6 5.4L13 7l5 5-5 5-1.4-1.4 2.6-2.6H4v-2h10.2l-2.6-2.6Z"/></svg></span><span>Cerrar sesión</span></button>
+          </nav>
+
+          {masterSupportHref ? (
+            <a class="sidebar-footer" href={masterSupportHref} target="_blank" rel="noreferrer">
+              <strong>{masterSupportLabel}</strong>
+              <span>Soporte Master Admin para Productos. Incluye tienda y slug en el mensaje.</span>
+            </a>
+          ) : (
+            <div class="sidebar-footer" aria-label="Soporte Tu Senda 84 no configurado">
+              <strong>{masterSupportLabel}</strong>
+              <span>Soporte global pendiente de configurar. No se usa el contacto del admin de tienda.</span>
+            </div>
+          )}
         </div>
       </aside>
 
-      <main class="main-wrap">
-        <header class="topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
-          <div class="hero-actions">
-            <a class="action-btn" href={adminCatalogPath}>Categorías</a>
-            <a class="action-btn" href={publicStorePath}>Ver catálogo público</a>
-            <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
-          </div>
+      <main class="main-wrap admin-main">
+        <header class="topbar mobile-topbar">
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰</button>
+          <strong id="mobile-topbar-title">Productos</strong>
+          <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
 
-        <section class="hero-card">
+        <section class="hero-card products-page-header">
           <div>
-            <span class="badge">📦 Productos</span>
-            <h1 class="page-title">Gestión de <span>productos</span></h1>
-            <p id="admin-subtitle" class="page-subtitle">Administra los productos de la tienda, sus precios, stock, imágenes, categorías y visibilidad.</p>
+            <span class="badge">Catálogo</span>
+            <h1 class="page-title">Productos</h1>
+            <p id="admin-subtitle" class="page-subtitle">Gestiona y organiza todos los productos de tu tienda.</p>
           </div>
           <div class="hero-actions">
+            <button id="admin-notifications-btn" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path>
+                <path d="M10 21a2 2 0 0 0 4 0"></path>
+              </svg>
+              <span class="notifications-badge" aria-hidden="true"></span>
+            </button>
             <button id="new-product-btn" class="action-btn dark" type="button">+ Nuevo producto</button>
           </div>
         </section>
@@ -773,17 +1725,46 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 <h2 id="editor-title" class="editor-title">Nuevo producto</h2>
                 <p id="editor-subtitle" class="editor-subtitle">Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.</p>
               </div>
-              <button id="editor-close-btn" class="mini-btn" type="button">Cerrar</button>
+              <button id="editor-close-btn" class="mini-btn" type="button">← Volver a productos</button>
             </div>
             <div class="editor-body">
               <form id="product-form">
                 <input id="product-id" type="hidden" />
                 <input id="product-slug" type="hidden" />
+                <div class="admin-product-editor-page">
+                  <div class="editor-main-column">
                 <div class="product-form-grid">
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Producto</p>
+                    <h3>Información básica</h3>
+                    <span>Completa la información para publicar este producto en tu tienda.</span>
+                  </div>
                   <div class="field full">
                     <label for="product-name">Nombre del producto</label>
                     <input id="product-name" type="text" placeholder="Ej: Nombre del producto" required />
                     <p class="form-help">El slug se genera automáticamente desde este nombre.</p>
+                  </div>
+                  <div class="field">
+                    <label for="product-internal-ref">SKU / Ref interna</label>
+                    <input id="product-internal-ref" type="text" placeholder="Ej: BF-WHEY-5LB" />
+                  </div>
+                  <div class="field">
+                    <label for="product-delivery-mode">Método disponible</label>
+                    <select id="product-delivery-mode" required>
+                      <option value="both">Envío o recogida</option>
+                      <option value="delivery">Solo envío</option>
+                      <option value="pickup">Solo recogida</option>
+                    </select>
+                  </div>
+                  <div class="field full">
+                    <label for="product-description">Descripción</label>
+                    <textarea id="product-description" placeholder="Descripción visible en la ficha del producto"></textarea>
+                  </div>
+
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Organización</p>
+                    <h3>Categoría y organización</h3>
+                    <span>Ubica este producto dentro del catálogo y crea categorías rápidas si hace falta.</span>
                   </div>
                   <div class="field">
                     <label for="product-category">Categoría</label>
@@ -854,7 +1835,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                     <div class="price-offer-card-head">
                       <div>
                         <p class="price-offer-card-title">Precio y oferta</p>
-                        <p class="price-offer-card-subtitle">El Precio USD se bloquea en gris cuando la oferta está activa.</p>
+                        <p class="price-offer-card-subtitle">Activa la oferta para mostrar un precio promocional en tu tienda.</p>
                       </div>
                     </div>
                     <div class="price-offer-grid">
@@ -863,10 +1844,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                         <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required />
                       </div>
                       <div class="field offer-field">
-                        <label class="check-card"><input id="product-is-offer" type="checkbox" /> Oferta</label>
+                        <label class="check-card switch-card"><input id="product-is-offer" type="checkbox" /> Este producto tiene oferta</label>
                         <label for="product-offer-price" style="margin-top:10px;">Precio oferta USD</label>
                         <input id="product-offer-price" type="number" min="0" step="0.01" placeholder="0.00" disabled />
-                        <p id="product-offer-help" class="offer-hint">Activa Oferta y escribe un precio menor al Precio USD.</p>
+                        <p id="product-offer-help" class="offer-hint">Activa la oferta y escribe un precio menor al precio normal.</p>
                       </div>
                     </div>
                   </div>
@@ -874,9 +1855,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                     <label for="product-cost">Costo USD</label>
                     <input id="product-cost" type="number" min="0" step="0.01" placeholder="0.00" />
                   </div>
-                  <div class="field">
-                    <label for="product-internal-ref">Ref interna</label>
-                    <input id="product-internal-ref" type="text" placeholder="Ej: BF-WHEY-5LB" />
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Disponibilidad</p>
+                    <h3>Inventario</h3>
+                    <span>Controla la disponibilidad del producto en tu tienda.</span>
                   </div>
                   <div id="product-stock-field" class="field">
                     <label for="product-stock">Stock</label>
@@ -884,20 +1866,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                     <p id="product-stock-help" class="form-help">Si el producto usa variaciones, el stock real de venta saldrá de las variaciones.</p>
                   </div>
                   <div class="field">
-                    <label for="product-delivery-mode">Método disponible</label>
-                    <select id="product-delivery-mode" required>
-                      <option value="both">Envío o recogida</option>
-                      <option value="delivery">Solo envío</option>
-                      <option value="pickup">Solo recogida</option>
-                    </select>
-                  </div>
-                  <div class="field">
                     <label for="product-expiration-date">Fecha de vencimiento</label>
                     <input id="product-expiration-date" type="date" />
                   </div>
-                  <div class="field full">
-                    <label for="product-description">Descripción</label>
-                    <textarea id="product-description" placeholder="Descripción visible en la ficha del producto"></textarea>
+
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Contenido</p>
+                    <h3>Información adicional</h3>
+                    <span>Agrega detalles, especificaciones o instrucciones para este producto.</span>
                   </div>
                   <div class="field full">
                     <label>Información adicional</label>
@@ -930,6 +1906,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                       </div>
                     </div>
                   </div>
+
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Sugerencias</p>
+                    <h3>Productos relacionados</h3>
+                    <span>Selecciona productos para mostrarlos al final de la ficha pública.</span>
+                  </div>
                   <div class="field full">
                     <label>Productos relacionados</label>
                     <p class="form-help">Selecciona hasta 4 productos sugeridos para mostrar al final de la ficha pública.</p>
@@ -944,10 +1926,27 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                       <div id="related-products-list" class="related-products-list"></div>
                     </div>
                   </div>
+
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Galería</p>
+                    <h3>Imágenes del producto</h3>
+                    <span>Arrastra imágenes aquí o selecciona archivos para preparar la galería.</span>
+                  </div>
                   <div class="field full">
-                    <label>Fotos del producto</label>
-                    <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px. Usa hasta 4 espacios; la primera foto es la portada.</p>
+                    <label>Imágenes del producto</label>
+                    <div class="product-upload-dropzone">
+                      <strong>Arrastra imágenes aquí o selecciona archivos</strong>
+                      <span>Usa hasta 4 espacios; la primera foto es la portada.</span>
+                      <em>Seleccionar archivos desde las miniaturas</em>
+                    </div>
+                    <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
                     <div id="product-image-slots" class="product-image-slots"></div>
+                  </div>
+
+                  <div class="editor-section-heading full">
+                    <p class="editor-section-kicker">Estado</p>
+                    <h3>Estado del producto</h3>
+                    <span>Define visibilidad, stock descontable y opciones públicas.</span>
                   </div>
                   <div class="field full">
                     <label>Opciones</label>
@@ -1039,6 +2038,31 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                     <div class="variation-empty">Abre un producto existente para ver sus variaciones.</div>
                   </div>
                 </section>
+                  </div>
+                  <aside class="editor-side-column" aria-label="Resumen del producto">
+                    <div class="editor-preview-card">
+                      <p class="side-card-kicker">Vista previa</p>
+                      <div class="preview-thumb">PZ</div>
+                      <strong id="editor-preview-name">Nombre del producto</strong>
+                      <span id="editor-preview-price">0.00 USD</span>
+                      <small>Así se verá en tu catálogo.</small>
+                    </div>
+                    <div class="editor-status-card">
+                      <p class="side-card-kicker">Estado del producto</p>
+                      <div class="editor-status-chips">
+                        <span id="editor-preview-visibility" class="mini-pill delivery">Visible</span>
+                        <span id="editor-preview-stock" class="mini-pill featured">Con stock</span>
+                        <span id="editor-preview-offer" class="mini-pill">Sin oferta</span>
+                      </div>
+                    </div>
+                    <div class="editor-actions-card">
+                      <p class="side-card-kicker">Acciones</p>
+                      <button id="editor-side-save-btn" class="submit-btn side-save-btn" type="button">Guardar producto</button>
+                      <button id="editor-side-cancel-btn" class="mini-btn side-cancel-btn" type="button">Cancelar</button>
+                      <button id="editor-side-back-btn" class="mini-btn side-back-btn" type="button">← Volver a productos</button>
+                    </div>
+                  </aside>
+                </div>
                 <div id="product-form-alert" class="alert alert-info hidden"></div>
                 <div id="duplicate-product-toast" class="duplicate-toast hidden" role="status" aria-live="polite">
                   <span class="duplicate-toast-icon">!</span>
@@ -1062,30 +2086,74 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
           <div id="catalog-overview">
             <div class="stats-grid">
-              <article class="stat-card"><p class="stat-label">Productos totales</p><p id="stat-total" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Visibles</p><p id="stat-visible" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Ocultos</p><p id="stat-hidden" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Stock total</p><p id="stat-stock" class="stat-value">0</p></article>
+              <article class="stat-card stat-total-card">
+                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8.5 12 4 3 8.5l9 4.5 9-4.5Z"></path><path d="M3 8.5V16l9 4 9-4V8.5"></path><path d="M12 13v7"></path></svg></span>
+                <p class="stat-label">Total productos</p>
+                <p id="stat-total" class="stat-value">0</p>
+              </article>
+              <article class="stat-card ok stat-active-card">
+                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path><path d="m8.5 12.5 2.2 2.2 4.8-5.4"></path></svg></span>
+                <p class="stat-label">Activos</p>
+                <p id="stat-visible" class="stat-value">0</p>
+              </article>
+              <article class="stat-card warn stat-stock-card">
+                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8.5 12 4 3 8.5l9 4.5 9-4.5Z"></path><path d="M3 8.5V16l9 4 9-4V8.5"></path><path d="M12 13v3"></path><path d="M12 18h.01"></path></svg></span>
+                <p class="stat-label">Sin stock</p>
+                <p id="stat-stockout" class="stat-value">0</p>
+              </article>
+              <article class="stat-card muted stat-hidden-card">
+                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Z"></path><path d="M7 8h10"></path><path d="M7 12h7"></path><path d="M7 16h5"></path></svg></span>
+                <p class="stat-label">Ocultos</p>
+                <p id="stat-hidden" class="stat-value">0</p>
+              </article>
             </div>
 
-            <section class="panel-card toolbar">
+            <section class="panel-card toolbar products-toolbar">
               <div class="field">
                 <label for="search-input">Buscar producto</label>
                 <input id="search-input" type="search" placeholder="Nombre, ref interna, slug o categoría" />
               </div>
-              <div class="field">
+              <button id="filters-toggle-btn" class="action-btn filters-toggle" type="button" aria-expanded="false">Filtros</button>
+              <div class="field filter-field">
                 <label for="category-filter">Categoría</label>
                 <select id="category-filter"><option value="">Todas</option></select>
               </div>
-              <div class="field">
+              <div class="field filter-field">
                 <label for="subcategory-filter">Subcategoría</label>
                 <select id="subcategory-filter"><option value="">Todas</option></select>
               </div>
-              <button id="refresh-btn" class="action-btn" type="button">Actualizar</button>
+              <div class="field filter-field">
+                <label for="status-filter">Estado</label>
+                <select id="status-filter">
+                  <option value="">Todos</option>
+                  <option value="active">Activos</option>
+                  <option value="hidden">Ocultos</option>
+                  <option value="offer">Con oferta</option>
+                  <option value="variations">Con variaciones</option>
+                </select>
+              </div>
+              <div class="field filter-field">
+                <label for="stock-filter">Stock</label>
+                <select id="stock-filter">
+                  <option value="">Todos</option>
+                  <option value="in-stock">En stock</option>
+                  <option value="out-stock">Sin stock</option>
+                </select>
+              </div>
+              <button id="refresh-btn" class="action-btn filter-field" type="button">Actualizar</button>
             </section>
 
-            <section class="list-card">
+            <section class="list-card products-table-card">
+              <div class="list-head" aria-hidden="true">
+                <span>Producto</span>
+                <span>Categoría</span>
+                <span>Precio</span>
+                <span>Stock</span>
+                <span>Estado</span>
+                <span>Acciones</span>
+              </div>
               <div id="products-list" class="products-list"><div class="empty-state">Cargando productos...</div></div>
+              <div id="products-pagination" class="pagination-bar hidden"></div>
             </section>
           </div>
         </section>
@@ -1114,12 +2182,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       </div>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, currentStoreName, currentStoreSlug }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const TRACK_STOCK_FIELD = 'track_stock';
+      const PRODUCT_PAGE_SIZE = 7;
 
       let categories = [];
       let subcategories = [];
@@ -1131,6 +2200,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       let pendingVariationProductId = "";
       let pendingDeleteProductId = "";
       let pendingSoldoutProductId = "";
+      let currentProductPage = 1;
 
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -1145,6 +2215,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       const searchInput = document.getElementById('search-input');
       const categoryFilter = document.getElementById('category-filter');
       const subcategoryFilter = document.getElementById('subcategory-filter');
+      const statusFilter = document.getElementById('status-filter');
+      const stockFilter = document.getElementById('stock-filter');
+      const productsPagination = document.getElementById('products-pagination');
+      const filtersToggleBtn = document.getElementById('filters-toggle-btn');
       const productEditor = document.getElementById('product-editor');
       const productForm = document.getElementById('product-form');
       const productIdInput = document.getElementById('product-id');
@@ -1198,9 +2272,18 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       let duplicateProductToastTimer = null;
       const editorTitle = document.getElementById('editor-title');
       const editorSubtitle = document.getElementById('editor-subtitle');
+      const mobileTopbarTitle = document.getElementById('mobile-topbar-title');
       const editorCloseBtn = document.getElementById('editor-close-btn');
       const productCancelBtn = document.getElementById('product-cancel-btn');
       const productSaveBtn = document.getElementById('product-save-btn');
+      const editorSideSaveBtn = document.getElementById('editor-side-save-btn');
+      const editorSideCancelBtn = document.getElementById('editor-side-cancel-btn');
+      const editorSideBackBtn = document.getElementById('editor-side-back-btn');
+      const editorPreviewName = document.getElementById('editor-preview-name');
+      const editorPreviewPrice = document.getElementById('editor-preview-price');
+      const editorPreviewVisibility = document.getElementById('editor-preview-visibility');
+      const editorPreviewStock = document.getElementById('editor-preview-stock');
+      const editorPreviewOffer = document.getElementById('editor-preview-offer');
       const postSaveVariationPrompt = document.getElementById('post-save-variation-prompt');
       const postSaveVariationYesBtn = document.getElementById('post-save-variation-yes');
       const postSaveVariationNoBtn = document.getElementById('post-save-variation-no');
@@ -1278,6 +2361,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSidebar));
+      if (window.matchMedia('(min-width: 1121px)').matches) sidebar?.setAttribute('aria-hidden', 'false');
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.body.classList.contains('sidebar-open')) closeSidebar();
+      });
+      filtersToggleBtn?.addEventListener('click', () => {
+        const isOpen = catalogOverview?.classList.toggle('filters-open');
+        filtersToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
 
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
@@ -1723,11 +2814,37 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const missingStock = trackStock && !useVariations && !hasValidStock;
         const invalidOffer = offerState.enabled && !offerState.valid;
         productSaveBtn.disabled = missingName || missingStock || invalidOffer;
+        updateEditorPreview();
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
           else if (missingStock) setFormAlert('Este producto descuenta stock. Escribe un stock válido.', 'info');
           else if (invalidOffer) setFormAlert('El precio de oferta debe ser menor que el Precio USD.', 'info');
           else setFormAlert('');
+        }
+      }
+
+      function updateEditorPreview() {
+        if (!editorPreviewName || !editorPreviewPrice) return;
+        const name = productNameInput?.value?.trim() || 'Nombre del producto';
+        const offerState = getValidOfferState();
+        const priceValue = offerState.valid ? offerState.offerPrice : readRegularPriceInput();
+        const stockNumber = Number(productStockInput?.value || 0);
+        editorPreviewName.textContent = name;
+        editorPreviewPrice.textContent = formatUsd(priceValue);
+        if (editorPreviewVisibility) {
+          const visible = productActiveInput?.checked !== false;
+          editorPreviewVisibility.textContent = visible ? 'Visible' : 'Oculto';
+          editorPreviewVisibility.className = `mini-pill ${visible ? 'delivery' : 'danger'}`;
+        }
+        if (editorPreviewStock) {
+          const tracksStock = productTrackStockInput?.checked !== false;
+          const hasStock = !tracksStock || stockNumber > 0;
+          editorPreviewStock.textContent = hasStock ? 'Con stock' : 'Sin stock';
+          editorPreviewStock.className = `mini-pill ${hasStock ? 'featured' : 'danger'}`;
+        }
+        if (editorPreviewOffer) {
+          editorPreviewOffer.textContent = offerState.enabled ? 'Con oferta' : 'Sin oferta';
+          editorPreviewOffer.className = `mini-pill ${offerState.enabled ? 'danger' : ''}`;
         }
       }
 
@@ -2040,11 +3157,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         hidePostSaveVariationPrompt();
         resetQuickCreatePanels();
         resetVariationState();
+        if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Productos';
       }
       function openNewProductEditor() {
         resetProductForm();
         editorTitle.textContent = 'Nuevo producto';
-        editorSubtitle.textContent = 'Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.';
+        editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
+        if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Nuevo producto';
         if (productHasVariationsOption) productHasVariationsOption.classList.add('hidden');
         productEditor.classList.remove('hidden');
         setCatalogOverviewVisible(false);
@@ -2057,7 +3176,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         if (!product) return;
         resetProductForm();
         editorTitle.textContent = 'Editar producto';
-        editorSubtitle.textContent = `Editando: ${product.name || 'Producto sin nombre'}`;
+        editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
+        if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Editar producto';
         productIdInput.value = product.id;
         productNameInput.value = product.name || '';
         productSlugInput.value = product.slug || '';
@@ -2601,16 +3721,26 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         categoryFilter.innerHTML = '<option value="">Todas</option>' + categories.map((item) => `<option value="${item.id}">${escapeHtml(item.name || 'Sin nombre')}</option>`).join('');
         updateSubcategoryOptions();
       }
-      function renderStats(filteredProducts) {
-        document.getElementById('stat-total').textContent = String(filteredProducts.length);
-        document.getElementById('stat-visible').textContent = String(filteredProducts.filter(productIsPublicVisible).length);
-        document.getElementById('stat-hidden').textContent = String(filteredProducts.filter((item) => !productIsPublicVisible(item)).length);
-        document.getElementById('stat-stock').textContent = String(filteredProducts.reduce((total, item) => total + Number(item.stock || 0), 0));
+      function resetProductPage() {
+        currentProductPage = 1;
+      }
+      function productHasActiveOffer(product) {
+        const activePriceUsd = Number(product.base_price_usd || 0);
+        const regularPriceUsd = Number(product.regular_price_usd || 0);
+        return Boolean(product.is_offer) && regularPriceUsd > activePriceUsd && activePriceUsd > 0;
+      }
+      function renderStats(sourceProducts = products) {
+        document.getElementById('stat-total').textContent = String(sourceProducts.length);
+        document.getElementById('stat-visible').textContent = String(sourceProducts.filter(productIsPublicVisible).length);
+        document.getElementById('stat-hidden').textContent = String(sourceProducts.filter((item) => !productIsPublicVisible(item)).length);
+        document.getElementById('stat-stockout').textContent = String(sourceProducts.filter((item) => productTracksStock(item) && Number(item.stock || 0) <= 0).length);
       }
       function getFilteredProducts() {
         const term = searchInput.value.trim().toLowerCase();
         const categoryId = categoryFilter.value;
         const subcategoryId = subcategoryFilter.value;
+        const status = statusFilter?.value || '';
+        const stockStatus = stockFilter?.value || '';
         return products.filter((product) => {
           const category = getCategory(product.category);
           const subcategory = getSubcategory(product.subcategory);
@@ -2618,6 +3748,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           if (term && !searchable.includes(term)) return false;
           if (categoryId && product.category !== categoryId) return false;
           if (subcategoryId && product.subcategory !== subcategoryId) return false;
+          if (status === 'active' && !productIsPublicVisible(product)) return false;
+          if (status === 'hidden' && productIsPublicVisible(product)) return false;
+          if (status === 'offer' && !productHasActiveOffer(product)) return false;
+          if (status === 'variations' && !product.has_variations) return false;
+          if (stockStatus === 'in-stock' && productTracksStock(product) && Number(product.stock || 0) <= 0) return false;
+          if (stockStatus === 'out-stock' && (!productTracksStock(product) || Number(product.stock || 0) > 0)) return false;
           return true;
         });
       }
@@ -2644,34 +3780,61 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           menu.classList.add('open-up');
         }
       }
+      function renderProductPagination(totalItems, fromItem, toItem, totalPages) {
+        if (!productsPagination) return;
+        if (!totalItems) {
+          productsPagination.classList.add('hidden');
+          productsPagination.innerHTML = '';
+          return;
+        }
+        const pageButtons = Array.from({ length: totalPages }, (_, index) => {
+          const page = index + 1;
+          return `<button class="page-btn ${page === currentProductPage ? 'is-active' : ''}" type="button" data-page="${page}" aria-label="Ir a pagina ${page}">${page}</button>`;
+        }).join('');
+        productsPagination.classList.remove('hidden');
+        productsPagination.innerHTML = `
+          <p class="pagination-summary">Mostrando ${fromItem} a ${toItem} de ${totalItems} productos</p>
+          <div class="pagination-actions">
+            <button class="page-btn" type="button" data-page="prev" ${currentProductPage <= 1 ? 'disabled' : ''}>Anterior</button>
+            ${pageButtons}
+            <button class="page-btn" type="button" data-page="next" ${currentProductPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+          </div>
+        `;
+      }
       function renderProducts() {
         closeProductActionMenus();
         const filtered = getFilteredProducts();
-        renderStats(filtered);
+        renderStats(products);
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCT_PAGE_SIZE));
+        currentProductPage = Math.min(Math.max(1, currentProductPage), totalPages);
+        const startIndex = (currentProductPage - 1) * PRODUCT_PAGE_SIZE;
+        const visibleProducts = filtered.slice(startIndex, startIndex + PRODUCT_PAGE_SIZE);
         if (!filtered.length) {
           productsList.innerHTML = '<div class="empty-state">No hay productos para este filtro.</div>';
+          renderProductPagination(0, 0, 0, totalPages);
           return;
         }
-        productsList.innerHTML = filtered.map((product) => {
+        productsList.innerHTML = visibleProducts.map((product) => {
           const category = getCategory(product.category);
           const subcategory = getSubcategory(product.subcategory);
           const visible = productIsPublicVisible(product);
           const stockNumber = Number(product.stock || 0);
           const allowPreorder = Boolean(product.allow_preorder);
           const isOutOfStock = stockNumber <= 0;
-          const locationText = subcategory ? `${category?.name || 'Sin categoría'} › ${subcategory.name}` : (category ? `${category.name} › Producto directo` : 'Sin categoría · Página principal');
-          const refText = product.internal_ref ? ` · Ref: ${product.internal_ref}` : '';
+          const categoryText = category?.name || 'Sin categoria';
+          const subcategoryText = subcategory?.name || (category ? 'Producto directo' : 'Pagina principal');
+          const refText = product.internal_ref ? `Ref: ${product.internal_ref}` : '';
           const trackStock = productTracksStock(product);
           const activePriceUsd = Number(product.base_price_usd || 0);
           const regularPriceUsd = Number(product.regular_price_usd || 0);
-          const hasActiveOffer = Boolean(product.is_offer) && regularPriceUsd > activePriceUsd && activePriceUsd > 0;
+          const hasActiveOffer = productHasActiveOffer(product);
           return `
             <article class="product-row" data-product-id="${product.id}">
               <div class="product-main">
-                ${productImageMarkup(product)}
+                  ${productImageMarkup(product)}
                 <div>
                   <p class="product-title js-product-open" role="button" tabindex="0" title="Editar producto">${escapeHtml(product.name || 'Producto sin nombre')}</p>
-                  <p class="product-meta">${escapeHtml(locationText + refText)}</p>
+                  <p class="product-meta">${escapeHtml([product.slug, refText].filter(Boolean).join(' · '))}</p>
                   <div class="product-badges">
                     ${product.featured ? '<span class="mini-pill featured">Destacado</span>' : ''}
                     ${hasActiveOffer ? '<span class="mini-pill danger">Oferta</span>' : ''}
@@ -2682,9 +3845,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                   </div>
                 </div>
               </div>
-              <span class="pill ${visible ? 'pill-visible' : 'pill-hidden'}">${visible ? 'Visible' : 'Oculto'}</span>
+              <span class="category-cell"><span class="category-name">${escapeHtml(categoryText)}</span><span class="category-sub">${escapeHtml(subcategoryText)}</span></span>
               <span class="price">${hasActiveOffer ? `<span class="price-offer-admin"><span class="old">${escapeHtml(formatUsd(regularPriceUsd))}</span><span class="new">${escapeHtml(formatUsd(activePriceUsd))}</span></span>` : escapeHtml(formatUsd(activePriceUsd))}</span>
               <span class="stock">${trackStock ? `Stock: ${stockNumber}${isOutOfStock ? (allowPreorder ? ' · Preorder' : ' · Agotado') : ''}` : 'Sin stock descontable'}</span>
+              <span class="pill ${visible ? 'pill-visible' : 'pill-hidden'}">${visible ? 'Visible' : 'Oculto'}</span>
               <div class="row-actions">
                 <button class="mini-btn js-product-toggle" type="button">${product.active ? 'Ocultar' : 'Activar'}</button>
                 <div class="actions-wrap">
@@ -2719,6 +3883,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             </article>
           `;
         }).join('');
+        renderProductPagination(filtered.length, startIndex + 1, Math.min(startIndex + visibleProducts.length, filtered.length), totalPages);
       }
       async function loadProducts({ openFromUrl = false } = {}) {
         if (refreshBtn) refreshBtn.disabled = true;
@@ -2757,16 +3922,46 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       relatedProductsModal?.addEventListener('click', (event) => {
         if (event.target === relatedProductsModal) closeRelatedProductsModal();
       });
-      searchInput?.addEventListener('input', renderProducts);
+      searchInput?.addEventListener('input', () => {
+        resetProductPage();
+        renderProducts();
+      });
       categoryFilter?.addEventListener('change', () => {
         updateSubcategoryOptions();
         subcategoryFilter.value = '';
+        resetProductPage();
         renderProducts();
       });
-      subcategoryFilter?.addEventListener('change', renderProducts);
+      subcategoryFilter?.addEventListener('change', () => {
+        resetProductPage();
+        renderProducts();
+      });
+      statusFilter?.addEventListener('change', () => {
+        resetProductPage();
+        renderProducts();
+      });
+      stockFilter?.addEventListener('change', () => {
+        resetProductPage();
+        renderProducts();
+      });
+      productsPagination?.addEventListener('click', (event) => {
+        const button = event.target.closest('.page-btn');
+        if (!button || button.disabled) return;
+        const page = button.dataset.page;
+        const filtered = getFilteredProducts();
+        const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCT_PAGE_SIZE));
+        if (page === 'prev') currentProductPage -= 1;
+        else if (page === 'next') currentProductPage += 1;
+        else currentProductPage = Number(page || 1);
+        currentProductPage = Math.min(Math.max(1, currentProductPage), totalPages);
+        renderProducts();
+      });
       newProductBtn?.addEventListener('click', openNewProductEditor);
       editorCloseBtn?.addEventListener('click', closeProductEditor);
       productCancelBtn?.addEventListener('click', closeProductEditor);
+      editorSideSaveBtn?.addEventListener('click', () => productSaveBtn?.click());
+      editorSideCancelBtn?.addEventListener('click', closeProductEditor);
+      editorSideBackBtn?.addEventListener('click', closeProductEditor);
       productNameInput?.addEventListener('input', () => {
         productSlugInput.value = slugify(productNameInput.value);
         updateProductFormState();
@@ -2782,6 +3977,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       productOfferPriceInput?.addEventListener('input', () => updateProductFormState());
       productStockInput?.addEventListener('input', () => updateProductFormState());
       productTrackStockInput?.addEventListener('change', () => updateProductFormState({ showMessage: true }));
+      productActiveInput?.addEventListener('change', updateEditorPreview);
       productVariationViewInput?.addEventListener('change', () => updateProductFormState());
       productHasVariationsInput?.addEventListener('change', () => {
         updateProductFormState({ showMessage: true });
