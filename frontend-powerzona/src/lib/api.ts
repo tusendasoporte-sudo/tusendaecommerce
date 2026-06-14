@@ -7,6 +7,23 @@ type StoreQueryOptions = {
 
 type StoreQueryInput = string | StoreQueryOptions | undefined;
 
+export type ReviewSummary = {
+  average: number;
+  roundedAverage: number;
+  count: number;
+  distribution: { 1: number; 2: number; 3: number; 4: number; 5: number };
+};
+
+export type PublicReviewPayload = {
+  type: 'store' | 'product';
+  product?: string;
+  rating: number;
+  customer_name: string;
+  customer_contact?: string;
+  comment?: string;
+  source: 'public_store' | 'public_product';
+};
+
 function escapePocketBaseValue(value: string) {
   return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
@@ -235,6 +252,204 @@ export async function getAutomaticPromotions(options?: StoreQueryInput) {
   } catch (error) {
     console.warn('automatic_promotions no disponible todavÃ­a. Reinicia PocketBase para aplicar la migraciÃ³n.', error);
     return [];
+  }
+}
+
+function emptyReviewSummary(): ReviewSummary {
+  return {
+    average: 0,
+    roundedAverage: 0,
+    count: 0,
+    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+  };
+}
+
+function buildReviewSummary(reviews: any[]): ReviewSummary {
+  const summary = emptyReviewSummary();
+
+  reviews.forEach((review) => {
+    const rating = Number(review.rating);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return;
+    summary.count += 1;
+    summary.distribution[rating as 1 | 2 | 3 | 4 | 5] += 1;
+    summary.average += rating;
+  });
+
+  if (!summary.count) return summary;
+
+  summary.average = Number((summary.average / summary.count).toFixed(2));
+  summary.roundedAverage = Math.round(summary.average);
+  return summary;
+}
+
+function emptyProductReviewSummaries(productIds: string[]) {
+  return productIds.reduce<Record<string, ReviewSummary>>((acc, productId) => {
+    acc[productId] = emptyReviewSummary();
+    return acc;
+  }, {});
+}
+
+function isReviewsCollectionMissing(error: any) {
+  const status = error?.status;
+  const message = String(error?.message || error?.data?.message || '').toLowerCase();
+  return status === 404 || message.includes('reviews') || message.includes('collection');
+}
+
+function clampReviewLimit(limit: number) {
+  const parsed = Number(limit);
+  if (!Number.isFinite(parsed)) return 8;
+  return Math.max(1, Math.min(50, Math.floor(parsed)));
+}
+
+async function getApprovedReviews(baseFilter: string, options?: StoreQueryInput, queryOptions: Record<string, any> = {}) {
+  try {
+    return await pb.collection('reviews').getFullList({
+      filter: await storeFilter(`status = "approved" && ${baseFilter}`, options),
+      ...queryOptions,
+    });
+  } catch (error) {
+    if (isReviewsCollectionMissing(error)) return [];
+    console.warn('reviews no disponible todavia. Aplica la migracion de resenas para habilitar ratings.', error);
+    return [];
+  }
+}
+
+export async function getStoreReviewSummary(options?: StoreQueryInput): Promise<ReviewSummary> {
+  const reviews = await getApprovedReviews('type = "store"', options, {
+    fields: 'id,rating',
+  });
+  return buildReviewSummary(reviews);
+}
+
+export async function getStoreReviews(options?: StoreQueryInput, limit = 8) {
+  return await getApprovedReviews('type = "store"', options, {
+    sort: '-featured,-created',
+    perPage: clampReviewLimit(limit),
+  });
+}
+
+export async function getProductReviewSummary(productId: string, options?: StoreQueryInput): Promise<ReviewSummary> {
+  if (!productId) return emptyReviewSummary();
+
+  const productFilter = `type = "product" && product = "${escapePocketBaseValue(productId)}"`;
+  const reviews = await getApprovedReviews(productFilter, options, {
+    fields: 'id,rating',
+  });
+  return buildReviewSummary(reviews);
+}
+
+export async function getProductReviewSummaries(productIds: string[], options?: StoreQueryInput) {
+  const uniqueProductIds = Array.from(new Set((productIds || []).filter(Boolean).map(String)));
+  const summaries = emptyProductReviewSummaries(uniqueProductIds);
+
+  if (!uniqueProductIds.length) return summaries;
+
+  const productFilter = uniqueProductIds
+    .map((productId) => `product = "${escapePocketBaseValue(productId)}"`)
+    .join(' || ');
+  const reviews = await getApprovedReviews(`type = "product" && (${productFilter})`, options, {
+    fields: 'id,product,rating',
+  });
+
+  const grouped = reviews.reduce<Record<string, any[]>>((acc, review: any) => {
+    if (!review.product || !summaries[review.product]) return acc;
+    acc[review.product] = acc[review.product] || [];
+    acc[review.product].push(review);
+    return acc;
+  }, {});
+
+  uniqueProductIds.forEach((productId) => {
+    summaries[productId] = buildReviewSummary(grouped[productId] || []);
+  });
+
+  return summaries;
+}
+
+export async function getProductReviews(productId: string, options?: StoreQueryInput, limit = 8) {
+  if (!productId) return [];
+
+  return await getApprovedReviews(`type = "product" && product = "${escapePocketBaseValue(productId)}"`, options, {
+    sort: '-featured,-created',
+    perPage: clampReviewLimit(limit),
+  });
+}
+
+function validatePublicReviewPayload(payload: PublicReviewPayload & Record<string, any>) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('La resena no tiene datos validos.');
+  }
+
+  if (payload.status && payload.status !== 'pending') {
+    throw new Error('Las resenas publicas solo pueden crearse como pending.');
+  }
+  if ('approved' in payload || 'approved_at' in payload || 'admin_note' in payload || 'featured' in payload) {
+    throw new Error('La resena publica contiene campos administrativos no permitidos.');
+  }
+  if (payload.verified_purchase === true) {
+    throw new Error('Una resena publica normal no puede marcarse como compra verificada.');
+  }
+  if (payload.type !== 'store' && payload.type !== 'product') {
+    throw new Error('El tipo de resena debe ser store o product.');
+  }
+  if (payload.source !== 'public_store' && payload.source !== 'public_product') {
+    throw new Error('El origen de la resena publica no es valido.');
+  }
+  if (payload.type === 'store' && payload.source !== 'public_store') {
+    throw new Error('Las resenas de tienda deben usar source public_store.');
+  }
+  if (payload.type === 'product' && payload.source !== 'public_product') {
+    throw new Error('Las resenas de producto deben usar source public_product.');
+  }
+  if (payload.type === 'product' && !payload.product) {
+    throw new Error('Las resenas de producto requieren product.');
+  }
+
+  const rating = Number(payload.rating);
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    throw new Error('El rating debe ser un numero entero entre 1 y 5.');
+  }
+  if (!String(payload.customer_name || '').trim()) {
+    throw new Error('El nombre del cliente es obligatorio.');
+  }
+  if (payload.comment && String(payload.comment).length > 1200) {
+    throw new Error('El comentario no puede superar 1200 caracteres.');
+  }
+}
+
+function isMissingCustomerContactField(error: any) {
+  const text = JSON.stringify(error?.data || error || {}).toLowerCase();
+  return text.includes('customer_contact') && (text.includes('unknown') || text.includes('invalid') || text.includes('field'));
+}
+
+export async function createPublicReview(payload: PublicReviewPayload, options?: StoreQueryInput) {
+  validatePublicReviewPayload(payload as PublicReviewPayload & Record<string, any>);
+
+  const storeId = await resolveStoreId(options);
+  const reviewData: Record<string, any> = {
+    type: payload.type,
+    rating: Number(payload.rating),
+    customer_name: String(payload.customer_name).trim(),
+    comment: payload.comment ? String(payload.comment).slice(0, 1200) : '',
+    source: payload.source,
+    status: 'pending',
+    verified_purchase: false,
+    featured: false,
+    store: storeId,
+  };
+
+  if (payload.type === 'product') {
+    reviewData.product = payload.product;
+  }
+  if (payload.customer_contact) {
+    reviewData.customer_contact = String(payload.customer_contact).trim();
+  }
+
+  try {
+    return await pb.collection('reviews').create(reviewData);
+  } catch (error) {
+    if (!reviewData.customer_contact || !isMissingCustomerContactField(error)) throw error;
+    delete reviewData.customer_contact;
+    return await pb.collection('reviews').create(reviewData);
   }
 }
 

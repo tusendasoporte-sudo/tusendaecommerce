@@ -775,6 +775,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
                     <button id="whatsapp-order-btn" class="btn btn-secondary whatsapp-contact-btn" type="button">🟢 Contactar cliente</button>
                     <button id="print-order-btn" class="btn btn-secondary" type="button">Imprimir pedido</button>
                     <button id="mark-delivered-btn" class="btn btn-secondary" type="button">Marcar entregada</button>
+                    <button id="request-review-btn" class="btn btn-secondary" type="button">Pedir reseña</button>
                     <button id="delete-cancelled-order-btn" class="btn btn-danger hidden" type="button">Eliminar pedido</button>
                   </div>
 
@@ -807,13 +808,14 @@ const isOrderDetailPage = Boolean(initialOrderId);
       )}
     </main>
 
-    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, adminOrdersPath, initialOrderId, isOrderDetailPage }}>
+    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, adminOrdersPath, initialOrderId, isOrderDetailPage, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
       const INITIAL_ORDER_ID = String(initialOrderId || '');
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
+      const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
       const adminView = document.getElementById('admin-view');
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -893,6 +895,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const whatsappOrderBtn = document.getElementById('whatsapp-order-btn');
       const printOrderBtn = document.getElementById('print-order-btn');
       const markDeliveredBtn = document.getElementById('mark-delivered-btn');
+      const requestReviewBtn = document.getElementById('request-review-btn');
       const deleteCancelledOrderBtn = document.getElementById('delete-cancelled-order-btn');
       const floatingDeleteOrderBtn = document.getElementById('floating-delete-order-btn');
       const closeDetailBtn = document.getElementById('close-detail-btn');
@@ -915,6 +918,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       let orderAutoSaveRunning = false;
       let orderAutoSavePending = false;
       let pendingOrderDeleteAction = null;
+      let storeSettingsRecord = null;
       const cleanupOrdersOpenBtnOriginalHtml = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.innerHTML : '';
       const cleanupOrdersOpenBtnOriginalClass = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.className : '';
 
@@ -928,6 +932,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
       };
       const deliveryLabels = { delivery: 'Envío', pickup: 'Recogida', coordinate: 'Coordinar' };
 
+      const DEFAULT_REVIEW_WHATSAPP_MESSAGE = 'Hola {cliente}, gracias por comprar en {tienda}. Nos ayudas dejando tu rese\u00f1a de la orden {numero_orden} aqu\u00ed: {link_rese\u00f1a}';
+
       function escapePocketBaseFilterValue(value) {
         return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       }
@@ -939,6 +945,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
         const existing = query.get('filter');
         query.set('filter', existing ? `(${existing}) && ${storeFilter}` : storeFilter);
         return query.toString();
+      }
+
+      function hasValue(value) {
+        return value !== null && value !== undefined && String(value).trim() !== '';
       }
 
       function getOrderDetailPath(orderId) {
@@ -1171,6 +1181,19 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (!response.ok) throw new Error(result?.message || 'Error de comunicacion con la plataforma.');
         return result;
       }
+
+      async function loadStoreSettings() {
+        try {
+          const result = await apiRequest(`/api/collections/settings/records?${withStoreFilter('filter=active=true&sort=-updated&perPage=1')}`);
+          storeSettingsRecord = result.items?.[0] || null;
+        } catch (error) {
+          console.error('No se pudieron cargar los ajustes de reseñas.', error);
+          storeSettingsRecord = null;
+        } finally {
+          updateReviewRequestButtonState();
+        }
+      }
+
       async function loadOrders() {
         ordersList.innerHTML = '<div class="empty-state">Cargando órdenes...</div>';
         refreshBtn.disabled = true;
@@ -1885,6 +1908,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         floatingDeleteOrderBtn?.classList.add('hidden');
         detailActionsArea?.classList.add('hidden');
         renderDetailCoupon(null);
+        updateReviewRequestButtonState();
         setAddProductPanel(false);
         setEditOrderPanel(false);
         renderOrders();
@@ -2040,6 +2064,57 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (locked && editOrderPanel) editOrderPanel.classList.add('hidden');
       }
 
+      function getReviewRequestDelayHours() {
+        const hours = Number(storeSettingsRecord?.review_request_delay_hours);
+        return Number.isFinite(hours) && hours >= 0 ? hours : 24;
+      }
+
+      function getDeliveredAtDate(order) {
+        if (!hasValue(order?.delivered_at)) return null;
+        const deliveredAt = new Date(order.delivered_at);
+        return Number.isNaN(deliveredAt.getTime()) ? null : deliveredAt;
+      }
+
+      function isReviewDelayReady(order) {
+        const deliveredAt = getDeliveredAtDate(order);
+        if (!deliveredAt) return false;
+        const delayMs = getReviewRequestDelayHours() * 60 * 60 * 1000;
+        return Date.now() - deliveredAt.getTime() >= delayMs;
+      }
+
+      function updateReviewRequestButtonState() {
+        if (!requestReviewBtn) return;
+        requestReviewBtn.classList.remove('hidden');
+        requestReviewBtn.disabled = true;
+        requestReviewBtn.textContent = 'Pedir reseña';
+        if (!selectedOrder) return;
+
+        const currentStatus = normalizeStatus(selectedOrder.status);
+        if (currentStatus !== 'delivered') {
+          requestReviewBtn.textContent = 'Pedir reseña';
+          return;
+        }
+        if (hasValue(selectedOrder.review_completed_at)) {
+          requestReviewBtn.textContent = 'Reseña recibida';
+          return;
+        }
+        if (hasValue(selectedOrder.review_skipped_at)) {
+          requestReviewBtn.textContent = 'Reseña ignorada';
+          return;
+        }
+        if (!getDeliveredAtDate(selectedOrder)) {
+          requestReviewBtn.textContent = 'Falta fecha de entrega';
+          return;
+        }
+        if (!hasValue(selectedOrder.review_requested_at) && !isReviewDelayReady(selectedOrder)) {
+          requestReviewBtn.textContent = 'Reseña disponible luego';
+          return;
+        }
+
+        requestReviewBtn.disabled = false;
+        requestReviewBtn.textContent = hasValue(selectedOrder.review_requested_at) ? 'Reenviar reseña' : 'Pedir reseña';
+      }
+
       function updateStatusControlsState() {
         if (!selectedOrder || !detailStatus) return;
         const currentStatus = normalizeStatus(selectedOrder.status);
@@ -2051,6 +2126,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           markDeliveredBtn.disabled = currentStatus !== 'confirmed';
           markDeliveredBtn.textContent = currentStatus === 'delivered' ? 'Orden entregada' : 'Marcar entregada';
         }
+        updateReviewRequestButtonState();
         updateCancelledDeleteButtonState();
       }
 
@@ -2592,6 +2668,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
             ...extraPayload,
           };
 
+          if (nextStatus === 'delivered' && !hasValue(previousOrder.delivered_at) && !hasValue(payload.delivered_at)) {
+            payload.delivered_at = new Date().toISOString();
+          }
+
           if (nextDeliveryMethod === 'delivery' && nextShippingZone?.id) {
             payload.shipping_zone = nextShippingZone.id;
           }
@@ -2758,6 +2838,121 @@ const isOrderDetailPage = Boolean(initialOrderId);
         selectedOrder = updatedOrder;
         orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
         return updatedOrder;
+      }
+
+      function buildReviewToken() {
+        const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const cryptoValues = new Uint32Array(28);
+        if (window.crypto?.getRandomValues) {
+          window.crypto.getRandomValues(cryptoValues);
+          return Array.from(cryptoValues, (value) => characters[value % characters.length]).join('');
+        }
+        let token = '';
+        for (let i = 0; i < 28; i++) token += characters[Math.floor(Math.random() * characters.length)];
+        return token;
+      }
+
+      function buildReviewUrl(order) {
+        if (!order?.review_token || !PUBLIC_STORE_PATH) return '';
+        return `${window.location.origin}${PUBLIC_STORE_PATH}/review/order/${encodeURIComponent(order.review_token)}`;
+      }
+
+      async function ensureSelectedOrderReviewToken() {
+        if (!selectedOrder) return null;
+        if (selectedOrder.review_token) return selectedOrder;
+        const reviewToken = buildReviewToken();
+        const updatedOrder = await apiRequest(`/api/collections/orders/records/${selectedOrder.id}?expand=shipping_zone,currency`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ review_token: reviewToken }),
+        });
+        selectedOrder = updatedOrder;
+        orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
+        return updatedOrder;
+      }
+
+      function getReviewStoreName() {
+        return storeSettingsRecord?.store_name
+          || storeSettingsRecord?.business_name
+          || storeSettingsRecord?.name
+          || storeSettingsRecord?.title
+          || 'tu tienda';
+      }
+
+      function buildReviewWhatsappMessage(order, reviewUrl) {
+        const template = String(storeSettingsRecord?.review_whatsapp_message || DEFAULT_REVIEW_WHATSAPP_MESSAGE);
+        return template
+          .replace(/\{cliente\}/g, order?.customer_name || 'cliente')
+          .replace(/\{tienda\}/g, getReviewStoreName())
+          .replace(/\{numero_orden\}/g, order?.order_number || '')
+          .replace(/\{link_rese\u00f1a\}/g, reviewUrl)
+          .replace(/\{link_resena\}/g, reviewUrl);
+      }
+
+      async function openReviewWhatsApp() {
+        if (!selectedOrder) return;
+        const currentStatus = normalizeStatus(selectedOrder.status);
+        if (currentStatus !== 'delivered') {
+          setDetailAlert('Solo puedes pedir reseña cuando la orden está Entregada.', 'error');
+          updateReviewRequestButtonState();
+          return;
+        }
+        if (hasValue(selectedOrder.review_completed_at)) {
+          setDetailAlert('Esta orden ya tiene reseña recibida.', 'info');
+          updateReviewRequestButtonState();
+          return;
+        }
+        if (hasValue(selectedOrder.review_skipped_at)) {
+          setDetailAlert('Esta orden fue marcada como reseña ignorada.', 'info');
+          updateReviewRequestButtonState();
+          return;
+        }
+        if (!getDeliveredAtDate(selectedOrder)) {
+          setDetailAlert('Esta orden no tiene fecha de entrega registrada.', 'error');
+          updateReviewRequestButtonState();
+          return;
+        }
+        if (!hasValue(selectedOrder.review_requested_at) && !isReviewDelayReady(selectedOrder)) {
+          setDetailAlert(`La reseña estará disponible luego de ${getReviewRequestDelayHours()} horas desde la entrega.`, 'info');
+          updateReviewRequestButtonState();
+          return;
+        }
+
+        const originalLabel = requestReviewBtn?.textContent || 'Pedir reseña';
+        if (requestReviewBtn) {
+          requestReviewBtn.disabled = true;
+          requestReviewBtn.textContent = 'Preparando reseña...';
+        }
+
+        try {
+          const orderWithToken = await ensureSelectedOrderReviewToken();
+          const reviewUrl = buildReviewUrl(orderWithToken);
+          if (!reviewUrl) throw new Error('No se pudo generar el enlace público de reseña.');
+          const message = buildReviewWhatsappMessage(orderWithToken, reviewUrl);
+          const phone = String(orderWithToken.customer_phone || '').replace(/\D/g, '');
+          const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
+          window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+
+          const updatedOrder = await apiRequest(`/api/collections/orders/records/${orderWithToken.id}?expand=shipping_zone,currency`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              review_requested_at: new Date().toISOString(),
+              review_request_count: Number(orderWithToken.review_request_count || 0) + 1,
+            }),
+          });
+          selectedOrder = updatedOrder;
+          orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
+          fillDetail(updatedOrder);
+          renderOrders();
+          setDetailAlert(hasValue(orderWithToken.review_requested_at) ? 'Solicitud de reseña reenviada por WhatsApp.' : 'Solicitud de reseña preparada por WhatsApp.', 'success');
+        } catch (error) {
+          console.error(error);
+          setDetailAlert(error?.message || 'No se pudo preparar la solicitud de reseña.', 'error');
+          if (requestReviewBtn) requestReviewBtn.textContent = originalLabel;
+        } finally {
+          updateReviewRequestButtonState();
+        }
       }
 
       async function printSelectedOrder() {
@@ -2954,7 +3149,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       sidebarLogoutBtn?.addEventListener('click', () => { clearAdminToken(); window.location.assign('/login'); });
-      refreshBtn.addEventListener('click', loadOrders);
+      refreshBtn.addEventListener('click', () => {
+        loadStoreSettings();
+        loadOrders();
+      });
       searchInput.addEventListener('input', () => { currentOrdersPage = 1; renderOrders(); });
       statusFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
       deliveryFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
@@ -2989,6 +3187,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       whatsappOrderBtn.addEventListener('click', openWhatsAppOrder);
       printOrderBtn.addEventListener('click', printSelectedOrder);
       markDeliveredBtn.addEventListener('click', markDelivered);
+      requestReviewBtn?.addEventListener('click', openReviewWhatsApp);
       deleteCancelledOrderBtn?.addEventListener('click', deleteCancelledOrderFromSummary);
       floatingDeleteOrderBtn?.addEventListener('click', deleteSelectedOrderFromDetailPage);
       closeDetailBtn.addEventListener('click', () => {
@@ -3012,6 +3211,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         showAdmin();
         loadProductCatalog();
         loadShippingZones();
+        loadStoreSettings();
         loadOrders();
       } else {
         showAdmin();

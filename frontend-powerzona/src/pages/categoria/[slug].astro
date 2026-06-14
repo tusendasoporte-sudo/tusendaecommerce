@@ -5,7 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
-import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
+import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 export async function getStaticPaths() {
@@ -35,6 +35,10 @@ const directProducts = products.filter((product) => product.category === categor
 const categorySubcategoryIds = new Set(categorySubcategories.map((subcategory) => subcategory.id));
 const allCategoryProducts = products.filter((product) => product.category === category.id || categorySubcategoryIds.has(product.subcategory));
 const categoryProductCountLabel = `${allCategoryProducts.length} ${allCategoryProducts.length === 1 ? 'producto' : 'productos'}`;
+const showProductRating = settings?.reviews_enabled !== false && settings?.show_product_rating !== false;
+const productReviewSummaries = showProductRating
+  ? await getProductReviewSummaries(directProducts.map((product) => product.id).filter(Boolean), storeQuery)
+  : {};
 
 function productsBySubcategory(subcategoryId: string) {
   return products.filter((product) => product.subcategory === subcategoryId);
@@ -149,7 +153,7 @@ function getProductOfferView(product: any) {
       <div class="product-grid">
         {directProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
+            <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>

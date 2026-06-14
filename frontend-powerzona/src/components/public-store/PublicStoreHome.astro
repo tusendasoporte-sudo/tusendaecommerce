@@ -6,14 +6,16 @@ import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../ProductCard.astro';
 import PublicFooter from '../PublicFooter.astro';
 import PromoBar from '../PromoBar.astro';
-import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText } from '../../lib/api';
+import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 
 const currentStore = Astro.props.currentStore || await getCurrentStore(Astro);
-const storeQuery = { storeId: currentStore.id };
+const currentStoreId = currentStore.id;
+const storeQuery = { storeId: currentStoreId };
 const currentPathname = Astro.url.pathname;
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const settings = await getSettings(storeQuery);
 const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
@@ -22,6 +24,9 @@ const featuredProducts = await getFeaturedProducts(storeQuery);
 const visualItems = await getStoreVisualItems(storeQuery);
 const gifts = await getPublicGifts(storeQuery);
 const automaticPromotions = await getAutomaticPromotions(storeQuery);
+const reviewsEnabled = settings?.reviews_enabled !== false;
+const storeReviewSummary = reviewsEnabled ? await getStoreReviewSummary(storeQuery) : { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
+const storeReviews = reviewsEnabled ? await getStoreReviews(storeQuery, 8) : [];
 
 // Regla pública:
 // - La portada no abre categorías en la misma página.
@@ -50,6 +55,13 @@ const publicBusinessHoursTitle = businessHoursStatus.mode === 'custom'
     : 'Horarios';
 const publicBusinessHoursText = formattedBusinessHours;
 const reviewsText = settings?.reviews_text || '';
+const showStoreRating = reviewsEnabled && settings?.show_store_rating !== false;
+const storeReviewsEnabled = reviewsEnabled && settings?.store_reviews_enabled !== false;
+const showVerifiedBadge = settings?.show_verified_badge !== false;
+const showProductRating = reviewsEnabled && settings?.show_product_rating !== false;
+const productReviewSummaries = showProductRating
+  ? await getProductReviewSummaries(Array.from(new Set([...featuredProducts, ...homepageProducts].map((product) => product.id).filter(Boolean))), storeQuery)
+  : {};
 const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
 const coverImageUrl = currentStore?.bannerUrl || settings?.coverImageUrl || '';
 const coverGalleryUrls = Array.isArray(settings?.coverGalleryUrls) ? settings.coverGalleryUrls.filter(Boolean).slice(0, 4) : [];
@@ -65,6 +77,7 @@ const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPa
 const productAnchorPath = getPublicPath('/#destacados', currentStore, currentPathname);
 const giftsPath = getPublicPath('/regalos', currentStore, currentPathname);
 const adminLoginPath = getPublicPath('/admin', currentStore, currentPathname);
+const reviewsAnchorPath = getPublicPath('/#resenas', currentStore, currentPathname);
 const featuredCategories = categories
   .filter((category) => category.featured_on_home === true)
   .sort((a, b) => Number(a.featured_order || 0) - Number(b.featured_order || 0) || String(a.name || '').localeCompare(String(b.name || '')))
@@ -96,6 +109,15 @@ function subcategoriesByCategory(categoryId: string) {
 
 function productCountLabel(count: number) {
   return `${count} ${count === 1 ? 'producto' : 'productos'}`;
+}
+
+function reviewCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'reseña' : 'reseñas'}`;
+}
+
+function reviewStars(rating: number) {
+  const rounded = Math.max(0, Math.min(5, Math.round(Number(rating || 0))));
+  return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
 }
 
 function parseJsonList(value: any) {
@@ -206,6 +228,31 @@ function getProductOfferView(product: any) {
     .business-status p { margin: 0; font-size: 13px; line-height: 1.45; font-weight: 800; }
     .hero-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 20px; padding: 13px 18px; font-size: 14px; font-weight: 1000; background: #16a34a; color: #fff; box-shadow: 0 14px 32px rgba(22,163,74,.18); }
     .hero-btn.secondary { background: #fff; color: #111827; border: 1px solid #e5e7eb; box-shadow: 0 12px 28px rgba(15,23,42,.07); }
+    .public-rating-link { flex: 1 0 100%; width: max-content; max-width: 100%; display: inline-flex; align-items: center; gap: 8px; border-radius: 8px; border: 1px solid #fde68a; background: #fffbeb; color: #92400e; padding: 10px 12px; text-decoration: none; font-size: 13px; line-height: 1.2; font-weight: 1000; box-shadow: 0 10px 24px rgba(245,158,11,.09); }
+    .public-rating-stars { color: #f59e0b; letter-spacing: 1px; white-space: nowrap; }
+    .public-reviews-section { margin: 0 0 28px; scroll-margin-top: 90px; }
+    .public-reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .public-review-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 14px; box-shadow: 0 12px 30px rgba(15,23,42,.06); display: grid; gap: 9px; }
+    .public-review-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .public-review-stars { color: #f59e0b; font-size: 14px; letter-spacing: 1px; white-space: nowrap; }
+    .verified-badge { display: inline-flex; width: max-content; max-width: 100%; border-radius: 999px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; padding: 5px 8px; font-size: 10px; line-height: 1; font-weight: 1000; }
+    .public-review-comment { margin: 0; color: #334155; font-size: 14px; line-height: 1.45; font-weight: 750; white-space: pre-line; }
+    .public-review-name { margin: 0; color: #0f172a; font-size: 13px; font-weight: 1000; }
+    .public-review-form { margin-top: 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; padding: 16px; display: grid; gap: 12px; }
+    .public-review-form-title { margin: 0; color: #111827; font-size: 18px; line-height: 1.1; font-weight: 1000; letter-spacing: -.02em; }
+    .public-review-form-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .public-review-field { display: grid; gap: 7px; }
+    .public-review-field span { color: #64748b; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
+    .public-review-field input, .public-review-field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 11px 12px; font-size: 14px; font-weight: 800; outline: none; resize: vertical; }
+    .public-review-field input:focus, .public-review-field textarea:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.1); }
+    .public-review-rating { display: flex; align-items: center; gap: 7px; }
+    .public-review-rating button { width: 40px; height: 40px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #cbd5e1; font-size: 23px; line-height: 1; cursor: pointer; }
+    .public-review-rating button.active { color: #f59e0b; background: #fffbeb; border-color: #fde68a; }
+    .public-review-alert { border-radius: 8px; padding: 11px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 13px; font-weight: 900; }
+    .public-review-alert.success { background: #ecfdf5; border-color: #bbf7d0; color: #166534; }
+    .public-review-submit { border: 0; border-radius: 8px; padding: 13px 15px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 1000; cursor: pointer; }
+    .public-review-submit:disabled { opacity: .68; cursor: wait; }
+    .public-review-honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
     .store-info-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.46); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .store-info-overlay[hidden] { display: none; }
     body.store-info-open { overflow: hidden; }
@@ -384,6 +431,16 @@ function getProductOfferView(product: any) {
         <span>{publicLocationText}</span>
       </div>
     )}
+    {showStoreRating && storeReviewSummary.count > 0 && (
+      <a class="public-rating-link" href={reviewsAnchorPath} aria-label={`${storeReviewSummary.average.toFixed(1)} de 5 con ${reviewCountLabel(storeReviewSummary.count)}`}>
+        <span>{storeReviewSummary.average.toFixed(1)}</span>
+        <span class="public-rating-stars" aria-hidden="true">{reviewStars(storeReviewSummary.roundedAverage)}</span>
+        <span>({reviewCountLabel(storeReviewSummary.count)})</span>
+      </a>
+    )}
+    {showStoreRating && storeReviewSummary.count === 0 && storeReviewsEnabled && (
+      <a class="public-rating-link" href={reviewsAnchorPath}>Sé el primero en dejar una reseña</a>
+    )}
     {welcomeText && <p class="public-welcome-text">{welcomeText}</p>}
     {storeDescription && <p class="public-store-description">{storeDescription}</p>}
     {businessHoursStatus.mode === 'custom' && businessHoursStatus.isAvailable && <div class="business-status"><strong>Disponible ahora</strong></div>}
@@ -537,7 +594,7 @@ function getProductOfferView(product: any) {
       <div class="featured-strip" aria-label="Carrusel de productos destacados">
         {featuredProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>
@@ -633,14 +690,181 @@ function getProductOfferView(product: any) {
       <div class="homepage-products-grid">
         {homepageProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} />
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>
     </section>
   )}
 
+  {reviewsEnabled && (storeReviews.length > 0 || storeReviewsEnabled) && (
+    <section id="resenas" class="public-reviews-section">
+      <div class="section-head">
+        <div>
+          <h2 class="section-title">Reseñas de clientes</h2>
+          <p class="section-subtitle">Opiniones aprobadas de personas que compraron o visitaron la tienda.</p>
+        </div>
+      </div>
+
+      {storeReviews.length > 0 && (
+        <div class="public-reviews-grid">
+          {storeReviews.map((review) => (
+            <article class="public-review-card">
+              <div class="public-review-top">
+                <span class="public-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
+                {showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge">Compra verificada</span>}
+              </div>
+              {review.comment && <p class="public-review-comment">{review.comment}</p>}
+              <p class="public-review-name">{review.customer_name || 'Cliente'}</p>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {storeReviewsEnabled && (
+        <form id="public-store-review-form" class="public-review-form">
+          <h3 class="public-review-form-title">Dejar reseña</h3>
+          <label class="public-review-field">
+            <span>Nombre</span>
+            <input id="public-review-name" name="customer_name" type="text" maxlength="120" required />
+          </label>
+          <div class="public-review-field">
+            <span>Rating</span>
+            <div class="public-review-rating" data-public-rating>
+              <input id="public-review-rating" type="hidden" value="0" />
+              <button type="button" data-value="1" aria-label="1 estrella">★</button>
+              <button type="button" data-value="2" aria-label="2 estrellas">★</button>
+              <button type="button" data-value="3" aria-label="3 estrellas">★</button>
+              <button type="button" data-value="4" aria-label="4 estrellas">★</button>
+              <button type="button" data-value="5" aria-label="5 estrellas">★</button>
+            </div>
+          </div>
+          <label class="public-review-field">
+            <span>Comentario</span>
+            <textarea id="public-review-comment" name="comment" rows="4" maxlength="1200" required></textarea>
+          </label>
+          <label class="public-review-honeypot" aria-hidden="true">
+            Sitio web
+            <input id="public-review-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+          </label>
+          <div id="public-review-alert" class="public-review-alert hidden"></div>
+          <button id="public-review-submit" class="public-review-submit" type="submit">Enviar reseña</button>
+        </form>
+      )}
+    </section>
+  )}
+
   <PublicFooter settings={settings} />
+
+  <script define:vars={{ pocketbaseUrl, currentStoreId }}>
+    (() => {
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const form = document.getElementById('public-store-review-form');
+      if (!form) return;
+
+      const ratingInput = document.getElementById('public-review-rating');
+      const ratingGroup = form.querySelector('[data-public-rating]');
+      const alertBox = document.getElementById('public-review-alert');
+      const submitBtn = document.getElementById('public-review-submit');
+
+      function setPublicReviewAlert(message, type = 'error') {
+        if (!alertBox) return;
+        alertBox.textContent = message || '';
+        alertBox.className = message ? `public-review-alert ${type}` : 'public-review-alert hidden';
+      }
+
+      function setRating(value) {
+        const rating = Math.max(0, Math.min(5, Number(value || 0)));
+        if (ratingInput) ratingInput.value = String(rating);
+        ratingGroup?.querySelectorAll('button').forEach((button) => {
+          button.classList.toggle('active', Number(button.dataset.value || 0) <= rating);
+        });
+      }
+
+      ratingGroup?.querySelectorAll('button').forEach((button) => {
+        button.addEventListener('click', () => setRating(button.dataset.value));
+      });
+
+      async function createStoreReview(payload) {
+        const response = await fetch(`${POCKETBASE_URL}/api/collections/reviews/records`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(result?.message || 'No se pudo enviar la reseña.');
+        return result;
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setPublicReviewAlert('');
+
+        if (!POCKETBASE_URL || !CURRENT_STORE_ID) {
+          setPublicReviewAlert('No se pudo conectar con la tienda. Inténtalo más tarde.');
+          return;
+        }
+
+        const honeypot = String(document.getElementById('public-review-website')?.value || '').trim();
+        if (honeypot) {
+          form.reset();
+          setRating(0);
+          setPublicReviewAlert('Gracias por dejar tu reseña. Será publicada cuando la tienda la apruebe.', 'success');
+          return;
+        }
+
+        const customerName = String(document.getElementById('public-review-name')?.value || '').trim();
+        const rating = Number(ratingInput?.value || 0);
+        const comment = String(document.getElementById('public-review-comment')?.value || '').trim().slice(0, 1200);
+
+        if (!customerName) {
+          setPublicReviewAlert('Escribe tu nombre para enviar la reseña.');
+          return;
+        }
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+          setPublicReviewAlert('Elige un rating entre 1 y 5 estrellas.');
+          return;
+        }
+        if (!comment) {
+          setPublicReviewAlert('Escribe un comentario para enviar la reseña.');
+          return;
+        }
+
+        const payload = {
+          store: CURRENT_STORE_ID,
+          type: 'store',
+          source: 'public_store',
+          verified_purchase: false,
+          status: 'pending',
+          featured: false,
+          rating,
+          customer_name: customerName,
+          comment,
+        };
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Enviando...';
+        }
+
+        try {
+          await createStoreReview(payload);
+          form.reset();
+          setRating(0);
+          setPublicReviewAlert('Gracias por dejar tu reseña. Será publicada cuando la tienda la apruebe.', 'success');
+        } catch (error) {
+          console.error(error);
+          setPublicReviewAlert(error?.message || 'No se pudo enviar la reseña.');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Enviar reseña';
+          }
+        }
+      });
+    })();
+  </script>
 
   <script>
     const heroCarousel = document.querySelector('[data-hero-carousel="true"]');

@@ -1,0 +1,58 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+
+const pocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/$/, '');
+const token = String(Astro.params.token || '').trim();
+
+function escapePocketBaseValue(value: string) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+let errorMessage = 'Link inválido o expirado.';
+
+if (pocketbaseUrl && token) {
+  try {
+    const orderFilter = encodeURIComponent(`review_token="${escapePocketBaseValue(token)}"`);
+    const orderUrl = `${pocketbaseUrl}/api/collections/orders/records?filter=${orderFilter}&review_token=${encodeURIComponent(token)}&expand=store&perPage=1`;
+    const orderResponse = await fetch(orderUrl);
+    const orderResult = await orderResponse.json().catch(() => null);
+    const order = orderResponse.ok ? orderResult?.items?.[0] : null;
+    const expandedStore = Array.isArray(order?.expand?.store) ? order.expand.store[0] : order?.expand?.store;
+    let storeSlug = String(expandedStore?.slug || '').trim().toLowerCase();
+
+    if (!storeSlug && order?.store) {
+      const storeResponse = await fetch(`${pocketbaseUrl}/api/collections/stores/records/${encodeURIComponent(order.store)}`);
+      const storeResult = await storeResponse.json().catch(() => null);
+      if (storeResponse.ok) storeSlug = String(storeResult?.slug || '').trim().toLowerCase();
+    }
+
+    if (storeSlug) {
+      return Astro.redirect(`/t/${encodeURIComponent(storeSlug)}/review/order/${encodeURIComponent(token)}`);
+    }
+  } catch (error) {
+    console.error('No se pudo resolver la tienda para el link de reseña.', error);
+  }
+} else if (!pocketbaseUrl) {
+  errorMessage = 'Falta configurar la conexión con PocketBase.';
+}
+---
+
+<Layout isBazar={true}>
+  <section class="compat-review-error">
+    <div class="compat-review-card">
+      <h1>No se pudo abrir esta reseña</h1>
+      <p>{errorMessage}</p>
+      <a href="/">Ir a Tu Senda 84</a>
+    </div>
+  </section>
+
+  <style>
+    .compat-review-error { min-height: 62vh; display: grid; place-items: center; color: #0f172a; }
+    .compat-review-card { width: min(100%, 520px); border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: clamp(22px, 5vw, 34px); text-align: center; box-shadow: 0 18px 48px rgba(15,23,42,.08); }
+    .compat-review-card h1 { margin: 0; font-size: 28px; line-height: 1; font-weight: 1000; letter-spacing: 0; }
+    .compat-review-card p { margin: 12px 0 0; color: #64748b; font-size: 15px; line-height: 1.5; font-weight: 800; }
+    .compat-review-card a { display: inline-flex; margin-top: 20px; border-radius: 8px; padding: 12px 15px; background: #111827; color: #fff; text-decoration: none; font-size: 14px; font-weight: 1000; }
+  </style>
+</Layout>

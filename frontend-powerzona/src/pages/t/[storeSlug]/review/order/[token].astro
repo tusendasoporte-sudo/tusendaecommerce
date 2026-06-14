@@ -1,0 +1,458 @@
+---
+export const prerender = false;
+
+import Layout from '../../../../../layouts/Layout.astro';
+import { getStoreBySlug } from '../../../../../lib/stores';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const storeSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+const token = String(Astro.params.token || '').trim();
+const currentStore = await getStoreBySlug(storeSlug);
+
+if (!currentStore) {
+  return Astro.redirect('/');
+}
+
+const storeName = currentStore.name || 'Tienda';
+const storeLogoUrl = currentStore.logoUrl || currentStore.bannerUrl || '';
+---
+
+<Layout>
+  <section class="review-page">
+    <a class="review-back" href={`/t/${encodeURIComponent(storeSlug)}`}>Volver a la tienda</a>
+
+    <div class="review-shell">
+      <header class="review-hero">
+        <div class="review-store-mark">
+          {storeLogoUrl ? <img src={storeLogoUrl} alt={storeName} loading="lazy" /> : <span>{storeName.slice(0, 2).toUpperCase()}</span>}
+        </div>
+        <div>
+          <p class="review-kicker">Reseña verificada</p>
+          <h1>Cuéntanos cómo fue tu compra</h1>
+          <p class="review-copy">Tu opinión ayuda a la tienda y a otras personas. Las reseñas se publican después de ser aprobadas.</p>
+        </div>
+      </header>
+
+      <div id="review-loading" class="review-card review-state">
+        <strong>Cargando enlace de reseña...</strong>
+        <span>Estamos validando tu orden.</span>
+      </div>
+
+      <div id="review-error" class="review-card review-state hidden">
+        <strong>No se pudo abrir esta reseña</strong>
+        <span id="review-error-text">Link inválido o expirado.</span>
+      </div>
+
+      <div id="review-thanks" class="review-card review-state hidden">
+        <strong>Gracias por dejar tu reseña.</strong>
+        <span>Será publicada cuando la tienda la apruebe.</span>
+        <a class="review-primary-link" href={`/t/${encodeURIComponent(storeSlug)}`}>Volver a la tienda</a>
+      </div>
+
+      <form id="review-form" class="review-card hidden">
+        <div class="review-order-summary">
+          <div>
+            <span class="review-label">Orden</span>
+            <strong id="review-order-number"></strong>
+          </div>
+          <div>
+            <span class="review-label">Cliente</span>
+            <strong id="review-customer-display"></strong>
+          </div>
+        </div>
+
+        <label class="review-field">
+          <span>Nombre para la reseña</span>
+          <input id="review-customer-name" name="customer_name" type="text" maxlength="120" required />
+        </label>
+
+        <section class="review-section">
+          <div class="review-section-head">
+            <h2>Reseña general de la tienda</h2>
+            <p>Califica tu experiencia completa con la compra.</p>
+          </div>
+          <div class="review-rating" data-rating-group="store">
+            <input id="store-rating" type="hidden" value="0" />
+            <button type="button" data-value="1" aria-label="1 estrella">★</button>
+            <button type="button" data-value="2" aria-label="2 estrellas">★</button>
+            <button type="button" data-value="3" aria-label="3 estrellas">★</button>
+            <button type="button" data-value="4" aria-label="4 estrellas">★</button>
+            <button type="button" data-value="5" aria-label="5 estrellas">★</button>
+          </div>
+          <label class="review-field">
+            <span>Comentario sobre la tienda</span>
+            <textarea id="store-comment" maxlength="1200" rows="4" placeholder="Cuéntanos cómo fue la atención, entrega o experiencia general."></textarea>
+          </label>
+        </section>
+
+        <section class="review-section">
+          <div class="review-section-head">
+            <h2>Productos recibidos</h2>
+            <p>Califica solo los productos que quieras reseñar.</p>
+          </div>
+          <div id="review-products" class="review-products"></div>
+        </section>
+
+        <div id="review-submit-alert" class="review-alert hidden"></div>
+        <button id="review-submit-btn" class="review-submit" type="submit">Enviar reseña</button>
+      </form>
+    </div>
+  </section>
+
+  <script define:vars={{ pocketbaseUrl, storeId: currentStore.id, storeSlug, token }}>
+    const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+    const CURRENT_STORE_ID = String(storeId || '');
+    const STORE_SLUG = String(storeSlug || '');
+    const REVIEW_TOKEN = decodeURIComponent(String(token || ''));
+
+    const loadingBox = document.getElementById('review-loading');
+    const errorBox = document.getElementById('review-error');
+    const errorText = document.getElementById('review-error-text');
+    const thanksBox = document.getElementById('review-thanks');
+    const form = document.getElementById('review-form');
+    const productsBox = document.getElementById('review-products');
+    const submitBtn = document.getElementById('review-submit-btn');
+    const submitAlert = document.getElementById('review-submit-alert');
+    const customerNameInput = document.getElementById('review-customer-name');
+
+    let reviewOrder = null;
+    let reviewProducts = [];
+
+    function escapePocketBaseValue(value) {
+      return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;',
+      }[char]));
+    }
+
+    function escapeSelectorValue(value) {
+      if (window.CSS?.escape) return CSS.escape(String(value || ''));
+      return String(value || '').replace(/["\\]/g, '\\$&');
+    }
+
+    function normalizeFileValue(value) {
+      if (!value) return [];
+      return Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean);
+    }
+
+    function getProductImageUrl(product) {
+      const image = normalizeFileValue(product?.images)[0] || normalizeFileValue(product?.image)[0] || '';
+      if (!product?.id || !image || !POCKETBASE_URL) return '';
+      return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(image)}?thumb=180x180`;
+    }
+
+    function getVariationName(item) {
+      return item?.variation_label || item?.variation_name || item?.expand?.variation?.value || item?.expand?.variation?.name || '';
+    }
+
+    function showError(message) {
+      loadingBox.classList.add('hidden');
+      form.classList.add('hidden');
+      thanksBox.classList.add('hidden');
+      errorText.textContent = message || 'Link inválido o expirado.';
+      errorBox.classList.remove('hidden');
+    }
+
+    function showThanks() {
+      loadingBox.classList.add('hidden');
+      errorBox.classList.add('hidden');
+      form.classList.add('hidden');
+      thanksBox.classList.remove('hidden');
+    }
+
+    function showSubmitAlert(message, type = 'error') {
+      submitAlert.textContent = message || '';
+      submitAlert.className = message ? `review-alert ${type}` : 'review-alert hidden';
+    }
+
+    async function fetchJson(path, options = {}) {
+      const response = await fetch(`${POCKETBASE_URL}${path}`, options);
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        const error = new Error(result?.message || 'No se pudo completar la solicitud.');
+        error.data = result;
+        throw error;
+      }
+      return result;
+    }
+
+    function uniqueReviewProducts(items) {
+      const seen = new Set();
+      const products = [];
+      items.forEach((item) => {
+        if (item?.is_gift === true || !item?.product || seen.has(item.product)) return;
+        seen.add(item.product);
+        const product = item.expand?.product || {};
+        products.push({
+          id: item.product,
+          name: item.product_name || product.name || 'Producto',
+          variation: getVariationName(item),
+          imageUrl: getProductImageUrl(product),
+        });
+      });
+      return products;
+    }
+
+    function setRating(group, value) {
+      const numeric = Math.max(0, Math.min(5, Number(value || 0)));
+      group.querySelector('input[type="hidden"]').value = String(numeric);
+      group.querySelectorAll('button').forEach((button) => {
+        button.classList.toggle('active', Number(button.dataset.value || 0) <= numeric);
+      });
+    }
+
+    function bindRatingButtons(root = document) {
+      root.querySelectorAll('.review-rating').forEach((group) => {
+        group.querySelectorAll('button').forEach((button) => {
+          button.addEventListener('click', () => setRating(group, button.dataset.value));
+        });
+      });
+    }
+
+    function renderProducts() {
+      productsBox.innerHTML = reviewProducts.length ? reviewProducts.map((product) => `
+        <article class="review-product" data-product-id="${escapeHtml(product.id)}">
+          <div class="review-product-media">
+            ${product.imageUrl ? `<img src="${escapeHtml(product.imageUrl)}" alt="${escapeHtml(product.name)}" loading="lazy" />` : `<span>${escapeHtml(product.name.slice(0, 1).toUpperCase())}</span>`}
+          </div>
+          <div class="review-product-body">
+            <h3>${escapeHtml(product.name)}</h3>
+            ${product.variation ? `<p>${escapeHtml(product.variation)}</p>` : ''}
+            <div class="review-rating" data-rating-group="product-${escapeHtml(product.id)}">
+              <input type="hidden" value="0" data-product-rating="${escapeHtml(product.id)}" />
+              <button type="button" data-value="1" aria-label="1 estrella">★</button>
+              <button type="button" data-value="2" aria-label="2 estrellas">★</button>
+              <button type="button" data-value="3" aria-label="3 estrellas">★</button>
+              <button type="button" data-value="4" aria-label="4 estrellas">★</button>
+              <button type="button" data-value="5" aria-label="5 estrellas">★</button>
+            </div>
+            <label class="review-field compact">
+              <span>Comentario opcional</span>
+              <textarea maxlength="1200" rows="3" data-product-comment="${escapeHtml(product.id)}" placeholder="Qué te pareció este producto."></textarea>
+            </label>
+          </div>
+        </article>
+      `).join('') : '<div class="review-empty-products">No hay productos calificables en esta orden.</div>';
+      bindRatingButtons(productsBox);
+    }
+
+    async function loadReviewOrder() {
+      if (!POCKETBASE_URL) {
+        showError('Falta configurar la conexión con PocketBase.');
+        return;
+      }
+      if (!REVIEW_TOKEN) {
+        showError('Link inválido o expirado.');
+        return;
+      }
+
+      try {
+        const orderFilter = encodeURIComponent(`review_token="${escapePocketBaseValue(REVIEW_TOKEN)}"`);
+        const ordersResult = await fetchJson(`/api/collections/orders/records?filter=${orderFilter}&review_token=${encodeURIComponent(REVIEW_TOKEN)}&perPage=1`);
+        const order = ordersResult?.items?.[0] || null;
+        if (!order) {
+          showError('Link inválido o expirado.');
+          return;
+        }
+        if (String(order.store || '') !== CURRENT_STORE_ID) {
+          showError('Link inválido o expirado.');
+          return;
+        }
+        if (String(order.status || '') !== 'delivered') {
+          showError('La reseña estará disponible cuando la orden sea entregada.');
+          return;
+        }
+        if (!order.review_requested_at) {
+          showError('Este link todavía no está activo.');
+          return;
+        }
+        if (order.review_completed_at) {
+          showThanks();
+          return;
+        }
+
+        const itemsFilter = encodeURIComponent(`order="${escapePocketBaseValue(order.id)}"`);
+        const itemsResult = await fetchJson(`/api/collections/order_items/records?filter=${itemsFilter}&review_token=${encodeURIComponent(REVIEW_TOKEN)}&expand=product,variation,gift&sort=created&perPage=200`);
+        reviewOrder = order;
+        reviewProducts = uniqueReviewProducts(itemsResult?.items || []);
+
+        document.getElementById('review-order-number').textContent = order.order_number || 'Orden';
+        document.getElementById('review-customer-display').textContent = order.customer_name || 'Cliente';
+        customerNameInput.value = order.customer_name || '';
+        renderProducts();
+        bindRatingButtons(form);
+
+        loadingBox.classList.add('hidden');
+        errorBox.classList.add('hidden');
+        form.classList.remove('hidden');
+      } catch (error) {
+        console.error(error);
+        showError('Link inválido o expirado.');
+      }
+    }
+
+    function buildReviewPayloads() {
+      const customerName = String(customerNameInput.value || '').trim();
+      if (!customerName) throw new Error('Escribe tu nombre para la reseña.');
+
+      const payloads = [];
+      const storeRating = Number(document.getElementById('store-rating')?.value || 0);
+      const storeComment = String(document.getElementById('store-comment')?.value || '').trim();
+
+      if (storeRating >= 1 && storeRating <= 5) {
+        payloads.push({
+          store: reviewOrder.store,
+          order: reviewOrder.id,
+          type: 'store',
+          rating: storeRating,
+          customer_name: customerName,
+          customer_contact: reviewOrder.customer_phone || '',
+          comment: storeComment,
+          status: 'pending',
+          source: 'order_review_link',
+          verified_purchase: true,
+          featured: false,
+        });
+      }
+
+      reviewProducts.forEach((product) => {
+        const productSelector = escapeSelectorValue(product.id);
+        const rating = Number(form.querySelector(`[data-product-rating="${productSelector}"]`)?.value || 0);
+        if (rating < 1 || rating > 5) return;
+        const comment = String(form.querySelector(`[data-product-comment="${productSelector}"]`)?.value || '').trim();
+        payloads.push({
+          store: reviewOrder.store,
+          order: reviewOrder.id,
+          product: product.id,
+          type: 'product',
+          rating,
+          customer_name: customerName,
+          customer_contact: reviewOrder.customer_phone || '',
+          comment,
+          status: 'pending',
+          source: 'order_review_link',
+          verified_purchase: true,
+          featured: false,
+        });
+      });
+
+      if (!payloads.length) throw new Error('Elige al menos una calificación para enviar.');
+      return payloads;
+    }
+
+    function shouldRetryWithoutContact(error) {
+      const text = JSON.stringify(error?.data || error?.message || '').toLowerCase();
+      return text.includes('customer_contact') || text.includes('unknown field');
+    }
+
+    function isDuplicateReviewError(error) {
+      const text = JSON.stringify(error?.data || error?.message || '').toLowerCase();
+      return text.includes('unique') || text.includes('constraint') || text.includes('already exists');
+    }
+
+    async function createReview(payload) {
+      const path = `/api/collections/reviews/records?review_token=${encodeURIComponent(REVIEW_TOKEN)}`;
+      try {
+        return await fetchJson(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        if (!payload.customer_contact || !shouldRetryWithoutContact(error)) throw error;
+        const retryPayload = { ...payload };
+        delete retryPayload.customer_contact;
+        return await fetchJson(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(retryPayload),
+        });
+      }
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!reviewOrder) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Enviando...';
+      showSubmitAlert('');
+
+      try {
+        const payloads = buildReviewPayloads();
+        for (const payload of payloads) {
+          try {
+            await createReview(payload);
+          } catch (error) {
+            if (!isDuplicateReviewError(error)) throw error;
+          }
+        }
+        showThanks();
+      } catch (error) {
+        console.error(error);
+        showSubmitAlert(error?.message || 'No se pudo enviar la reseña. Inténtalo nuevamente.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Enviar reseña';
+      }
+    });
+
+    loadReviewOrder();
+  </script>
+
+  <style>
+    .review-page { color: #0f172a; }
+    .review-back { display: inline-flex; margin: 0 0 18px; color: #475569; font-size: 14px; font-weight: 900; text-decoration: none; }
+    .review-shell { max-width: 920px; margin: 0 auto; display: grid; gap: 18px; }
+    .review-hero { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 18px; align-items: center; padding: clamp(22px, 5vw, 34px); border-radius: 8px; background: #111827; color: #fff; box-shadow: 0 22px 60px rgba(15, 23, 42, .18); }
+    .review-store-mark { width: 72px; height: 72px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); font-weight: 1000; }
+    .review-store-mark img { width: 100%; height: 100%; object-fit: cover; }
+    .review-kicker { margin: 0 0 6px; color: #bbf7d0; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .08em; }
+    .review-hero h1 { margin: 0; font-size: clamp(28px, 6vw, 44px); line-height: .98; font-weight: 1000; letter-spacing: 0; }
+    .review-copy { margin: 10px 0 0; color: rgba(255,255,255,.78); font-size: 15px; line-height: 1.5; font-weight: 750; max-width: 680px; }
+    .review-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: clamp(18px, 4vw, 28px); box-shadow: 0 16px 42px rgba(15,23,42,.07); }
+    .review-state { text-align: center; display: grid; gap: 8px; }
+    .review-state strong { font-size: 22px; font-weight: 1000; }
+    .review-state span { color: #64748b; font-size: 14px; font-weight: 800; }
+    .review-primary-link { justify-self: center; margin-top: 8px; border-radius: 8px; padding: 12px 15px; background: #111827; color: #fff; text-decoration: none; font-size: 14px; font-weight: 1000; }
+    .review-order-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .review-order-summary > div { border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; padding: 14px; display: grid; gap: 4px; }
+    .review-label, .review-field span { color: #64748b; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
+    .review-order-summary strong { font-size: 16px; font-weight: 1000; }
+    .review-field { display: grid; gap: 8px; }
+    .review-field input, .review-field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 13px; color: #0f172a; font-size: 15px; font-weight: 750; outline: none; resize: vertical; }
+    .review-field input:focus, .review-field textarea:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.1); }
+    .review-field.compact textarea { font-size: 14px; }
+    .review-section { display: grid; gap: 14px; margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb; }
+    .review-section-head h2 { margin: 0; font-size: 22px; line-height: 1; font-weight: 1000; }
+    .review-section-head p { margin: 6px 0 0; color: #64748b; font-size: 14px; font-weight: 800; }
+    .review-rating { display: flex; gap: 7px; align-items: center; }
+    .review-rating button { width: 42px; height: 42px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; color: #cbd5e1; font-size: 25px; line-height: 1; cursor: pointer; transition: background .15s ease, color .15s ease, border-color .15s ease; }
+    .review-rating button.active { color: #f59e0b; background: #fffbeb; border-color: #fde68a; }
+    .review-products { display: grid; gap: 12px; }
+    .review-product { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; padding: 12px; }
+    .review-product-media { width: 86px; height: 86px; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: #e2e8f0; color: #334155; font-size: 28px; font-weight: 1000; }
+    .review-product-media img { width: 100%; height: 100%; object-fit: cover; }
+    .review-product-body { display: grid; gap: 10px; min-width: 0; }
+    .review-product h3 { margin: 0; font-size: 18px; line-height: 1.1; font-weight: 1000; }
+    .review-product p { margin: -5px 0 0; color: #64748b; font-size: 13px; font-weight: 850; }
+    .review-empty-products { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; color: #64748b; font-weight: 850; text-align: center; }
+    .review-alert { margin-top: 18px; border-radius: 8px; padding: 12px 14px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 14px; font-weight: 900; }
+    .review-alert.success { background: #ecfdf5; border-color: #bbf7d0; color: #166534; }
+    .review-submit { margin-top: 18px; width: 100%; border: 0; border-radius: 8px; padding: 14px 16px; background: #16a34a; color: #fff; font-size: 15px; font-weight: 1000; cursor: pointer; }
+    .review-submit:disabled { opacity: .65; cursor: wait; }
+    .hidden { display: none !important; }
+    @media (max-width: 640px) {
+      .review-hero { grid-template-columns: 1fr; }
+      .review-order-summary, .review-product { grid-template-columns: 1fr; }
+      .review-product-media { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+      .review-rating button { width: 38px; height: 38px; font-size: 23px; }
+    }
+  </style>
+</Layout>

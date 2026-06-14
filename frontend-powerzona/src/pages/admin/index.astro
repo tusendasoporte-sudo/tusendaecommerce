@@ -2753,6 +2753,20 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 						</div>
 					</section>
 
+					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title">
+						<div class="dashboard-block-head">
+							<div>
+								<h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2>
+								<p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p>
+							</div>
+							<a class="action-btn" href={`${adminStoreSettingsPath}#rating`}>Gestionar rating y reseñas</a>
+						</div>
+						<div id="rating-summary-grid" class="status-grid">
+							<div class="empty-state">Cargando rating y reseñas...</div>
+						</div>
+						<p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p>
+					</section>
+
 					<section class="dashboard-block" aria-labelledby="dashboard-charts-title">
 						<div class="dashboard-block-head">
 							<div>
@@ -2908,6 +2922,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 			const statusGrid = document.getElementById('status-grid');
 			const expirationProductsList = document.getElementById('expiration-products-list');
 			const expirationProductsMeta = document.getElementById('expiration-products-meta');
+			const ratingSummaryGrid = document.getElementById('rating-summary-grid');
+			const ratingSummaryNote = document.getElementById('rating-summary-note');
 			const salesChart = document.getElementById('sales-chart');
 			const ordersChart = document.getElementById('orders-chart');
 			const profitChart = document.getElementById('profit-chart');
@@ -2925,6 +2941,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 			let orders = [];
 			let orderItems = [];
 			let products = [];
+			let reviews = [];
+			let settingsRecord = null;
+			let reviewsCollectionAvailable = true;
 			let selectedRange = '7';
 			let selectedExpirationRange = 30;
 
@@ -3080,6 +3099,60 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				} while (page <= totalPages);
 
 				return items;
+			}
+
+			function isReviewsCollectionMissing(error) {
+				const text = String(error?.message || error?.data?.message || error || '').toLowerCase();
+				return text.includes('reviews') || text.includes('collection') || text.includes('not found') || error?.status === 404;
+			}
+
+			function hasValue(value) {
+				return value !== null && value !== undefined && String(value).trim() !== '';
+			}
+
+			function getReviewRequestDelayHours() {
+				const hours = Number(settingsRecord?.review_request_delay_hours);
+				return Number.isFinite(hours) && hours >= 0 ? hours : 24;
+			}
+
+			function getMonthStart() {
+				const now = new Date();
+				return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+			}
+
+			function orderHasCompletedReview(orderId) {
+				if (!reviewsCollectionAvailable) return false;
+				return reviews.some((review) => String(review.order || '') === String(orderId || '') && review.source === 'order_review_link');
+			}
+
+			function isOrderReadyForReview(order) {
+				if (!order || order.status !== 'delivered') return false;
+				if (!hasValue(order.delivered_at)) return false;
+				if (hasValue(order.review_requested_at) || hasValue(order.review_skipped_at) || hasValue(order.review_completed_at)) return false;
+				const deliveredAt = new Date(order.delivered_at);
+				if (Number.isNaN(deliveredAt.getTime())) return false;
+				const delayMs = getReviewRequestDelayHours() * 60 * 60 * 1000;
+				if (Date.now() - deliveredAt.getTime() < delayMs) return false;
+				return !orderHasCompletedReview(order.id);
+			}
+
+			async function loadRatingSupportData() {
+				try {
+					const settingsRecords = await loadAllRecords('settings');
+					settingsRecord = (settingsRecords || []).find((record) => record.active === true) || settingsRecords?.[0] || null;
+				} catch (error) {
+					console.error('No se pudieron cargar ajustes para rating.', error);
+					settingsRecord = null;
+				}
+
+				try {
+					reviews = await loadAllRecords('reviews', 'sort=-created');
+					reviewsCollectionAvailable = true;
+				} catch (error) {
+					if (!isReviewsCollectionMissing(error)) console.error('No se pudieron cargar reseñas.', error);
+					reviews = [];
+					reviewsCollectionAvailable = false;
+				}
 			}
 
 			function getRangeStart(range) {
@@ -3631,6 +3704,43 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 	`).join('');
 }
 
+			function renderRatingSummary() {
+				if (!ratingSummaryGrid) return;
+				const approvedStoreReviews = reviews.filter((review) => review.status === 'approved' && review.type === 'store');
+				const ratingCount = approvedStoreReviews.length;
+				const ratingAverage = ratingCount
+					? approvedStoreReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / ratingCount
+					: 0;
+				const pendingCount = reviews.filter((review) => review.status === 'pending').length;
+				const monthStart = getMonthStart();
+				const approvedThisMonth = reviews.filter((review) => {
+					if (review.status !== 'approved' || !review.created) return false;
+					const createdAt = new Date(review.created);
+					return !Number.isNaN(createdAt.getTime()) && createdAt >= monthStart;
+				}).length;
+				const readyOrdersCount = orders.filter(isOrderReadyForReview).length;
+
+				ratingSummaryGrid.innerHTML = [
+					['Rating general', ratingCount ? ratingAverage.toFixed(1) : '0.0', ratingCount ? `${ratingCount} reseña${ratingCount === 1 ? '' : 's'} aprobada${ratingCount === 1 ? '' : 's'}` : 'Sin reseñas aprobadas'],
+					['Pendientes de aprobar', String(pendingCount), 'Moderación requerida'],
+					['Órdenes listas', String(readyOrdersCount), `Delay configurado: ${getReviewRequestDelayHours()} horas`],
+					['Aprobadas este mes', String(approvedThisMonth), 'Creadas desde el inicio del mes'],
+				].map(([label, value, meta]) => `
+					<div class="status-box" style="display:grid;gap:8px;align-content:start;min-height:112px;">
+						<span>${escapeHtml(label)}</span>
+						<strong style="margin-top:0;font-size:28px;line-height:1;">${escapeHtml(value)}</strong>
+						<small style="color:#64748b;font-size:12px;font-weight:850;line-height:1.35;">${escapeHtml(meta)}</small>
+					</div>
+				`).join('');
+
+				if (ratingSummaryNote) {
+					ratingSummaryNote.textContent = reviewsCollectionAvailable
+						? ''
+						: 'La colección reviews todavía no está disponible. Aplica la migración y reinicia PocketBase para ver estas métricas completas.';
+					ratingSummaryNote.classList.toggle('hidden', reviewsCollectionAvailable);
+				}
+			}
+
 			function renderDashboard() {
 				const metrics = computeMetrics();
 				dashboardSubtitle.textContent = formatFullDate(new Date()) + '.';
@@ -3641,6 +3751,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				renderRecentOrders(metrics);
 				renderExpirationProducts();
 				renderStatusGrid(metrics);
+				renderRatingSummary();
 			}
 
 			async function loadDashboardData() {
@@ -3649,6 +3760,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				topProductsList.innerHTML = '<div class="empty-state">Cargando productos más vendidos...</div>';
 				recentOrders.innerHTML = '<div class="empty-state">Cargando pedidos recientes...</div>';
 				statusGrid.innerHTML = '<div class="empty-state">Cargando estados...</div>';
+				if (ratingSummaryGrid) ratingSummaryGrid.innerHTML = '<div class="empty-state">Cargando rating y reseñas...</div>';
+				if (ratingSummaryNote) ratingSummaryNote.classList.add('hidden');
 				expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando vencimientos...</div>';
 				expirationProductsMeta.textContent = 'Cargando productos...';
 
@@ -3656,6 +3769,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
 					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
 					loadAllRecords('products', 'sort=expiration_date&expand=category,subcategory'),
+					loadRatingSupportData(),
 				]);
 
 				orders = ordersResult || [];

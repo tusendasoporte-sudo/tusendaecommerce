@@ -12,6 +12,9 @@ const {
   hasVariations = false,
   onlyUsd = false,
   promoText = '',
+  ratingAverage = 0,
+  ratingCount = 0,
+  showRating = false,
   view = 'standard',
   buttonText = 'Comprar',
 } = Astro.props;
@@ -27,6 +30,9 @@ const regularPriceNumber = Number(regularPrice || price || 0);
 const finalPriceNumber = Number(price || 0);
 const hasValidOffer = Boolean(isOffer) && regularPriceNumber > 0 && finalPriceNumber > 0 && finalPriceNumber < regularPriceNumber;
 const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
+const ratingAverageNumber = Number(ratingAverage || 0);
+const ratingCountNumber = Number(ratingCount || 0);
+const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingAverageNumber > 0;
 ---
 
 <!-- PZ-PRODUCT-CARD-V24-OFERTA-PUBLICA-20260605 -->
@@ -46,6 +52,7 @@ const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
     .save-price { width: fit-content; color: #16a34a; font-size: 11px; font-weight: 1000; }
     .automatic-promo-chip { display: inline-grid; gap: 1px; width: fit-content; margin-top: 7px; border-radius: 12px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; padding: 6px 8px; font-size: 10px; font-weight: 1000; line-height: 1.15; }
     .automatic-promo-chip span:first-child { color: #047857; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; }
+    .product-rating-chip { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 7px; border-radius: 999px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 5px 8px; font-size: 11px; line-height: 1; font-weight: 1000; }
     @media (max-width: 640px) {
       .product-buy-chip { padding: 9px 10px; font-size: 12px; border-radius: 14px; }
     }
@@ -96,6 +103,12 @@ const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
     {onlyUsd && (
       <span class="inline-flex w-fit mt-1 text-[10px] font-black bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
         Solo USD
+      </span>
+    )}
+
+    {shouldShowRating && (
+      <span class="product-rating-chip" aria-label={`${ratingAverageNumber.toFixed(1)} de 5 con ${ratingCountNumber} reseñas`}>
+        ⭐ {ratingAverageNumber.toFixed(1)} ({ratingCountNumber})
       </span>
     )}
 
