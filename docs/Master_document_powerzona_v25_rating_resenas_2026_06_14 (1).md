@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-14  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil. **21.30.19 cerrado/implementado en source actualizado: aislamiento operativo por tienda reforzado para envíos, promociones automáticas, cupones manuales, regalos, settings, pedidos, reportes y keys públicas por tienda. También quedan implementadas las mini categorías rápidas de tienda pública con modal `Ver todas`, horario simple por tienda y la mejora de Ajustes generales de tienda pública: portada única/carrusel, selector de tipo de negocio, dirección estructurada Cuba, ubicación pública con pin, modal Info de la tienda y reparación real de persistencia en `settings`. Queda documentado como pendiente inmediato la limpieza visual pública: quitar texto default, quitar grilla fija Servicios/Reseña/Moneda, mantener Horarios como modal desde drawer y ordenar footer sin mostrar JSON crudo.**
+**Fecha de actualización:** 2026-06-14 — actualización documental de Rating y reseñas  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil. **21.30.19 cerrado/implementado en source actualizado: aislamiento operativo por tienda reforzado para envíos, promociones automáticas, cupones manuales, regalos, settings, pedidos, reportes y keys públicas por tienda. También quedan implementadas las mini categorías rápidas de tienda pública con modal `Ver todas`, horario simple por tienda y la mejora de Ajustes generales de tienda pública: portada única/carrusel, selector de tipo de negocio, dirección estructurada Cuba, ubicación pública con pin, modal Info de la tienda y reparación real de persistencia en `settings`. Queda documentado como pendiente inmediato la limpieza visual pública: quitar texto default, quitar grilla fija Servicios/Reseña/Moneda, mantener Horarios como modal desde drawer y ordenar footer sin mostrar JSON crudo.** **Nuevo bloque inmediato definido antes de pasar mejoras visuales profundas: Rating y reseñas dentro de Ajustes de tienda, empezando por la pestaña `Rating y reseñas` en `/admin/store-settings`, con aprobación manual del admin, reseñas públicas, reseñas verificadas desde órdenes entregadas, botón manual de WhatsApp y cálculo sin cron al abrir el panel.**
 
 ---
 
@@ -176,13 +176,17 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🟡 Bloque actual: 21.30 Tu Senda 84 — multitienda, Admin de tiendas públicas y ajustes visuales/operativos finales.
-✅ 21.30.19 implementado en source actualizado: aislamiento operativo por tienda.
-✅ 21.30.19.1/21.30.19.2 implementado en source actualizado: mini categorías rápidas + modal Ver todas.
-✅ 21.30.19.3 implementado en source actualizado: horario simple por tienda.
-✅ 21.30.19.4/21.30.19.5 implementado y validado en source V9: Ajustes generales con portada única/carrusel, tipo de negocio, dirección estructurada y reparación de persistencia en `settings`.
-🟡 21.30.19.6/21.30.19.7/21.30.19.8 definidos como limpieza/corrección pública: quitar texto default, retirar grilla fija Servicios/Reseña/Moneda, mantener Horarios en drawer/modal, mostrar horario semanal completo en Info y ordenar footer.
-🔜 Próximo bloque recomendado después de cerrar esa limpieza: 21.30.20 — Master Admin profesional + Web Bazzar pública.
+🟡 Bloque actual inmediato: Rating y reseñas dentro de Ajustes de tienda.
+🔜 Empezar por la pestaña `Rating y reseñas` en `/admin/store-settings`.
+🔜 Antes de aplicar el bloque: actualizar source estable y revisar que la última migración existente siga siendo `1780470900_repair_settings_persistence_fields.js`.
+🔜 Nueva migración sugerida para este bloque: `1780471000_created_reviews_rating.js`.
+✅ El sistema queda definido como módulo dentro de Ajustes de tienda, no como nueva opción lateral independiente.
+✅ No crear `/admin/reviews` en la primera versión.
+✅ No tocar ni reemplazar `settings.reviews_text`; seguirá siendo el texto manual de confianza actual.
+✅ El rating real usará una colección nueva `reviews` y solo contará reseñas aprobadas.
+✅ Reseñas públicas desde tienda/productos + reseñas verificadas desde órdenes entregadas.
+✅ Botón manual de WhatsApp para pedir reseña, sin cron ni envío automático.
+✅ Órdenes listas para pedir reseña se calculan al abrir el panel admin.
 ```
 
 Estado del bloque anterior:
@@ -199,7 +203,7 @@ Estado del bloque anterior:
 Objetivo inmediato recomendado:
 
 ```txt
-Cerrar la base multitienda operativa revisando los módulos que faltan por aislamiento de tienda: envíos, promociones automáticas, cupones manuales, regalos, WhatsApp/settings y cualquier consulta global restante. Después continuar 12.3 Cupón manual.
+Actualizar source y comenzar el bloque Rating y reseñas desde Ajustes de tienda, iniciando por la pestaña `Rating y reseñas` y su base backend. Mantener el sistema dentro de `/admin/store-settings`, sin crear una sección lateral nueva de Reseñas.
 ```
 
 Checklist clave del bloque 12.3:
@@ -225,11 +229,12 @@ Checklist clave del bloque 12.3:
 Orden recomendado actualizado:
 
 ```txt
-1. Cerrar 12.3 Cupón manual.
-2. Probar checkout con cupones, enlaces, WhatsApp, órdenes y moneda mixta.
-3. Actualizar Master Document y source.
-4. Cerrar Marketing, Promociones y Cupones como bloque base.
-5. Continuar con el siguiente bloque visual/funcional recomendado según pruebas.
+1. Actualizar source estable con lo implementado hasta ahora.
+2. Aplicar backend/migración del sistema de rating y reseñas.
+3. Agregar helpers de reseñas en `src/lib/api.ts`.
+4. Crear la pestaña `Rating y reseñas` dentro de `/admin/store-settings`.
+5. Agregar configuración, analítica, moderación y órdenes listas para pedir reseña dentro de esa pestaña.
+6. Después continuar con portada pública, productos y dashboard.
 ```
 
 División importante:
@@ -257,7 +262,7 @@ Marketing 12.2 queda cerrado como base funcional si las pruebas finales pasan.
 🟡 Cupón manual 12.3 en implementación/prueba.
 ⏳ Promociones, cintillos y banners avanzados futuros.
 ⏳ Regalos profesionales por reglas (`gift_rules`) después de moneda y checkout visual.
-⏳ Reseñas.
+🔜 Rating y reseñas dentro de Ajustes de tienda.
 ⏳ Métricas avanzadas.
 ⏳ Ganancia por orden.
 ⏳ Alertas de vencimiento.
@@ -1223,11 +1228,90 @@ Campos sugeridos para `coupon_redemptions`:
 
 ## 13. Reseñas y Calificaciones
 
-El sistema futuro debe permitir:
+El sistema de reseñas deja de ser solo una idea futura general y queda definido como un bloque funcional próximo para PowerZona / Tu Senda 84.
 
-- Calificación general de la tienda.
-- Calificación individual por producto.
-- Comentarios o testimonios moderados por el administrador.
+Objetivo principal:
+
+```txt
+Crear un sistema de rating y reseñas moderado por el admin, integrado con tienda pública, productos y órdenes entregadas.
+```
+
+Regla central:
+
+```txt
+Ninguna reseña se publica automáticamente.
+Todas las reseñas entran como pending.
+Solo las reseñas approved se muestran públicamente y afectan el rating.
+```
+
+Tipos de reseñas definidos:
+
+```txt
+1. Reseña pública de tienda.
+2. Reseña pública de producto.
+3. Reseña verificada de tienda desde orden entregada.
+4. Reseña verificada de producto desde orden entregada.
+```
+
+Diferencia entre reseñas públicas y verificadas:
+
+```txt
+Reseña pública:
+- El cliente la deja desde la tienda pública o desde la página del producto.
+- No se sabe si compró realmente.
+- verified_purchase = false.
+
+Reseña verificada:
+- Nace desde un link enviado por el admin después de que una orden fue marcada como entregada.
+- Está vinculada a una orden real.
+- verified_purchase = true.
+- Puede mostrarse con etiqueta “Compra verificada”.
+```
+
+Rating general de tienda:
+
+```txt
+Se calcula usando reseñas approved de type = store.
+Incluye reseñas públicas aprobadas y reseñas verificadas aprobadas.
+No incluye pending, hidden ni rejected.
+```
+
+Rating de producto:
+
+```txt
+Se calcula usando reseñas approved de type = product y product = producto actual.
+No se mezcla con el rating general de la tienda.
+```
+
+Visual público deseado:
+
+```txt
+Portada:
+4.8 ⭐⭐⭐⭐⭐ (23 reseñas)
+
+Producto:
+4.9 ⭐⭐⭐⭐⭐ (8 reseñas)
+
+Reseña individual:
+★★★★★ Compra verificada
+“Todo llegó rápido y en buen estado.”
+— Carlos M.
+```
+
+Regla de privacidad:
+
+```txt
+El teléfono, email o contacto del cliente no debe mostrarse públicamente.
+Públicamente solo se muestra nombre abreviado o nombre público.
+```
+
+Relación con `settings.reviews_text`:
+
+```txt
+`settings.reviews_text` NO se elimina.
+Ese campo sigue siendo el texto manual de confianza actual.
+El nuevo rating real se maneja con la colección `reviews`.
+```
 
 ---
 ## 14. Panel de Administración PowerZona
@@ -1245,18 +1329,19 @@ La estructura visual debe incluir un menú lateral similar a un dashboard modern
 El panel admin debe tener un menú lateral con las siguientes secciones principales:
 
 * Resumen
-* Ajustes de negocio
+* Ajustes de negocio / Ajustes de tienda
 * Gestión del catálogo
 * Ventas
 * Promociones
-* Reseñas
+* Rating y reseñas dentro de Ajustes de tienda
 
 Ejemplo de estructura del menú lateral:
 
 ```txt
 Resumen
 
-Ajustes de negocio
+Ajustes de negocio / Ajustes de tienda
+  - Rating y reseñas
 
 Gestión del catálogo
   - Categorías
@@ -1274,11 +1359,16 @@ Promociones
   - Banners
   - Cupones
   - Promociones por producto
-
-Reseñas
 ```
 
 El menú lateral debe permitir navegar entre las diferentes áreas del panel sin mezclar todas las funciones en una sola pantalla.
+
+Nota actual sobre reseñas:
+
+```txt
+Aunque este roadmap histórico mencionaba Reseñas como sección lateral futura, la decisión actual del source es implementar el módulo dentro de Ajustes de tienda → Rating y reseñas.
+No crear una opción lateral nueva en la primera versión.
+```
 
 ---
 
@@ -1847,30 +1937,77 @@ Etiqueta: Oferta
 
 ---
 
-### 14.7 Reseñas
+### 14.7 Rating y reseñas dentro de Ajustes de tienda
 
-La sección de reseñas debe permitir gestionar opiniones o comentarios de clientes.
-
-Debe incluir:
-
-* Ver reseñas recibidas.
-* Aprobar reseñas antes de mostrarlas.
-* Ocultar reseñas.
-* Eliminar reseñas falsas o incorrectas.
-* Asociar reseñas a productos si aplica.
-* Mostrar reseñas aprobadas en la web pública.
-* Ver calificación promedio si se usan estrellas.
-
-En una fase inicial esta sección puede quedar preparada visualmente, pero sin implementación completa.
-
-Ejemplo:
+Decisión actual:
 
 ```txt
-Cliente: Juan Pérez
-Producto: Creatina Monohidratada
-Calificación: 5 estrellas
-Comentario: Muy buen producto.
-Estado: Pendiente de aprobación
+En la primera implementación no se creará una sección lateral independiente llamada Reseñas.
+Todo el módulo vivirá dentro de:
+Ajustes de tienda → Rating y reseñas
+```
+
+Ubicación real del módulo:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+```
+
+Estructura esperada dentro de la pestaña:
+
+```txt
+Ajustes de tienda
+├── Ajustes generales
+├── Footer público
+├── Monedas
+├── Horario
+└── Rating y reseñas
+    ├── Configuración
+    ├── Analítica
+    ├── Reseñas pendientes
+    ├── Todas las reseñas
+    ├── Órdenes listas para pedir reseña
+    └── Mensaje de WhatsApp
+```
+
+Funciones de la pestaña `Rating y reseñas`:
+
+```txt
+- Activar/desactivar sistema de rating.
+- Mostrar/ocultar rating en portada.
+- Permitir reseñas públicas de tienda.
+- Mostrar/ocultar rating en productos.
+- Permitir reseñas públicas en productos.
+- Activar reseñas verificadas desde órdenes entregadas.
+- Definir cuántas horas esperar después de entregar una orden.
+- Editar mensaje de WhatsApp para pedir reseña.
+- Ver analítica básica.
+- Aprobar, rechazar, ocultar o eliminar reseñas.
+- Ver órdenes listas para pedir reseña.
+```
+
+Regla de moderación:
+
+```txt
+pending  → pendiente de aprobación.
+approved → pública y cuenta para rating.
+hidden   → oculta y no cuenta para rating.
+rejected → rechazada y no cuenta para rating.
+```
+
+Regla de dashboard:
+
+```txt
+El dashboard puede mostrar una tarjeta rápida con rating general, reseñas pendientes y órdenes listas para pedir reseña.
+Al tocar Gestionar debe llevar a:
+/admin/store-settings#rating
+```
+
+Nota histórica:
+
+```txt
+El documento anterior contemplaba una sección futura Reseñas en el menú lateral.
+La decisión actual para el source real es mantenerlo dentro de Ajustes de tienda para no cargar el sidebar y aprovechar la pantalla existente.
 ```
 
 ---
@@ -19762,5 +19899,711 @@ Mensaje sugerido:
 
 ```txt
 21.30.20 — Master Admin profesional + Web Bazzar pública. Source actualizado. Ya quedó cerrado 21.30.19 con aislamiento operativo, mini categorías, horarios, Ajustes generales de tienda pública, carrusel, tipo de negocio, ubicación pública, Info de la tienda y footer público ordenado.
+```
+
+---
+
+## 24. Actualización acumulativa — Rating y reseñas dentro de Ajustes de tienda
+
+Esta sección documenta la decisión final antes de actualizar el source y pasar las mejoras visuales empezando por la pestaña de rating.
+
+Estado:
+
+```txt
+🔜 BLOQUE DEFINIDO / PRÓXIMO A IMPLEMENTAR EN SOURCE ACTUALIZADO
+```
+
+Nombre recomendado del bloque:
+
+```txt
+Rating y reseñas — Ajustes de tienda
+```
+
+Fecha de actualización documental:
+
+```txt
+2026-06-14
+```
+
+Marca de versión documental:
+
+```txt
+PZ-MASTER-RATING-RESEÑAS-V25-20260614
+```
+
+---
+
+### 24.1. Decisión principal del módulo
+
+La función de rating y reseñas no se manejará como una sección nueva independiente del panel lateral en esta primera versión.
+
+Regla final:
+
+```txt
+Todo vive dentro de:
+Ajustes de tienda → Rating y reseñas
+```
+
+Archivo principal de la pestaña:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+```
+
+No crear en esta fase:
+
+```txt
+/admin/reviews
+```
+
+No agregar en esta fase:
+
+```txt
+Nueva opción lateral independiente llamada Reseñas
+```
+
+Motivo:
+
+```txt
+El panel ya tiene Ajustes de tienda con Ajustes generales, Footer público, Monedas y Horario.
+Rating y reseñas es una configuración y gestión general de la tienda, por eso debe vivir en esa misma pantalla.
+```
+
+---
+
+### 24.2. Relación con `reviews_text`
+
+Actualmente existe un campo:
+
+```txt
+settings.reviews_text
+```
+
+Uso actual:
+
+```txt
+Texto manual de confianza / reseña visible o informativa dentro de Ajustes generales.
+```
+
+Regla final:
+
+```txt
+No tocar, no borrar y no convertir `reviews_text` en rating real.
+```
+
+El nuevo sistema usará una colección nueva:
+
+```txt
+reviews
+```
+
+---
+
+### 24.3. Tipos de reseñas aceptados
+
+El sistema aceptará dos caminos principales:
+
+```txt
+1. Reseñas públicas desde tienda o producto.
+2. Reseñas verificadas desde órdenes entregadas.
+```
+
+Detalle:
+
+```txt
+Reseña pública de tienda:
+- El cliente entra a la tienda pública y deja una reseña general.
+- type = store.
+- source = public_store.
+- verified_purchase = false.
+
+Reseña pública de producto:
+- El cliente entra a la página de producto y deja una reseña del producto.
+- type = product.
+- source = public_product.
+- verified_purchase = false.
+
+Reseña verificada de tienda:
+- El cliente recibe un link de una orden entregada.
+- Califica la experiencia general de la tienda.
+- type = store.
+- source = order_review_link.
+- verified_purchase = true.
+
+Reseña verificada de producto:
+- El cliente recibe un link de una orden entregada.
+- Califica uno o varios productos comprados.
+- type = product.
+- source = order_review_link.
+- verified_purchase = true.
+```
+
+---
+
+### 24.4. Moderación obligatoria
+
+Regla principal:
+
+```txt
+Toda reseña entra como pending.
+Ninguna reseña se publica automáticamente.
+Solo approved se muestra y afecta el rating.
+```
+
+Estados definidos:
+
+```txt
+pending   → pendiente de aprobar.
+approved  → pública y cuenta para rating.
+hidden    → oculta y no cuenta para rating.
+rejected  → rechazada y no cuenta para rating.
+```
+
+Acciones del admin:
+
+```txt
+Aprobar
+Rechazar
+Ocultar
+Eliminar
+```
+
+Al aprobar:
+
+```txt
+status = approved
+approved_at = fecha actual
+```
+
+---
+
+### 24.5. Rating público
+
+Rating general de tienda:
+
+```txt
+Se calcula con reviews approved donde:
+store = tienda actual
+type = store
+```
+
+Rating de producto:
+
+```txt
+Se calcula con reviews approved donde:
+store = tienda actual
+type = product
+product = producto actual
+```
+
+No contar:
+
+```txt
+pending
+hidden
+rejected
+```
+
+Ejemplos visuales:
+
+```txt
+Portada de tienda:
+4.8 ⭐⭐⭐⭐⭐ (23 reseñas)
+
+Página de producto:
+4.9 ⭐⭐⭐⭐⭐ (8 reseñas)
+```
+
+---
+
+### 24.6. Pestaña `Rating y reseñas` dentro de Ajustes de tienda
+
+Estructura esperada de tabs:
+
+```txt
+Ajustes de tienda
+├── Ajustes generales
+├── Footer público
+├── Monedas
+├── Horario
+└── Rating y reseñas
+```
+
+Dentro de `Rating y reseñas`:
+
+```txt
+1. Configuración.
+2. Analítica.
+3. Reseñas pendientes.
+4. Todas las reseñas.
+5. Órdenes listas para pedir reseña.
+6. Mensaje de WhatsApp.
+```
+
+Configuración esperada:
+
+```txt
+[✓] Activar sistema de rating y reseñas
+[✓] Mostrar rating en portada
+[✓] Permitir reseñas públicas de tienda
+[✓] Mostrar rating en productos
+[✓] Permitir reseñas públicas en productos
+[✓] Activar reseñas verificadas desde órdenes entregadas
+[✓] Mostrar etiqueta “Compra verificada”
+[✓] Requerir aprobación antes de publicar
+Pedir reseña después de: [24] horas
+Mensaje de WhatsApp para pedir reseña: [textarea]
+```
+
+Campos esperados en `settings`:
+
+```txt
+reviews_enabled
+store_reviews_enabled
+product_reviews_enabled
+verified_order_reviews_enabled
+reviews_require_approval
+show_store_rating
+show_product_rating
+show_verified_badge
+review_request_delay_hours
+review_whatsapp_message
+```
+
+---
+
+### 24.7. Analítica dentro de la pestaña
+
+La pestaña debe mostrar resumen interno:
+
+```txt
+Rating general de tienda.
+Total de reseñas aprobadas.
+Reseñas pendientes de aprobar.
+Reseñas verificadas.
+Reseñas públicas.
+Reseñas de productos.
+Reseñas de tienda.
+Órdenes listas para pedir reseña.
+Solicitudes enviadas.
+```
+
+El dashboard principal puede mostrar una tarjeta rápida:
+
+```txt
+Rating general: 4.8
+Reseñas pendientes: 3
+Órdenes listas para pedir reseña: 5
+[Gestionar rating y reseñas]
+```
+
+Link esperado:
+
+```txt
+/admin/store-settings#rating
+/t/[storeSlug]/admin/store-settings#rating
+```
+
+---
+
+### 24.8. Reseñas verificadas desde órdenes entregadas
+
+Flujo aprobado:
+
+```txt
+Orden marcada como entregada
+↓
+Se guarda delivered_at
+↓
+Pasan 24 horas o el delay configurado
+↓
+El admin abre Ajustes de tienda → Rating y reseñas
+↓
+El sistema calcula órdenes listas para pedir reseña
+↓
+Admin toca Pedir reseña por WhatsApp
+↓
+Se abre WhatsApp con mensaje preparado y link único
+↓
+Cliente entra al link
+↓
+Deja reseña de tienda y/o productos comprados
+↓
+Las reseñas quedan pending
+↓
+Admin aprueba
+↓
+Ahora cuentan para rating público
+```
+
+Regla importante:
+
+```txt
+No usar cron.
+No usar proceso programado real.
+Calcular órdenes listas cada vez que el admin abra el panel o la pestaña.
+```
+
+Regla para una orden lista:
+
+```txt
+status = delivered
+delivered_at existe
+delivered_at tiene al menos review_request_delay_hours horas
+review_requested_at vacío
+review_skipped_at vacío
+review_completed_at vacío
+no existen reviews verificadas asociadas a esa orden
+```
+
+Campos esperados en `orders`:
+
+```txt
+delivered_at
+review_token
+review_requested_at
+review_request_count
+review_skipped_at
+review_completed_at
+```
+
+---
+
+### 24.9. Botón manual de WhatsApp
+
+El botón será manual:
+
+```txt
+[Pedir reseña por WhatsApp]
+```
+
+No debe enviar mensajes automáticamente.
+
+Comportamiento:
+
+```txt
+1. Generar o reutilizar review_token.
+2. Construir link público de reseña.
+3. Tomar mensaje desde settings.review_whatsapp_message.
+4. Reemplazar placeholders.
+5. Abrir WhatsApp con texto preparado.
+6. Guardar review_requested_at.
+7. Aumentar review_request_count.
+```
+
+Placeholders del mensaje:
+
+```txt
+{cliente}
+{tienda}
+{link_reseña}
+{numero_orden}
+```
+
+Mensaje default:
+
+```txt
+Hola {cliente} 👋
+
+Gracias por tu compra en {tienda}.
+
+Nos ayudaría mucho si puedes dejar una reseña sobre tu experiencia y los productos que recibiste.
+
+Puedes hacerlo aquí:
+{link_reseña}
+
+Gracias 🙌
+```
+
+---
+
+### 24.10. Link público de reseña por orden
+
+Ruta principal aprobada:
+
+```txt
+/t/{storeSlug}/review/order/{token}
+```
+
+Ejemplo:
+
+```txt
+/t/powerzona/review/order/abc123xyz
+```
+
+Regla:
+
+```txt
+Los links generados desde admin deben usar siempre la ruta multitienda con `/t/{storeSlug}`.
+```
+
+Ruta opcional de compatibilidad:
+
+```txt
+/review/order/{token}
+```
+
+Solo debe usarse como compatibilidad/redirección si hace falta.
+
+La página debe mostrar:
+
+```txt
+Gracias por tu compra, Carlos
+
+¿Cómo fue tu experiencia con la tienda?
+★★★★★
+Comentario sobre la tienda
+
+Califica tus productos:
+
+Creatina Monohidratada
+★★★★★
+Comentario opcional
+
+Whey Protein
+★★★★☆
+Comentario opcional
+
+[Enviar reseñas]
+```
+
+Reglas:
+
+```txt
+Una reseña de tienda por orden.
+Una reseña por producto por orden.
+Si un mismo producto aparece varias veces en la orden, se muestra una sola vez.
+No pedir reseña de regalos como productos normales.
+No permitir status approved desde el cliente.
+```
+
+---
+
+### 24.11. Colección `reviews`
+
+Colección nueva recomendada:
+
+```txt
+reviews
+```
+
+Campos principales:
+
+```txt
+store                 → relation stores, requerido
+type                  → select: store, product
+product               → relation products, opcional
+order                 → relation orders, opcional
+rating                → number 1 a 5
+customer_name         → text
+customer_contact      → text opcional privado/protegido si PB lo soporta
+comment               → text opcional
+status                → select: pending, approved, hidden, rejected
+source                → select: public_store, public_product, order_review_link, admin_created
+verified_purchase     → bool
+featured              → bool
+admin_note            → text opcional privado/protegido si PB lo soporta
+approved_at           → date opcional
+created               → autodate
+updated               → autodate
+```
+
+Privacidad:
+
+```txt
+customer_contact y admin_note no deben salir en listados públicos.
+Si no se puede garantizar privacidad de campo en PocketBase, omitirlos en primera migración.
+```
+
+---
+
+### 24.12. Reglas públicas y de seguridad
+
+Reglas públicas de `reviews`:
+
+```txt
+Público puede leer solo reviews con status = approved.
+Público puede crear reseñas públicas solo como pending.
+Público puede crear reseñas verificadas solo con review_token válido.
+Público no puede crear approved.
+Público no puede crear featured = true.
+Público no puede editar ni borrar reseñas.
+```
+
+Reglas por tienda:
+
+```txt
+Master admin puede gestionar todo.
+Store admin puede gestionar reviews de su tienda.
+Store staff puede leer reviews de su tienda si el backend lo permite.
+Cada review debe tener store.
+No mezclar reseñas entre tiendas.
+```
+
+Regla de orders/order_items para link de reseña:
+
+```txt
+Mantener intacto receipt_token público actual.
+Agregar lectura por review_token solo si:
+- review_token coincide.
+- review_token no está vacío.
+- review_requested_at existe.
+- status = delivered.
+```
+
+No permitir:
+
+```txt
+Update público general de orders.
+```
+
+---
+
+### 24.13. Source revisado antes de prompts para Codex
+
+Notas del source actualizado revisado antes de esta planificación:
+
+```txt
+Última migración existente detectada:
+backend-powerzona/pb_migrations/1780470900_repair_settings_persistence_fields.js
+```
+
+Nueva migración recomendada:
+
+```txt
+backend-powerzona/pb_migrations/1780471000_created_reviews_rating.js
+```
+
+Pantalla real de ajustes:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+```
+
+Tabs existentes a conservar:
+
+```txt
+Ajustes generales
+Footer público
+Monedas
+Horario
+```
+
+Tab nuevo:
+
+```txt
+Rating y reseñas
+```
+
+Rutas multitienda:
+
+```txt
+/t/[storeSlug]/admin/store-settings.astro
+```
+
+Regla:
+
+```txt
+Las rutas multitienda son wrappers, por lo que debe modificarse el archivo base `/admin/store-settings.astro`.
+```
+
+---
+
+### 24.14. Prompts definidos para Codex — orden oficial
+
+Orden final para pasar a Codex:
+
+```txt
+1. Backend / migración PocketBase.
+2. Helpers públicos en `src/lib/api.ts`.
+3. Tab `Rating y reseñas` en Ajustes de tienda.
+4. Moderación y analítica dentro del tab.
+5. Órdenes listas para pedir reseña dentro del tab.
+6. `delivered_at` + botón de reseña en `orders.astro`.
+7. Página pública `/t/[storeSlug]/review/order/[token]`.
+8. Rating y reseñas en portada pública.
+9. Rating y reseñas en productos.
+10. Tarjeta rápida en dashboard admin.
+11. Revisión final y build.
+```
+
+Regla de trabajo:
+
+```txt
+Pasar los prompts uno por uno.
+Después del Prompt 1, probar que PocketBase levante bien antes de continuar.
+Después de cada bloque grande, ejecutar pruebas y no mezclar cambios visuales profundos hasta que la base funcional esté estable.
+```
+
+---
+
+### 24.15. Checklist de implementación recomendado
+
+Backend:
+
+```txt
+1. Crear colección reviews.
+2. Agregar campos nuevos en settings.
+3. Agregar campos nuevos en orders.
+4. Agregar reglas públicas seguras.
+5. Mantener receipt_token intacto.
+6. Mantener aislamiento por store.
+```
+
+Admin:
+
+```txt
+1. Agregar tab Rating y reseñas.
+2. Guardar configuración.
+3. Mostrar analítica.
+4. Listar pendientes.
+5. Aprobar/rechazar/ocultar/eliminar.
+6. Calcular órdenes listas para pedir reseña.
+7. Botón manual de WhatsApp.
+```
+
+Público:
+
+```txt
+1. Mostrar rating de tienda cerca de ubicación/dirección.
+2. Formulario público de reseña de tienda.
+3. Mostrar rating en producto.
+4. Formulario público de reseña de producto.
+5. Link verificado por orden entregada.
+```
+
+Pruebas:
+
+```txt
+1. Reseña pública entra pending.
+2. Pending no afecta rating.
+3. Admin aprueba y ahora aparece pública.
+4. Orden entregada guarda delivered_at.
+5. Después de 24h aparece lista para pedir reseña.
+6. Botón abre WhatsApp con link correcto.
+7. Link `/t/{storeSlug}/review/order/{token}` muestra productos de la orden.
+8. Reseña verificada entra pending y con verified_purchase = true.
+9. Compra verificada se muestra solo si está activo.
+10. Ninguna tienda ve reseñas de otra tienda.
+```
+
+---
+
+### 24.16. Próximo paso inmediato
+
+Antes de empezar el bloque en Codex:
+
+```txt
+1. Actualizar source estable.
+2. Confirmar que la última migración existente sigue siendo `1780470900_repair_settings_persistence_fields.js` o ajustar el número de migración si cambió.
+3. Pasar Prompt 1 a Codex.
+4. Reiniciar PocketBase y validar migración.
+5. Continuar con Prompt 2 y Prompt 3, empezando la parte visual por la pestaña `Rating y reseñas`.
+```
+
+Mensaje recomendado para iniciar el próximo trabajo con source actualizado:
+
+```txt
+Rating y reseñas — Ajustes de tienda. Source actualizado. Empezamos por backend/migración y luego la pestaña `Rating y reseñas` dentro de `/admin/store-settings`, sin crear `/admin/reviews` ni tocar `settings.reviews_text`.
 ```
 
