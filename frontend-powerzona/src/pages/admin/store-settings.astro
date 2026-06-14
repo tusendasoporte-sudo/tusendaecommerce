@@ -201,9 +201,152 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .order-btn { min-width: 42px; padding-left: 12px; padding-right: 12px; }
       .mini-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
       .mini-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .rating-tab-shell { width: min(940px, 100%); margin: 0 auto; display: grid; gap: 16px; }
+      .rating-tab-title { display: grid; gap: 6px; }
+      .rating-settings-form { display: grid; gap: 16px; }
+      .rating-section-card,
+      .rating-control-card,
+      .rating-config-panel {
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px;
+        background: rgba(255,255,255,.92);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+        padding: 18px;
+      }
+      .rating-section-head,
+      .rating-control-head,
+      .rating-control-foot {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      .rating-control-foot { align-items: center; margin-top: 14px; }
+      .rating-section-head h2,
+      .rating-section-head h3,
+      .rating-control-head h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 1000;
+        letter-spacing: -.025em;
+      }
+      .rating-section-head p,
+      .rating-control-head p {
+        margin: 6px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+      .rating-main-toggle,
+      .rating-setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 950;
+      }
+      .rating-main-toggle { flex: 0 0 auto; padding-top: 2px; }
+      .rating-main-toggle input,
+      .rating-setting-row input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        flex: 0 0 auto;
+      }
+      .rating-summary-text {
+        margin: 0;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 900;
+        line-height: 1.45;
+      }
+      .rating-config-panel { display: grid; gap: 16px; }
+      .rating-config-panel.hidden { display: none !important; }
+      .rating-save-status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        font-size: 11px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+      .rating-save-status.saving { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+      .rating-save-status.error { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .rating-setting-group {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        background: #f8fafc;
+      }
+      .rating-setting-group h4 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 1000;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+      }
+      .rating-setting-row {
+        min-height: 38px;
+        padding: 8px 0;
+        border-top: 1px solid rgba(226,232,240,.9);
+      }
+      .rating-number-field { max-width: 260px; }
+      .rating-moderation-note {
+        display: grid;
+        gap: 4px;
+        position: relative;
+        padding: 14px 48px 14px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        background: #fff;
+      }
+      .rating-moderation-note strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
+      .rating-moderation-note span { color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.45; }
+      .rating-moderation-note input { position: absolute; right: 16px; top: 18px; width: 18px; height: 18px; margin: 0; }
+      .rating-summary-list { display: grid; }
+      .rating-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        min-height: 46px;
+        padding: 12px 0;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .rating-summary-row:last-child { border-bottom: 0; }
+      .rating-summary-row span { color: #475569; font-size: 13px; font-weight: 850; line-height: 1.35; }
+      .rating-summary-row strong { color: #0f172a; font-size: 18px; font-weight: 1000; text-align: right; white-space: nowrap; }
+      .rating-filter-field { display: grid; gap: 7px; min-width: min(240px, 100%); }
+      .rating-filter-field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+      .rating-filter-select {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        color: var(--text);
+        padding: 10px 12px;
+        outline: none;
+        font-weight: 900;
+      }
+      .rating-section-card .alert,
+      .rating-config-panel .alert { margin-top: 0; }
+      .rating-section-card .empty-state { padding: 14px; }
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid, .settings-image-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } .settings-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       @media (max-width: 520px) { .day-times { grid-template-columns: 1fr; } }
-      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } }
+      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } .rating-section-head, .rating-control-head, .rating-control-foot { flex-direction: column; align-items: stretch; } .rating-main-toggle { justify-content: space-between; width: 100%; } .rating-control-foot .mini-btn, .rating-section-head .mini-btn { width: 100%; } .rating-filter-field { width: 100%; } .rating-summary-row { align-items: flex-start; } }
     
 
       /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
@@ -654,141 +797,170 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
 
           <section id="tab-rating" class="panel-card tab-panel hidden">
-            <div class="section-head">
-              <div>
+            <div class="rating-tab-shell">
+              <div class="rating-tab-title">
                 <h2 class="section-title">Rating y rese&ntilde;as</h2>
-                <p class="section-subtitle">Configura la lectura p&uacute;blica, rese&ntilde;as de productos y solicitudes verificadas desde &oacute;rdenes entregadas.</p>
-              </div>
-              <button id="rating-settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
-            </div>
-            <form id="rating-settings-form" class="visual-form-grid">
-              <h3 class="settings-section-title">Estado general</h3>
-              <label class="option-card full">
-                <input id="rating-reviews-enabled" type="checkbox" checked />
-                <span class="option-title">Activar sistema de rating y rese&ntilde;as</span>
-                <span class="option-text">Habilita la base de rese&ntilde;as para tienda, productos y flujos futuros.</span>
-              </label>
-
-              <h3 class="settings-section-title">Tienda</h3>
-              <div class="option-grid full">
-                <label class="option-card">
-                  <input id="rating-show-store-rating" type="checkbox" checked />
-                  <span class="option-title">Mostrar rating en portada</span>
-                  <span class="option-text">Permite mostrar el promedio de la tienda en la experiencia p&uacute;blica.</span>
-                </label>
-                <label class="option-card">
-                  <input id="rating-store-reviews-enabled" type="checkbox" checked />
-                  <span class="option-title">Permitir rese&ntilde;as p&uacute;blicas de tienda</span>
-                  <span class="option-text">Los clientes podr&aacute;n enviar rese&ntilde;as generales de la tienda.</span>
-                </label>
+                <p class="section-subtitle">Configura calificaciones p&uacute;blicas, rese&ntilde;as de productos y solicitudes verificadas por WhatsApp.</p>
               </div>
 
-              <h3 class="settings-section-title">Productos</h3>
-              <div class="option-grid full">
-                <label class="option-card">
-                  <input id="rating-show-product-rating" type="checkbox" checked />
-                  <span class="option-title">Mostrar rating en productos</span>
-                  <span class="option-text">Permite mostrar promedios y conteos en fichas o listados de productos.</span>
-                </label>
-                <label class="option-card">
-                  <input id="rating-product-reviews-enabled" type="checkbox" checked />
-                  <span class="option-title">Permitir rese&ntilde;as p&uacute;blicas en productos</span>
-                  <span class="option-text">Los clientes podr&aacute;n enviar rese&ntilde;as asociadas a productos.</span>
-                </label>
-              </div>
+              <form id="rating-settings-form" class="rating-settings-form">
+                <section class="rating-control-card">
+                  <div class="rating-control-head">
+                    <div>
+                      <h3>Sistema de rating y rese&ntilde;as</h3>
+                      <p>Activa valoraciones p&uacute;blicas, rese&ntilde;as de productos y solicitudes verificadas por WhatsApp.</p>
+                    </div>
+                    <label class="rating-main-toggle" for="rating-reviews-enabled">
+                      <span>Activo</span>
+                      <input id="rating-reviews-enabled" type="checkbox" checked />
+                    </label>
+                  </div>
+                  <div class="rating-control-foot">
+                    <p id="rating-settings-summary" class="rating-summary-text">Activo &middot; Tienda y productos &middot; Solicitud despu&eacute;s de 24 h</p>
+                    <button id="rating-config-toggle-btn" class="mini-btn" type="button" aria-expanded="false" aria-controls="rating-config-panel">Editar configuraci&oacute;n</button>
+                  </div>
+                </section>
 
-              <h3 class="settings-section-title">&Oacute;rdenes entregadas</h3>
-              <div class="option-grid full">
-                <label class="option-card">
-                  <input id="rating-verified-order-reviews-enabled" type="checkbox" checked />
-                  <span class="option-title">Activar rese&ntilde;as verificadas desde &oacute;rdenes entregadas</span>
-                  <span class="option-text">Habilita solicitudes vinculadas a &oacute;rdenes marcadas como entregadas.</span>
-                </label>
-                <div class="field">
-                  <label for="rating-review-request-delay-hours">Pedir rese&ntilde;a despu&eacute;s de X horas</label>
-                  <input id="rating-review-request-delay-hours" type="number" min="0" step="1" value="24" />
-                  <p class="form-help">Tiempo de espera sugerido despu&eacute;s de entregar la orden.</p>
+                <section id="rating-config-panel" class="rating-config-panel hidden">
+                  <div class="rating-section-head">
+                    <div>
+                      <h3>Configuraci&oacute;n de rating y rese&ntilde;as</h3>
+                      <p>Los cambios se guardan autom&aacute;ticamente.</p>
+                    </div>
+                    <span id="rating-settings-save-status" class="rating-save-status" aria-live="polite">Guardado autom&aacute;ticamente</span>
+                  </div>
+
+                  <div class="rating-setting-group">
+                    <h4>Tienda</h4>
+                    <label class="rating-setting-row" for="rating-show-store-rating">
+                      <span>Mostrar rating en portada</span>
+                      <input id="rating-show-store-rating" type="checkbox" checked />
+                    </label>
+                    <label class="rating-setting-row" for="rating-store-reviews-enabled">
+                      <span>Permitir rese&ntilde;as p&uacute;blicas de tienda</span>
+                      <input id="rating-store-reviews-enabled" type="checkbox" checked />
+                    </label>
+                  </div>
+
+                  <div class="rating-setting-group">
+                    <h4>Productos</h4>
+                    <label class="rating-setting-row" for="rating-show-product-rating">
+                      <span>Mostrar rating en productos</span>
+                      <input id="rating-show-product-rating" type="checkbox" checked />
+                    </label>
+                    <label class="rating-setting-row" for="rating-product-reviews-enabled">
+                      <span>Permitir rese&ntilde;as p&uacute;blicas en productos</span>
+                      <input id="rating-product-reviews-enabled" type="checkbox" checked />
+                    </label>
+                  </div>
+
+                  <div class="rating-setting-group">
+                    <h4>&Oacute;rdenes entregadas</h4>
+                    <label class="rating-setting-row" for="rating-verified-order-reviews-enabled">
+                      <span>Activar rese&ntilde;as verificadas desde &oacute;rdenes entregadas</span>
+                      <input id="rating-verified-order-reviews-enabled" type="checkbox" checked />
+                    </label>
+                    <div class="field rating-number-field">
+                      <label for="rating-review-request-delay-hours">Pedir rese&ntilde;a despu&eacute;s de</label>
+                      <input id="rating-review-request-delay-hours" type="number" min="24" step="1" value="24" />
+                      <p class="form-help">M&iacute;nimo permitido: 24 horas despu&eacute;s de marcar la orden como entregada.</p>
+                    </div>
+                  </div>
+
+                  <div class="rating-setting-group">
+                    <h4>Visual</h4>
+                    <label class="rating-setting-row" for="rating-show-verified-badge">
+                      <span>Mostrar etiqueta &quot;Compra verificada&quot;</span>
+                      <input id="rating-show-verified-badge" type="checkbox" checked />
+                    </label>
+                  </div>
+
+                  <div class="rating-setting-group">
+                    <h4>WhatsApp</h4>
+                    <div class="field">
+                      <label for="rating-review-whatsapp-message">Mensaje de WhatsApp para pedir rese&ntilde;a</label>
+                      <textarea id="rating-review-whatsapp-message" placeholder="Hola &#123;cliente&#125;, gracias por tu compra en &#123;tienda&#125;. Puedes dejar tu rese&ntilde;a aqu&iacute;: &#123;link_rese&ntilde;a&#125;"></textarea>
+                      <p class="form-help">Variables disponibles: &#123;cliente&#125;, &#123;tienda&#125;, &#123;link_rese&ntilde;a&#125;, &#123;numero_orden&#125;.</p>
+                    </div>
+                    <button id="rating-restore-message-btn" class="mini-btn" type="button">Restaurar mensaje por defecto</button>
+                  </div>
+
+                  <div class="rating-moderation-note">
+                    <strong>Moderaci&oacute;n manual activa</strong>
+                    <span>Las rese&ntilde;as requieren aprobaci&oacute;n antes de publicarse.</span>
+                    <input id="rating-reviews-require-approval" type="checkbox" checked disabled />
+                  </div>
+
+                  <div id="rating-settings-alert" class="alert alert-info hidden"></div>
+                </section>
+              </form>
+
+              <section class="rating-section-card">
+                <div class="rating-section-head">
+                  <div>
+                    <h2>Anal&iacute;tica de rese&ntilde;as</h2>
+                    <p>El rating general solo usa rese&ntilde;as aprobadas de tipo tienda.</p>
+                  </div>
                 </div>
-              </div>
+                <div id="rating-analytics-grid" class="rating-summary-list">
+                  <div class="rating-summary-row"><span>Rating general de tienda</span><strong id="rating-stat-average">0.0</strong></div>
+                  <div class="rating-summary-row"><span>Aprobadas</span><strong id="rating-stat-approved">0</strong></div>
+                  <div class="rating-summary-row"><span>Pendientes</span><strong id="rating-stat-pending">0</strong></div>
+                  <div class="rating-summary-row"><span>Verificadas</span><strong id="rating-stat-verified">0</strong></div>
+                  <div class="rating-summary-row"><span>P&uacute;blicas</span><strong id="rating-stat-public">0</strong></div>
+                  <div class="rating-summary-row"><span>Productos</span><strong id="rating-stat-products">0</strong></div>
+                  <div class="rating-summary-row"><span>Tienda</span><strong id="rating-stat-store">0</strong></div>
+                </div>
+              </section>
 
-              <h3 class="settings-section-title">Visual</h3>
-              <label class="option-card full">
-                <input id="rating-show-verified-badge" type="checkbox" checked />
-                <span class="option-title">Mostrar etiqueta &quot;Compra verificada&quot;</span>
-                <span class="option-text">Muestra una se&ntilde;al visual en rese&ntilde;as originadas desde &oacute;rdenes entregadas.</span>
-              </label>
+              <section class="rating-section-card">
+                <div class="rating-section-head">
+                  <div>
+                    <h2>&Oacute;rdenes listas para pedir rese&ntilde;a</h2>
+                    <p>Se calculan al abrir esta pesta&ntilde;a. No hay env&iacute;os autom&aacute;ticos en esta fase.</p>
+                  </div>
+                  <button id="rating-ready-orders-retry-btn" class="mini-btn" type="button">Reintentar</button>
+                </div>
+                <div id="rating-ready-orders-alert" class="alert alert-info hidden"></div>
+                <div id="rating-ready-orders-list" class="items-list"><div class="empty-state">Cargando &oacute;rdenes listas...</div></div>
+              </section>
 
-              <h3 class="settings-section-title">Moderaci&oacute;n</h3>
-              <label class="option-card full">
-                <input id="rating-reviews-require-approval" type="checkbox" checked disabled />
-                <span class="option-title">Requerir aprobaci&oacute;n antes de publicar</span>
-                <span class="option-text">La publicaci&oacute;n autom&aacute;tica permanece desactivada en esta fase.</span>
-              </label>
+              <section class="rating-section-card">
+                <div class="rating-section-head">
+                  <div>
+                    <h2>Rese&ntilde;as pendientes</h2>
+                    <p>Aprueba manualmente antes de publicar. Las pendientes no afectan el rating.</p>
+                  </div>
+                </div>
+                <div id="rating-pending-alert" class="alert alert-info hidden"></div>
+                <div id="rating-pending-list" class="items-list"><div class="empty-state">Cargando rese&ntilde;as pendientes...</div></div>
+              </section>
 
-              <h3 class="settings-section-title">WhatsApp</h3>
-              <div class="field full">
-                <label for="rating-review-whatsapp-message">Mensaje de WhatsApp para pedir rese&ntilde;a</label>
-                <textarea id="rating-review-whatsapp-message" placeholder="Hola &#123;cliente&#125;, gracias por tu compra en &#123;tienda&#125;. Puedes dejar tu rese&ntilde;a aqu&iacute;: &#123;link_rese&ntilde;a&#125;"></textarea>
-                <p class="form-help">Puedes usar variables como &#123;cliente&#125;, &#123;tienda&#125; y &#123;link_rese&ntilde;a&#125;.</p>
-              </div>
-
-              <div id="rating-settings-alert" class="alert alert-info hidden full"></div>
-              <div class="editor-actions full"><button class="submit-btn" type="submit">Guardar configuraci&oacute;n de rating</button></div>
-            </form>
-
-            <div class="section-head" style="margin-top:24px;">
-              <div>
-                <h2 class="section-title">Anal&iacute;tica de rese&ntilde;as</h2>
-                <p class="section-subtitle">El rating general solo usa rese&ntilde;as aprobadas de tipo tienda.</p>
-              </div>
+              <section class="rating-section-card">
+                <div class="rating-section-head">
+                  <div>
+                    <h2>Todas las rese&ntilde;as</h2>
+                    <p>Consulta y modera las rese&ntilde;as de esta tienda.</p>
+                  </div>
+                  <div class="rating-filter-field">
+                    <label for="rating-review-filter-select">Ver</label>
+                    <select id="rating-review-filter-select" class="rating-filter-select">
+                      <option value="all">Todas las rese&ntilde;as</option>
+                      <option value="pending">Pendientes</option>
+                      <option value="approved">Aprobadas</option>
+                      <option value="rejected">Rechazadas</option>
+                      <option value="hidden">Ocultas</option>
+                      <option value="store">Tienda</option>
+                      <option value="product">Productos</option>
+                      <option value="verified">Verificadas</option>
+                      <option value="public">P&uacute;blicas</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="rating-all-alert" class="alert alert-info hidden"></div>
+                <div id="rating-all-list" class="items-list"><div class="empty-state">Cargando rese&ntilde;as...</div></div>
+              </section>
             </div>
-            <div id="rating-analytics-grid" class="stats-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
-              <article class="stat-card"><p class="stat-label">Rating general de tienda</p><p id="rating-stat-average" class="stat-value">0.0</p></article>
-              <article class="stat-card"><p class="stat-label">Aprobadas</p><p id="rating-stat-approved" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Pendientes</p><p id="rating-stat-pending" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Verificadas</p><p id="rating-stat-verified" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">P&uacute;blicas</p><p id="rating-stat-public" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Productos</p><p id="rating-stat-products" class="stat-value">0</p></article>
-              <article class="stat-card"><p class="stat-label">Tienda</p><p id="rating-stat-store" class="stat-value">0</p></article>
-            </div>
-
-            <div class="section-head" style="margin-top:24px;">
-              <div>
-                <h2 class="section-title">&Oacute;rdenes listas para pedir rese&ntilde;a</h2>
-                <p class="section-subtitle">C&aacute;lculo manual al abrir esta pesta&ntilde;a o tocar actualizar. No hay cron ni env&iacute;os autom&aacute;ticos.</p>
-              </div>
-            </div>
-            <div id="rating-ready-orders-alert" class="alert alert-info hidden"></div>
-            <div id="rating-ready-orders-list" class="items-list"><div class="empty-state">Cargando &oacute;rdenes listas...</div></div>
-
-            <div class="section-head" style="margin-top:24px;">
-              <div>
-                <h2 class="section-title">Rese&ntilde;as pendientes</h2>
-                <p class="section-subtitle">Aprueba manualmente antes de publicar. Las pendientes no afectan el rating.</p>
-              </div>
-            </div>
-            <div id="rating-pending-alert" class="alert alert-info hidden"></div>
-            <div id="rating-pending-list" class="items-list"><div class="empty-state">Cargando rese&ntilde;as pendientes...</div></div>
-
-            <div class="section-head" style="margin-top:24px;">
-              <div>
-                <h2 class="section-title">Todas las rese&ntilde;as</h2>
-                <p class="section-subtitle">Consulta y modera las rese&ntilde;as de esta tienda.</p>
-              </div>
-            </div>
-            <div class="tabs" id="rating-review-filters">
-              <button class="tab-btn active" data-review-filter="all" type="button">Todas</button>
-              <button class="tab-btn" data-review-filter="pending" type="button">Pendientes</button>
-              <button class="tab-btn" data-review-filter="approved" type="button">Aprobadas</button>
-              <button class="tab-btn" data-review-filter="rejected" type="button">Rechazadas</button>
-              <button class="tab-btn" data-review-filter="hidden" type="button">Ocultas</button>
-              <button class="tab-btn" data-review-filter="store" type="button">Tienda</button>
-              <button class="tab-btn" data-review-filter="product" type="button">Productos</button>
-              <button class="tab-btn" data-review-filter="verified" type="button">Verificadas</button>
-              <button class="tab-btn" data-review-filter="public" type="button">P&uacute;blicas</button>
-            </div>
-            <div id="rating-all-alert" class="alert alert-info hidden"></div>
-            <div id="rating-all-list" class="items-list"><div class="empty-state">Cargando rese&ntilde;as...</div></div>
           </section>
 
 
@@ -2018,7 +2190,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const DEFAULT_REVIEW_WHATSAPP_MESSAGE = "Hola {cliente} \ud83d\udc4b\n\nGracias por tu compra en {tienda}.\n\nNos ayudar\u00eda mucho si puedes dejar una rese\u00f1a sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqu\u00ed:\n{link_rese\u00f1a}\n\nGracias \ud83d\ude4c";
         const form = document.getElementById('rating-settings-form');
-        const refreshBtn = document.getElementById('rating-settings-refresh-btn');
         const alertBox = document.getElementById('rating-settings-alert');
         const pendingAlertBox = document.getElementById('rating-pending-alert');
         const allAlertBox = document.getElementById('rating-all-alert');
@@ -2026,7 +2197,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const pendingList = document.getElementById('rating-pending-list');
         const allList = document.getElementById('rating-all-list');
         const readyOrdersList = document.getElementById('rating-ready-orders-list');
-        const reviewFilters = document.getElementById('rating-review-filters');
+        const reviewFilterSelect = document.getElementById('rating-review-filter-select');
+        const configPanel = document.getElementById('rating-config-panel');
+        const configToggleBtn = document.getElementById('rating-config-toggle-btn');
+        const settingsSummary = document.getElementById('rating-settings-summary');
+        const saveStatus = document.getElementById('rating-settings-save-status');
+        const restoreMessageBtn = document.getElementById('rating-restore-message-btn');
+        const readyOrdersRetryBtn = document.getElementById('rating-ready-orders-retry-btn');
         const analyticsFields = {
           average: document.getElementById('rating-stat-average'),
           approved: document.getElementById('rating-stat-approved'),
@@ -2054,6 +2231,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         let readyReviewOrders = [];
         let reviewsCollectionAvailable = true;
         let activeReviewFilter = 'all';
+        let autoSaveTimer = null;
+        let isRenderingSettings = false;
 
         function token() { return ADMIN_AUTH_TOKEN; }
         function show(message = '', type = 'info') {
@@ -2076,6 +2255,23 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         function isReviewsCollectionMissing(error) {
           const text = String(error?.message || '').toLowerCase();
           return text.includes('reviews') || text.includes('collection') || text.includes('not found') || error?.status === 404;
+        }
+        function humanizeRatingError(error, fallback) {
+          const raw = String(error?.message || '').trim();
+          const lower = raw.toLowerCase();
+          if (lower.includes('failed to fetch') || lower.includes('networkerror')) {
+            return 'No se pudo conectar con la plataforma. Verifica que PocketBase este activo e intenta nuevamente.';
+          }
+          if (isReviewsCollectionMissing(error)) {
+            return 'La coleccion reviews todavia no esta disponible. Aplica la migracion y reinicia PocketBase.';
+          }
+          return raw || fallback;
+        }
+        function setSaveStatus(message = 'Guardado automaticamente', state = '') {
+          if (!saveStatus) return;
+          saveStatus.textContent = message;
+          saveStatus.classList.toggle('saving', state === 'saving');
+          saveStatus.classList.toggle('error', state === 'error');
         }
         function withStoreFilter(params = '') {
           const query = new URLSearchParams(params || '');
@@ -2114,12 +2310,40 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         function delayHoursValue() {
           const value = Number(fields.reviewRequestDelayHours?.value || 0);
           if (!Number.isFinite(value)) return 24;
-          return Math.max(0, Math.floor(value));
+          return Math.max(24, Math.floor(value));
         }
         function reviewDelayHours() {
           const fromSettings = Number(settingsRecord?.review_request_delay_hours);
-          if (Number.isFinite(fromSettings)) return Math.max(0, Math.floor(fromSettings));
+          if (Number.isFinite(fromSettings)) return Math.max(24, Math.floor(fromSettings));
           return delayHoursValue();
+        }
+        function normalizeDelayInput() {
+          if (!fields.reviewRequestDelayHours) return;
+          fields.reviewRequestDelayHours.value = String(delayHoursValue());
+        }
+        function updateSettingsSummary() {
+          if (!settingsSummary) return;
+          if (!fields.reviewsEnabled?.checked) {
+            settingsSummary.textContent = 'Desactivado · No se muestran ratings ni se solicitan resenas';
+            return;
+          }
+          const showStore = fields.showStoreRating?.checked === true;
+          const showProduct = fields.showProductRating?.checked === true;
+          const scope = showStore && showProduct
+            ? 'Tienda y productos'
+            : showStore
+              ? 'Solo tienda'
+              : showProduct
+                ? 'Solo productos'
+                : 'Sin ratings visibles';
+          settingsSummary.textContent = `Activo · ${scope} · Solicitud despues de ${delayHoursValue()} h`;
+        }
+        function setConfigOpen(open) {
+          configPanel?.classList.toggle('hidden', !open);
+          if (configToggleBtn) {
+            configToggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            configToggleBtn.textContent = open ? 'Cerrar configuracion' : 'Editar configuracion';
+          }
         }
         function hasValue(value) {
           return value !== undefined && value !== null && String(value).trim() !== '';
@@ -2214,7 +2438,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             renderAllReviews();
           } catch (error) {
             if (!isReviewsCollectionMissing(error)) {
-              showMessage(allAlertBox, error.message || 'No se pudieron cargar las resenas.', 'error');
+              showMessage(allAlertBox, humanizeRatingError(error, 'No se pudieron cargar las resenas.'), 'error');
               return;
             }
             reviews = [];
@@ -2241,10 +2465,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           } catch (error) {
             readyReviewOrders = [];
             renderReadyReviewOrders();
-            showMessage(readyOrdersAlertBox, error.message || 'No se pudieron cargar las ordenes listas para pedir resena.', 'error');
+            showMessage(readyOrdersAlertBox, humanizeRatingError(error, 'No se pudieron cargar las ordenes listas para pedir resena. Intenta nuevamente.'), 'error');
           }
         }
         function renderSettings() {
+          isRenderingSettings = true;
           const record = settingsRecord || {};
           setChecked(fields.reviewsEnabled, record.reviews_enabled, true);
           setChecked(fields.showStoreRating, record.show_store_rating, true);
@@ -2254,8 +2479,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           setChecked(fields.verifiedOrderReviewsEnabled, record.verified_order_reviews_enabled, true);
           setChecked(fields.showVerifiedBadge, record.show_verified_badge, true);
           setChecked(fields.reviewsRequireApproval, true, true);
-          if (fields.reviewRequestDelayHours) fields.reviewRequestDelayHours.value = String(Number.isFinite(Number(record.review_request_delay_hours)) ? Math.max(0, Math.floor(Number(record.review_request_delay_hours))) : 24);
+          if (fields.reviewRequestDelayHours) fields.reviewRequestDelayHours.value = String(Number.isFinite(Number(record.review_request_delay_hours)) ? Math.max(24, Math.floor(Number(record.review_request_delay_hours))) : 24);
           if (fields.reviewWhatsappMessage) fields.reviewWhatsappMessage.value = record.review_whatsapp_message || DEFAULT_REVIEW_WHATSAPP_MESSAGE;
+          updateSettingsSummary();
+          setSaveStatus('Guardado automaticamente');
+          isRenderingSettings = false;
         }
         function reviewStatusLabel(status) {
           return {
@@ -2358,7 +2586,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const items = reviews.filter(reviewMatchesFilter);
           allList.innerHTML = items.length
             ? items.map((review) => reviewCard(review, 'all')).join('')
-            : '<div class="empty-state">Todav&iacute;a no hay rese&ntilde;as.</div>';
+            : '<div class="empty-state">Todav&iacute;a no hay rese&ntilde;as.<br><span>Las rese&ntilde;as aparecer&aacute;n aqu&iacute; cuando tus clientes empiecen a dejar sus opiniones.</span></div>';
         }
         function readyOrderCard(order) {
           return `
@@ -2437,7 +2665,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const action = button.dataset.action;
           if (!orderId || !action) return;
           const task = action === 'whatsapp' ? requestReviewByWhatsApp(orderId) : skipReviewRequest(orderId);
-          task.catch((error) => showMessage(readyOrdersAlertBox, error.message || 'No se pudo procesar la orden para pedir resena.', 'error'));
+          task.catch((error) => showMessage(readyOrdersAlertBox, humanizeRatingError(error, 'No se pudo procesar la orden para pedir resena.'), 'error'));
         }
         async function updateReviewStatus(reviewId, status) {
           const payload = { status };
@@ -2471,14 +2699,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 ? updateReviewStatus(reviewId, 'hidden')
                 : deleteReview(reviewId);
           task.catch((error) => {
-            const message = isReviewsCollectionMissing(error)
-              ? 'La coleccion reviews todavia no esta disponible. Aplica la migracion y reinicia PocketBase.'
-              : error.message || 'No se pudo actualizar la resena. Verifica permisos de administrador.';
-            showMessage(allAlertBox, message, 'error');
+            showMessage(allAlertBox, humanizeRatingError(error, 'No se pudo actualizar la resena. Verifica permisos de administrador.'), 'error');
           });
         }
-        async function save(event) {
-          event.preventDefault();
+        async function saveRatingSettings({ silent = false } = {}) {
+          normalizeDelayInput();
+          updateSettingsSummary();
+          if (silent) setSaveStatus('Guardando...', 'saving');
           if (!settingsRecord?.id) settingsRecord = await createSettingsRecord();
           const payload = {
             reviews_enabled: boolValue(fields.reviewsEnabled),
@@ -2496,12 +2723,30 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           await api('/api/collections/settings/records/' + settingsRecord.id, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          show('Configuracion de rating guardada correctamente.', 'success');
+              body: JSON.stringify(payload),
+            });
+          settingsRecord = Object.assign({}, settingsRecord, payload);
+          if (silent) setSaveStatus('Guardado automaticamente');
+          else show('Configuracion de rating guardada correctamente.', 'success');
           await loadSettings();
           await loadReviews();
           await loadReadyReviewOrders();
+        }
+        async function save(event) {
+          event.preventDefault();
+          await saveRatingSettings({ silent: false });
+        }
+        function scheduleRatingSave(delay = 450) {
+          if (isRenderingSettings) return;
+          updateSettingsSummary();
+          setSaveStatus('Guardando...', 'saving');
+          window.clearTimeout(autoSaveTimer);
+          autoSaveTimer = window.setTimeout(() => {
+            saveRatingSettings({ silent: true }).catch((error) => {
+              setSaveStatus('No se pudo guardar', 'error');
+              show(humanizeRatingError(error, 'No se pudo guardar la configuracion de rating.'), 'error');
+            });
+          }, delay);
         }
         async function loadRatingTab() {
           await loadSettings();
@@ -2509,20 +2754,36 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           await loadReadyReviewOrders();
         }
 
-        form?.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar la configuracion de rating.', 'error')));
-        refreshBtn?.addEventListener('click', () => loadRatingTab().catch((error) => show(error.message || 'No se pudo cargar la configuracion de rating.', 'error')));
-        document.querySelector('[data-tab="rating"]')?.addEventListener('click', () => loadRatingTab().catch((error) => show(error.message || 'No se pudo cargar la configuracion de rating.', 'error')));
+        form?.addEventListener('submit', (event) => save(event).catch((error) => {
+          setSaveStatus('No se pudo guardar', 'error');
+          show(humanizeRatingError(error, 'No se pudo guardar la configuracion de rating.'), 'error');
+        }));
+        form?.querySelectorAll('input[type="checkbox"], input[type="number"], select').forEach((input) => {
+          input.addEventListener('change', () => {
+            if (input === fields.reviewRequestDelayHours) normalizeDelayInput();
+            scheduleRatingSave(250);
+          });
+        });
+        fields.reviewRequestDelayHours?.addEventListener('blur', () => {
+          normalizeDelayInput();
+          scheduleRatingSave(250);
+        });
+        fields.reviewWhatsappMessage?.addEventListener('input', () => scheduleRatingSave(850));
+        configToggleBtn?.addEventListener('click', () => setConfigOpen(configPanel?.classList.contains('hidden') === true));
+        restoreMessageBtn?.addEventListener('click', () => {
+          if (fields.reviewWhatsappMessage) fields.reviewWhatsappMessage.value = DEFAULT_REVIEW_WHATSAPP_MESSAGE;
+          scheduleRatingSave(150);
+        });
+        readyOrdersRetryBtn?.addEventListener('click', () => loadReadyReviewOrders().catch((error) => showMessage(readyOrdersAlertBox, humanizeRatingError(error, 'No se pudieron cargar las ordenes listas para pedir resena. Intenta nuevamente.'), 'error')));
+        document.querySelector('[data-tab="rating"]')?.addEventListener('click', () => loadRatingTab().catch((error) => show(humanizeRatingError(error, 'No se pudo cargar la configuracion de rating.'), 'error')));
         pendingList?.addEventListener('click', handleReviewClick);
         allList?.addEventListener('click', handleReviewClick);
         readyOrdersList?.addEventListener('click', handleReadyOrderClick);
-        reviewFilters?.addEventListener('click', (event) => {
-          const target = event.target instanceof Element ? event.target : null;
-          const button = target?.closest('[data-review-filter]');
-          if (!button) return;
-          activeReviewFilter = button.dataset.reviewFilter || 'all';
-          reviewFilters.querySelectorAll('[data-review-filter]').forEach((item) => item.classList.toggle('active', item === button));
+        reviewFilterSelect?.addEventListener('change', () => {
+          activeReviewFilter = reviewFilterSelect.value || 'all';
           renderAllReviews();
         });
+        setConfigOpen(false);
         renderSettings();
         renderReviewAnalytics();
         renderReadyReviewOrders();

@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-14 — actualización documental de Rating y reseñas  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil. **21.30.19 cerrado/implementado en source actualizado: aislamiento operativo por tienda reforzado para envíos, promociones automáticas, cupones manuales, regalos, settings, pedidos, reportes y keys públicas por tienda. También quedan implementadas las mini categorías rápidas de tienda pública con modal `Ver todas`, horario simple por tienda y la mejora de Ajustes generales de tienda pública: portada única/carrusel, selector de tipo de negocio, dirección estructurada Cuba, ubicación pública con pin, modal Info de la tienda y reparación real de persistencia en `settings`. Queda documentado como pendiente inmediato la limpieza visual pública: quitar texto default, quitar grilla fija Servicios/Reseña/Moneda, mantener Horarios como modal desde drawer y ordenar footer sin mostrar JSON crudo.** **Nuevo bloque inmediato definido antes de pasar mejoras visuales profundas: Rating y reseñas dentro de Ajustes de tienda, empezando por la pestaña `Rating y reseñas` en `/admin/store-settings`, con aprobación manual del admin, reseñas públicas, reseñas verificadas desde órdenes entregadas, botón manual de WhatsApp y cálculo sin cron al abrir el panel.**
+**Fecha de actualización:** 2026-06-14 — actualización documental V26: proyecto visual del admin de tiendas Tu Senda 84  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil. **21.30.19 cerrado/implementado en source actualizado: aislamiento operativo por tienda reforzado para envíos, promociones automáticas, cupones manuales, regalos, settings, pedidos, reportes y keys públicas por tienda. También quedan implementadas las mini categorías rápidas de tienda pública con modal `Ver todas`, horario simple por tienda y la mejora de Ajustes generales de tienda pública: portada única/carrusel, selector de tipo de negocio, dirección estructurada Cuba, ubicación pública con pin, modal Info de la tienda y reparación real de persistencia en `settings`. Queda documentado como pendiente inmediato la limpieza visual pública: quitar texto default, quitar grilla fija Servicios/Reseña/Moneda, mantener Horarios como modal desde drawer y ordenar footer sin mostrar JSON crudo.** **Nuevo bloque inmediato definido antes de pasar mejoras visuales profundas: Rating y reseñas dentro de Ajustes de tienda, empezando por la pestaña `Rating y reseñas` en `/admin/store-settings`, con aprobación manual del admin, reseñas públicas, reseñas verificadas desde órdenes entregadas, botón manual de WhatsApp y cálculo sin cron al abrir el panel.** **Nuevo bloque visual aprobado: rediseño del admin de Tiendas públicas Tu Senda 84, empezando por Productos como pantalla piloto, con simetría PC/móvil, sidebar fija en PC, menú hamburguesa en móvil y bloque inferior “Contactar a soporte” dirigido al Master Admin del Bazar.**
 
 ---
 
@@ -174,6 +174,8 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ---
 
 ### 0.3 Bloque actual recomendado
+
+> Nota V26: además del bloque funcional de Rating y reseñas ya definido, queda aprobado iniciar el proyecto visual del admin de tiendas Tu Senda 84, empezando por `Productos` como pantalla piloto. La regla visual principal será simetría PC/móvil, sidebar fija en PC, drawer móvil y tarjeta “Contactar a soporte” hacia el Master Admin.
 
 ```txt
 🟡 Bloque actual inmediato: Rating y reseñas dentro de Ajustes de tienda.
@@ -20605,5 +20607,558 @@ Mensaje recomendado para iniciar el próximo trabajo con source actualizado:
 
 ```txt
 Rating y reseñas — Ajustes de tienda. Source actualizado. Empezamos por backend/migración y luego la pestaña `Rating y reseñas` dentro de `/admin/store-settings`, sin crear `/admin/reviews` ni tocar `settings.reviews_text`.
+```
+
+---
+
+## 25. Actualización acumulativa — Proyecto de visualización del Admin de tiendas Tu Senda 84
+
+Esta sección documenta la nueva dirección visual aprobada para el panel administrativo de las Tiendas públicas dentro de Tu Senda 84.
+
+Estado:
+
+```txt
+🔜 BLOQUE VISUAL APROBADO / PRÓXIMO A IMPLEMENTAR EN SOURCE ACTUALIZADO
+```
+
+Nombre recomendado del bloque:
+
+```txt
+Visualización Admin Tu Senda 84 — Productos como pantalla piloto
+```
+
+Fecha de actualización documental:
+
+```txt
+2026-06-14
+```
+
+Marca de versión documental:
+
+```txt
+PZ-MASTER-VISUAL-ADMIN-TUSENDA84-V26-20260614
+```
+
+---
+
+### 25.1. Decisión visual principal
+
+Queda aprobada una nueva regla visual para el admin de las Tiendas públicas de Tu Senda 84:
+
+```txt
+Buscar siempre simetría visual entre PC y móvil.
+```
+
+Interpretación práctica:
+
+```txt
+La versión PC debe sentirse como una extensión elegante de la versión móvil.
+La estructura principal debe conservar el mismo orden y la misma lectura en ambos tamaños.
+No diseñar PC como un dashboard completamente distinto al móvil.
+No usar grillas excesivas ni tarjetas repartidas si eso rompe la lectura vertical.
+```
+
+Regla de diseño para próximos cambios:
+
+```txt
+Diseño limpio, moderno, compacto, vertical, con tarjetas suaves, acciones claras y navegación consistente.
+```
+
+---
+
+### 25.2. Estilo de layout aprobado
+
+El layout visual aprobado para continuar el rediseño del admin tiene estas características:
+
+```txt
+- Sidebar fija en PC.
+- Menú de 3 rayas en móvil.
+- En móvil, la sidebar se abre como drawer.
+- Contenido principal centrado y limpio.
+- Tarjetas superiores de resumen claras.
+- Filtros compactos.
+- Listas tipo tabla en PC cuando ayude.
+- Tarjetas/lista vertical en móvil.
+- Acciones rápidas limpias: ver, editar, menú de tres puntos.
+- Botón principal visible: Nuevo producto.
+- Misma estructura visual en PC y móvil.
+```
+
+Regla visual aprobada:
+
+```txt
+PC = versión amplia del móvil.
+Móvil = versión compacta del mismo flujo.
+```
+
+No usar como base:
+
+```txt
+- Pantallas con muchas tarjetas abiertas sin jerarquía.
+- Tablas rígidas que se rompen en móvil.
+- Filtros como muchas píldoras cuando un desplegable sea más limpio.
+- Sidebars duplicadas por página si se puede convertir luego en componente común.
+```
+
+---
+
+### 25.3. Contexto correcto: Admin de Tiendas públicas, no Master Admin
+
+Este rediseño aplica al admin que usan los administradores de cada Tienda pública dentro del Bazar de Tu Senda 84.
+
+Ejemplo:
+
+```txt
+/t/[storeSlug]/admin/products
+/t/[storeSlug]/admin/store-settings
+/t/[storeSlug]/admin/orders
+```
+
+No confundir con:
+
+```txt
+/master
+```
+
+`/master` es el Master Admin del dueño de Tu Senda 84.
+
+El admin de tienda sirve para que cada dueño/admin de tienda gestione:
+
+```txt
+- productos
+- categorías
+- pedidos
+- ajustes
+- promociones
+- rating y reseñas
+- envíos
+- regalos
+- organización visual
+```
+
+---
+
+### 25.4. Contactar a soporte = contactar al Master Admin
+
+La zona inferior de la sidebar del admin de tienda ya no debe representar al usuario admin de esa tienda.
+
+No usar como bloque principal inferior:
+
+```txt
+Admin
+Administrador
+```
+
+Debe cambiarse por:
+
+```txt
+Contactar a soporte
+```
+
+Significado:
+
+```txt
+El admin/dueño de una Tienda pública puede contactar al Master Admin de Tu Senda 84 para soporte.
+```
+
+Texto recomendado inicial:
+
+```txt
+Contactar a soporte
+Soporte Tu Senda 84
+Ayuda para tu tienda
+```
+
+Comportamiento:
+
+```txt
+Al tocar la tarjeta, abrir WhatsApp al número configurado por el Master Admin.
+```
+
+Mensaje de WhatsApp recomendado:
+
+```txt
+Hola, necesito ayuda con mi tienda {tienda} en Tu Senda 84.
+```
+
+Regla importante:
+
+```txt
+Este soporte no pertenece a cada tienda.
+Debe ser una configuración global del Bazar / plataforma, editable en el futuro desde el Master Admin.
+```
+
+---
+
+### 25.5. Configuración futura del soporte desde Master Admin
+
+Aunque no se implemente todavía el panel editable de soporte, el diseño debe quedar preparado para que más adelante el Master Admin configure:
+
+```txt
+support_enabled
+support_title
+support_name
+support_role
+support_phone
+support_whatsapp_message
+support_avatar
+```
+
+Valores fallback mientras no exista gestión real:
+
+```txt
+support_enabled = true
+support_title = Contactar a soporte
+support_name = Soporte Tu Senda 84
+support_role = Ayuda para tu tienda
+support_whatsapp_message = Hola, necesito ayuda con mi tienda {tienda} en Tu Senda 84.
+```
+
+Colección futura posible:
+
+```txt
+platform_settings
+```
+
+O:
+
+```txt
+master_settings
+```
+
+O:
+
+```txt
+admin_support_settings
+```
+
+Regla recomendada:
+
+```txt
+No guardar esta configuración dentro de settings de cada tienda.
+Debe ser configuración global del Bazar / Master Admin.
+```
+
+---
+
+### 25.6. Pantalla piloto aprobada: Productos
+
+La primera pantalla a rediseñar con este estilo será:
+
+```txt
+Productos
+```
+
+Archivo principal en source:
+
+```txt
+frontend-powerzona/src/pages/admin/products.astro
+```
+
+Ruta wrapper multitienda:
+
+```txt
+frontend-powerzona/src/pages/t/[storeSlug]/admin/products.astro
+```
+
+Regla:
+
+```txt
+La ruta multitienda importa el archivo base admin/products.astro.
+Por eso, el cambio principal debe hacerse en frontend-powerzona/src/pages/admin/products.astro.
+```
+
+Objetivo visual de Productos:
+
+```txt
+- Convertir Productos en la pantalla piloto del nuevo lenguaje visual del admin.
+- Mantener toda la lógica existente.
+- Mejorar solamente estructura visual, responsive, sidebar y acciones.
+- No romper creación, edición, variaciones, ofertas, stock, categorías, subcategorías ni aislamiento por tienda.
+```
+
+---
+
+### 25.7. Layout objetivo para Productos
+
+Estructura visual aprobada:
+
+```txt
+Sidebar fija PC / Drawer móvil
+
+Productos
+Gestiona y organiza todos los productos de tu tienda.
+[+ Nuevo producto]
+
+Resumen compacto:
+- Total productos
+- Activos
+- Sin stock
+- Borradores / ocultos
+
+Filtros:
+- Buscar productos
+- Categoría
+- Estado
+- Stock
+- Botón Filtros si hace falta
+
+Lista de productos:
+- Imagen
+- Nombre + SKU/ref interna
+- Categoría
+- Precio
+- Stock
+- Estado
+- Acciones
+
+Paginación:
+- Mostrando X a Y de Z productos
+- controles de página
+```
+
+En PC:
+
+```txt
+La lista puede verse como tabla limpia, con filas suaves y acciones al final.
+```
+
+En móvil:
+
+```txt
+La misma información se convierte en tarjetas verticales compactas.
+No debe haber scroll horizontal.
+```
+
+---
+
+### 25.8. Acciones visuales de producto
+
+Acciones recomendadas en la lista:
+
+```txt
+- Ver / abrir producto público o vista rápida.
+- Editar.
+- Menú de tres puntos para acciones secundarias.
+```
+
+Acciones secundarias dentro del menú:
+
+```txt
+- Marcar agotado.
+- Ocultar / activar si no se deja como chip directo.
+- Duplicar si se implementa más adelante.
+- Borrar con confirmación visual integrada.
+```
+
+Regla visual:
+
+```txt
+No saturar cada fila/tarjeta con demasiados botones visibles.
+```
+
+---
+
+### 25.9. Estrategia técnica recomendada
+
+Implementar por fases:
+
+#### Fase 1 — Productos como piloto
+
+```txt
+1. Revisar el source actualizado.
+2. Rediseñar solo /admin/products.
+3. Agregar sidebar fija PC y drawer móvil dentro de esta pantalla o usando una primera base local.
+4. Agregar tarjeta Contactar a soporte en sidebar.
+5. Mantener toda la lógica existente del archivo.
+6. Ejecutar build.
+7. Probar /admin/products y /t/[storeSlug]/admin/products.
+```
+
+#### Fase 2 — Extraer shell común
+
+Después de validar Productos:
+
+```txt
+src/components/admin/AdminShell.astro
+src/components/admin/AdminSidebar.astro
+src/styles/admin.css
+```
+
+Objetivo:
+
+```txt
+Evitar repetir sidebar y estilos en cada página.
+```
+
+#### Fase 3 — Migrar el resto del admin
+
+Orden sugerido:
+
+```txt
+1. Productos
+2. Pedidos
+3. Categorías
+4. Ajustes de tienda
+5. Rating y reseñas
+6. Promociones
+7. Envíos
+8. Regalos
+9. Organización visual
+10. Dashboard / Resumen
+```
+
+---
+
+### 25.10. Relación con Rating y reseñas
+
+El trabajo visual aprobado para Rating y reseñas también queda alineado con este nuevo lenguaje.
+
+Archivo principal:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+```
+
+Ruta wrapper multitienda:
+
+```txt
+frontend-powerzona/src/pages/t/[storeSlug]/admin/store-settings.astro
+```
+
+Decisiones visuales ya aprobadas:
+
+```txt
+- Rating y reseñas vive dentro de Ajustes de tienda.
+- No crear /admin/reviews en esta primera versión.
+- Configuración principal en una tarjeta compacta.
+- Opciones internas en panel desplegable.
+- Analítica como resumen vertical, no muchas tarjetas.
+- Todas las reseñas con filtro desplegable, no muchos chips.
+- Guardado automático.
+- Mínimo 24 horas para pedir reseña.
+```
+
+Regla:
+
+```txt
+Cuando se migre Ajustes de tienda al nuevo shell visual, Rating y reseñas debe mantener el mismo estilo vertical y simétrico entre PC y móvil.
+```
+
+---
+
+### 25.11. Reglas obligatorias para Codex en este bloque visual
+
+Codex debe respetar:
+
+```txt
+1. No cambiar lógica de negocio innecesariamente.
+2. No romper aislamiento por tienda.
+3. No cambiar nombres de colecciones ni campos.
+4. No crear migraciones para el rediseño visual salvo que sea imprescindible.
+5. No duplicar rutas wrapper multitienda.
+6. Mantener rutas /t/[storeSlug]/admin/* importando los archivos base si ya funcionan así.
+7. Ejecutar npm run build al final.
+8. Mantener español en todo texto visible.
+9. Mantener PC y móvil con la misma estructura visual.
+10. No confundir Contactar a soporte con el admin de la tienda; es soporte al Master Admin de Tu Senda 84.
+```
+
+---
+
+### 25.12. Source revisado para iniciar el bloque visual
+
+Source subido por el usuario en esta conversación:
+
+```txt
+Tusenda84 version 11.zip
+```
+
+Archivos confirmados dentro del source:
+
+```txt
+frontend-powerzona/src/pages/admin/products.astro
+frontend-powerzona/src/pages/t/[storeSlug]/admin/products.astro
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/pages/t/[storeSlug]/admin/store-settings.astro
+```
+
+Confirmación técnica:
+
+```txt
+/t/[storeSlug]/admin/products.astro importa ../../../admin/products.astro.
+/t/[storeSlug]/admin/store-settings.astro importa ../../../admin/store-settings.astro.
+```
+
+Regla:
+
+```txt
+Modificar primero los archivos base dentro de frontend-powerzona/src/pages/admin/.
+Los wrappers multitienda no deben duplicar lógica ni estilos.
+```
+
+---
+
+### 25.13. Checklist de validación visual de Productos
+
+Después de implementar el rediseño de Productos:
+
+```txt
+1. Probar /admin/products.
+2. Probar /t/[storeSlug]/admin/products.
+3. Confirmar que sidebar fija aparece en PC.
+4. Confirmar que en móvil aparece menú de 3 rayas.
+5. Confirmar que el drawer móvil abre/cierra bien.
+6. Confirmar que Contactar a soporte aparece abajo en sidebar.
+7. Confirmar que Contactar a soporte abre WhatsApp o queda preparado con fallback.
+8. Confirmar que Nuevo producto funciona.
+9. Confirmar que editar producto funciona.
+10. Confirmar que variaciones siguen funcionando.
+11. Confirmar que ofertas siguen funcionando.
+12. Confirmar que búsqueda y filtros funcionan.
+13. Confirmar que el listado no tiene scroll horizontal en móvil.
+14. Confirmar que el build pasa.
+```
+
+---
+
+### 25.14. Prompt recomendado para abrir la nueva pestaña
+
+Mensaje sugerido para iniciar el nuevo chat:
+
+```txt
+Visualización Admin Tu Senda 84 — Productos como pantalla piloto. Source actualizado.
+
+Objetivo: aplicar el nuevo lenguaje visual aprobado al admin de tiendas públicas, empezando por Productos.
+
+Reglas principales:
+- Buscar simetría visual entre PC y móvil.
+- PC debe sentirse como una versión amplia del móvil.
+- Sidebar fija en PC.
+- Menú de 3 rayas en móvil con drawer.
+- Abajo en la sidebar debe aparecer Contactar a soporte, que contacta al Master Admin de Tu Senda 84, no al admin de la tienda.
+- Empezar por frontend-powerzona/src/pages/admin/products.astro.
+- La ruta /t/[storeSlug]/admin/products.astro solo importa el archivo base, no duplicar lógica.
+- Mantener toda la lógica existente: crear, editar, variaciones, ofertas, stock, filtros, categorías, subcategorías y aislamiento por tienda.
+- No crear migraciones salvo que sea estrictamente necesario.
+- Al final ejecutar npm run build.
+
+Primero revisa el source actualizado y muéstrame el plan técnico antes de tocar código.
+```
+
+---
+
+### 25.15. Estado final antes de cambiar de pestaña
+
+Estado:
+
+```txt
+✅ Layout visual aprobado por el usuario.
+✅ Regla de simetría PC/móvil documentada.
+✅ Sidebar fija PC + hamburger móvil aprobados.
+✅ Contactar a soporte definido como contacto al Master Admin de Tu Senda 84.
+✅ Productos definido como pantalla piloto.
+✅ Rating y reseñas queda alineado con el mismo lenguaje visual para trabajo posterior.
+🔜 Próximo paso: abrir nueva pestaña/chat con source actualizado y comenzar implementación visual en Productos.
 ```
 
