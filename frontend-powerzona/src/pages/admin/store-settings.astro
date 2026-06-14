@@ -2,6 +2,8 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
+import { CUBA_LOCATIONS } from '../../lib/cubaLocations';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -158,6 +160,39 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .pill-type { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
       .empty-state { border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 22px; padding: 18px; color: #64748b; font-size: 13px; font-weight: 850; line-height: 1.45; }
       .editor-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+      .editor-actions > * { min-height: 46px; }
+      .settings-section-title { grid-column: 1 / -1; margin: 8px 0 0; color: #0f172a; font-size: 17px; font-weight: 1000; letter-spacing: -.025em; }
+      .settings-image-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+      .settings-image-card { border: 1px solid #e2e8f0; border-radius: 22px; background: #fff; padding: 14px; display: grid; gap: 10px; align-content: start; }
+      .settings-image-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .settings-image-title { margin: 0; color: #0f172a; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
+      .settings-thumb { position: relative; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; color: #94a3b8; display: flex; align-items: center; justify-content: center; min-height: 0; font-size: 12px; font-weight: 950; text-align: center; }
+      .settings-thumb.logo { width: 112px; aspect-ratio: 1 / 1; border-radius: 20px; }
+      .settings-thumb.cover { width: min(220px, 100%); aspect-ratio: 16 / 9; border-radius: 20px; }
+      .settings-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .settings-thumb-delete { position: absolute; top: 7px; right: 7px; z-index: 2; width: 30px; height: 30px; border-radius: 999px; border: 1px solid rgba(254,202,202,.95); background: rgba(254,226,226,.96); color: #991b1b; font-size: 15px; line-height: 1; font-weight: 1000; box-shadow: 0 10px 24px rgba(15,23,42,.14); display: inline-flex; align-items: center; justify-content: center; }
+      .settings-thumb-delete.hidden { display: none; }
+      .settings-gallery-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .settings-gallery-slot { display: grid; gap: 7px; min-width: 0; }
+      .settings-gallery-slot .settings-thumb.cover { width: 100%; }
+      .settings-slot-label { margin: 0; color: #334155; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .045em; }
+      .settings-gallery-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .settings-gallery-actions .mini-btn { min-width: 0; min-height: 40px; padding: 9px 10px; box-shadow: none; }
+      .settings-upload-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: end; max-width: 320px; }
+      .settings-file-control input { min-height: 43px; padding: 9px 10px; font-size: 12px; }
+      .business-type-picker { position: relative; display: grid; gap: 10px; }
+      .business-type-trigger { width: 100%; min-height: 50px; justify-content: space-between; text-align: left; }
+      .business-type-panel { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 30; display: grid; gap: 12px; max-height: min(380px, 68vh); overflow: auto; padding: 12px; border-radius: 20px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.18); }
+      .business-type-panel.hidden { display: none; }
+      .business-type-panel input { width: 100%; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: var(--text); padding: 12px 13px; outline: none; font-weight: 800; }
+      .business-type-group { display: grid; gap: 7px; }
+      .business-type-group-title { margin: 0; color: #0f172a; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .045em; }
+      .business-type-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 9px; padding: 9px 10px; border-radius: 14px; color: #334155; font-size: 13px; line-height: 1.25; font-weight: 850; cursor: pointer; }
+      .business-type-option input { width: 16px; height: 16px; margin: 0; }
+      .business-type-option:hover { background: #f8fafc; }
+      .chip-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; }
+      .chip { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 7px 10px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 12px; font-weight: 1000; }
+      .chip button { width: 20px; height: 20px; border: 0; border-radius: 999px; background: rgba(55,48,163,.12); color: #3730a3; font-weight: 1000; line-height: 1; }
       .organization-grid { display: grid; gap: 16px; }
       .organization-card { border: 1px solid #e2e8f0; background: rgba(248,250,252,.86); border-radius: 26px; padding: 16px; }
       .organization-card + .organization-card { margin-top: 16px; }
@@ -166,9 +201,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .order-btn { min-width: 42px; padding-left: 12px; padding-right: 12px; }
       .mini-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
       .mini-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } }
+      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid, .settings-image-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } .settings-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       @media (max-width: 520px) { .day-times { grid-template-columns: 1fr; } }
-      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } }
+      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } }
     
 
       /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
@@ -482,22 +517,58 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
               </div>
               <button id="settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
             </div>
-            <div class="settings-preview">
-              <div id="settings-logo-preview" class="settings-logo-box">Logo / icono</div>
-              <div id="settings-cover-preview" class="settings-cover-box">Foto de portada / banner</div>
-            </div>
             <form id="settings-form" class="visual-form-grid">
-              <div class="field"><label for="settings-store-name">Nombre público de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
-              <div class="field"><label for="settings-order-prefix">Prefijo de órdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
+              <div class="field"><label for="settings-store-name">Nombre p&uacute;blico de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
+              <div class="field"><label for="settings-order-prefix">Prefijo de &oacute;rdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
               <div class="field"><label for="settings-whatsapp-number">WhatsApp principal</label><input id="settings-whatsapp-number" type="text" placeholder="Ej: +53 5 000 0000" required /></div>
-              <div class="field"><label for="settings-logo-image">Icono o logo del negocio</label><input id="settings-logo-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen cuadrada, mínimo 512 x 512 px.</p><p id="settings-current-logo" class="settings-current-file"></p></div>
-              <div class="field"><label for="settings-cover-image">Foto de portada / banner</label><input id="settings-cover-image" type="file" accept="image/*" /><p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1600 x 900 px.</p><p class="settings-current-file">La portada se optimiza automáticamente con calidad alta para cargar rápido sin perder brillo.</p><p id="settings-current-cover" class="settings-current-file"></p></div>
-              <div class="field full"><label for="settings-store-description">DescripciÃ³n de la tienda</label><textarea id="settings-store-description" placeholder="Texto corto para mostrar tu tienda en el Bazar y debajo de la portada."></textarea><p class="form-help">Texto corto para mostrar tu tienda en el Bazar y debajo de la portada.</p></div>
+              <div class="field"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select></div>
+              <h3 class="settings-section-title">Im&aacute;genes</h3>
+              <div class="settings-image-grid">
+                <article class="settings-image-card">
+                  <div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div>
+                  <div id="settings-logo-preview" class="settings-thumb logo">Logo</div>
+                  <div class="settings-upload-actions">
+                    <div class="field settings-file-control"><label for="settings-logo-image">Subir logo</label><input id="settings-logo-image" type="file" accept="image/*" /></div>
+                  </div>
+                  <p class="form-help">Recomendado: imagen cuadrada, m&iacute;nimo 512 x 512 px.</p>
+                </article>
+                <article class="settings-image-card">
+                  <div class="settings-image-head"><h3 class="settings-image-title">Portada</h3></div>
+                  <div id="settings-cover-single-wrap">
+                    <div id="settings-cover-preview" class="settings-thumb cover">Portada</div>
+                    <div class="settings-upload-actions" style="margin-top:12px;">
+                      <div class="field settings-file-control"><label for="settings-cover-image">Subir portada</label><input id="settings-cover-image" type="file" accept="image/*" /></div>
+                    </div>
+                  </div>
+                  <div id="settings-cover-carousel-wrap" class="hidden">
+                    <div id="settings-cover-gallery-preview" class="settings-gallery-grid"></div>
+                  </div>
+                  <p class="form-help">Recomendado: imagen horizontal 16:9, m&iacute;nimo 1600 x 900 px.</p>
+                  <p class="form-help">La portada se optimiza autom&aacute;ticamente con calidad alta para cargar r&aacute;pido sin perder brillo.</p>
+                </article>
+              </div>
+              <div class="field full"><label for="settings-store-description">Descripci&oacute;n de la tienda</label><textarea id="settings-store-description" placeholder="Descripci&oacute;n m&aacute;s completa para Bazar, ficha de tienda o SEO."></textarea><p class="form-help">Descripci&oacute;n m&aacute;s completa para uso futuro en Bazar, ficha de tienda, SEO o presentaci&oacute;n general.</p></div>
               <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
-              <div class="field"><label for="settings-public-category-columns">Vista de categorÃ­as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div>
-              <div class="field"><label for="settings-address">Dirección</label><textarea id="settings-address" placeholder="Dirección pública de la tienda"></textarea></div>
-              <div class="field full"><label for="settings-public-services-text">Servicios</label><textarea id="settings-public-services-text" placeholder="Ej: Envíos, recogida, asesoría por WhatsApp..."></textarea></div>
-              <div class="field full"><label for="settings-reviews-text">Reseña / texto de confianza</label><textarea id="settings-reviews-text" placeholder="Ej: Gracias por elegir PowerZona. Atención personalizada y productos seleccionados."></textarea></div>
+              <div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div>
+              <div class="field full">
+                <label>Tipo de negocio</label>
+                <div class="business-type-picker">
+                  <button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button>
+                  <div id="business-type-chips" class="chip-list"></div>
+                  <div id="business-type-panel" class="business-type-panel hidden">
+                    <input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." />
+                    <div id="business-type-options"></div>
+                  </div>
+                </div>
+                <p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p>
+              </div>
+              <div class="field full"><label>Direcci&oacute;n</label></div>
+              <div class="field"><label for="settings-province">Provincia</label><select id="settings-province"><option value="">Selecciona provincia</option></select></div>
+              <div class="field"><label for="settings-municipality">Municipio</label><select id="settings-municipality" disabled><option value="">Primero selecciona provincia</option></select></div>
+              <div class="field full"><label for="settings-address-detail">Direcci&oacute;n exacta / Referencia</label><textarea id="settings-address-detail" placeholder="Calle, n&uacute;mero, reparto, barrio o referencia"></textarea></div>
+              <textarea id="settings-address" class="hidden" aria-hidden="true"></textarea>
+              <textarea id="settings-public-services-text" class="hidden" aria-hidden="true"></textarea>
+              <div class="field full"><label for="settings-reviews-text">Rese&ntilde;a / texto de confianza</label><textarea id="settings-reviews-text" placeholder="Ej: Gracias por elegir PowerZona. Atenci&oacute;n personalizada y productos seleccionados."></textarea></div>
               <div id="settings-alert" class="alert alert-info hidden full"></div>
               <div class="editor-actions full"><button class="submit-btn" type="submit">Guardar ajustes generales</button></div>
             </form>
@@ -1271,7 +1342,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       else if (window.location.hash === '#horario') showTab('horario');
       else showTab('generales');
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
       // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
@@ -1286,18 +1357,23 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           storeName: document.getElementById('settings-store-name'),
           orderPrefix: document.getElementById('settings-order-prefix'),
           whatsapp: document.getElementById('settings-whatsapp-number'),
+          coverMode: document.getElementById('settings-cover-mode'),
           logo: document.getElementById('settings-logo-image'),
           cover: document.getElementById('settings-cover-image'),
           storeDescription: document.getElementById('settings-store-description'),
           welcome: document.getElementById('settings-welcome-text'),
           categoryColumns: document.getElementById('settings-public-category-columns'),
           address: document.getElementById('settings-address'),
+          province: document.getElementById('settings-province'),
+          municipality: document.getElementById('settings-municipality'),
+          addressDetail: document.getElementById('settings-address-detail'),
           services: document.getElementById('settings-public-services-text'),
           reviews: document.getElementById('settings-reviews-text'),
-          currentLogo: document.getElementById('settings-current-logo'),
-          currentCover: document.getElementById('settings-current-cover'),
           logoPreview: document.getElementById('settings-logo-preview'),
           coverPreview: document.getElementById('settings-cover-preview'),
+          coverSingleWrap: document.getElementById('settings-cover-single-wrap'),
+          coverCarouselWrap: document.getElementById('settings-cover-carousel-wrap'),
+          coverGalleryPreview: document.getElementById('settings-cover-gallery-preview'),
           footerTitle: document.getElementById('settings-footer-title'),
           footerText: document.getElementById('settings-footer-text'),
           footerContactText: document.getElementById('settings-footer-contact-text'),
@@ -1310,6 +1386,16 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
         const footerRefreshBtn = document.getElementById('footer-settings-refresh-btn');
+        const businessTypeTrigger = document.getElementById('business-type-trigger');
+        const businessTypePanel = document.getElementById('business-type-panel');
+        const businessTypeSearch = document.getElementById('business-type-search');
+        const businessTypeOptions = document.getElementById('business-type-options');
+        const businessTypeChips = document.getElementById('business-type-chips');
+        const businessTypeHelp = document.getElementById('business-type-help');
+        const BUSINESS_TYPE_GROUPS_LOCAL = Array.isArray(businessTypeGroups) ? businessTypeGroups : [];
+        const CUBA_LOCATIONS_LOCAL = Array.isArray(cubaLocations) ? cubaLocations : [];
+        let selectedBusinessTypes = [];
+        const galleryPreviewUrls = new Map();
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -1320,10 +1406,65 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         function show(message = '', type = 'info') { showMessage(alertBox, message, type); }
         function showFooter(message = '', type = 'info') { showMessage(footerAlertBox, message, type); }
         function fileName(name) { const value = settingsRecord && settingsRecord[name]; return Array.isArray(value) ? value[0] : value || ''; }
+        function fileNames(name) {
+          const value = settingsRecord && settingsRecord[name];
+          const files = Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
+          if (name === 'cover_slots') {
+            const slotFiles = ['cover_image_1', 'cover_image_2', 'cover_image_3', 'cover_image_4'].map((field) => fileName(field));
+            if (slotFiles.some(Boolean)) return slotFiles;
+            return fileNames('cover_gallery').slice(0, 4);
+          }
+          if (name !== 'cover_gallery') return files;
+          const order = parseJsonList(settingsRecord?.cover_gallery_order);
+          return order.filter((filename) => files.includes(filename)).concat(files.filter((filename) => !order.includes(filename)));
+        }
         function fileUrl(name, thumb) {
           const filename = fileName(name);
           if (!settingsRecord || !settingsRecord.id || !filename) return '';
           return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) : '');
+        }
+        function fileUrlFor(filename, thumb, fieldName = '') {
+          if (!settingsRecord || !settingsRecord.id || !filename) return '';
+          return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) : '');
+        }
+        function coverSlotItems() {
+          const slotItems = ['cover_image_1', 'cover_image_2', 'cover_image_3', 'cover_image_4'].map((fieldName) => ({
+            fieldName,
+            filename: fileName(fieldName),
+            sourceField: fieldName,
+          }));
+          if (slotItems.some((item) => item.filename)) return slotItems;
+          return fileNames('cover_gallery').slice(0, 4).map((filename, index) => ({
+            fieldName: `cover_image_${index + 1}`,
+            filename,
+            sourceField: 'cover_gallery',
+          })).concat(Array.from({ length: Math.max(0, 4 - fileNames('cover_gallery').slice(0, 4).length) }, (_, offset) => {
+            const index = fileNames('cover_gallery').slice(0, 4).length + offset;
+            return { fieldName: `cover_image_${index + 1}`, filename: '', sourceField: `cover_image_${index + 1}` };
+          })).slice(0, 4);
+        }
+        function parseJsonList(value) {
+          if (Array.isArray(value)) return value.filter(Boolean).map(String);
+          if (typeof value !== 'string' || !value.trim()) return [];
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+          } catch (_) {
+            return value.split(',').map((item) => item.trim()).filter(Boolean);
+          }
+        }
+        function businessTypeLabel(slug) {
+          for (const group of BUSINESS_TYPE_GROUPS_LOCAL) {
+            const option = (group.options || []).find((item) => item.slug === slug);
+            if (option) return option.label;
+          }
+          return slug;
+        }
+        function escapeHtml(value) {
+          return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+        function composeAddress() {
+          return fields.addressDetail?.value?.trim() || '';
         }
 
         async function optimizeCoverImageFile(file) {
@@ -1368,6 +1509,80 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           else query.set('filter', STORE_FILTER_PUBLIC_SETTINGS);
           return query.toString();
         }
+        function renderBusinessTypeOptions() {
+          if (!businessTypeOptions) return;
+          const q = String(businessTypeSearch?.value || '').trim().toLowerCase();
+          businessTypeOptions.innerHTML = BUSINESS_TYPE_GROUPS_LOCAL.map((group) => {
+            const options = (group.options || []).filter((option) => !q || option.label.toLowerCase().includes(q));
+            if (!options.length) return '';
+            return `<div class="business-type-group"><p class="business-type-group-title">${escapeHtml(group.category)}</p>${options.map((option) => `
+              <label class="business-type-option">
+                <input type="checkbox" value="${escapeHtml(option.slug)}" ${selectedBusinessTypes.includes(option.slug) ? 'checked' : ''} />
+                <span>${escapeHtml(option.label)}</span>
+              </label>
+            `).join('')}</div>`;
+          }).join('');
+        }
+        function renderBusinessTypeChips() {
+          if (!businessTypeChips) return;
+          businessTypeChips.innerHTML = selectedBusinessTypes.length
+            ? selectedBusinessTypes.map((slug) => `<span class="chip">${escapeHtml(businessTypeLabel(slug))}<button type="button" data-remove-business-type="${escapeHtml(slug)}">×</button></span>`).join('')
+            : '<p class="form-help">Selecciona hasta 3 tipos de negocio.</p>';
+          if (businessTypeTrigger) {
+            const label = selectedBusinessTypes.length ? `${selectedBusinessTypes.length} seleccionado${selectedBusinessTypes.length === 1 ? '' : 's'}` : 'Selecciona hasta 3 tipos de negocio';
+            businessTypeTrigger.innerHTML = `${escapeHtml(label)} <span aria-hidden="true">&#8964;</span>`;
+          }
+          if (businessTypeHelp) businessTypeHelp.textContent = 'Puedes seleccionar hasta 3 tipos de negocio.';
+        }
+        function setBusinessTypes(values) {
+          const allowed = new Set(BUSINESS_TYPE_GROUPS_LOCAL.flatMap((group) => (group.options || []).map((option) => option.slug)));
+          selectedBusinessTypes = Array.from(new Set((values || []).filter((slug) => allowed.has(slug)))).slice(0, 3);
+          renderBusinessTypeChips();
+          renderBusinessTypeOptions();
+        }
+        function renderProvinceOptions() {
+          if (!fields.province) return;
+          fields.province.innerHTML = '<option value="">Selecciona provincia</option>' + CUBA_LOCATIONS_LOCAL.map((item) => `<option value="${escapeHtml(item.province)}">${escapeHtml(item.province)}</option>`).join('');
+        }
+        function renderMunicipalityOptions(selected = '') {
+          if (!fields.municipality) return;
+          const province = fields.province?.value || '';
+          const location = CUBA_LOCATIONS_LOCAL.find((item) => item.province === province);
+          const municipalities = location?.municipalities || [];
+          fields.municipality.disabled = !municipalities.length;
+          fields.municipality.innerHTML = municipalities.length
+            ? '<option value="">Selecciona municipio</option>' + municipalities.map((municipality) => `<option value="${escapeHtml(municipality)}">${escapeHtml(municipality)}</option>`).join('')
+            : '<option value="">Primero selecciona provincia</option>';
+          if (selected && municipalities.includes(selected)) fields.municipality.value = selected;
+        }
+        function updateCoverModeUI() {
+          const isCarousel = fields.coverMode?.value === 'carousel';
+          fields.coverSingleWrap?.classList.toggle('hidden', isCarousel);
+          fields.coverCarouselWrap?.classList.toggle('hidden', !isCarousel);
+        }
+        function renderCoverGallery() {
+          if (!fields.coverGalleryPreview) return;
+          galleryPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+          galleryPreviewUrls.clear();
+          const slots = coverSlotItems();
+          fields.coverGalleryPreview.innerHTML = Array.from({ length: 4 }, (_, index) => {
+            const slotItem = slots[index] || { fieldName: `cover_image_${index + 1}`, filename: '', sourceField: `cover_image_${index + 1}` };
+            const filename = slotItem.filename || '';
+            const thumb = filename
+              ? `<img src="${escapeHtml(fileUrlFor(filename, '700x260'))}" alt="Foto ${index + 1}" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`
+              : `Foto ${index + 1}`;
+            return `
+              <div class="settings-gallery-slot" data-gallery-file="${escapeHtml(filename)}" data-gallery-field="${escapeHtml(slotItem.fieldName)}" data-gallery-source-field="${escapeHtml(slotItem.sourceField)}" data-gallery-index="${index}">
+                <p class="settings-slot-label">Foto ${index + 1}</p>
+                <div class="settings-thumb cover">${thumb}</div>
+                <div class="field settings-file-control">
+                  <label for="settings-cover-gallery-image-${index + 1}">${filename ? 'Reemplazar' : 'Subir foto'}</label>
+                  <input id="settings-cover-gallery-image-${index + 1}" class="js-cover-gallery-file" data-current-file="${escapeHtml(filename)}" type="file" accept="image/*" />
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
         async function findDefaultCurrencyId() {
           const result = await api('/api/collections/currencies/records?filter=active%3Dtrue&sort=code&page=1&perPage=1');
           return (result.items || [])[0]?.id || '';
@@ -1378,7 +1593,15 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             store_name: fields.storeName.value.trim() || 'PowerZona',
             whatsapp_number: fields.whatsapp.value.trim(),
             store_description: fields.storeDescription.value.trim(),
+            welcome_text: fields.welcome.value.trim(),
             public_category_columns: fields.categoryColumns.value || '2',
+            cover_mode: fields.coverMode.value || 'single',
+            business_types: JSON.stringify(selectedBusinessTypes),
+            province: fields.province?.value || '',
+            municipality: fields.municipality?.value || '',
+            address_detail: fields.addressDetail?.value?.trim() || '',
+            address: composeAddress(),
+            public_services_text: selectedBusinessTypes.map(businessTypeLabel).join(', '),
             order_prefix: normalizeOrderPrefix(fields.orderPrefix.value),
             active: true,
             store: CURRENT_STORE_ID_PUBLIC_SETTINGS,
@@ -1396,7 +1619,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           settingsRecord = (result.items || [])[0] || null;
           renderSettings();
         }
-        function renderImg(container, url, fallback) {
+        function renderImg(container, url, fallback, deleteClass = '') {
           if (!container) return;
           if (!url) { container.textContent = fallback; return; }
           container.innerHTML = '';
@@ -1404,6 +1627,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           img.src = url;
           img.alt = fallback;
           container.appendChild(img);
+          if (deleteClass) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `settings-thumb-delete ${deleteClass}`;
+            btn.setAttribute('aria-label', `Borrar ${fallback.toLowerCase()}`);
+            btn.innerHTML = '&#128465;';
+            container.appendChild(btn);
+          }
         }
         function normalizeOrderPrefix(value) {
           const clean = String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
@@ -1417,8 +1648,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           fields.storeDescription.value = record.store_description || '';
           fields.welcome.value = record.welcome_text || '';
           fields.categoryColumns.value = String(record.public_category_columns || '2') === '1' ? '1' : '2';
+          fields.coverMode.value = record.cover_mode === 'carousel' ? 'carousel' : 'single';
+          setBusinessTypes(parseJsonList(record.business_types));
+          fields.province.value = record.province || '';
+          renderMunicipalityOptions(record.municipality || '');
+          fields.addressDetail.value = record.address_detail || (!record.province && !record.municipality ? record.address || '' : '');
           fields.address.value = record.address || '';
-          fields.services.value = record.public_services_text || '';
+          fields.services.value = selectedBusinessTypes.map(businessTypeLabel).join(', ');
           fields.reviews.value = record.reviews_text || '';
           fields.footerTitle.value = record.footer_title || '';
           fields.footerText.value = record.footer_text || '';
@@ -1428,10 +1664,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           fields.footerLink1Url.value = record.footer_link_1_url || '';
           fields.footerLink2Label.value = record.footer_link_2_label || '';
           fields.footerLink2Url.value = record.footer_link_2_url || '';
-          fields.currentLogo.textContent = fileName('logo_image') ? 'Logo actual: ' + fileName('logo_image') + '. Si subes otro, se reemplaza.' : '';
-          fields.currentCover.textContent = fileName('cover_image') ? 'Portada actual: ' + fileName('cover_image') + '. Si subes otra, se reemplaza.' : '';
-          renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo / icono');
-          renderImg(fields.coverPreview, fileUrl('cover_image'), 'Foto de portada / banner');
+          renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo', 'js-delete-logo-image');
+          renderImg(fields.coverPreview, fileUrl('cover_image', '700x260'), 'Portada', 'js-delete-cover-image');
+          updateCoverModeUI();
+          renderCoverGallery();
         }
         async function save(event) {
           event.preventDefault();
@@ -1451,17 +1687,56 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           data.append('store_description', fields.storeDescription.value.trim());
           data.append('welcome_text', fields.welcome.value.trim());
           data.append('public_category_columns', fields.categoryColumns.value || '2');
-          data.append('address', fields.address.value.trim());
-          data.append('public_services_text', fields.services.value.trim());
+          data.append('cover_mode', fields.coverMode.value || 'single');
+          data.append('business_types', JSON.stringify(selectedBusinessTypes));
+          data.append('province', fields.province?.value || '');
+          data.append('municipality', fields.municipality?.value || '');
+          data.append('address_detail', fields.addressDetail?.value?.trim() || '');
+          data.append('address', composeAddress());
+          data.append('public_services_text', selectedBusinessTypes.map(businessTypeLabel).join(', '));
           data.append('reviews_text', fields.reviews.value.trim());
           data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
           if (fields.logo.files && fields.logo.files[0]) data.append('logo_image', fields.logo.files[0]);
           if (fields.cover.files && fields.cover.files[0]) data.append('cover_image', await optimizeCoverImageFile(fields.cover.files[0]));
+          const galleryInputs = Array.from(document.querySelectorAll('.js-cover-gallery-file'));
+          const selectedGalleryInputs = galleryInputs.filter((input) => input.files && input.files[0]);
+          for (const input of selectedGalleryInputs) {
+            const slot = input.closest('[data-gallery-field]');
+            const fieldName = slot?.dataset?.galleryField || '';
+            const sourceField = slot?.dataset?.gallerySourceField || fieldName;
+            const currentFile = input.dataset.currentFile || '';
+            if (!/^cover_image_[1-4]$/.test(fieldName)) continue;
+            if (currentFile) data.append(sourceField + '-', currentFile);
+            data.append(fieldName, await optimizeCoverImageFile(input.files[0]));
+          }
           await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
           fields.logo.value = '';
           fields.cover.value = '';
+          galleryInputs.forEach((input) => { input.value = ''; });
           show('Ajustes generales guardados correctamente.', 'success');
           await loadSettings();
+        }
+        async function deleteSettingsFile(fieldName, filename) {
+          if (!settingsRecord?.id || !filename) return;
+          const data = new FormData();
+          data.append(fieldName + '-', filename);
+          await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
+          show('Imagen borrada correctamente.', 'success');
+          await loadSettings();
+        }
+        async function reorderGallery(fromIndex, toIndex) {
+          const files = fileNames('cover_gallery').slice(0, 4);
+          if (fromIndex < 0 || toIndex < 0 || fromIndex >= files.length || toIndex >= files.length) return;
+          const [moved] = files.splice(fromIndex, 1);
+          files.splice(toIndex, 0, moved);
+          await api('/api/collections/settings/records/' + settingsRecord.id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cover_gallery_order: JSON.stringify(files) }),
+          });
+          settingsRecord.cover_gallery_order = JSON.stringify(files);
+          renderCoverGallery();
+          show('Orden del carrusel actualizado.', 'success');
         }
         async function saveFooter(event) {
           event.preventDefault();
@@ -1490,6 +1765,101 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         fields.orderPrefix && fields.orderPrefix.addEventListener('input', () => {
           fields.orderPrefix.value = String(fields.orderPrefix.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
         });
+        fields.coverMode?.addEventListener('change', updateCoverModeUI);
+        fields.province?.addEventListener('change', () => renderMunicipalityOptions(''));
+        businessTypeTrigger?.addEventListener('click', () => {
+          const open = businessTypePanel?.classList.toggle('hidden') === false;
+          businessTypeTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) businessTypeSearch?.focus();
+        });
+        businessTypeSearch?.addEventListener('input', renderBusinessTypeOptions);
+        businessTypeOptions?.addEventListener('change', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const input = target?.closest('input[type="checkbox"]');
+          if (!input) return;
+          const value = input.value;
+          if (input.checked) {
+            if (selectedBusinessTypes.length >= 3) {
+              input.checked = false;
+              if (businessTypeHelp) businessTypeHelp.textContent = 'Puedes seleccionar hasta 3 tipos de negocio.';
+              show('Puedes seleccionar hasta 3 tipos de negocio.', 'error');
+              return;
+            }
+            selectedBusinessTypes = Array.from(new Set(selectedBusinessTypes.concat(value))).slice(0, 3);
+          } else {
+            selectedBusinessTypes = selectedBusinessTypes.filter((slug) => slug !== value);
+          }
+          renderBusinessTypeChips();
+          renderBusinessTypeOptions();
+        });
+        businessTypeChips?.addEventListener('click', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const btn = target?.closest('[data-remove-business-type]');
+          if (!btn) return;
+          selectedBusinessTypes = selectedBusinessTypes.filter((slug) => slug !== btn.dataset.removeBusinessType);
+          renderBusinessTypeChips();
+          renderBusinessTypeOptions();
+        });
+        document.addEventListener('click', (event) => {
+          if (!businessTypePanel || businessTypePanel.classList.contains('hidden')) return;
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest('.business-type-picker')) return;
+          businessTypePanel.classList.add('hidden');
+          businessTypeTrigger?.setAttribute('aria-expanded', 'false');
+        });
+        fields.logoPreview?.addEventListener('click', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest('.js-delete-logo-image')) deleteSettingsFile('logo_image', fileName('logo_image')).catch((error) => show(error.message || 'No se pudo borrar el logo.', 'error'));
+        });
+        fields.coverPreview?.addEventListener('click', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          if (target?.closest('.js-delete-cover-image')) deleteSettingsFile('cover_image', fileName('cover_image')).catch((error) => show(error.message || 'No se pudo borrar la portada.', 'error'));
+        });
+        fields.coverGalleryPreview?.addEventListener('click', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const slot = target?.closest('[data-gallery-file]');
+          if (!slot) return;
+          const filename = slot.dataset.galleryFile || '';
+          const fieldName = slot.dataset.galleryField || 'cover_gallery';
+          const sourceField = slot.dataset.gallerySourceField || fieldName;
+          if (target?.closest('.js-delete-gallery-image')) {
+            if (slot.dataset.pendingFile === 'true') {
+              const input = slot.querySelector('.js-cover-gallery-file');
+              const thumb = slot.querySelector('.settings-thumb.cover');
+              const index = Number(slot.dataset.galleryIndex || 0);
+              const previewUrl = galleryPreviewUrls.get(fieldName);
+              if (previewUrl) URL.revokeObjectURL(previewUrl);
+              galleryPreviewUrls.delete(fieldName);
+              if (input) input.value = '';
+              delete slot.dataset.pendingFile;
+              thumb.innerHTML = filename
+                ? `<img src="${escapeHtml(fileUrlFor(filename, '700x260'))}" alt="Foto ${index + 1}" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`
+                : `Foto ${index + 1}`;
+              return;
+            }
+            deleteSettingsFile(sourceField, filename).catch((error) => show(error.message || 'No se pudo borrar la foto.', 'error'));
+            return;
+          }
+        });
+        fields.coverGalleryPreview?.addEventListener('change', (event) => {
+          const target = event.target instanceof HTMLInputElement ? event.target : null;
+          if (!target?.classList.contains('js-cover-gallery-file') || !target.files?.[0]) return;
+          const slot = target.closest('[data-gallery-field]');
+          const thumb = slot?.querySelector('.settings-thumb.cover');
+          const index = Number(slot?.dataset?.galleryIndex || 0);
+          if (!slot || !thumb) return;
+          const key = slot.dataset.galleryField || `cover_image_${index + 1}`;
+          const previousUrl = galleryPreviewUrls.get(key);
+          if (previousUrl) URL.revokeObjectURL(previousUrl);
+          const previewUrl = URL.createObjectURL(target.files[0]);
+          galleryPreviewUrls.set(key, previewUrl);
+          thumb.innerHTML = `<img src="${escapeHtml(previewUrl)}" alt="Foto ${index + 1} pendiente" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`;
+          slot.dataset.pendingFile = 'true';
+        });
+        renderProvinceOptions();
+        renderMunicipalityOptions('');
+        renderBusinessTypeChips();
+        renderBusinessTypeOptions();
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
         refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
         footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch((error) => showFooter(error.message || 'No se pudo guardar el footer.', 'error')));

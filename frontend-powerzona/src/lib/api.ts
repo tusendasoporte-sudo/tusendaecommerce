@@ -34,12 +34,19 @@ export async function getSettings(options?: StoreQueryInput) {
 
   const logo = normalizeFileValue(settings.logo_image)[0] || '';
   const cover = normalizeFileValue(settings.cover_image)[0] || '';
+  const coverSlots = ['cover_image_1', 'cover_image_2', 'cover_image_3', 'cover_image_4']
+    .map((field) => normalizeFileValue(settings[field])[0] || '')
+    .filter(Boolean);
+  const coverGallery = coverSlots.length
+    ? coverSlots
+    : orderedFileValues(normalizeFileValue(settings.cover_gallery), settings.cover_gallery_order).slice(0, 4);
   const giftsPublicImage = normalizeFileValue(settings.gifts_public_image)[0] || '';
 
   return {
     ...settings,
     logoImageUrl: logo ? getPocketBaseFileUrl('settings', settings.id, logo) : null,
     coverImageUrl: cover ? getPocketBaseFileUrl('settings', settings.id, cover) : null,
+    coverGalleryUrls: coverGallery.map((filename: string) => getPocketBaseFileUrl('settings', settings.id, filename)),
     giftsPublicImageUrl: giftsPublicImage ? getPocketBaseFileUrl('settings', settings.id, giftsPublicImage) : null,
   };
 }
@@ -99,6 +106,22 @@ function isProductPublicVisible(product: any) {
 function normalizeFileValue(value: any) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return value ? [value] : [];
+}
+
+function parseJsonList(value: any) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+  } catch (_) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+}
+
+function orderedFileValues(files: string[], orderValue: any) {
+  const order = parseJsonList(orderValue);
+  return order.filter((filename) => files.includes(filename)).concat(files.filter((filename) => !order.includes(filename)));
 }
 
 function getOrderedProductImages(product: any) {

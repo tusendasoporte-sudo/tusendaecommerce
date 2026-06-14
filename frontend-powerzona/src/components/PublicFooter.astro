@@ -1,6 +1,7 @@
 ---
 // PZ-PUBLIC-FOOTER-V4-LINKS-FLOTANTES-ARRIBA-CTA-FINAL-20260604
 import { getCurrentStore, getPublicPath } from '../lib/stores';
+import { formatBusinessHours } from '../lib/businessHours';
 
 const { settings = {} } = Astro.props;
 
@@ -17,8 +18,12 @@ const footerTitle = settings?.footer_title || storeName;
 const footerText = settings?.footer_text || settings?.welcome_text || '';
 const footerContactText = settings?.footer_contact_text || '';
 const footerExtraText = settings?.footer_extra_text || settings?.reviews_text || '';
-const address = settings?.address || '';
-const businessHours = settings?.business_hours || '';
+const province = String(settings?.province || '').trim();
+const municipality = String(settings?.municipality || '').trim();
+const addressDetail = String(settings?.address_detail || '').trim();
+const locationText = province ? `${province}, ${municipality || 'Cuba'}` : '';
+const address = addressDetail || (!province && !municipality ? settings?.address || '' : '');
+const businessHours = formatBusinessHours(settings);
 const servicesText = settings?.public_services_text || '';
 const linkOneLabel = settings?.footer_link_1_label || '';
 const linkOneUrl = settings?.footer_link_1_url || '';
@@ -37,8 +42,10 @@ function storeInitials(name: string) {
 }
 
 const hasExtraLinks = linkOneUrl || linkTwoUrl;
-const hasInfoCard = businessHours || servicesText || footerContactText;
-const hasMainInfo = footerText || footerContactText || footerExtraText || address || businessHours || servicesText || creatorStoreWhatsappHref || hasExtraLinks;
+const hasLocationCard = locationText || address;
+const hasContactCard = footerContactText || whatsappNumber;
+const hasInfoCard = businessHours || servicesText;
+const hasMainInfo = footerText || footerExtraText || hasLocationCard || hasContactCard || hasInfoCard || creatorStoreWhatsappHref || hasExtraLinks;
 ---
 
 {hasMainInfo && (
@@ -62,17 +69,25 @@ const hasMainInfo = footerText || footerContactText || footerExtraText || addres
       )}
 
       <div class="pz-footer-grid">
-        {address && (
+        {hasLocationCard && (
           <section class="pz-footer-card">
             <h3>Ubicación</h3>
-            <p>{address}</p>
+            {locationText && <p>{locationText}</p>}
+            {address && <p>{address}</p>}
+          </section>
+        )}
+
+        {hasContactCard && (
+          <section class="pz-footer-card">
+            <h3>Contacto</h3>
+            {footerContactText && <p>{footerContactText}</p>}
+            {whatsappNumber && <p>WhatsApp: {whatsappRaw}</p>}
           </section>
         )}
 
         {hasInfoCard && (
           <section class="pz-footer-card">
             <h3>Información</h3>
-            {footerContactText && <p>{footerContactText}</p>}
             {businessHours && <p>{businessHours}</p>}
             {servicesText && <p>{servicesText}</p>}
           </section>

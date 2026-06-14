@@ -1,7 +1,7 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-13  
-**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil.
+**Fecha de actualización:** 2026-06-14  
+**Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil. **21.30.19 cerrado/implementado en source actualizado: aislamiento operativo por tienda reforzado para envíos, promociones automáticas, cupones manuales, regalos, settings, pedidos, reportes y keys públicas por tienda. También quedan implementadas las mini categorías rápidas de tienda pública con modal `Ver todas`, horario simple por tienda y la mejora de Ajustes generales de tienda pública: portada única/carrusel, selector de tipo de negocio, dirección estructurada Cuba, ubicación pública con pin, modal Info de la tienda y reparación real de persistencia en `settings`. Queda documentado como pendiente inmediato la limpieza visual pública: quitar texto default, quitar grilla fija Servicios/Reseña/Moneda, mantener Horarios como modal desde drawer y ordenar footer sin mostrar JSON crudo.**
 
 ---
 
@@ -176,7 +176,13 @@ Actualización cerrada de momento dentro del bloque de variaciones:
 ### 0.3 Bloque actual recomendado
 
 ```txt
-🟡 Bloque actual: 21.30 Tu Senda 84 — multitienda, Master Admin, rutas profesionales de tienda y aislamiento operativo.
+🟡 Bloque actual: 21.30 Tu Senda 84 — multitienda, Admin de tiendas públicas y ajustes visuales/operativos finales.
+✅ 21.30.19 implementado en source actualizado: aislamiento operativo por tienda.
+✅ 21.30.19.1/21.30.19.2 implementado en source actualizado: mini categorías rápidas + modal Ver todas.
+✅ 21.30.19.3 implementado en source actualizado: horario simple por tienda.
+✅ 21.30.19.4/21.30.19.5 implementado y validado en source V9: Ajustes generales con portada única/carrusel, tipo de negocio, dirección estructurada y reparación de persistencia en `settings`.
+🟡 21.30.19.6/21.30.19.7/21.30.19.8 definidos como limpieza/corrección pública: quitar texto default, retirar grilla fija Servicios/Reseña/Moneda, mantener Horarios en drawer/modal, mostrar horario semanal completo en Info y ordenar footer.
+🔜 Próximo bloque recomendado después de cerrar esa limpieza: 21.30.20 — Master Admin profesional + Web Bazzar pública.
 ```
 
 Estado del bloque anterior:
@@ -18029,3 +18035,1732 @@ Una promoción final.
 Mayor beneficio para el cliente.
 Envío claro y separado.
 ```
+
+---
+
+## 22. Actualización acumulativa — 21.30.19 a 21.30.19.3 Tu Senda 84
+
+Esta sección se agrega al final del Master Document para registrar el avance más reciente del source actualizado. No reemplaza secciones anteriores; sirve como estado acumulativo más nuevo para continuar el bloque multitienda.
+
+Estado general de esta actualización:
+
+```txt
+✅ 21.30.19 implementado: aislamiento operativo por tienda.
+✅ 21.30.19.1 / 21.30.19.2 implementado: mini categorías rápidas + modal Ver todas.
+🟡 21.30.19.3 implementado: horario simple por tienda, pendiente de prueba manual completa con PocketBase vivo/staging.
+🔜 Próximo bloque recomendado: 21.30.20 — Master Admin profesional + Web Bazzar pública.
+```
+
+---
+
+### 22.1. Bloque cerrado/implementado: 21.30.19 — Completar aislamiento operativo por tienda
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO EN SOURCE ACTUALIZADO
+🟡 PENDIENTE DE PRUEBA MANUAL COMPLETA CON POCKETBASE VIVO / STAGING
+```
+
+Objetivo:
+
+```txt
+Cerrar las áreas que podían quedar consultando o escribiendo datos globales, reforzando que cada tienda vea y gestione solamente sus propios registros.
+```
+
+Áreas cubiertas:
+
+```txt
+- Envíos / shipping_zones.
+- Promociones automáticas / automatic_promotions.
+- Cupones manuales / manual_coupons.
+- Historial de usos de cupones / manual_coupon_usages.
+- Regalos / gifts.
+- WhatsApp y settings por tienda.
+- Pedidos, order_items y reportes del dashboard admin.
+- Keys públicas de moneda/cupones por tienda.
+```
+
+---
+
+#### 22.1.1. Migración nueva creada
+
+Se agregó una migración nueva:
+
+```txt
+backend-powerzona/pb_migrations/1780470500_completed_store_operational_isolation.js
+```
+
+Regla aplicada:
+
+```txt
+No se eliminaron ni reemplazaron migraciones anteriores.
+Se agregó una migración nueva encima.
+```
+
+La migración refuerza reglas e índices por tienda para las áreas operativas multi-tienda.
+
+---
+
+#### 22.1.2. Reglas generales reforzadas
+
+Roles esperados:
+
+```txt
+master_admin
+→ puede ver y gestionar todo.
+
+store_admin
+→ puede ver, crear, editar y borrar solo datos de su tienda.
+
+store_staff
+→ puede leer solo datos de su tienda, sin crear/editar/borrar áreas delicadas.
+
+cliente público
+→ puede leer datos activos necesarios para la tienda pública y crear pedidos desde checkout.
+```
+
+Regla principal:
+
+```txt
+Ningún admin de tienda debe ver, crear, editar, borrar o usar datos de otra tienda.
+```
+
+Colecciones reforzadas:
+
+```txt
+settings
+shipping_zones
+automatic_promotions
+manual_coupons
+manual_coupon_usages
+gifts
+orders
+order_items
+```
+
+---
+
+#### 22.1.3. Índices trabajados
+
+Índice único global de cupones:
+
+```txt
+idx_manual_coupons_code
+```
+
+se quita si existe para permitir que tiendas diferentes usen el mismo código de cupón.
+
+Nuevo índice único compuesto:
+
+```txt
+idx_manual_coupons_store_code
+```
+
+Regla:
+
+```txt
+Dos tiendas diferentes pueden usar el cupón TEST10.
+La misma tienda no puede repetir TEST10.
+```
+
+Índices por tienda reforzados/agregados:
+
+```txt
+idx_settings_store
+idx_shipping_zones_store
+idx_gifts_store
+idx_manual_coupons_store
+idx_automatic_promotions_store
+```
+
+---
+
+#### 22.1.4. Admin legacy migrado a auth profesional por tienda
+
+Páginas admin antiguas actualizadas para dejar de depender del login viejo:
+
+```txt
+frontend-powerzona/src/pages/admin/shipping.astro
+frontend-powerzona/src/pages/admin/gifts.astro
+frontend-powerzona/src/pages/admin/promos.astro
+frontend-powerzona/src/pages/admin/organization.astro
+```
+
+Cambio principal:
+
+```txt
+Antes:
+- Dependencia real de _superusers.
+- /api/admins/auth-with-password.
+- localStorage powerzona_admin_token.
+
+Ahora:
+- Cookie PocketBase.
+- refreshAuthFromCookie().
+- requireCurrentStoreForAdmin().
+- token desde authPb.authStore.token.
+- currentStoreId para filtrar y crear registros.
+```
+
+Regla final:
+
+```txt
+Toda consulta y creación en estas páginas debe incluir la tienda actual.
+```
+
+---
+
+#### 22.1.5. Shipping / Envíos aislados por tienda
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/admin/shipping.astro
+```
+
+Reglas:
+
+```txt
+- Cargar solo shipping_zones de currentStoreId.
+- Crear zonas con store = currentStoreId.
+- Editar/borrar solo zonas permitidas por reglas PocketBase.
+- Checkout público solo debe ver zonas de la tienda actual.
+```
+
+---
+
+#### 22.1.6. Regalos aislados por tienda
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/admin/gifts.astro
+```
+
+Reglas:
+
+```txt
+- Cargar gifts por currentStoreId.
+- Crear regalos con store = currentStoreId.
+- Cargar settings por currentStoreId.
+- Guardar configuración de regalos dentro del settings de la tienda actual.
+```
+
+---
+
+#### 22.1.7. Promociones y cupones aislados por tienda
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/admin/promos.astro
+```
+
+Áreas filtradas por tienda:
+
+```txt
+products
+categories
+subcategories
+automatic_promotions
+manual_coupons
+manual_coupon_usages
+store_visual_items
+settings
+```
+
+Reglas:
+
+```txt
+- automatic_promotions.store = currentStoreId al crear.
+- manual_coupons.store = currentStoreId al crear.
+- store_visual_items.store = currentStoreId al crear.
+- El historial de uso de cupones solo muestra usos de esa tienda.
+- La validación de cupón duplicado es por tienda, no global.
+```
+
+---
+
+#### 22.1.8. Organización visual aislada por tienda
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/admin/organization.astro
+```
+
+Reglas:
+
+```txt
+- Filtrar productos, categorías, visual items y settings por tienda.
+- Al crear visual items, agregar store = currentStoreId.
+- Al actualizar settings, usar settings de la tienda actual.
+```
+
+---
+
+#### 22.1.9. Dashboard admin filtrado por tienda
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/admin/index.astro
+```
+
+Reglas:
+
+```txt
+- Dashboard de tienda debe contar pedidos de la tienda actual.
+- order_items deben filtrarse por order.store.
+- Reportes/top vendidos no deben mezclar tiendas.
+```
+
+---
+
+#### 22.1.10. Layout, monedas y cupones por tienda
+
+Archivos relacionados:
+
+```txt
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/components/CurrencySwitcher.astro
+frontend-powerzona/src/pages/checkout.astro
+```
+
+Cambios importantes:
+
+```txt
+- CurrencySwitcher lee settings de la tienda actual.
+- Cupones guardados usan keys por tienda.
+- Cupón seleccionado usa key por tienda.
+- Moneda seleccionada puede usar key por tienda.
+- Se mantiene compatibilidad legacy opcional para PowerZona.
+```
+
+Keys recomendadas:
+
+```txt
+powerzona_saved_coupons_${storeId}
+powerzona_selected_coupon_${storeId}
+powerzona_currency_${storeId}
+```
+
+Regla:
+
+```txt
+Un cupón guardado en tienda A no debe aparecer en checkout de tienda B.
+```
+
+---
+
+#### 22.1.11. Checkout aislado por tienda
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/checkout.astro
+```
+
+Reglas:
+
+```txt
+- Crear orden con store = currentStoreId.
+- Cargar settings de la tienda actual.
+- Cargar shipping_zones de la tienda actual.
+- No permitir usar cupón de otra tienda.
+- Si un cupón guardado ya no existe en esa tienda, quitarlo.
+- WhatsApp debe usar nombre, número y prefijo de la tienda actual.
+```
+
+---
+
+#### 22.1.12. Archivos relacionados con 21.30.19
+
+Archivos tocados:
+
+```txt
+backend-powerzona/pb_migrations/1780470500_completed_store_operational_isolation.js
+frontend-powerzona/src/pages/admin/shipping.astro
+frontend-powerzona/src/pages/admin/gifts.astro
+frontend-powerzona/src/pages/admin/promos.astro
+frontend-powerzona/src/pages/admin/organization.astro
+frontend-powerzona/src/pages/admin/index.astro
+frontend-powerzona/src/pages/checkout.astro
+frontend-powerzona/src/layouts/Layout.astro
+frontend-powerzona/src/components/CurrencySwitcher.astro
+```
+
+Archivos revisados sin cambios reportados porque ya filtraban por storeId:
+
+```txt
+frontend-powerzona/public/cart-promotions.js
+frontend-powerzona/src/lib/api.ts
+```
+
+---
+
+#### 22.1.13. Validación reportada
+
+Validación técnica reportada:
+
+```txt
+npm.cmd run build pasó correctamente.
+```
+
+Warnings existentes:
+
+```txt
+Astro getStaticPaths() en páginas dinámicas:
+- subcategoria/[slug]
+- categoria/[slug]
+- producto/[slug]
+```
+
+Nota:
+
+```txt
+Codex reportó que no validó manualmente contra PocketBase vivo ni creó datos cruzados porque no levantó PB ni aplicó la migración en una instancia corriendo.
+```
+
+Prueba manual recomendada antes de marcar 100% cerrado en producción:
+
+```txt
+1. Levantar PocketBase y aplicar migraciones.
+2. Entrar como admin de PowerZona.
+3. Crear envío, regalo, promo, cupón y settings.
+4. Entrar como admin de otra tienda.
+5. Confirmar que no ve datos de PowerZona.
+6. Crear el mismo cupón en ambas tiendas.
+7. Hacer pedido en cada tienda.
+8. Confirmar que pedidos/reportes/WhatsApp no se mezclan.
+```
+
+---
+
+### 22.2. Bloque implementado: 21.30.19.1 / 21.30.19.2 — Mini categorías rápidas en tienda pública
+
+Esta sección registra el ajuste visual público trabajado antes de continuar con Master Admin + Web Bazzar.
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO EN SOURCE ACTUALIZADO
+🟡 PENDIENTE DE PRUEBA VISUAL FINAL EN MÓVIL Y PC
+```
+
+Objetivo:
+
+```txt
+Agregar debajo de los botones principales/WhatsApp una franja de mini categorías rápidas para que el cliente pueda entrar a una categoría con menos pasos.
+```
+
+Archivo principal:
+
+```txt
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+```
+
+---
+
+#### 22.2.1. Ubicación
+
+La sección se coloca debajo de:
+
+```txt
+Botones principales / WhatsApp / Ver categorías
+```
+
+y antes de los bloques siguientes de portada pública.
+
+Regla:
+
+```txt
+No reemplaza la sección normal de categorías.
+Solo agrega accesos rápidos visuales.
+```
+
+---
+
+#### 22.2.2. Diseño de mini categorías
+
+Reglas visuales:
+
+```txt
+- Sin título visible “Categorías” para evitar repetición.
+- Mini tarjetas con imagen de categoría.
+- Nombre de categoría debajo.
+- Fallback visual con inicial si no hay imagen.
+- Estilo premium limpio.
+- Scroll horizontal en móvil y PC.
+- Misma simetría visual en móvil y escritorio.
+```
+
+Regla PC/mobile:
+
+```txt
+En PC no cambia a grid.
+Se mantiene carrusel horizontal igual que móvil; solo se ven más tarjetas por el ancho disponible.
+```
+
+---
+
+#### 22.2.3. Botón Ver todas
+
+Decisión final:
+
+```txt
+Ver todas NO debe ser una tarjeta dentro del carrusel.
+```
+
+Motivo:
+
+```txt
+Si Ver todas fuera una tarjeta al final, el cliente tendría que desplazar el carrusel para encontrarlo.
+```
+
+Regla final:
+
+```txt
+Ver todas debe estar encima del carrusel, alineado a la derecha, siempre visible.
+```
+
+Comportamiento:
+
+```txt
+Al tocar Ver todas, abre modal/tarjeta flotante.
+No navega directo a otra página.
+```
+
+---
+
+#### 22.2.4. Modal Ver todas
+
+Título del modal:
+
+```txt
+Selecciona una opción
+```
+
+Reglas:
+
+```txt
+- Mostrar todas las categorías principales visibles de la tienda.
+- Una sola columna para que el cliente no se pierda.
+- Cada categoría es una tarjeta horizontal completa y clickeable.
+- Imagen pequeña a la izquierda.
+- Nombre a la derecha.
+- Cantidad de productos opcional si ya existe sin recargar.
+```
+
+Navegación:
+
+```txt
+Al tocar una categoría, abre su página propia usando getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname).
+```
+
+---
+
+#### 22.2.5. Scroll correcto del modal
+
+Problema detectado:
+
+```txt
+Al abrir Ver todas, si el cliente hacía scroll, podía moverse la página de fondo.
+```
+
+Regla final:
+
+```txt
+Cuando el modal está abierto:
+- la página de fondo queda bloqueada;
+- el scroll ocurre solo dentro del modal;
+- al cerrar, la página vuelve al mismo punto.
+```
+
+Implementación conceptual:
+
+```txt
+body.quick-categories-open
+Modal con max-height y overflow-y auto.
+overscroll-behavior: contain.
+-webkit-overflow-scrolling: touch.
+```
+
+Cierre del modal:
+
+```txt
+- Botón X.
+- Click en overlay.
+- Tecla Escape.
+```
+
+---
+
+#### 22.2.6. Reglas de datos
+
+Reglas:
+
+```txt
+- Usar categorías visibles de la tienda actual.
+- Mostrar solo categorías principales.
+- Mantener orden actual.
+- No usar rutas fijas sin getPublicPath.
+- Si no hay categorías, no mostrar la franja ni el modal.
+```
+
+---
+
+#### 22.2.7. Validación recomendada
+
+Checklist:
+
+```txt
+1. Abrir /t/powerzona en móvil.
+2. Confirmar mini tarjetas debajo de WhatsApp/acciones.
+3. Confirmar que no aparece título repetido “Categorías”.
+4. Confirmar que Ver todas está arriba a la derecha, fuera del carrusel.
+5. Confirmar scroll horizontal en móvil y PC.
+6. Tocar mini categoría y validar ruta correcta.
+7. Tocar Ver todas.
+8. Confirmar modal con una columna.
+9. Confirmar que el scroll ocurre dentro del modal.
+10. Confirmar cierre con X, overlay y Escape.
+```
+
+---
+
+### 22.3. Bloque implementado: 21.30.19.3 — Horario simple por tienda en Ajustes de la tienda
+
+Esta sección registra el nuevo bloque de horario simple por tienda, pensado para Cuba y sin mostrar configuración técnica de zona horaria al admin.
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO EN SOURCE ACTUALIZADO
+🟡 PENDIENTE DE PRUEBA MANUAL COMPLETA CON POCKETBASE VIVO / STAGING
+```
+
+Objetivo:
+
+```txt
+Agregar una sección independiente de Horario dentro de Ajustes de la tienda para mostrar disponibilidad pública sin bloquear ventas por defecto.
+```
+
+---
+
+#### 22.3.1. Ubicación en admin
+
+Archivo principal:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+```
+
+Estructura esperada de Ajustes de la tienda:
+
+```txt
+Ajustes generales
+Footer público
+Monedas
+Horario
+```
+
+Regla:
+
+```txt
+Horario queda como sección propia.
+No debe mezclarse dentro de Ajustes generales.
+```
+
+---
+
+#### 22.3.2. Migración nueva
+
+Se agregó la migración:
+
+```txt
+backend-powerzona/pb_migrations/1780470600_store_business_hours.js
+```
+
+Regla:
+
+```txt
+No se eliminó ni reemplazó ninguna migración anterior.
+```
+
+La migración amplía `settings` con campos de horario por tienda.
+
+---
+
+#### 22.3.3. Campos agregados en settings
+
+Campos:
+
+```txt
+business_hours_mode
+business_hours
+closed_message
+temporarily_closed_message
+allow_orders_when_closed
+```
+
+Valores esperados para `business_hours_mode`:
+
+```txt
+always_available
+custom
+temporarily_closed
+```
+
+Default recomendado:
+
+```txt
+always_available
+```
+
+Mensajes por defecto:
+
+```txt
+closed_message:
+Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.
+
+temporarily_closed_message:
+Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto.
+```
+
+Regla:
+
+```txt
+Cada tienda guarda su propio horario dentro de su settings.
+```
+
+---
+
+#### 22.3.4. Enfoque para Cuba
+
+Decisión final:
+
+```txt
+No mostrar selector de zona horaria al admin.
+```
+
+Regla interna:
+
+```txt
+Usar America/Havana internamente.
+```
+
+Motivo:
+
+```txt
+El proyecto está pensado principalmente para Cuba y mostrar zona horaria puede complicar el panel sin aportar valor ahora.
+```
+
+Archivo de utilidad creado:
+
+```txt
+frontend-powerzona/src/lib/businessHours.ts
+```
+
+---
+
+#### 22.3.5. Opciones del horario
+
+Opciones visibles para el admin:
+
+```txt
+Siempre disponible
+Horario personalizado
+Cerrado temporalmente
+```
+
+Comportamiento:
+
+```txt
+Siempre disponible:
+- La tienda se considera disponible.
+- No se muestra aviso de cerrado.
+
+Horario personalizado:
+- Admin configura días y horas.
+- Si el cliente entra fuera de horario, se muestra aviso.
+
+Cerrado temporalmente:
+- Para pausa, vacaciones o mantenimiento.
+- Se muestra aviso de cerrado temporalmente.
+```
+
+---
+
+#### 22.3.6. Horario personalizado
+
+Días configurables:
+
+```txt
+Lunes
+Martes
+Miércoles
+Jueves
+Viernes
+Sábado
+Domingo
+```
+
+Cada día tiene:
+
+```txt
+- activo / inactivo;
+- hora de apertura;
+- hora de cierre.
+```
+
+Regla técnica:
+
+```txt
+Debe soportar horario normal, ejemplo 09:00 a 18:00.
+Debe soportar horario nocturno, ejemplo 20:00 a 02:00.
+Si un día está desactivado, se considera fuera de horario.
+```
+
+---
+
+#### 22.3.7. Tienda pública
+
+Archivo principal:
+
+```txt
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+```
+
+Comportamiento:
+
+```txt
+always_available:
+- no mostrar aviso de cerrado.
+
+custom dentro del horario:
+- opcional mostrar Disponible ahora.
+
+custom fuera de horario:
+- mostrar Fuera de horario.
+- mostrar closed_message.
+
+temporarily_closed:
+- mostrar Cerrado temporalmente.
+- mostrar temporarily_closed_message.
+```
+
+Regla:
+
+```txt
+No bloquear navegación, carrito ni checkout por defecto.
+```
+
+---
+
+#### 22.3.8. Checkout y WhatsApp
+
+Archivo:
+
+```txt
+frontend-powerzona/src/pages/checkout.astro
+```
+
+Comportamiento en checkout:
+
+```txt
+Si la tienda está fuera de horario o cerrada temporalmente:
+- mostrar aviso antes de realizar pedido.
+- permitir pedido si allow_orders_when_closed = true.
+- bloquear solo si allow_orders_when_closed = false.
+```
+
+WhatsApp:
+
+```txt
+Si el pedido se hizo fuera de horario:
+Nota: pedido realizado fuera de horario laboral.
+
+Si la tienda estaba cerrada temporalmente:
+Nota: pedido realizado mientras la tienda estaba cerrada temporalmente.
+```
+
+Regla de negocio:
+
+```txt
+Para Cuba, por defecto no se pierde la venta. El cliente puede dejar su pedido y el negocio lo atiende luego.
+```
+
+---
+
+#### 22.3.9. Archivos relacionados con 21.30.19.3
+
+Archivos tocados o relacionados:
+
+```txt
+backend-powerzona/pb_migrations/1780470600_store_business_hours.js
+frontend-powerzona/src/lib/businessHours.ts
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+frontend-powerzona/src/pages/checkout.astro
+```
+
+---
+
+#### 22.3.10. Validación recomendada
+
+Checklist:
+
+```txt
+1. Reiniciar PocketBase y confirmar migración sin errores.
+2. Entrar a /t/powerzona/admin/store-settings.
+3. Confirmar sección Horario separada.
+4. Confirmar que no hay selector de zona horaria.
+5. Guardar Siempre disponible y confirmar que no sale aviso público.
+6. Guardar Horario personalizado fuera de hora actual y confirmar aviso público.
+7. Confirmar aviso en checkout.
+8. Confirmar que permite pedido por defecto.
+9. Confirmar nota de WhatsApp fuera de horario.
+10. Guardar Cerrado temporalmente y probar aviso público/checkout.
+11. Confirmar que otra tienda conserva su propio horario.
+```
+
+---
+
+### 22.4. Próximo bloque recomendado: 21.30.20 — Master Admin profesional + Web Bazzar pública
+
+Estado:
+
+```txt
+🔜 PRÓXIMO BLOQUE RECOMENDADO DESPUÉS DE PROBAR 21.30.19.2 Y 21.30.19.3
+```
+
+Objetivo:
+
+```txt
+Convertir el Master Admin en un centro real de control de tiendas y convertir el Bazzar público en una portada comercial para mostrar tiendas activas/destacadas y vender la creación de nuevas tiendas.
+```
+
+---
+
+#### 22.4.1. Antes de empezar 21.30.20
+
+Primero se recomienda probar:
+
+```txt
+- Mini categorías rápidas en móvil y PC.
+- Modal Ver todas con scroll interno.
+- Horario simple en Ajustes de la tienda.
+- Avisos de horario en tienda pública y checkout.
+- Aislamiento operativo 21.30.19 con dos tiendas reales.
+```
+
+Regla:
+
+```txt
+No iniciar cambios grandes de Master Admin/Bazzar hasta confirmar que lo público y operativo no se mezclan entre tiendas.
+```
+
+---
+
+#### 22.4.2. Mejoras futuras del Master Admin
+
+Ideas definidas:
+
+```txt
+- Dashboard master con tiendas registradas, activas, pausadas, pedidos y ventas estimadas.
+- Lista de tiendas mejorada con logo, nombre, slug, estado, dueño, pedidos, ventas y última actividad.
+- Botones Ver tienda y Entrar al admin.
+- Menú de 3 puntos por tienda.
+- Crear tienda con usuario admin, settings base y enlaces.
+- Editar tienda desde Master.
+- Activar, pausar, ocultar o listar en Bazzar.
+- Búsqueda y filtros por estado, nombre, slug o teléfono.
+```
+
+---
+
+#### 22.4.3. Mejoras futuras de Web Bazzar
+
+Ideas definidas:
+
+```txt
+- Hero comercial de Tu Senda 84.
+- Tiendas destacadas.
+- Tiendas activas/listadas.
+- Categorías generales del Bazzar.
+- Promociones destacadas controladas desde Master.
+- Botón Crear mi tienda.
+- Footer comercial.
+```
+
+Regla importante:
+
+```txt
+El Master Admin debe controlar qué tiendas salen en el Bazzar.
+```
+
+Campos futuros posibles en stores:
+
+```txt
+listed_on_bazzar
+featured_on_bazzar
+bazzar_description
+bazzar_category
+bazzar_cover
+bazzar_order
+bazzar_badge
+```
+
+---
+
+#### 22.4.4. Orden recomendado
+
+Orden sugerido:
+
+```txt
+1. Probar 21.30.19.2 mini categorías rápidas.
+2. Probar 21.30.19.3 horario simple.
+3. Probar aislamiento operativo entre dos tiendas.
+4. Actualizar source estable.
+5. Iniciar 21.30.20 — Master Admin profesional + Web Bazzar pública.
+6. Después: 21.30.21 — Simetría visual del Admin de tienda en PC y móvil.
+7. Después: 21.30.22 — Validación final multi-tienda antes de producción.
+```
+
+---
+
+#### 22.4.5. Mensaje recomendado para iniciar próximo bloque
+
+Mensaje sugerido:
+
+```txt
+21.30.20 — Master Admin profesional + Web Bazzar pública. Source actualizado. Ya quedó implementado el aislamiento operativo por tienda, mini categorías rápidas y horario simple por tienda.
+```
+
+---
+
+## 23. Actualización acumulativa — 21.30.19.4 a 21.30.19.8 Ajustes generales de tiendas públicas
+
+Esta sección se agrega al final del Master Document para registrar las decisiones y avances posteriores a 21.30.19.3. No reemplaza secciones anteriores; funciona como estado más reciente del bloque de tiendas públicas dentro de Tu Senda 84.
+
+Estado general de esta actualización:
+
+```txt
+✅ 21.30.19.4 implementado/validado en source V9: Ajustes generales de tienda pública con imágenes compactas, portada única/carrusel, tipo de negocio y dirección estructurada.
+✅ 21.30.19.5 implementado/validado en source V9: reparación real de persistencia en settings mediante migración de reparación.
+✅ 21.30.19.6 implementado como base en source V9: ubicación pública debajo de portada e Info de la tienda.
+🔜 21.30.19.7 definido para siguiente corrección visual: quitar texto default y grilla fija de tarjetas públicas.
+🔜 21.30.19.8 definido para siguiente corrección visual: Horarios completos en Info/drawer y footer público ordenado sin JSON crudo.
+🔜 Después de cerrar 21.30.19.7/21.30.19.8: continuar 21.30.20 — Master Admin profesional + Web Bazzar pública.
+```
+
+---
+
+### 23.1. 21.30.19.4 — Ajustes generales de tienda pública: imágenes, carrusel, tipo de negocio y dirección
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO EN SOURCE V9
+✅ PERSISTENCIA VALIDADA DESPUÉS DE MIGRACIÓN DE REPARACIÓN
+```
+
+Objetivo:
+
+```txt
+Mejorar la pantalla de Ajustes generales del admin de cada tienda pública para que los datos comerciales de la tienda queden estructurados y sean útiles para la tienda pública y para el futuro Bazzar.
+```
+
+Archivos principales relacionados:
+
+```txt
+frontend-powerzona/src/pages/admin/store-settings.astro
+frontend-powerzona/src/components/public-store/PublicStoreHome.astro
+frontend-powerzona/src/lib/api.ts
+frontend-powerzona/src/lib/businessTypes.ts
+frontend-powerzona/src/lib/cubaLocations.ts
+```
+
+---
+
+#### 23.1.1. Sección Imágenes en Ajustes generales
+
+Se definió y aplicó que la sección de imágenes debe usar miniaturas compactas.
+
+Reglas visuales:
+
+```txt
+- Logo como miniatura cuadrada compacta.
+- Portada como miniatura compacta, no imagen gigante.
+- Botón borrar como icono de basurero flotante arriba a la derecha.
+- No mostrar nombres técnicos de archivos.
+- No mostrar botones rojos grandes de Borrar.
+- Mantener medidas y optimización automática ya existentes.
+```
+
+Regla importante:
+
+```txt
+No inventar nuevas medidas.
+Reutilizar las medidas, textos de ayuda y automatización/optimización de imágenes ya implementadas en el proyecto.
+```
+
+---
+
+#### 23.1.2. Tipo de portada: foto única o carrusel
+
+Se agregó selector:
+
+```txt
+Tipo de portada
+- Foto única
+- Carrusel de fotos
+```
+
+Reglas:
+
+```txt
+Foto única:
+- Muestra una sola portada compacta.
+- Mantiene compatibilidad con cover_image existente.
+
+Carrusel de fotos:
+- Permite hasta 4 fotos.
+- Cada foto se muestra como slot/miniatura.
+- Cada slot tiene basurero propio.
+- No es obligatorio llenar las 4 fotos.
+- Si el admin elige carrusel, el modo debe persistir aunque tenga 0 o 1 imagen.
+```
+
+Regla pública:
+
+```txt
+Si la tienda tiene carrusel con varias imágenes, la portada pública cambia automáticamente cada 6 segundos.
+Si no hay imágenes suficientes, el público puede usar fallback a portada única sin cambiar el modo guardado por el admin.
+```
+
+---
+
+#### 23.1.3. Tipo de negocio estructurado
+
+La sección anterior de Servicios se transformó en:
+
+```txt
+Tipo de negocio
+```
+
+Comportamiento:
+
+```txt
+- Selector multiselección con buscador.
+- Máximo 3 tipos por tienda.
+- Seleccionados visibles como chips.
+- No permitir texto libre.
+- Guardar slugs estructurados.
+- Mostrar nombres bonitos con acentos.
+- Usar lista predefinida centralizada.
+```
+
+Campo persistente usado:
+
+```txt
+settings.business_types
+```
+
+Formato recomendado:
+
+```txt
+["cafeteria", "restaurante", "comida-rapida"]
+```
+
+Regla:
+
+```txt
+No usar “Bazar” como tipo de negocio.
+Bazar es la plataforma principal de Tu Senda 84, no un tipo de negocio de una tienda.
+```
+
+Lista oficial inicial de grupos:
+
+```txt
+Alimentos y bebidas
+Moda y accesorios
+Belleza y cuidado personal
+Salud, fitness y bienestar
+Tecnología
+Hogar
+Ferretería y construcción
+Autos, motos y transporte
+Servicios
+Niños, mascotas y regalos
+Otros
+```
+
+Opciones oficiales iniciales:
+
+```txt
+Alimentos y bebidas:
+- Cafetería
+- Restaurante
+- Comida rápida
+- Dulcería / repostería
+- Panadería
+- Heladería
+- Pizzería
+- Bebidas
+- Alimentos preparados
+- Mercado / víveres
+- Carnicería
+- Pescadería
+- Frutas y vegetales
+
+Moda y accesorios:
+- Ropa
+- Calzado
+- Bolsos y carteras
+- Relojes
+- Joyería / bisutería
+- Accesorios de moda
+- Ropa deportiva
+- Ropa infantil
+- Uniformes
+
+Belleza y cuidado personal:
+- Peluquería
+- Barbería
+- Uñas
+- Maquillaje
+- Perfumería
+- Cosméticos
+- Cuidado de la piel
+- Spa / estética
+- Productos de higiene
+
+Salud, fitness y bienestar:
+- Suplementos deportivos
+- Gimnasio / fitness
+- Nutrición
+- Farmacia / productos de salud
+- Medicina natural
+- Terapias
+- Equipos médicos
+- Óptica
+
+Tecnología:
+- Celulares
+- Accesorios para celulares
+- Reparación de celulares
+- Computadoras
+- Accesorios de computadora
+- Electrónica
+- Videojuegos
+- Cámaras / seguridad
+- Servicios técnicos
+
+Hogar:
+- Muebles
+- Decoración
+- Electrodomésticos
+- Artículos del hogar
+- Limpieza
+- Cocina
+- Colchones
+- Jardinería
+
+Ferretería y construcción:
+- Ferretería
+- Herramientas
+- Materiales de construcción
+- Pinturas
+- Plomería
+- Electricidad
+- Carpintería
+- Cerrajería
+
+Autos, motos y transporte:
+- Repuestos de auto
+- Repuestos de moto
+- Accesorios para autos
+- Mecánica
+- Lavado de autos
+- Transporte
+- Mensajería / delivery
+- Alquiler de autos
+
+Servicios:
+- Servicios profesionales
+- Contabilidad
+- Diseño gráfico
+- Marketing
+- Fotografía / video
+- Reparaciones
+- Clases / cursos
+- Eventos
+- Decoración de eventos
+- Impresión
+- Publicidad
+
+Niños, mascotas y regalos:
+- Bebés
+- Juguetes
+- Artículos escolares
+- Mascotas
+- Alimentos para mascotas
+- Regalos
+- Florería
+- Detalles personalizados
+
+Otros:
+- Tienda mixta
+- Tienda general
+- Negocio online
+- Mayorista
+- Importaciones
+- Otro
+```
+
+---
+
+#### 23.1.4. Dirección estructurada para Cuba
+
+Se cambió la dirección libre por datos estructurados.
+
+Campos:
+
+```txt
+Provincia
+Municipio
+Dirección exacta / referencia
+```
+
+Reglas:
+
+```txt
+- No mostrar campo País porque el flujo actual está enfocado en Cuba.
+- Provincia es desplegable con provincias de Cuba.
+- Municipio depende de la provincia seleccionada.
+- Si cambia provincia, se limpia municipio.
+- Municipio es opcional.
+- Dirección exacta es manual.
+- No autollenar dirección exacta con provincia/municipio.
+- No guardar “La Habana, La Habana”.
+```
+
+Campos persistentes:
+
+```txt
+settings.province
+settings.municipality
+settings.address_detail
+```
+
+Regla de privacidad/visual:
+
+```txt
+Debajo de la portada pública solo se muestra ubicación general.
+La dirección exacta solo se muestra dentro de Info de la tienda si el admin la escribió manualmente.
+```
+
+---
+
+### 23.2. 21.30.19.5 — Reparación real de persistencia en settings
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO EN SOURCE V9
+✅ VALIDADO POR EL USUARIO: carrusel, tipo de negocio, provincia y municipio ya persisten
+```
+
+Problema detectado:
+
+```txt
+La UI mostraba controles nuevos, pero al guardar todo volvía a cero:
+- Carrusel volvía a foto única.
+- Tipo de negocio desaparecía.
+- Provincia/municipio desaparecían o se mezclaban con dirección exacta.
+```
+
+Causa técnica documentada:
+
+```txt
+Las migraciones anteriores usaban un helper fieldExists defectuoso.
+El helper podía devolver true aunque el campo no existiera realmente.
+PocketBase marcaba migraciones como aplicadas, pero los campos no quedaban creados en settings.
+```
+
+Migración de reparación:
+
+```txt
+backend-powerzona/pb_migrations/1780470900_repair_settings_persistence_fields.js
+```
+
+Campos asegurados en `settings`:
+
+```txt
+cover_mode
+cover_image_1
+cover_image_2
+cover_image_3
+cover_image_4
+cover_gallery
+cover_gallery_order
+business_types
+province
+municipality
+address_detail
+business_hours_mode
+business_hours
+closed_message
+temporarily_closed_message
+allow_orders_when_closed
+```
+
+Regla aprendida:
+
+```txt
+No basta con que el archivo de migración exista ni con que _migrations diga aplicado.
+Los campos deben aparecer realmente dentro de la colección settings en PocketBase.
+```
+
+Regla de Codex para migraciones futuras:
+
+```txt
+Crear helper seguro:
+function hasField(collection, name) {
+  try {
+    return !!collection.fields.getByName(name);
+  } catch (_) {
+    return false;
+  }
+}
+```
+
+---
+
+### 23.3. 21.30.19.6 — Ubicación pública e Info de la tienda
+
+Estado:
+
+```txt
+✅ IMPLEMENTADO COMO BASE EN SOURCE V9
+🟡 PENDIENTE DE PULIDO VISUAL FINAL JUNTO CON FOOTER/HORARIOS
+```
+
+---
+
+#### 23.3.1. Ubicación debajo de portada
+
+La tienda pública debe mostrar ubicación general debajo de la portada/banner/carrusel.
+
+Formato:
+
+```txt
+Si hay provincia + municipio:
+[pin rojo] La Habana, Cerro
+
+Si hay provincia sin municipio:
+[pin rojo] La Habana, Cuba
+
+Si no hay provincia:
+No mostrar nada.
+```
+
+Reglas:
+
+```txt
+- La ubicación va debajo de portada/carrusel.
+- Va arriba de texto de bienvenida, descripción o estado corto de horario.
+- Leer desde settings.province y settings.municipality.
+- No leer desde address_detail.
+- No mostrar dirección exacta debajo de portada.
+```
+
+Icono:
+
+```txt
+- Pin rojo pequeño.
+- Inspirado en el icono enviado por el usuario.
+- Preferible SVG inline o asset optimizado.
+- No mostrar icono gigante ni fondo blanco cuadrado.
+```
+
+---
+
+#### 23.3.2. Botón Info de la tienda
+
+Se reemplazó el botón junto a WhatsApp por:
+
+```txt
+Info de la tienda
+```
+
+Al tocarlo debe abrir un modal/tarjeta flotante en la misma página.
+
+Contenido del modal:
+
+```txt
+- Nombre de tienda.
+- Ubicación general.
+- Dirección exacta/referencia solo si el admin la escribió manualmente.
+- WhatsApp/teléfono.
+- Tipos de negocio seleccionados.
+- Descripción de la tienda.
+- Reseña/texto de confianza.
+- Horarios completos si están activos/configurados.
+- Botón Contactar por WhatsApp.
+- Botón Cerrar.
+```
+
+Reglas:
+
+```txt
+- No mostrar bloques vacíos.
+- No mostrar dirección exacta si está vacía.
+- No mostrar tipos de negocio si no hay seleccionados.
+- No mostrar JSON crudo de horarios.
+- Mantener mobile first.
+```
+
+---
+
+### 23.4. 21.30.19.7 — Limpieza visual pública pendiente inmediata
+
+Estado:
+
+```txt
+🔜 DEFINIDO / PENDIENTE DE APLICAR O VALIDAR EN SOURCE POSTERIOR A V9
+```
+
+Objetivo:
+
+```txt
+Limpiar la portada pública para que no muestre textos ni tarjetas informativas duplicadas o innecesarias.
+```
+
+Cambios definidos:
+
+```txt
+1. Quitar fallback público:
+   “Descubre nuestras mejores ofertas y productos destacados.”
+
+2. Mostrar welcome_text solo si el admin escribió texto.
+
+3. Quitar grilla/tarjetas fijas debajo de mini categorías:
+   - Servicios
+   - Reseña
+   - Moneda
+   - Horarios como tarjeta fija
+```
+
+Regla importante sobre Moneda:
+
+```txt
+Solo se quita la tarjeta informativa Moneda.
+NO se toca:
+- selector de moneda del drawer
+- conversión de moneda
+- moneda visual de productos
+- moneda en carrito
+- moneda en checkout
+- moneda en órdenes
+- helpers de moneda
+```
+
+Regla importante sobre Horarios:
+
+```txt
+Horarios no se elimina como función.
+Solo se elimina como tarjeta fija debajo de categorías.
+Horarios debe mantenerse en el drawer/panel lateral si está activo/configurado.
+Al tocar Horarios debe abrir un modal/tarjeta flotante.
+```
+
+Regla sobre Info de la tienda:
+
+```txt
+Los datos de tipo de negocio, reseña/texto de confianza, dirección manual y horarios deben quedar disponibles dentro de Info de la tienda.
+```
+
+---
+
+### 23.5. 21.30.19.8 — Horarios completos y footer público ordenado
+
+Estado:
+
+```txt
+🔜 DEFINIDO / PENDIENTE DE APLICAR O VALIDAR EN SOURCE POSTERIOR A V9
+```
+
+Problema actual observado:
+
+```txt
+- En la tienda pública puede salir “Disponible ahora”, lo cual está bien como estado corto.
+- Pero dentro de Info de la tienda y footer no debe mostrarse business_hours como JSON crudo.
+- El footer actual puede mostrar datos técnicos o mezclar horarios dentro de Información.
+```
+
+Regla final:
+
+```txt
+“Disponible ahora” se mantiene como estado corto público.
+Pero Info de la tienda y el modal Horarios deben mostrar horario semanal completo con apertura y cierre.
+```
+
+Formato esperado:
+
+```txt
+Horarios
+Lunes: 9:00 AM - 6:00 PM
+Martes: 9:00 AM - 6:00 PM
+Miércoles: 9:00 AM - 6:00 PM
+Jueves: Cerrado
+Viernes: 9:00 AM - 6:00 PM
+Sábado: Cerrado
+Domingo: 9:00 AM - 6:00 PM
+```
+
+Reglas de horario:
+
+```txt
+- Si business_hours_mode = custom, mostrar horario semanal completo.
+- Si business_hours_mode = always_available, mantener estado corto si aplica pero no mostrar lista semanal vacía.
+- Si business_hours_mode = temporarily_closed, mostrar Cerrado temporalmente y mensaje temporal si existe.
+- No tocar guardado de horarios en admin.
+- No tocar reglas de checkout/pedidos fuera de horario.
+- No romper getBusinessHoursStatus.
+```
+
+Días en español:
+
+```txt
+monday = Lunes
+tuesday = Martes
+wednesday = Miércoles
+thursday = Jueves
+friday = Viernes
+saturday = Sábado
+sunday = Domingo
+```
+
+Regla de seguridad visual:
+
+```txt
+Nunca mostrar al cliente JSON crudo como:
+{"monday":{"enabled":true,"open":"09:00","close":"18:00"}}
+```
+
+---
+
+#### 23.5.1. Footer público ordenado
+
+Se definió ordenar el footer público para que no mezcle datos.
+
+Estructura sugerida:
+
+```txt
+Encabezado:
+- Logo pequeño.
+- Nombre de tienda.
+- Botón Síguenos WhatsApp / WhatsApp si aplica.
+
+Bloques:
+- Ubicación.
+- Información.
+- Horarios, solo si están activos/configurados.
+- Detalles.
+- Crea tu tienda.
+```
+
+Reglas por bloque:
+
+```txt
+Ubicación:
+- Mostrar provincia/municipio o provincia/Cuba.
+- Mostrar dirección exacta manual si existe.
+
+Información:
+- Mostrar descripción de tienda o texto de bienvenida si existe.
+- No poner horarios aquí.
+- No poner JSON aquí.
+
+Horarios:
+- Mostrar horario semanal completo solo si corresponde.
+
+Detalles:
+- Mostrar Tipo de negocio o Tipos de negocio.
+- Mostrar reseña/texto de confianza.
+- No usar título “Servicios” para business_types.
+
+Crea tu tienda:
+- Mantener CTA para crear tienda.
+```
+
+---
+
+### 23.6. Validaciones recomendadas antes de cerrar 21.30.19 completo
+
+Admin Ajustes generales:
+
+```txt
+1. Seleccionar Foto única, guardar y recargar: conserva Foto única.
+2. Seleccionar Carrusel, guardar y recargar: conserva Carrusel.
+3. Subir 1 a 4 fotos de carrusel y confirmar que persisten.
+4. Seleccionar 3 tipos de negocio, guardar y recargar: chips persisten.
+5. Seleccionar provincia + municipio, guardar y recargar: selects persisten.
+6. Seleccionar solo provincia, guardar y recargar: municipio queda vacío.
+7. Confirmar que address_detail no se autollena.
+8. Escribir dirección exacta manual y confirmar que persiste.
+```
+
+Tienda pública:
+
+```txt
+1. Debajo de portada aparece pin + Provincia, Municipio.
+2. Si solo hay provincia, aparece pin + Provincia, Cuba.
+3. Dirección exacta no aparece debajo de portada.
+4. Dirección exacta aparece en Info de la tienda solo si fue escrita manualmente.
+5. Botón Info de la tienda abre modal.
+6. Info muestra tipo de negocio, descripción, reseña y dirección manual si existen.
+7. Estado corto “Disponible ahora” sigue funcionando.
+8. Drawer muestra Horarios si horarios están activos/configurados.
+9. Modal Horarios muestra semana completa.
+10. Info de la tienda muestra semana completa cuando horarios están activos.
+11. Footer no muestra JSON crudo.
+12. Footer separa Ubicación / Información / Horarios / Detalles / Crea tu tienda.
+13. No aparece grilla fija Servicios/Reseña/Moneda debajo de categorías.
+14. Selector de moneda del drawer sigue funcionando.
+15. WhatsApp, carrito, categorías, productos y regalos siguen funcionando.
+```
+
+---
+
+### 23.7. Próximo bloque recomendado después de cerrar esta limpieza
+
+Cuando 21.30.19.7 y 21.30.19.8 queden aplicados y probados:
+
+```txt
+21.30.20 — Master Admin profesional + Web Bazzar pública
+```
+
+Antes de iniciar 21.30.20:
+
+```txt
+1. Probar Ajustes generales en admin de tienda.
+2. Probar tienda pública con carrusel, ubicación, Info y horarios.
+3. Probar footer público ordenado.
+4. Probar selector de moneda del drawer.
+5. Probar aislamiento entre al menos dos tiendas.
+6. Actualizar source estable.
+7. Actualizar Master Document.
+8. Abrir conversación nueva.
+```
+
+Mensaje sugerido:
+
+```txt
+21.30.20 — Master Admin profesional + Web Bazzar pública. Source actualizado. Ya quedó cerrado 21.30.19 con aislamiento operativo, mini categorías, horarios, Ajustes generales de tienda pública, carrusel, tipo de negocio, ubicación pública, Info de la tienda y footer público ordenado.
+```
+

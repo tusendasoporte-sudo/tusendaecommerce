@@ -17,8 +17,17 @@ export const DEFAULT_BUSINESS_HOURS = {
 };
 
 const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const WEEK_DAYS = [
+  ['monday', 'Lunes'],
+  ['tuesday', 'Martes'],
+  ['wednesday', 'Miercoles'],
+  ['thursday', 'Jueves'],
+  ['friday', 'Viernes'],
+  ['saturday', 'Sabado'],
+  ['sunday', 'Domingo'],
+];
 
-function parseBusinessHours(value: any) {
+export function parseBusinessHours(value: any) {
   if (!value) return DEFAULT_BUSINESS_HOURS;
   if (typeof value === 'string') {
     try {
@@ -29,6 +38,41 @@ function parseBusinessHours(value: any) {
     }
   }
   return value && typeof value === 'object' ? value : DEFAULT_BUSINESS_HOURS;
+}
+
+function isJsonLikeString(value: any) {
+  const text = String(value || '').trim();
+  return text.startsWith('{') || text.startsWith('[');
+}
+
+function legacyHoursText(value: any) {
+  return typeof value === 'string' && value.trim() && !isJsonLikeString(value) ? value.trim() : '';
+}
+
+function formatTime(value: any) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return '';
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+}
+
+export function formatBusinessHours(settings: any) {
+  const legacyText = legacyHoursText(settings?.business_hours);
+  if (legacyText) return legacyText;
+
+  const mode = settings?.business_hours_mode || 'always_available';
+  if (mode === 'temporarily_closed') {
+    return settings?.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT;
+  }
+  if (mode !== 'custom') return '';
+
+  const hours = parseBusinessHours(settings?.business_hours);
+  return WEEK_DAYS.map(([key, label]) => {
+    const day = hours?.[key];
+    if (!day || day.enabled !== true) return `${label}: Cerrado`;
+    const open = formatTime(day.open);
+    const close = formatTime(day.close);
+    return open && close ? `${label}: ${open} - ${close}` : `${label}: Cerrado`;
+  }).join('\n');
 }
 
 function timeToMinutes(value: any) {
