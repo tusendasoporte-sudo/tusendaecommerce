@@ -314,22 +314,8 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       </style>
   </head>
   <body>
-    <div id="login-view" class="login-wrap">
-      <div class="login-card">
-        <span class="brand">PowerZona Admin</span>
-        <h1>Regalos</h1>
-        <p>Entra con tu admin para crear regalos por reglas.</p>
-        <div id="login-alert" class="alert alert-error hidden"></div>
-        <form id="login-form" class="form-grid">
-          <div><label>Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
-          <div><label>Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
-          <button class="btn btn-primary" type="submit">Entrar</button>
-        </form>
-      </div>
-    </div>
-
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <main id="admin-view" class="hidden wrap">
+    <main id="admin-view" class="wrap">
       <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
         <div class="sidebar-inner">
           <div class="sidebar-brand-row">
@@ -404,13 +390,8 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
-      const TOKEN_KEY = 'pb_admin_token';
-      const loginView = document.getElementById('login-view');
-      const adminView = document.getElementById('admin-view');
-      const loginForm = document.getElementById('login-form');
       const giftForm = document.getElementById('gift-form');
       const giftsList = document.getElementById('gifts-list');
-      const loginAlert = document.getElementById('login-alert');
       const alertBox = document.getElementById('alert');
       const logoutBtn = document.getElementById('logout-btn');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
@@ -427,9 +408,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let settings = null;
 
       const token = () => ADMIN_AUTH_TOKEN;
-      const setToken = (_value) => {};
-      const clearToken = () => {};
-      const show = (view) => { loginView.classList.toggle('hidden', view !== 'login'); adminView.classList.toggle('hidden', view !== 'admin'); };
       function openSidebar(){ document.body.classList.add('sidebar-open'); if(sidebarOverlay) sidebarOverlay.hidden = false; if(sidebar) sidebar.setAttribute('aria-hidden','false'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','true'); }
       function closeSidebar(){ document.body.classList.remove('sidebar-open'); if(sidebar) sidebar.setAttribute('aria-hidden','true'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','false'); setTimeout(()=>{ if(!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true; }, 220); }
       function showAlert(message, type='info'){ alertBox.textContent=message; alertBox.className=`alert alert-${type}`; alertBox.classList.remove('hidden'); setTimeout(()=>alertBox.classList.add('hidden'), 4200); }
@@ -593,8 +571,28 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           saveSettingsBtn.textContent = 'Guardar categoría';
         }
       }
-      async function boot(){ if(!POCKETBASE_URL){ loginAlert.textContent='Falta PUBLIC_POCKETBASE_URL en .env'; loginAlert.classList.remove('hidden'); return; } try{ show('admin'); await loadSettings(); await loadGifts(); } catch(error){ console.error(error); show('admin'); showAlert(error.message || 'No se pudieron cargar los datos de esta tienda.', 'error'); } } loginAlert.classList.add('hidden'); try{ const result = await login(document.getElementById('admin-email').value.trim(), document.getElementById('admin-password').value); setToken(result.token); await boot(); } catch(error){ loginAlert.textContent='No se pudo iniciar sesión.'; loginAlert.classList.remove('hidden'); }});
-      giftForm.addEventListener('submit', saveGift); cancelEditBtn.addEventListener('click', resetForm); refreshBtn.addEventListener('click', loadGifts); saveSettingsBtn.addEventListener('click', saveSettings); logoutBtn.addEventListener('click', ()=>{ window.location.href = publicStorePath; });
+      async function boot(){
+        if(!POCKETBASE_URL){
+          showAlert('Falta PUBLIC_POCKETBASE_URL en .env', 'error');
+          return;
+        }
+        if(!ADMIN_AUTH_TOKEN){
+          showAlert('Tu sesión no está disponible. Vuelve a iniciar sesión.', 'error');
+          return;
+        }
+        try{
+          await loadSettings();
+          await loadGifts();
+        } catch(error){
+          console.error(error);
+          showAlert(error.message || 'No se pudieron cargar los datos de esta tienda.', 'error');
+        }
+      }
+      giftForm?.addEventListener('submit', saveGift);
+      cancelEditBtn?.addEventListener('click', resetForm);
+      refreshBtn?.addEventListener('click', loadGifts);
+      saveSettingsBtn?.addEventListener('click', saveSettings);
+      logoutBtn?.addEventListener('click', ()=>{ window.location.href = publicStorePath; });
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);

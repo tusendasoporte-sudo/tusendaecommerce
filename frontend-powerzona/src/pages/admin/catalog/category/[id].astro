@@ -12,10 +12,22 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con editar categoria de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Editar Categoria Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
 <!-- PZ-CATALOG-ADMIN-CATEGORY-DETAIL-V1-20260603
   Bloque: Categorías admin visual
@@ -122,8 +134,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .item-title { margin: 0; font-size: 14px; font-weight: 1000; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .item-meta { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 800; }
       .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-      .inline-editor { grid-column: 1 / -1; display: none; margin-top: 2px; padding: 15px; border-radius: 22px; border: 1px solid #e2e8f0; background: #f8fafc; }
-      .item-row.editing .inline-editor { display: block; }
       .delete-confirm {
         grid-column: 1 / -1;
         margin-top: 2px;
@@ -151,23 +161,544 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         .delete-confirm-actions .mini-btn { width: 100%; }
         .hero-thumb { width: 68px; height: 68px; }
       }
+      /* PZ-EDIT-CATEGORY-VISUAL-V18 */
+      body { background: #eef3f9; overflow-x: hidden; }
+      .app-shell { width: auto; max-width: none; margin: 0; padding: 28px 28px 34px 304px; }
+      .sidebar-overlay {
+        position: fixed; inset: 0; z-index: 80; background: rgba(15,23,42,.36);
+        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
+      }
+      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
+      .sidebar {
+        position: fixed; z-index: 90; top: 18px; left: 18px; bottom: 18px; width: min(286px, calc(100vw - 36px));
+        border-radius: 30px; border: 1px solid rgba(226,232,240,.95); background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        color: #0f172a; box-shadow: 0 28px 80px rgba(15,23,42,.22); padding: 18px; overflow: hidden; transform: none;
+      }
+      .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
+      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+      .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
+      .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #0f172a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; box-shadow: 0 14px 30px rgba(15,23,42,.18); }
+      .brand-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; color: #0f172a; }
+      .brand-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; }
+      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
+      .nav-list { display: grid; gap: 8px; }
+      .nav-item {
+        width: 100%; display: flex; align-items: center; gap: 11px; border-radius: 18px; padding: 11px 12px;
+        background: transparent; color: #334155; font-size: 13px; font-weight: 950; text-align: left; border: 1px solid transparent;
+      }
+      .nav-item:hover { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; }
+      .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15,23,42,.16); }
+      .nav-item.danger { color: #991b1b; background: #fff1f2; }
+      .nav-icon { width: 34px; height: 34px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0; }
+      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
+      .nav-item.active .nav-icon { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.20); }
+      .sidebar-utility { margin-top: auto; display: grid; gap: 8px; padding-top: 14px; }
+      .sidebar-footer { margin-top: 12px; padding: 14px; border-radius: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .sidebar-footer strong { display: block; color: #0f172a; font-size: 12px; margin-bottom: 5px; }
+      .sidebar-footer span { display: block; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 750; }
+      .sidebar-close { margin-left: auto; width: 36px; height: 36px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.05); display: none; }
+      .mobile-topbar { display: none; }
+      .topbar {
+        margin-bottom: 20px; padding: 18px 20px; border-radius: 26px; border: 1px solid rgba(226,232,240,.96);
+        background: rgba(255,255,255,.92); box-shadow: 0 18px 45px rgba(15,23,42,.08);
+      }
+      .back-link, .action-btn { border-radius: 16px; box-shadow: none; }
+      .primary-blue-btn, .mini-btn.blue {
+        border: 0; border-radius: 16px; padding: 12px 16px; background: #2563eb; color: #fff; font-weight: 1000;
+        box-shadow: 0 14px 28px rgba(37,99,235,.22);
+      }
+      .notifications-btn {
+        position: relative; width: 44px; height: 44px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff;
+        color: #0f172a; display: inline-flex; align-items: center; justify-content: center;
+      }
+      .notifications-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      .notifications-dot { position: absolute; top: 9px; right: 10px; width: 8px; height: 8px; border-radius: 999px; background: #ef4444; border: 2px solid #fff; }
+      .hero-card { border-radius: 28px; }
+      .hero-card::after { content: 'Vista previa'; position: absolute; right: 24px; bottom: 20px; color: #94a3b8; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .1em; }
+      .grid { grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: 20px; }
+      .grid > .stack:first-child { position: sticky; top: 24px; }
+      .panel-card, .list-card, .hero-card { background: #fff; border-radius: 24px; border-color: rgba(226,232,240,.96); box-shadow: 0 18px 45px rgba(15,23,42,.07); }
+      .panel-title { font-size: 18px; }
+      .form-grid, .category-form-grid, .subcategory-form-grid { display: grid; gap: 14px; }
+      .field input, .field select, .field textarea { border-radius: 14px; font-weight: 800; }
+      .field textarea { min-height: 120px; }
+      .checkline { padding: 12px 14px; border-radius: 16px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .submit-btn { background: #2563eb; box-shadow: 0 14px 28px rgba(37,99,235,.22); }
+      .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+      .summary-tile { padding: 14px; border-radius: 18px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .summary-tile strong { display: block; font-size: 22px; color: #0f172a; line-height: 1; }
+      .summary-tile span { display: block; margin-top: 7px; color: #64748b; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .05em; }
+      .summary-panel { order: -1; }
+      .list-head { background: #fff; padding: 18px 20px; }
+      .item-row { border-bottom-color: #eef2f7; }
+      .product-list-body .item-row, .subcategory-list-body .item-row { align-items: start; }
+      .subcategory-products-list { display: grid; gap: 14px; padding: 18px; }
+      .subcategory-group { border: 1px solid #e2e8f0; border-radius: 20px; overflow: hidden; background: #fff; }
+      .subcategory-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+      .subcategory-group-title { margin: 0; font-size: 15px; font-weight: 1000; color: #0f172a; }
+      .subcategory-group-count { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 850; }
+      .quick-actions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .quick-actions-grid .mini-btn { width: 100%; text-align: center; }
+      .mobile-bottom-bar { display: none; }
+      @media (min-width: 1180px) {
+        .app-shell { padding-right: 36px; }
+      }
+      @media (max-width: 980px) {
+        .app-shell { padding: 82px 16px 94px; }
+        .sidebar { transform: translateX(-112%); top: 12px; left: 12px; bottom: 12px; width: min(320px, calc(100vw - 24px)); transition: transform .22s ease; }
+        body.sidebar-open .sidebar { transform: translateX(0); }
+        .sidebar-close { display: inline-flex; align-items: center; justify-content: center; }
+        .mobile-topbar {
+          position: fixed; top: 10px; left: 10px; right: 10px; z-index: 60; display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 12px; border-radius: 20px; background: rgba(255,255,255,.96); border: 1px solid #e2e8f0; box-shadow: 0 14px 34px rgba(15,23,42,.10);
+        }
+        .menu-btn { width: 42px; height: 42px; border: 0; border-radius: 14px; background: #eff6ff; color: #1d4ed8; font-size: 19px; font-weight: 1000; }
+        .topbar { margin-top: 0; }
+        .topbar-left { width: 100%; }
+        .topbar-actions { width: 100%; justify-content: flex-start; }
+        .grid, .form-row { grid-template-columns: 1fr; }
+        .grid > .stack:first-child { position: static; }
+        .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hero-card::after { display: none; }
+        .mobile-bottom-bar {
+          position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 55; display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px;
+          padding: 10px; border-radius: 20px; background: rgba(255,255,255,.96); border: 1px solid #e2e8f0; box-shadow: 0 18px 40px rgba(15,23,42,.14);
+        }
+        .bottom-action { border: 0; border-radius: 15px; background: #f1f5f9; color: #0f172a; font-weight: 1000; padding: 13px; text-align: center; }
+        .bottom-action.primary { background: #2563eb; color: #fff; }
+      }
+      @media (max-width: 620px) {
+        .topbar { display: grid; }
+        .topbar-actions .action-btn { display: none; }
+        .topbar-actions .primary-blue-btn { display: none; }
+        .hero-card { padding: 18px; }
+        .page-title { font-size: 28px; }
+        .panel-card { padding: 18px; }
+        .item-main { align-items: flex-start; }
+        .row-actions .mini-btn { flex: 1 1 auto; }
+        .summary-grid { grid-template-columns: 1fr 1fr; }
+        .quick-actions-grid { grid-template-columns: 1fr; }
+      }
+      /* PZ-EDIT-CATEGORY-VISUAL-FINAL-213020A */
+      .legacy-hero { display: none; }
+      .app-shell { padding-left: 300px; }
+      .nav-item.active { background: #0f172a; color: #fff; box-shadow: 0 14px 28px rgba(15,23,42,.18); }
+      .nav-item.active .nav-icon { background: rgba(255,255,255,.16); color: #fff; }
+      .brand-logo { background: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
+      .editor-topbar {
+        display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        padding: 16px 18px; margin-bottom: 18px; border-radius: 24px;
+      }
+      .editor-heading { display: flex; align-items: center; gap: 12px; }
+      .square-back {
+        width: 44px; height: 44px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
+        background: #fff; border: 1px solid #e2e8f0; color: #0f172a; font-size: 20px; font-weight: 1000;
+      }
+      .editor-topbar .page-title { margin: 0; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -.035em; }
+      .breadcrumb { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 850; }
+      .editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; align-items: start; }
+      .editor-main { display: grid; gap: 18px; min-width: 0; }
+      .editor-rail { position: sticky; top: 24px; display: grid; gap: 14px; min-width: 0; }
+      .info-panel, .content-panel, .rail-card { border-radius: 22px; }
+      .info-panel { padding: 22px; }
+      .category-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; align-items: start; }
+      .category-fields { display: grid; gap: 13px; }
+      .switch-line {
+        display: inline-flex; align-items: center; gap: 10px; width: fit-content; min-height: 42px;
+        padding: 8px 12px; border-radius: 999px; background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; font-weight: 950;
+      }
+      .switch-line input { position: absolute; opacity: 0; pointer-events: none; }
+      .switch-ui { width: 42px; height: 24px; border-radius: 999px; background: #cbd5e1; position: relative; transition: background .18s ease; }
+      .switch-ui::after { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 999px; background: #fff; top: 3px; left: 3px; box-shadow: 0 3px 8px rgba(15,23,42,.2); transition: transform .18s ease; }
+      .switch-line input:checked + .switch-ui { background: #16a34a; }
+      .switch-line input:checked + .switch-ui::after { transform: translateX(18px); }
+      .image-edit-card { display: grid; gap: 10px; padding: 12px; border-radius: 20px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .form-image-preview, .rail-thumb {
+        width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; border: 1px solid #e2e8f0; background: #eef2f7;
+        display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 28px; font-weight: 1000; overflow: hidden;
+      }
+      .form-image-preview img, .rail-thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .image-picker-btn {
+        display: inline-flex; justify-content: center; align-items: center; border-radius: 14px; padding: 11px 13px;
+        background: #fff; border: 1px solid #e2e8f0; color: #0f172a; font-weight: 1000; cursor: pointer;
+      }
+      .sr-only-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      .category-submit-inline { display: none; }
+      .category-form-grid #category-alert { grid-column: 1 / -1; }
+      .content-panel { padding: 20px; }
+      .content-panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+      .content-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+      .content-column {
+        min-width: 0; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; overflow: hidden;
+        display: flex; flex-direction: column;
+      }
+      .column-head { display: grid; gap: 10px; padding: 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+      .column-head h3 { margin: 0; font-size: 15px; font-weight: 1000; color: #0f172a; }
+      .column-head p { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; }
+      .compact-list .item-row, .compact-groups .item-row { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+      .compact-list .row-actions, .compact-groups .row-actions { justify-content: flex-start; }
+      .compact-list .row-thumb, .compact-groups .row-thumb { width: 42px; height: 42px; min-width: 42px; border-radius: 13px; }
+      .subcategory-form-grid { display: grid; gap: 10px; }
+      .danger-link { color: #991b1b !important; background: #fff !important; border-color: #fecaca !important; box-shadow: none !important; }
+      .rail-card { padding: 16px; }
+      .rail-kicker { margin: 0 0 10px; color: #64748b; font-size: 11px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+      .rail-card h2, .rail-title { margin: 10px 0 0; color: #0f172a; font-size: 16px; font-weight: 1000; letter-spacing: -.02em; }
+      .rail-card #rail-category-slug { margin: 4px 0 10px; color: #64748b; font-size: 12px; font-weight: 850; }
+      .rail-note { margin: 12px 0 0; color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 800; }
+      .rail-summary-list { display: grid; gap: 8px; margin-top: 12px; }
+      .rail-summary-list div { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid #eef2f7; }
+      .rail-summary-list span { color: #64748b; font-size: 12px; font-weight: 850; }
+      .rail-summary-list strong { color: #0f172a; font-size: 12px; font-weight: 1000; text-align: right; }
+      .quick-actions-panel .quick-actions-grid { grid-template-columns: 1fr; margin-top: 12px; }
+      .quick-actions-panel .mini-btn { white-space: normal; }
+      .subcategory-group { border-radius: 16px; }
+      .subcategory-group-head { display: grid; gap: 10px; padding: 12px; }
+      @media (max-width: 1180px) {
+        .editor-layout { grid-template-columns: minmax(0, 1fr) 240px; }
+        .content-columns { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 980px) {
+        .app-shell { padding: 82px 14px 94px; }
+        .editor-topbar { margin-top: 0; }
+        .editor-layout { grid-template-columns: 1fr; }
+        .editor-rail { position: static; order: 2; }
+        .editor-main { order: 1; }
+        .info-panel { order: 1; }
+        .content-panel { order: 4; }
+        .category-form-grid { grid-template-columns: 1fr; }
+        .category-submit-inline { display: inline-flex; }
+        .content-columns { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 620px) {
+        .editor-topbar { display: none; }
+        .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .summary-tile { padding: 12px; }
+        .summary-tile strong { font-size: 20px; }
+        .panel-card { border-radius: 20px; }
+        .content-panel { padding: 14px; }
+      }
+      .list-card,
+      .content-column,
+      .content-panel { overflow: visible; }
+      .subcategory-row { grid-template-columns: minmax(0, 1fr) auto; position: relative; }
+      .subcategory-row-actions {
+        display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
+      }
+      .subcategory-menu-button {
+        width: 36px; height: 36px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a;
+        display: inline-flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1; font-weight: 1000;
+        box-shadow: 0 8px 18px rgba(15,23,42,.06);
+      }
+      .subcategory-actions-menu {
+        position: fixed; z-index: 140; width: 190px; padding: 8px; border-radius: 16px; background: #fff;
+        border: 1px solid #e2e8f0; box-shadow: 0 22px 55px rgba(15,23,42,.18);
+      }
+      .subcategory-actions-menu button {
+        width: 100%; border: 0; border-radius: 12px; background: transparent; color: #0f172a; padding: 10px 11px;
+        text-align: left; font-size: 13px; font-weight: 900;
+      }
+      .subcategory-actions-menu button:hover { background: #f8fafc; }
+      .subcategory-actions-menu button.danger { color: #991b1b; }
+      .subcategory-modal-overlay {
+        position: fixed; inset: 0; z-index: 130; display: flex; align-items: center; justify-content: center;
+        padding: 18px; background: rgba(15,23,42,.45); backdrop-filter: blur(6px);
+      }
+      .subcategory-modal-overlay.hidden,
+      .subcategory-actions-menu.hidden { display: none; }
+      .subcategory-modal { width: min(520px, 100%); max-height: min(760px, calc(100vh - 36px)); overflow: auto; }
+      .subcategory-modal-card {
+        border-radius: 26px; background: #fff; border: 1px solid rgba(226,232,240,.96);
+        box-shadow: 0 30px 90px rgba(15,23,42,.24); padding: 20px;
+      }
+      .subcategory-modal-head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px;
+      }
+      .subcategory-modal-head h2 { margin: 0; color: #0f172a; font-size: 22px; font-weight: 1000; letter-spacing: -.03em; }
+      .modal-close-btn {
+        width: 38px; height: 38px; border-radius: 14px; border: 1px solid #e2e8f0; background: #f8fafc; color: #0f172a;
+        font-size: 20px; font-weight: 1000;
+      }
+      .subcategory-modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+      .subcategory-form-grid.confirming-delete > .field,
+      .subcategory-form-grid.confirming-delete > .switch-line,
+      .subcategory-form-grid.confirming-delete > .subcategory-modal-actions { display: none; }
+      .subcategory-form-grid.confirming-delete .delete-confirm { display: block; }
+      @media (max-width: 620px) {
+        .subcategory-row { grid-template-columns: 1fr; }
+        .subcategory-row-actions { justify-content: flex-start; }
+        .subcategory-row-actions .mini-btn { flex: 1 1 auto; }
+        .subcategory-modal-overlay { align-items: flex-end; padding: 10px; }
+        .subcategory-modal-card { border-radius: 24px; padding: 16px; }
+        .subcategory-modal-actions .mini-btn,
+        .subcategory-modal-actions .submit-btn { flex: 1 1 100%; }
+      }
+      /* PZ-SIDEBAR-MATCH-CATALOG-213020F */
+      .sidebar-overlay,
+      #sidebar-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 80 !important;
+        background: rgba(15, 23, 42, .36) !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity .22s ease !important;
+        backdrop-filter: blur(2px) !important;
+      }
+      body.sidebar-open .sidebar-overlay,
+      body.sidebar-open #sidebar-overlay {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+      .sidebar,
+      #admin-sidebar {
+        position: fixed !important;
+        top: 18px !important;
+        left: 18px !important;
+        bottom: 18px !important;
+        z-index: 90 !important;
+        width: min(286px, calc(100vw - 36px)) !important;
+        border-radius: 30px !important;
+        padding: 18px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        color: #0f172a !important;
+        border: 1px solid rgba(226, 232, 240, .95) !important;
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .22) !important;
+        overflow: hidden !important;
+        transform: translateX(calc(-100% - 28px)) !important;
+        transition: transform .24s ease !important;
+      }
+      body.sidebar-open .sidebar,
+      body.sidebar-open #admin-sidebar { transform: translateX(0) !important; }
+      .sidebar::before,
+      #admin-sidebar::before {
+        content: '' !important;
+        position: absolute !important;
+        inset: 0 !important;
+        background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important;
+        pointer-events: none !important;
+      }
+      .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; height: 100% !important; min-height: 0 !important; }
+      .brand {
+        display: flex !important;
+        align-items: center !important;
+        gap: 11px !important;
+        padding: 8px 8px 18px !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+        margin: 0 0 14px !important;
+      }
+      .brand-logo {
+        width: 42px !important;
+        height: 42px !important;
+        border-radius: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: linear-gradient(135deg, #0f172a, #020617) !important;
+        color: #ffffff !important;
+        font-size: 12px !important;
+        font-weight: 1000 !important;
+        box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
+      }
+      .brand-title {
+        margin: 0 !important;
+        font-size: 22px !important;
+        font-weight: 1000 !important;
+        letter-spacing: -.035em !important;
+        color: #0f172a !important;
+        line-height: 1.1 !important;
+      }
+      .brand-subtitle {
+        margin: 4px 0 0 !important;
+        color: #334155 !important;
+        font-size: 12px !important;
+        font-weight: 850 !important;
+        line-height: 1.2 !important;
+      }
+      .sidebar-label {
+        margin: 18px 9px 9px !important;
+        color: #475569 !important;
+        font-size: 10px !important;
+        font-weight: 1000 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .14em !important;
+      }
+      .nav-list { display: grid !important; gap: 6px !important; }
+      .nav-item {
+        min-height: 50px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        gap: 11px !important;
+        width: 100% !important;
+        padding: 8px 10px !important;
+        border-radius: 16px !important;
+        background: transparent !important;
+        color: #0f172a !important;
+        border: 1px solid transparent !important;
+        font-size: 15px !important;
+        font-weight: 1000 !important;
+        line-height: 1.18 !important;
+        text-decoration: none !important;
+        box-shadow: none !important;
+      }
+      .nav-item:hover {
+        transform: translateX(2px) !important;
+        background: #f8fafc !important;
+        color: #020617 !important;
+        border-color: #e2e8f0 !important;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-item.active {
+        background: linear-gradient(135deg, #0f172a, #020617) !important;
+        color: #ffffff !important;
+        border-color: rgba(15,23,42,.95) !important;
+        box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        border-radius: 14px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      .nav-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
+      .nav-icon svg path { stroke: currentColor; }
+      .nav-item.active .nav-icon {
+        background: rgba(255,255,255,.12) !important;
+        color: #ffffff !important;
+        border-color: rgba(255,255,255,.20) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .nav-item:hover:not(.active) .nav-icon {
+        background: #020617 !important;
+        color: #ffffff !important;
+        border-color: #020617 !important;
+        box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important;
+      }
+      .sidebar-utility { margin-top: auto !important; display: grid !important; gap: 8px !important; padding-top: 14px !important; }
+      .nav-item.danger { background: #fff1f2 !important; color: #991b1b !important; border-color: #ffe4e6 !important; }
+      .sidebar-footer {
+        margin-top: 14px !important;
+        padding: 14px !important;
+        border-radius: 22px !important;
+        background: #f8fafc !important;
+        border: 1px solid #e2e8f0 !important;
+      }
+      .sidebar-footer strong { display: block !important; font-size: 12px !important; margin-bottom: 5px !important; color: #0f172a !important; }
+      .sidebar-footer span { display: block !important; color: #475569 !important; font-size: 11px !important; line-height: 1.45 !important; font-weight: 750 !important; }
+      .sidebar-close,
+      #sidebar-close {
+        margin-left: auto !important;
+        width: 42px !important;
+        height: 42px !important;
+        min-width: 42px !important;
+        border-radius: 16px !important;
+        border: 1px solid #e2e8f0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-size: 18px !important;
+        font-weight: 1000 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      }
+      @media (min-width: 1024px) {
+        .app-shell { width: 100% !important; max-width: none !important; padding: 38px 40px 48px 326px !important; }
+        .sidebar,
+        #admin-sidebar {
+          transform: translateX(0) !important;
+          width: 278px !important;
+          top: 18px !important;
+          left: 18px !important;
+          bottom: 18px !important;
+        }
+        .sidebar-close,
+        #sidebar-close { display: none !important; }
+        .sidebar-overlay,
+        #sidebar-overlay { display: none !important; }
+      }
+      @media (max-width: 620px) {
+        .sidebar,
+        #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
+      }
     </style>
   </head>
   <body>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+    <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administracion" aria-hidden="true">
+      <div class="sidebar-inner">
+        <div class="brand">
+          <span class="brand-logo">PZ</span>
+          <div>
+            <p class="brand-title">PowerZona</p>
+            <p class="brand-subtitle">Admin Panel</p>
+          </div>
+          <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menu">×</button>
+        </div>
+        <p class="sidebar-label">Principal</p>
+        <nav class="nav-list">
+          <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+          <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+          <a class="nav-item active" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+        </nav>
+        <p class="sidebar-label">Tienda</p>
+        <nav class="nav-list">
+          <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+          <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+          <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+          <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.4 7.4 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.4 7.4 0 0 0 7 6L4.6 5l-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.4 7.4 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.4 7.4 0 0 0 17 18l2.4 1 2-3.5-2-2ZM12 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/></svg></span><span>Ajustes de tienda</span></a>
+        </nav>
+        <div class="sidebar-utility">
+          <a class="nav-item" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 8 5 9 7-1 2-4 7-9 7s-8-5-9-7c1-2 4-7 9-7Zm0 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span><span>Ver catálogo público</span></a>
+          <button id="logout-btn" class="nav-item danger hidden" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v2H5V5h5v2H7v10h3Zm4.7-.3-1.4-1.4 2.3-2.3H9v-2h6.6l-2.3-2.3 1.4-1.4L19.4 12l-4.7 4.7Z"/></svg></span><span>Cerrar sesión</span></button>
+        </div>
+        {masterSupportHref ? (
+          <a class="sidebar-footer" href={masterSupportHref} target="_blank" rel="noreferrer">
+            <strong>{masterSupportLabel}</strong>
+            <span>Soporte Master Admin de Tu Senda 84 para esta tienda.</span>
+          </a>
+        ) : (
+          <div class="sidebar-footer">
+            <strong>{masterSupportLabel}</strong>
+            <span>Soporte global pendiente de configurar. No se usa el contacto del admin de tienda.</span>
+          </div>
+        )}
+      </div>
+    </aside>
     <div class="app-shell">
-      <header class="topbar">
-        <div class="topbar-left">
-          <a class="back-link" href={adminCatalogPath}>← Volver a categorías</a>
-          <a class="back-link" href={adminBasePath}>Resumen</a>
+      <header class="mobile-topbar">
+        <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰</button>
+        <strong>Editar categoria</strong>
+        <button id="admin-notifications-btn-mobile" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+          <span class="notifications-dot" aria-hidden="true"></span>
+        </button>
+      </header>
+      <header class="topbar editor-topbar">
+        <div class="topbar-left editor-heading">
+          <a class="square-back" href={adminCatalogPath} aria-label="Volver a categorías">←</a>
+          <div>
+            <h1 class="page-title">Editar categoría</h1>
+            <p class="breadcrumb">Categorías &gt; Editar categoría &gt; <span id="breadcrumb-category-name">Cargando...</span></p>
+          </div>
         </div>
         <div class="topbar-actions">
-          <a class="action-btn" href={adminProductsPath}>Productos</a>
-          <a class="action-btn" href={publicStorePath}>Ver catálogo público</a>
-          <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
+          <button id="admin-notifications-btn" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+            <span class="notifications-dot" aria-hidden="true"></span>
+          </button>
+          <button class="primary-blue-btn" type="submit" form="category-form">Guardar cambios</button>
         </div>
       </header>
       <section id="admin-view">
-        <section class="hero-card">
+        <section class="hero-card legacy-hero">
           <div id="category-hero-thumb" class="hero-thumb">+</div>
           <div>
             <span class="badge">🗂️ Categoría</span>
@@ -177,74 +708,153 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           <span id="category-status" class="status-pill status-visible">Visible</span>
         </section>
 
-        <div class="grid">
-          <div class="stack">
-            <section class="panel-card">
-              <h2 class="panel-title">Datos de la categoría</h2>
-              <p class="panel-text">Aquí puedes cambiar el nombre público, la foto principal y si aparece o no en la tienda.</p>
-              <form id="category-form" class="form-grid">
-                <div class="field">
-                  <label for="category-name">Nombre</label>
-                  <input id="category-name" type="text" placeholder="Nombre de la categoría" required />
-                </div>                <div class="field">
-                  <label for="category-description">Descripcion</label>
-                  <textarea id="category-description" placeholder="Texto corto para explicar esta categoria en la tienda publica."></textarea>
-                  <p class="image-help">Texto corto para explicar esta categoria en la tienda publica.</p>
+        <div class="editor-layout">
+          <main class="editor-main">
+            <section class="panel-card info-panel">
+              <div>
+                <h2 class="panel-title">Información de la categoría</h2>
+                <p class="panel-text">Actualiza los datos visibles de esta categoría en tu tienda.</p>
+              </div>
+              <form id="category-form" class="category-form-grid">
+                <div class="category-fields">
+                  <div class="field">
+                    <label for="category-name">Nombre de la categoría *</label>
+                    <input id="category-name" type="text" placeholder="Nombre de la categoría" required />
+                  </div>
+                  <div class="field">
+                    <label for="category-description">Descripción</label>
+                    <textarea id="category-description" placeholder="Texto corto para explicar esta categoría en la tienda pública."></textarea>
+                  </div>
+                  <label class="switch-line">
+                    <input id="category-active" type="checkbox" />
+                    <span class="switch-ui" aria-hidden="true"></span>
+                    <span>Visible en tienda</span>
+                  </label>
                 </div>
-
-                <div class="field">
-                  <label for="category-image">Cambiar foto</label>
-                  <input id="category-image" type="file" accept="image/*" />
-                  <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
+                <div class="image-edit-card">
+                  <div id="category-form-thumb" class="form-image-preview">+</div>
+                  <label class="image-picker-btn" for="category-image">Cambiar imagen</label>
+                  <input id="category-image" class="sr-only-file" type="file" accept="image/*" />
+                  <p class="image-help">PNG, JPG o WEBP. Máx. 2MB</p>
+                  <p class="image-help">Recomendado: 16:9, mínimo 1200 × 675 px.</p>
                 </div>
-                <label class="checkline"><input id="category-active" type="checkbox" /> Visible en tienda pública</label>
-                <button id="category-submit" class="submit-btn" type="submit">Guardar categoría</button>
+                <button id="category-submit" class="submit-btn category-submit-inline" type="submit">Guardar categoría</button>
                 <div id="category-alert" class="alert alert-info hidden"></div>
               </form>
             </section>
 
-            <section class="panel-card">
-              <h2 class="panel-title">Nueva subcategoría</h2>
-              <p class="panel-text">Crea subcategorías dentro de esta categoría sin ensuciar la vista general.</p>
-              <form id="subcategory-form" class="form-grid">
-                <div class="field">
-                  <label for="subcategory-name">Nombre</label>
-                  <input id="subcategory-name" type="text" placeholder="Ej: Whey Protein" required />
-                </div>
-                <div class="field">
-                  <label for="subcategory-image">Foto</label>
-                  <input id="subcategory-image" type="file" accept="image/*" />
-                  <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
-                </div>
-                <label class="checkline"><input id="subcategory-active" type="checkbox" checked /> Visible en tienda</label>
-                <button id="subcategory-submit" class="submit-btn" type="submit">Crear subcategoría</button>
-                <div id="subcategory-alert" class="alert alert-info hidden"></div>
-              </form>
-            </section>
-          </div>
-
-          <div class="stack">
-            <section class="list-card">
-              <div class="list-head">
+            <section class="panel-card content-panel">
+              <div class="content-panel-head">
                 <div>
-                  <h2 class="list-title">Subcategorías</h2>
-                  <p id="subcategories-count" class="list-subtitle">Cargando...</p>
+                  <h2 class="panel-title">Contenido de la categoría</h2>
+                  <p class="panel-text">Vista general de los productos y subcategorías relacionados.</p>
                 </div>
               </div>
-              <div id="subcategories-list" class="list-body"></div>
+              <div id="content-summary-grid" class="summary-grid"></div>
+
+              <div class="content-columns">
+                <section class="content-column">
+                  <div class="column-head">
+                    <div>
+                      <h3>Productos directos</h3>
+                      <p id="products-count">Cargando...</p>
+                    </div>
+                    <button id="new-product-btn" class="mini-btn blue" type="button">+ Nuevo producto directo</button>
+                  </div>
+                  <div id="products-list" class="list-body compact-list"></div>
+                </section>
+
+                <section class="content-column">
+                  <div class="column-head">
+                    <div>
+                      <h3>Subcategorías</h3>
+                      <p id="subcategories-count">Organiza esta categoría en secciones internas.</p>
+                    </div>
+                    <button id="quick-new-subcategory-btn" class="mini-btn blue" type="button">+ Nueva subcategoría</button>
+                  </div>
+                  <div id="subcategories-list" class="list-body compact-list"></div>
+                </section>
+
+                <section class="content-column">
+                  <div class="column-head">
+                    <div>
+                      <h3>Productos en subcategorías</h3>
+                      <p>Productos agrupados por subcategoría.</p>
+                    </div>
+                  </div>
+                  <div id="subcategory-products-list" class="subcategory-products-list compact-groups"></div>
+                </section>
+              </div>
+            </section>
+          </main>
+
+          <aside class="editor-rail">
+            <section class="panel-card rail-card preview-card">
+              <p class="rail-kicker">Vista previa</p>
+              <div id="rail-category-thumb" class="rail-thumb">+</div>
+              <h2 id="rail-category-title">Cargando categoría...</h2>
+              <p id="rail-category-slug">slug</p>
+              <span id="rail-category-status" class="status-pill status-visible">Visible</span>
+              <p class="rail-note">Así se verá esta categoría en tu tienda.</p>
             </section>
 
-            <section class="list-card">
-              <div class="list-head">
-                <div>
-                  <h2 class="list-title">Productos directos</h2>
-                  <p id="products-count" class="list-subtitle">Cargando...</p>
-                </div>
-                <button id="new-product-btn" class="mini-btn" type="button">+ Nuevo producto</button>
-              </div>
-              <div id="products-list" class="list-body"></div>
+            <section class="panel-card rail-card">
+              <h2 class="rail-title">Estado y resumen</h2>
+              <div id="rail-summary-list" class="rail-summary-list"></div>
             </section>
+
+            <section class="panel-card rail-card quick-actions-panel">
+              <h2 class="rail-title">Acciones rápidas</h2>
+              <div class="quick-actions-grid">
+                <button class="mini-btn blue" type="button" data-action="new-subcategory">+ Nueva subcategoría</button>
+                <button class="mini-btn blue" type="button" data-action="new-product">+ Nuevo producto directo</button>
+                <a class="mini-btn soft" href={publicStorePath} target="_blank" rel="noopener noreferrer">Ver catálogo público</a>
+                <a class="mini-btn soft" href={adminCatalogPath}>Volver a categorías</a>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+      <div class="mobile-bottom-bar">
+        <a class="bottom-action" href={adminCatalogPath}>Volver</a>
+        <button class="bottom-action primary" type="submit" form="category-form">Guardar cambios</button>
+      </div>
+    </div>
+
+    <div id="subcategory-actions-menu" class="subcategory-actions-menu hidden" role="menu" aria-hidden="true"></div>
+
+    <div id="subcategory-modal-overlay" class="subcategory-modal-overlay hidden" aria-hidden="true">
+      <section class="subcategory-modal" role="dialog" aria-modal="true" aria-labelledby="subcategory-modal-title">
+        <div class="subcategory-modal-card">
+          <div class="subcategory-modal-head">
+            <div>
+              <p class="rail-kicker">Subcategoría</p>
+              <h2 id="subcategory-modal-title">Nueva subcategoría</h2>
+            </div>
+            <button id="subcategory-create-close" class="modal-close-btn" type="button" aria-label="Cerrar">×</button>
           </div>
+          <form id="subcategory-form" class="subcategory-form-grid">
+            <div class="field">
+              <label for="subcategory-name">Nombre</label>
+              <input id="subcategory-name" type="text" placeholder="Ej: Whey Protein" required />
+            </div>
+            <div class="field">
+              <label for="subcategory-image">Cambiar foto</label>
+              <input id="subcategory-image" type="file" accept="image/*" />
+              <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
+            </div>
+            <label class="switch-line small">
+              <input id="subcategory-active" type="checkbox" checked />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <span>Visible en tienda</span>
+            </label>
+            <div id="subcategory-delete-confirm" class="delete-confirm hidden"></div>
+            <div class="subcategory-modal-actions">
+              <button id="subcategory-modal-cancel" class="mini-btn soft" type="button">Cancelar</button>
+              <button id="subcategory-submit" class="submit-btn" type="submit">Crear subcategoría</button>
+            </div>
+          </form>
+          <div id="subcategory-alert" class="alert alert-info hidden"></div>
         </div>
       </section>
     </div>
@@ -267,6 +877,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       const categoryName = document.getElementById('category-name');
       const categoryDescription = document.getElementById('category-description');
       const categoryImage = document.getElementById('category-image');
+      const categoryFormThumb = document.getElementById('category-form-thumb');
       const categoryActive = document.getElementById('category-active');
       const categoryAlert = document.getElementById('category-alert');
 
@@ -275,17 +886,38 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       const subcategoryImage = document.getElementById('subcategory-image');
       const subcategoryActive = document.getElementById('subcategory-active');
       const subcategoryAlert = document.getElementById('subcategory-alert');
+      const subcategorySubmit = document.getElementById('subcategory-submit');
       const subcategoriesList = document.getElementById('subcategories-list');
       const subcategoriesCount = document.getElementById('subcategories-count');
       const productsList = document.getElementById('products-list');
       const productsCount = document.getElementById('products-count');
       const newProductBtn = document.getElementById('new-product-btn');
+      const contentSummaryGrid = document.getElementById('content-summary-grid');
+      const subcategoryProductsList = document.getElementById('subcategory-products-list');
+      const sidebar = document.getElementById('admin-sidebar');
+      const sidebarOpenBtn = document.getElementById('sidebar-open');
+      const sidebarCloseBtn = document.getElementById('sidebar-close');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const breadcrumbCategoryName = document.getElementById('breadcrumb-category-name');
+      const subcategoryModalOverlay = document.getElementById('subcategory-modal-overlay');
+      const subcategoryModalTitle = document.getElementById('subcategory-modal-title');
+      const subcategoryCreateClose = document.getElementById('subcategory-create-close');
+      const subcategoryModalCancel = document.getElementById('subcategory-modal-cancel');
+      const subcategoryDeleteConfirm = document.getElementById('subcategory-delete-confirm');
+      const subcategoryActionsMenu = document.getElementById('subcategory-actions-menu');
+      const railCategoryThumb = document.getElementById('rail-category-thumb');
+      const railCategoryTitle = document.getElementById('rail-category-title');
+      const railCategorySlug = document.getElementById('rail-category-slug');
+      const railCategoryStatus = document.getElementById('rail-category-status');
+      const railSummaryList = document.getElementById('rail-summary-list');
 
       let category = null;
       let categories = [];
       let subcategories = [];
       let products = [];
       let pendingDeleteSubcategoryId = '';
+      let currentEditingSubcategoryId = '';
+      let activeSubcategoryMenuId = '';
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -376,9 +1008,81 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       function showAdmin() { adminView?.classList.remove('hidden'); logoutBtn?.classList.remove('hidden'); }
 
       function setAlert(element, message, type = 'info') {
+        if (!element) return;
         element.textContent = message;
         element.className = `alert alert-${type}`;
         element.classList.toggle('hidden', !message);
+      }
+
+      function openSidebar() {
+        document.body.classList.add('sidebar-open');
+        sidebar?.setAttribute('aria-hidden', 'false');
+        sidebarOpenBtn?.setAttribute('aria-expanded', 'true');
+        if (sidebarOverlay) sidebarOverlay.hidden = false;
+      }
+
+      function closeSidebar() {
+        document.body.classList.remove('sidebar-open');
+        sidebar?.setAttribute('aria-hidden', 'true');
+        sidebarOpenBtn?.setAttribute('aria-expanded', 'false');
+        setTimeout(() => {
+          if (!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true;
+        }, 220);
+      }
+
+      function closeSubcategoryMenu() {
+        activeSubcategoryMenuId = '';
+        subcategoryActionsMenu?.classList.add('hidden');
+        subcategoryActionsMenu?.setAttribute('aria-hidden', 'true');
+        if (subcategoryActionsMenu) subcategoryActionsMenu.innerHTML = '';
+      }
+
+      function resetSubcategoryModal() {
+        subcategoryForm?.reset();
+        if (subcategoryActive) subcategoryActive.checked = true;
+        if (subcategoryImage) subcategoryImage.value = '';
+        currentEditingSubcategoryId = '';
+        pendingDeleteSubcategoryId = '';
+        if (subcategorySubmit) {
+          subcategorySubmit.textContent = 'Crear subcategoría';
+          subcategorySubmit.classList.remove('hidden');
+        }
+        if (subcategoryModalTitle) subcategoryModalTitle.textContent = 'Nueva subcategoría';
+        subcategoryDeleteConfirm?.classList.add('hidden');
+        subcategoryForm?.classList.remove('confirming-delete');
+        if (subcategoryDeleteConfirm) subcategoryDeleteConfirm.innerHTML = '';
+        setAlert(subcategoryAlert, '', 'info');
+      }
+
+      function openSubcategoryModal(mode = 'create', subcategoryId = '') {
+        closeSubcategoryMenu();
+        resetSubcategoryModal();
+        if (mode === 'edit') {
+          const subcategory = subcategories.find((item) => String(item.id) === String(subcategoryId));
+          if (!subcategory) {
+            setAlert(subcategoryAlert, 'No se encontró la subcategoría seleccionada.', 'error');
+            return;
+          }
+          currentEditingSubcategoryId = subcategory.id;
+          if (subcategoryModalTitle) subcategoryModalTitle.textContent = 'Editar subcategoría';
+          if (subcategorySubmit) subcategorySubmit.textContent = 'Guardar subcategoría';
+          subcategoryName.value = subcategory.name || '';
+          subcategoryActive.checked = subcategory.active === true;
+          if (subcategoryImage) subcategoryImage.value = '';
+        } else {
+          currentEditingSubcategoryId = '';
+          if (subcategoryModalTitle) subcategoryModalTitle.textContent = 'Nueva subcategoría';
+          if (subcategorySubmit) subcategorySubmit.textContent = 'Crear subcategoría';
+        }
+        subcategoryModalOverlay?.classList.remove('hidden');
+        subcategoryModalOverlay?.setAttribute('aria-hidden', 'false');
+        setTimeout(() => subcategoryName?.focus(), 80);
+      }
+
+      function closeSubcategoryModal() {
+        subcategoryModalOverlay?.classList.add('hidden');
+        subcategoryModalOverlay?.setAttribute('aria-hidden', 'true');
+        resetSubcategoryModal();
       }
 
       async function apiRequest(path, options = {}) {
@@ -468,6 +1172,21 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         return products.filter((product) => product.category === CATEGORY_ID && !productHasRealSubcategory(product));
       }
 
+      function subcategoryProducts() {
+        return products.filter((product) => product.category === CATEGORY_ID && productHasRealSubcategory(product));
+      }
+
+      function contentCounts() {
+        const direct = directProducts().length;
+        const nested = subcategoryProducts().length;
+        return {
+          subcategories: subcategories.length,
+          direct,
+          nested,
+          total: direct + nested,
+        };
+      }
+
       function subcategoryNameExists(name, exceptId = '') {
         const normalized = normalizeName(name);
         return subcategories.some((item) => item.id !== exceptId && item.category === CATEGORY_ID && normalizeName(item.name) === normalized);
@@ -499,16 +1218,100 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
       function renderHero() {
         categoryTitle.textContent = category?.name || 'Categoría sin nombre';
+        if (breadcrumbCategoryName) breadcrumbCategoryName.textContent = category?.name || 'Cargando...';
         const childCount = subcategories.length;
         const directCount = directProducts().length;
-        categorySubtitle.textContent = `${childCount} subcategorías · ${directCount} productos directos`;
+        const nestedCount = subcategoryProducts().length;
+        categorySubtitle.textContent = `${childCount} subcategorías · ${directCount} productos directos · ${nestedCount} en subcategorías`;
         categoryStatus.textContent = category?.active ? 'Visible' : 'Oculta';
         categoryStatus.className = `status-pill ${category?.active ? 'status-visible' : 'status-hidden'}`;
         const url = recordImageUrl('categories', category);
         categoryHeroThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" style="width:100%;height:100%;object-fit:cover;border-radius:24px;" />` : '+';
+        if (categoryFormThumb) {
+          categoryFormThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" />` : '+';
+        }
+        if (railCategoryThumb) {
+          railCategoryThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" />` : '+';
+        }
+        if (railCategoryTitle) railCategoryTitle.textContent = category?.name || 'Categoría sin nombre';
+        if (railCategorySlug) railCategorySlug.textContent = category?.slug || slugify(category?.name || '');
+        if (railCategoryStatus) {
+          railCategoryStatus.textContent = category?.active ? 'Visible' : 'Oculta';
+          railCategoryStatus.className = `status-pill ${category?.active ? 'status-visible' : 'status-hidden'}`;
+        }
         categoryName.value = category?.name || '';
         categoryDescription.value = category?.description || '';
         categoryActive.checked = category?.active === true;
+      }
+
+      function renderSummary() {
+        if (!contentSummaryGrid) return;
+        const counts = contentCounts();
+        const tiles = [
+          ['Subcategorías', counts.subcategories],
+          ['Productos directos', counts.direct],
+          ['Productos en subcategorías', counts.nested],
+          ['Total productos', counts.total],
+        ];
+        contentSummaryGrid.innerHTML = tiles.map(([label, value]) => `
+          <div class="summary-tile">
+            <strong>${value}</strong>
+            <span>${escapeHtml(label)}</span>
+          </div>
+        `).join('');
+        if (railSummaryList) {
+          railSummaryList.innerHTML = `
+            <div><span>Visibilidad</span><strong>${category?.active ? 'Visible' : 'Oculta'}</strong></div>
+            <div><span>Subcategorías</span><strong>${counts.subcategories}</strong></div>
+            <div><span>Productos directos</span><strong>${counts.direct}</strong></div>
+            <div><span>Productos en subcategorías</span><strong>${counts.nested}</strong></div>
+            <div><span>Total productos</span><strong>${counts.total}</strong></div>
+          `;
+        }
+      }
+
+      function openSubcategoryMenu(subcategoryId, anchorButton) {
+        const subcategory = subcategories.find((item) => item.id === subcategoryId);
+        if (!subcategory || !subcategoryActionsMenu || !anchorButton) return;
+        activeSubcategoryMenuId = subcategoryId;
+        const rect = anchorButton.getBoundingClientRect();
+        const menuWidth = 190;
+        const left = Math.min(Math.max(12, rect.right - menuWidth), window.innerWidth - menuWidth - 12);
+        const top = Math.min(rect.bottom + 8, window.innerHeight - 150);
+        subcategoryActionsMenu.style.left = `${left}px`;
+        subcategoryActionsMenu.style.top = `${Math.max(12, top)}px`;
+        subcategoryActionsMenu.innerHTML = `
+          <button type="button" data-menu-action="edit" data-subcategory-id="${escapeHtml(subcategory.id)}">Editar</button>
+          <button type="button" data-menu-action="toggle" data-subcategory-id="${escapeHtml(subcategory.id)}">${subcategory.active ? 'Ocultar' : 'Activar'}</button>
+          <button type="button" class="danger" data-menu-action="delete" data-subcategory-id="${escapeHtml(subcategory.id)}">Eliminar</button>
+        `;
+        subcategoryActionsMenu.classList.remove('hidden');
+        subcategoryActionsMenu.setAttribute('aria-hidden', 'false');
+      }
+
+      function showSubcategoryDeleteConfirm(subcategoryId) {
+        const subcategory = subcategories.find((item) => item.id === subcategoryId);
+        if (!subcategory || !subcategoryDeleteConfirm) return;
+        const count = productsForSubcategory(subcategory.id).length;
+        const deleteTitle = count > 0 ? `Esta subcategoría tiene ${count} productos.` : '¿Eliminar esta subcategoría?';
+        const deleteText = count > 0
+          ? `Si la eliminas, los productos no se borrarán. Pasarán a la categoría principal "${escapeHtml(category?.name || 'esta categoría')}" sin subcategoría.`
+          : 'Esta acción no se puede deshacer.';
+        const deleteButtonText = count > 0 ? 'Eliminar y mover productos' : 'Eliminar subcategoría';
+        openSubcategoryModal('edit', subcategory.id);
+        pendingDeleteSubcategoryId = subcategory.id;
+        if (subcategoryModalTitle) subcategoryModalTitle.textContent = 'Eliminar subcategoría';
+        if (subcategorySubmit) subcategorySubmit.classList.add('hidden');
+        subcategoryForm?.classList.add('confirming-delete');
+        subcategoryDeleteConfirm.innerHTML = `
+          <p class="delete-confirm-title">${deleteTitle}</p>
+          <p class="delete-confirm-text">${deleteText}</p>
+          <div class="delete-confirm-actions">
+            <button class="mini-btn soft js-modal-delete-cancel" type="button">Cancelar</button>
+            <button class="mini-btn red js-modal-delete-confirm" type="button">${deleteButtonText}</button>
+          </div>
+        `;
+        subcategoryDeleteConfirm.classList.remove('hidden');
       }
 
       function renderSubcategories() {
@@ -522,89 +1325,86 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const count = productsForSubcategory(subcategory.id).length;
           const statusText = category?.active === false ? 'Oculta por categoría' : (subcategory.active ? 'Visible' : 'Oculta');
           const statusClass = category?.active === true && subcategory.active ? 'status-visible' : 'status-hidden';
-          const deleteTitle = count > 0 ? `Esta subcategoría tiene ${count} productos.` : '¿Eliminar esta subcategoría?';
-          const deleteText = count > 0
-            ? `Si la eliminas, los productos no se borrarán. Pasarán a la categoría principal "${escapeHtml(category?.name || 'esta categoría')}" sin subcategoría.`
-            : 'Esta acción no se puede deshacer.';
-          const deleteButtonText = count > 0 ? 'Eliminar y mover productos' : 'Eliminar subcategoría';
           return `
-            <article class="item-row" data-subcategory-id="${subcategory.id}">
+            <article class="item-row subcategory-row" data-subcategory-id="${subcategory.id}">
               <div class="item-main">
                 ${imageMarkup('subcategories', subcategory, subcategory.name || 'Subcategoría')}
                 <div style="min-width:0;">
                   <p class="item-title">${escapeHtml(subcategory.name || 'Subcategoría sin nombre')}</p>
-                  <p class="item-meta">${count} productos · ${escapeHtml(statusText)}</p>
+                  <p class="item-meta">${escapeHtml(subcategory.slug || 'sin-slug')} · ${count} productos · ${escapeHtml(statusText)}</p>
                 </div>
               </div>
-              <div class="row-actions">
+              <div class="subcategory-row-actions">
                 <span class="status-pill ${statusClass}">${escapeHtml(statusText)}</span>
-                <button class="mini-btn soft js-subcategory-edit" type="button">Editar</button>
-                <button class="mini-btn soft js-subcategory-products" type="button">Productos</button>
-                <button class="mini-btn ${subcategory.active ? 'red' : 'green'} js-subcategory-toggle" type="button">${subcategory.active ? 'Ocultar' : 'Activar'}</button>
-                <button class="mini-btn red js-subcategory-delete" type="button">Eliminar</button>
-              </div>
-              ${pendingDeleteSubcategoryId === subcategory.id ? `
-                <div class="delete-confirm">
-                  <p class="delete-confirm-title">${deleteTitle}</p>
-                  <p class="delete-confirm-text">${deleteText}</p>
-                  <div class="delete-confirm-actions">
-                    <button class="mini-btn soft js-subcategory-delete-cancel" type="button">Cancelar</button>
-                    <button class="mini-btn red js-subcategory-delete-confirm" type="button">${deleteButtonText}</button>
-                  </div>
-                </div>
-              ` : ''}
-              <div class="inline-editor">
-                <div class="form-grid">
-                  <div class="form-row">
-                    <div class="field">
-                      <label>Nombre</label>
-                      <input class="js-subcategory-name" value="${escapeHtml(subcategory.name || '')}" />
-                    </div>
-                    <div class="field">
-                      <label>Cambiar foto</label>
-                      <input class="js-subcategory-image" type="file" accept="image/*" />
-                      <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
-                    </div>
-                  </div>
-                  <div class="row-actions">
-                    <button class="mini-btn soft js-subcategory-cancel" type="button">Cerrar</button>
-                    <button class="mini-btn js-subcategory-save" type="button">Guardar subcategoría</button>
-                  </div>
-                </div>
+                <button class="mini-btn soft js-subcategory-products" type="button">+ Producto</button>
+                <button class="subcategory-menu-button js-subcategory-menu" type="button" aria-label="Más acciones" aria-expanded="${activeSubcategoryMenuId === subcategory.id ? 'true' : 'false'}">⋯</button>
               </div>
             </article>
           `;
         }).join('');
       }
 
-      function renderProducts() {
-        const items = directProducts().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-        productsCount.textContent = `${items.length} productos directos en esta categoría`;
-        if (!items.length) {
-          productsList.innerHTML = '<div class="empty">No hay productos directos en esta categoría.</div>';
-          return;
-        }
-        productsList.innerHTML = items.map((product) => `
+      function renderProductRow(product) {
+        const isVisible = product.active !== false;
+        return `
           <article class="item-row" data-product-id="${product.id}">
             <div class="item-main">
               ${productImageMarkup(product)}
               <div style="min-width:0;">
                 <p class="item-title">${escapeHtml(product.name || 'Producto sin nombre')}</p>
-                <p class="item-meta">Stock: ${Number(product.stock || 0)} · ${product.active ? 'Visible' : 'Oculto'}</p>
+                <p class="item-meta">${escapeHtml(formatUsd(product.base_price_usd))} · Stock: ${Number(product.stock || 0)} · ${isVisible ? 'Visible' : 'Oculto'}</p>
               </div>
             </div>
             <div class="row-actions">
-              <span class="product-price">${escapeHtml(formatUsd(product.base_price_usd))}</span>
+              <span class="product-price">${isVisible ? 'Visible' : 'Oculto'}</span>
               <button class="mini-btn soft js-product-edit" type="button">Editar</button>
             </div>
           </article>
-        `).join('');
+        `;
+      }
+
+      function renderProducts() {
+        const items = directProducts().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+        productsCount.textContent = `${items.length} productos directos en esta categoría`;
+        if (!items.length) {
+          productsList.innerHTML = '<div class="empty">No hay productos directos en esta categoría.<br/>Puedes crear uno o usar subcategorías.</div>';
+          return;
+        }
+        productsList.innerHTML = items.map(renderProductRow).join('');
+      }
+
+      function renderSubcategoryProducts() {
+        if (!subcategoryProductsList) return;
+        const ordered = [...subcategories].sort((a, b) => Number(a.order || 0) - Number(b.order || 0) || String(a.name || '').localeCompare(String(b.name || '')));
+        if (!ordered.length) {
+          subcategoryProductsList.innerHTML = '<div class="empty">No hay subcategorías para agrupar productos todavía.</div>';
+          return;
+        }
+        subcategoryProductsList.innerHTML = ordered.map((subcategory) => {
+          const items = productsForSubcategory(subcategory.id).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+          return `
+            <section class="subcategory-group">
+              <div class="subcategory-group-head">
+                <div>
+                  <p class="subcategory-group-title">${escapeHtml(subcategory.name || 'Subcategoría')}</p>
+                  <p class="subcategory-group-count">${items.length} productos</p>
+                </div>
+                <button class="mini-btn soft js-subcategory-group-product" type="button" data-subcategory-id="${subcategory.id}">+ Agregar producto</button>
+              </div>
+              <div class="list-body">
+                ${items.length ? items.map(renderProductRow).join('') : '<div class="empty">Sin productos todavía.</div>'}
+              </div>
+            </section>
+          `;
+        }).join('');
       }
 
       function renderAll() {
         renderHero();
+        renderSummary();
         renderSubcategories();
         renderProducts();
+        renderSubcategoryProducts();
       }
 
       async function loadPage() {
@@ -667,29 +1467,44 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           setAlert(subcategoryAlert, 'Escribe el nombre de la subcategoría.', 'error');
           return;
         }
-        if (subcategoryNameExists(name)) {
+        if (subcategoryNameExists(name, currentEditingSubcategoryId)) {
           setAlert(subcategoryAlert, `Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
           return;
         }
-        setAlert(subcategoryAlert, 'Creando subcategoría...', 'info');
-        const formData = new FormData();
-        formData.append('category', CATEGORY_ID);
-        formData.append('name', name);
-        formData.append('slug', slugify(name));
-        formData.append('active', subcategoryActive.checked ? 'true' : 'false');
-        formData.append('order', String(nextOrder(subcategories)));
-        formData.append('store', CURRENT_STORE_ID);
-        if (subcategoryImage.files?.[0]) formData.append('image', await optimizeCatalogImageFile(subcategoryImage.files[0]));
-        await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
-        subcategoryForm.reset();
-        subcategoryActive.checked = true;
-        setAlert(subcategoryAlert, 'Subcategoría creada correctamente.', 'success');
-        await loadPage();
+        const editing = Boolean(currentEditingSubcategoryId);
+        setAlert(subcategoryAlert, editing ? 'Guardando subcategoría...' : 'Creando subcategoría...', 'info');
+        try {
+          const formData = new FormData();
+          formData.append('category', CATEGORY_ID);
+          formData.append('name', name);
+          formData.append('slug', slugify(name));
+          formData.append('active', subcategoryActive.checked ? 'true' : 'false');
+          if (!editing) formData.append('order', String(nextOrder(subcategories)));
+          formData.append('store', CURRENT_STORE_ID);
+          if (subcategoryImage.files?.[0]) formData.append('image', await optimizeCatalogImageFile(subcategoryImage.files[0]));
+          if (editing) {
+            const subcategory = subcategories.find((item) => String(item.id) === String(currentEditingSubcategoryId));
+            if (!subcategory || subcategory.category !== CATEGORY_ID || !isCurrentStoreRecord(subcategory)) {
+              throw new Error('No se pudo validar la subcategoría.');
+            }
+            await apiRequest(`/api/collections/subcategories/records/${currentEditingSubcategoryId}`, { method: 'PATCH', body: formData });
+          } else {
+            await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
+          }
+          subcategoryForm.reset();
+          subcategoryActive.checked = true;
+          setAlert(subcategoryAlert, editing ? 'Subcategoría guardada correctamente.' : 'Subcategoría creada correctamente.', 'success');
+          closeSubcategoryModal();
+          await loadPage();
+        } catch (error) {
+          console.error(error);
+          setAlert(subcategoryAlert, error.message || 'No se pudo guardar la subcategoría.', 'error');
+        }
       }
 
-      async function updateSubcategory(row, changes) {
-        const id = row.dataset.subcategoryId;
-        const imageFile = row.querySelector('.js-subcategory-image')?.files?.[0];
+      async function updateSubcategory(rowOrId, changes) {
+        const id = typeof rowOrId === 'string' ? rowOrId : rowOrId.dataset.subcategoryId;
+        const imageFile = typeof rowOrId === 'string' ? null : rowOrId.querySelector('.js-subcategory-image')?.files?.[0];
         if (imageFile) {
           const formData = new FormData();
           Object.entries(changes).forEach(([key, value]) => formData.append(key, String(value)));
@@ -748,11 +1563,38 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
         window.location.assign('/login');
       });
+      sidebarOpenBtn?.addEventListener('click', openSidebar);
+      sidebarCloseBtn?.addEventListener('click', closeSidebar);
+      sidebarOverlay?.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeSidebar();
+          closeSubcategoryMenu();
+          closeSubcategoryModal();
+        }
+      });
+      sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSidebar));
 
-      categoryForm.addEventListener('submit', saveCategory);
-      subcategoryForm.addEventListener('submit', createSubcategory);
-      newProductBtn.addEventListener('click', () => {
+      categoryForm?.addEventListener('submit', saveCategory);
+      subcategoryForm?.addEventListener('submit', createSubcategory);
+      newProductBtn?.addEventListener('click', () => {
         window.location.href = productCreateUrl(CATEGORY_ID, '');
+      });
+      subcategoryCreateClose?.addEventListener('click', closeSubcategoryModal);
+      subcategoryModalCancel?.addEventListener('click', closeSubcategoryModal);
+      subcategoryModalOverlay?.addEventListener('click', (event) => {
+        if (event.target === subcategoryModalOverlay) closeSubcategoryModal();
+      });
+      document.querySelectorAll('[data-action="new-product"]').forEach((button) => {
+        button.addEventListener('click', () => newProductBtn.click());
+      });
+
+      document.addEventListener('click', (event) => {
+        const newSubcategoryButton = event.target.closest('#quick-new-subcategory-btn, [data-action="new-subcategory"]');
+        if (!newSubcategoryButton) return;
+        event.preventDefault();
+        event.stopPropagation();
+        openSubcategoryModal('create');
       });
 
       subcategoriesList.addEventListener('click', async (event) => {
@@ -764,59 +1606,15 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         if (!subcategory) return;
 
         try {
-          if (button.classList.contains('js-subcategory-edit')) {
-            row.classList.add('editing');
-            row.querySelector('.js-subcategory-name')?.focus();
-            return;
-          }
-          if (button.classList.contains('js-subcategory-cancel')) {
-            row.classList.remove('editing');
-            return;
-          }
           if (button.classList.contains('js-subcategory-products')) {
+            closeSubcategoryMenu();
             window.location.href = productCreateUrl(CATEGORY_ID, subcategory.id);
             return;
           }
-          if (button.classList.contains('js-subcategory-delete')) {
-            pendingDeleteSubcategoryId = subcategory.id;
-            row.classList.remove('editing');
-            renderSubcategories();
+          if (button.classList.contains('js-subcategory-menu')) {
+            if (activeSubcategoryMenuId === subcategory.id && !subcategoryActionsMenu?.classList.contains('hidden')) closeSubcategoryMenu();
+            else openSubcategoryMenu(subcategory.id, button);
             return;
-          }
-          if (button.classList.contains('js-subcategory-delete-cancel')) {
-            pendingDeleteSubcategoryId = '';
-            renderSubcategories();
-            return;
-          }
-          if (button.classList.contains('js-subcategory-delete-confirm')) {
-            button.disabled = true;
-            button.textContent = 'Eliminando...';
-            try {
-              await deleteSubcategorySafely(subcategory.id);
-            } catch (error) {
-              console.error(error);
-              setAlert(subcategoryAlert, error.message || 'No se pudo eliminar la subcategoria.', 'error');
-              await loadPage();
-            }
-            return;
-          }
-          if (button.classList.contains('js-subcategory-toggle')) {
-            button.disabled = true;
-            await updateSubcategory(row, { active: !subcategory.active });
-            return;
-          }
-          if (button.classList.contains('js-subcategory-save')) {
-            const name = row.querySelector('.js-subcategory-name').value.trim();
-            if (!name) {
-              alert('El nombre de la subcategoría no puede estar vacío.');
-              return;
-            }
-            if (subcategoryNameExists(name, subcategory.id)) {
-              alert(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`);
-              return;
-            }
-            button.disabled = true;
-            await updateSubcategory(row, { name, slug: slugify(name), category: CATEGORY_ID });
           }
         } catch (error) {
           console.error(error);
@@ -826,10 +1624,89 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         }
       });
 
+      document.addEventListener('click', async (event) => {
+        const button = event.target.closest('#subcategory-actions-menu [data-menu-action]');
+        if (!button) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const subcategoryId = button.dataset.subcategoryId || '';
+        const action = button.dataset.menuAction || '';
+        const subcategory = subcategories.find((item) => String(item.id) === String(subcategoryId));
+        if (!subcategory) {
+          setAlert(subcategoryAlert, 'No se encontró la subcategoría seleccionada.', 'error');
+          closeSubcategoryMenu();
+          return;
+        }
+        closeSubcategoryMenu();
+        try {
+          if (action === 'edit') {
+            openSubcategoryModal('edit', subcategoryId);
+            return;
+          }
+          if (action === 'toggle') {
+            button.disabled = true;
+            await updateSubcategory(subcategoryId, { active: !subcategory.active });
+            return;
+          }
+          if (action === 'delete') {
+            showSubcategoryDeleteConfirm(subcategoryId);
+          }
+        } catch (error) {
+          console.error(error);
+          setAlert(subcategoryAlert, error.message || 'No se pudo actualizar la subcategoría.', 'error');
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      subcategoryDeleteConfirm?.addEventListener('click', async (event) => {
+        const cancelButton = event.target.closest('.js-modal-delete-cancel');
+        if (cancelButton) {
+          closeSubcategoryModal();
+          return;
+        }
+        const confirmButton = event.target.closest('.js-modal-delete-confirm');
+        if (!confirmButton || !pendingDeleteSubcategoryId) return;
+        confirmButton.disabled = true;
+        confirmButton.textContent = 'Eliminando...';
+        try {
+          await deleteSubcategorySafely(pendingDeleteSubcategoryId);
+          closeSubcategoryModal();
+        } catch (error) {
+          console.error(error);
+          setAlert(subcategoryAlert, error.message || 'No se pudo eliminar la subcategoría.', 'error');
+          await loadPage();
+        } finally {
+          confirmButton.disabled = false;
+        }
+      });
+
+      document.addEventListener('click', (event) => {
+        if (
+          !subcategoryActionsMenu?.classList.contains('hidden')
+          && !event.target.closest('.subcategory-actions-menu')
+          && !event.target.closest('.js-subcategory-menu')
+        ) {
+          closeSubcategoryMenu();
+        }
+      });
+
       productsList.addEventListener('click', (event) => {
         const button = event.target.closest('.js-product-edit');
         const row = button?.closest('[data-product-id]');
         if (row?.dataset?.productId) window.location.href = productEditUrl(row.dataset.productId);
+      });
+      subcategoryProductsList?.addEventListener('click', (event) => {
+        const productButton = event.target.closest('.js-product-edit');
+        const productRow = productButton?.closest('[data-product-id]');
+        if (productRow?.dataset?.productId) {
+          window.location.href = productEditUrl(productRow.dataset.productId);
+          return;
+        }
+        const addButton = event.target.closest('.js-subcategory-group-product');
+        if (addButton?.dataset?.subcategoryId) {
+          window.location.href = productCreateUrl(CATEGORY_ID, addButton.dataset.subcategoryId);
+        }
       });
       showAdmin();
       if (POCKETBASE_URL && getAdminToken()) {
