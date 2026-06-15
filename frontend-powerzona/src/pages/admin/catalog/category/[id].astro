@@ -124,6 +124,18 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
       .inline-editor { grid-column: 1 / -1; display: none; margin-top: 2px; padding: 15px; border-radius: 22px; border: 1px solid #e2e8f0; background: #f8fafc; }
       .item-row.editing .inline-editor { display: block; }
+      .delete-confirm {
+        grid-column: 1 / -1;
+        margin-top: 2px;
+        padding: 15px;
+        border-radius: 22px;
+        border: 1px solid #fecaca;
+        background: linear-gradient(180deg, #fff7f7 0%, #ffffff 100%);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.92);
+      }
+      .delete-confirm-title { margin: 0; color: #991b1b; font-size: 15px; font-weight: 1000; letter-spacing: -.01em; }
+      .delete-confirm-text { margin: 6px 0 14px; color: #7f1d1d; font-size: 13px; font-weight: 800; line-height: 1.45; }
+      .delete-confirm-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
       .empty { padding: 22px; color: #64748b; font-weight: 850; }
       .product-price { border-radius: 999px; padding: 8px 10px; font-size: 11px; font-weight: 1000; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; white-space: nowrap; }
       .login-card { max-width: 520px; margin: 24px auto 0; }
@@ -135,7 +147,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       @media (max-width: 620px) {
         .app-shell { padding: 14px; }
         .item-row { grid-template-columns: 1fr; }
-        .row-actions { justify-content: flex-start; }
+        .row-actions, .delete-confirm-actions { justify-content: flex-start; }
+        .delete-confirm-actions .mini-btn { width: 100%; }
         .hero-thumb { width: 68px; height: 68px; }
       }
     </style>
@@ -272,6 +285,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       let categories = [];
       let subcategories = [];
       let products = [];
+      let pendingDeleteSubcategoryId = '';
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -505,9 +519,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return;
         }
         subcategoriesList.innerHTML = ordered.map((subcategory) => {
-          const count = products.filter((product) => product.subcategory === subcategory.id).length;
+          const count = productsForSubcategory(subcategory.id).length;
           const statusText = category?.active === false ? 'Oculta por categoría' : (subcategory.active ? 'Visible' : 'Oculta');
           const statusClass = category?.active === true && subcategory.active ? 'status-visible' : 'status-hidden';
+          const deleteTitle = count > 0 ? `Esta subcategoría tiene ${count} productos.` : '¿Eliminar esta subcategoría?';
+          const deleteText = count > 0
+            ? `Si la eliminas, los productos no se borrarán. Pasarán a la categoría principal "${escapeHtml(category?.name || 'esta categoría')}" sin subcategoría.`
+            : 'Esta acción no se puede deshacer.';
+          const deleteButtonText = count > 0 ? 'Eliminar y mover productos' : 'Eliminar subcategoría';
           return `
             <article class="item-row" data-subcategory-id="${subcategory.id}">
               <div class="item-main">
@@ -522,7 +541,18 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 <button class="mini-btn soft js-subcategory-edit" type="button">Editar</button>
                 <button class="mini-btn soft js-subcategory-products" type="button">Productos</button>
                 <button class="mini-btn ${subcategory.active ? 'red' : 'green'} js-subcategory-toggle" type="button">${subcategory.active ? 'Ocultar' : 'Activar'}</button>
+                <button class="mini-btn red js-subcategory-delete" type="button">Eliminar</button>
               </div>
+              ${pendingDeleteSubcategoryId === subcategory.id ? `
+                <div class="delete-confirm">
+                  <p class="delete-confirm-title">${deleteTitle}</p>
+                  <p class="delete-confirm-text">${deleteText}</p>
+                  <div class="delete-confirm-actions">
+                    <button class="mini-btn soft js-subcategory-delete-cancel" type="button">Cancelar</button>
+                    <button class="mini-btn red js-subcategory-delete-confirm" type="button">${deleteButtonText}</button>
+                  </div>
+                </div>
+              ` : ''}
               <div class="inline-editor">
                 <div class="form-grid">
                   <div class="form-row">
@@ -672,6 +702,48 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         }
         await loadPage();
       }
+
+      function productsForSubcategory(subcategoryId) {
+        return products.filter((product) => (
+          product.subcategory === subcategoryId
+          && product.category === CATEGORY_ID
+          && isCurrentStoreRecord(product)
+        ));
+      }
+
+      async function moveProductToParentCategory(product) {
+        const formData = new FormData();
+        formData.append('category', CATEGORY_ID);
+        formData.append('subcategory', '');
+        formData.append('store', CURRENT_STORE_ID);
+        await apiRequest(`/api/collections/products/records/${product.id}`, { method: 'PATCH', body: formData });
+      }
+
+      async function deleteSubcategorySafely(subcategoryId) {
+        if (!category?.id || category.id !== CATEGORY_ID || !isCurrentStoreRecord(category)) {
+          throw new Error('No se pudo validar la categoria actual.');
+        }
+        const subcategory = subcategories.find((item) => item.id === subcategoryId);
+        if (!subcategory) throw new Error('No se encontro la subcategoria.');
+        if (subcategory.category !== CATEGORY_ID) throw new Error('La subcategoria no pertenece a esta categoria.');
+        if (!isCurrentStoreRecord(subcategory)) throw new Error('La subcategoria no pertenece a esta tienda.');
+
+        const affectedProducts = productsForSubcategory(subcategoryId);
+        for (const product of affectedProducts) {
+          await moveProductToParentCategory(product);
+        }
+
+        await apiRequest(`/api/collections/subcategories/records/${subcategoryId}`, { method: 'DELETE' });
+        pendingDeleteSubcategoryId = '';
+        setAlert(
+          subcategoryAlert,
+          affectedProducts.length
+            ? 'Subcategoria eliminada. Los productos se movieron a la categoria principal.'
+            : 'Subcategoria eliminada correctamente.',
+          'success',
+        );
+        await loadPage();
+      }
       logoutBtn?.addEventListener('click', () => {
         document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
         window.location.assign('/login');
@@ -703,6 +775,29 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           }
           if (button.classList.contains('js-subcategory-products')) {
             window.location.href = productCreateUrl(CATEGORY_ID, subcategory.id);
+            return;
+          }
+          if (button.classList.contains('js-subcategory-delete')) {
+            pendingDeleteSubcategoryId = subcategory.id;
+            row.classList.remove('editing');
+            renderSubcategories();
+            return;
+          }
+          if (button.classList.contains('js-subcategory-delete-cancel')) {
+            pendingDeleteSubcategoryId = '';
+            renderSubcategories();
+            return;
+          }
+          if (button.classList.contains('js-subcategory-delete-confirm')) {
+            button.disabled = true;
+            button.textContent = 'Eliminando...';
+            try {
+              await deleteSubcategorySafely(subcategory.id);
+            } catch (error) {
+              console.error(error);
+              setAlert(subcategoryAlert, error.message || 'No se pudo eliminar la subcategoria.', 'error');
+              await loadPage();
+            }
             return;
           }
           if (button.classList.contains('js-subcategory-toggle')) {

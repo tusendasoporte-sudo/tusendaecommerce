@@ -9,6 +9,7 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -19,6 +20,13 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el admin de categorias de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Categorias Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
 <!-- PZ-AJUSTES-GENERALES-PUBLICOS-MENU-PUBLICO-V5-20260603
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -937,6 +945,407 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
       }
 
+      /* PZ-CATALOG-VISUAL-ADMIN-TUSENDA84-20260615 */
+      .admin-main { width: 100%; }
+      .mobile-topbar { display: none !important; }
+      .notifications-btn {
+        position: relative;
+        width: 46px;
+        height: 46px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+        border: 1px solid #dbeafe;
+        background: #ffffff;
+        color: #1d4ed8;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07);
+      }
+      .notifications-btn svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .notifications-dot {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #f97316;
+        border: 2px solid #ffffff;
+      }
+      .catalog-page-header {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+        border-radius: 24px !important;
+      }
+      .catalog-page-header::after { display: none !important; }
+      .catalog-kicker {
+        margin: 0 0 10px;
+        color: #2563eb;
+        font-size: 12px;
+        font-weight: 1000;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .catalog-hero-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .primary-blue-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 46px;
+        border: 0;
+        border-radius: 16px;
+        padding: 12px 16px;
+        background: #2563eb;
+        color: #ffffff;
+        font-weight: 1000;
+        box-shadow: 0 14px 30px rgba(37,99,235,.22);
+      }
+      .primary-blue-btn:hover { transform: translateY(-1px); background: #1d4ed8; }
+      .catalog-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+      }
+      .catalog-stat-card {
+        position: relative;
+        min-height: 128px;
+        padding: 18px;
+        border-radius: 22px;
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+      }
+      .catalog-stat-icon {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 15px;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+      }
+      .catalog-stat-icon.ok { background: #dcfce7; color: #16a34a; border-color: #bbf7d0; }
+      .catalog-stat-icon.warn { background: #ffedd5; color: #f97316; border-color: #fed7aa; }
+      .catalog-stat-icon svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .catalog-stat-label {
+        margin: 0;
+        max-width: 130px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+      }
+      .catalog-stat-value {
+        margin: 24px 0 0;
+        font-size: 28px;
+        font-weight: 1000;
+        letter-spacing: -.04em;
+        color: #0f172a;
+      }
+      .catalog-toolbar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(170px, 240px);
+        gap: 12px;
+        align-items: end;
+        margin-bottom: 18px;
+        padding: 18px;
+        border-radius: 22px;
+      }
+      .catalog-toolbar .field input,
+      .catalog-toolbar .field select { min-height: 46px; }
+      .filters-toggle { display: none; }
+      .catalog-table-head,
+      .catalog-hierarchy-row {
+        display: grid !important;
+        grid-template-columns: minmax(280px, 1.8fr) 140px 130px 150px minmax(220px, 260px) !important;
+        gap: 14px !important;
+        align-items: center !important;
+      }
+      .catalog-table-head {
+        padding: 14px 18px;
+        border-bottom: 1px solid #eef2f7;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 1000;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .catalog-table-head span:not(:first-child) { text-align: center; }
+      .catalog-table-head span:last-child { text-align: right; }
+      .catalog-hierarchy-row {
+        margin: 0 !important;
+        min-height: 88px !important;
+        padding: 14px 18px !important;
+        border-width: 0 0 1px !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        background: #ffffff !important;
+      }
+      .catalog-hierarchy-row:last-child { border-bottom: 0 !important; }
+      .catalog-hierarchy-row:hover {
+        transform: none !important;
+        background: #fbfdff !important;
+        box-shadow: none !important;
+      }
+      .catalog-cell {
+        min-width: 0;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 900;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+      }
+      .catalog-row-main {
+        min-height: 58px;
+        align-items: center !important;
+        padding: 0 !important;
+      }
+      .catalog-row-main .row-thumb,
+      .catalog-row-main img.row-thumb {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        max-width: 56px !important;
+        min-height: 56px !important;
+        max-height: 56px !important;
+        object-fit: cover !important;
+      }
+      .catalog-card-text {
+        display: grid;
+        align-content: center;
+        min-height: 52px;
+      }
+      .catalog-row-title { line-height: 1.15 !important; }
+      .catalog-row-meta { line-height: 1.3 !important; }
+      .catalog-mobile-meta { display: none; }
+      .catalog-actions-cell {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: nowrap;
+        min-height: 42px;
+      }
+      .catalog-actions-cell .catalog-order-actions { flex: 0 0 auto; }
+      .visibility-btn.is-featured {
+        border-color: #dbeafe;
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .sidebar-utility {
+        display: grid;
+        gap: 8px;
+        margin-top: auto;
+        padding-top: 14px;
+      }
+      .sidebar-utility .nav-item {
+        width: 100%;
+        border: 0;
+        text-align: left;
+      }
+      .sidebar-utility .nav-item.danger {
+        color: #991b1b !important;
+        background: #fff7f7 !important;
+        border-color: #fecaca !important;
+      }
+      .sidebar-utility + .sidebar-footer { margin-top: 14px !important; }
+      .desktop-topbar { display: none !important; }
+      .catalog-create-on-top:not(.open) { display: none !important; }
+      .catalog-create-on-top .create-toggle-btn { display: none !important; }
+      .catalog-create-on-top.open .create-panel {
+        display: block !important;
+        padding: 20px !important;
+        border-top: 0 !important;
+      }
+      .category-create-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .category-create-head .panel-text { margin: 6px 0 0 !important; }
+      .category-create-close {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        color: #0f172a;
+        font-size: 22px;
+        line-height: 1;
+        font-weight: 900;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 18px rgba(15,23,42,.06);
+      }
+      .category-create-close:hover { background: #f8fafc; transform: translateY(-1px); }
+      .create-panel-heading {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 1000;
+        letter-spacing: -.025em;
+      }
+      #category-submit.submit-btn {
+        background: #2563eb !important;
+        box-shadow: 0 14px 28px rgba(37,99,235,.22) !important;
+      }
+      #category-submit.submit-btn:disabled {
+        background: #cbd5e1 !important;
+        color: #64748b !important;
+        box-shadow: none !important;
+      }
+      @media (min-width: 1024px) {
+        .app-shell { width: 100% !important; max-width: none !important; padding: 38px 40px 48px 326px !important; }
+        .sidebar,
+        #admin-sidebar {
+          transform: translateX(0) !important;
+          width: 278px !important;
+          top: 18px !important;
+          left: 18px !important;
+          bottom: 18px !important;
+        }
+        .sidebar-close,
+        #sidebar-close { display: none !important; }
+        .sidebar-overlay,
+        #sidebar-overlay { display: none !important; }
+      }
+      @media (max-width: 1023px) {
+        .desktop-topbar { display: none !important; }
+        .mobile-topbar {
+          display: grid !important;
+          grid-template-columns: 42px 1fr 42px;
+          align-items: center;
+          gap: 8px;
+          margin: 0 0 14px;
+        }
+        .mobile-topbar strong {
+          text-align: center;
+          font-size: 17px;
+          font-weight: 1000;
+        }
+        .mobile-topbar .menu-btn,
+        .mobile-topbar .notifications-btn {
+          width: 42px !important;
+          height: 42px !important;
+          min-height: 42px !important;
+          padding: 0 !important;
+          border-radius: 14px !important;
+        }
+        .catalog-page-header {
+          grid-template-columns: 1fr !important;
+          padding: 16px !important;
+          margin-bottom: 12px !important;
+        }
+        .catalog-page-header .page-title,
+        .catalog-page-header .page-subtitle,
+        .catalog-kicker { display: none !important; }
+        .catalog-hero-actions {
+          justify-content: stretch !important;
+        }
+        .catalog-hero-actions .notifications-btn { display: none !important; }
+        .primary-blue-btn { width: 100%; }
+        .catalog-stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .catalog-stat-card {
+          min-height: 106px;
+          padding: 14px;
+          border-radius: 18px;
+        }
+        .catalog-stat-icon {
+          width: 34px;
+          height: 34px;
+          border-radius: 13px;
+        }
+        .catalog-stat-label {
+          max-width: 104px;
+          font-size: 10px;
+          line-height: 1.25;
+        }
+        .catalog-stat-value {
+          margin-top: 18px;
+          font-size: 22px;
+        }
+        .catalog-toolbar {
+          grid-template-columns: 1fr;
+          padding: 0;
+          background: transparent;
+          border: 0;
+          box-shadow: none;
+          margin-bottom: 12px;
+        }
+        .catalog-toolbar .field:first-child { grid-column: 1 / -1; }
+        .catalog-toolbar .field label { display: none; }
+        .catalog-toolbar .field input,
+        .catalog-toolbar .field select { min-height: 44px; }
+        .catalog-toolbar .field select { font-size: 13px; }
+        .catalog-table-head { display: none !important; }
+        .catalog-categories-card { border-radius: 22px !important; overflow: visible !important; }
+        .catalog-hierarchy-row {
+          grid-template-columns: 1fr auto !important;
+          gap: 10px !important;
+          margin: 10px !important;
+          padding: 12px !important;
+          border: 1px solid #e5e7eb !important;
+          border-radius: 18px !important;
+          box-shadow: 0 12px 26px rgba(15,23,42,.06) !important;
+        }
+        .catalog-row-main { align-items: center; }
+        .catalog-cell,
+        .catalog-hierarchy-row > .catalog-order-actions,
+        .catalog-hierarchy-row > .visibility-btn { display: none !important; }
+        .catalog-mobile-meta {
+          display: block;
+          margin: 4px 0 0;
+          color: #64748b;
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.35;
+        }
+        .catalog-actions-cell { justify-content: flex-end; }
+        .catalog-actions-cell .visibility-btn.is-featured { display: none !important; }
+        .catalog-actions-cell .catalog-order-actions { display: none !important; }
+        .catalog-menu { right: 0; left: auto; width: min(238px, calc(100vw - 46px)); }
+        .create-accordion-card { border-radius: 22px !important; }
+        .create-panel { padding: 0 16px 16px !important; }
+      }
+
       </style>
   </head>
   <body>
@@ -948,7 +1357,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <span class="brand-logo">PZ</span>
             <div>
               <p class="brand-title">PowerZona</p>
-              <p class="brand-subtitle">Panel administrativo</p>
+              <p class="brand-subtitle">Admin Panel</p>
             </div>
             <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
           </div>
@@ -968,25 +1377,47 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
 
+          <div class="sidebar-utility">
+            <a class="nav-item" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 8 5 9 7-1 2-4 7-9 7s-8-5-9-7c1-2 4-7 9-7Zm0 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span><span>Ver catálogo público</span></a>
+            <button id="logout-btn" class="nav-item danger" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v2H5V5h5v2H7v10h3Zm4.7-.3-1.4-1.4 2.3-2.3H9v-2h6.6l-2.3-2.3 1.4-1.4L19.4 12l-4.7 4.7Z"/></svg></span><span>Cerrar sesión</span></button>
+          </div>
+
+          {masterSupportHref ? (
+            <a class="sidebar-footer" href={masterSupportHref} target="_blank" rel="noreferrer">
+              <strong>{masterSupportLabel}</strong>
+              <span>Soporte Master Admin de Tu Senda 84 para esta tienda.</span>
+            </a>
+          ) : (
+            <div class="sidebar-footer" aria-label="Soporte Tu Senda 84 no configurado">
+              <strong>{masterSupportLabel}</strong>
+              <span>Soporte global pendiente de configurar. No se usa el contacto del admin de tienda.</span>
+            </div>
+          )}
         </div>
       </aside>
 
-      <main class="main-wrap">
-        <header class="topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
-          <div class="hero-actions">
-            <a class="action-btn" href={adminOrdersPath}>Ver pedidos</a>
-            <a class="action-btn" href={adminProductsPath}>Productos</a>
-            <a class="action-btn" href={publicStorePath}>Ver catálogo público</a>
-            <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
-          </div>
+      <main class="main-wrap admin-main">
+        <header class="topbar mobile-topbar">
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰</button>
+          <strong>Categorías</strong>
+          <button id="admin-notifications-btn-mobile" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+            <span class="notifications-dot" aria-hidden="true"></span>
+          </button>
         </header>
 
-        <section class="hero-card">
+        <section class="hero-card catalog-page-header">
           <div>
-            <span class="badge">🗂️ Categorías</span>
-            <h1 class="page-title" style="margin-top: 14px;">Gestión de <span>categorías</span></h1>
-            <p id="admin-subtitle" class="page-subtitle">Administra categorías, subcategorías y productos directos de la tienda.</p>
+            <p class="catalog-kicker">Catalogo</p>
+            <h1 class="page-title">Categorías</h1>
+            <p id="admin-subtitle" class="page-subtitle">Gestiona y organiza las categorías de tus productos.</p>
+          </div>
+          <div class="catalog-hero-actions">
+            <button id="admin-notifications-btn" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+              <span class="notifications-dot" aria-hidden="true"></span>
+            </button>
+            <button id="category-create-main-btn" class="primary-blue-btn" type="button">+ Nueva categoría</button>
           </div>
         </section>
       <section id="admin-view">
@@ -1031,6 +1462,43 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           </div>
 
           <div id="catalog-main-panel" class="section-stack">
+            <section class="catalog-stats-grid" aria-label="Resumen de categorias">
+              <article class="catalog-stat-card">
+                <span class="catalog-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg></span>
+                <p class="catalog-stat-label">Total categorias</p>
+                <p id="stat-categories-total" class="catalog-stat-value">0</p>
+              </article>
+              <article class="catalog-stat-card">
+                <span class="catalog-stat-icon ok" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span>
+                <p class="catalog-stat-label">Categorias activas</p>
+                <p id="stat-categories-active" class="catalog-stat-value">0</p>
+              </article>
+              <article class="catalog-stat-card">
+                <span class="catalog-stat-icon ok" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4v6"></path><path d="M6 10h12"></path><path d="M18 10v10"></path><path d="M6 20h12"></path></svg></span>
+                <p class="catalog-stat-label">Con subcategorias</p>
+                <p id="stat-categories-children" class="catalog-stat-value">0</p>
+              </article>
+              <article class="catalog-stat-card">
+                <span class="catalog-stat-icon warn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 10 14 4H5v9l6 6 9-9Z"></path><path d="M8 8h.01"></path></svg></span>
+                <p class="catalog-stat-label">Productos asignados</p>
+                <p id="stat-products-assigned" class="catalog-stat-value">0</p>
+              </article>
+            </section>
+
+            <section class="panel-card catalog-toolbar" aria-label="Filtros de categorias">
+              <div class="field">
+                <label for="catalog-search">Buscar categoria</label>
+                <input id="catalog-search" type="search" placeholder="Buscar categoria..." />
+              </div>
+              <div class="field">
+                <label for="catalog-status-filter">Estado</label>
+                <select id="catalog-status-filter">
+                  <option value="all">Todas</option>
+                  <option value="active">Activas</option>
+                  <option value="hidden">Ocultas</option>
+                </select>
+              </div>
+            </section>
 
             <section id="category-create-card" class="panel-card create-accordion-card catalog-create-on-top">
               <button id="category-create-toggle" class="create-toggle-btn" type="button" aria-expanded="false" aria-controls="category-create-panel">
@@ -1044,7 +1512,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 <span class="create-toggle-arrow">⌄</span>
               </button>
               <div id="category-create-panel" class="create-panel">
-                <p class="panel-text">La categoría puede quedar visible u oculta desde el primer momento.</p>
+                <div class="category-create-head">
+                  <div>
+                    <h2 class="create-panel-heading">Nueva categoría</h2>
+                    <p class="panel-text">La categoría puede quedar visible u oculta desde el primer momento.</p>
+                  </div>
+                  <button class="category-create-close" type="button" aria-label="Cerrar nueva categoría">×</button>
+                </div>
                 <form id="category-form" class="form-grid">
                   <div class="field">
                     <label for="category-name">Nombre</label>
@@ -1085,9 +1559,16 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <section class="list-card catalog-categories-card">
               <div class="list-head">
                 <div>
-                  <h2 class="list-title"><span>🗂️</span>Categorías</h2>
+                  <h2 class="list-title">Categorias</h2>
                   <p id="categories-count" class="list-subtitle">Cargando...</p>
                 </div>
+              </div>
+              <div class="catalog-table-head" aria-hidden="true">
+                <span>Categoria</span>
+                <span>Subcategorias</span>
+                <span>Productos</span>
+                <span>Estado</span>
+                <span>Acciones</span>
               </div>
               <div id="categories-list" class="list-body"></div>
             </section>
@@ -1117,16 +1598,24 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
       const adminSubtitle = document.getElementById('admin-subtitle');
-      const refreshBtn = document.getElementById('refresh-btn');
+      const catalogSearch = document.getElementById('catalog-search');
+      const catalogStatusFilter = document.getElementById('catalog-status-filter');
+      const categoryCreateMainBtn = document.getElementById('category-create-main-btn');
+      const statCategoriesTotal = document.getElementById('stat-categories-total');
+      const statCategoriesActive = document.getElementById('stat-categories-active');
+      const statCategoriesChildren = document.getElementById('stat-categories-children');
+      const statProductsAssigned = document.getElementById('stat-products-assigned');
 
       const categoryForm = document.getElementById('category-form');
       const categoryName = document.getElementById('category-name');
       const categoryDescription = document.getElementById('category-description');
       const categoryImage = document.getElementById('category-image');
       const categoryActive = document.getElementById('category-active');
+      const categorySubmit = document.getElementById('category-submit');
       const categoryAlert = document.getElementById('category-alert');
       const categoryCreateCard = document.getElementById('category-create-card');
       const categoryCreateToggle = document.getElementById('category-create-toggle');
+      const categoryCreateClose = document.querySelector('.category-create-close');
 
       const subcategoryForm = document.getElementById('subcategory-form');
       const subcategoryCategory = document.getElementById('subcategory-category');
@@ -1151,6 +1640,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       let subcategories = [];
       let products = [];
       let contentNavigation = { type: 'general', categoryId: '', subcategoryId: '', parentCategoryId: '' };
+      let categoryCreateSubmitting = false;
 
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -1552,6 +2042,22 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         if (willOpen) setTimeout(() => (isCategory ? categoryName : subcategoryCategory)?.focus(), 60);
       }
 
+      function isCategoryCreatePanelOpen() {
+        return categoryCreateCard?.classList.contains('open') === true;
+      }
+
+      function openCategoryCreatePanel() {
+        if (!isCategoryCreatePanelOpen()) toggleCreatePanel('category');
+        categoryCreateCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => categoryName?.focus(), 180);
+      }
+
+      function closeCategoryCreatePanel() {
+        if (!isCategoryCreatePanelOpen()) return;
+        setCreatePanel(categoryCreateCard, categoryCreateToggle, false);
+        setAlert(categoryAlert, '');
+      }
+
       function setAlert(element, message, type = 'info') {
         element.textContent = message;
         element.className = `alert alert-${type}`;
@@ -1841,49 +2347,81 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           .join('');
       }
 
+      function renderCatalogStats() {
+        const totalProductsAssigned = products.filter((item) => item.category || item.subcategory).length;
+        if (statCategoriesTotal) statCategoriesTotal.textContent = String(categories.length);
+        if (statCategoriesActive) statCategoriesActive.textContent = String(categories.filter((item) => item.active).length);
+        if (statCategoriesChildren) {
+          statCategoriesChildren.textContent = String(categories.filter((category) => subcategories.some((sub) => sub.category === category.id)).length);
+        }
+        if (statProductsAssigned) statProductsAssigned.textContent = String(totalProductsAssigned);
+      }
+
+      function getFilteredCategories() {
+        const searchTerm = normalizeName(catalogSearch?.value || '');
+        const status = catalogStatusFilter?.value || 'all';
+        return sortedByCatalogOrder(categories)
+          .filter((category) => {
+            const haystack = normalizeName(`${category.name || ''} ${category.slug || ''} ${category.description || ''}`);
+            const matchesSearch = !searchTerm || haystack.includes(searchTerm);
+            const matchesStatus = status === 'all' || (status === 'active' ? category.active : !category.active);
+            return matchesSearch && matchesStatus;
+          });
+      }
+
       function renderCategories() {
-        categoriesCount.textContent = `${categories.length} categorías · ${categories.filter((item) => item.active).length} visibles · ${categories.filter((item) => !item.active).length} ocultas`;
+        renderCatalogStats();
+        const filteredCategories = getFilteredCategories();
+        categoriesCount.textContent = `${filteredCategories.length} de ${categories.length} categorias visibles en el listado`;
         if (!categories.length) {
-          categoriesList.innerHTML = '<div class="empty-state">Todavía no hay categorías creadas.</div>';
+          categoriesList.innerHTML = '<div class="empty-state">Todavia no hay categorias creadas.</div>';
+          return;
+        }
+        if (!filteredCategories.length) {
+          categoriesList.innerHTML = '<div class="empty-state">No hay categorias que coincidan con los filtros.</div>';
           return;
         }
 
-        categoriesList.innerHTML = categories.map((category, index) => {
+        const orderedForButtons = sortedByCatalogOrder(categories);
+        categoriesList.innerHTML = filteredCategories.map((category) => {
+          const index = orderedForButtons.findIndex((item) => item.id === category.id);
           const productCount = getProductCountForCategory(category.id);
           const children = subcategories.filter((sub) => sub.category === category.id).length;
           const statusClass = category.active ? '' : 'hidden-state';
-          const statusText = category.active ? 'Visible' : 'Oculta';
+          const statusText = category.active ? 'Activa' : 'Oculta';
           const toggleText = category.active ? 'Desactivar' : 'Activar';
-          const featuredText = category.featured_on_home === true ? 'Quitar destacado' : 'Destacar categoria';
+          const description = category.description || category.slug || 'Sin descripcion';
           return `
             <article class="catalog-hierarchy-row" data-category-id="${category.id}">
               <div class="catalog-row-main">
-                ${imageMarkup('categories', category, category.name || 'Categoría')}
+                ${imageMarkup('categories', category, category.name || 'Categoria')}
                 <div class="catalog-card-text">
-                  <p class="catalog-row-title">${escapeHtml(category.name)}</p>
-                  <p class="catalog-row-meta">${children} subcategorías · ${productCount} productos directos</p>
+                  <p class="catalog-row-title">${escapeHtml(category.name || 'Categoria sin nombre')}</p>
+                  <p class="catalog-row-meta">${escapeHtml(description)}</p>
+                  <p class="catalog-mobile-meta">${children} subcategorias &middot; ${productCount} productos &middot; ${statusText}</p>
                 </div>
               </div>
 
-              <button class="visibility-btn ${statusClass} js-category-toggle" type="button" title="Cambiar visibilidad">👁 ${statusText}</button>
+              <div class="catalog-cell">${children}</div>
+              <div class="catalog-cell">${productCount}</div>
+              <button class="visibility-btn ${statusClass} js-category-toggle" type="button" title="Cambiar visibilidad">${statusText}</button>
 
-              <button class="visibility-btn js-category-featured" type="button" title="Destacar en portada">${escapeHtml(category.featured_on_home === true ? 'Destacada' : 'Destacar')}</button>
-
-              <div class="catalog-order-actions" aria-label="Ordenar categoría">
-                <button class="catalog-icon-btn js-category-up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
-                <button class="catalog-icon-btn js-category-down" type="button" ${index === categories.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
-              </div>
-
-              <div class="catalog-menu-wrap">
-                <button class="catalog-icon-btn js-menu-toggle" type="button" title="Más opciones">⋮</button>
-                <div class="catalog-menu">
-                  <button class="js-category-edit" type="button"><span>Editar</span><strong>✎</strong></button>
-                  <button class="js-category-view" type="button"><span>Ver contenido</span><strong>›</strong></button>
-                  <button class="js-category-toggle" type="button"><span>${toggleText}</span><strong>👁</strong></button>
-                  <button class="danger js-category-delete-soon" type="button"><span>Borrar completa</span><strong>!</strong></button>
+              <div class="catalog-actions-cell">
+                <button class="visibility-btn is-featured js-category-featured" type="button" title="Destacar en portada">${escapeHtml(category.featured_on_home === true ? 'Destacada' : 'Destacar')}</button>
+                <div class="catalog-order-actions" aria-label="Ordenar categoria">
+                  <button class="catalog-icon-btn js-category-up" type="button" ${index <= 0 ? 'disabled' : ''} title="Subir">&uarr;</button>
+                  <button class="catalog-icon-btn js-category-down" type="button" ${index === orderedForButtons.length - 1 ? 'disabled' : ''} title="Bajar">&darr;</button>
+                </div>
+                <div class="catalog-menu-wrap">
+                  <button class="catalog-icon-btn js-menu-toggle" type="button" title="Mas opciones">&vellip;</button>
+                  <div class="catalog-menu">
+                    <button class="js-category-edit" type="button"><span>Editar</span><strong>Editar</strong></button>
+                    <button class="js-category-view" type="button"><span>Ver contenido</span><strong>Ver</strong></button>
+                    <button class="js-category-toggle" type="button"><span>${toggleText}</span><strong>${statusText}</strong></button>
+                    <button class="danger js-category-delete-soon" type="button"><span>Borrar completa</span><strong>!</strong></button>
+                  </div>
                 </div>
               </div>
-
             </article>
           `;
         }).join('');
@@ -1982,7 +2520,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       }
 
       async function loadCatalog() {
-        if (refreshBtn) refreshBtn.disabled = true;
         categoriesList.innerHTML = '<div class="empty-state">Cargando categorías...</div>';
         subcategoriesList.innerHTML = '<div class="empty-state">Cargando subcategorías...</div>';
         try {
@@ -2000,8 +2537,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           console.error(error);
           categoriesList.innerHTML = '<div class="empty-state">No se pudieron cargar las categorías. Revisa tu sesión admin.</div>';
           subcategoriesList.innerHTML = '<div class="empty-state">No se pudieron cargar las subcategorías. Revisa tu sesión admin.</div>';
-        } finally {
-          if (refreshBtn) refreshBtn.disabled = false;
         }
       }
 
@@ -2017,6 +2552,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return;
         }
 
+        categoryCreateSubmitting = true;
+        if (categorySubmit) categorySubmit.disabled = true;
         setAlert(categoryAlert, 'Creando categoría...', 'info');
         const formData = new FormData();
         formData.append('name', name);
@@ -2038,6 +2575,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         } catch (error) {
           console.error(error);
           setAlert(categoryAlert, error.message || 'No se pudo crear la categoría.', 'error');
+        } finally {
+          categoryCreateSubmitting = false;
+          if (categorySubmit) categorySubmit.disabled = false;
         }
       }
 
@@ -2254,7 +2794,21 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         if (productId) params.set('product', productId);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
       }
-      refreshBtn?.addEventListener('click', loadCatalog);
+      catalogSearch?.addEventListener('input', renderCategories);
+      catalogStatusFilter?.addEventListener('change', renderCategories);
+      categoryCreateMainBtn?.addEventListener('click', () => {
+        openCategoryCreatePanel();
+      });
+      categoryCreateClose?.addEventListener('click', closeCategoryCreatePanel);
+      document.addEventListener('click', (event) => {
+        if (!isCategoryCreatePanelOpen() || categoryCreateSubmitting) return;
+        const target = event.target;
+        if (categoryCreateCard?.contains(target) || categoryCreateMainBtn?.contains(target)) return;
+        closeCategoryCreatePanel();
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && isCategoryCreatePanelOpen() && !categoryCreateSubmitting) closeCategoryCreatePanel();
+      });
       contentViewParentBack?.addEventListener('click', () => {
         if (contentNavigation?.parentCategoryId) {
           showCategoryContent(contentNavigation.parentCategoryId);
