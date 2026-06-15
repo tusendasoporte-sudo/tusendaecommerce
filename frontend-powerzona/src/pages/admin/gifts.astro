@@ -9,6 +9,7 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -16,10 +17,14 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
-const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
-const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
-const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el admin de regalos de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Regalos Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
 
 <!doctype html>
@@ -32,364 +37,602 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
     <style is:global>
       :root {
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        --page:#eef3f9; --surface:#fff; --soft:#f8fafc; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
-        --dark:#111827; --green:#16a34a; --red:#dc2626; --shadow:0 18px 45px rgba(15,23,42,.08);
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --surface-soft: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --blue: #2563eb;
+        --green: #16a34a;
+        --red: #dc2626;
+        --orange: #f97316;
+        --purple: #7c3aed;
+        --dark: #0f172a;
+        --shadow: 0 18px 45px rgba(15, 23, 42, .08);
       }
-      *{box-sizing:border-box} body{margin:0;min-height:100vh;color:var(--text);background:linear-gradient(180deg,#f8fbff,var(--page));} a{text-decoration:none;color:inherit} button,input,textarea{font:inherit} button{cursor:pointer}.hidden{display:none!important}
-      .login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card,.card{background:#fff;border:1px solid var(--border);border-radius:28px;box-shadow:var(--shadow)}.login-card{width:min(100%,440px);padding:28px}.brand{display:inline-flex;background:#ecfdf5;color:#166534;padding:8px 12px;border-radius:999px;font-weight:1000;font-size:13px}h1{font-size:34px;letter-spacing:-.05em;margin:16px 0 8px}p{color:var(--muted);line-height:1.5}label{display:block;font-size:12px;font-weight:950;color:#334155;margin:0 0 7px}input,textarea{width:100%;border:1px solid var(--border);border-radius:16px;background:var(--soft);padding:12px 13px;outline:none}textarea{resize:vertical;min-height:84px}input:focus,textarea:focus{border-color:#93c5fd;box-shadow:0 0 0 4px rgba(37,99,235,.12)}
-      .btn{border:0;border-radius:16px;padding:12px 16px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .16s ease,box-shadow .16s ease,background .16s ease}.btn:hover{transform:translateY(-1px)}.btn-primary{background:var(--dark);color:#fff;box-shadow:0 14px 28px rgba(17,24,39,.14)}.btn-green{background:var(--green);color:#fff;box-shadow:0 14px 28px rgba(22,163,74,.14)}.btn-soft{background:#fff;color:#111827;border:1px solid var(--border);box-shadow:0 10px 22px rgba(15,23,42,.06)}.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}.btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
-      .wrap{width:min(1320px,100%);margin:0 auto;padding:24px}.topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px}.top-actions{display:flex;gap:10px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:360px minmax(0,1fr);gap:18px}.card{padding:20px}.card-title{margin:0 0 4px;font-size:20px;font-weight:1000;letter-spacing:-.03em}.form-grid{display:grid;gap:13px;margin-top:16px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.check-row{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:16px;padding:12px}.check-row input{width:auto}.alert{border-radius:16px;padding:12px 14px;font-size:13px;font-weight:850;margin-bottom:12px}.alert-info{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}.alert-ok{background:#ecfdf5;color:#166534;border:1px solid #bbf7d0}
-      .image-help{margin:7px 0 0;font-size:11px;color:#64748b;font-weight:800;line-height:1.4}
-      .settings-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.category-preview{display:flex;gap:12px;align-items:center;margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:10px}.category-preview img{width:78px;height:58px;border-radius:16px;object-fit:cover;background:#fff;border:1px solid #e2e8f0;display:block;flex:0 0 auto}.category-preview span{font-size:12px;font-weight:900;color:#64748b}
-      #gifts-list{display:grid;gap:10px}.gift-row-premium{width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:22px;box-shadow:0 12px 28px rgba(15,23,42,.06);padding:10px;display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center}.gift-thumb-premium{width:58px!important;height:58px!important;min-width:58px!important;max-width:58px!important;max-height:58px!important;border-radius:16px;object-fit:contain;background:#f8fafc;border:1px solid #e2e8f0;display:block;padding:3px}.gift-info-premium{min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}.gift-name-premium{font-weight:1000;font-size:14px;line-height:1.2;color:#111827;min-width:210px;max-width:370px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gift-meta-premium{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#475569;font-weight:950;font-size:12px}.pill{font-size:10px;font-weight:1000;border-radius:999px;padding:6px 8px;background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}.pill.green{background:#ecfdf5;color:#166534;border-color:#bbf7d0}.pill.red{background:#fee2e2;color:#991b1b;border-color:#fecaca}.gift-actions-premium{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}.premium-action{height:38px;border-radius:14px;border:1px solid var(--border);background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center;transition:transform .16s ease,box-shadow .16s ease}.premium-action:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(15,23,42,.1)}.premium-action.arrow{width:38px;padding:0;font-size:15px}.premium-action.dark{background:#111827;color:#fff;border-color:#111827}.premium-action.danger{background:#fff1f2;color:#991b1b;border-color:#fecdd3}.premium-action:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}.empty{padding:34px;text-align:center;color:#64748b;font-weight:850;border:1px dashed #cbd5e1;border-radius:24px;background:#fff}
-      @media(max-width:1050px){.grid{grid-template-columns:1fr}.gift-row-premium{grid-template-columns:58px minmax(0,1fr)}.gift-actions-premium{grid-column:1/-1;justify-content:flex-start;padding-left:70px}.gift-name-premium{max-width:100%;min-width:0}}@media(max-width:620px){.wrap{padding:16px}.topbar{align-items:flex-start;flex-direction:column}.two,.settings-row{grid-template-columns:1fr}.gift-row-premium{grid-template-columns:52px minmax(0,1fr);gap:10px}.gift-thumb-premium{width:52px!important;height:52px!important;min-width:52px!important;max-width:52px!important;max-height:52px!important;border-radius:15px}.gift-info-premium{display:block}.gift-name-premium{font-size:13px;margin-bottom:5px;min-width:0}.gift-meta-premium{gap:5px}.gift-actions-premium{padding-left:0}.premium-action{height:36px;padding:0 10px}.premium-action.arrow{width:36px}}
 
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, .14), transparent 30%),
+          radial-gradient(circle at 85% 8%, rgba(22, 163, 74, .09), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+      a { color: inherit; text-decoration: none; }
+      button, input, textarea, select { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .55; }
+      .hidden { display: none !important; }
 
-      /* PZ V25B: menú lateral premium igual a Gestión de categorías */
+      .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
       .sidebar-overlay {
         position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .36);
-        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
+        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(3px);
       }
       body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
       .sidebar {
         position: fixed; top: 18px; left: 18px; bottom: 18px; z-index: 90; width: min(286px, calc(100vw - 36px));
         border-radius: 30px; padding: 18px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        color: #0f172a; border: 1px solid rgba(226, 232, 240, .95); box-shadow: 0 28px 80px rgba(15, 23, 42, .22);
-        overflow: hidden; transform: translateX(calc(-100% - 28px)); transition: transform .24s ease;
+        color: #0f172a; border: 1px solid rgba(226, 232, 240, .95);
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95);
+        overflow: hidden auto; transform: translateX(calc(-100% - 36px)); transition: transform .24s ease;
       }
       body.sidebar-open .sidebar { transform: translateX(0); }
       .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
-      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
-      .sidebar-brand-row { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
-      .brand-logo { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: #0f172a; color: #fff; box-shadow: 0 14px 30px rgba(15, 23, 42, .18); font-weight: 1000; }
-      .sidebar-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; color:#0f172a; line-height:1.2; }
-      .sidebar-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; line-height:1.2; }
-      .sidebar-close { margin-left: auto; width: 34px; height: 34px; border: 0; border-radius: 13px; background: #f1f5f9; color: #0f172a; font-size: 22px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; }
-      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
-      .nav-list { display: grid; gap: 7px; }
-      .nav-item { min-height: 46px; display: flex; align-items: center; gap: 10px; padding: 8px 9px; border-radius: 16px; color: #334155; font-size: 13px; font-weight: 950; border: 1px solid transparent; background: transparent; }
-      .nav-item:hover { background: #fff; border-color: #e2e8f0; color: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.07); }
-      .nav-item.active { background: #0f172a; color: #fff; box-shadow: 0 14px 30px rgba(15,23,42,.16); }
-      .nav-icon { width: 32px; height: 32px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15,23,42,.06); }
-      .nav-item.active .nav-icon { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.16); box-shadow: none; }
-      .nav-icon svg { width: 18px; height: 18px; fill: currentColor; display: block; }
-      .sidebar-footer { margin-top: auto; padding: 12px; border-radius: 18px; background: #f8fafc; border: 1px solid #e2e8f0; display: grid; gap: 3px; }
-      .sidebar-footer strong { font-size: 12px; color: #0f172a; }
-      .sidebar-footer span { font-size: 11px; color: #64748b; line-height: 1.35; }
-      .menu-btn { border: 0; border-radius: 18px; padding: 13px 16px; font-weight: 1000; background: #0f172a; color: #fff; box-shadow: 0 18px 38px rgba(15, 23, 42, .18); display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-      .action-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border-radius:16px; padding:12px 16px; background:#fff; border:1px solid var(--border); box-shadow:0 10px 22px rgba(15,23,42,.06); color:#111827; font-weight:1000; }
-      .action-btn.danger { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
-      #admin-view.wrap { width: min(1480px, 100%); }
-      #admin-view .topbar { justify-content: space-between; align-items: center; }
-      @media(max-width:620px){.menu-btn,.action-btn{width:100%;}.top-actions{width:100%;}.sidebar{top:12px;left:12px;bottom:12px;width:calc(100vw - 24px);}}
-
-    
-
-      /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
-         Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
-      .sidebar-overlay,
-      #sidebar-overlay {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 80 !important;
-        background: rgba(15, 23, 42, .36) !important;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .22s ease !important;
-        backdrop-filter: blur(3px) !important;
-      }
-      .sidebar-overlay.show,
-      body.sidebar-open .sidebar-overlay,
-      body.sidebar-open #sidebar-overlay {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-      }
-      .sidebar,
-      #admin-sidebar {
-        position: fixed !important;
-        top: 18px !important;
-        left: 18px !important;
-        bottom: 18px !important;
-        z-index: 90 !important;
-        width: min(286px, calc(100vw - 36px)) !important;
-        border-radius: 30px !important;
-        padding: 18px !important;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-        color: #0f172a !important;
-        border: 1px solid rgba(226, 232, 240, .95) !important;
-        box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95) !important;
-        overflow: hidden auto !important;
-        transform: translateX(calc(-100% - 36px)) !important;
-        transition: transform .24s ease !important;
-      }
-      .sidebar.open,
-      body.sidebar-open .sidebar,
-      body.sidebar-open #admin-sidebar {
-        transform: translateX(0) !important;
-      }
-      .sidebar::before,
-      #admin-sidebar::before {
-        content: '' !important;
-        position: absolute !important;
-        inset: 0 !important;
-        background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important;
-        pointer-events: none !important;
-      }
-      .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; min-height: 100% !important; }
-      .sidebar-top,
-      .brand,
-      .sidebar-brand-row {
-        display: flex !important;
-        align-items: center !important;
-        gap: 11px !important;
-        padding: 8px 8px 18px !important;
-        border-bottom: 1px solid #e2e8f0 !important;
-        margin: 0 0 14px !important;
-      }
-      .sidebar-brand,
-      .brand-title,
-      .sidebar-title {
-        margin: 0 !important;
-        font-size: 22px !important;
-        font-weight: 1000 !important;
-        letter-spacing: -.035em !important;
-        color: #0f172a !important;
-        line-height: 1.1 !important;
-      }
-      .sidebar-sub,
-      .brand-subtitle,
-      .sidebar-subtitle {
-        margin: 4px 0 0 !important;
-        color: #334155 !important;
-        font-size: 12px !important;
-        font-weight: 850 !important;
-        line-height: 1.2 !important;
-      }
+      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100%; }
+      .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
       .brand-logo {
-        width: 42px !important;
-        height: 42px !important;
-        border-radius: 16px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: linear-gradient(135deg, #0f172a, #020617) !important;
-        color: #ffffff !important;
-        font-size: 12px !important;
-        font-weight: 1000 !important;
-        box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
+        width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #0f172a, #020617); color: #fff; font-size: 12px; font-weight: 1000;
+        box-shadow: 0 14px 26px rgba(15,23,42,.18);
       }
-      .close-btn,
-      .sidebar-close,
-      #sidebar-close,
-      #sidebar-close-btn {
-        margin-left: auto !important;
-        width: 42px !important;
-        height: 42px !important;
-        min-width: 42px !important;
-        border-radius: 16px !important;
-        border: 1px solid #e2e8f0 !important;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        font-size: 18px !important;
-        font-weight: 1000 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+      .brand-title { margin: 0; font-size: 22px; font-weight: 1000; letter-spacing: -.035em; line-height: 1.1; }
+      .brand-subtitle { margin: 4px 0 0; color: #334155; font-size: 12px; font-weight: 850; line-height: 1.2; }
+      .sidebar-close {
+        margin-left: auto; width: 42px; height: 42px; min-width: 42px; border-radius: 16px; border: 1px solid #e2e8f0;
+        background: #fff; color: #0f172a; font-size: 18px; font-weight: 1000; box-shadow: 0 10px 20px rgba(15,23,42,.06);
       }
-      .nav-group { margin: 14px 0 !important; }
-      .sidebar-label,
-      .nav-label {
-        margin: 18px 9px 9px !important;
-        color: #475569 !important;
-        font-size: 10px !important;
-        font-weight: 1000 !important;
-        text-transform: uppercase !important;
-        letter-spacing: .14em !important;
+      .sidebar-label { margin: 18px 9px 9px; color: #475569; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .14em; }
+      .nav-list { display: grid; gap: 6px; }
+      .nav-item {
+        min-height: 50px; display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 10px; border-radius: 16px;
+        background: transparent; color: #0f172a; border: 1px solid transparent; font-size: 15px; font-weight: 1000; line-height: 1.18;
       }
-      .nav-list { display: grid !important; gap: 6px !important; }
-      .nav-item,
-      .nav-link {
-        min-height: 50px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        gap: 11px !important;
-        width: 100% !important;
-        padding: 8px 10px !important;
-        border-radius: 16px !important;
-        background: transparent !important;
-        color: #0f172a !important;
-        border: 1px solid transparent !important;
-        font-size: 15px !important;
-        font-weight: 1000 !important;
-        line-height: 1.18 !important;
-        text-decoration: none !important;
-        box-shadow: none !important;
-        transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease !important;
+      .nav-item:hover { transform: translateX(2px); background: #f8fafc; color: #020617; border-color: #e2e8f0; box-shadow: 0 12px 26px rgba(15,23,42,.07); }
+      .nav-item.active { background: linear-gradient(135deg, #0f172a, #020617); color: #fff; border-color: rgba(15,23,42,.95); box-shadow: 0 16px 32px rgba(15,23,42,.18); }
+      .nav-icon {
+        width: 34px; height: 34px; min-width: 34px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
+        background: #fff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 9px 18px rgba(15,23,42,.06);
       }
-      .nav-left { display: inline-flex !important; align-items: center !important; gap: 11px !important; min-width: 0 !important; }
-      .nav-item:hover,
-      .nav-link:hover {
-        transform: translateX(2px) !important;
-        background: #f8fafc !important;
-        color: #020617 !important;
-        border-color: #e2e8f0 !important;
-        box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
-      .nav-item.active,
-      .nav-link.active {
-        background: linear-gradient(135deg, #0f172a, #020617) !important;
-        color: #ffffff !important;
-        border-color: rgba(15,23,42,.95) !important;
-        box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-icon,
-      .premium-icon {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        border-radius: 14px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
-      .nav-icon svg,
-      .premium-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
-      .nav-icon svg path,
-      .premium-icon svg path { stroke: currentColor; }
-      .nav-item.active .nav-icon,
-      .nav-link.active .nav-icon,
-      .nav-link.active .premium-icon,
-      .nav-item:hover .nav-icon,
-      .nav-link:hover .nav-icon,
-      .nav-link:hover .premium-icon {
-        background: rgba(255,255,255,.12) !important;
-        color: #ffffff !important;
-        border-color: rgba(255,255,255,.20) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-item:hover:not(.active) .nav-icon,
-      .nav-link:hover:not(.active) .nav-icon,
-      .nav-link:hover:not(.active) .premium-icon {
-        background: #020617 !important;
-        color: #ffffff !important;
-        border-color: #020617 !important;
-        box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-link > span:last-child:not(.nav-left):not(.nav-pill),
-      .nav-link > .arrow,
-      .nav-item > .arrow,
-      .nav-arrow { display: none !important; }
-      .nav-pill {
-        margin-left: auto !important;
-        background: #f1f5f9 !important;
-        color: #64748b !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 999px !important;
-        padding: 5px 9px !important;
-        font-size: 11px !important;
-        font-weight: 1000 !important;
-      }
-      .nav-link.active .nav-pill,
-      .nav-item.active .nav-pill { background: rgba(255,255,255,.14) !important; color: #fff !important; border-color: rgba(255,255,255,.25) !important; }
-      .sidebar-footer {
-        margin-top: auto !important;
-        padding: 14px !important;
-        border-radius: 22px !important;
-        background: #f8fafc !important;
-        border: 1px solid #e2e8f0 !important;
-      }
-      .sidebar-footer strong { display: block !important; font-size: 12px !important; margin-bottom: 5px !important; color: #0f172a !important; }
-      .sidebar-footer span { display: block !important; color: #475569 !important; font-size: 11px !important; line-height: 1.45 !important; font-weight: 750 !important; }
-      @media (max-width: 620px) {
-        .sidebar,
-        #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
-      }
+      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
+      .nav-item.active .nav-icon, .nav-item:hover .nav-icon { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.20); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+      .nav-item:hover:not(.active) .nav-icon { background: #020617; color: #fff; }
+      .sidebar-utility { display: grid; gap: 8px; margin-top: auto; padding-top: 14px; }
+      .sidebar-utility .nav-item { border: 0; text-align: left; }
+      .sidebar-utility .nav-item.danger { color: #991b1b; background: #fff7f7; border-color: #fecaca; }
+      .sidebar-footer { margin-top: 14px; padding: 14px; border-radius: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .sidebar-footer strong { display: block; font-size: 12px; margin-bottom: 5px; color: #0f172a; }
+      .sidebar-footer span { display: block; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 750; }
 
-      </style>
+      .admin-main { min-width: 0; padding-bottom: 92px; }
+      .mobile-topbar { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin-bottom: 14px; }
+      .mobile-topbar strong { text-align: center; font-size: 16px; font-weight: 1000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .menu-btn, .notifications-btn, .icon-btn {
+        border: 1px solid rgba(226,232,240,.95); border-radius: 16px; background: rgba(255,255,255,.94); color: #0f172a;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07); display: inline-flex; align-items: center; justify-content: center; font-weight: 1000;
+      }
+      .menu-btn, .notifications-btn { width: 42px; height: 42px; padding: 0; }
+      .notifications-btn { position: relative; }
+      .notifications-btn svg, .icon-btn svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+      .notifications-dot { position: absolute; top: 9px; right: 10px; width: 8px; height: 8px; border-radius: 999px; background: #ef4444; border: 2px solid #fff; }
+      .page-header {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center;
+        padding: 22px 24px; margin-bottom: 18px; background: rgba(255,255,255,.92); border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+      }
+      .page-title { margin: 0; font-size: clamp(28px, 4vw, 42px); line-height: 1.02; letter-spacing: -.045em; font-weight: 1000; }
+      .page-subtitle { margin: 8px 0 0; color: var(--muted); font-size: 15px; font-weight: 760; line-height: 1.45; }
+      .header-actions { display: flex; align-items: center; gap: 10px; }
+      .btn {
+        border: 1px solid transparent; border-radius: 16px; min-height: 44px; padding: 12px 16px; display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+        font-size: 13px; font-weight: 1000; transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+      }
+      .btn:hover { transform: translateY(-1px); }
+      .btn-primary { background: #2563eb; color: #fff; box-shadow: 0 14px 28px rgba(37,99,235,.18); }
+      .btn-dark { background: #0f172a; color: #fff; box-shadow: 0 14px 28px rgba(15,23,42,.18); }
+      .btn-soft { background: #fff; color: #0f172a; border-color: #e2e8f0; box-shadow: 0 10px 22px rgba(15,23,42,.06); }
+      .btn-danger { background: #fff1f2; color: #991b1b; border-color: #fecdd3; }
+      .btn.full { width: 100%; }
+
+      .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+      .stat-card { background: #fff; border: 1px solid rgba(226,232,240,.96); border-radius: 22px; padding: 16px; box-shadow: 0 14px 32px rgba(15,23,42,.07); display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .stat-icon { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 1000; flex: 0 0 auto; }
+      .stat-icon.blue { background: #eff6ff; color: #1d4ed8; }
+      .stat-icon.green { background: #ecfdf5; color: #166534; }
+      .stat-icon.orange { background: #fff7ed; color: #c2410c; }
+      .stat-icon.purple { background: #f5f3ff; color: #6d28d9; }
+      .stat-label { margin: 0; color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .05em; }
+      .stat-value { margin: 4px 0 0; color: #0f172a; font-size: 24px; font-weight: 1000; line-height: 1; }
+
+      .filter-card { margin-bottom: 18px; background: #fff; border: 1px solid rgba(226,232,240,.96); border-radius: 22px; padding: 14px; box-shadow: 0 14px 32px rgba(15,23,42,.06); display: grid; grid-template-columns: minmax(260px, 1fr) 220px; gap: 12px; align-items: end; }
+      .content-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+      .main-column { display: grid; gap: 18px; min-width: 0; }
+      .panel-card {
+        background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.96); border-radius: 24px; box-shadow: var(--shadow);
+        backdrop-filter: blur(10px); overflow: visible;
+      }
+      .panel-pad { padding: 22px; }
+      .panel-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 18px; }
+      .panel-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.025em; }
+      .panel-subtitle { margin: 7px 0 0; color: #64748b; font-size: 13px; font-weight: 760; line-height: 1.45; }
+      .info-note { margin: 14px 0 0; border-radius: 18px; padding: 12px 14px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 12px; font-weight: 900; line-height: 1.45; }
+      .alert { margin-bottom: 14px; border-radius: 16px; padding: 12px 14px; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+      .alert-ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+      .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+      .form-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); gap: 18px; align-items: start; }
+      .form-grid { display: grid; gap: 13px; }
+      .form-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .field { display: grid; gap: 7px; }
+      .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+      .field input, .field textarea, .field select {
+        width: 100%; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; color: #0f172a;
+        padding: 12px 13px; outline: none; font-weight: 820; box-shadow: inset 0 1px 0 rgba(15,23,42,.02);
+      }
+      .field textarea { resize: vertical; min-height: 100px; line-height: 1.45; }
+      .field input:focus, .field textarea:focus, .field select:focus { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.12); }
+      .image-panel { border: 1px solid #e2e8f0; border-radius: 22px; padding: 12px; background: #f8fafc; display: grid; gap: 12px; }
+      .image-preview { aspect-ratio: 16 / 9; width: 100%; border-radius: 18px; background: #fff; border: 1px dashed #cbd5e1; display: grid; place-items: center; overflow: hidden; color: #94a3b8; font-size: 32px; font-weight: 1000; }
+      .image-preview img { width: 100%; height: 100%; object-fit: cover; display: none; }
+      .image-preview.has-image img { display: block; }
+      .image-preview.has-image span { display: none; }
+      .image-help { margin: 0; color: #64748b; font-size: 11px; line-height: 1.45; font-weight: 800; }
+      .file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+      .toggle-line { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; font-weight: 950; color: #334155; }
+      .toggle-line input { position: absolute; opacity: 0; pointer-events: none; }
+      .switch { width: 46px; height: 26px; border-radius: 999px; background: #cbd5e1; padding: 3px; transition: background .18s ease; flex: 0 0 auto; }
+      .switch::before { content: ''; display: block; width: 20px; height: 20px; border-radius: 999px; background: #fff; box-shadow: 0 4px 10px rgba(15,23,42,.18); transition: transform .18s ease; }
+      .toggle-line input:checked + .switch { background: #16a34a; }
+      .toggle-line input:checked + .switch::before { transform: translateX(20px); }
+      .form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+      body.gift-modal-open { overflow: hidden; }
+      .gift-modal {
+        position: fixed; inset: 0; z-index: 130; display: grid; place-items: center; padding: 24px;
+        background: rgba(15, 23, 42, .46); backdrop-filter: blur(8px);
+      }
+      .gift-modal.hidden { display: none !important; }
+      .gift-modal-card {
+        width: min(1120px, 100%); max-height: calc(100vh - 48px); overflow: hidden; border-radius: 28px;
+        background: rgba(255,255,255,.96); border: 1px solid rgba(226,232,240,.95);
+        box-shadow: 0 34px 90px rgba(15,23,42,.28); display: flex; flex-direction: column;
+      }
+      .gift-modal-head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px;
+        border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, rgba(248,250,252,.92), rgba(255,255,255,.72));
+      }
+      .gift-modal-close {
+        width: 42px; height: 42px; min-width: 42px; border-radius: 16px; border: 1px solid #e2e8f0;
+        background: #fff; color: #0f172a; font-size: 18px; font-weight: 1000; box-shadow: 0 10px 20px rgba(15,23,42,.07);
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .gift-modal-body { overflow: auto; padding: 22px; }
+      .gift-modal-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(285px, 340px); gap: 18px; align-items: start; }
+      .gift-modal-main, .gift-modal-rail { min-width: 0; display: grid; gap: 18px; }
+
+      .preview-card { overflow: hidden; }
+      .preview-image { aspect-ratio: 16 / 9; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: grid; place-items: center; color: #94a3b8; font-size: 34px; font-weight: 1000; }
+      .preview-image img { width: 100%; height: 100%; object-fit: cover; display: none; }
+      .preview-image.has-image img { display: block; }
+      .preview-image.has-image span { display: none; }
+      .preview-body { padding: 16px; display: grid; gap: 9px; }
+      .preview-title { margin: 0; font-size: 18px; font-weight: 1000; letter-spacing: -.02em; line-height: 1.15; }
+      .preview-meta { margin: 0; color: #64748b; font-size: 13px; font-weight: 900; }
+      .summary-list { display: grid; gap: 10px; }
+      .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #eef2f7; font-size: 13px; font-weight: 900; }
+      .summary-row:last-child { border-bottom: 0; }
+      .summary-row span:first-child { color: #64748b; }
+      .badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; border-radius: 999px; padding: 7px 10px; font-size: 11px; font-weight: 1000; border: 1px solid transparent; white-space: nowrap; }
+      .badge.visible { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .badge.hidden-badge { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .badge.soft { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+
+      .category-compact-card {
+        display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center;
+        padding: 18px 20px; background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+      }
+      .category-compact-card .panel-subtitle { margin-top: 5px; }
+      .category-inline-card {
+        margin-top: -4px; background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px; box-shadow: var(--shadow); backdrop-filter: blur(10px); overflow: hidden;
+      }
+      .category-inline-card.hidden { display: none !important; }
+      .category-inline-head {
+        display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px;
+        border-bottom: 1px solid #e2e8f0; background: linear-gradient(180deg, rgba(248,250,252,.86), rgba(255,255,255,.62));
+      }
+      .category-inline-close {
+        width: 42px; height: 42px; min-width: 42px; border-radius: 16px; border: 1px solid #e2e8f0;
+        background: #fff; color: #0f172a; font-size: 18px; font-weight: 1000; box-shadow: 0 10px 20px rgba(15,23,42,.07);
+        display: inline-flex; align-items: center; justify-content: center;
+      }
+      .category-inline-body { padding: 22px; }
+      .category-inline-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 330px); gap: 16px; align-items: start; }
+      .category-inline-actions { display: flex; justify-content: flex-start; gap: 10px; margin-top: 16px; }
+      .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+      .category-preview { display: flex; gap: 12px; align-items: center; margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 18px; padding: 10px; }
+      .category-preview img { width: 90px; height: 58px; border-radius: 14px; object-fit: cover; background: #fff; border: 1px solid #e2e8f0; display: block; flex: 0 0 auto; }
+      .category-preview span { font-size: 12px; font-weight: 900; color: #64748b; }
+
+      .list-card { overflow: visible; }
+      .list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; background: linear-gradient(180deg, rgba(248,250,252,.86), rgba(255,255,255,.6)); border-radius: 24px 24px 0 0; }
+      .list-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.025em; }
+      .list-subtitle { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 760; }
+      .list-card { --gifts-table-grid: minmax(260px, 1.35fr) minmax(150px, .75fr) 90px 130px minmax(250px, auto); }
+      .gift-table-head, .gift-row {
+        display: grid; grid-template-columns: var(--gifts-table-grid);
+        column-gap: 24px; align-items: center;
+      }
+      .gift-table-head { padding: 13px 22px; color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid #eef2f7; }
+      .gift-table-head span:nth-child(1),
+      .gift-row > :nth-child(1) { text-align: left; justify-self: start; }
+      .gift-table-head span:nth-child(2),
+      .gift-row > :nth-child(2) { text-align: left; justify-self: start; }
+      .gift-table-head span:nth-child(3),
+      .gift-row > :nth-child(3) { text-align: center; justify-self: center; }
+      .gift-table-head span:nth-child(4),
+      .gift-row > :nth-child(4) { text-align: center; justify-self: center; }
+      .gift-table-head span:nth-child(5) { text-align: right; justify-self: end; }
+      #gifts-list { display: grid; }
+      .gifts-pagination {
+        display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+        padding: 16px 22px; border-top: 1px solid #eef2f7; background: #fff; border-radius: 0 0 24px 24px;
+      }
+      .gifts-pagination.hidden { display: none !important; }
+      .pagination-text { color: #475569; font-size: 13px; font-weight: 950; }
+      .pagination-pages { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
+      .pagination-page.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+      .gift-row { min-height: 92px; padding: 16px 22px; border-bottom: 1px solid #eef2f7; background: #fff; position: relative; }
+      .gift-row:last-child { border-bottom: 0; border-radius: 0 0 24px 24px; }
+      .gift-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .gift-thumb { width: 58px; height: 58px; min-width: 58px; border-radius: 15px; object-fit: cover; background: #f8fafc; border: 1px solid #e2e8f0; display: block; }
+      .gift-name { margin: 0; font-size: 15px; font-weight: 1000; color: #0f172a; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .gift-desc { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .gift-cell { color: #334155; font-size: 13px; font-weight: 950; }
+      .gift-actions { display: flex; align-items: center; justify-content: flex-end; justify-self: end; gap: 8px; flex-wrap: nowrap; min-width: 0; }
+      .mini-btn {
+        min-width: 38px; min-height: 38px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a;
+        box-shadow: 0 9px 18px rgba(15,23,42,.055); padding: 0 11px; display: inline-flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 1000;
+      }
+      .mini-btn.dark { background: #0f172a; color: #fff; border-color: #0f172a; }
+      .mini-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+      .gift-menu-wrap { position: relative; }
+      .gift-menu {
+        position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 160px; padding: 7px; border-radius: 16px;
+        background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 20px 44px rgba(15,23,42,.16); display: none;
+      }
+      .gift-menu.open { display: grid; gap: 4px; }
+      .gift-menu button { border: 0; border-radius: 12px; background: transparent; color: #0f172a; padding: 10px 11px; text-align: left; font-size: 13px; font-weight: 950; }
+      .gift-menu button:hover { background: #f8fafc; }
+      .gift-menu button.danger { color: #991b1b; }
+      .empty { margin: 22px; padding: 34px; text-align: center; color: #64748b; font-weight: 850; border: 1px dashed #cbd5e1; border-radius: 24px; background: #fff; display: grid; justify-items: center; gap: 12px; }
+      .empty strong { color: #0f172a; font-size: 18px; font-weight: 1000; }
+
+      @media (min-width: 1024px) {
+        .sidebar { transform: translateX(0); width: 278px; }
+        .sidebar-close, .sidebar-overlay { display: none !important; }
+        .admin-main { padding-left: 298px; }
+        .mobile-topbar, .mobile-new-btn { display: none !important; }
+      }
+      @media (max-width: 1120px) {
+        .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .gift-table-head { display: none; }
+        .gift-row { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+        .gift-row .gift-cell, .gift-row .badge { grid-column: 1 / -1; }
+        .gift-actions { grid-column: 1 / -1; justify-content: flex-start; justify-self: stretch; flex-wrap: wrap; }
+      }
+      @media (max-width: 720px) {
+        .app-shell { padding: 14px; }
+        .sidebar { top: 12px; left: 12px; bottom: 12px; width: calc(100vw - 24px); }
+        .page-header { display: none; }
+        .mobile-new-btn { margin-bottom: 12px; }
+        .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .stat-card { padding: 12px; border-radius: 18px; }
+        .stat-icon { width: 36px; height: 36px; border-radius: 14px; }
+        .stat-value { font-size: 21px; }
+        .filter-card, .form-layout, .form-two, .settings-grid, .category-compact-card, .category-inline-grid, .gift-modal-grid { grid-template-columns: 1fr; }
+        .panel-pad { padding: 17px; }
+        .panel-card, .page-header { border-radius: 22px; }
+        .list-head { padding: 17px; border-radius: 22px 22px 0 0; }
+        .gift-modal { padding: 12px; align-items: center; }
+        .gift-modal-card { max-height: calc(100vh - 24px); border-radius: 24px; }
+        .gift-modal-head { padding: 16px; }
+        .gift-modal-body { padding: 16px; }
+        .gift-modal-main .form-actions { position: sticky; bottom: -16px; z-index: 4; padding: 12px 0 0; background: linear-gradient(180deg, rgba(255,255,255,0), #fff 28%); }
+        .gift-row { padding: 14px; grid-template-columns: 1fr; }
+        .gift-main { align-items: flex-start; }
+        .gift-thumb { width: 52px; height: 52px; min-width: 52px; border-radius: 14px; }
+        .gift-actions { gap: 7px; }
+        .mini-btn { min-height: 36px; min-width: 36px; padding: 0 10px; }
+        .form-actions .btn { width: 100%; }
+        .gifts-pagination { padding: 14px; align-items: stretch; }
+        .gifts-pagination .mini-btn { flex: 1 1 120px; }
+        .category-inline-head { padding: 16px; }
+        .category-inline-body { padding: 16px; }
+        .category-inline-actions .btn { width: 100%; }
+      }
+    </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <main id="admin-view" class="wrap">
+    <div class="app-shell">
       <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
         <div class="sidebar-inner">
-          <div class="sidebar-brand-row">
+          <div class="brand">
             <span class="brand-logo">PZ</span>
             <div>
-              <p class="sidebar-title">PowerZona</p>
-              <p class="sidebar-subtitle">Panel administrativo</p>
+              <p class="brand-title">PowerZona</p>
+              <p class="brand-subtitle">Admin premium</p>
             </div>
-            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
+            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">X</button>
           </div>
+
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
             <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
             <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
             <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
           </nav>
+
           <p class="sidebar-label">Tienda</p>
           <nav class="nav-list">
             <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
             <a class="nav-item active" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
             <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm3 3h10V6H7v2Zm0 4h10v-2H7v2Zm0 4h6v-2H7v2Z"/></svg></span><span>Ajustes de tienda</span></a>
+            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
-          
+
+          <div class="sidebar-utility">
+            <a class="nav-item" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 8 5 9 7-1 2-4 7-9 7s-8-5-9-7c1-2 4-7 9-7Zm0 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span><span>Ver catálogo público</span></a>
+            <button id="logout-btn" class="nav-item danger" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v2H5V5h5v2H7v10h3Zm4.7-.3-1.4-1.4 2.3-2.3H9v-2h6.6l-2.3-2.3 1.4-1.4L19.4 12l-4.7 4.7Z"/></svg></span><span>Cerrar sesión</span></button>
+          </div>
+
+          {masterSupportHref ? (
+            <a class="sidebar-footer" href={masterSupportHref} target="_blank" rel="noreferrer">
+              <strong>{masterSupportLabel}</strong>
+              <span>Soporte Master Admin de Tu Senda 84 para esta tienda.</span>
+            </a>
+          ) : (
+            <div class="sidebar-footer" aria-label="Soporte Tu Senda 84 no configurado">
+              <strong>{masterSupportLabel}</strong>
+              <span>Soporte global pendiente de configurar. No se usa el contacto del admin de tienda.</span>
+            </div>
+          )}
         </div>
       </aside>
-      <div class="topbar">
-        <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
-        <div class="top-actions"><a class="action-btn" href={adminBasePath}>Resumen</a><a class="action-btn" href={adminProductsPath}>Productos</a><a class="action-btn" href={adminCatalogPath}>Catálogo</a><button id="logout-btn" class="action-btn danger" type="button">Salir</button></div>
-      </div>
-      <div style="margin-bottom:18px;"><span class="brand">Regalos</span><h1>Gestión de regalos</h1><p>Administra los regalos disponibles para promociones de la tienda.</p></div>
-      <div id="alert" class="alert alert-info hidden"></div>
 
-      <section class="grid">
-        <aside class="card">
-          <h2 class="card-title" id="form-title">Crear regalo</h2>
-          <p style="margin:0;font-size:13px;">Define las condiciones necesarias para que el cliente pueda seleccionar este regalo.</p>
-          <form id="gift-form" class="form-grid">
-            <input id="gift-id" type="hidden" />
-            <div><label>Nombre del regalo *</label><input id="gift-name" required placeholder="Ej: Vitamina E de 30 Tabletas" /></div>
-            <div><label>Descripción</label><textarea id="gift-description" placeholder="Texto corto para la tarjeta pública"></textarea></div>
-            <div class="two"><div><label>Orden mínima USD *</label><input id="gift-min" type="number" min="0" step="0.01" value="0" required /></div><div><label>Stock *</label><input id="gift-stock" type="number" min="0" step="1" value="0" required /></div></div>
-            <label class="check-row"><input id="gift-active" type="checkbox" checked /> Visible</label>
-            <div><label>Foto del regalo</label><input id="gift-image" type="file" accept="image/*" /><p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p></div>
-            <button class="btn btn-green" type="submit">Guardar regalo</button>
-            <button id="cancel-edit-btn" class="btn btn-soft hidden" type="button">Cancelar edición</button>
-          </form>
-        </aside>
+      <main class="admin-main">
+        <div class="mobile-topbar">
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir menú">☰</button>
+          <strong>Regalos</strong>
+          <button class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+            <span class="notifications-dot" aria-hidden="true"></span>
+          </button>
+        </div>
 
-        <section class="card">
-          <div class="settings-row" style="margin-bottom:16px;">
-            <div><h2 class="card-title">Categoría pública de regalos</h2><p style="margin:0;font-size:13px;">Configura cómo se muestra la categoría de regalos en la tienda pública.</p></div>
-            <button id="save-settings-btn" class="btn btn-primary" type="button">Guardar categoría</button>
+        <button class="btn btn-primary full mobile-new-btn js-new-gift" type="button">+ Nuevo regalo</button>
+
+        <header class="page-header">
+          <div>
+            <h1 class="page-title">Regalos</h1>
+            <p class="page-subtitle">Gestiona los regalos promocionales de tu tienda.</p>
           </div>
-          <div class="two" style="margin-bottom:12px;">
-            <label class="check-row"><input id="gifts-public-active" type="checkbox" checked /> Mostrar categoría Regalos</label>
-            <div><label>Nombre de categoría</label><input id="gifts-public-title" placeholder="Regalos" /></div>
+          <div class="header-actions">
+            <button class="notifications-btn" type="button" aria-label="Notificaciones del admin">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
+              <span class="notifications-dot" aria-hidden="true"></span>
+            </button>
+            <button class="btn btn-primary js-new-gift" type="button">+ Nuevo regalo</button>
           </div>
-          <div><label>Foto de categoría Regalos</label><input id="gifts-public-image" type="file" accept="image/*" /><p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p></div>
-          <div id="category-preview" class="category-preview hidden"><img id="category-preview-img" alt="Categoría Regalos" /><span>Foto actual de la categoría Regalos</span></div>
+        </header>
 
-          <div class="settings-row" style="margin:22px 0 14px;"><div><h2 class="card-title">Listado de regalos</h2><p style="margin:0;font-size:13px;">Consulta y edita los regalos activos de la tienda.</p></div><button id="refresh-btn" class="btn btn-soft" type="button">Actualizar</button></div>
-          <div id="gifts-list"></div>
+        <div id="alert" class="alert alert-info hidden"></div>
+
+        <section class="stats-grid" aria-label="Resumen de regalos">
+          <article class="stat-card"><span class="stat-icon blue">#</span><div><p class="stat-label">Total regalos</p><p id="stat-total" class="stat-value">0</p></div></article>
+          <article class="stat-card"><span class="stat-icon green">✓</span><div><p class="stat-label">Activos</p><p id="stat-active" class="stat-value">0</p></div></article>
+          <article class="stat-card"><span class="stat-icon orange">!</span><div><p class="stat-label">Sin stock</p><p id="stat-stockout" class="stat-value">0</p></div></article>
+          <article class="stat-card"><span class="stat-icon purple">$</span><div><p class="stat-label">Reglas por monto</p><p id="stat-rules" class="stat-value">0</p></div></article>
         </section>
+
+        <section class="filter-card" aria-label="Filtros de regalos">
+          <div class="field">
+            <label for="gift-search">Buscar regalo...</label>
+            <input id="gift-search" type="search" placeholder="Buscar por nombre o descripción" />
+          </div>
+          <div class="field">
+            <label for="gift-status-filter">Estado</label>
+            <select id="gift-status-filter">
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="hidden">Ocultos</option>
+              <option value="stockout">Sin stock</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="content-grid">
+          <div class="main-column">
+            <section class="category-compact-card">
+              <div>
+                <h2 class="panel-title">Categoría pública de regalos</h2>
+                <p class="panel-subtitle">Configura cómo se muestra Regalos en la tienda pública.</p>
+              </div>
+              <span id="gifts-category-status" class="badge visible">Visible</span>
+              <button id="toggle-gifts-category-card-btn" class="btn btn-dark" type="button">Configurar</button>
+            </section>
+
+            <section id="gifts-category-inline-card" class="category-inline-card hidden">
+              <div class="category-inline-head">
+                <div>
+                  <h2 class="panel-title">Categoría pública de regalos</h2>
+                  <p class="panel-subtitle">Configura cómo se muestra esta categoría en la tienda pública.</p>
+                </div>
+                <button id="close-gifts-category-inline-btn" class="category-inline-close" type="button" aria-label="Cerrar categoría pública">X</button>
+              </div>
+              <div class="category-inline-body">
+                <div class="category-inline-grid">
+                  <div class="form-grid">
+                    <label class="toggle-line" for="gifts-public-active">
+                      <input id="gifts-public-active" type="checkbox" checked />
+                      <span class="switch" aria-hidden="true"></span>
+                      <span>Mostrar categoría Regalos</span>
+                    </label>
+                    <div class="field">
+                      <label for="gifts-public-title">Nombre de categoría</label>
+                      <input id="gifts-public-title" placeholder="Regalos" />
+                    </div>
+                    <div class="field">
+                      <label for="gifts-public-image">Foto de categoría Regalos</label>
+                      <input id="gifts-public-image" type="file" accept="image/*" />
+                      <p class="image-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
+                    </div>
+                  </div>
+                  <div>
+                    <div id="category-preview" class="category-preview hidden"><img id="category-preview-img" alt="Categoría Regalos" /><span>Foto actual de la categoría Regalos</span></div>
+                  </div>
+                </div>
+                <div class="category-inline-actions">
+                  <button id="save-settings-btn" class="btn btn-dark" type="button">Guardar categoría</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel-card list-card">
+              <div class="list-head">
+                <div>
+                  <h2 class="list-title">Listado de regalos</h2>
+                  <p class="list-subtitle">Administra todos los regalos promocionales de tu tienda.</p>
+                </div>
+                <button id="refresh-btn" class="btn btn-soft" type="button">Actualizar</button>
+              </div>
+              <div class="gift-table-head" aria-hidden="true">
+                <span>Regalo</span>
+                <span>Regla de activación</span>
+                <span>Stock</span>
+                <span>Visibilidad</span>
+                <span>Acciones</span>
+              </div>
+              <div id="gifts-list"></div>
+              <div id="gifts-pagination" class="gifts-pagination hidden"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="gift-modal" class="gift-modal hidden" role="dialog" aria-modal="true" aria-hidden="true">
+      <section id="gift-form-card" class="gift-modal-card" aria-labelledby="form-title">
+        <div class="gift-modal-head">
+          <div>
+            <h2 class="panel-title" id="form-title">Nuevo regalo</h2>
+            <p class="panel-subtitle">Configura el regalo visible en tu tienda.</p>
+          </div>
+          <button id="close-gift-modal-btn" class="gift-modal-close" type="button" aria-label="Cerrar formulario">X</button>
+        </div>
+
+        <div class="gift-modal-body">
+          <div class="gift-modal-grid">
+            <div class="gift-modal-main">
+              <form id="gift-form">
+                <input id="gift-id" type="hidden" />
+                <div class="form-layout">
+                  <div class="form-grid">
+                    <div class="field">
+                      <label for="gift-name">Nombre del regalo *</label>
+                      <input id="gift-name" required placeholder="Ej: Vitamina E de 30 tabletas" />
+                    </div>
+                    <div class="field">
+                      <label for="gift-description">Descripción</label>
+                      <textarea id="gift-description" placeholder="Texto corto para la tarjeta pública"></textarea>
+                    </div>
+                    <div class="form-two">
+                      <div class="field">
+                        <label for="gift-stock">Stock *</label>
+                        <input id="gift-stock" type="number" min="0" step="1" value="0" required />
+                      </div>
+                      <div class="field">
+                        <label for="gift-min">Se activa desde *</label>
+                        <input id="gift-min" type="number" min="0" step="0.01" value="0" required />
+                      </div>
+                    </div>
+                    <label class="toggle-line" for="gift-active">
+                      <input id="gift-active" type="checkbox" checked />
+                      <span class="switch" aria-hidden="true"></span>
+                      <span>Visible en tienda</span>
+                    </label>
+                    <p class="info-note">Este regalo no tiene precio y se asigna automáticamente cuando el pedido cumple con la condición configurada.</p>
+                  </div>
+
+                  <div class="image-panel">
+                    <div id="gift-image-preview" class="image-preview"><img id="gift-image-preview-img" alt="Vista previa del regalo" /><span>Regalo</span></div>
+                    <input id="gift-image" class="file-input" type="file" accept="image/*" />
+                    <button id="change-gift-image-btn" class="btn btn-soft full" type="button">Cambiar imagen</button>
+                    <p class="image-help">PNG, JPG o WEBP. Máx. 2MB.<br />Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button class="btn btn-primary" type="submit">Guardar regalo</button>
+                  <button id="cancel-edit-btn" class="btn btn-soft hidden" type="button">Cancelar</button>
+                </div>
+              </form>
+            </div>
+
+            <aside class="gift-modal-rail">
+              <section class="panel-card preview-card">
+                <div class="list-head">
+                  <div>
+                    <h2 class="list-title">Vista previa</h2>
+                  </div>
+                </div>
+                <div id="preview-image" class="preview-image"><img id="preview-img" alt="Vista previa del regalo" /><span>Regalo</span></div>
+                <div class="preview-body">
+                  <h3 id="preview-name" class="preview-title">Nuevo regalo</h3>
+                  <p id="preview-min" class="preview-meta">Desde 0.00 USD</p>
+                  <span id="preview-active" class="badge visible">Visible</span>
+                </div>
+              </section>
+
+              <section class="panel-card panel-pad">
+                <h2 class="panel-title">Estado y resumen</h2>
+                <div class="summary-list" style="margin-top:12px;">
+                  <div class="summary-row"><span>Visibilidad</span><strong id="summary-visible">Visible</strong></div>
+                  <div class="summary-row"><span>Stock</span><strong id="summary-stock">0 unidades</strong></div>
+                  <div class="summary-row"><span>Regla de activación</span><strong id="summary-rule">Desde 0.00 USD</strong></div>
+                  <div class="summary-row"><span>Total regalos activos</span><strong id="summary-active-total">0</strong></div>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </div>
       </section>
-    </main>
+    </div>
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
-      function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
+      function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
+      const giftModal = document.getElementById('gift-modal');
       const giftForm = document.getElementById('gift-form');
       const giftsList = document.getElementById('gifts-list');
       const alertBox = document.getElementById('alert');
@@ -400,21 +643,49 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const refreshBtn = document.getElementById('refresh-btn');
       const saveSettingsBtn = document.getElementById('save-settings-btn');
+      const giftsCategoryInlineCard = document.getElementById('gifts-category-inline-card');
+      const toggleGiftsCategoryCardBtn = document.getElementById('toggle-gifts-category-card-btn');
+      const closeGiftsCategoryInlineBtn = document.getElementById('close-gifts-category-inline-btn');
+      const giftsCategoryStatus = document.getElementById('gifts-category-status');
+      const giftsPagination = document.getElementById('gifts-pagination');
       const formTitle = document.getElementById('form-title');
       const cancelEditBtn = document.getElementById('cancel-edit-btn');
       const categoryPreview = document.getElementById('category-preview');
       const categoryPreviewImg = document.getElementById('category-preview-img');
+      const giftSearch = document.getElementById('gift-search');
+      const giftStatusFilter = document.getElementById('gift-status-filter');
+      const giftImageInput = document.getElementById('gift-image');
+      const giftImagePreview = document.getElementById('gift-image-preview');
+      const giftImagePreviewImg = document.getElementById('gift-image-preview-img');
+      const previewImage = document.getElementById('preview-image');
+      const previewImg = document.getElementById('preview-img');
+      const previewName = document.getElementById('preview-name');
+      const previewMin = document.getElementById('preview-min');
+      const previewActive = document.getElementById('preview-active');
+      const summaryVisible = document.getElementById('summary-visible');
+      const summaryStock = document.getElementById('summary-stock');
+      const summaryRule = document.getElementById('summary-rule');
+      const summaryActiveTotal = document.getElementById('summary-active-total');
+      const closeGiftModalBtn = document.getElementById('close-gift-modal-btn');
+      const GIFTS_PER_PAGE = 10;
       let gifts = [];
+      let filteredGifts = [];
+      let giftsPage = 1;
       let settings = null;
+      let localGiftImageUrl = '';
+      let editingGiftImageUrl = '';
 
       const token = () => ADMIN_AUTH_TOKEN;
-      function openSidebar(){ document.body.classList.add('sidebar-open'); if(sidebarOverlay) sidebarOverlay.hidden = false; if(sidebar) sidebar.setAttribute('aria-hidden','false'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','true'); }
-      function closeSidebar(){ document.body.classList.remove('sidebar-open'); if(sidebar) sidebar.setAttribute('aria-hidden','true'); if(sidebarOpenBtn) sidebarOpenBtn.setAttribute('aria-expanded','false'); setTimeout(()=>{ if(!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true; }, 220); }
-      function showAlert(message, type='info'){ alertBox.textContent=message; alertBox.className=`alert alert-${type}`; alertBox.classList.remove('hidden'); setTimeout(()=>alertBox.classList.add('hidden'), 4200); }
+      function openSidebar(){ document.body.classList.add('sidebar-open'); if(sidebarOverlay) sidebarOverlay.hidden = false; sidebar?.setAttribute('aria-hidden','false'); sidebarOpenBtn?.setAttribute('aria-expanded','true'); }
+      function closeSidebar(){ document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden','true'); sidebarOpenBtn?.setAttribute('aria-expanded','false'); setTimeout(()=>{ if(!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true; }, 220); }
+      function showAlert(message, type='info'){ if(!alertBox) return; alertBox.textContent=message; alertBox.className=`alert alert-${type}`; alertBox.classList.remove('hidden'); setTimeout(()=>alertBox.classList.add('hidden'), 4200); }
       function escapeHtml(value){ return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
       function normalizeFile(value){ return Array.isArray(value) ? value[0] : value; }
-      function fileUrl(record){ const file = normalizeFile(record.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}?thumb=100x100` : 'https://placehold.co/100x100?text=Regalo'; }
+      function fileUrl(record){ const file = normalizeFile(record?.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}` : 'https://placehold.co/640x360?text=Regalo'; }
+      function thumbUrl(record){ const file = normalizeFile(record?.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}?thumb=120x120` : 'https://placehold.co/120x120?text=Regalo'; }
       function settingsFileUrl(field){ const file = normalizeFile(settings?.[field]); return settings?.id && file ? `${POCKETBASE_URL}/api/files/settings/${settings.id}/${file}?thumb=300x200` : ''; }
+      function money(value){ return Number(value || 0).toFixed(2); }
+      function activeGiftCount(){ return gifts.filter((gift) => gift.active !== false).length; }
 
       async function optimizeGiftImageFile(file) {
         if (!file || !file.type?.startsWith('image/')) return file;
@@ -435,7 +706,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           const sourceWidth = image.naturalWidth || image.width;
           const sourceHeight = image.naturalHeight || image.height;
           const sourceRatio = sourceWidth / sourceHeight;
-
           let sx = 0;
           let sy = 0;
           let sw = sourceWidth;
@@ -460,10 +730,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
           if (objectUrl) URL.revokeObjectURL(objectUrl);
           if (!blob) return file;
-          const safeName = String(file.name || 'regalo')
-            .replace(/\.[^.]+$/, '')
-            .replace(/[^a-z0-9_-]+/gi, '_')
-            .toLowerCase();
+          const safeName = String(file.name || 'regalo').replace(/\.[^.]+$/, '').replace(/[^a-z0-9_-]+/gi, '_').toLowerCase();
           return new File([blob], `${safeName}_regalo_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
         } catch (error) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -480,53 +747,256 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if(!res.ok) throw new Error(data?.message || 'Error de comunicación con PocketBase.');
         return data;
       }
+
       async function createStoreSettings(){
         await api('/api/collections/settings/records', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active:true, store:CURRENT_STORE_ID, store_name:'PowerZona', gifts_public_active:true, gifts_public_title:'Regalos' }) });
       }
+
       async function loadSettings(){
         const filter = encodeURIComponent(ACTIVE_STORE_FILTER);
         const result = await api(`/api/collections/settings/records?filter=${filter}&sort=-updated&perPage=1`);
         settings = result.items?.[0] || null;
-        document.getElementById('gifts-public-active').checked = settings?.gifts_public_active !== false;
-        document.getElementById('gifts-public-title').value = settings?.gifts_public_title || 'Regalos';
+        if(!settings && CURRENT_STORE_ID){
+          await createStoreSettings();
+          return loadSettings();
+        }
+        const publicActive = document.getElementById('gifts-public-active');
+        const publicTitle = document.getElementById('gifts-public-title');
+        if(publicActive) publicActive.checked = settings?.gifts_public_active !== false;
+        if(publicTitle) publicTitle.value = settings?.gifts_public_title || 'Regalos';
+        if(giftsCategoryStatus){
+          const visible = settings?.gifts_public_active !== false;
+          giftsCategoryStatus.textContent = visible ? 'Visible' : 'Oculta';
+          giftsCategoryStatus.className = `badge ${visible ? 'visible' : 'hidden-badge'}`;
+        }
         const preview = settingsFileUrl('gifts_public_image');
-        categoryPreview.classList.toggle('hidden', !preview);
-        if(preview) categoryPreviewImg.src = preview;
+        categoryPreview?.classList.toggle('hidden', !preview);
+        if(preview && categoryPreviewImg) categoryPreviewImg.src = preview;
       }
+
       async function loadGifts(){
-        giftsList.innerHTML = '<div class="empty">Cargando regalos...</div>';
+        if(giftsList) giftsList.innerHTML = '<div class="empty"><strong>Cargando regalos...</strong></div>';
         const result = await api(`/api/collections/gifts/records?filter=${encodeURIComponent(STORE_FILTER)}&sort=sort_order,name&perPage=200`);
         gifts = result.items || [];
+        renderStats();
+        applyGiftFilters(false);
+        renderPreview();
+      }
+
+      function renderStats(){
+        const setText = (id, value) => { const el = document.getElementById(id); if(el) el.textContent = String(value); };
+        setText('stat-total', gifts.length);
+        setText('stat-active', activeGiftCount());
+        setText('stat-stockout', gifts.filter((gift) => Number(gift.stock || 0) <= 0).length);
+        setText('stat-rules', gifts.filter((gift) => Number(gift.min_order_usd || 0) > 0).length);
+        if(summaryActiveTotal) summaryActiveTotal.textContent = String(activeGiftCount());
+      }
+
+      function applyGiftFilters(resetPage = true){
+        const query = String(giftSearch?.value || '').trim().toLowerCase();
+        const status = giftStatusFilter?.value || 'all';
+        filteredGifts = gifts.filter((gift) => {
+          const matchesQuery = !query || String(`${gift.name || ''} ${gift.description || ''}`).toLowerCase().includes(query);
+          const isActive = gift.active !== false;
+          const isStockout = Number(gift.stock || 0) <= 0;
+          const matchesStatus = status === 'all' || (status === 'active' && isActive) || (status === 'hidden' && !isActive) || (status === 'stockout' && isStockout);
+          return matchesQuery && matchesStatus;
+        });
+        if(resetPage) giftsPage = 1;
         renderGifts();
       }
+
       function renderGifts(){
-        if(!gifts.length){ giftsList.innerHTML = '<div class="empty">Aún no tienes regalos creados.</div>'; return; }
-        giftsList.innerHTML = gifts.map((gift, index) => `
-          <article class="gift-row-premium" style="width:100%;background:#fff;border:1px solid #e5e7eb;border-radius:22px;box-shadow:0 12px 28px rgba(15,23,42,.06);padding:10px;display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:12px;align-items:center;">
-            <img class="gift-thumb-premium" style="width:58px!important;height:58px!important;min-width:58px!important;max-width:58px!important;max-height:58px!important;border-radius:16px;object-fit:contain;background:#f8fafc;border:1px solid #e2e8f0;display:block;padding:3px;" src="${escapeHtml(fileUrl(gift))}" alt="${escapeHtml(gift.name)}" />
-            <div class="gift-info-premium" style="min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <div class="gift-name-premium" style="font-weight:1000;font-size:14px;line-height:1.2;color:#111827;min-width:210px;max-width:370px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(gift.name)}</div>
-              <div class="gift-meta-premium" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#475569;font-weight:950;font-size:12px;">
-                <span>Desde $${Number(gift.min_order_usd || 0).toFixed(2)} USD</span>
-                <span>Stock: ${Number(gift.stock || 0)}</span>
-                <span style="font-size:10px;font-weight:1000;border-radius:999px;padding:6px 8px;background:${gift.active ? '#ecfdf5' : '#fee2e2'};color:${gift.active ? '#166534' : '#991b1b'};border:1px solid ${gift.active ? '#bbf7d0' : '#fecaca'};">${gift.active ? 'Visible':'Oculto'}</span>
+        if(!giftsList) return;
+        closeGiftMenu();
+        if(giftsPagination) giftsPagination.classList.add('hidden');
+        if(!gifts.length){
+          giftsList.innerHTML = '<div class="empty"><strong>Aún no tienes regalos creados.</strong><span>Crea tu primer regalo para que aparezca cuando el pedido cumpla la condición configurada.</span><button class="btn btn-primary js-empty-new-gift" type="button">Nuevo regalo</button></div>';
+          document.querySelector('.js-empty-new-gift')?.addEventListener('click', openNewGiftModal);
+          return;
+        }
+        if(!filteredGifts.length){
+          giftsList.innerHTML = '<div class="empty"><strong>No hay regalos con esos filtros.</strong><span>Ajusta la búsqueda o el estado para ver más resultados.</span></div>';
+          return;
+        }
+        const totalPages = Math.max(1, Math.ceil(filteredGifts.length / GIFTS_PER_PAGE));
+        if(giftsPage > totalPages) giftsPage = totalPages;
+        if(giftsPage < 1) giftsPage = 1;
+        const pageStart = (giftsPage - 1) * GIFTS_PER_PAGE;
+        const visibleGifts = filteredGifts.slice(pageStart, pageStart + GIFTS_PER_PAGE);
+        giftsList.innerHTML = visibleGifts.map((gift) => {
+          const orderIndex = gifts.findIndex((item) => item.id === gift.id);
+          const description = gift.description || `Desde ${money(gift.min_order_usd)} USD`;
+          return `
+            <article class="gift-row">
+              <div class="gift-main">
+                <img class="gift-thumb" src="${escapeHtml(thumbUrl(gift))}" alt="${escapeHtml(gift.name || 'Regalo')}" />
+                <div style="min-width:0;">
+                  <h3 class="gift-name">${escapeHtml(gift.name || 'Regalo sin nombre')}</h3>
+                  <p class="gift-desc">${escapeHtml(description)}</p>
+                </div>
               </div>
-            </div>
-            <div class="gift-actions-premium" style="display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;">
-              <button class="premium-action toggle-gift" style="height:38px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;" data-id="${gift.id}" type="button">${gift.active ? 'Ocultar':'Mostrar'}</button>
-              <button class="premium-action arrow move-gift" style="width:38px;height:38px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);font-size:15px;font-weight:1000;" data-id="${gift.id}" data-dir="up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
-              <button class="premium-action arrow move-gift" style="width:38px;height:38px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#111827;box-shadow:0 9px 18px rgba(15,23,42,.055);font-size:15px;font-weight:1000;" data-id="${gift.id}" data-dir="down" type="button" ${index === gifts.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
-              <button class="premium-action dark edit-gift" style="height:38px;border-radius:14px;border:1px solid #111827;background:#111827;color:#fff;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;" data-id="${gift.id}" type="button">Editar</button>
-              <button class="premium-action danger delete-gift" style="height:38px;border-radius:14px;border:1px solid #fecdd3;background:#fff1f2;color:#991b1b;box-shadow:0 9px 18px rgba(15,23,42,.055);padding:0 12px;font-size:12px;font-weight:1000;" data-id="${gift.id}" type="button">Borrar</button>
-            </div>
-          </article>`).join('');
+              <div class="gift-cell">Desde ${money(gift.min_order_usd)} USD</div>
+              <div class="gift-cell">${Number(gift.stock || 0)}</div>
+              <span class="badge ${gift.active !== false ? 'visible' : 'hidden-badge'}">${gift.active !== false ? 'Visible' : 'Oculto'}</span>
+              <div class="gift-actions">
+                <button class="mini-btn dark edit-gift" data-id="${gift.id}" type="button">Editar</button>
+                <button class="mini-btn toggle-gift" data-id="${gift.id}" type="button">${gift.active !== false ? 'Ocultar' : 'Mostrar'}</button>
+                <button class="mini-btn move-gift" data-id="${gift.id}" data-dir="up" type="button" ${orderIndex === 0 ? 'disabled' : ''} title="Subir" aria-label="Subir regalo">↑</button>
+                <button class="mini-btn move-gift" data-id="${gift.id}" data-dir="down" type="button" ${orderIndex === gifts.length - 1 ? 'disabled' : ''} title="Bajar" aria-label="Bajar regalo">↓</button>
+                <div class="gift-menu-wrap">
+                  <button class="mini-btn gift-menu-btn" data-id="${gift.id}" type="button" aria-label="Más acciones">...</button>
+                  <div id="gift-menu-${gift.id}" class="gift-menu">
+                    <button class="edit-gift" data-id="${gift.id}" type="button">Editar</button>
+                    <button class="danger delete-gift" data-id="${gift.id}" type="button">Borrar</button>
+                  </div>
+                </div>
+              </div>
+            </article>`;
+        }).join('');
         document.querySelectorAll('.toggle-gift').forEach((btn)=>btn.addEventListener('click',()=>toggleGift(btn.dataset.id)));
         document.querySelectorAll('.move-gift').forEach((btn)=>btn.addEventListener('click',()=>moveGift(btn.dataset.id, btn.dataset.dir)));
         document.querySelectorAll('.edit-gift').forEach((btn)=>btn.addEventListener('click',()=>editGift(btn.dataset.id)));
         document.querySelectorAll('.delete-gift').forEach((btn)=>btn.addEventListener('click',()=>deleteGift(btn.dataset.id)));
+        document.querySelectorAll('.gift-menu-btn').forEach((btn)=>btn.addEventListener('click',(event)=>{ event.stopPropagation(); openGiftMenu(btn.dataset.id); }));
+        renderGiftsPagination(totalPages);
       }
-      function resetForm(){ giftForm.reset(); document.getElementById('gift-id').value=''; document.getElementById('gift-active').checked=true; document.getElementById('gift-min').value='0'; document.getElementById('gift-stock').value='0'; formTitle.textContent='Crear regalo'; cancelEditBtn.classList.add('hidden'); }
-      function editGift(id){ const gift = gifts.find((item)=>item.id===id); if(!gift) return; document.getElementById('gift-id').value=gift.id; document.getElementById('gift-name').value=gift.name||''; document.getElementById('gift-description').value=gift.description||''; document.getElementById('gift-min').value=Number(gift.min_order_usd||0); document.getElementById('gift-stock').value=Number(gift.stock||0); document.getElementById('gift-active').checked=gift.active!==false; formTitle.textContent='Editar regalo'; cancelEditBtn.classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'}); }
+
+      function renderGiftsPagination(totalPages){
+        if(!giftsPagination) return;
+        if(totalPages <= 1){
+          giftsPagination.classList.add('hidden');
+          giftsPagination.innerHTML = '';
+          return;
+        }
+        const pages = totalPages <= 5
+          ? Array.from({ length: totalPages }, (_, index) => index + 1)
+          : [];
+        giftsPagination.classList.remove('hidden');
+        giftsPagination.innerHTML = `
+          <button class="mini-btn js-gifts-page-prev" type="button" ${giftsPage <= 1 ? 'disabled' : ''}>Anterior</button>
+          <span class="pagination-text">Página ${giftsPage} de ${totalPages}</span>
+          ${pages.length ? `<span class="pagination-pages">${pages.map((page) => `<button class="mini-btn pagination-page ${page === giftsPage ? 'active' : ''}" data-page="${page}" type="button">${page}</button>`).join('')}</span>` : ''}
+          <button class="mini-btn js-gifts-page-next" type="button" ${giftsPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+        `;
+        giftsPagination.querySelector('.js-gifts-page-prev')?.addEventListener('click', () => { giftsPage -= 1; renderGifts(); });
+        giftsPagination.querySelector('.js-gifts-page-next')?.addEventListener('click', () => { giftsPage += 1; renderGifts(); });
+        giftsPagination.querySelectorAll('.pagination-page').forEach((btn) => btn.addEventListener('click', () => {
+          giftsPage = Number(btn.dataset.page || 1);
+          renderGifts();
+        }));
+      }
+
+      function setPreviewImage(url){
+        const hasImage = Boolean(url);
+        giftImagePreview?.classList.toggle('has-image', hasImage);
+        previewImage?.classList.toggle('has-image', hasImage);
+        if(giftImagePreviewImg) giftImagePreviewImg.src = hasImage ? url : '';
+        if(previewImg) previewImg.src = hasImage ? url : '';
+      }
+
+      function renderPreview(){
+        const name = document.getElementById('gift-name')?.value.trim() || 'Nuevo regalo';
+        const min = Number(document.getElementById('gift-min')?.value || 0);
+        const stock = Math.max(0, Math.floor(Number(document.getElementById('gift-stock')?.value || 0)));
+        const active = document.getElementById('gift-active')?.checked !== false;
+        if(previewName) previewName.textContent = name;
+        if(previewMin) previewMin.textContent = `Desde ${money(min)} USD`;
+        if(previewActive){
+          previewActive.textContent = active ? 'Visible' : 'Oculto';
+          previewActive.className = `badge ${active ? 'visible' : 'hidden-badge'}`;
+        }
+        if(summaryVisible) summaryVisible.textContent = active ? 'Visible' : 'Oculto';
+        if(summaryStock) summaryStock.textContent = `${stock} unidades`;
+        if(summaryRule) summaryRule.textContent = `Desde ${money(min)} USD`;
+        if(summaryActiveTotal) summaryActiveTotal.textContent = String(activeGiftCount());
+        setPreviewImage(localGiftImageUrl || editingGiftImageUrl);
+      }
+
+      function clearLocalImageUrl(){
+        if(localGiftImageUrl){
+          URL.revokeObjectURL(localGiftImageUrl);
+          localGiftImageUrl = '';
+        }
+      }
+
+      function focusGiftForm(){
+        setTimeout(()=>document.getElementById('gift-name')?.focus(), 80);
+      }
+
+      function openGiftModal(){
+        closeGiftMenu();
+        closeSidebar();
+        giftModal?.classList.remove('hidden');
+        giftModal?.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('gift-modal-open');
+        focusGiftForm();
+      }
+
+      function closeGiftModal(){
+        giftModal?.classList.add('hidden');
+        giftModal?.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('gift-modal-open');
+      }
+
+      function openGiftsCategoryInlineCard(){
+        giftsCategoryInlineCard?.classList.remove('hidden');
+        if(toggleGiftsCategoryCardBtn) toggleGiftsCategoryCardBtn.textContent = 'Cerrar';
+        setTimeout(()=>giftsCategoryInlineCard?.scrollIntoView({ behavior:'smooth', block:'nearest' }), 80);
+      }
+
+      function closeGiftsCategoryInlineCard(){
+        giftsCategoryInlineCard?.classList.add('hidden');
+        if(toggleGiftsCategoryCardBtn) toggleGiftsCategoryCardBtn.textContent = 'Configurar';
+      }
+
+      function toggleGiftsCategoryInlineCard(){
+        if(giftsCategoryInlineCard?.classList.contains('hidden')) openGiftsCategoryInlineCard();
+        else closeGiftsCategoryInlineCard();
+      }
+
+      function resetGiftForm(){
+        giftForm?.reset();
+        clearLocalImageUrl();
+        editingGiftImageUrl = '';
+        const idInput = document.getElementById('gift-id');
+        if(idInput) idInput.value='';
+        const activeInput = document.getElementById('gift-active');
+        if(activeInput) activeInput.checked=true;
+        const minInput = document.getElementById('gift-min');
+        if(minInput) minInput.value='0';
+        const stockInput = document.getElementById('gift-stock');
+        if(stockInput) stockInput.value='0';
+        if(formTitle) formTitle.textContent='Nuevo regalo';
+        cancelEditBtn?.classList.add('hidden');
+        renderPreview();
+      }
+
+      function resetForm(){ resetGiftForm(); }
+
+      function openNewGiftModal(){
+        resetGiftForm();
+        openGiftModal();
+      }
+
+      function editGift(id){
+        const gift = gifts.find((item)=>item.id===id);
+        if(!gift) return;
+        clearLocalImageUrl();
+        editingGiftImageUrl = normalizeFile(gift.image) ? fileUrl(gift) : '';
+        document.getElementById('gift-id').value=gift.id;
+        document.getElementById('gift-name').value=gift.name||'';
+        document.getElementById('gift-description').value=gift.description||'';
+        document.getElementById('gift-min').value=Number(gift.min_order_usd||0);
+        document.getElementById('gift-stock').value=Number(gift.stock||0);
+        document.getElementById('gift-active').checked=gift.active!==false;
+        if(giftImageInput) giftImageInput.value = '';
+        if(formTitle) formTitle.textContent='Editar regalo';
+        cancelEditBtn?.classList.remove('hidden');
+        renderPreview();
+        openGiftModal();
+      }
+
       async function saveGift(event){
         event.preventDefault();
         const id = document.getElementById('gift-id').value;
@@ -537,23 +1007,27 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         fd.set('stock', String(Math.max(0, Math.floor(Number(document.getElementById('gift-stock').value || 0)))));
         if(!id) fd.set('sort_order', String(nextSortOrder()));
         fd.set('active', document.getElementById('gift-active').checked ? 'true' : 'false');
-        const image = document.getElementById('gift-image').files?.[0];
+        const image = giftImageInput?.files?.[0];
         if(image) fd.append('image', await optimizeGiftImageFile(image));
         fd.set('store', CURRENT_STORE_ID);
         if(id) await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', body:fd });
         else await api('/api/collections/gifts/records', { method:'POST', body:fd });
-        resetForm(); await loadGifts(); showAlert('Regalo guardado correctamente.', 'ok');
+        closeGiftModal();
+        resetGiftForm();
+        await loadGifts();
+        showAlert('Regalo guardado correctamente.', 'ok');
       }
+
       function nextSortOrder(){ return gifts.length ? Math.max(...gifts.map((gift)=>Number(gift.sort_order || 0))) + 10 : 10; }
       async function normalizeGiftOrder(){ await Promise.all(gifts.map((gift, index)=>api(`/api/collections/gifts/records/${gift.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:(index + 1) * 10 }) }))); await loadGifts(); }
       async function moveGift(id, direction){ const index = gifts.findIndex((gift)=>gift.id === id); if(index < 0) return; const targetIndex = direction === 'up' ? index - 1 : index + 1; if(targetIndex < 0 || targetIndex >= gifts.length) return; const current = gifts[index]; const target = gifts[targetIndex]; const currentOrder = Number(current.sort_order || 0); const targetOrder = Number(target.sort_order || 0); if(currentOrder === targetOrder){ await normalizeGiftOrder(); return moveGift(id, direction); } await Promise.all([ api(`/api/collections/gifts/records/${current.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:targetOrder }) }), api(`/api/collections/gifts/records/${target.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:currentOrder }) }), ]); await loadGifts(); }
-      async function toggleGift(id){ const gift = gifts.find((item)=>item.id === id); if(!gift) return; await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active: !gift.active }) }); await loadGifts(); showAlert(gift.active ? 'Regalo ocultado.' : 'Regalo visible.', 'ok'); }
+      async function toggleGift(id){ const gift = gifts.find((item)=>item.id === id); if(!gift) return; await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active: gift.active === false }) }); await loadGifts(); showAlert(gift.active !== false ? 'Regalo ocultado.' : 'Regalo visible.', 'ok'); }
       async function deleteGift(id){ if(!confirm('¿Seguro que deseas borrar este regalo?')) return; await api(`/api/collections/gifts/records/${id}`, { method:'DELETE' }); await loadGifts(); showAlert('Regalo borrado.', 'ok'); }
+
       async function saveSettings(){
         if(!settings?.id){ showAlert('No hay settings activo para guardar la categoría pública.', 'error'); return; }
         try {
-          saveSettingsBtn.disabled = true;
-          saveSettingsBtn.textContent = 'Guardando...';
+          if(saveSettingsBtn) { saveSettingsBtn.disabled = true; saveSettingsBtn.textContent = 'Guardando...'; }
           const fd = new FormData();
           fd.set('gifts_public_active', document.getElementById('gifts-public-active').checked ? 'true' : 'false');
           fd.set('gifts_public_title', document.getElementById('gifts-public-title').value.trim() || 'Regalos');
@@ -562,24 +1036,24 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           await api(`/api/collections/settings/records/${settings.id}`, { method:'PATCH', body:fd });
           document.getElementById('gifts-public-image').value = '';
           await loadSettings();
+          closeGiftsCategoryInlineCard();
           showAlert('Categoría pública de regalos actualizada.', 'ok');
         } catch (error) {
           console.error(error);
           showAlert(error.message || 'No se pudo guardar la categoría pública de regalos.', 'error');
         } finally {
-          saveSettingsBtn.disabled = false;
-          saveSettingsBtn.textContent = 'Guardar categoría';
+          if(saveSettingsBtn) { saveSettingsBtn.disabled = false; saveSettingsBtn.textContent = 'Guardar categoría'; }
         }
       }
+
+      function openGiftMenu(id){
+        document.querySelectorAll('.gift-menu').forEach((menu)=>menu.classList.toggle('open', menu.id === `gift-menu-${id}` && !menu.classList.contains('open')));
+      }
+      function closeGiftMenu(){ document.querySelectorAll('.gift-menu.open').forEach((menu)=>menu.classList.remove('open')); }
+
       async function boot(){
-        if(!POCKETBASE_URL){
-          showAlert('Falta PUBLIC_POCKETBASE_URL en .env', 'error');
-          return;
-        }
-        if(!ADMIN_AUTH_TOKEN){
-          showAlert('Tu sesión no está disponible. Vuelve a iniciar sesión.', 'error');
-          return;
-        }
+        if(!POCKETBASE_URL){ showAlert('Falta PUBLIC_POCKETBASE_URL en .env', 'error'); return; }
+        if(!ADMIN_AUTH_TOKEN){ showAlert('Tu sesión no está disponible. Vuelve a iniciar sesión.', 'error'); return; }
         try{
           await loadSettings();
           await loadGifts();
@@ -588,16 +1062,41 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           showAlert(error.message || 'No se pudieron cargar los datos de esta tienda.', 'error');
         }
       }
+
       giftForm?.addEventListener('submit', saveGift);
-      cancelEditBtn?.addEventListener('click', resetForm);
+      cancelEditBtn?.addEventListener('click', closeGiftModal);
+      closeGiftModalBtn?.addEventListener('click', closeGiftModal);
+      giftModal?.addEventListener('click', (event) => {
+        if(event.target === giftModal) closeGiftModal();
+      });
+      toggleGiftsCategoryCardBtn?.addEventListener('click', toggleGiftsCategoryInlineCard);
+      closeGiftsCategoryInlineBtn?.addEventListener('click', closeGiftsCategoryInlineCard);
       refreshBtn?.addEventListener('click', loadGifts);
       saveSettingsBtn?.addEventListener('click', saveSettings);
       logoutBtn?.addEventListener('click', ()=>{ window.location.href = publicStorePath; });
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
-      document.addEventListener('keydown', (event)=>{ if(event.key === 'Escape') closeSidebar(); });
-      document.querySelectorAll('#admin-sidebar a').forEach((link)=>link.addEventListener('click', closeSidebar));
+      giftSearch?.addEventListener('input', () => applyGiftFilters(true));
+      giftStatusFilter?.addEventListener('change', () => applyGiftFilters(true));
+      document.querySelectorAll('.js-new-gift').forEach((btn)=>btn.addEventListener('click', openNewGiftModal));
+      document.getElementById('change-gift-image-btn')?.addEventListener('click', ()=>giftImageInput?.click());
+      giftImageInput?.addEventListener('change', () => {
+        clearLocalImageUrl();
+        const file = giftImageInput.files?.[0];
+        if(file) localGiftImageUrl = URL.createObjectURL(file);
+        renderPreview();
+      });
+      ['gift-name', 'gift-min', 'gift-stock', 'gift-active'].forEach((id)=>document.getElementById(id)?.addEventListener('input', renderPreview));
+      document.getElementById('gift-active')?.addEventListener('change', renderPreview);
+      document.addEventListener('click', closeGiftMenu);
+      document.addEventListener('keydown', (event)=>{
+        if(event.key !== 'Escape') return;
+        if(!giftModal?.classList.contains('hidden')) closeGiftModal();
+        closeGiftMenu();
+        closeSidebar();
+      });
+      sidebar?.querySelectorAll('a').forEach((link)=>link.addEventListener('click', closeSidebar));
       boot();
     </script>
   </body>
