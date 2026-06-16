@@ -464,7 +464,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
     </style>
     <style is:global>
-      .orders-list { overflow: hidden; border-radius: 28px; }
+      .orders-list {
+        --orders-desktop-grid: minmax(130px, 0.85fr) minmax(170px, 1fr) minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(115px, 0.65fr) minmax(125px, 0.7fr) minmax(160px, 170px);
+        overflow: hidden;
+        border-radius: 28px;
+      }
       .orders-list-head {
         display: flex;
         align-items: center;
@@ -495,12 +499,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .orders-table-head,
       .order-table-row {
         display: grid;
-        grid-template-columns: minmax(110px, 0.75fr) minmax(180px, 1fr) minmax(130px, 0.72fr) minmax(150px, 0.78fr) 120px 128px minmax(128px, auto);
+        grid-template-columns: var(--orders-desktop-grid);
         align-items: center;
         column-gap: 14px;
+        box-sizing: border-box;
       }
       .orders-table-head {
-        padding: 14px 18px;
+        padding: 14px 24px;
         background: #f8fafc;
         border-bottom: 1px solid #e2e8f0;
         color: #64748b;
@@ -509,14 +514,20 @@ const isOrderDetailPage = Boolean(initialOrderId);
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
+      .orders-table-head span:nth-child(1),
+      .orders-table-head span:nth-child(2) { text-align: left; }
+      .orders-table-head span:nth-child(3),
       .orders-table-head span:nth-child(4),
       .orders-table-head span:nth-child(5),
       .orders-table-head span:nth-child(6) { text-align: center; }
-      .orders-table-head span:nth-child(7) { text-align: right; }
+      .orders-table-head span:nth-child(7) {
+        text-align: right;
+        padding-right: 8px;
+      }
       .order-table-row {
         width: 100%;
-        min-height: 86px;
-        padding: 14px 18px;
+        min-height: 82px;
+        padding: 16px 24px;
         border-bottom: 1px solid #edf2f7;
         background: #ffffff;
         text-align: left;
@@ -537,6 +548,17 @@ const isOrderDetailPage = Boolean(initialOrderId);
         font-weight: 850;
       }
       .order-cell.center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .order-main,
+      .order-customer { text-align: left; }
+      .order-date-cell,
+      .order-total-cell,
+      .order-delivery-cell,
+      .order-status-cell {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -605,6 +627,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
         justify-content: flex-end;
         gap: 8px;
         flex-wrap: nowrap;
+        min-width: 150px;
+        padding-right: 4px;
+        box-sizing: border-box;
       }
       .order-open-btn,
       .order-delete-btn {
@@ -616,6 +641,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         box-shadow: 0 12px 24px rgba(15,23,42,.12);
       }
       .order-open-btn {
+        flex: 0 0 auto;
         min-width: 72px;
         min-height: 38px;
         padding: 9px 14px;
@@ -624,6 +650,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         color: #fff;
       }
       .order-delete-btn {
+        flex: 0 0 38px;
         width: 38px;
         height: 38px;
         border-radius: 14px;
@@ -708,53 +735,109 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }
         .orders-table-head { display: none; }
         .orders-list #orders-list {
-          gap: 12px;
-          padding: 12px;
+          display: grid;
+          gap: 8px;
+          padding: 10px;
           background: #f8fafc;
         }
         .order-table-row {
           display: grid;
-          grid-template-columns: 1fr auto;
-          gap: 8px 10px;
-          min-height: 0;
-          padding: 12px;
+          grid-template-columns: minmax(58px, 0.75fr) minmax(72px, 0.9fr) minmax(76px, 0.95fr) auto auto minmax(88px, auto);
+          align-items: center;
+          gap: 6px;
+          min-height: 48px;
+          padding: 8px 8px;
           border: 1px solid #e2e8f0;
-          border-radius: 18px;
-          box-shadow: 0 12px 24px rgba(15,23,42,.06);
+          border-radius: 14px;
+          background: #ffffff;
+          box-shadow: 0 8px 18px rgba(15,23,42,.05);
+          overflow: hidden;
         }
-        .order-main { grid-column: 1 / 2; }
+        .order-main {
+          grid-column: 1;
+          min-width: 0;
+        }
+        .order-number {
+          font-size: 11px;
+          font-weight: 1000;
+          color: #2563eb;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .order-items-summary,
         .order-customer,
-        .order-date-cell,
-        .order-items-summary-wrap { grid-column: 1 / -1; }
-        .order-total-cell {
-          grid-column: 2 / 3;
-          grid-row: 1;
-          justify-content: flex-end;
-          text-align: right;
+        .order-subtext {
+          display: none !important;
         }
-        .order-cell.center {
+        .order-date-cell {
+          grid-column: 2;
+          font-size: 10px;
+          font-weight: 850;
+          color: #475569;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .order-total-cell {
+          grid-column: 3;
+          display: flex;
+          justify-content: flex-start;
+          text-align: left;
+          min-width: 0;
+        }
+        .order-total-simple {
+          font-size: 11px;
+          font-weight: 1000;
+          color: #0f172a;
+          white-space: nowrap;
+        }
+        .order-delivery-cell,
+        .order-status-cell {
+          display: flex;
+          justify-content: center;
+          min-width: 0;
+        }
+        .order-chip,
+        .order-status-chip {
+          min-height: 22px;
+          padding: 5px 7px;
+          border-radius: 999px;
+          font-size: 9px;
+          font-weight: 1000;
+          white-space: nowrap;
+        }
+        .order-delivery-cell { grid-column: 4; }
+        .order-status-cell { grid-column: 5; }
+        .order-cell.center:not(.order-total-cell) {
           justify-content: flex-start;
           text-align: left;
         }
-        .order-total-cell.center { justify-content: flex-end; text-align: right; }
-        .order-delivery-cell,
-        .order-status-cell {
-          grid-column: auto;
-          justify-content: flex-start;
-        }
         .order-row-actions {
-          grid-column: 1 / -1;
+          grid-column: 6;
           display: flex;
-          justify-content: flex-end;
           align-items: center;
-          gap: 8px;
+          justify-content: flex-end;
+          gap: 5px;
           flex-wrap: nowrap;
+          min-width: max-content;
+          padding-right: 0;
         }
-        .order-open-btn { min-width: 72px; }
+        .order-open-btn {
+          min-width: 52px;
+          min-height: 30px;
+          padding: 7px 9px;
+          border-radius: 10px;
+          font-size: 10px;
+          font-weight: 1000;
+        }
         .order-delete-btn {
-          width: 38px;
-          flex: 0 0 38px;
+          width: 30px;
+          height: 30px;
+          flex: 0 0 30px;
+          border-radius: 10px;
         }
+        .order-delete-btn svg { width: 14px; height: 14px; }
         .order-select-row {
           grid-template-columns: 34px minmax(0, 1fr);
           align-items: flex-start;
