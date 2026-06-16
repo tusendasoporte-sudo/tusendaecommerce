@@ -1644,6 +1644,32 @@ const masterSupportHref = masterSupportWhatsapp
         padding: 22px;
         box-shadow: 0 24px 80px rgba(15,23,42,.24);
       }
+      @media (min-width: 1024px) {
+        #currency-create-modal {
+          order: 4;
+        }
+        #currency-alert {
+          order: 5;
+        }
+        .currency-info-card {
+          order: 6;
+        }
+        #currency-create-modal:not(.hidden) {
+          position: static;
+          inset: auto;
+          z-index: auto;
+          display: block;
+          place-items: unset;
+          padding: 0;
+          background: transparent;
+          backdrop-filter: none;
+        }
+        #currency-create-modal .currency-modal-card {
+          width: 100%;
+          box-shadow: 0 14px 34px rgba(15,23,42,.06);
+          border-radius: 22px;
+        }
+      }
       .currency-modal-close {
         position: absolute;
         top: 14px;
@@ -1881,8 +1907,16 @@ const masterSupportHref = masterSupportWhatsapp
           background: #f1f5f9;
           color: #334155;
         }
-        .currency-switch-track {
-          display: none;
+        .currency-visible-control {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+          cursor: pointer;
+        }
+        .currency-mobile-meta .currency-switch-track {
+          display: inline-flex;
+          flex: 0 0 auto;
         }
         .currency-mobile-actions .currency-action-btn {
           width: 38px;
@@ -2425,7 +2459,7 @@ const masterSupportHref = masterSupportWhatsapp
               </section>
               <div id="currency-create-modal" class="currency-modal hidden" role="dialog" aria-modal="true" aria-labelledby="currency-modal-title">
                 <div class="currency-modal-card">
-                  <button id="currency-modal-close" class="currency-modal-close" type="button" aria-label="Cerrar">X</button>
+                  <button id="currency-modal-close" class="currency-modal-close" type="button" aria-label="Cerrar agregar moneda">X</button>
                   <h2 id="currency-modal-title" class="currency-create-title">Agregar moneda</h2>
                   <p class="currency-panel-subtitle">Crea una nueva moneda para esta tienda.</p>
                   <form id="currency-create-form" class="currency-create-grid">
@@ -2441,14 +2475,12 @@ const masterSupportHref = masterSupportWhatsapp
                 <div class="currency-modal-card">
                   <button id="currency-edit-modal-close" class="currency-modal-close" type="button" aria-label="Cerrar">X</button>
                   <h2 id="currency-edit-modal-title" class="currency-create-title">Editar moneda</h2>
-                  <p class="currency-panel-subtitle">Actualiza los datos visibles de esta moneda.</p>
+                  <p class="currency-panel-subtitle">Actualiza los datos editables de esta moneda.</p>
                   <form id="currency-edit-form" class="currency-create-grid">
-                    <div class="field"><label for="currency-edit-code">C&oacute;digo</label><input id="currency-edit-code" type="text" readonly /></div>
+                    <div class="field"><label for="currency-edit-code">C&oacute;digo</label><input id="currency-edit-code" type="text" maxlength="12" pattern="[A-Za-z0-9]{2,12}" /></div>
                     <div class="field"><label for="currency-edit-name">Nombre</label><input id="currency-edit-name" type="text" /></div>
                     <div class="field"><label for="currency-edit-symbol">S&iacute;mbolo</label><input id="currency-edit-symbol" type="text" /></div>
                     <div class="field"><label for="currency-edit-rate">Tasa frente a USD</label><input id="currency-edit-rate" type="number" min="0" step="0.0001" /></div>
-                    <label class="field"><span>Visible en tienda</span><input id="currency-edit-active" type="checkbox" /></label>
-                    <label class="field"><span>Usar como predeterminada</span><input id="currency-edit-default" type="checkbox" /></label>
                     <div class="currency-create-actions"><button id="currency-edit-cancel" class="mini-btn" type="button">Cancelar</button><button class="submit-btn" type="submit">Guardar cambios</button></div>
                   </form>
                 </div>
@@ -4519,8 +4551,12 @@ const masterSupportHref = masterSupportWhatsapp
         }
         function openCurrencyModal() {
           show('');
+          closeEditModal();
           byId('currency-create-modal')?.classList.remove('hidden');
-          setTimeout(() => byId('currency-code')?.focus(), 0);
+          setTimeout(() => {
+            byId('currency-code')?.focus();
+            if (window.matchMedia('(min-width: 1024px)').matches) byId('currency-create-modal')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 0);
         }
         function closeCurrencyModal() {
           byId('currency-create-modal')?.classList.add('hidden');
@@ -4537,16 +4573,18 @@ const masterSupportHref = masterSupportWhatsapp
           if (!id || !currency) return;
           const code = normalizeCode(currency.code);
           if (code === 'USD' || currency.is_base === true) return;
+          const isSystem = isSystemCurrency(currency);
+          closeCurrencyModal();
           state.editingId = id;
           byId('currency-edit-code').value = code;
           byId('currency-edit-name').value = currency.name || code;
           byId('currency-edit-symbol').value = currency.symbol || code;
           byId('currency-edit-rate').value = formatRate(currency.exchange_rate || 0);
-          byId('currency-edit-active').checked = currency.active !== false;
-          byId('currency-edit-default').checked = currency.id === defaultId() || currency.is_default === true;
-          byId('currency-edit-default').disabled = currency.active === false;
+          byId('currency-edit-code').readOnly = isSystem;
+          byId('currency-edit-name').readOnly = isSystem;
+          byId('currency-edit-symbol').readOnly = isSystem;
           byId('currency-edit-modal')?.classList.remove('hidden');
-          setTimeout(() => byId('currency-edit-name')?.focus(), 0);
+          setTimeout(() => (isSystem ? byId('currency-edit-rate') : byId('currency-edit-code'))?.focus(), 0);
         }
         async function api(path, options = {}) {
           const headers = Object.assign({}, options.headers || {});
@@ -4669,7 +4707,7 @@ const masterSupportHref = masterSupportWhatsapp
             const systemBadge = isSystem ? '<span class="currency-system-badge">Fija</span>' : '<span class="currency-system-badge currency-custom-badge">Personalizada</span>';
             const mobileMeta = isBase
               ? '<span class="currency-base-badge">Base</span><span>1</span><span class="currency-base-badge">Siempre visible</span>'
-              : `<span>${formatRate(rate)}</span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No visible'}</span>`;
+              : `<span>${formatRate(rate)}</span><label class="currency-switch currency-visible-control"><input class="js-currency-active" type="checkbox" ${isVisible ? 'checked' : ''} /><span class="currency-switch-track"><span class="currency-switch-thumb"></span></span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No se muestra en tienda'}</span></label>`;
             const mobileDefaultMarkup = isDefault
               ? '<span class="currency-default-badge"><svg viewBox="0 0 20 20" aria-hidden="true" class="default-star-icon"><path fill="currentColor" d="M10 1.8l2.45 5.18 5.55.84-4.02 4.02.95 5.68L10 14.84l-4.93 2.68.95-5.68L2 7.82l5.55-.84L10 1.8z"/></svg>Predeterminada</span>'
               : isVisible
@@ -4701,7 +4739,7 @@ const masterSupportHref = masterSupportWhatsapp
                 <span>${isBase ? '<span class="currency-base-badge">Base</span>' : '<span class="currency-muted">-</span>'}</span>
                 ${isBase ? '<span class="currency-readonly-value">$</span>' : `<input class="currency-inline-input js-currency-symbol" type="text" value="${escapeHtml(currency.symbol || code)}" />`}
                 ${isBase ? '<span class="currency-rate-cell">1 <span class="currency-base-badge">Base</span></span>' : `<input class="currency-inline-input js-currency-rate" type="number" min="0" step="0.0001" value="${formatRate(rate)}" />`}
-                ${isBase ? '<span class="currency-base-badge">Siempre visible</span>' : `<label class="currency-switch"><input class="js-currency-active" type="checkbox" ${isVisible ? 'checked' : ''} /><span class="currency-switch-track"><span class="currency-switch-thumb"></span></span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No visible'}</span></label>`}
+                ${isBase ? '<span class="currency-base-badge">Siempre visible</span>' : `<label class="currency-switch"><input class="js-currency-active" type="checkbox" ${isVisible ? 'checked' : ''} /><span class="currency-switch-track"><span class="currency-switch-thumb"></span></span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No se muestra en tienda'}</span></label>`}
                 ${defaultMarkup}
                 <div class="currency-actions">
                   ${actionsMarkup}
@@ -4791,7 +4829,7 @@ const masterSupportHref = masterSupportWhatsapp
           const isDefault = currency.id === defaultId() || currency.is_default === true;
           if (!wantsVisible && isDefault) {
             if (activeInput) activeInput.checked = true;
-            return show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible primero.', 'error');
+            return show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible como predeterminada primero.', 'error');
           }
           if (!wantsVisible && visibleCurrencies().filter((item) => item.id !== id).length === 0) {
             if (activeInput) activeInput.checked = true;
@@ -4860,25 +4898,30 @@ const masterSupportHref = masterSupportWhatsapp
           if (!id || !currency) return;
           const code = normalizeCode(currency.code);
           if (code === 'USD' || currency.is_base === true) return;
-          const wantsVisible = byId('currency-edit-active')?.checked === true;
-          const wantsDefault = byId('currency-edit-default')?.checked === true;
-          const isDefault = currency.id === defaultId() || currency.is_default === true;
-          if (!wantsVisible && isDefault) return show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible primero.', 'error');
-          if (wantsDefault && !wantsVisible) return show('Para usar esta moneda como predeterminada, primero debes marcarla como visible.', 'error');
-          const payload = {
-            name: byId('currency-edit-name')?.value?.trim() || code,
-            symbol: byId('currency-edit-symbol')?.value?.trim() || code,
-            exchange_rate: Math.max(0, Number(byId('currency-edit-rate')?.value || 0)),
-            active: wantsVisible,
-            is_default: isDefault,
-            is_base: false,
-          };
+          const isSystem = isSystemCurrency(currency);
+          const nextCode = normalizeCode(byId('currency-edit-code')?.value || code);
+          if (!isSystem) {
+            if (!nextCode) return show('Escribe el codigo de la moneda.', 'error');
+            if (!/^[A-Z0-9]{2,12}$/.test(nextCode)) return show('El codigo debe tener de 2 a 12 letras o numeros, sin espacios.', 'error');
+            const duplicated = state.currencies.some((item) => item.id !== id && normalizeCode(item.code) === nextCode);
+            if (duplicated) return show('Ya existe una moneda con ese codigo en esta tienda.', 'error');
+          }
+          const payload = isSystem
+            ? { exchange_rate: Math.max(0, Number(byId('currency-edit-rate')?.value || 0)), is_base: false }
+            : {
+                code: nextCode,
+                name: byId('currency-edit-name')?.value?.trim() || nextCode,
+                symbol: byId('currency-edit-symbol')?.value?.trim() || nextCode,
+                exchange_rate: Math.max(0, Number(byId('currency-edit-rate')?.value || 0)),
+                active: currency.active !== false,
+                is_default: currency.id === defaultId() || currency.is_default === true,
+                is_base: false,
+              };
           await api('/api/collections/currencies/records/' + id, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
-          if (wantsDefault) await setDefaultCurrencyById(id);
           closeEditModal();
           show('Moneda guardada correctamente.', 'success');
           await loadCurrencies();
@@ -4952,7 +4995,7 @@ const masterSupportHref = masterSupportWhatsapp
             const isDefault = currency && (currency.id === defaultId() || currency.is_default === true);
             if (isDefault) {
               target.checked = true;
-              show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible primero.', 'error');
+              show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible como predeterminada primero.', 'error');
               return;
             }
             if (visibleCurrencies().filter((item) => item.id !== id).length === 0) {
@@ -4962,8 +5005,12 @@ const masterSupportHref = masterSupportWhatsapp
             }
           }
           if (target.classList?.contains('js-currency-active')) {
-            const text = row.querySelector('.currency-switch-text');
-            if (text) text.textContent = target.checked ? 'Visible' : 'No visible';
+            row.querySelectorAll('.js-currency-active').forEach((input) => {
+              input.checked = target.checked;
+            });
+            row.querySelectorAll('.currency-switch-text').forEach((text) => {
+              text.textContent = target.checked ? 'Visible' : 'No se muestra en tienda';
+            });
           }
           saveCurrency(row).catch((error) => show(error.message || 'No se pudo guardar la moneda.', 'error'));
         });
@@ -4978,12 +5025,6 @@ const masterSupportHref = masterSupportWhatsapp
         byId('currency-edit-form')?.addEventListener('submit', (event) => saveEditedCurrency(event).catch((error) => show(error.message || 'No se pudo guardar la moneda.', 'error')));
         byId('currency-edit-modal-close')?.addEventListener('click', closeEditModal);
         byId('currency-edit-cancel')?.addEventListener('click', closeEditModal);
-        byId('currency-edit-active')?.addEventListener('change', (event) => {
-          const defaultInput = byId('currency-edit-default');
-          if (!defaultInput) return;
-          defaultInput.disabled = event.target?.checked !== true;
-          if (event.target?.checked !== true) defaultInput.checked = false;
-        });
         byId('currency-modal-close')?.addEventListener('click', closeCurrencyModal);
         byId('currency-modal-cancel')?.addEventListener('click', closeCurrencyModal);
         byId('currency-create-modal')?.addEventListener('click', (event) => {
