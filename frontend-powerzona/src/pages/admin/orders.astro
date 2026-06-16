@@ -109,7 +109,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .stat-card { padding: 16px; }
       .stat-label { color: #64748b; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
       .stat-value { font-size: 24px; font-weight: 950; margin-top: 6px; }
-      .toolbar { display: grid; grid-template-columns: 1fr 220px 180px auto; gap: 12px; padding: 18px; margin-bottom: 18px; }
+      .toolbar { display: grid; grid-template-columns: 1fr 220px 180px; gap: 12px; padding: 18px; margin-bottom: 18px; }
       .cleanup-panel { padding: 18px; margin-bottom: 18px; }
       .cleanup-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
       .cleanup-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -0.03em; }
@@ -566,13 +566,15 @@ const isOrderDetailPage = Boolean(initialOrderId);
         font-weight: 1000;
         line-height: 1.2;
       }
-      .order-total-cell .total-text {
-        margin: 0 !important;
-        padding: 0 !important;
-        text-align: center !important;
-        font-size: 14px !important;
-        line-height: 1.25 !important;
-        display: block !important;
+      .order-total-simple {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 1000;
+        line-height: 1.25;
+        white-space: nowrap;
       }
       .order-chip,
       .order-status-chip {
@@ -605,7 +607,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         flex-wrap: nowrap;
       }
       .order-open-btn,
-      .order-more-btn {
+      .order-delete-btn {
         border: 0;
         display: inline-flex;
         align-items: center;
@@ -621,15 +623,23 @@ const isOrderDetailPage = Boolean(initialOrderId);
         background: #0f172a;
         color: #fff;
       }
-      .order-more-btn {
+      .order-delete-btn {
         width: 38px;
         height: 38px;
         border-radius: 14px;
         background: #fff;
-        color: #0f172a;
-        border: 1px solid #e2e8f0;
-        font-size: 18px;
+        color: #dc2626;
+        border: 1px solid #fecaca;
         line-height: 1;
+      }
+      .order-delete-btn:hover {
+        background: #fef2f2;
+        border-color: #fca5a5;
+      }
+      .order-delete-btn svg {
+        width: 17px;
+        height: 17px;
+        fill: currentColor;
       }
       .order-select-row {
         display: grid;
@@ -705,28 +715,43 @@ const isOrderDetailPage = Boolean(initialOrderId);
         .order-table-row {
           display: grid;
           grid-template-columns: 1fr auto;
-          gap: 10px 12px;
+          gap: 8px 10px;
           min-height: 0;
-          padding: 14px;
+          padding: 12px;
           border: 1px solid #e2e8f0;
-          border-radius: 20px;
+          border-radius: 18px;
           box-shadow: 0 12px 24px rgba(15,23,42,.06);
         }
-        .order-main,
+        .order-main { grid-column: 1 / 2; }
         .order-customer,
-        .order-total-cell { grid-column: 1 / -1; }
+        .order-date-cell,
+        .order-items-summary-wrap { grid-column: 1 / -1; }
+        .order-total-cell {
+          grid-column: 2 / 3;
+          grid-row: 1;
+          justify-content: flex-end;
+          text-align: right;
+        }
         .order-cell.center {
           justify-content: flex-start;
           text-align: left;
         }
-        .order-total-cell .total-text { text-align: left !important; }
+        .order-total-cell.center { justify-content: flex-end; text-align: right; }
+        .order-delivery-cell,
+        .order-status-cell {
+          grid-column: auto;
+          justify-content: flex-start;
+        }
         .order-row-actions {
           grid-column: 1 / -1;
+          display: flex;
           justify-content: flex-end;
+          align-items: center;
+          gap: 8px;
           flex-wrap: nowrap;
         }
         .order-open-btn { min-width: 72px; }
-        .order-more-btn {
+        .order-delete-btn {
           width: 38px;
           flex: 0 0 38px;
         }
@@ -835,10 +860,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
               <option value="pickup">Recogida</option>
               <option value="coordinate">Coordinar</option>
             </select>
-            <button id="cleanup-orders-open-btn" class:list={['action-btn', 'cleanup-soft-btn', isOrderDetailPage && 'hidden']} type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-.8 13H7.8L7 7Z" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><path d="M9 7V5h6v2M10 11v5M14 11v5" stroke="#991B1B" stroke-width="2" stroke-linecap="round"/></svg>Borrar &oacute;rdenes</button>
           </div>
 
-          <section id="cleanup-orders-panel" class="card cleanup-selection-bar hidden">
+          <section id="cleanup-orders-panel" class="card cleanup-selection-bar hidden" hidden>
             <div class="cleanup-selection-copy">
               <h2 class="cleanup-selection-title">Modo borrar órdenes</h2>
               <p class="cleanup-selection-warning">Esta acción elimina la orden y no modifica el inventario.<br />Úsalo solo para limpieza administrativa o después de exportar tus órdenes.</p>
@@ -984,6 +1008,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           <div id="order-delete-confirm-alert" class="alert order-confirm-alert hidden"></div>
           <div class="order-confirm-actions">
             <button id="order-delete-confirm-cancel" class="btn btn-secondary" type="button">Cancelar</button>
+            <button id="order-delete-confirm-secondary" class="btn btn-secondary hidden" type="button">Borrar sin devolver</button>
             <button id="order-delete-confirm-submit" class="btn btn-danger" type="button">Sí, borrar pedido</button>
           </div>
         </div>
@@ -1024,6 +1049,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const orderDeleteConfirmMessage = document.getElementById('order-delete-confirm-message');
       const orderDeleteConfirmAlert = document.getElementById('order-delete-confirm-alert');
       const orderDeleteConfirmCancel = document.getElementById('order-delete-confirm-cancel');
+      const orderDeleteConfirmSecondary = document.getElementById('order-delete-confirm-secondary');
       const orderDeleteConfirmSubmit = document.getElementById('order-delete-confirm-submit');
       const searchInput = document.getElementById('search-input');
       const statusFilter = document.getElementById('status-filter');
@@ -1107,6 +1133,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       let orderAutoSaveRunning = false;
       let orderAutoSavePending = false;
       let pendingOrderDeleteAction = null;
+      let pendingOrderDeleteSecondaryAction = null;
       let storeSettingsRecord = null;
       const cleanupOrdersOpenBtnOriginalHtml = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.innerHTML : '';
       const cleanupOrdersOpenBtnOriginalClass = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.className : '';
@@ -1265,9 +1292,25 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (!value) return 'Sin fecha';
         return new Intl.DateTimeFormat('es-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
       }
+      function formatDateOnly(value) {
+        if (!value) return 'Sin fecha';
+        return new Intl.DateTimeFormat('es-US', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date(value));
+      }
       function formatDateGroup(value) {
         if (!value) return 'Sin fecha';
         return new Intl.DateTimeFormat('es-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value));
+      }
+      function getOrderFinalTotal(order) {
+        const total = Number(order?.total_usd ?? order?.total ?? 0);
+        if (Number.isFinite(total) && total > 0) return formatUSD(total);
+        const items = orderItemsByOrder[order?.id] || [];
+        const subtotal = items.reduce((sum, item) => sum + Number(item.line_total_usd || 0), 0);
+        const shipping = Number(order?.shipping_usd || order?.shipping || 0);
+        return formatUSD(subtotal + shipping);
       }
       function getDateKey(value) {
         if (!value) return 'sin-fecha';
@@ -1312,6 +1355,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
       function closeOrderDeleteConfirm() {
         pendingOrderDeleteAction = null;
+        pendingOrderDeleteSecondaryAction = null;
         setOrderConfirmAlert('');
         orderDeleteConfirmModal?.classList.add('hidden');
         orderDeleteConfirmModal?.setAttribute('aria-hidden', 'true');
@@ -1319,10 +1363,16 @@ const isOrderDetailPage = Boolean(initialOrderId);
           orderDeleteConfirmSubmit.disabled = false;
           orderDeleteConfirmSubmit.textContent = 'Sí, borrar pedido';
         }
+        if (orderDeleteConfirmSecondary) {
+          orderDeleteConfirmSecondary.disabled = false;
+          orderDeleteConfirmSecondary.textContent = 'Borrar sin devolver';
+          orderDeleteConfirmSecondary.classList.add('hidden');
+        }
         if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
       }
-      function openOrderDeleteConfirm({ title, message, confirmText, action }) {
+      function openOrderDeleteConfirm({ title, message, confirmText, action, secondaryText = '', secondaryAction = null }) {
         pendingOrderDeleteAction = action;
+        pendingOrderDeleteSecondaryAction = secondaryAction;
         setOrderConfirmAlert('');
         if (orderDeleteConfirmTitle) orderDeleteConfirmTitle.textContent = title;
         if (orderDeleteConfirmMessage) orderDeleteConfirmMessage.textContent = message;
@@ -1330,18 +1380,23 @@ const isOrderDetailPage = Boolean(initialOrderId);
           orderDeleteConfirmSubmit.disabled = false;
           orderDeleteConfirmSubmit.textContent = confirmText;
         }
+        if (orderDeleteConfirmSecondary) {
+          orderDeleteConfirmSecondary.disabled = false;
+          orderDeleteConfirmSecondary.textContent = secondaryText || 'Borrar sin devolver';
+          orderDeleteConfirmSecondary.classList.toggle('hidden', !secondaryAction);
+        }
         if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
         orderDeleteConfirmModal?.classList.remove('hidden');
         orderDeleteConfirmModal?.setAttribute('aria-hidden', 'false');
         orderDeleteConfirmSubmit?.focus();
       }
-      async function confirmPendingOrderDelete() {
-        if (!pendingOrderDeleteAction) return;
-        const action = pendingOrderDeleteAction;
+      async function runPendingOrderDelete(action, button, loadingText) {
+        if (!action) return;
         if (orderDeleteConfirmSubmit) {
           orderDeleteConfirmSubmit.disabled = true;
-          orderDeleteConfirmSubmit.textContent = 'Borrando...';
         }
+        if (orderDeleteConfirmSecondary) orderDeleteConfirmSecondary.disabled = true;
+        if (button) button.textContent = loadingText;
         if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = true;
         setOrderConfirmAlert('');
         try {
@@ -1354,8 +1409,18 @@ const isOrderDetailPage = Boolean(initialOrderId);
             orderDeleteConfirmSubmit.disabled = false;
             orderDeleteConfirmSubmit.textContent = orderDeleteConfirmTitle?.textContent?.includes('seleccionadas') ? 'Sí, borrar seleccionadas' : 'Sí, borrar pedido';
           }
+          if (orderDeleteConfirmSecondary) {
+            orderDeleteConfirmSecondary.disabled = false;
+            orderDeleteConfirmSecondary.textContent = 'Borrar sin devolver';
+          }
           if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
         }
+      }
+      async function confirmPendingOrderDelete() {
+        await runPendingOrderDelete(pendingOrderDeleteAction, orderDeleteConfirmSubmit, 'Borrando...');
+      }
+      async function confirmPendingOrderDeleteSecondary() {
+        await runPendingOrderDelete(pendingOrderDeleteSecondaryAction, orderDeleteConfirmSecondary, 'Borrando...');
       }
       function showAdmin() { adminView.classList.remove('hidden'); }
       function getAdminToken() { return ADMIN_AUTH_TOKEN; }
@@ -1990,6 +2055,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           const deliveryClass = ['delivery', 'pickup', 'coordinate'].includes(deliveryMethod) ? deliveryMethod : 'coordinate';
           const statusClass = normalizeStatus(order.status);
           const itemsSummary = getOrderItemsSummary(order);
+          const deleteIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10l-.8 13H7.8L7 7Zm2-3h6l1 2h4v2H4V6h4l1-2Zm1 7h2v6h-2v-6Zm4 0h2v6h-2v-6Z"/></svg>';
           const rowMarkup = `
             <article class="order-table-row ${isActive ? 'active' : ''}" data-order-id="${escapeHtml(order.id)}">
               <div class="order-cell order-main">
@@ -2000,13 +2066,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
                 <span class="order-customer-name">${escapeHtml(order.customer_name || 'Cliente sin nombre')}</span>
                 <span class="order-subtext">${escapeHtml(order.customer_phone || 'Sin telefono')}</span>
               </div>
-              <div class="order-cell order-date-cell">${formatDate(order.created)}</div>
-              <div class="order-cell center order-total-cell">${renderOrderAdminSummary(order, orderItemsByOrder[order.id] || [], true)}</div>
+              <div class="order-cell order-date-cell">${formatDateOnly(order.created)}</div>
+              <div class="order-cell center order-total-cell"><span class="order-total-simple">${getOrderFinalTotal(order)}</span></div>
               <div class="order-cell center order-delivery-cell"><span class="order-chip ${deliveryClass}">${escapeHtml(deliveryLabels[deliveryMethod] || deliveryMethod || 'Coordinar')}</span></div>
               <div class="order-cell center order-status-cell"><span class="order-status-chip status-${escapeHtml(statusClass)}">${escapeHtml(getStatusLabel(order.status))}</span></div>
               <div class="order-row-actions">
                 <button class="order-open-btn js-open-order" type="button" data-order-open="${escapeHtml(order.id)}">Abrir</button>
-                <button class="order-more-btn js-order-more" type="button" data-order-more="${escapeHtml(order.id)}" aria-label="Más acciones">...</button>
+                <button class="order-delete-btn js-delete-order" type="button" data-order-delete="${escapeHtml(order.id)}" aria-label="Borrar pedido">${deleteIcon}</button>
               </div>
             </article>`;
 
@@ -2047,9 +2113,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
           });
         });
 
-        document.querySelectorAll('.js-order-more').forEach((button) => {
+        document.querySelectorAll('.js-delete-order').forEach((button) => {
           button.addEventListener('click', (event) => {
             event.stopPropagation();
+            requestDeleteOrderFromList(button.dataset.orderDelete);
           });
         });
 
@@ -2062,7 +2129,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function renderOrdersPagination(totalOrders, totalPages, startIndex, pageCount) {
         if (!ordersPagination) return;
-        if (totalOrders <= ORDERS_PER_PAGE) {
+        if (!totalOrders) {
           ordersPagination.classList.add('hidden');
           ordersPagination.innerHTML = '';
           return;
@@ -2071,6 +2138,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         ordersPagination.classList.remove('hidden');
         const from = startIndex + 1;
         const to = startIndex + pageCount;
+        const totalLabel = totalOrders === 1 ? '1 pedido' : `${totalOrders} pedidos`;
         const windowSize = 5;
         const firstPage = Math.max(1, Math.min(currentOrdersPage - 2, totalPages - windowSize + 1));
         const lastPage = Math.min(totalPages, firstPage + windowSize - 1);
@@ -2080,7 +2148,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }).join('');
 
         ordersPagination.innerHTML = `
-          <div class="pagination-info">Mostrando ${from}&ndash;${to} de ${totalOrders} pedidos · 10 por página</div>
+          <div class="pagination-info">Mostrando ${from}&ndash;${to} de ${totalLabel} · 10 por página</div>
           <div class="pagination-actions">
             <button class="page-btn" type="button" data-orders-page="prev" ${currentOrdersPage === 1 ? 'disabled' : ''}>Anterior</button>
             ${pageButtons}
@@ -2444,6 +2512,47 @@ const isOrderDetailPage = Boolean(initialOrderId);
           const record = await getInventoryRecord(group);
           await patchInventoryStock(group, Number(record.stock || 0) + Number(group.quantity || 0));
         }
+      }
+
+      async function getOrderItemsForOrder(orderId) {
+        if (!orderId) return [];
+        const filter = encodeURIComponent(`order = "${orderId}"`);
+        const result = await apiRequest(`/api/collections/order_items/records?filter=${filter}&sort=created&expand=product,variation,gift&perPage=200`);
+        return result.items || [];
+      }
+
+      async function revertInventorySnapshots(snapshots = []) {
+        for (const snapshot of snapshots.slice().reverse()) {
+          try {
+            await patchInventoryStock(snapshot.group, snapshot.currentStock);
+          } catch (error) {
+            console.error(error);
+          }
+        }
+      }
+
+      async function restoreInventoryForOrder(orderId) {
+        const items = await getOrderItemsForOrder(orderId);
+        const groups = getInventoryGroups(items);
+        if (!groups.length) return [];
+
+        const snapshots = [];
+        for (const group of groups) {
+          const record = await getInventoryRecord(group);
+          snapshots.push({ group, currentStock: Number(record.stock || 0) });
+        }
+
+        const changed = [];
+        try {
+          for (const snapshot of snapshots) {
+            await patchInventoryStock(snapshot.group, snapshot.currentStock + Number(snapshot.group.quantity || 0));
+            changed.push(snapshot);
+          }
+        } catch (error) {
+          await revertInventorySnapshots(changed);
+          throw new Error('No se pudo devolver el inventario. Se intentó revertir cualquier cambio parcial.');
+        }
+        return changed;
       }
 
       async function refreshInventoryAfterMovement() {
@@ -3187,6 +3296,61 @@ const isOrderDetailPage = Boolean(initialOrderId);
         await apiRequest(`/api/collections/orders/records/${orderId}`, { method: 'DELETE' });
       }
 
+      async function deleteOrderFromList(orderId, { restoreStock = false } = {}) {
+        const order = orders.find((item) => item.id === orderId);
+        if (!order) throw new Error('No se encontró la orden seleccionada.');
+        let restoreSnapshots = [];
+        let deleteCompleted = false;
+        try {
+          if (restoreStock) restoreSnapshots = await restoreInventoryForOrder(orderId);
+          await deleteOrderPermanentlyNoStock(orderId);
+          deleteCompleted = true;
+          orders = orders.filter((item) => item.id !== orderId);
+          delete orderItemsByOrder[orderId];
+          if (selectedOrder?.id === orderId) clearDetail();
+          renderStats();
+          renderOrders();
+          if (restoreStock) {
+            try { await refreshInventoryAfterMovement(); } catch (refreshError) { console.error(refreshError); }
+          }
+          setOrdersAdminAlert(restoreStock ? 'Orden borrada correctamente. Inventario devuelto.' : 'Orden borrada correctamente.', 'success');
+        } catch (error) {
+          if (restoreStock && restoreSnapshots.length && !deleteCompleted) await revertInventorySnapshots(restoreSnapshots);
+          setOrdersAdminAlert(restoreStock ? 'No se pudo devolver el inventario o borrar la orden.' : 'No se pudo borrar la orden.', 'error');
+          throw error;
+        }
+      }
+
+      function requestDeleteOrderFromList(orderId) {
+        const order = orders.find((item) => item.id === orderId);
+        if (!order) {
+          setOrdersAdminAlert('No se encontró la orden seleccionada.', 'error');
+          return;
+        }
+        const status = normalizeStatus(order.status);
+        if (['pending', 'cancelled', 'delivered'].includes(status)) {
+          openOrderDeleteConfirm({
+            title: 'Borrar pedido',
+            message: '¿Seguro que deseas borrar esta orden? Esta acción no afecta el inventario.',
+            confirmText: 'Sí, borrar pedido',
+            action: async () => deleteOrderFromList(orderId, { restoreStock: false }),
+          });
+          return;
+        }
+        if (status === 'confirmed') {
+          openOrderDeleteConfirm({
+            title: 'Borrar orden confirmada',
+            message: 'Esta orden está confirmada y pudo haber descontado inventario. ¿Deseas devolver los productos al inventario antes de borrar la orden?',
+            confirmText: 'Devolver inventario y borrar',
+            action: async () => deleteOrderFromList(orderId, { restoreStock: true }),
+            secondaryText: 'Borrar sin devolver',
+            secondaryAction: async () => deleteOrderFromList(orderId, { restoreStock: false }),
+          });
+          return;
+        }
+        setOrdersAdminAlert('Este estado no está preparado para borrado rápido. Abre el pedido y revisa su estado.', 'error');
+      }
+
       async function deleteCancelledOrderFromSummary() {
         if (!selectedOrder) return;
         if (normalizeStatus(selectedOrder.status) !== 'cancelled') {
@@ -3408,12 +3572,12 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (IS_ORDER_DETAIL_PAGE) window.location.assign(ADMIN_ORDERS_PATH);
         else clearDetail();
       });
-      cleanupOrdersOpenBtn?.addEventListener('click', () => { cleanupSelectionMode ? closeCleanupOrdersPanel() : openCleanupOrdersPanel(); });
       cleanupOrdersCloseBtn?.addEventListener('click', closeCleanupOrdersPanel);
       cleanupSelectAllBtn?.addEventListener('click', selectAllCleanupOrders);
       cleanupDeleteSelectedBtn?.addEventListener('click', deleteSelectedCleanupOrders);
       orderDeleteConfirmCancel?.addEventListener('click', closeOrderDeleteConfirm);
       orderDeleteConfirmSubmit?.addEventListener('click', confirmPendingOrderDelete);
+      orderDeleteConfirmSecondary?.addEventListener('click', confirmPendingOrderDeleteSecondary);
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && !orderDeleteConfirmModal?.classList.contains('hidden')) closeOrderDeleteConfirm();
       });
