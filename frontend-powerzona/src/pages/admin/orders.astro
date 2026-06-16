@@ -19,6 +19,14 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el panel de pedidos de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Pedidos Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 const initialOrderId = String(Astro.params.id || '').trim();
 const isOrderDetailPage = Boolean(initialOrderId);
 ---
@@ -85,21 +93,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .sidebar-overlay.show { opacity: 1; pointer-events: auto; }
       .sidebar { position: fixed; top: 18px; left: 18px; bottom: 18px; width: min(286px, calc(100vw - 36px)); background: linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); color: #020617; border: 1px solid rgba(226,232,240,.95); border-radius: 28px; padding: 16px; z-index: 60; overflow-y: auto; transform: translateX(calc(-100% - 40px)); transition: transform .22s ease; box-shadow: 0 26px 65px rgba(15,23,42,.16), 0 10px 24px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95); }
       .sidebar.open { transform: translateX(0); }
-      .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 2px 12px; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
-      .sidebar-brand { color: #020617; font-size: 24px; font-weight: 1000; letter-spacing: -0.04em; margin: 0; }
-      .sidebar-sub { color: #334155; font-size: 13px; font-weight: 850; margin: 4px 0 0; }
       .close-btn, .menu-btn { width: 48px; height: 48px; border-radius: 18px; display: grid; place-items: center; background: linear-gradient(180deg,#fff 0%,#f8fafc 100%); color: #020617; border: 1px solid #e2e8f0; box-shadow: var(--shadow); font-weight: 1000; }
-      .nav-group { margin: 14px 0; }
       .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: .14em; color: #475569; padding-left: 8px; margin: 0 0 7px; font-weight: 1000; }
-      .nav-link { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border-radius: 16px; background: transparent; color: #0f172a; border: 1px solid transparent; width: 100%; font-weight: 1000; transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease; }
-      .nav-link:hover { transform: translateX(2px); background: #f8fafc; color: #020617; border-color: #e2e8f0; box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95); }
-      .nav-link.active { background: linear-gradient(135deg, #0f172a, #020617); color: #ffffff; border-color: rgba(15,23,42,.95); box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12); }
-      .nav-left { display: inline-flex; align-items: center; gap: 10px; }
       .nav-icon, .premium-icon { width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; color: #020617; background: linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%); box-shadow: 0 10px 18px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.95); border: 1px solid #e2e8f0; }
       .nav-icon svg, .premium-icon svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-      .nav-link.active .nav-icon, .nav-link:hover .nav-icon { background: #020617; color: #ffffff; border-color: #020617; box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12); }
-      .nav-link.active .nav-pill { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.25); }
-      .nav-pill { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; font-size: 10px; font-weight: 1000; padding: 4px 8px; border-radius: 999px; }
       .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 20px; }
       .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
       .page-title { margin: 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.045em; font-weight: 950; }
@@ -127,11 +124,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .95fr); gap: 18px; align-items: start; }
       .orders-list { overflow: hidden; }
       .orders-list #orders-list { display: flex; flex-direction: column; gap: 18px; padding: 14px; }
-      .date-group { display: flex; flex-direction: column; gap: 10px; }
-      .date-group-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: 20px; background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.96)); color: #0f172a; border: 1px solid rgba(226,232,240,.92); box-shadow: 0 12px 24px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.92); }
-      .date-title { font-size: 18px; font-weight: 1000; letter-spacing: -0.02em; text-transform: capitalize; color: #0f172a; }
-      .date-summary { font-size: 15px; font-weight: 1000; color: #0f172a; white-space: nowrap; }
-      .date-orders { display: flex; flex-direction: column; gap: 12px; width: 100%; }
       .order-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; min-height: 96px; padding: 17px 20px; border: 1px solid rgba(226,232,240,.92); border-radius: 22px; background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%); text-align: left; transition: background .16s ease, transform .16s ease, box-shadow .16s ease, border-color .16s ease; box-shadow: 0 12px 26px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.92); }
       .order-row > div:first-child { min-width: 0; flex: 1 1 auto; }
       .order-row:hover { transform: translateY(-2px); border-color: rgba(37,99,235,.22); box-shadow: 0 20px 38px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.95); }
@@ -220,8 +212,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       /* FIX VISUAL V9: estado compacto y total de cada orden separado/resaltado */
       #orders-list { display: flex !important; flex-direction: column !important; gap: 18px !important; width: 100% !important; }
-      #orders-list .date-group { display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important; }
-      #orders-list .date-orders { display: flex !important; flex-direction: column !important; gap: 14px !important; width: 100% !important; grid-template-columns: none !important; }
       #orders-list .order-row { width: 100% !important; max-width: none !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 16px !important; border-radius: 22px !important; padding: 16px 18px !important; text-align: left !important; border: 1px solid rgba(226,232,240,.92) !important; background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important; box-shadow: 0 12px 26px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.92) !important; }
       #orders-list .order-status-big { display: inline-flex !important; align-items: center !important; justify-content: center !important; min-width: 76px !important; padding: 4px 9px !important; border-radius: 999px !important; font-size: 9px !important; line-height: 1 !important; font-weight: 1000 !important; text-transform: uppercase !important; letter-spacing: .035em !important; border: 1px solid currentColor !important; }
       #orders-list .status-confirmed.order-status-big { background: #dcfce7 !important; color: #14532d !important; border-color: #22c55e !important; box-shadow: 0 7px 15px rgba(22,163,74,.16) !important; }
@@ -230,9 +220,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
       #orders-list .status-delivered.order-status-big { background: #dbeafe !important; color: #1e40af !important; border-color: #3b82f6 !important; }
       #orders-list .status-cancelled.order-status-big { background: #fee2e2 !important; color: #991b1b !important; border-color: #ef4444 !important; }
       #orders-list .total-text { margin-top: 12px !important; padding-top: 8px !important; font-size: 16px !important; line-height: 1.15 !important; font-weight: 1000 !important; color: #0f172a !important; text-align: right !important; letter-spacing: -0.01em !important; display: block !important; }
-      #orders-list .date-group-header { background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.96)) !important; color: #0f172a !important; border: 1px solid rgba(226,232,240,.92) !important; }
-      #orders-list .date-title { font-size: 18px !important; font-weight: 1000 !important; color: #0f172a !important; }
-      #orders-list .date-summary { font-size: 15px !important; font-weight: 1000 !important; color: #0f172a !important; }
       .items-box { padding: 14px !important; overflow: visible !important; }
       .item-row { padding: 18px 22px !important; border-radius: 18px !important; }
       .item-main { padding-left: 8px !important; }
@@ -373,174 +360,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         opacity: .48;
         cursor: not-allowed;
       }
-      #orders-list .date-group-header {
-        padding: 16px 18px !important;
-        border-radius: 24px !important;
-        background:
-          radial-gradient(circle at top left, rgba(37,99,235,.10), transparent 32%),
-          linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
-        box-shadow: 0 18px 34px rgba(15,23,42,.075), inset 0 1px 0 rgba(255,255,255,.96) !important;
-      }
-      #orders-list .date-title {
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-        font-size: 18px !important;
-      }
-      #orders-list .date-title::before {
-        content: "📅";
-        width: 34px;
-        height: 34px;
-        display: inline-grid;
-        place-items: center;
-        border-radius: 14px;
-        background: linear-gradient(135deg,#eff6ff,#ffffff);
-        border: 1px solid #dbeafe;
-        box-shadow: 0 10px 18px rgba(37,99,235,.10), inset 0 1px 0 rgba(255,255,255,.95);
-        font-size: 15px;
-      }
-      #orders-list .date-summary {
-        padding: 8px 12px !important;
-        border-radius: 999px !important;
-        background: #f1f5f9 !important;
-        border: 1px solid #e2e8f0 !important;
-        font-size: 13px !important;
-        color: #334155 !important;
-      }
-      #orders-list .order-row.premium-order-card {
-        position: relative !important;
-        overflow: hidden !important;
-        min-height: 112px !important;
-        padding: 18px 20px 18px 22px !important;
-        border-radius: 26px !important;
-        background:
-          radial-gradient(circle at 4% 0%, rgba(37,99,235,.12), transparent 26%),
-          linear-gradient(145deg, #ffffff 0%, #f8fafc 100%) !important;
-        border: 1px solid rgba(226,232,240,.96) !important;
-        box-shadow: 0 20px 42px rgba(15,23,42,.085), 0 8px 18px rgba(15,23,42,.045), inset 0 1px 0 rgba(255,255,255,.96) !important;
-      }
-      #orders-list .order-row.premium-order-card::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 16px;
-        bottom: 16px;
-        width: 5px;
-        border-radius: 999px;
-        background: linear-gradient(180deg,#2563eb,#22c55e);
-      }
-      #orders-list .order-row.premium-order-card:hover {
-        transform: translateY(-3px) !important;
-        border-color: rgba(37,99,235,.30) !important;
-        box-shadow: 0 26px 52px rgba(15,23,42,.12), 0 10px 22px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.98) !important;
-      }
-      #orders-list .order-row.premium-order-card.active {
-        border-color: rgba(37,99,235,.48) !important;
-        box-shadow: 0 28px 54px rgba(37,99,235,.16), 0 10px 22px rgba(15,23,42,.06), inset 5px 0 0 #2563eb !important;
-      }
-      .order-card-main {
-        min-width: 0;
-        flex: 1 1 auto;
-      }
-      .order-card-title {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        flex-wrap: wrap;
-        margin: 0 0 10px;
-      }
-      .order-number-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        padding: 7px 10px;
-        border-radius: 999px;
-        background: #eff6ff;
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        font-size: 12px;
-        font-weight: 1000;
-        letter-spacing: .02em;
-      }
-      .order-customer-name {
-        color: #0f172a;
-        font-size: 17px;
-        font-weight: 1000;
-        letter-spacing: -0.025em;
-      }
-      .order-card-meta {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .order-meta-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 7px 10px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.88);
-        border: 1px solid #e2e8f0;
-        color: #475569;
-        font-size: 12px;
-        font-weight: 900;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.92);
-      }
-      #orders-list .premium-order-card .order-right {
-        gap: 10px !important;
-        align-items: flex-end !important;
-      }
-      #orders-list .premium-order-card .order-status-big {
-        min-width: 108px !important;
-        padding: 8px 12px !important;
-        font-size: 10px !important;
-        border-radius: 999px !important;
-      }
-      #orders-list .premium-order-card .total-text {
-        margin-top: 0 !important;
-        padding: 9px 12px !important;
-        border-radius: 16px !important;
-        background: #0f172a !important;
-        color: #ffffff !important;
-        font-size: 16px !important;
-        min-width: 124px !important;
-        box-shadow: 0 14px 24px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      @media (max-width: 720px) {
-        #orders-list .date-group-header { align-items: flex-start !important; flex-direction: column !important; }
-        #orders-list .order-row.premium-order-card { flex-direction: column !important; align-items: stretch !important; }
-        #orders-list .premium-order-card .order-right { align-items: flex-start !important; }
-        #orders-list .premium-order-card .total-text { text-align: left !important; }
-        .orders-pagination { align-items: stretch; }
-        .pagination-actions { width: 100%; justify-content: space-between; }
-      }
-
-
-      /* Premium cards preserved in cleanup selection mode */
-      #orders-list .order-select-row {
-        display: grid !important;
-        grid-template-columns: 34px minmax(0, 1fr) !important;
-        align-items: center !important;
-        gap: 14px !important;
-        width: 100% !important;
-      }
-      #orders-list .order-select-box {
-        width: 22px !important;
-        height: 22px !important;
-        accent-color: #0f172a !important;
-        cursor: pointer !important;
-        justify-self: center !important;
-      }
-      #orders-list .order-card-premium-v12:hover {
-        transform: translateY(-3px) !important;
-        border-color: rgba(37,99,235,.34) !important;
-        box-shadow:0 28px 56px rgba(15,23,42,.16),0 10px 24px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.98) !important;
-      }
-      #orders-list .order-card-premium-v12.active {
-        border-color: rgba(37,99,235,.52) !important;
-        box-shadow:0 30px 58px rgba(37,99,235,.18),0 10px 24px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.98) !important;
-      }
       .detail-back-link { margin-bottom: 16px; width: fit-content; }
       .admin-grid.detail-page { grid-template-columns: minmax(0, 1fr); }
       .admin-grid.detail-page .detail-panel { position: static; width: 100%; }
@@ -564,6 +383,367 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }
         .admin-grid.detail-page { padding-bottom: 82px; }
       }
+
+      /* PZ-ORDERS-VISUAL-ADMIN-22A-20260615 */
+      #admin-sidebar.sidebar {
+        top: 18px !important;
+        left: 18px !important;
+        bottom: 18px !important;
+        width: 286px !important;
+        padding: 16px !important;
+        border-radius: 28px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+        border: 1px solid rgba(226, 232, 240, .95) !important;
+        box-shadow: 0 26px 65px rgba(15, 23, 42, .16), 0 10px 24px rgba(15, 23, 42, .07), inset 0 1px 0 rgba(255,255,255,.95) !important;
+        overflow: hidden auto !important;
+      }
+      #admin-sidebar .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100%; }
+      #admin-sidebar .brand { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 4px 4px 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
+      #admin-sidebar .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #0f172a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; box-shadow: 0 14px 30px rgba(15,23,42,.18); }
+      #admin-sidebar .brand-title { display: block; font-size: 20px; font-weight: 1000; letter-spacing: -.045em; color: #020617; line-height: 1; }
+      #admin-sidebar .brand-subtitle { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 900; line-height: 1.1; }
+      #admin-sidebar .sidebar-close { width: 40px; height: 40px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 10px 22px rgba(15,23,42,.08); }
+      #admin-sidebar .sidebar-label { margin: 14px 8px 8px; color: #94a3b8; font-size: 10px; font-weight: 1000; letter-spacing: .14em; text-transform: uppercase; }
+      #admin-sidebar .nav-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+      #admin-sidebar .nav-item {
+        min-height: 50px; display: flex; align-items: center; gap: 10px; width: 100%;
+        padding: 9px 10px; border-radius: 16px; border: 1px solid transparent;
+        background: transparent; color: #0f172a; font-weight: 1000; text-align: left;
+        transition: transform .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease, color .16s ease;
+      }
+      #admin-sidebar .nav-item:hover { transform: translateX(2px); background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95); }
+      #admin-sidebar .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15,23,42,.16); }
+      #admin-sidebar .nav-item.danger { color: #991b1b; background: #fff1f2; border-color: #ffe4e6; }
+      #admin-sidebar .nav-icon { width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; color: #020617; background: linear-gradient(180deg,#fff 0%,#f1f5f9 100%); box-shadow: 0 10px 18px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.95); border: 1px solid #e2e8f0; }
+      #admin-sidebar .nav-icon svg { width: 17px; height: 17px; fill: currentColor; stroke: none; }
+      #admin-sidebar .nav-item.active .nav-icon { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.24); box-shadow: none; }
+      #admin-sidebar .sidebar-utility { margin-top: auto; display: grid; gap: 8px; padding-top: 14px; }
+      #admin-sidebar .sidebar-footer { margin-top: 14px; padding: 14px; border-radius: 18px; background: #f8fafc; border: 1px solid #e2e8f0; color: #64748b; display: grid; gap: 4px; font-size: 12px; font-weight: 800; line-height: 1.35; }
+      #admin-sidebar .sidebar-footer strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
+      #admin-sidebar a.sidebar-footer:hover { background: #f1f5f9; border-color: #cbd5e1; }
+      .mobile-topbar {
+        display: none; position: fixed; top: 10px; left: 10px; right: 10px; z-index: 45;
+        align-items: center; justify-content: space-between; gap: 10px;
+        min-height: 58px; padding: 8px 10px; border-radius: 22px;
+        background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.95);
+        box-shadow: 0 20px 44px rgba(15,23,42,.14); backdrop-filter: blur(12px);
+      }
+      .mobile-topbar-title { margin: 0; font-size: 18px; font-weight: 1000; letter-spacing: -.035em; }
+      .icon-btn, .notifications-btn {
+        width: 46px; height: 46px; border-radius: 16px; display: inline-grid; place-items: center;
+        border: 1px solid #e2e8f0; background: #fff; color: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.08);
+      }
+      .icon-btn svg, .notifications-btn svg { width: 19px; height: 19px; fill: currentColor; }
+      .topbar {
+        align-items: center !important; padding: 20px !important; border-radius: 30px !important;
+        background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.96)) !important;
+        border: 1px solid rgba(226,232,240,.92) !important; box-shadow: var(--shadow-3d) !important;
+      }
+      .page-title { font-size: clamp(30px, 4vw, 46px) !important; }
+      .topbar-right .btn-primary { min-height: 46px; border-radius: 16px; }
+      .cleanup-soft-btn { color: #991b1b !important; background: #fff !important; border-color: #fecaca !important; box-shadow: 0 10px 22px rgba(153,27,27,.06) !important; }
+      .cleanup-soft-btn svg { width: 17px; height: 17px; }
+      .admin-grid { grid-template-columns: 1fr !important; }
+      .admin-grid:not(.detail-page) .detail-panel { display: none !important; }
+      .admin-grid.detail-page { grid-template-columns: 1fr !important; }
+      .admin-grid.detail-page .detail-panel { position: static !important; width: 100% !important; }
+      @media (min-width: 1024px) {
+        #admin-sidebar.sidebar { transform: translateX(0) !important; }
+        .main-wrap { width: min(1480px, 100%) !important; padding: 28px 28px 36px 326px !important; margin: 0 auto !important; }
+        #sidebar-overlay { display: none !important; }
+        #admin-sidebar .sidebar-close { display: none !important; }
+      }
+      @media (max-width: 1023px) {
+        #admin-sidebar.sidebar { width: min(286px, calc(100vw - 24px)) !important; top: 12px !important; left: 12px !important; bottom: 12px !important; transform: translateX(calc(-100% - 32px)) !important; z-index: 70 !important; }
+        #admin-sidebar.sidebar.open, body.sidebar-open #admin-sidebar.sidebar { transform: translateX(0) !important; }
+        .sidebar-overlay.show, body.sidebar-open #sidebar-overlay { opacity: 1 !important; pointer-events: auto !important; }
+        .mobile-topbar { display: flex; }
+        .main-wrap { padding: 82px 14px 92px !important; }
+        .topbar { align-items: flex-start !important; flex-direction: column !important; }
+        .toolbar { grid-template-columns: 1fr !important; }
+      }
+    </style>
+    <style is:global>
+      .orders-list { overflow: hidden; border-radius: 28px; }
+      .orders-list-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 20px 22px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .orders-list-head h2 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 1000;
+        letter-spacing: -0.035em;
+        color: #0f172a;
+      }
+      .orders-list-head p {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .orders-list #orders-list {
+        display: grid;
+        gap: 0;
+        padding: 0;
+        width: 100%;
+      }
+      .orders-table-head,
+      .order-table-row {
+        display: grid;
+        grid-template-columns: minmax(110px, 0.75fr) minmax(180px, 1fr) minmax(130px, 0.72fr) minmax(150px, 0.78fr) 120px 128px minmax(128px, auto);
+        align-items: center;
+        column-gap: 14px;
+      }
+      .orders-table-head {
+        padding: 14px 18px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 1000;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .orders-table-head span:nth-child(4),
+      .orders-table-head span:nth-child(5),
+      .orders-table-head span:nth-child(6) { text-align: center; }
+      .orders-table-head span:nth-child(7) { text-align: right; }
+      .order-table-row {
+        width: 100%;
+        min-height: 86px;
+        padding: 14px 18px;
+        border-bottom: 1px solid #edf2f7;
+        background: #ffffff;
+        text-align: left;
+        cursor: pointer;
+      }
+      .order-table-row:hover {
+        background: #f8fbff;
+        box-shadow: inset 4px 0 0 #2563eb;
+      }
+      .order-table-row.active {
+        background: #eff6ff;
+        box-shadow: inset 4px 0 0 #2563eb;
+      }
+      .order-cell {
+        min-width: 0;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 850;
+      }
+      .order-cell.center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .order-number {
+        display: block;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+      .order-items-summary,
+      .order-subtext {
+        display: block;
+        margin-top: 4px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.3;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .order-customer-name {
+        display: block;
+        color: #0f172a;
+        font-weight: 1000;
+        line-height: 1.2;
+      }
+      .order-total-cell .total-text {
+        margin: 0 !important;
+        padding: 0 !important;
+        text-align: center !important;
+        font-size: 14px !important;
+        line-height: 1.25 !important;
+        display: block !important;
+      }
+      .order-chip,
+      .order-status-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 11px;
+        font-weight: 1000;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .order-chip.delivery { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+      .order-chip.pickup { background: #ecfdf5; color: #047857; border-color: #bbf7d0; }
+      .order-chip.coordinate { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+      .order-status-chip.status-pending { background: #fef3c7; color: #92400e; border-color: #f59e0b; }
+      .order-status-chip.status-confirmed { background: #dcfce7; color: #14532d; border-color: #22c55e; }
+      .order-status-chip.status-delivered { background: #dbeafe; color: #1e40af; border-color: #3b82f6; }
+      .order-status-chip.status-cancelled { background: #fee2e2; color: #991b1b; border-color: #ef4444; }
+      .order-row-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: nowrap;
+      }
+      .order-open-btn,
+      .order-more-btn {
+        border: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 1000;
+        box-shadow: 0 12px 24px rgba(15,23,42,.12);
+      }
+      .order-open-btn {
+        min-width: 72px;
+        min-height: 38px;
+        padding: 9px 14px;
+        border-radius: 14px;
+        background: #0f172a;
+        color: #fff;
+      }
+      .order-more-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: #fff;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .order-select-row {
+        display: grid;
+        grid-template-columns: 36px minmax(0, 1fr);
+        align-items: stretch;
+        gap: 0;
+        border-bottom: 1px solid #edf2f7;
+        background: #fff;
+      }
+      .order-select-box {
+        width: 22px !important;
+        height: 22px !important;
+        padding: 0 !important;
+        accent-color: #0f172a;
+        align-self: center;
+        justify-self: center;
+      }
+      .order-select-row .order-table-row { border-bottom: 0; }
+      .orders-pagination {
+        padding: 14px 18px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        background: #fff;
+      }
+      .pagination-info {
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .pagination-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .page-btn {
+        min-width: 38px;
+        min-height: 38px;
+        border-radius: 13px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        font-weight: 1000;
+      }
+      .page-btn.active {
+        background: #0f172a;
+        border-color: #0f172a;
+        color: #fff;
+      }
+      .page-btn:disabled { opacity: .45; cursor: not-allowed; }
+      .orders-list .empty-state {
+        padding: 36px 18px;
+        text-align: center;
+        color: #64748b;
+        font-weight: 800;
+      }
+      @media (max-width: 900px) {
+        .orders-list-head {
+          padding: 16px;
+          align-items: flex-start;
+        }
+        .orders-table-head { display: none; }
+        .orders-list #orders-list {
+          gap: 12px;
+          padding: 12px;
+          background: #f8fafc;
+        }
+        .order-table-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 10px 12px;
+          min-height: 0;
+          padding: 14px;
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          box-shadow: 0 12px 24px rgba(15,23,42,.06);
+        }
+        .order-main,
+        .order-customer,
+        .order-total-cell { grid-column: 1 / -1; }
+        .order-cell.center {
+          justify-content: flex-start;
+          text-align: left;
+        }
+        .order-total-cell .total-text { text-align: left !important; }
+        .order-row-actions {
+          grid-column: 1 / -1;
+          justify-content: flex-end;
+          flex-wrap: nowrap;
+        }
+        .order-open-btn { min-width: 72px; }
+        .order-more-btn {
+          width: 38px;
+          flex: 0 0 38px;
+        }
+        .order-select-row {
+          grid-template-columns: 34px minmax(0, 1fr);
+          align-items: flex-start;
+          gap: 8px;
+          border-bottom: 0;
+          background: transparent;
+        }
+        .order-select-row .order-select-box { margin-top: 16px !important; }
+        .orders-pagination {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .pagination-actions { justify-content: center; }
+      }
     </style>
     <!-- PowerZona Orders V10 -->
 </head>
@@ -571,64 +751,62 @@ const isOrderDetailPage = Boolean(initialOrderId);
     <main>
       <section id="admin-view">
         <div id="sidebar-overlay" class="sidebar-overlay"></div>
-        <aside id="admin-sidebar" class="sidebar">
-          <div class="sidebar-top">
-            <div><h2 class="sidebar-brand">PowerZona</h2><p class="sidebar-sub">Panel de administración</p></div>
-            <button id="sidebar-close-btn" class="close-btn" type="button">✕</button>
+        <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administracion" aria-hidden="true">
+          <div class="sidebar-inner">
+            <div class="brand">
+              <span class="brand-logo">PZ</span>
+              <span><span class="brand-title">PowerZona</span><span class="brand-subtitle">Admin Panel</span></span>
+              <button id="sidebar-close-btn" class="sidebar-close" type="button" aria-label="Cerrar menu">&times;</button>
+            </div>
+            <p class="sidebar-label">Principal</p>
+            <nav class="nav-list" aria-label="Principal">
+              <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+              <a class="nav-item active" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+              <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categor&iacute;as</span></a>
+            </nav>
+            <p class="sidebar-label">Tienda</p>
+            <nav class="nav-list" aria-label="Tienda">
+              <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+              <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+              <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Env&iacute;os</span></a>
+              <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.4 7.4 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.4 7.4 0 0 0 7 6L4.6 5l-2 3.5 2 1.5A8 8 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.4 7.4 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.4 7.4 0 0 0 17 18l2.4 1 2-3.5-2-2ZM12 15a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/></svg></span><span>Ajustes de tienda</span></a>
+            </nav>
+            <div class="sidebar-utility">
+              <a class="nav-item" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 8 5 9 7-1 2-4 7-9 7s-8-5-9-7c1-2 4-7 9-7Zm0 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span><span>Ver cat&aacute;logo p&uacute;blico</span></a>
+              <button id="sidebar-logout-btn" class="nav-item danger" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v2H5V5h5v2H7v10h3Zm4.7-.3-1.4-1.4 2.3-2.3H9v-2h6.6l-2.3-2.3 1.4-1.4L19.4 12l-4.7 4.7Z"/></svg></span><span>Cerrar sesi&oacute;n</span></button>
+            </div>
+            {masterSupportHref ? (
+              <a class="sidebar-footer" href={masterSupportHref} target="_blank" rel="noreferrer">
+                <strong>{masterSupportLabel}</strong>
+                <span>Soporte Master Admin de Tu Senda 84 para esta tienda.</span>
+              </a>
+            ) : (
+              <div class="sidebar-footer">
+                <strong>{masterSupportLabel}</strong>
+                <span>Soporte global pendiente de configurar. No se usa el contacto del admin de tienda.</span>
+              </div>
+            )}
           </div>
-          <nav>
-            <div class="nav-group">
-              <p class="nav-label">General</p>
-              <a class="nav-link" href={adminBasePath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Z"></path><path d="M14 20h6V4h-6v16Z"></path><path d="M4 20h6v-3H4v3Z"></path></svg></span> Resumen</span>
-              </a>
-            </div>
-            <div class="nav-group">
-              <p class="nav-label">Ventas</p>
-              <a class="nav-link active" href={adminOrdersPath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h10l2 2v16l-3-2-3 2-3-2-3 2V3Z"></path><path d="M9 8h6"></path><path d="M9 12h6"></path><path d="M9 16h4"></path></svg></span> Pedidos</span>
-              </a>
-            </div>
-            <div class="nav-group">
-              <p class="nav-label">Tienda</p>
-              <a class="nav-link" href={adminCatalogPath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Z"></path><path d="M3 11h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"></path></svg></span> Categorías</span>
-              </a>
-              <a class="nav-link" href={adminProductsPath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5Z"></path><path d="M5 10.7V17l6 3v-6.3l-6-3Z"></path><path d="M13 20l6-3v-6.3l-6 3V20Z"></path></svg></span> Productos</span>
-              </a>
-              <a class="nav-link" href={adminGiftsPath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1Z"></path><path d="M6 12v7h12v-7"></path><path d="M12 21V8"></path></svg></span> Regalos</span>
-              </a>
-              <a class="nav-link" href={adminShippingPath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Z"></path><path d="M5 7v7.17A3 3 0 0 1 8.83 16H13V7H5Z"></path><path d="M17 13h2"></path><path d="M6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path><path d="M16 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path></svg></span> Envíos</span>
-              </a>
-              <a class="nav-link" href={adminStoreSettingsPath}>
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1Z"></path><path d="M6 12v7h12v-7"></path><path d="M12 21V8"></path></svg></span> Ajustes de tienda</span>
-              </a>
-            </div>
-            <div class="nav-group">
-              <p class="nav-label">Cuenta</p>
-              <button id="sidebar-logout-btn" class="nav-link" type="button">
-                <span class="nav-left"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 11V8a5 5 0 0 1 10 0v3"></path><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M12 15v2"></path></svg></span> Cerrar sesión</span>
-              </button>
-            </div>
-          </nav>
         </aside>
+
+        <header class="mobile-topbar">
+          <button id="sidebar-open-btn" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">&#9776;</button>
+          <h2 class="mobile-topbar-title">Pedidos</h2>
+          <button class="notifications-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-5H5l1.5-2.2V10a5.5 5.5 0 0 1 11 0v4.8L19 17Z"/></svg></button>
+        </header>
 
         <div class="main-wrap">
           <header class="topbar">
             <div class="topbar-left">
-              <button id="sidebar-open-btn" class="menu-btn" type="button">☰</button>
+              <button class="menu-btn hidden" type="button" aria-hidden="true">&#9776;</button>
               <div>
-                <h1 class="page-title">Ventas <span style="font-weight:700;color:#334155;">› Pedidos</span></h1>
-                <p id="admin-subtitle" class="page-subtitle">Acciones administrativas completas para gestionar órdenes.</p>
+                <h1 class="page-title">Pedidos</h1>
+                <p id="admin-subtitle" class="page-subtitle">Administra y da seguimiento a los pedidos de tu tienda.</p>
               </div>
             </div>
             <div class="topbar-right">
-              <button id="cleanup-orders-open-btn" class:list={['action-btn', isOrderDetailPage && 'hidden']} type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-.8 13H7.8L7 7Z" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><path d="M9 7V5h6v2M10 11v5M14 11v5" stroke="#991B1B" stroke-width="2" stroke-linecap="round"/></svg>Borrar órdenes</button>
-              <a class="action-btn" href={adminBasePath}><svg viewBox="0 0 24 24" fill="none"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z" fill="#2563EB"/><path d="M4 13h6V4H4v9Z" fill="#38BDF8"/></svg>Ir al resumen</a>
-              <a class="action-btn" href={publicStorePath}><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Ver catálogo</a>
+              <button class="notifications-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-5H5l1.5-2.2V10a5.5 5.5 0 0 1 11 0v4.8L19 17Z"/></svg></button>
+              <button id="refresh-btn" class="btn btn-primary" type="button">Actualizar</button>
             </div>
           </header>
 
@@ -657,7 +835,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               <option value="pickup">Recogida</option>
               <option value="coordinate">Coordinar</option>
             </select>
-            <button id="refresh-btn" class="btn btn-primary" type="button">Actualizar</button>
+            <button id="cleanup-orders-open-btn" class:list={['action-btn', 'cleanup-soft-btn', isOrderDetailPage && 'hidden']} type="button"><svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-.8 13H7.8L7 7Z" fill="#FEE2E2" stroke="#DC2626" stroke-width="2"/><path d="M9 7V5h6v2M10 11v5M14 11v5" stroke="#991B1B" stroke-width="2" stroke-linecap="round"/></svg>Borrar &oacute;rdenes</button>
           </div>
 
           <section id="cleanup-orders-panel" class="card cleanup-selection-bar hidden">
@@ -676,7 +854,17 @@ const isOrderDetailPage = Boolean(initialOrderId);
           <div id="orders-admin-alert" class="alert orders-admin-alert hidden"></div>
 
           <div class:list={['admin-grid', isOrderDetailPage && 'detail-page']}>
-            <section class:list={['card orders-list', isOrderDetailPage && 'hidden']}><div id="orders-list"></div><div id="orders-pagination" class="orders-pagination hidden"></div></section>
+            <section class:list={['card orders-list', isOrderDetailPage && 'hidden']}>
+              <div class="orders-list-head">
+                <div>
+                  <h2>Listado de pedidos</h2>
+                  <p>Visualiza y gestiona todos los pedidos de tu tienda.</p>
+                </div>
+                <button id="orders-list-refresh-btn" class="btn btn-secondary" type="button">Actualizar</button>
+              </div>
+              <div id="orders-list"></div>
+              <div id="orders-pagination" class="orders-pagination hidden"></div>
+            </section>
             <aside class="card detail-panel">
               <div id="order-detail-empty" class="empty-state">Selecciona una orden para ver el detalle, actualizar datos y ejecutar acciones administrativas.</div>
               <div id="order-detail" class="hidden">
@@ -841,8 +1029,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const statusFilter = document.getElementById('status-filter');
       const deliveryFilter = document.getElementById('delivery-filter');
       const ordersList = document.getElementById('orders-list');
+      const ordersListRefreshBtn = document.getElementById('orders-list-refresh-btn');
       const ordersPagination = document.getElementById('orders-pagination');
-      const ORDERS_PER_PAGE = 15;
+      const ORDERS_PER_PAGE = 10;
       let currentOrdersPage = 1;
       let cleanupSelectionMode = false;
       let cleanupSelectedOrderIds = new Set();
@@ -1773,81 +1962,71 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (currentOrdersPage < 1) currentOrdersPage = 1;
 
         if (!filteredOrders.length) {
-          ordersList.innerHTML = '<div class="empty-state">No hay órdenes con esos filtros.</div>';
+          ordersList.innerHTML = '<div class="empty-state">No hay pedidos con esos filtros.</div>';
           if (ordersPagination) {
             ordersPagination.classList.add('hidden');
             ordersPagination.innerHTML = '';
           }
+          updateCleanupSelectionUI();
           return;
         }
 
         const startIndex = (currentOrdersPage - 1) * ORDERS_PER_PAGE;
         const pageOrders = filteredOrders.slice(startIndex, startIndex + ORDERS_PER_PAGE);
-        const groups = pageOrders.reduce((acc, order) => {
-          const key = getDateKey(order.created);
-          if (!acc[key]) acc[key] = { label: formatDateGroup(order.created), orders: [], total: 0 };
-          acc[key].orders.push(order);
-          acc[key].total += Number(order.total || 0);
-          return acc;
-        }, {});
-
-        ordersList.innerHTML = Object.entries(groups).map(([dateKey, group]) => {
-          const orderRows = group.orders.map((order) => {
-            const isActive = selectedOrder?.id === order.id;
-            const checked = cleanupSelectedOrderIds.has(order.id) ? 'checked' : '';
-            const orderCard = `
-              <button
-                class="order-row order-card-premium-v12 ${isActive ? 'active' : ''}"
-                type="button"
-                data-order-id="${escapeHtml(order.id)}"
-                style="width:100% !important; min-height:118px !important; display:flex !important; align-items:center !important; justify-content:space-between !important; gap:18px !important; padding:20px 22px !important; border:1px solid rgba(226,232,240,.95) !important; border-radius:28px !important; background:linear-gradient(135deg,#ffffff 0%,#f8fafc 56%,#eef6ff 100%) !important; box-shadow:0 22px 48px rgba(15,23,42,.13),0 8px 18px rgba(15,23,42,.07),inset 0 1px 0 rgba(255,255,255,.96) !important; text-align:left !important; position:relative !important; overflow:hidden !important;"
-              >
-                <span aria-hidden="true" style="position:absolute !important; left:0 !important; top:18px !important; bottom:18px !important; width:6px !important; border-radius:0 999px 999px 0 !important; background:${getOrderAccent(order.status)} !important;"></span>
-                <div style="min-width:0 !important; flex:1 1 auto !important; padding-left:8px !important;">
-                  <div style="display:flex !important; align-items:center !important; gap:10px !important; flex-wrap:wrap !important; margin-bottom:12px !important;">
-                    <span style="display:inline-flex !important; align-items:center !important; padding:8px 12px !important; border-radius:999px !important; background:#020617 !important; color:#ffffff !important; border:1px solid rgba(255,255,255,.14) !important; box-shadow:0 12px 24px rgba(15,23,42,.20) !important; font-size:12px !important; line-height:1 !important; font-weight:1000 !important; letter-spacing:.04em !important;">${escapeHtml(order.order_number || '')}</span>
-                    <span style="display:inline-block !important; color:#0f172a !important; font-size:18px !important; line-height:1.15 !important; font-weight:1000 !important; letter-spacing:-.025em !important;">${escapeHtml(order.customer_name || 'Cliente sin nombre')}</span>
-                  </div>
-                  <div style="display:flex !important; align-items:center !important; gap:8px !important; flex-wrap:wrap !important;">
-                    <span style="display:inline-flex !important; align-items:center !important; gap:6px !important; padding:8px 10px !important; border-radius:999px !important; background:#ffffff !important; border:1px solid #e2e8f0 !important; color:#334155 !important; font-size:12px !important; line-height:1 !important; font-weight:900 !important; box-shadow:0 8px 16px rgba(15,23,42,.05),inset 0 1px 0 rgba(255,255,255,.95) !important;">📞 ${escapeHtml(order.customer_phone || 'Sin teléfono')}</span>
-                    <span style="display:inline-flex !important; align-items:center !important; gap:6px !important; padding:8px 10px !important; border-radius:999px !important; background:#ffffff !important; border:1px solid #e2e8f0 !important; color:#334155 !important; font-size:12px !important; line-height:1 !important; font-weight:900 !important; box-shadow:0 8px 16px rgba(15,23,42,.05),inset 0 1px 0 rgba(255,255,255,.95) !important;">🚚 ${escapeHtml(deliveryLabels[order.delivery_method] || order.delivery_method || 'Sin entrega')}</span>
-                    <span style="display:inline-flex !important; align-items:center !important; gap:6px !important; padding:8px 10px !important; border-radius:999px !important; background:#ffffff !important; border:1px solid #e2e8f0 !important; color:#334155 !important; font-size:12px !important; line-height:1 !important; font-weight:900 !important; box-shadow:0 8px 16px rgba(15,23,42,.05),inset 0 1px 0 rgba(255,255,255,.95) !important;">🕒 ${formatDate(order.created)}</span>
-                  </div>
-                  ${renderOrderCouponBadge(order)}
-                  ${getOrderItemsSummary(order) ? `<div style="margin-top:10px !important; color:#475569 !important; font-size:12px !important; line-height:1.35 !important; font-weight:900 !important; overflow:hidden !important; text-overflow:ellipsis !important; display:-webkit-box !important; -webkit-line-clamp:2 !important; -webkit-box-orient:vertical !important;">🛒 ${escapeHtml(getOrderItemsSummary(order))}</div>` : ''}
-                </div>
-                <div style="display:flex !important; flex-direction:column !important; align-items:flex-end !important; justify-content:center !important; gap:10px !important; flex:0 0 auto !important;">
-                  <span style="display:inline-flex !important; align-items:center !important; justify-content:center !important; min-width:112px !important; padding:8px 12px !important; border-radius:999px !important; ${getStatusInlineStyle(order.status)} font-size:10px !important; line-height:1 !important; font-weight:1000 !important; text-transform:uppercase !important; letter-spacing:.06em !important; box-shadow:0 10px 18px rgba(15,23,42,.10) !important;">${escapeHtml(getStatusLabel(order.status))}</span>
-                  <span style="display:inline-flex !important; flex-direction:column !important; align-items:flex-start !important; justify-content:center !important; min-width:170px !important; padding:10px 13px !important; border-radius:18px !important; background:#0f172a !important; color:#ffffff !important; box-shadow:0 16px 28px rgba(15,23,42,.22),inset 0 1px 0 rgba(255,255,255,.14) !important; font-size:16px !important; line-height:1 !important; font-weight:1000 !important; letter-spacing:-.01em !important;">${renderOrderAdminSummary(order, orderItemsByOrder[order.id] || [], true)}</span>
-                </div>
-              </button>`;
-
-            if (!cleanupSelectionMode) return orderCard;
-            return `
-              <div class="order-select-row">
-                <input class="cleanup-order-checkbox order-select-box" type="checkbox" value="${escapeHtml(order.id)}" ${checked} aria-label="Seleccionar orden ${escapeHtml(order.order_number || '')}" />
-                ${orderCard}
-              </div>`;
-          }).join('');
-
-          return `
-            <div class="date-group" data-date-group="${escapeHtml(dateKey)}">
-              <div class="date-group-header">
-                <div class="date-title">${escapeHtml(group.label)}</div>
-                <div class="date-summary">${pluralizePedidos(group.orders.length)} · <strong>Total ${formatUSD(group.total)}</strong></div>
+        const headerMarkup = `
+          <div class="orders-table-head" aria-hidden="true">
+            <span>Pedido</span>
+            <span>Cliente</span>
+            <span>Fecha</span>
+            <span>Total</span>
+            <span>Entrega</span>
+            <span>Estado</span>
+            <span>Acciones</span>
+          </div>`;
+        const rowsMarkup = pageOrders.map((order) => {
+          const isActive = selectedOrder?.id === order.id;
+          const checked = cleanupSelectedOrderIds.has(order.id) ? 'checked' : '';
+          const deliveryMethod = String(order.delivery_method || '').trim();
+          const deliveryClass = ['delivery', 'pickup', 'coordinate'].includes(deliveryMethod) ? deliveryMethod : 'coordinate';
+          const statusClass = normalizeStatus(order.status);
+          const itemsSummary = getOrderItemsSummary(order);
+          const rowMarkup = `
+            <article class="order-table-row ${isActive ? 'active' : ''}" data-order-id="${escapeHtml(order.id)}">
+              <div class="order-cell order-main">
+                <span class="order-number">${escapeHtml(order.order_number || '')}</span>
+                ${itemsSummary ? `<span class="order-items-summary">${escapeHtml(itemsSummary)}</span>` : '<span class="order-items-summary">Sin resumen de productos</span>'}
               </div>
-              <div class="date-orders">${orderRows}</div>
+              <div class="order-cell order-customer">
+                <span class="order-customer-name">${escapeHtml(order.customer_name || 'Cliente sin nombre')}</span>
+                <span class="order-subtext">${escapeHtml(order.customer_phone || 'Sin telefono')}</span>
+              </div>
+              <div class="order-cell order-date-cell">${formatDate(order.created)}</div>
+              <div class="order-cell center order-total-cell">${renderOrderAdminSummary(order, orderItemsByOrder[order.id] || [], true)}</div>
+              <div class="order-cell center order-delivery-cell"><span class="order-chip ${deliveryClass}">${escapeHtml(deliveryLabels[deliveryMethod] || deliveryMethod || 'Coordinar')}</span></div>
+              <div class="order-cell center order-status-cell"><span class="order-status-chip status-${escapeHtml(statusClass)}">${escapeHtml(getStatusLabel(order.status))}</span></div>
+              <div class="order-row-actions">
+                <button class="order-open-btn js-open-order" type="button" data-order-open="${escapeHtml(order.id)}">Abrir</button>
+                <button class="order-more-btn js-order-more" type="button" data-order-more="${escapeHtml(order.id)}" aria-label="Más acciones">...</button>
+              </div>
+            </article>`;
+
+          if (!cleanupSelectionMode) return rowMarkup;
+          return `
+            <div class="order-select-row">
+              <input class="cleanup-order-checkbox order-select-box" type="checkbox" value="${escapeHtml(order.id)}" ${checked} aria-label="Seleccionar orden ${escapeHtml(order.order_number || '')}" />
+              ${rowMarkup}
             </div>`;
         }).join('');
 
+        ordersList.innerHTML = `${headerMarkup}${rowsMarkup}`;
         renderOrdersPagination(filteredOrders.length, totalPages, startIndex, pageOrders.length);
 
-        document.querySelectorAll('[data-order-id]').forEach((button) => {
-          button.addEventListener('click', () => {
-            const orderId = button.dataset.orderId;
+        document.querySelectorAll('[data-order-id]').forEach((row) => {
+          row.addEventListener('click', () => {
+            const orderId = row.dataset.orderId;
             if (cleanupSelectionMode) {
-              const row = button.closest('.order-select-row');
-              const checkbox = row?.querySelector('.cleanup-order-checkbox');
+              const selectRow = row.closest('.order-select-row');
+              const checkbox = selectRow?.querySelector('.cleanup-order-checkbox');
               if (checkbox) {
                 checkbox.checked = !checkbox.checked;
                 toggleCleanupOrderSelection(checkbox.value, checkbox.checked);
@@ -1859,7 +2038,23 @@ const isOrderDetailPage = Boolean(initialOrderId);
           });
         });
 
+        document.querySelectorAll('.js-open-order').forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const orderId = button.dataset.orderOpen;
+            if (!orderId || cleanupSelectionMode) return;
+            window.location.assign(getOrderDetailPath(orderId));
+          });
+        });
+
+        document.querySelectorAll('.js-order-more').forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.stopPropagation();
+          });
+        });
+
         document.querySelectorAll('.cleanup-order-checkbox').forEach((checkbox) => {
+          checkbox.addEventListener('click', (event) => event.stopPropagation());
           checkbox.addEventListener('change', () => toggleCleanupOrderSelection(checkbox.value, checkbox.checked));
         });
         updateCleanupSelectionUI();
@@ -1876,13 +2071,16 @@ const isOrderDetailPage = Boolean(initialOrderId);
         ordersPagination.classList.remove('hidden');
         const from = startIndex + 1;
         const to = startIndex + pageCount;
-        const pageButtons = Array.from({ length: totalPages }, (_, index) => {
-          const page = index + 1;
+        const windowSize = 5;
+        const firstPage = Math.max(1, Math.min(currentOrdersPage - 2, totalPages - windowSize + 1));
+        const lastPage = Math.min(totalPages, firstPage + windowSize - 1);
+        const pageButtons = Array.from({ length: lastPage - firstPage + 1 }, (_, index) => {
+          const page = firstPage + index;
           return `<button class="page-btn ${page === currentOrdersPage ? 'active' : ''}" type="button" data-orders-page="${page}">${page}</button>`;
         }).join('');
 
         ordersPagination.innerHTML = `
-          <div class="pagination-info">Mostrando ${from}-${to} de ${totalOrders} órdenes · 15 por página</div>
+          <div class="pagination-info">Mostrando ${from}&ndash;${to} de ${totalOrders} pedidos · 10 por página</div>
           <div class="pagination-actions">
             <button class="page-btn" type="button" data-orders-page="prev" ${currentOrdersPage === 1 ? 'disabled' : ''}>Anterior</button>
             ${pageButtons}
@@ -3143,13 +3341,29 @@ const isOrderDetailPage = Boolean(initialOrderId);
         });
       }
 
-      function openSidebar() { sidebar.classList.add('open'); sidebarOverlay.classList.add('show'); }
-      function closeSidebar() { sidebar.classList.remove('open'); sidebarOverlay.classList.remove('show'); }
+      function openSidebar() {
+        document.body.classList.add('sidebar-open');
+        sidebar?.classList.add('open');
+        sidebar?.setAttribute('aria-hidden', 'false');
+        sidebarOpenBtn?.setAttribute('aria-expanded', 'true');
+        sidebarOverlay?.classList.add('show');
+      }
+      function closeSidebar() {
+        document.body.classList.remove('sidebar-open');
+        sidebar?.classList.remove('open');
+        sidebar?.setAttribute('aria-hidden', 'true');
+        sidebarOpenBtn?.setAttribute('aria-expanded', 'false');
+        sidebarOverlay?.classList.remove('show');
+      }
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       sidebarLogoutBtn?.addEventListener('click', () => { clearAdminToken(); window.location.assign('/login'); });
       refreshBtn.addEventListener('click', () => {
+        loadStoreSettings();
+        loadOrders();
+      });
+      ordersListRefreshBtn?.addEventListener('click', () => {
         loadStoreSettings();
         loadOrders();
       });
