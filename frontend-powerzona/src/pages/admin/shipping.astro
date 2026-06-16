@@ -9,6 +9,7 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -19,130 +20,459 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
-const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el admin de envios de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Envios Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 ---
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Envíos | PowerZona</title>
+    <title>Env&iacute;os | PowerZona</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <style is:global>
       :root {
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        --page:#eef3f9; --surface:#fff; --soft:#f8fafc; --text:#0f172a; --muted:#64748b; --border:#e2e8f0;
-        --blue:#2563eb; --green:#16a34a; --red:#dc2626; --orange:#f97316; --shadow:0 18px 45px rgba(15,23,42,.08);
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --soft: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --blue: #2563eb;
+        --green: #16a34a;
+        --orange: #f97316;
+        --red: #dc2626;
+        --shadow: 0 18px 45px rgba(15, 23, 42, .08);
       }
-      *{box-sizing:border-box} html,body{margin:0;min-height:100%} body{color:var(--text);background:radial-gradient(circle at 14% 0%,rgba(37,99,235,.16),transparent 30%),radial-gradient(circle at 85% 8%,rgba(22,163,74,.10),transparent 25%),linear-gradient(180deg,#f8fbff 0%,var(--page) 48%,#e8eef7 100%)}
-      a{color:inherit;text-decoration:none} button,input,select,textarea{font:inherit} button{cursor:pointer} button:disabled{cursor:not-allowed;opacity:.65}.hidden{display:none!important}
-      .app-shell{width:min(1480px,100%);margin:0 auto;padding:24px}.sidebar-overlay{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.36);opacity:0;pointer-events:none;transition:opacity .22s ease;backdrop-filter:blur(2px)}body.sidebar-open .sidebar-overlay{opacity:1;pointer-events:auto}.sidebar{position:fixed;top:18px;left:18px;bottom:18px;z-index:90;width:min(286px,calc(100vw - 36px));border-radius:30px;padding:18px;background:linear-gradient(180deg,#fff 0%,#f8fafc 100%);border:1px solid rgba(226,232,240,.95);box-shadow:0 28px 80px rgba(15,23,42,.22);overflow:hidden auto;transform:translateX(calc(-100% - 36px));transition:transform .24s ease}body.sidebar-open .sidebar{transform:translateX(0)}.sidebar-inner{display:flex;flex-direction:column;min-height:100%}.brand{display:flex;align-items:center;gap:11px;padding:8px 8px 18px;border-bottom:1px solid #e2e8f0;margin-bottom:14px}.brand-logo{width:42px;height:42px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;background:#0f172a;color:#fff;font-weight:1000;box-shadow:0 14px 30px rgba(15,23,42,.18)}.brand-title{margin:0;font-size:15px;font-weight:1000;letter-spacing:-.02em}.brand-subtitle{margin:2px 0 0;color:#64748b;font-size:11px;font-weight:850}.sidebar-close{margin-left:auto;width:36px;height:36px;border-radius:14px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:1000}.sidebar-label{margin:18px 9px 9px;color:#64748b;font-size:10px;font-weight:1000;text-transform:uppercase;letter-spacing:.12em}.nav-list{display:grid;gap:8px}.nav-item{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:18px;color:#334155;font-size:13px;font-weight:950;border:1px solid transparent}.nav-item:hover{background:#f1f5f9;border-color:#e2e8f0;color:#0f172a}.nav-item.active{background:#0f172a;border-color:#0f172a;color:#fff;box-shadow:0 12px 26px rgba(15,23,42,.16)}.nav-icon{width:34px;height:34px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;background:#f8fafc;color:#0f172a;border:1px solid #e2e8f0;flex:0 0 auto}.nav-icon svg{width:18px;height:18px;display:block;fill:currentColor}.nav-item.active .nav-icon{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.20)}
-      .main-wrap{min-width:0;padding:2px 0 28px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}.menu-btn,.action-btn,.mini-btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:16px;padding:11px 14px;background:rgba(255,255,255,.92);border:1px solid rgba(226,232,240,.95);box-shadow:0 12px 26px rgba(15,23,42,.07);font-weight:950}.menu-btn,.mini-btn.primary,.action-btn.dark{background:#0f172a;color:#fff;border-color:#0f172a}.mini-btn.danger,.action-btn.danger{background:#fee2e2;color:#991b1b;border-color:#fecaca}.mini-btn.green{background:#dcfce7;color:#166534;border-color:#bbf7d0}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.hero-card,.panel-card,.list-card{background:rgba(255,255,255,.92);border:1px solid rgba(226,232,240,.96);border-radius:30px;box-shadow:var(--shadow);backdrop-filter:blur(10px)}.hero-card{padding:26px;margin-bottom:18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;position:relative;overflow:hidden}.badge{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;background:#dcfce7;color:#166534;font-size:13px;font-weight:1000}.page-title{font-size:clamp(25px,3vw,40px);font-weight:1000;letter-spacing:-.045em;line-height:1.05;margin:14px 0 0}.page-title span{color:#334155;font-weight:800}.page-subtitle{margin:9px 0 0;font-size:15px;color:var(--muted);line-height:1.55;max-width:820px}.panel-card{padding:22px;margin-bottom:18px}.login-card{max-width:520px;margin:28px auto}.section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap}.section-title{margin:0;font-size:21px;font-weight:1000;letter-spacing:-.03em}.section-subtitle{margin:5px 0 0;color:#64748b;font-size:13px;font-weight:750;line-height:1.45}.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}.stat-card{background:rgba(255,255,255,.92);border:1px solid #e2e8f0;border-radius:26px;padding:18px;box-shadow:0 12px 28px rgba(15,23,42,.06)}.stat-label{margin:0;color:#64748b;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.04em}.stat-value{margin:7px 0 0;font-size:28px;font-weight:1000;letter-spacing:-.04em}.form-grid{display:grid;gap:12px}.shipping-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}.field{display:grid;gap:7px}.field label{color:#334155;font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.04em}.field input,.field select,.field textarea{width:100%;border:1px solid var(--border);border-radius:16px;background:#fff;color:var(--text);padding:12px 13px;outline:none;font-weight:800}.field textarea{min-height:92px;resize:vertical;line-height:1.45}.check-row{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:900;color:#334155}.check-row input{width:auto}.form-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;margin-top:4px}.alert{margin-top:12px;border-radius:16px;padding:11px 12px;font-size:13px;font-weight:850;line-height:1.45}.alert-info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}.alert-success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}.filter-row{display:grid;grid-template-columns:minmax(0,1fr) 190px auto;gap:12px;align-items:end;margin-bottom:16px}.municipality-group{border:1px solid #e2e8f0;border-radius:24px;background:#fff;overflow:visible;margin-bottom:14px;position:relative}.municipality-group.menu-open-card{z-index:10010}.municipality-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;background:#f8fafc;border-radius:24px;transition:background .18s ease}.municipality-group.expanded .municipality-head{border-bottom:1px solid #e2e8f0;border-radius:24px 24px 0 0}.municipality-toggle{width:100%;border:0;background:transparent;color:inherit;padding:0;display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;cursor:pointer}.municipality-main{display:flex;align-items:center;gap:12px;min-width:0}.municipality-chevron{width:34px;height:34px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;background:#fff;border:1px solid #e2e8f0;color:#0f172a;font-weight:1000;flex:0 0 auto;transition:transform .18s ease}.municipality-group.expanded .municipality-chevron{transform:rotate(180deg)}.municipality-name{font-weight:1000;letter-spacing:-.02em}.municipality-count{font-size:12px;font-weight:950;color:#64748b}.municipality-actions{display:none;gap:10px;justify-content:flex-end;flex-wrap:wrap}.municipality-group.expanded .municipality-actions{display:flex}.zone-list{display:none;gap:0}.municipality-group.expanded .zone-list{display:grid}.zone-row{display:grid;grid-template-columns:minmax(0,1.2fr) 130px 100px auto;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid #f1f5f9;position:relative}.zone-row.menu-open{z-index:10020}.zone-row:last-child{border-bottom:0}.zone-title{font-weight:1000;color:#0f172a}.zone-note{margin:3px 0 0;color:#64748b;font-size:12px;font-weight:750}.price-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:8px 10px;background:#eff6ff;color:#1d4ed8;font-size:13px;font-weight:1000}.status-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:8px 10px;font-size:12px;font-weight:1000}.status-pill.active{background:#dcfce7;color:#166534}.status-pill.inactive{background:#fee2e2;color:#991b1b}.row-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.zone-menu-wrap{position:relative;display:flex;justify-content:flex-end;z-index:2}.zone-menu-wrap.open{z-index:10030}.kebab-btn{width:42px;height:42px;border-radius:16px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;box-shadow:0 10px 22px rgba(15,23,42,.07);font-size:20px;font-weight:1000;line-height:1;display:inline-flex;align-items:center;justify-content:center}.kebab-btn:hover{background:#f8fafc}.floating-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:10040;min-width:176px;border-radius:18px;padding:7px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 24px 60px rgba(15,23,42,.18);display:none}.floating-menu.drop-up{top:auto;bottom:calc(100% + 8px)}.zone-menu-wrap.open .floating-menu{display:grid;gap:5px}.menu-action{width:100%;border:0;background:transparent;color:#334155;border-radius:13px;padding:10px 11px;text-align:left;font-size:13px;font-weight:950;display:flex;align-items:center;gap:8px}.menu-action:hover{background:#f8fafc;color:#0f172a}.menu-action.danger{color:#991b1b}.menu-action.danger:hover{background:#fee2e2}.menu-action.green{color:#166534}.menu-action.green:hover{background:#dcfce7}.empty-state{padding:26px;border-radius:24px;background:#f8fafc;border:1px dashed #cbd5e1;color:#64748b;font-weight:850;text-align:center}.muted{color:#64748b}.hide-mobile{display:inline}.show-mobile{display:none}.shipping-modal{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.42);backdrop-filter:blur(4px)}.shipping-modal.hidden{display:none!important}.modal-card{width:min(560px,100%);max-height:calc(100vh - 36px);overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:28px;box-shadow:0 32px 90px rgba(15,23,42,.28);padding:22px}.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:16px}.modal-title{margin:0;font-size:21px;font-weight:1000;letter-spacing:-.03em}.modal-subtitle{margin:5px 0 0;color:#64748b;font-size:13px;font-weight:750;line-height:1.45}.modal-close{width:40px;height:40px;border-radius:15px;border:1px solid #e2e8f0;background:#fff;color:#0f172a;font-weight:1000}.collapsed-panel.hidden{display:none!important}
-      @media (max-width:900px){.hero-card{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}.filter-row{grid-template-columns:1fr}.zone-row{grid-template-columns:1fr;gap:9px}.row-actions,.zone-menu-wrap{justify-content:flex-start}.floating-menu{left:0;right:auto}.hide-mobile{display:none}.show-mobile{display:inline}}
-      @media (max-width:620px){.app-shell{padding:14px}.sidebar{top:12px;left:12px;bottom:12px;width:calc(100vw - 24px);border-radius:26px}.hero-card,.panel-card{border-radius:24px;padding:18px}.stats-grid,.shipping-form-grid{grid-template-columns:1fr}.topbar{align-items:stretch}.menu-btn,.action-btn{width:100%}.hero-actions{width:100%;justify-content:stretch}.hero-actions>*{flex:1}.page-title{font-size:28px}.municipality-head{align-items:stretch;flex-direction:column}.municipality-toggle{align-items:flex-start}.municipality-actions{justify-content:stretch}.municipality-actions .mini-btn{width:100%}.zone-row{padding:14px}.form-actions{justify-content:stretch}.form-actions button{width:100%}}
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, .16), transparent 30%),
+          radial-gradient(circle at 85% 8%, rgba(22, 163, 74, .10), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+
+      a { color: inherit; text-decoration: none; }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .62; }
+      .hidden { display: none !important; }
+
+      .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: rgba(15, 23, 42, .36);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .22s ease;
+        backdrop-filter: blur(2px);
+      }
+      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
+      .sidebar {
+        position: fixed;
+        top: 18px;
+        left: 18px;
+        bottom: 18px;
+        z-index: 90;
+        width: min(286px, calc(100vw - 36px));
+        border-radius: 30px;
+        padding: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid rgba(226, 232, 240, .95);
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .22);
+        overflow: hidden auto;
+        transform: translateX(calc(-100% - 36px));
+        transition: transform .24s ease;
+      }
+      body.sidebar-open .sidebar { transform: translateX(0); }
+      .sidebar::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 18% 0%, rgba(15, 23, 42, .06), transparent 32%);
+        pointer-events: none;
+      }
+      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100%; }
+      .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
+      .brand-logo { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: #0f172a; color: #fff; font-weight: 1000; box-shadow: 0 14px 30px rgba(15, 23, 42, .18); }
+      .brand-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
+      .brand-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; }
+      .sidebar-close { margin-left: auto; width: 36px; height: 36px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 8px 18px rgba(15, 23, 42, .05); }
+      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
+      .nav-list { display: grid; gap: 8px; }
+      .nav-item { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 18px; color: #334155; font-size: 13px; font-weight: 950; border: 1px solid transparent; }
+      .nav-item:hover { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; }
+      .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15, 23, 42, .16); }
+      .nav-icon { width: 34px; height: 34px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0; flex: 0 0 auto; }
+      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
+      .nav-item.active .nav-icon { background: rgba(255, 255, 255, .12); color: #fff; border-color: rgba(255, 255, 255, .20); }
+      .sidebar-bottom { margin-top: auto; padding-top: 18px; border-top: 1px solid #e2e8f0; display: grid; gap: 10px; }
+      .sidebar-action { width: 100%; min-height: 42px; display: inline-flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 18px; background: rgba(255, 255, 255, .82); border: 1px solid #e2e8f0; color: #0f172a; font-size: 12px; font-weight: 950; }
+      .sidebar-action.danger { color: #dc2626; background: #fff7f7; border-color: #fecaca; }
+      .sidebar-action .nav-icon { width: 32px; height: 32px; border-radius: 13px; background: #fff; }
+      .support-card { padding: 14px; border-radius: 20px; background: #f8fafc; border: 1px solid #e2e8f0; }
+      .support-title { display: block; margin: 0 0 12px; font-size: 12px; font-weight: 900; color: #0f172a; }
+      .support-text { display: block; margin: 0 0 12px; color: #334155; font-size: 12px; font-weight: 850; }
+      .support-btn { width: 100%; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 16px; border: 1px solid #dbeafe; background: #fff; color: #2563eb; font-size: 12px; font-weight: 1000; }
+
+      .main-wrap { min-width: 0; padding: 2px 0 96px; }
+      .mobile-topbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+      .mobile-topbar-title { margin: 0; font-size: 24px; font-weight: 1000; letter-spacing: -.03em; flex: 1; }
+      .icon-btn, .menu-btn, .mini-btn, .primary-blue-btn, .notification-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 232, 240, .95);
+        background: rgba(255, 255, 255, .92);
+        color: #0f172a;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .07);
+        font-weight: 950;
+      }
+      .icon-btn { width: 46px; height: 46px; padding: 0; box-shadow: none; }
+      .icon-btn svg, .mini-btn svg, .primary-blue-btn svg, .notification-btn svg, .bottom-nav svg { width: 18px; height: 18px; fill: currentColor; }
+      .mini-btn { min-height: 42px; padding: 10px 14px; }
+      .mini-btn.primary, .primary-blue-btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border-color: rgba(37, 99, 235, .88);
+        box-shadow: 0 14px 28px rgba(37, 99, 235, .22);
+      }
+      .mini-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .mini-btn.green { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .notification-btn { width: 48px; height: 48px; position: relative; }
+      .notification-btn::after { content: ''; position: absolute; top: 12px; right: 12px; width: 7px; height: 7px; border-radius: 999px; background: #f97316; box-shadow: 0 0 0 3px #fff; }
+      .hero-card, .panel-card, .list-card {
+        background: rgba(255, 255, 255, .92);
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 30px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+      .hero-card { padding: 26px 28px; margin-bottom: 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+      .hero-eyebrow { margin: 0 0 8px; color: #2563eb; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
+      .page-title { margin: 0; font-size: clamp(30px, 3.3vw, 46px); font-weight: 1000; letter-spacing: -.045em; line-height: 1.03; }
+      .page-subtitle { margin: 9px 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; max-width: 790px; font-weight: 700; }
+      .hero-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+
+      .mobile-intro { display: none; }
+      .section-title { margin: 0; font-size: 21px; font-weight: 1000; letter-spacing: -.03em; }
+      .section-subtitle { margin: 7px 0 0; color: #64748b; font-size: 14px; line-height: 1.5; font-weight: 750; }
+      .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+      .stat-card { min-height: 112px; display: grid; align-content: center; gap: 8px; background: rgba(255, 255, 255, .92); border: 1px solid #e2e8f0; border-radius: 26px; padding: 18px 20px; box-shadow: 0 12px 28px rgba(15, 23, 42, .06); }
+      .stat-top { display: flex; align-items: center; gap: 14px; }
+      .stat-icon { width: 48px; height: 48px; border-radius: 17px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+      .stat-icon svg { width: 22px; height: 22px; fill: currentColor; }
+      .stat-icon.blue { background: #dbeafe; color: #2563eb; }
+      .stat-icon.green { background: #dcfce7; color: #16a34a; }
+      .stat-icon.purple { background: #ede9fe; color: #7c3aed; }
+      .stat-icon.orange { background: #ffedd5; color: #f97316; }
+      .stat-label { margin: 0; color: #475569; font-size: 13px; font-weight: 950; }
+      .stat-value { margin: 0; color: #0f172a; font-size: 28px; font-weight: 1000; letter-spacing: -.04em; }
+
+      .panel-card { padding: 22px; margin-bottom: 18px; }
+      .login-card { max-width: 520px; margin: 28px auto; }
+      .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+      .form-grid { display: grid; gap: 12px; }
+      .shipping-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .full { grid-column: 1 / -1; }
+      .field { display: grid; gap: 7px; }
+      .field label { color: #334155; font-size: 12px; font-weight: 950; }
+      .field input, .field select, .field textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        color: var(--text);
+        padding: 12px 13px;
+        outline: none;
+        font-weight: 800;
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, .02);
+      }
+      .field input:focus, .field select:focus, .field textarea:focus { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(37, 99, 235, .12); }
+      .field textarea { min-height: 92px; resize: vertical; line-height: 1.45; }
+      .check-row { display: flex; align-items: center; gap: 9px; min-height: 46px; font-size: 13px; font-weight: 900; color: #334155; }
+      .check-row input { width: 18px; height: 18px; accent-color: #16a34a; }
+      .form-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 4px; }
+      .alert { margin-top: 12px; border-radius: 16px; padding: 11px 12px; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+      .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+      .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+      .filters-card { padding: 22px; }
+      .filters-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(170px, .5fr) minmax(170px, .5fr) auto; gap: 18px; align-items: end; }
+      .filter-button { min-width: 132px; }
+      .zones-shell { padding: 0; overflow: visible; }
+      .zones-list { display: grid; gap: 10px; padding: 0; }
+      .municipality-group { border: 1px solid #e2e8f0; border-radius: 24px; background: rgba(255, 255, 255, .94); overflow: visible; position: relative; box-shadow: 0 12px 28px rgba(15, 23, 42, .055); }
+      .municipality-group.menu-open-card { z-index: 10010; }
+      .municipality-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 24px; }
+      .municipality-group.expanded .municipality-head { border-bottom: 1px solid #e2e8f0; border-radius: 24px 24px 0 0; }
+      .municipality-toggle { min-width: 0; border: 0; background: transparent; color: inherit; padding: 0; display: flex; align-items: center; gap: 14px; text-align: left; cursor: pointer; }
+      .municipality-icon { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px solid #eef2f7; color: #0f172a; flex: 0 0 auto; }
+      .municipality-icon svg { width: 21px; height: 21px; fill: currentColor; }
+      .municipality-name { display: block; font-size: 18px; font-weight: 1000; letter-spacing: -.025em; }
+      .municipality-count { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 850; }
+      .municipality-chevron { width: 38px; height: 38px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #0f172a; border: 0; transition: transform .18s ease; }
+      .municipality-chevron svg { width: 18px; height: 18px; fill: currentColor; }
+      .municipality-group.expanded .municipality-chevron { transform: rotate(180deg); }
+      .zone-list { display: none; }
+      .municipality-group.expanded .zone-list { display: block; }
+      .zone-table-head, .zone-row { display: grid; grid-template-columns: minmax(0, 1.05fr) 150px 140px minmax(170px, .8fr) 132px; gap: 14px; align-items: center; }
+      .zone-table-head { padding: 14px 20px; color: #475569; background: rgba(248, 250, 252, .72); border-bottom: 1px solid #eef2f7; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .05em; }
+      .zone-row { padding: 14px 20px; border-bottom: 1px solid #eef2f7; position: relative; }
+      .zone-row:last-child { border-bottom: 0; border-radius: 0 0 24px 24px; }
+      .zone-row.menu-open { z-index: 10020; }
+      .zone-title { font-weight: 950; color: #0f172a; }
+      .zone-note { color: #334155; font-size: 13px; font-weight: 850; }
+      .price-pill { color: #0f172a; font-size: 13px; font-weight: 950; }
+      .status-pill { display: inline-flex; align-items: center; justify-content: center; width: max-content; border-radius: 999px; padding: 7px 10px; font-size: 12px; font-weight: 1000; }
+      .status-pill.active { background: #dcfce7; color: #166534; }
+      .status-pill.inactive { background: #ffedd5; color: #ea580c; }
+      .zone-menu-wrap { position: relative; display: flex; justify-content: flex-end; z-index: 2; }
+      .zone-menu-wrap.open { z-index: 10030; }
+      .kebab-btn { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; box-shadow: 0 8px 18px rgba(15, 23, 42, .06); display: inline-flex; align-items: center; justify-content: center; }
+      .kebab-btn svg { width: 18px; height: 18px; fill: currentColor; }
+      .floating-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 10040; min-width: 176px; border-radius: 18px; padding: 7px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 60px rgba(15, 23, 42, .18); display: none; }
+      .floating-menu.drop-up { top: auto; bottom: calc(100% + 8px); }
+      .zone-menu-wrap.open .floating-menu { display: grid; gap: 5px; }
+      .menu-action { width: 100%; border: 0; background: transparent; color: #334155; border-radius: 13px; padding: 10px 11px; text-align: left; font-size: 13px; font-weight: 950; display: flex; align-items: center; gap: 8px; }
+      .menu-action:hover { background: #f8fafc; color: #0f172a; }
+      .menu-action.danger { color: #991b1b; }
+      .menu-action.danger:hover { background: #fee2e2; }
+      .menu-action.green { color: #166534; }
+      .menu-action.green:hover { background: #dcfce7; }
+      .empty-state { padding: 26px; border-radius: 24px; background: #f8fafc; border: 1px dashed #cbd5e1; color: #64748b; font-weight: 850; text-align: center; }
+      .pagination-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 14px; padding: 14px 2px 0; color: #475569; font-size: 14px; font-weight: 850; }
+      .pager { display: flex; align-items: center; gap: 10px; }
+      .pager-btn { width: 44px; height: 44px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #334155; display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; }
+      .pager-btn.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+      .pager-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+      .shipping-modal { position: fixed; inset: 0; z-index: 12000; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15, 23, 42, .42); backdrop-filter: blur(4px); }
+      .shipping-modal.hidden { display: none !important; }
+      .modal-card { width: min(560px, 100%); max-height: calc(100vh - 36px); overflow: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 28px; box-shadow: 0 32px 90px rgba(15, 23, 42, .28); padding: 22px; }
+      .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 16px; }
+      .modal-title { margin: 0; font-size: 21px; font-weight: 1000; letter-spacing: -.03em; }
+      .modal-subtitle { margin: 5px 0 0; color: #64748b; font-size: 13px; font-weight: 750; line-height: 1.45; }
+      .modal-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; }
+      .collapsed-panel.hidden { display: none !important; }
+
+      .bottom-nav {
+        position: fixed;
+        left: 14px;
+        right: 14px;
+        bottom: 12px;
+        z-index: 70;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 6px;
+        padding: 10px;
+        background: rgba(255, 255, 255, .94);
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 22px;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .12);
+        backdrop-filter: blur(12px);
+      }
+      .bottom-nav a { min-height: 58px; border-radius: 16px; display: grid; place-items: center; gap: 3px; color: #475569; font-size: 11px; font-weight: 850; }
+      .bottom-nav a.active { background: #dbeafe; color: #2563eb; }
+
+      @media (min-width: 1024px) {
+        .app-shell { width: 100%; max-width: none; padding: 38px 40px 48px 326px; }
+        #admin-sidebar { transform: translateX(0); width: 278px; top: 18px; left: 18px; bottom: 18px; }
+        #sidebar-close, #sidebar-overlay, .mobile-topbar, .bottom-nav { display: none; }
+        .main-wrap { padding-bottom: 28px; }
+      }
+
+      @media (max-width: 980px) {
+        .hero-card { display: none; }
+        .mobile-intro { display: block; margin: 8px 4px 18px; }
+        .mobile-intro .section-title { font-size: 20px; }
+        .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .stat-card { min-height: 132px; align-content: start; }
+        .stat-top { display: grid; gap: 12px; }
+        .filters-card { padding: 18px; }
+        .filters-grid { grid-template-columns: 1fr 1fr auto; gap: 12px; }
+        .filters-grid .search-field { grid-column: 1 / -1; }
+        .filter-button { min-width: 112px; }
+        .zone-table-head { display: none; }
+        .zone-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 16px 20px; }
+        .zone-row > div:nth-child(1) { grid-column: 1 / -1; }
+        .zone-note::before { content: 'Nota interna: '; color: #64748b; }
+        .price-pill::before { content: 'Precio (USD): '; color: #64748b; font-weight: 850; }
+        .zone-menu-wrap { justify-content: flex-end; }
+      }
+
+      @media (max-width: 620px) {
+        .app-shell { padding: 10px 14px 100px; }
+        .sidebar { top: 12px; left: 12px; bottom: 12px; width: calc(100vw - 24px); border-radius: 26px; }
+        .mobile-topbar { gap: 10px; }
+        .mobile-topbar-title { font-size: 23px; }
+        .primary-blue-btn { min-height: 46px; padding: 10px 13px; border-radius: 15px; font-size: 13px; white-space: nowrap; }
+        .notification-btn, .icon-btn { width: 44px; height: 44px; border-radius: 15px; }
+        .panel-card { border-radius: 24px; padding: 18px; }
+        .stats-grid { gap: 10px; }
+        .stat-card { border-radius: 20px; padding: 16px; min-height: 132px; }
+        .stat-icon { width: 46px; height: 46px; }
+        .stat-label { font-size: 12px; }
+        .stat-value { font-size: 25px; }
+        .filters-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+        .filter-button { grid-column: 1 / -1; width: 100%; }
+        .municipality-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 16px; }
+        .municipality-head .mini-btn { grid-column: 1 / 2; width: 100%; justify-self: stretch; }
+        .municipality-chevron { grid-row: 1 / 2; grid-column: 2 / 3; }
+        .shipping-form-grid { grid-template-columns: 1fr; }
+        .form-actions, .form-actions button { width: 100%; justify-content: stretch; }
+        .form-actions button { justify-content: center; }
+        .floating-menu { right: 0; }
+        .pagination-row { align-items: flex-start; flex-direction: column; }
+        .pager { align-self: flex-end; }
+      }
     </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
     <div class="app-shell">
-      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
+      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administracion" aria-hidden="true">
         <div class="sidebar-inner">
           <div class="brand">
             <span class="brand-logo">PZ</span>
-            <div><p class="brand-title">PowerZona</p><p class="brand-subtitle">Panel administrativo</p></div>
-            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
+            <div><p class="brand-title">PowerZona</p><p class="brand-subtitle">Admin Panel</p></div>
+            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar men&uacute;">x</button>
           </div>
           <p class="sidebar-label">Principal</p>
           <nav class="nav-list">
             <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
             <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categor&iacute;as</span></a>
+          </nav>
+          <p class="sidebar-label">Tienda</p>
+          <nav class="nav-list">
             <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
             <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item active" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+            <a class="nav-item active" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Env&iacute;os</span></a>
             <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes de tienda</span></a>
           </nav>
           <p class="sidebar-label">Divisiones</p>
           <nav class="nav-list">
             <a class="nav-item" href={adminPromosPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7M3 8h18v4H3V8ZM12 21V8M12 8H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm0 0h3.5A2.5 2.5 0 1 0 13 5.5L12 8Z"/></svg></span><span>Marketing</span></a>
-            <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
+            <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organizaci&oacute;n Visual</span></a>
           </nav>
+          <div class="sidebar-bottom">
+            <a class="sidebar-action" href={publicStorePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver cat&aacute;logo p&uacute;blico</span></a>
+            <button id="logout-btn" class="sidebar-action danger hidden" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesi&oacute;n</span></button>
+            <div class="support-card">
+              <strong class="support-title">Soporte Tu Senda 84</strong>
+              <span class="support-text">&iquest;Necesitas ayuda?</span>
+              {masterSupportHref ? (
+                <a class="support-btn" href={masterSupportHref} target="_blank" rel="noreferrer">Contactar a soporte</a>
+              ) : (
+                <button class="support-btn" type="button" disabled>Contactar a soporte</button>
+              )}
+            </div>
+          </div>
         </div>
       </aside>
       <main class="main-wrap">
-        <header class="topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
-          <div class="hero-actions">
-            <a class="action-btn" href={adminOrdersPath}>Pedidos</a>
-            <a class="action-btn" href={publicCheckoutPath}>Ver checkout</a>
-            <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
-          </div>
+        <header class="mobile-topbar">
+          <button id="sidebar-open" class="icon-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
+          <h1 class="mobile-topbar-title">Env&iacute;os</h1>
+          <button id="new-zone-mobile-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button>
+          <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
         </header>
         <section class="hero-card">
           <div>
-            <span class="badge">🚚 Envíos</span>
-            <h1 class="page-title">Municipios y zonas <span>de entrega</span></h1>
-            <p class="page-subtitle">Administra municipios, zonas y un precio único de envío por zona para usarlo en el checkout.</p>
+            <p class="hero-eyebrow">Env&iacute;os</p>
+            <h1 class="page-title">Env&iacute;os</h1>
+            <p class="page-subtitle">Configura municipios y zonas de entrega para el checkout de tu tienda.</p>
           </div>
-          <div class="hero-actions"><button id="new-zone-top-btn" class="action-btn dark" type="button" aria-expanded="false">Agregar envío</button></div>
+          <div class="hero-actions">
+            <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
+            <button id="new-zone-top-btn" class="primary-blue-btn" type="button" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button>
+          </div>
         </section>
         <section id="login-view" class="panel-card login-card hidden">
           <h2 class="section-title">Entrar como admin</h2>
-          <p class="section-subtitle">Usa el mismo usuario administrador de PocketBase para administrar envíos.</p>
+          <p class="section-subtitle">Usa el mismo usuario administrador de PocketBase para administrar env&iacute;os.</p>
           <form id="login-form" class="form-grid" style="margin-top:18px;">
             <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
-            <div class="field"><label for="admin-password">Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
+            <div class="field"><label for="admin-password">Contrase&ntilde;a</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
             <button class="mini-btn primary" type="submit">Entrar al panel</button>
             <div id="login-alert" class="alert alert-error hidden"></div>
           </form>
         </section>
         <section id="admin-view" class="hidden">
+          <div class="mobile-intro">
+            <h2 class="section-title">Municipios y zonas de entrega</h2>
+            <p class="section-subtitle">Administra los precios de env&iacute;o por municipio y zona que ver&aacute; el cliente en el checkout.</p>
+          </div>
           <div class="stats-grid">
-            <article class="stat-card"><p class="stat-label">Municipios</p><p id="stat-municipalities" class="stat-value">0</p></article>
-            <article class="stat-card"><p class="stat-label">Zonas activas</p><p id="stat-active-zones" class="stat-value">0</p></article>
-            <article class="stat-card"><p class="stat-label">Costo promedio</p><p id="stat-average-price" class="stat-value">$0.00</p></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-icon blue"><svg viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4Zm0 3 5 2.5V12c0 3.3-2 5.8-5 6.8-3-1-5-3.5-5-6.8V7.5L12 5Zm-1 4h2v4h3v2h-5V9Z"/></svg></span><p class="stat-label">Municipios</p></div><p id="stat-municipalities" class="stat-value">0</p></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M12 2 3 6v14l9-4 9 4V6l-9-4Zm-1 12.3-6 2.7V7.3l6-2.7v9.7Zm2 0V4.6l6 2.7V17l-6-2.7Z"/></svg></span><p class="stat-label">Zonas activas</p></div><p id="stat-active-zones" class="stat-value">0</p></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="m2.8 4.2 1.4-1.4 17 17-1.4 1.4-3-3A10.8 10.8 0 0 1 12 19c-5 0-9-5.2-9-7 0-.9 1-2.7 2.8-4.2l-3-3.6ZM12 5c5 0 9 5.2 9 7 0 .7-.7 2.1-2 3.4l-3-3A4 4 0 0 0 11.6 8l-2-2A9.6 9.6 0 0 1 12 5Zm0 11.5c.7 0 1.3-.2 1.8-.5L8 10.2A4 4 0 0 0 12 16.5Z"/></svg></span><p class="stat-label">Zonas ocultas</p></div><p id="stat-hidden-zones" class="stat-value">0</p></article>
+            <article class="stat-card"><div class="stat-top"><span class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><p class="stat-label">Promedio</p></div><p id="stat-average-price" class="stat-value">$0.00</p></article>
           </div>
           <section class="panel-card collapsed-panel hidden" id="form-panel">
             <div class="section-head">
-              <div><h2 id="form-title" class="section-title">Agregar envío</h2><p id="form-subtitle" class="section-subtitle">Crea un municipio y su zona inicial con precio único de entrega en USD.</p></div>
-              <button id="cancel-edit-btn" class="mini-btn hidden" type="button">Cancelar edición</button>
+              <div><h2 id="form-title" class="section-title">Nueva zona</h2><p id="form-subtitle" class="section-subtitle">Crea un municipio y su zona inicial con precio unico de entrega en USD.</p></div>
+              <button id="cancel-edit-btn" class="mini-btn hidden" type="button">Cancelar edicion</button>
             </div>
             <form id="shipping-form" class="shipping-form-grid">
               <div class="field"><label for="municipality-input">Municipio</label><input id="municipality-input" type="text" placeholder="Nombre del municipio" required /></div>
               <div class="field"><label for="zone-input">Zona</label><input id="zone-input" type="text" placeholder="Nombre de la zona" /></div>
-              <div class="field"><label for="price-input">Precio único USD</label><input id="price-input" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
+              <div class="field"><label for="price-input">Precio &uacute;nico USD</label><input id="price-input" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
               <div class="field"><label for="active-input">Estado</label><label class="check-row"><input id="active-input" type="checkbox" checked /> Activo en checkout</label></div>
               <div class="field full"><label for="note-input">Nota interna opcional</label><textarea id="note-input" placeholder="Detalles internos para el administrador"></textarea></div>
               <div class="form-actions full"><button id="save-zone-btn" class="mini-btn primary" type="submit">Guardar zona</button></div>
             </form>
             <div id="form-alert" class="alert alert-info hidden"></div>
           </section>
-          <section class="panel-card">
-            <div class="section-head">
-              <div><h2 class="section-title">Zonas configuradas</h2><p class="section-subtitle">Las zonas activas aparecen en el checkout público. Las ocultas quedan guardadas para uso futuro.</p></div>
-              <button id="refresh-btn" class="mini-btn" type="button">Actualizar</button>
+          <section class="panel-card filters-card">
+            <div class="filters-grid">
+              <div class="field search-field"><label for="search-input">Buscar zona</label><input id="search-input" type="search" placeholder="Buscar zona o municipio..." /></div>
+              <div class="field"><label for="status-filter">Estado</label><select id="status-filter"><option value="all">Todos</option><option value="active">Activas</option><option value="inactive">Ocultas</option></select></div>
+              <div class="field"><label for="municipality-filter">Municipio</label><select id="municipality-filter"><option value="all">Todos</option></select></div>
+              <button id="filters-btn" class="mini-btn filter-button" type="button"><svg viewBox="0 0 24 24"><path d="M4 7h10a3 3 0 1 0 0-2H4v2Zm16 10H10a3 3 0 1 0 0 2h10v-2ZM8 11H4v2h4a3 3 0 1 0 0-2Zm8 2h4v-2h-4a3 3 0 0 0 0 2Z"/></svg>Filtros</button>
             </div>
-            <div class="filter-row">
-              <div class="field"><label for="search-input">Buscar</label><input id="search-input" type="search" placeholder="Municipio, zona o nota" /></div>
-              <div class="field"><label for="status-filter">Estado</label><select id="status-filter"><option value="all">Todas</option><option value="active">Activas</option><option value="inactive">Ocultas</option></select></div>
-              <button id="clear-filters-btn" class="mini-btn" type="button">Limpiar</button>
+          </section>
+          <section class="zones-shell">
+            <div id="zones-list" class="zones-list"></div>
+            <div class="pagination-row">
+              <span id="pagination-summary">Mostrando 0 a 0 de 0 municipios</span>
+              <div class="pager" aria-label="Paginacion">
+                <button class="pager-btn" type="button" disabled aria-label="Pagina anterior"><svg viewBox="0 0 24 24"><path d="m15.4 7.4-1.4-1.4L8 12l6 6 1.4-1.4L10.8 12l4.6-4.6Z"/></svg></button>
+                <button class="pager-btn active" type="button">1</button>
+                <button class="pager-btn" type="button" disabled aria-label="Pagina siguiente"><svg viewBox="0 0 24 24"><path d="m8.6 16.6 1.4 1.4 6-6-6-6-1.4 1.4 4.6 4.6-4.6 4.6Z"/></svg></button>
+              </div>
             </div>
-            <div id="zones-list"></div>
             <div id="list-alert" class="alert alert-info hidden"></div>
           </section>
           <section id="zone-modal" class="shipping-modal hidden" aria-hidden="true">
             <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="zone-modal-title">
               <div class="modal-head">
                 <div>
-                  <h2 id="zone-modal-title" class="modal-title">Agregar zona</h2>
+                  <h2 id="zone-modal-title" class="modal-title">Nueva zona</h2>
                   <p id="zone-modal-subtitle" class="modal-subtitle">Nueva zona para el municipio seleccionado.</p>
                 </div>
-                <button id="zone-modal-close" class="modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="zone-modal-close" class="modal-close" type="button" aria-label="Cerrar">x</button>
               </div>
               <form id="zone-modal-form" class="form-grid">
                 <input id="zone-modal-municipality" type="hidden" />
                 <div class="field"><label for="zone-modal-zone">Zona</label><input id="zone-modal-zone" type="text" placeholder="Nombre de la zona" required /></div>
-                <div class="field"><label for="zone-modal-price">Precio único USD</label><input id="zone-modal-price" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
+                <div class="field"><label for="zone-modal-price">Precio &uacute;nico USD</label><input id="zone-modal-price" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
                 <label class="check-row"><input id="zone-modal-active" type="checkbox" checked /> Activo en checkout</label>
                 <div class="field"><label for="zone-modal-note">Nota interna opcional</label><textarea id="zone-modal-note" placeholder="Detalles internos para el administrador"></textarea></div>
                 <div class="form-actions">
@@ -156,6 +486,13 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         </section>
       </main>
     </div>
+    <nav class="bottom-nav" aria-label="Navegacion inferior">
+      <a href={adminBasePath}><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg><span>Resumen</span></a>
+      <a href={adminOrdersPath}><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Z"/></svg><span>Pedidos</span></a>
+      <a href={adminCatalogPath}><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg><span>Categor&iacute;as</span></a>
+      <a class="active" href={adminShippingPath}><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Z"/></svg><span>Env&iacute;os</span></a>
+      <a href={adminStoreSettingsPath}><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z"/></svg><span>Ajustes</span></a>
+    </nav>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -175,12 +512,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const formAlert = document.getElementById('form-alert');
       const listAlert = document.getElementById('list-alert');
       const zonesList = document.getElementById('zones-list');
-      const refreshBtn = document.getElementById('refresh-btn');
+      const paginationSummary = document.getElementById('pagination-summary');
       const cancelEditBtn = document.getElementById('cancel-edit-btn');
       const newZoneTopBtn = document.getElementById('new-zone-top-btn');
+      const newZoneMobileBtn = document.getElementById('new-zone-mobile-btn');
       const searchInput = document.getElementById('search-input');
       const statusFilter = document.getElementById('status-filter');
-      const clearFiltersBtn = document.getElementById('clear-filters-btn');
+      const municipalityFilter = document.getElementById('municipality-filter');
+      const filtersBtn = document.getElementById('filters-btn');
       const zoneModal = document.getElementById('zone-modal');
       const zoneModalForm = document.getElementById('zone-modal-form');
       const zoneModalClose = document.getElementById('zone-modal-close');
@@ -211,38 +550,45 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         element.className='alert alert-'+type;element.textContent=message;
       }
       function escapeHtml(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
-      function formatUSD(value){return '$'+Number(value||0).toFixed(2)+' USD';}
+      function formatMoney(value){return '$'+Number(value||0).toFixed(2);}
       function openSidebar(){document.body.classList.add('sidebar-open');sidebarOpen?.setAttribute('aria-expanded','true');}
       function closeSidebar(){document.body.classList.remove('sidebar-open');sidebarOpen?.setAttribute('aria-expanded','false');}
-      sidebarOpen?.addEventListener('click',openSidebar);sidebarClose?.addEventListener('click',closeSidebar);sidebarOverlay?.addEventListener('click',closeSidebar);document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){closeSidebar();closeZoneModal();}});
+      sidebarOpen?.addEventListener('click',openSidebar);
+      sidebarClose?.addEventListener('click',closeSidebar);
+      sidebarOverlay?.addEventListener('click',closeSidebar);
+      document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){closeSidebar();closeZoneModal();closeZoneMenus();}});
       async function api(path,options={}){
         if(!POCKETBASE_URL)throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el frontend.');
         const headers=Object.assign({},options.headers||{});
         if(token())headers.Authorization='Bearer '+token();
         const response=await fetch(POCKETBASE_URL+path,Object.assign({},options,{headers}));
         const result=await response.json().catch(()=>null);
-        if(!response.ok)throw new Error((result&&result.message)||'Error de comunicación con PocketBase.');
+        if(!response.ok)throw new Error((result&&result.message)||'Error de comunicacion con PocketBase.');
         return result;
       }
-      function showAdmin(){loginView.classList.add('hidden');adminView.classList.remove('hidden');logoutBtn.classList.remove('hidden');loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envíos.','error'));}
-      function showLogin(){adminView.classList.add('hidden');loginView.classList.remove('hidden');logoutBtn.classList.add('hidden');}
+      function showAdmin(){loginView.classList.add('hidden');adminView.classList.remove('hidden');logoutBtn?.classList.remove('hidden');loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envios.','error'));}
+      function showLogin(){adminView.classList.add('hidden');loginView.classList.remove('hidden');logoutBtn?.classList.add('hidden');}
       function getPayload(){
         const municipality=fields.municipality.value.trim();
         const zone=fields.zone.value.trim();
         const priceRaw=String(fields.price.value||'').replace(',', '.').trim();
         const price=Number(priceRaw||0);
         if(municipality.length<2)throw new Error('Escribe el municipio.');
-        if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio único USD válido.');
+        if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio unico USD valido.');
         return {municipality,zone,price_usd:price,active:fields.active.checked,note:fields.note.value.trim(),store:CURRENT_STORE_ID};
       }
-      function showMainForm(){document.getElementById('form-panel').classList.remove('hidden');newZoneTopBtn?.setAttribute('aria-expanded','true');if(newZoneTopBtn)newZoneTopBtn.textContent='Cerrar panel';}
-      function hideMainForm(){document.getElementById('form-panel').classList.add('hidden');newZoneTopBtn?.setAttribute('aria-expanded','false');if(newZoneTopBtn)newZoneTopBtn.textContent='Agregar envío';}
-      function resetForm(){editingId='';form.reset();fields.active.checked=true;formTitle.textContent='Agregar envío';formSubtitle.textContent='Crea un municipio y su zona inicial con precio único de entrega en USD.';cancelEditBtn.classList.add('hidden');document.getElementById('save-zone-btn').textContent='Guardar envío';showAlert(formAlert,'');}
-      function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envío';formSubtitle.textContent='Modifica municipio, zona, precio único o estado.';cancelEditBtn.classList.remove('hidden');document.getElementById('save-zone-btn').textContent='Guardar cambios';document.getElementById('form-panel').scrollIntoView({behavior:'smooth',block:'start'});}
+      function setNewZoneButtonText(text){
+        if(newZoneTopBtn)newZoneTopBtn.lastChild.textContent=text;
+        if(newZoneMobileBtn)newZoneMobileBtn.lastChild.textContent=text === 'Cerrar panel' ? 'Cerrar' : 'Nueva zona';
+      }
+      function showMainForm(){document.getElementById('form-panel').classList.remove('hidden');newZoneTopBtn?.setAttribute('aria-expanded','true');setNewZoneButtonText('Cerrar panel');}
+      function hideMainForm(){document.getElementById('form-panel').classList.add('hidden');newZoneTopBtn?.setAttribute('aria-expanded','false');setNewZoneButtonText('Nueva zona');}
+      function resetForm(){editingId='';form.reset();fields.active.checked=true;formTitle.textContent='Nueva zona';formSubtitle.textContent='Crea un municipio y su zona inicial con precio unico de entrega en USD.';cancelEditBtn.classList.add('hidden');document.getElementById('save-zone-btn').textContent='Guardar zona';showAlert(formAlert,'');}
+      function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envio';formSubtitle.textContent='Modifica municipio, zona, precio unico o estado.';cancelEditBtn.classList.remove('hidden');document.getElementById('save-zone-btn').textContent='Guardar cambios';document.getElementById('form-panel').scrollIntoView({behavior:'smooth',block:'start'});}
       function openZoneModal(municipality){closeZoneMenus();zoneModalForm.reset();zoneModalFields.active.checked=true;zoneModalFields.municipality.value=municipality||'';zoneModalSubtitle.textContent='Nueva zona para '+(municipality||'el municipio seleccionado')+'.';showAlert(zoneModalAlert,'');zoneModal.classList.remove('hidden');zoneModal.setAttribute('aria-hidden','false');setTimeout(()=>zoneModalFields.zone.focus(),60);}
       function closeZoneModal(){zoneModal.classList.add('hidden');zoneModal.setAttribute('aria-hidden','true');showAlert(zoneModalAlert,'');}
-      function getZoneModalPayload(){const municipality=zoneModalFields.municipality.value.trim();const zone=zoneModalFields.zone.value.trim();const priceRaw=String(zoneModalFields.price.value||'').replace(',', '.').trim();const price=Number(priceRaw||0);if(municipality.length<2)throw new Error('Falta el municipio.');if(zone.length<2)throw new Error('Escribe el nombre de la zona.');if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio único USD válido.');return {municipality,zone,price_usd:price,active:zoneModalFields.active.checked,note:zoneModalFields.note.value.trim(),store:CURRENT_STORE_ID};}
-      async function saveZoneFromModal(event){event.preventDefault();showAlert(zoneModalAlert,'');const payload=getZoneModalPayload();await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});showAlert(zoneModalAlert,'Zona agregada correctamente.','success');closeZoneModal();await loadZones();}
+      function getZoneModalPayload(){const municipality=zoneModalFields.municipality.value.trim();const zone=zoneModalFields.zone.value.trim();const priceRaw=String(zoneModalFields.price.value||'').replace(',', '.').trim();const price=Number(priceRaw||0);if(municipality.length<2)throw new Error('Falta el municipio.');if(zone.length<2)throw new Error('Escribe el nombre de la zona.');if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio unico USD valido.');return {municipality,zone,price_usd:price,active:zoneModalFields.active.checked,note:zoneModalFields.note.value.trim(),store:CURRENT_STORE_ID};}
+      async function saveZoneFromModal(event){event.preventDefault();showAlert(zoneModalAlert,'');const payload=getZoneModalPayload();await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(payload.municipality)expandedMunicipalities.add(payload.municipality);showAlert(zoneModalAlert,'Zona agregada correctamente.','success');closeZoneModal();await loadZones();}
       async function saveZone(event){
         event.preventDefault();showAlert(formAlert,'');
         const payload=getPayload();
@@ -252,7 +598,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           showAlert(formAlert,'Zona actualizada correctamente.','success');
         }else{
           await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          showAlert(formAlert,'Envío agregado correctamente.','success');
+          showAlert(formAlert,'Zona agregada correctamente.','success');
         }
         if(savedMunicipality)expandedMunicipalities.add(savedMunicipality);
         resetForm();hideMainForm();await loadZones();
@@ -260,23 +606,36 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       async function loadZones(){
         showAlert(listAlert,'');
         const result=await api(`/api/collections/shipping_zones/records?filter=${encodeURIComponent(STORE_FILTER)}&sort=municipality,zone&perPage=500`);
-        shippingZones=result.items||[];renderStats();renderZones();
+        shippingZones=result.items||[];
+        renderStats();
+        populateMunicipalityFilter();
+        renderZones();
       }
       function renderStats(){
         const municipalities=new Set(shippingZones.map((zone)=>String(zone.municipality||'').trim()).filter(Boolean));
         const active=shippingZones.filter((zone)=>zone.active!==false);
+        const hidden=shippingZones.filter((zone)=>zone.active===false);
         const avg=active.length?active.reduce((sum,zone)=>sum+Number(zone.price_usd||0),0)/active.length:0;
         document.getElementById('stat-municipalities').textContent=String(municipalities.size);
         document.getElementById('stat-active-zones').textContent=String(active.length);
-        document.getElementById('stat-average-price').textContent=formatUSD(avg).replace(' USD','');
+        document.getElementById('stat-hidden-zones').textContent=String(hidden.length);
+        document.getElementById('stat-average-price').textContent=formatMoney(avg);
+      }
+      function populateMunicipalityFilter(){
+        const selected=municipalityFilter.value||'all';
+        const municipalities=[...new Set(shippingZones.map((zone)=>String(zone.municipality||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+        municipalityFilter.innerHTML='<option value="all">Todos</option>'+municipalities.map((municipality)=>`<option value="${escapeHtml(municipality)}">${escapeHtml(municipality)}</option>`).join('');
+        municipalityFilter.value=municipalities.includes(selected)?selected:'all';
       }
       function filteredZones(){
         const q=String(searchInput.value||'').trim().toLowerCase();
         const status=statusFilter.value;
+        const municipality=municipalityFilter.value;
         return shippingZones.filter((zone)=>{
           const isActive=zone.active!==false;
           if(status==='active'&&!isActive)return false;
           if(status==='inactive'&&isActive)return false;
+          if(municipality!=='all'&&String(zone.municipality||'')!==municipality)return false;
           if(!q)return true;
           return [zone.municipality,zone.zone,zone.note].some((value)=>String(value||'').toLowerCase().includes(q));
         });
@@ -284,20 +643,27 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function groupByMunicipality(items){
         return items.reduce((groups,zone)=>{const key=zone.municipality||'Sin municipio';if(!groups[key])groups[key]=[];groups[key].push(zone);return groups;},{});
       }
+      function updatePaginationSummary(total){
+        const end=total?total:0;
+        paginationSummary.textContent=`Mostrando ${total?1:0} a ${end} de ${total} municipios`;
+      }
       function renderZones(){
         const items=filteredZones();
-        if(!items.length){zonesList.innerHTML='<div class="empty-state">No hay zonas de envío con esos filtros.</div>';return;}
         const groups=groupByMunicipality(items);
-        zonesList.innerHTML=Object.keys(groups).sort((a,b)=>a.localeCompare(b)).map((municipality)=>{
+        const municipalities=Object.keys(groups).sort((a,b)=>a.localeCompare(b));
+        updatePaginationSummary(municipalities.length);
+        if(!items.length){zonesList.innerHTML='<div class="empty-state">No hay zonas de envio con esos filtros.</div>';return;}
+        if(expandedMunicipalities.size===0&&municipalities[0])expandedMunicipalities.add(municipalities[0]);
+        zonesList.innerHTML=municipalities.map((municipality)=>{
           const zones=groups[municipality];
           const activeCount=zones.filter((zone)=>zone.active!==false).length;
           const isExpanded=expandedMunicipalities.has(municipality);
-          return `<section class="municipality-group ${isExpanded?'expanded':''}" data-municipality="${escapeHtml(municipality)}"><div class="municipality-head"><button class="municipality-toggle js-toggle-municipality" type="button" aria-expanded="${isExpanded?'true':'false'}"><span class="municipality-main"><span class="municipality-chevron">⌄</span><span><span class="municipality-name">${escapeHtml(municipality)}</span><span class="municipality-count">${zones.length} zona${zones.length===1?'':'s'} · ${activeCount} activa${activeCount===1?'':'s'}</span></span></span></button><div class="municipality-actions"><button class="mini-btn js-add-same" data-municipality="${escapeHtml(municipality)}" type="button">Agregar nueva zona</button></div></div><div class="zone-list">${zones.map(renderZoneRow).join('')}</div></section>`;
+          return `<section class="municipality-group ${isExpanded?'expanded':''}" data-municipality="${escapeHtml(municipality)}"><div class="municipality-head"><button class="municipality-toggle js-toggle-municipality" type="button" aria-expanded="${isExpanded?'true':'false'}"><span class="municipality-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12h-6v-7h-4v7H4Zm3-3h2v-6h6v6h2V10.5l-5-3.8-5 3.8V18Z"/></svg></span><span><span class="municipality-name">${escapeHtml(municipality)}</span><span class="municipality-count">${zones.length} zona${zones.length===1?'':'s'} · ${activeCount} activa${activeCount===1?'':'s'}</span></span></button><button class="mini-btn js-add-same" data-municipality="${escapeHtml(municipality)}" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button><button class="municipality-chevron js-toggle-municipality" type="button" aria-label="Alternar municipio" aria-expanded="${isExpanded?'true':'false'}"><svg viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></button></div><div class="zone-list"><div class="zone-table-head"><span>Zona</span><span>Precio (USD)</span><span>Estado</span><span>Nota interna</span><span>Acciones</span></div>${zones.map(renderZoneRow).join('')}</div></section>`;
         }).join('');
       }
       function renderZoneRow(zone){
         const isActive=zone.active!==false;
-        return `<article class="zone-row" data-zone-id="${zone.id}"><div><div class="zone-title">${escapeHtml(zone.zone||zone.municipality||'Zona general')}</div>${zone.note?`<p class="zone-note">${escapeHtml(zone.note)}</p>`:''}</div><div><span class="price-pill">${formatUSD(zone.price_usd)}</span></div><div><span class="status-pill ${isActive?'active':'inactive'}">${isActive?'Activa':'Oculta'}</span></div><div class="zone-menu-wrap"><button class="kebab-btn js-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button><div class="floating-menu" role="menu"><button class="menu-action js-edit" type="button" role="menuitem">✏️ Editar</button><button class="menu-action ${isActive?'danger':'green'} js-toggle" type="button" role="menuitem">${isActive?'🙈 Ocultar':'✅ Activar'}</button><button class="menu-action danger js-delete" type="button" role="menuitem">🗑️ Borrar</button></div></div></article>`;
+        return `<article class="zone-row" data-zone-id="${zone.id}"><div><div class="zone-title">${escapeHtml(zone.zone||zone.municipality||'Zona general')}</div></div><div><span class="price-pill">${formatMoney(zone.price_usd)}</span></div><div><span class="status-pill ${isActive?'active':'inactive'}">${isActive?'Activa':'Oculta'}</span></div><div class="zone-note">${zone.note?escapeHtml(zone.note):'--'}</div><div class="zone-menu-wrap"><button class="kebab-btn js-menu" type="button" aria-label="Abrir opciones" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></button><div class="floating-menu" role="menu"><button class="menu-action js-edit" type="button" role="menuitem">Editar</button><button class="menu-action ${isActive?'danger':'green'} js-toggle" type="button" role="menuitem">${isActive?'Ocultar':'Activar'}</button><button class="menu-action danger js-delete" type="button" role="menuitem">Borrar</button></div></div></article>`;
       }
       function closeZoneMenus(except=null){
         zonesList.querySelectorAll('.zone-menu-wrap.open').forEach((menu)=>{
@@ -343,15 +709,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           const willOpen=!group?.classList.contains('expanded');
           if(willOpen)expandedMunicipalities.add(municipality);else expandedMunicipalities.delete(municipality);
           group?.classList.toggle('expanded',willOpen);
-          municipalityToggle.setAttribute('aria-expanded',willOpen?'true':'false');
+          group?.querySelectorAll('.js-toggle-municipality').forEach((button)=>button.setAttribute('aria-expanded',willOpen?'true':'false'));
           closeZoneMenus();
           return;
         }
         const menuBtn=event.target.closest('.js-menu');
-        if(menuBtn){
-          toggleZoneMenu(menuBtn.closest('.zone-menu-wrap'));
-          return;
-        }
+        if(menuBtn){toggleZoneMenu(menuBtn.closest('.zone-menu-wrap'));return;}
         const addBtn=event.target.closest('.js-add-same');
         if(addBtn){openZoneModal(addBtn.dataset.municipality||'');return;}
         const row=event.target.closest('[data-zone-id]');
@@ -367,7 +730,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         if(event.target.closest('.js-delete')){
           closeZoneMenus();
-          const ok=window.confirm('¿Borrar esta zona de envío?');
+          const ok=window.confirm('Borrar esta zona de envio?');
           if(!ok)return;
           api('/api/collections/shipping_zones/records/'+zone.id,{method:'DELETE'})
             .then(()=>{if(editingId===zone.id)resetForm();return loadZones();})
@@ -377,14 +740,18 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       document.addEventListener('click',(event)=>{if(!event.target.closest('.zone-menu-wrap'))closeZoneMenus();});
       form.addEventListener('submit',(event)=>saveZone(event).catch((error)=>showAlert(formAlert,error.message||'No se pudo guardar la zona.','error')));
       cancelEditBtn.addEventListener('click',()=>{resetForm();hideMainForm();});
-      newZoneTopBtn.addEventListener('click',()=>{const panel=document.getElementById('form-panel');const willOpen=panel.classList.contains('hidden');resetForm();if(willOpen){showMainForm();panel.scrollIntoView({behavior:'smooth',block:'start'});}else{hideMainForm();}});
+      function toggleMainForm(){const panel=document.getElementById('form-panel');const willOpen=panel.classList.contains('hidden');resetForm();if(willOpen){showMainForm();panel.scrollIntoView({behavior:'smooth',block:'start'});}else{hideMainForm();}}
+      newZoneTopBtn.addEventListener('click',toggleMainForm);
+      newZoneMobileBtn.addEventListener('click',toggleMainForm);
       zoneModalForm.addEventListener('submit',(event)=>saveZoneFromModal(event).catch((error)=>showAlert(zoneModalAlert,error.message||'No se pudo guardar la zona.','error')));
       zoneModalClose.addEventListener('click',closeZoneModal);
       zoneModalCancel.addEventListener('click',closeZoneModal);
       zoneModal.addEventListener('click',(event)=>{if(event.target===zoneModal)closeZoneModal();});
-      refreshBtn.addEventListener('click',()=>loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envíos.','error')));
-      searchInput.addEventListener('input',renderZones);statusFilter.addEventListener('change',renderZones);clearFiltersBtn.addEventListener('click',()=>{searchInput.value='';statusFilter.value='all';renderZones();});
-      logoutBtn.addEventListener('click',()=>{window.location.href=publicStorePath;});
+      searchInput.addEventListener('input',renderZones);
+      statusFilter.addEventListener('change',renderZones);
+      municipalityFilter.addEventListener('change',renderZones);
+      filtersBtn.addEventListener('click',()=>closeZoneMenus());
+      logoutBtn?.addEventListener('click',()=>{document.cookie='pb_auth=; Path=/; Max-Age=0; SameSite=Lax';window.location.assign('/login');});
       showAdmin();
     </script>
   </body>

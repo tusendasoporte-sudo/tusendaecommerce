@@ -51,6 +51,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
     const STORE_ID = String(window.PZ_CURRENT_STORE_ID || 'powerzona');
     const STORAGE_KEY = `powerzona_currency_${STORE_ID}`;
     const LEGACY_STORAGE_KEY = 'powerzona_currency';
+    const SYSTEM_CODES = ['USD', 'CUP', 'EUR', 'CASHAPP', 'ZELLE'];
     const getCartStorageKey = () => window.PZ_CART_STORAGE_KEY || window.PZCartStorage?.getCartStorageKey?.() || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
     const switcher = document.getElementById('pz-currency-switcher');
     const select = document.getElementById('pz-currency-select');
@@ -72,6 +73,19 @@ const { hideFloatingSwitcher = false } = Astro.props;
         active: currency?.active !== false,
         is_default: currency?.is_default === true,
       };
+    }
+
+    function orderValue(code) {
+      const index = SYSTEM_CODES.indexOf(String(code || '').toUpperCase());
+      return index >= 0 ? index : 100;
+    }
+
+    function sortCurrencies(items) {
+      return (items || []).slice().sort((a, b) => {
+        const order = orderValue(a.code) - orderValue(b.code);
+        if (order !== 0) return order;
+        return String(a.code || '').localeCompare(String(b.code || ''));
+      });
     }
 
     function fallbackCurrencies() {
@@ -181,6 +195,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
       const shouldHide = currencies.length <= 1;
       if (!state.selectedCode || !currencies.some((currency) => currency.code === state.selectedCode)) {
         state.selectedCode = state.defaultCode || currencies[0]?.code || 'USD';
+        localStorage.setItem(STORAGE_KEY, state.selectedCode);
       }
       const options = currencies.map((currency) => `<option value="${currency.code}">${currency.code}</option>`).join('');
       getCurrencySelects().forEach((currencySelect) => {
@@ -195,19 +210,26 @@ const { hideFloatingSwitcher = false } = Astro.props;
     async function loadCurrencyConfig() {
       try {
         if (!POCKETBASE_URL) throw new Error('PUBLIC_POCKETBASE_URL no configurado.');
+        const currencyFilter = STORE_ID
+          ? `active = true && store = "${STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+          : 'active = true';
         const [currenciesResponse, settingsResponse] = await Promise.all([
-          fetch(`${POCKETBASE_URL}/api/collections/currencies/records?filter=${encodeURIComponent('active = true')}&sort=code&perPage=100`),
+          fetch(`${POCKETBASE_URL}/api/collections/currencies/records?filter=${encodeURIComponent(currencyFilter)}&sort=code&perPage=100`),
           fetch(`${POCKETBASE_URL}/api/collections/settings/records?filter=${encodeURIComponent(STORE_ID ? `active = true && store = "${STORE_ID}"` : 'active = true')}&expand=default_currency&sort=-updated&perPage=1`),
         ]);
         const currenciesResult = await currenciesResponse.json().catch(() => null);
         const settingsResult = await settingsResponse.json().catch(() => null);
         const settings = settingsResult?.items?.[0] || null;
         const expandedDefault = Array.isArray(settings?.expand?.default_currency) ? settings.expand.default_currency[0] : settings?.expand?.default_currency;
-        state.currencies = (currenciesResult?.items || []).map(normalizeCurrency).filter((currency) => currency.code && currency.active !== false);
-        if (!state.currencies.some((currency) => currency.code === 'USD')) {
-          state.currencies.unshift(fallbackCurrencies()[0]);
-        }
-        state.defaultCode = String(expandedDefault?.code || state.currencies.find((currency) => currency.is_default)?.code || 'USD').toUpperCase();
+        state.currencies = sortCurrencies((currenciesResult?.items || []).map(normalizeCurrency).filter((currency) => currency.code && currency.active !== false));
+        if (!state.currencies.length) state.currencies = fallbackCurrencies();
+        const expandedDefaultCode = String(expandedDefault?.code || '').toUpperCase();
+        const visibleDefault = state.currencies.find((currency) => currency.id && currency.id === expandedDefault?.id)
+          || state.currencies.find((currency) => currency.code === expandedDefaultCode)
+          || state.currencies.find((currency) => currency.is_default === true)
+          || state.currencies[0]
+          || fallbackCurrencies()[0];
+        state.defaultCode = String(visibleDefault.code || 'USD').toUpperCase();
       } catch (error) {
         console.warn('No se pudo cargar configuración de monedas. Usando USD.', error);
         state.currencies = fallbackCurrencies();

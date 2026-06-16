@@ -21,6 +21,13 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con los ajustes de tienda de ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
+const masterSupportHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Ajustes Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 ---
 <!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -122,7 +129,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
       .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
       .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
-      .tab-btn { border: 1px solid #e2e8f0; background: rgba(255,255,255,.92); color: #334155; border-radius: 999px; padding: 11px 14px; font-weight: 1000; box-shadow: 0 12px 26px rgba(15,23,42,.05); }
+      .tab-btn { border: 1px solid #e2e8f0; background: rgba(255,255,255,.92); color: #334155; border-radius: 999px; padding: 11px 14px; font-weight: 1000; box-shadow: 0 12px 26px rgba(15,23,42,.05); display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+      .tab-btn svg { width: 18px; height: 18px; fill: currentColor; flex: 0 0 auto; }
       .tab-btn.active { background: #0f172a; border-color: #0f172a; color: #fff; }
       .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
       .stat-card { padding: 18px; border-radius: 24px; background: rgba(255,255,255,.92); border: 1px solid rgba(226,232,240,.96); box-shadow: 0 14px 34px rgba(15,23,42,.06); }
@@ -582,9 +590,1352 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         display: none !important;
       }
 
+      .settings-mobile-topbar,
+      .mobile-bottom-nav { display: none; }
+
+      .app-shell {
+        width: 100% !important;
+        max-width: none !important;
+      }
+      .main-wrap { min-width: 0 !important; }
+      .settings-sidebar-bottom {
+        margin-top: auto;
+        padding-top: 18px;
+        border-top: 1px solid #e2e8f0;
+        display: grid;
+        gap: 10px;
+      }
+      .settings-sidebar-action {
+        width: 100%;
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border-radius: 18px;
+        background: rgba(255,255,255,.88);
+        border: 1px solid #e2e8f0;
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 950;
+      }
+      .settings-sidebar-action.danger {
+        color: #dc2626;
+        background: #fff7f7;
+        border-color: #fecaca;
+      }
+      .settings-sidebar-action .nav-icon { width: 32px !important; height: 32px !important; min-width: 32px !important; }
+      .settings-support-card {
+        padding: 14px;
+        border-radius: 20px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+      .settings-support-card strong {
+        display: block;
+        margin: 0 0 12px;
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .settings-support-card span {
+        display: block;
+        margin: 0 0 12px;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .settings-support-btn {
+        width: 100%;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 16px;
+        border: 1px solid #bfdbfe;
+        background: #fff;
+        color: #2563eb;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .settings-hero {
+        background: rgba(255,255,255,.92);
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 30px;
+        box-shadow: 0 18px 45px rgba(15,23,42,.08);
+        padding: 28px 30px;
+        margin-bottom: 22px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        backdrop-filter: blur(10px);
+      }
+      .settings-eyebrow {
+        margin: 0 0 9px;
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 1000;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+      }
+      .settings-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(30px, 3vw, 44px);
+        font-weight: 1000;
+        letter-spacing: -.045em;
+        line-height: 1.03;
+      }
+      .settings-subtitle {
+        margin: 10px 0 0;
+        color: #475569;
+        font-size: 15px;
+        line-height: 1.55;
+        font-weight: 750;
+        max-width: 900px;
+      }
+      .settings-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .notification-btn,
+      .primary-blue-btn,
+      .settings-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07);
+        font-weight: 1000;
+      }
+      .notification-btn {
+        width: 48px;
+        height: 48px;
+        position: relative;
+      }
+      .notification-btn::after {
+        content: '';
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #2563eb;
+        box-shadow: 0 0 0 3px #fff;
+      }
+      .primary-blue-btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border-color: rgba(37,99,235,.88);
+        box-shadow: 0 14px 28px rgba(37,99,235,.22);
+      }
+      .notification-btn svg,
+      .primary-blue-btn svg,
+      .settings-icon-btn svg,
+      .settings-tab svg,
+      .summary-icon svg,
+      .settings-section-icon svg,
+      .mobile-bottom-nav svg { width: 18px; height: 18px; fill: currentColor; }
+      .settings-tabs {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0;
+        margin-bottom: 22px;
+        padding: 0 16px;
+        background: rgba(255,255,255,.94);
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        box-shadow: 0 12px 26px rgba(15,23,42,.05);
+        overflow: hidden;
+      }
+      .settings-tab {
+        position: relative;
+        min-height: 58px;
+        border: 0;
+        border-right: 1px solid #e2e8f0;
+        border-radius: 0;
+        background: transparent;
+        color: #334155;
+        padding: 12px 18px;
+        box-shadow: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+      .settings-tab:last-child { border-right: 0; }
+      .settings-tab.active {
+        color: #2563eb;
+        background: #fff;
+      }
+      .settings-tab.active::after {
+        content: '';
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 0;
+        height: 3px;
+        border-radius: 999px 999px 0 0;
+        background: #2563eb;
+      }
+      .settings-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 22px;
+      }
+      .settings-summary-card {
+        min-height: 116px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 20px 22px;
+        border-radius: 22px;
+        border: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.94);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+      }
+      .summary-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+      }
+      .summary-icon.blue { background: #dbeafe; color: #2563eb; }
+      .summary-icon.green { background: #dcfce7; color: #16a34a; }
+      .summary-icon.purple { background: #ede9fe; color: #7c3aed; }
+      .summary-icon.orange { background: #ffedd5; color: #f97316; }
+      .summary-label { margin: 0; color: #475569; font-size: 13px; font-weight: 900; }
+      .summary-value { margin: 6px 0 0; color: #16a34a; font-size: 18px; font-weight: 1000; letter-spacing: -.02em; }
+      .summary-help { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 800; }
+      .settings-panel {
+        padding: 22px;
+        border-radius: 28px;
+      }
+      .settings-panel-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+        gap: 18px;
+        align-items: start;
+      }
+      .settings-column { display: grid; gap: 14px; }
+      .settings-section-card {
+        padding: 18px;
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: rgba(255,255,255,.86);
+      }
+      .settings-section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .settings-section-titleline {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      .settings-section-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+      }
+      .settings-section-icon.blue { background: #dbeafe; color: #2563eb; }
+      .settings-section-icon.green { background: #dcfce7; color: #16a34a; }
+      .settings-section-icon.purple { background: #ede9fe; color: #7c3aed; }
+      .settings-section-titleline h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 16px;
+        font-weight: 1000;
+        letter-spacing: -.02em;
+      }
+      .settings-section-chevron {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 14px;
+        background: transparent;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 1000;
+      }
+      .settings-two-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .settings-section-card .field.full { grid-column: 1 / -1; }
+      .settings-section-card .field label {
+        text-transform: none;
+        letter-spacing: 0;
+        color: #475569;
+      }
+      .phone-row {
+        display: grid;
+        grid-template-columns: 132px minmax(0, 1fr);
+        gap: 10px;
+      }
+      .phone-prefix {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        color: var(--text);
+        padding: 12px 13px;
+        font-weight: 900;
+      }
+      .image-settings-grid {
+        display: grid;
+        gap: 18px;
+      }
+      .image-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 18px;
+        align-items: center;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .image-row:last-child { padding-bottom: 0; border-bottom: 0; }
+      .settings-thumb.logo { width: 96px !important; border-radius: 16px !important; }
+      .settings-thumb.cover { width: min(430px, 100%) !important; border-radius: 16px !important; }
+      .settings-upload-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid #93c5fd;
+        background: #fff;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 1000;
+        cursor: pointer;
+      }
+      .settings-file-control input { width: 1px; height: 1px; position: absolute; opacity: 0; pointer-events: none; }
+      .settings-save-row {
+        justify-content: flex-end;
+      }
+      .settings-save-row .submit-btn {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 14px 28px rgba(37,99,235,.22);
+        border-radius: 16px;
+      }
+
+      @media (min-width: 1024px) {
+        .app-shell { padding: 28px 32px 48px 326px !important; }
+        #admin-sidebar { transform: translateX(0) !important; width: 278px !important; }
+        #sidebar-close,
+        #sidebar-overlay,
+        .settings-mobile-topbar,
+        .mobile-bottom-nav,
+        .topbar,
+        .hero-card { display: none !important; }
+      }
+
+      @media (max-width: 1023px) {
+        .settings-mobile-topbar {
+          position: sticky;
+          top: 0;
+          z-index: 70;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px;
+          margin: -14px -14px 14px;
+          background: rgba(255,255,255,.92);
+          border-bottom: 1px solid #e2e8f0;
+          backdrop-filter: blur(12px);
+        }
+        .settings-mobile-topbar h1 {
+          flex: 1;
+          margin: 0;
+          color: #0f172a;
+          font-size: 22px;
+          font-weight: 1000;
+          letter-spacing: -.03em;
+        }
+        .settings-icon-btn {
+          width: 44px;
+          height: 44px;
+          padding: 0;
+          box-shadow: none;
+        }
+        .settings-mobile-topbar .primary-blue-btn {
+          min-height: 44px;
+          padding: 10px 14px;
+          border-radius: 14px;
+        }
+        .app-shell { padding: 14px 14px 108px !important; }
+        .settings-hero {
+          display: block;
+          padding: 18px 0 18px;
+          margin-bottom: 14px;
+          background: transparent;
+          border: 0;
+          box-shadow: none;
+          border-radius: 0;
+        }
+        .settings-hero .settings-actions { display: none; }
+        .settings-title { font-size: 30px; }
+        .settings-tabs {
+          display: flex;
+          overflow-x: auto;
+          padding: 0;
+          border-radius: 16px;
+          scrollbar-width: none;
+        }
+        .settings-tabs::-webkit-scrollbar { display: none; }
+        .settings-tab {
+          min-width: max-content;
+          min-height: 56px;
+          padding: 12px 18px;
+        }
+        .settings-summary-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+        .settings-summary-card {
+          min-height: 126px;
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+          padding: 16px;
+          border-radius: 20px;
+        }
+        .summary-icon { width: 54px; height: 54px; border-radius: 20px; }
+        .settings-panel { padding: 16px; border-radius: 24px; }
+        .settings-panel-grid,
+        .settings-two-grid,
+        .image-row { grid-template-columns: 1fr; }
+        .settings-column { gap: 14px; }
+        .settings-section-card { border-radius: 18px; padding: 16px; }
+        .phone-row { grid-template-columns: 132px minmax(0, 1fr); }
+        .settings-thumb.cover { width: 100% !important; }
+        .mobile-bottom-nav {
+          position: fixed;
+          left: 14px;
+          right: 14px;
+          bottom: 12px;
+          z-index: 70;
+          display: grid;
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          gap: 6px;
+          padding: 10px;
+          background: rgba(255,255,255,.94);
+          border: 1px solid rgba(226,232,240,.96);
+          border-radius: 22px;
+          box-shadow: 0 18px 45px rgba(15,23,42,.12);
+          backdrop-filter: blur(12px);
+        }
+        .mobile-bottom-nav a {
+          min-height: 58px;
+          border-radius: 16px;
+          display: grid;
+          place-items: center;
+          gap: 3px;
+          color: #475569;
+          font-size: 11px;
+          font-weight: 850;
+        }
+        .mobile-bottom-nav a.active {
+          background: #dbeafe;
+          color: #2563eb;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .settings-mobile-topbar .notification-btn { width: 44px; height: 44px; min-width: 44px; }
+        .settings-mobile-topbar .primary-blue-btn span { display: none; }
+        .phone-row { grid-template-columns: 122px minmax(0, 1fr); }
+        .settings-save-row { display: none; }
+      }
+
+      .topbar,
+      .hero-card { display: none !important; }
+      .tabs {
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+        gap: 0 !important;
+        margin-bottom: 22px !important;
+        padding: 0 16px !important;
+        background: rgba(255,255,255,.94) !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 18px !important;
+        box-shadow: 0 12px 26px rgba(15,23,42,.05) !important;
+        overflow: hidden !important;
+      }
+      .tab-btn {
+        position: relative !important;
+        min-height: 58px !important;
+        border: 0 !important;
+        border-right: 1px solid #e2e8f0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #334155 !important;
+        padding: 12px 18px !important;
+        box-shadow: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        font-size: 13px !important;
+        font-weight: 1000 !important;
+      }
+      .tab-btn:last-child { border-right: 0 !important; }
+      .tab-btn.active { color: #2563eb !important; background: #fff !important; }
+      .tab-btn.active::after {
+        content: '';
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 0;
+        height: 3px;
+        border-radius: 999px 999px 0 0;
+        background: #2563eb;
+      }
+      @media (max-width: 1023px) {
+        .tabs {
+          display: flex !important;
+          overflow-x: auto !important;
+          padding: 0 !important;
+          scrollbar-width: none;
+        }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab-btn {
+          min-width: max-content !important;
+          min-height: 56px !important;
+        }
+      }
+      #settings-form {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      #settings-address,
+      #settings-public-services-text,
+      #settings-alert,
+      #settings-form .settings-save-row {
+        grid-column: 1 / -1;
+      }
+      @media (max-width: 1023px) {
+        #settings-form { grid-template-columns: 1fr; }
+      }
+      @media (min-width: 1024px) {
+        .settings-section-card,
+        .image-settings-grid,
+        .settings-image-card,
+        #settings-cover-carousel-wrap,
+        #settings-cover-carousel-wrap .settings-gallery-grid,
+        #settings-cover-carousel-wrap .settings-gallery-slot {
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        .image-settings-grid {
+          grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+          align-items: start;
+        }
+        .settings-image-card {
+          overflow: visible;
+        }
+        #settings-cover-carousel-wrap:not(.hidden) {
+          display: block;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow: visible;
+        }
+        #settings-cover-carousel-wrap .settings-gallery-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+          align-items: start;
+          width: 100%;
+          max-width: 100%;
+        }
+        #settings-cover-carousel-wrap .settings-gallery-slot {
+          min-width: 0;
+          display: grid;
+          gap: 8px;
+          padding: 10px;
+          border: 1px solid rgba(226, 232, 240, .95);
+          border-radius: 18px;
+          background: rgba(255, 255, 255, .9);
+        }
+        #settings-cover-carousel-wrap .settings-slot-label {
+          margin: 0;
+          color: #475569;
+          font-size: 11px;
+          font-weight: 1000;
+          letter-spacing: .08em;
+          text-transform: uppercase;
+        }
+        #settings-cover-carousel-wrap .settings-thumb.cover {
+          position: relative;
+          width: 100% !important;
+          aspect-ratio: 16 / 9;
+          min-height: 0;
+          border-radius: 14px !important;
+          overflow: hidden;
+          background: #f8fafc;
+          border: 1px solid rgba(226, 232, 240, .95);
+          font-size: 12px;
+          font-weight: 900;
+        }
+        #settings-cover-carousel-wrap .settings-thumb.cover img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        #settings-cover-carousel-wrap .settings-thumb-delete {
+          top: 6px;
+          right: 6px;
+          width: 26px;
+          height: 26px;
+          border-radius: 999px;
+          background: rgba(254, 226, 226, .96);
+          color: #dc2626;
+          border: 1px solid rgba(248, 113, 113, .35);
+          font-size: 13px;
+          box-shadow: 0 8px 18px rgba(15, 23, 42, .12);
+        }
+        #settings-cover-carousel-wrap .settings-file-control {
+          display: block;
+        }
+        #settings-cover-carousel-wrap .settings-file-control label {
+          width: 100%;
+          min-height: 34px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          margin-top: 0;
+          padding: 8px 10px;
+          border-radius: 12px;
+          border: 1px solid #bfdbfe;
+          background: #fff;
+          color: #2563eb;
+          font-size: 12px;
+          font-weight: 900;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+      }
+      @media (min-width: 1024px) and (max-width: 1279px) {
+        .image-settings-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .settings-summary-grid.hidden {
+        display: none !important;
+      }
+      .currency-workspace {
+        display: grid;
+        gap: 16px;
+      }
+      .currency-summary-card,
+      .currency-panel,
+      .currency-info-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: rgba(255,255,255,.94);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+      }
+      .currency-summary-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 22px;
+      }
+      .currency-summary-main {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        min-width: 0;
+      }
+      .currency-summary-icon {
+        width: 72px;
+        height: 72px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        background: #ede9fe;
+        color: #8b5cf6;
+        font-size: 42px;
+        font-weight: 900;
+      }
+      .currency-summary-title,
+      .currency-panel-title,
+      .currency-create-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 1000;
+        letter-spacing: -.02em;
+      }
+      .currency-summary-value {
+        margin: 8px 0 0;
+        color: #16a34a;
+        font-size: 22px;
+        font-weight: 1000;
+        letter-spacing: -.02em;
+      }
+      .currency-summary-help,
+      .currency-panel-subtitle {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .currency-panel {
+        padding: 18px;
+      }
+      .currency-mobile-toolbar {
+        display: none;
+      }
+      .currency-mobile-row {
+        display: none;
+      }
+      .currency-summary-codes {
+        display: none;
+      }
+      .currency-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+      .currency-table {
+        display: grid;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .currency-table-head,
+      .currency-row {
+        display: grid;
+        grid-template-columns: minmax(230px, 1.45fr) minmax(70px, .45fr) minmax(80px, .55fr) minmax(140px, .85fr) minmax(130px, .85fr) minmax(170px, 1fr) minmax(150px, auto);
+        gap: 14px;
+        align-items: center;
+      }
+      .currency-table-head {
+        padding: 12px 16px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 1000;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .currency-row {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .currency-row:last-child { border-bottom: 0; }
+      .currency-main-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+      .currency-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: 11px;
+        font-weight: 1000;
+        letter-spacing: .02em;
+        border: 1px solid rgba(255,255,255,.75);
+        box-shadow: 0 10px 22px rgba(15,23,42,.12);
+        overflow: hidden;
+      }
+      .currency-avatar.flag {
+        background: #fff;
+        border-color: #e2e8f0;
+      }
+      .currency-avatar.flag svg { width: 100%; height: 100%; display: block; }
+      .currency-avatar.eur { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #facc15; font-size: 18px; }
+      .currency-avatar.cashapp { background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff; font-size: 20px; }
+      .currency-avatar.zelle { background: linear-gradient(135deg, #6d28d9, #2563eb); color: #fff; font-size: 13px; }
+      .currency-avatar.custom { background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; }
+      .currency-avatar span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        max-width: 34px;
+        overflow: hidden;
+        line-height: 1;
+      }
+      .currency-code {
+        margin: 0;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+      .currency-name {
+        margin: 3px 0 0;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .currency-muted {
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .currency-inline-input {
+        width: 100%;
+        min-height: 36px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        background: transparent;
+        color: #0f172a;
+        padding: 7px 9px;
+        font-weight: 850;
+      }
+      .currency-row.editing .currency-inline-input {
+        border-color: #cbd5e1;
+        background: #fff;
+      }
+      .currency-row:not(.editing) .currency-inline-input {
+        pointer-events: none;
+      }
+      .currency-readonly-value,
+      .currency-rate-cell {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 900;
+      }
+      .currency-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 900;
+      }
+      .currency-switch input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .currency-switch-track {
+        width: 42px;
+        height: 24px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        padding: 3px;
+        background: #cbd5e1;
+        transition: background .18s ease;
+      }
+      .currency-switch-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(15,23,42,.2);
+        transform: translateX(0);
+        transition: transform .18s ease;
+      }
+      .currency-switch input:checked + .currency-switch-track {
+        background: #22c55e;
+      }
+      .currency-switch input:checked + .currency-switch-track .currency-switch-thumb {
+        transform: translateX(18px);
+      }
+      .currency-switch input:disabled + .currency-switch-track {
+        opacity: .75;
+        cursor: not-allowed;
+      }
+      .currency-switch input:disabled ~ .currency-switch-text {
+        color: #64748b;
+      }
+      .currency-switch-text {
+        min-width: 52px;
+      }
+      .currency-default-badge,
+      .currency-system-badge,
+      .currency-base-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+      .currency-default-badge {
+        gap: 6px;
+        min-height: 28px;
+        padding: 5px 10px;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+        font-size: 12px;
+        font-weight: 900;
+        white-space: nowrap;
+      }
+      .default-star-icon {
+        width: 15px;
+        height: 15px;
+        color: #2563eb;
+        fill: currentColor;
+        flex: 0 0 auto;
+      }
+      .currency-system-badge {
+        background: #ecfdf5;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+      }
+      .currency-custom-badge {
+        background: #f3e8ff;
+        color: #7c3aed;
+        border: 1px solid #ddd6fe;
+      }
+      .currency-base-badge {
+        background: #ecfdf5;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+      }
+      .currency-default-choice {
+        display: grid;
+        gap: 4px;
+        justify-items: start;
+      }
+      .currency-default-option,
+      .currency-base-action {
+        min-height: 34px;
+        border-radius: 12px;
+        border: 1px solid #dbeafe;
+        background: #fff;
+        color: #2563eb;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .currency-default-option {
+        cursor: pointer;
+      }
+      .currency-base-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #64748b;
+        border-color: #e2e8f0;
+        background: #f8fafc;
+      }
+      .currency-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .currency-action-btn {
+        min-height: 36px;
+        border-radius: 12px;
+        border: 1px solid #dbeafe;
+        background: #fff;
+        color: #2563eb;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 1000;
+        cursor: pointer;
+      }
+      .currency-action-btn.save { background: #2563eb; color: #fff; border-color: #2563eb; }
+      .currency-delete-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: 1px solid #fecaca;
+        background: #fff1f2;
+        color: #dc2626;
+        font-size: 16px;
+        font-weight: 1000;
+        cursor: pointer;
+      }
+      .currency-delete-btn.disabled {
+        border-color: #e2e8f0;
+        background: #f8fafc;
+        color: #94a3b8;
+        cursor: not-allowed;
+      }
+      .currency-info-card {
+        display: flex;
+        gap: 12px;
+        padding: 16px 18px;
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1e3a8a;
+      }
+      .currency-info-card strong {
+        display: block;
+        margin-bottom: 6px;
+        color: #1e40af;
+        font-weight: 1000;
+      }
+      .currency-info-card p {
+        margin: 0;
+        line-height: 1.5;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .currency-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(15,23,42,.36);
+        backdrop-filter: blur(8px);
+      }
+      .currency-modal.hidden {
+        display: none !important;
+      }
+      .currency-modal-card {
+        position: relative;
+        width: min(620px, 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 24px;
+        background: #fff;
+        padding: 22px;
+        box-shadow: 0 24px 80px rgba(15,23,42,.24);
+      }
+      .currency-modal-close {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 1000;
+        cursor: pointer;
+      }
+      .currency-create-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 16px;
+      }
+      .currency-create-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      @media (max-width: 1023px) {
+        .app-shell {
+          padding-bottom: 142px !important;
+        }
+        .currency-workspace {
+          display: grid;
+          gap: 18px;
+        }
+        .currency-summary-card {
+          border-radius: 18px;
+          padding: 22px 24px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 14px 34px rgba(15,23,42,.06);
+        }
+        .currency-summary-card,
+        .currency-panel-head {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .currency-summary-main {
+          align-items: center;
+        }
+        .currency-summary-icon {
+          width: 74px;
+          height: 74px;
+          border-radius: 999px;
+          font-size: 42px;
+        }
+        .currency-summary-title {
+          display: none;
+        }
+        .currency-summary-value {
+          font-size: 26px;
+          color: #0f172a;
+          margin: 0 0 8px;
+        }
+        .currency-summary-value {
+          font-size: 0;
+        }
+        .currency-summary-value::after {
+          content: attr(data-mobile-label);
+          font-size: 26px;
+          color: #0f172a;
+          font-weight: 1000;
+        }
+        .currency-summary-codes {
+          display: none;
+          margin: 0 0 6px;
+          color: #1e293b;
+          font-size: 20px;
+          font-weight: 750;
+          line-height: 1.25;
+        }
+        .currency-summary-help {
+          display: none;
+        }
+        #currency-refresh-btn {
+          display: none;
+        }
+        .currency-mobile-toolbar {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+        }
+        .currency-search-box {
+          min-height: 54px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 0 16px;
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          color: #64748b;
+          box-shadow: 0 12px 26px rgba(15,23,42,.04);
+        }
+        .currency-search-box svg {
+          width: 22px;
+          height: 22px;
+          fill: currentColor;
+          flex: 0 0 auto;
+        }
+        .currency-search-box input {
+          width: 100%;
+          border: 0;
+          outline: none;
+          background: transparent;
+          color: #0f172a;
+          font-size: 16px;
+          font-weight: 750;
+        }
+        .currency-search-box input::placeholder {
+          color: #64748b;
+        }
+        .currency-mobile-toolbar .mini-btn.primary {
+          min-height: 54px;
+          border-radius: 16px;
+          padding: 0 20px;
+          background: #2563eb;
+          color: #fff;
+          border-color: #2563eb;
+          box-shadow: 0 14px 28px rgba(37,99,235,.24);
+          font-size: 15px;
+        }
+        .currency-panel {
+          padding: 0;
+          border-radius: 18px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          overflow: hidden;
+        }
+        .currency-panel-head {
+          display: none;
+        }
+        .currency-table-head {
+          display: none;
+        }
+        .currency-row {
+          display: block;
+          border-radius: 0;
+          border: 0;
+          border-bottom: 1px solid #e2e8f0;
+          margin: 0;
+          padding: 18px 20px;
+        }
+        .currency-row > :not(.currency-mobile-row) {
+          display: none !important;
+        }
+        .currency-mobile-row {
+          display: grid;
+          grid-template-columns: 58px minmax(0, 1fr) auto;
+          gap: 14px;
+          align-items: center;
+          width: 100%;
+          min-width: 0;
+        }
+        .currency-mobile-body {
+          min-width: 0;
+          display: grid;
+          gap: 6px;
+        }
+        .currency-mobile-title {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          min-width: 0;
+        }
+        .currency-mobile-code {
+          color: #0f172a;
+          font-size: 20px;
+          line-height: 1.1;
+          font-weight: 1000;
+        }
+        .currency-mobile-name {
+          color: #243b63;
+          font-size: 14px;
+          font-weight: 750;
+          line-height: 1.25;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .currency-mobile-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 850;
+        }
+        .currency-mobile-default {
+          display: flex;
+          align-items: center;
+          min-height: 28px;
+        }
+        .currency-mobile-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          justify-content: flex-end;
+          min-width: max-content;
+        }
+        .currency-table {
+          border: 0;
+          background: #fff;
+          overflow: visible;
+        }
+        .currency-avatar {
+          width: 54px;
+          height: 54px;
+        }
+        .currency-system-badge,
+        .currency-custom-badge,
+        .currency-base-badge,
+        .currency-default-badge {
+          font-size: 12px;
+        }
+        .currency-switch-text {
+          min-width: auto;
+          border-radius: 999px;
+          padding: 6px 10px;
+          background: #dcfce7;
+          color: #15803d;
+        }
+        .currency-switch input:not(:checked) ~ .currency-switch-text {
+          background: #f1f5f9;
+          color: #334155;
+        }
+        .currency-switch-track {
+          display: none;
+        }
+        .currency-mobile-actions .currency-action-btn {
+          width: 38px;
+          min-height: 38px;
+          padding: 0;
+          font-size: 0;
+          border: 0;
+          background: transparent;
+          color: #1e293b;
+        }
+        .currency-mobile-actions .currency-action-btn::before {
+          content: '';
+          width: 22px;
+          height: 22px;
+          display: block;
+          background: currentColor;
+          -webkit-mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 17.5V20h2.5L17.8 8.7l-2.5-2.5L4 17.5Zm15.6-10.6c.4-.4.4-1 0-1.4l-1.1-1.1c-.4-.4-1-.4-1.4 0l-.9.9 2.5 2.5.9-.9Z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 17.5V20h2.5L17.8 8.7l-2.5-2.5L4 17.5Zm15.6-10.6c.4-.4.4-1 0-1.4l-1.1-1.1c-.4-.4-1-.4-1.4 0l-.9.9 2.5 2.5.9-.9Z'/%3E%3C/svg%3E") center / contain no-repeat;
+        }
+        .currency-mobile-actions .currency-action-btn.save {
+          width: auto;
+          min-height: 34px;
+          padding: 7px 10px;
+          font-size: 12px;
+        }
+        .currency-mobile-actions .currency-action-btn.save::before {
+          display: none;
+        }
+        .currency-mobile-actions .currency-delete-btn {
+          border: 0;
+          background: transparent;
+        }
+        .currency-base-action {
+          white-space: nowrap;
+        }
+        .currency-create-grid {
+          grid-template-columns: 1fr;
+        }
+        .currency-info-card {
+          border-radius: 18px;
+          padding: 18px 20px;
+        }
+      }
+
       </style>
   </head>
   <body>
+    <header class="settings-mobile-topbar">
+      <button id="sidebar-open" class="settings-icon-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
+      <h1>Ajustes de tienda</h1>
+      <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
+      <button class="primary-blue-btn" type="submit" form="settings-form"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Zm2 2v14h10V7.8L14.2 5H13v5H8V5H7Zm3 0v3h1V5h-1Zm-1 9h6v2H9v-2Z"/></svg><span>Guardar</span></button>
+    </header>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell">
       <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
@@ -615,16 +1966,29 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
           </nav>
 
+          <div class="settings-sidebar-bottom">
+            <a class="settings-sidebar-action" href={publicStorePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver cat&aacute;logo p&uacute;blico</span></a>
+            <button id="logout-btn" class="settings-sidebar-action danger hidden" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesi&oacute;n</span></button>
+            <div class="settings-support-card">
+              <strong>Soporte Tu Senda 84</strong>
+              <span>&iquest;Necesitas ayuda?</span>
+              {masterSupportHref ? (
+                <a class="settings-support-btn" href={masterSupportHref} target="_blank" rel="noreferrer">Contactar a soporte</a>
+              ) : (
+                <button class="settings-support-btn" type="button" disabled>Contactar a soporte</button>
+              )}
+            </div>
+          </div>
         </div>
       </aside>
 
       <main class="main-wrap">
         <header class="topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
+          <button id="sidebar-open-legacy" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
             <a class="action-btn" href={adminProductsPath}>Productos</a>
-            <a class="action-btn" href={publicStorePath}>Ver tienda pública</a>
-            <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
+            <a class="action-btn" href={publicStorePath}>Ver cat&aacute;logo p&uacute;blico</a>
+            <button id="logout-btn-legacy" class="action-btn danger hidden" type="button">Cerrar sesión</button>
           </div>
         </header>
 
@@ -632,19 +1996,37 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           <div>
             <span class="badge">⚙️ Ajustes de la tienda</span>
             <h1 class="page-title">Ajustes generales <span>de la tienda</span></h1>
-            <p id="admin-subtitle" class="page-subtitle">Configura los datos generales de la tienda, el footer público y las monedas activas.</p>
+            <p id="admin-subtitle-legacy" class="page-subtitle">Configura los datos generales de la tienda, el footer público y las monedas visibles.</p>
           </div>
           <div class="hero-actions">
             
           </div>
         </section>
+        <section class="settings-hero">
+          <div>
+            <p class="settings-eyebrow">Ajustes</p>
+            <h1 class="settings-title">Ajustes de tienda</h1>
+            <p id="admin-subtitle" class="settings-subtitle">Configura los datos p&uacute;blicos, portada, footer, monedas, horario y rese&ntilde;as de tu tienda.</p>
+          </div>
+          <div class="settings-actions">
+            <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
+            <button class="primary-blue-btn" type="submit" form="settings-form"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Zm2 2v14h10V7.8L14.2 5H13v5H8V5H7Zm3 0v3h1V5h-1Zm-1 9h6v2H9v-2Z"/></svg>Guardar cambios</button>
+          </div>
+        </section>
         <section id="admin-view">
           <div class="tabs">
-            <button class="tab-btn active" data-tab="generales" type="button">Ajustes generales</button>
-            <button class="tab-btn" data-tab="footer" type="button">Footer público</button>
-            <button class="tab-btn" data-tab="monedas" type="button">Monedas</button>
-            <button class="tab-btn" data-tab="horario" type="button">Horario</button>
-            <button class="tab-btn" data-tab="rating" type="button">Rating y rese&ntilde;as</button>
+            <button class="tab-btn active" data-tab="generales" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg><span>Generales</span></button>
+            <button class="tab-btn" data-tab="footer" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg><span>Footer p&uacute;blico</span></button>
+            <button class="tab-btn" data-tab="monedas" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg><span>Monedas</span></button>
+            <button class="tab-btn" data-tab="horario" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg><span>Horario</span></button>
+            <button class="tab-btn" data-tab="rating" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg><span>Rating y rese&ntilde;as</span></button>
+          </div>
+
+          <div id="settings-general-summary-grid" class="settings-summary-grid">
+            <article class="settings-summary-card"><span class="summary-icon blue"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12h-6v-7h-4v7H4Zm3-3h2v-6h6v6h2V10.5l-5-3.8-5 3.8V18Z"/></svg></span><div><p class="summary-label">Perfil p&uacute;blico</p><p class="summary-value">Configurado</p><p class="summary-help">Datos principales listos</p></div></article>
+            <article class="settings-summary-card"><span class="summary-icon green"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5V5Zm2 2v10h10V7H7Zm2 8 2.1-2.8 1.6 2.1 1.2-1.5L16 15H9Zm1.5-4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></span><div><p class="summary-label">Im&aacute;genes</p><p class="summary-value">Logo + portada</p><p class="summary-help">Actualizadas</p></div></article>
+            <article class="settings-summary-card"><span class="summary-icon purple"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><div><p class="summary-label">Monedas</p><p id="summary-currencies-value" class="summary-value">Pendiente</p><p id="summary-currencies-help" class="summary-help">Sin configurar</p></div></article>
+            <article class="settings-summary-card"><span class="summary-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p class="summary-label">Horario</p><p class="summary-value">Activo</p><p class="summary-help">Tienda disponible</p></div></article>
           </div>
 
           <div class="stats-grid hidden">
@@ -653,7 +2035,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <article class="stat-card"><p class="stat-label">Accesos rápidos</p><p id="stat-shortcuts" class="stat-value">0</p></article>
           </div>
 
-          <section id="tab-generales" class="panel-card tab-panel">
+          <section id="tab-generales" class="panel-card tab-panel settings-panel">
             <div class="section-head">
               <div>
                 <h2 class="section-title">Ajustes generales públicos</h2>
@@ -661,20 +2043,38 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
               </div>
               <button id="settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
             </div>
-            <form id="settings-form" class="visual-form-grid">
+            <form id="settings-form" class="form-grid">
+              <div class="settings-section-card">
+                <div class="settings-section-head">
+                  <div class="settings-section-titleline">
+                    <span class="settings-section-icon blue"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z"/></svg></span>
+                    <h3>Identidad de la tienda</h3>
+                  </div>
+                  <button class="settings-section-chevron" type="button" tabindex="-1" aria-hidden="true">⌃</button>
+                </div>
+                <div class="settings-two-grid">
               <div class="field"><label for="settings-store-name">Nombre p&uacute;blico de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
               <div class="field"><label for="settings-order-prefix">Prefijo de &oacute;rdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
-              <div class="field"><label for="settings-whatsapp-number">WhatsApp principal</label><input id="settings-whatsapp-number" type="text" placeholder="Ej: +53 5 000 0000" required /></div>
-              <div class="field"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select></div>
-              <h3 class="settings-section-title">Im&aacute;genes</h3>
-              <div class="settings-image-grid">
+              <div class="field full"><label for="settings-whatsapp-number">WhatsApp principal</label><div class="phone-row"><select id="settings-whatsapp-country" class="phone-prefix" aria-label="Pais"><option value="CU">CU +53</option><option value="US">US +1</option><option value="DO">DO +1</option><option value="MX">MX +52</option><option value="CO">CO +57</option><option value="VE">VE +58</option><option value="ES">ES +34</option><option value="PA">PA +507</option></select><input id="settings-whatsapp-number" type="text" placeholder="5 000 0000" required /></div><p class="form-help">Número principal para contacto con clientes</p></div>
+              <div class="field full"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select><p class="form-help">Cómo se mostrará la portada en la tienda</p></div>
+                </div>
+              </div>
+              <div class="settings-section-card">
+                <div class="settings-section-head">
+                  <div class="settings-section-titleline">
+                    <span class="settings-section-icon green"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5V5Zm2 2v10h10V7H7Zm2 8 2.1-2.8 1.6 2.1 1.2-1.5L16 15H9Zm1.5-4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></span>
+                    <h3>Imágenes</h3>
+                  </div>
+                  <button class="settings-section-chevron" type="button" tabindex="-1" aria-hidden="true">⌃</button>
+                </div>
+              <div class="settings-image-grid image-settings-grid">
                 <article class="settings-image-card">
                   <div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div>
                   <div id="settings-logo-preview" class="settings-thumb logo">Logo</div>
                   <div class="settings-upload-actions">
                     <div class="field settings-file-control"><label for="settings-logo-image">Subir logo</label><input id="settings-logo-image" type="file" accept="image/*" /></div>
                   </div>
-                  <p class="form-help">Recomendado: imagen cuadrada, m&iacute;nimo 512 x 512 px.</p>
+                  <p class="form-help">Recomendado: 512 x 512 px.</p>
                 </article>
                 <article class="settings-image-card">
                   <div class="settings-image-head"><h3 class="settings-image-title">Portada</h3></div>
@@ -687,12 +2087,19 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                   <div id="settings-cover-carousel-wrap" class="hidden">
                     <div id="settings-cover-gallery-preview" class="settings-gallery-grid"></div>
                   </div>
-                  <p class="form-help">Recomendado: imagen horizontal 16:9, m&iacute;nimo 1600 x 900 px.</p>
-                  <p class="form-help">La portada se optimiza autom&aacute;ticamente con calidad alta para cargar r&aacute;pido sin perder brillo.</p>
+                  <p class="form-help">Recomendado: 1600 x 900 px.</p>
                 </article>
               </div>
-              <div class="field full"><label for="settings-store-description">Descripci&oacute;n de la tienda</label><textarea id="settings-store-description" placeholder="Descripci&oacute;n m&aacute;s completa para Bazar, ficha de tienda o SEO."></textarea><p class="form-help">Descripci&oacute;n m&aacute;s completa para uso futuro en Bazar, ficha de tienda, SEO o presentaci&oacute;n general.</p></div>
+              </div>
+              <div class="settings-section-card">
+                <div class="settings-section-head"><div class="settings-section-titleline"><span class="settings-section-icon purple"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h6v2H8v-2Z"/></svg></span><h3>Contenido público</h3></div></div>
+              <div class="field full"><label for="settings-store-description">Descripci&oacute;n de la tienda</label><textarea id="settings-store-description" maxlength="500" placeholder="Descripci&oacute;n m&aacute;s completa para Bazar, ficha de tienda o SEO."></textarea></div>
               <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
+              <div class="field full"><label for="settings-reviews-text">Rese&ntilde;a / texto de confianza</label><textarea id="settings-reviews-text" maxlength="150" placeholder="Ej: Gracias por elegir PowerZona. Atenci&oacute;n personalizada y productos seleccionados."></textarea></div>
+              </div>
+              <div class="settings-section-card">
+                <div class="settings-section-head"><div class="settings-section-titleline"><span class="settings-section-icon blue"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg></span><h3>Ubicación y clasificación</h3></div></div>
+              <div class="settings-two-grid">
               <div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div>
               <div class="field full">
                 <label>Tipo de negocio</label>
@@ -706,15 +2113,15 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 </div>
                 <p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p>
               </div>
-              <div class="field full"><label>Direcci&oacute;n</label></div>
               <div class="field"><label for="settings-province">Provincia</label><select id="settings-province"><option value="">Selecciona provincia</option></select></div>
               <div class="field"><label for="settings-municipality">Municipio</label><select id="settings-municipality" disabled><option value="">Primero selecciona provincia</option></select></div>
               <div class="field full"><label for="settings-address-detail">Direcci&oacute;n exacta / Referencia</label><textarea id="settings-address-detail" placeholder="Calle, n&uacute;mero, reparto, barrio o referencia"></textarea></div>
+              </div>
+              </div>
               <textarea id="settings-address" class="hidden" aria-hidden="true"></textarea>
               <textarea id="settings-public-services-text" class="hidden" aria-hidden="true"></textarea>
-              <div class="field full"><label for="settings-reviews-text">Rese&ntilde;a / texto de confianza</label><textarea id="settings-reviews-text" placeholder="Ej: Gracias por elegir PowerZona. Atenci&oacute;n personalizada y productos seleccionados."></textarea></div>
               <div id="settings-alert" class="alert alert-info hidden full"></div>
-              <div class="editor-actions full"><button class="submit-btn" type="submit">Guardar ajustes generales</button></div>
+              <div class="editor-actions full settings-save-row"><button class="submit-btn" type="submit">Guardar ajustes generales</button></div>
             </form>
           </section>
 
@@ -965,23 +2372,89 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
 
           <section id="tab-monedas" class="panel-card tab-panel hidden">
-            <div class="section-head">
-              <div>
-                <h2 class="section-title">Monedas</h2>
-                <p class="section-subtitle">USD sigue siendo la moneda base real. Activa las monedas visuales y configura la tasa que verá el cliente.</p>
+            <div class="currency-workspace">
+              <div class="currency-summary-card">
+                <div class="currency-summary-main">
+                  <span class="currency-summary-icon">$</span>
+                  <div>
+                    <p class="currency-summary-title">Resumen de monedas</p>
+                    <p id="currency-tab-summary-value" class="currency-summary-value">Pendiente</p>
+                    <p id="currency-tab-summary-codes" class="currency-summary-codes">-</p>
+                    <p id="currency-tab-summary-help" class="currency-summary-help">Sin configurar</p>
+                  </div>
+                </div>
+                <button id="currency-refresh-btn" class="mini-btn" type="button">Actualizar resumen</button>
               </div>
-              <button id="currency-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+              <div class="currency-mobile-toolbar">
+                <label class="currency-search-box" for="currency-search">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"/></svg>
+                  <input id="currency-search" type="search" placeholder="Buscar moneda..." autocomplete="off" />
+                </label>
+                <button class="mini-btn primary" type="button" data-scroll-currency-create>+ Agregar moneda</button>
+              </div>
+              <section class="currency-panel">
+                <div class="currency-panel-head">
+                  <div>
+                    <h2 class="currency-panel-title">Monedas de tu tienda</h2>
+                    <p class="currency-panel-subtitle">Agrega, edita, muestra u oculta las monedas visibles en tu tienda.</p>
+                  </div>
+                  <button class="mini-btn primary" type="button" data-scroll-currency-create>+ Agregar moneda</button>
+                </div>
+                <div class="currency-table" aria-label="Monedas de tu tienda">
+                  <div class="currency-table-head">
+                    <span>Moneda</span>
+                    <span>Base</span>
+                    <span>S&iacute;mbolo</span>
+                    <span>Tasa frente a USD</span>
+                    <span>Visible</span>
+                    <span>Predeterminada</span>
+                    <span>Acciones</span>
+                  </div>
+                  <div id="currency-list"></div>
+                </div>
+              </section>
+              <div id="currency-alert" class="alert alert-info hidden"></div>
+              <section class="currency-info-card">
+                <span aria-hidden="true">i</span>
+                <div>
+                  <strong>Informaci&oacute;n importante</strong>
+                  <p>USD es la moneda base del sistema y se utiliza para calcular los precios internos.</p>
+                  <p>Solo las monedas visibles se mostrar&aacute;n al cliente. La moneda predeterminada ser&aacute; la primera que ver&aacute; el cliente al entrar a la tienda.</p>
+                  <p>No puedes ocultar o borrar la moneda predeterminada sin seleccionar antes otra moneda visible.</p>
+                </div>
+              </section>
+              <div id="currency-create-modal" class="currency-modal hidden" role="dialog" aria-modal="true" aria-labelledby="currency-modal-title">
+                <div class="currency-modal-card">
+                  <button id="currency-modal-close" class="currency-modal-close" type="button" aria-label="Cerrar">X</button>
+                  <h2 id="currency-modal-title" class="currency-create-title">Agregar moneda</h2>
+                  <p class="currency-panel-subtitle">Crea una nueva moneda para esta tienda.</p>
+                  <form id="currency-create-form" class="currency-create-grid">
+                    <div class="field"><label for="currency-code">C&oacute;digo</label><input id="currency-code" type="text" placeholder="Ej: CUP" maxlength="12" pattern="[A-Za-z0-9]{2,12}" /></div>
+                    <div class="field"><label for="currency-name">Nombre</label><input id="currency-name" type="text" placeholder="Ej: Peso Cubano" /></div>
+                    <div class="field"><label for="currency-symbol">S&iacute;mbolo</label><input id="currency-symbol" type="text" placeholder="Ej: $" /></div>
+                    <div class="field"><label for="currency-rate">Tasa frente a USD</label><input id="currency-rate" type="number" min="0" step="0.0001" placeholder="Ej: 350.0000" /></div>
+                    <div class="currency-create-actions"><button id="currency-modal-cancel" class="mini-btn" type="button">Cancelar</button><button class="submit-btn" type="submit">Agregar moneda</button></div>
+                  </form>
+                </div>
+              </div>
+              <div id="currency-edit-modal" class="currency-modal hidden" role="dialog" aria-modal="true" aria-labelledby="currency-edit-modal-title">
+                <div class="currency-modal-card">
+                  <button id="currency-edit-modal-close" class="currency-modal-close" type="button" aria-label="Cerrar">X</button>
+                  <h2 id="currency-edit-modal-title" class="currency-create-title">Editar moneda</h2>
+                  <p class="currency-panel-subtitle">Actualiza los datos visibles de esta moneda.</p>
+                  <form id="currency-edit-form" class="currency-create-grid">
+                    <div class="field"><label for="currency-edit-code">C&oacute;digo</label><input id="currency-edit-code" type="text" readonly /></div>
+                    <div class="field"><label for="currency-edit-name">Nombre</label><input id="currency-edit-name" type="text" /></div>
+                    <div class="field"><label for="currency-edit-symbol">S&iacute;mbolo</label><input id="currency-edit-symbol" type="text" /></div>
+                    <div class="field"><label for="currency-edit-rate">Tasa frente a USD</label><input id="currency-edit-rate" type="number" min="0" step="0.0001" /></div>
+                    <label class="field"><span>Visible en tienda</span><input id="currency-edit-active" type="checkbox" /></label>
+                    <label class="field"><span>Usar como predeterminada</span><input id="currency-edit-default" type="checkbox" /></label>
+                    <div class="currency-create-actions"><button id="currency-edit-cancel" class="mini-btn" type="button">Cancelar</button><button class="submit-btn" type="submit">Guardar cambios</button></div>
+                  </form>
+                </div>
+              </div>
             </div>
-            <div id="currency-list" class="list-card" style="padding:14px; display:grid; gap:10px;"></div>
-            <div id="currency-alert" class="alert alert-info hidden"></div>
-            <form id="currency-create-form" class="visual-form-grid" style="margin-top:14px;">
-              <div class="field"><label for="currency-code">Código</label><input id="currency-code" type="text" placeholder="Ej: CUP" maxlength="8" /></div>
-              <div class="field"><label for="currency-name">Nombre</label><input id="currency-name" type="text" placeholder="Ej: Peso Cubano" /></div>
-              <div class="field"><label for="currency-symbol">Símbolo</label><input id="currency-symbol" type="text" placeholder="Ej: CUP" /></div>
-              <div class="field"><label for="currency-rate">Tasa frente a USD</label><input id="currency-rate" type="number" min="0" step="0.01" placeholder="Ej: 350" /></div>
-              <div class="editor-actions full"><button class="submit-btn" type="submit">Agregar moneda</button></div>
-            </form>
-          </section>
+                      </section>
 
           <section id="tab-destacados" class="panel-card tab-panel hidden">
             <div class="section-head">
@@ -1113,6 +2586,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         </section>
       </main>
     </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Navegaci&oacute;n inferior">
+      <a href={adminBasePath}><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg><span>Resumen</span></a>
+      <a href={adminOrdersPath}><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Z"/></svg><span>Pedidos</span></a>
+      <a href={adminCatalogPath}><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg><span>Categor&iacute;as</span></a>
+      <a href={adminShippingPath}><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Z"/></svg><span>Env&iacute;os</span></a>
+      <a class="active" href={adminStoreSettingsPath}><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z"/></svg><span>Ajustes</span></a>
+    </nav>
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, adminAuthToken }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
@@ -1575,6 +3056,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
         document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.add('hidden'));
         document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
+        document.getElementById('settings-general-summary-grid')?.classList.toggle('hidden', tab !== 'generales');
+        document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       }
       function openSidebar() { document.body.classList.add('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'false'); sidebarOverlay.hidden = false; sidebarOpenBtn?.setAttribute('aria-expanded', 'true'); }
       function closeSidebar() { document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'true'); sidebarOpenBtn?.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!document.body.classList.contains('sidebar-open')) sidebarOverlay.hidden = true; }, 220); }
@@ -1669,6 +3152,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const fields = {
           storeName: document.getElementById('settings-store-name'),
           orderPrefix: document.getElementById('settings-order-prefix'),
+          whatsappCountry: document.getElementById('settings-whatsapp-country'),
           whatsapp: document.getElementById('settings-whatsapp-number'),
           coverMode: document.getElementById('settings-cover-mode'),
           logo: document.getElementById('settings-logo-image'),
@@ -1707,6 +3191,16 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const businessTypeHelp = document.getElementById('business-type-help');
         const BUSINESS_TYPE_GROUPS_LOCAL = Array.isArray(businessTypeGroups) ? businessTypeGroups : [];
         const CUBA_LOCATIONS_LOCAL = Array.isArray(cubaLocations) ? cubaLocations : [];
+        const WHATSAPP_COUNTRIES = [
+          { code: 'CU', dial: '+53' },
+          { code: 'US', dial: '+1' },
+          { code: 'DO', dial: '+1' },
+          { code: 'MX', dial: '+52' },
+          { code: 'CO', dial: '+57' },
+          { code: 'VE', dial: '+58' },
+          { code: 'ES', dial: '+34' },
+          { code: 'PA', dial: '+507' },
+        ];
         let selectedBusinessTypes = [];
         const galleryPreviewUrls = new Map();
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
@@ -1775,6 +3269,28 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         }
         function escapeHtml(value) {
           return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+        function cleanWhatsappNumber(value) {
+          return String(value || '').replace(/[^\d+]/g, '');
+        }
+        function selectedWhatsappDial() {
+          const selectedCode = fields.whatsappCountry?.value || 'CU';
+          return WHATSAPP_COUNTRIES.find((country) => country.code === selectedCode)?.dial || '+53';
+        }
+        function splitWhatsappNumber(value) {
+          const raw = cleanWhatsappNumber(value);
+          const normalized = raw.startsWith('+') ? raw : (raw ? `+${raw}` : '');
+          const sortedCountries = WHATSAPP_COUNTRIES.slice().sort((a, b) => b.dial.length - a.dial.length);
+          const match = sortedCountries.find((country) => normalized.startsWith(country.dial));
+          if (!match) return { countryCode: 'CU', number: raw.replace(/^\+/, '') };
+          return {
+            countryCode: match.dial === '+1' ? 'US' : match.code,
+            number: normalized.slice(match.dial.length).replace(/[^\d]/g, ''),
+          };
+        }
+        function composeWhatsappNumber() {
+          const number = cleanWhatsappNumber(fields.whatsapp?.value || '').replace(/^\+/, '');
+          return number ? `${selectedWhatsappDial()}${number}` : '';
         }
         function composeAddress() {
           return fields.addressDetail?.value?.trim() || '';
@@ -1885,11 +3401,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
               ? `<img src="${escapeHtml(fileUrlFor(filename, '700x260'))}" alt="Foto ${index + 1}" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`
               : `Foto ${index + 1}`;
             return `
-              <div class="settings-gallery-slot" data-gallery-file="${escapeHtml(filename)}" data-gallery-field="${escapeHtml(slotItem.fieldName)}" data-gallery-source-field="${escapeHtml(slotItem.sourceField)}" data-gallery-index="${index}">
+              <div class="settings-gallery-slot cover-carousel-slot" data-gallery-file="${escapeHtml(filename)}" data-gallery-field="${escapeHtml(slotItem.fieldName)}" data-gallery-source-field="${escapeHtml(slotItem.sourceField)}" data-gallery-index="${index}">
                 <p class="settings-slot-label">Foto ${index + 1}</p>
-                <div class="settings-thumb cover">${thumb}</div>
+                <div class="settings-thumb cover cover-carousel-preview">${thumb}</div>
                 <div class="field settings-file-control">
-                  <label for="settings-cover-gallery-image-${index + 1}">${filename ? 'Reemplazar' : 'Subir foto'}</label>
+                  <label class="cover-carousel-action" for="settings-cover-gallery-image-${index + 1}">${filename ? 'Cambiar' : 'Subir foto'}</label>
                   <input id="settings-cover-gallery-image-${index + 1}" class="js-cover-gallery-file" data-current-file="${escapeHtml(filename)}" type="file" accept="image/*" />
                 </div>
               </div>
@@ -1897,14 +3413,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           }).join('');
         }
         async function findDefaultCurrencyId() {
-          const result = await api('/api/collections/currencies/records?filter=active%3Dtrue&sort=code&page=1&perPage=1');
+          const result = await api('/api/collections/currencies/records?' + withStoreFilter('filter=active%3Dtrue&sort=code&page=1&perPage=1'));
           return (result.items || [])[0]?.id || '';
         }
         async function createSettingsRecord() {
           const payload = {
             stored_name: fields.storeName.value.trim() || 'PowerZona',
             store_name: fields.storeName.value.trim() || 'PowerZona',
-            whatsapp_number: fields.whatsapp.value.trim(),
+            whatsapp_number: composeWhatsappNumber(),
             store_description: fields.storeDescription.value.trim(),
             welcome_text: fields.welcome.value.trim(),
             public_category_columns: fields.categoryColumns.value || '2',
@@ -1957,7 +3473,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const record = settingsRecord || {};
           fields.storeName.value = record.store_name || record.stored_name || 'PowerZona';
           fields.orderPrefix.value = normalizeOrderPrefix(record.order_prefix || 'PP');
-          fields.whatsapp.value = record.whatsapp_number || '';
+          const whatsapp = splitWhatsappNumber(record.whatsapp_number || '');
+          if (fields.whatsappCountry) fields.whatsappCountry.value = whatsapp.countryCode;
+          fields.whatsapp.value = whatsapp.number;
           fields.storeDescription.value = record.store_description || '';
           fields.welcome.value = record.welcome_text || '';
           fields.categoryColumns.value = String(record.public_category_columns || '2') === '1' ? '1' : '2';
@@ -1996,7 +3514,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
           data.append('stored_name', fields.storeName.value.trim() || 'PowerZona');
           data.append('order_prefix', normalizeOrderPrefix(fields.orderPrefix.value));
-          data.append('whatsapp_number', fields.whatsapp.value.trim());
+          data.append('whatsapp_number', composeWhatsappNumber());
           data.append('store_description', fields.storeDescription.value.trim());
           data.append('welcome_text', fields.welcome.value.trim());
           data.append('public_category_columns', fields.categoryColumns.value || '2');
@@ -2077,6 +3595,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         }
         fields.orderPrefix && fields.orderPrefix.addEventListener('input', () => {
           fields.orderPrefix.value = String(fields.orderPrefix.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+        });
+        fields.whatsapp?.addEventListener('blur', () => {
+          fields.whatsapp.value = cleanWhatsappNumber(fields.whatsapp.value).replace(/^\+/, '');
         });
         fields.coverMode?.addEventListener('change', updateCoverModeUI);
         fields.province?.addEventListener('change', () => renderMunicipalityOptions(''));
@@ -2389,7 +3910,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return Date.now() - delivered >= reviewDelayHours() * 3600000;
         }
         async function findDefaultCurrencyId() {
-          const result = await api('/api/collections/currencies/records?filter=active%3Dtrue&sort=code&page=1&perPage=1');
+          const result = await api('/api/collections/currencies/records?' + withStoreFilter('filter=active%3Dtrue&sort=code&page=1&perPage=1'));
           return (result.items || [])[0]?.id || '';
         }
         async function createSettingsRecord() {
@@ -2907,7 +4428,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return mergeHours(next);
         }
         async function findDefaultCurrencyId() {
-          const result = await api('/api/collections/currencies/records?filter=active%3Dtrue&sort=code&page=1&perPage=1');
+          const result = await api('/api/collections/currencies/records?' + withStoreFilter('filter=active%3Dtrue&sort=code&page=1&perPage=1'));
           return (result.items || [])[0]?.id || '';
         }
         async function createSettingsRecord() {
@@ -2972,31 +4493,62 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
-      // PZ-AJUSTES-MONEDAS-CLIENT-V1-20260604
+      // PZ-CURRENCIES-STORE-UI-V2-20260616
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
-        const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
-        const list = document.getElementById('currency-list');
-        const alertBox = document.getElementById('currency-alert');
-        const refreshBtn = document.getElementById('currency-refresh-btn');
-        const createForm = document.getElementById('currency-create-form');
-        const codeInput = document.getElementById('currency-code');
-        const nameInput = document.getElementById('currency-name');
-        const symbolInput = document.getElementById('currency-symbol');
-        const rateInput = document.getElementById('currency-rate');
-        let currencies = [];
-        let settingsRecord = null;
+        const SYSTEM_CODES = ['USD', 'CUP', 'EUR', 'CASHAPP', 'ZELLE'];
+        const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+        const state = { currencies: [], settingsRecord: null, search: '', editingId: '' };
+
         function token() { return ADMIN_AUTH_TOKEN; }
+        function byId(id) { return document.getElementById(id); }
+        function escapeHtml(value) {
+          return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
         function show(message = '', type = 'info') {
+          const alertBox = byId('currency-alert');
           if (!alertBox) return;
           if (!message) { alertBox.className = 'alert alert-info hidden'; alertBox.textContent = ''; return; }
-          alertBox.className = 'alert alert-' + type;
+          alertBox.className = `alert alert-${type}`;
           alertBox.textContent = message;
         }
-
-                async function api(path, options = {}) {
+        function clearCreateForm() {
+          byId('currency-create-form')?.reset();
+        }
+        function openCurrencyModal() {
+          show('');
+          byId('currency-create-modal')?.classList.remove('hidden');
+          setTimeout(() => byId('currency-code')?.focus(), 0);
+        }
+        function closeCurrencyModal() {
+          byId('currency-create-modal')?.classList.add('hidden');
+          clearCreateForm();
+        }
+        function closeEditModal() {
+          byId('currency-edit-modal')?.classList.add('hidden');
+          state.editingId = '';
+          byId('currency-edit-form')?.reset();
+        }
+        function openEditModal(row) {
+          const id = row?.dataset?.currencyId;
+          const currency = state.currencies.find((item) => item.id === id);
+          if (!id || !currency) return;
+          const code = normalizeCode(currency.code);
+          if (code === 'USD' || currency.is_base === true) return;
+          state.editingId = id;
+          byId('currency-edit-code').value = code;
+          byId('currency-edit-name').value = currency.name || code;
+          byId('currency-edit-symbol').value = currency.symbol || code;
+          byId('currency-edit-rate').value = formatRate(currency.exchange_rate || 0);
+          byId('currency-edit-active').checked = currency.active !== false;
+          byId('currency-edit-default').checked = currency.id === defaultId() || currency.is_default === true;
+          byId('currency-edit-default').disabled = currency.active === false;
+          byId('currency-edit-modal')?.classList.remove('hidden');
+          setTimeout(() => byId('currency-edit-name')?.focus(), 0);
+        }
+        async function api(path, options = {}) {
           const headers = Object.assign({}, options.headers || {});
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL + path, Object.assign({}, options, { headers }));
@@ -3004,69 +4556,269 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           if (!response.ok) throw new Error((result && result.message) || 'Error de comunicacion con la plataforma.');
           return result;
         }
-        function escapeHtml(value) {
-          return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        }
-        function currencyDefaultId() {
-          const value = settingsRecord?.default_currency;
-          return Array.isArray(value) ? value[0] : value || '';
-        }
         function withStoreFilter(params = '') {
           const query = new URLSearchParams(params || '');
           const existing = query.get('filter');
-          if (existing) query.set('filter', `(${existing}) && ${STORE_FILTER}`);
-          else query.set('filter', STORE_FILTER);
+          query.set('filter', existing ? `(${existing}) && ${STORE_FILTER}` : STORE_FILTER);
           return query.toString();
         }
-        async function loadCurrencies() {
-          if (!token()) return;
-          const [currencyResult, settingsResult] = await Promise.all([
-            api('/api/collections/currencies/records?sort=code&perPage=100'),
-            api('/api/collections/settings/records?' + withStoreFilter('filter=active%3Dtrue&sort=-updated&page=1&perPage=1')),
-          ]);
-          currencies = currencyResult.items || [];
-          settingsRecord = (settingsResult.items || [])[0] || null;
-          renderCurrencies();
+        function normalizeCode(value) {
+          return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+        }
+        function isSystemCurrency(currency) {
+          return currency?.is_system === true || SYSTEM_CODES.includes(normalizeCode(currency?.code));
+        }
+        function defaultId() {
+          const value = state.settingsRecord?.default_currency;
+          return Array.isArray(value) ? value[0] : value || '';
+        }
+        function usdCurrency() {
+          return state.currencies.find((currency) => normalizeCode(currency.code) === 'USD') || null;
+        }
+        function orderValue(code) {
+          const index = SYSTEM_CODES.indexOf(normalizeCode(code));
+          return index >= 0 ? index : 100;
+        }
+        function sortCurrencies(items) {
+          return (items || []).slice().sort((a, b) => {
+            const order = orderValue(a.code) - orderValue(b.code);
+            if (order !== 0) return order;
+            return normalizeCode(a.code).localeCompare(normalizeCode(b.code));
+          });
+        }
+        function formatRate(value) {
+          const num = Number(value || 0);
+          if (!Number.isFinite(num)) return '0';
+          if (Number.isInteger(num)) return String(num);
+          return String(Number(num.toFixed(4))).replace(/\.?0+$/, '');
+        }
+        function visibleCurrencies() {
+          return sortCurrencies(state.currencies).filter((currency) => normalizeCode(currency.code) === 'USD' || currency.active !== false);
+        }
+        function currentDefaultCurrency() {
+          const currentId = defaultId();
+          return state.currencies.find((currency) => currency.id === currentId) || state.currencies.find((currency) => currency.is_default === true) || null;
+        }
+        function visibleCodes() {
+          return Array.from(new Set(sortCurrencies(state.currencies)
+            .filter((currency) => normalizeCode(currency.code) === 'USD' || currency.active !== false)
+            .map((currency) => normalizeCode(currency.code))
+            .filter(Boolean)));
+        }
+        function visibleSummary() {
+          const codes = visibleCodes();
+          const count = codes.length;
+          if (!count) return { label: 'Pendiente', subtitle: 'Sin configurar' };
+          if (count <= 2) return { label: codes.join(' + '), subtitle: `${count} moneda${count === 1 ? '' : 's'} visible${count === 1 ? '' : 's'}` };
+          return { label: `Visibles: ${count}`, subtitle: 'Monedas visibles' };
+        }
+        function renderSummary() {
+          const summary = visibleSummary();
+          const visibleCount = visibleCodes().length;
+          [['currency-tab-summary-value', summary.label], ['currency-tab-summary-help', summary.subtitle], ['summary-currencies-value', summary.label], ['summary-currencies-help', summary.subtitle]]
+            .forEach(([id, value]) => { const node = byId(id); if (node) node.textContent = value; });
+          byId('currency-tab-summary-value')?.setAttribute('data-mobile-label', `${visibleCount} visible${visibleCount === 1 ? '' : 's'}`);
+          const codesNode = byId('currency-tab-summary-codes');
+          if (codesNode) codesNode.textContent = visibleCodes().join(' + ') || '-';
+        }
+        function currencyIconMarkup(currency) {
+          const code = normalizeCode(currency?.code);
+          const safeCode = escapeHtml(code);
+          if (code === 'USD') return '<span class="currency-avatar flag" aria-hidden="true"><svg viewBox="0 0 44 44" role="img"><rect width="44" height="44" fill="#ffffff"/><path fill="#dc2626" d="M0 0h44v4H0zM0 8h44v4H0zM0 16h44v4H0zM0 24h44v4H0zM0 32h44v4H0zM0 40h44v4H0z"/><rect width="22" height="24" fill="#1d4ed8"/><g fill="#ffffff"><circle cx="4" cy="4" r="1.1"/><circle cx="10" cy="4" r="1.1"/><circle cx="16" cy="4" r="1.1"/><circle cx="7" cy="9" r="1.1"/><circle cx="13" cy="9" r="1.1"/><circle cx="19" cy="9" r="1.1"/><circle cx="4" cy="14" r="1.1"/><circle cx="10" cy="14" r="1.1"/><circle cx="16" cy="14" r="1.1"/><circle cx="7" cy="19" r="1.1"/><circle cx="13" cy="19" r="1.1"/><circle cx="19" cy="19" r="1.1"/></g></svg></span>';
+          if (code === 'CUP') return '<span class="currency-avatar flag" aria-hidden="true"><svg viewBox="0 0 44 44" role="img"><rect width="44" height="44" fill="#ffffff"/><rect y="0" width="44" height="8.8" fill="#1d4ed8"/><rect y="17.6" width="44" height="8.8" fill="#1d4ed8"/><rect y="35.2" width="44" height="8.8" fill="#1d4ed8"/><path d="M0 0 26 22 0 44Z" fill="#dc2626"/><path d="m9.5 16.1 1.8 3.6 4 .6-2.9 2.8.7 4-3.6-1.9-3.6 1.9.7-4-2.9-2.8 4-.6Z" fill="#ffffff"/></svg></span>';
+          if (code === 'EUR') return '<span class="currency-avatar eur"><span>&euro;</span></span>';
+          if (code === 'CASHAPP') return '<span class="currency-avatar cashapp"><span>$</span></span>';
+          if (code === 'ZELLE') return '<span class="currency-avatar zelle"><span>ZL</span></span>';
+          return `<span class="currency-avatar custom"><span>${safeCode.slice(0, 4)}</span></span>`;
         }
         function renderCurrencies() {
+          const list = byId('currency-list');
           if (!list) return;
-          const defaultId = currencyDefaultId();
-          if (!currencies.length) {
-            list.innerHTML = '<p class="form-help">No hay monedas creadas. Agrega USD y CUP para comenzar.</p>';
+          if (!state.currencies.length) {
+            list.innerHTML = '<div class="currency-row"><p class="form-help">No hay monedas creadas para esta tienda.</p></div>';
             return;
           }
-          list.innerHTML = currencies.map((currency) => `
-            <div data-currency-id="${currency.id}" style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; align-items:end; padding:12px; border:1px solid #e2e8f0; border-radius:18px; background:#fff;">
-              <div class="field"><label>${escapeHtml(currency.code || '')}</label><input class="js-currency-name" type="text" value="${escapeHtml(currency.name || '')}" /></div>
-              <div class="field"><label>Símbolo</label><input class="js-currency-symbol" type="text" value="${escapeHtml(currency.symbol || '')}" /></div>
-              <div class="field"><label>Tasa</label><input class="js-currency-rate" type="number" min="0" step="0.01" value="${Number(currency.exchange_rate || 0)}" ${String(currency.code || '').toUpperCase() === 'USD' ? 'readonly' : ''} /></div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:flex-end;">
-                <label style="font-size:12px; font-weight:950; color:#334155;"><input class="js-currency-active" type="checkbox" ${currency.active !== false ? 'checked' : ''} /> Activa</label>
-                <label style="font-size:12px; font-weight:950; color:#334155;"><input class="js-currency-default" name="currency-default" type="radio" ${currency.id === defaultId ? 'checked' : ''} /> Default</label>
-                <button class="mini-btn primary js-currency-save" type="button">Guardar</button>
+          const query = normalizeCode(state.search);
+          const items = query
+            ? state.currencies.filter((currency) => {
+                const haystack = `${normalizeCode(currency.code)} ${normalizeCode(currency.name)} ${normalizeCode(currency.symbol)}`;
+                return haystack.includes(query);
+              })
+            : state.currencies;
+          if (!items.length) {
+            list.innerHTML = '<div class="currency-row"><p class="form-help">No se encontraron monedas.</p></div>';
+            return;
+          }
+          list.innerHTML = items.map((currency) => {
+            const code = normalizeCode(currency.code);
+            const isBase = code === 'USD' || currency.is_base === true;
+            const isSystem = isSystemCurrency(currency);
+            const isDefault = currency.id === defaultId() || currency.is_default === true;
+            const deleteDisabled = isSystem || isDefault || (currency.store && currency.store !== CURRENT_STORE_ID);
+            const rate = isBase ? 1 : Number(currency.exchange_rate || 0);
+            const isVisible = isBase || currency.active !== false;
+            const defaultMarkup = isDefault
+              ? '<div class="currency-default-choice"><span class="currency-default-badge"><svg viewBox="0 0 20 20" aria-hidden="true" class="default-star-icon"><path fill="currentColor" d="M10 1.8l2.45 5.18 5.55.84-4.02 4.02.95 5.68L10 14.84l-4.93 2.68.95-5.68L2 7.82l5.55-.84L10 1.8z"/></svg>Predeterminada</span><span class="currency-name">Moneda inicial para los clientes</span></div>'
+              : isVisible
+                ? '<button class="currency-default-option js-currency-set-default" type="button">Hacer predeterminada</button>'
+                : '<div class="currency-default-choice"><span class="currency-muted">-</span><span class="currency-name">No se muestra en tienda.</span></div>';
+            const actionsMarkup = isBase
+              ? '<span class="currency-base-action">Moneda base</span>'
+              : `<button class="currency-action-btn js-currency-edit" type="button">Editar</button>
+                  <button class="currency-delete-btn ${deleteDisabled ? 'disabled' : ''} js-currency-delete" type="button" ${deleteDisabled ? 'disabled' : ''} title="${deleteDisabled ? (isDefault ? 'No puedes borrar la moneda predeterminada' : 'Moneda fija del sistema') : 'Borrar moneda'}">&#128465;</button>`;
+            const systemBadge = isSystem ? '<span class="currency-system-badge">Fija</span>' : '<span class="currency-system-badge currency-custom-badge">Personalizada</span>';
+            const mobileMeta = isBase
+              ? '<span class="currency-base-badge">Base</span><span>1</span><span class="currency-base-badge">Siempre visible</span>'
+              : `<span>${formatRate(rate)}</span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No visible'}</span>`;
+            const mobileDefaultMarkup = isDefault
+              ? '<span class="currency-default-badge"><svg viewBox="0 0 20 20" aria-hidden="true" class="default-star-icon"><path fill="currentColor" d="M10 1.8l2.45 5.18 5.55.84-4.02 4.02.95 5.68L10 14.84l-4.93 2.68.95-5.68L2 7.82l5.55-.84L10 1.8z"/></svg>Predeterminada</span>'
+              : isVisible
+                ? '<button class="currency-default-option js-currency-set-default" type="button">Hacer predeterminada</button>'
+                : '<span class="currency-name">No se muestra en tienda</span>';
+            const mobileActionsMarkup = isBase
+              ? '<span class="currency-base-action">Moneda base</span>'
+              : `<button class="currency-action-btn js-currency-edit" type="button" aria-label="Editar moneda">Editar</button>
+                  ${deleteDisabled ? '' : '<button class="currency-delete-btn js-currency-delete" type="button" title="Borrar moneda">&#128465;</button>'}`;
+            return `
+              <div class="currency-row" data-currency-id="${escapeHtml(currency.id)}" data-currency-code="${escapeHtml(code)}">
+                <div class="currency-mobile-row">
+                  <div class="currency-mobile-icon">${currencyIconMarkup(currency)}</div>
+                  <div class="currency-mobile-body">
+                    <div class="currency-mobile-title"><strong class="currency-mobile-code">${escapeHtml(code)}</strong>${systemBadge}</div>
+                    <div class="currency-mobile-name">${escapeHtml(currency.name || (isBase ? 'Dolar Americano' : code))}</div>
+                    <div class="currency-mobile-meta">${mobileMeta}</div>
+                    <div class="currency-mobile-default">${mobileDefaultMarkup}</div>
+                  </div>
+                  <div class="currency-mobile-actions">${mobileActionsMarkup}</div>
+                </div>
+                <div class="currency-main-cell">
+                  ${currencyIconMarkup(currency)}
+                  <div>
+                    <p class="currency-code">${escapeHtml(code)} ${systemBadge}</p>
+                    ${isBase ? `<p class="currency-name">${escapeHtml(currency.name || 'Dolar Americano')}</p><p class="currency-name">Moneda base del sistema</p>` : `<input class="currency-inline-input js-currency-name" type="text" value="${escapeHtml(currency.name || code)}" />`}
+                  </div>
+                </div>
+                <span>${isBase ? '<span class="currency-base-badge">Base</span>' : '<span class="currency-muted">-</span>'}</span>
+                ${isBase ? '<span class="currency-readonly-value">$</span>' : `<input class="currency-inline-input js-currency-symbol" type="text" value="${escapeHtml(currency.symbol || code)}" />`}
+                ${isBase ? '<span class="currency-rate-cell">1 <span class="currency-base-badge">Base</span></span>' : `<input class="currency-inline-input js-currency-rate" type="number" min="0" step="0.0001" value="${formatRate(rate)}" />`}
+                ${isBase ? '<span class="currency-base-badge">Siempre visible</span>' : `<label class="currency-switch"><input class="js-currency-active" type="checkbox" ${isVisible ? 'checked' : ''} /><span class="currency-switch-track"><span class="currency-switch-thumb"></span></span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No visible'}</span></label>`}
+                ${defaultMarkup}
+                <div class="currency-actions">
+                  ${actionsMarkup}
+                </div>
               </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
+        }
+        async function enforceCurrencyState() {
+          if (!token() || !CURRENT_STORE_ID) return false;
+          const usd = usdCurrency();
+          if (!usd) {
+            show('Falta la moneda USD en esta tienda. USD es requerida como moneda base.', 'error');
+            return false;
+          }
+          let changed = false;
+          if (usd.is_base !== true || usd.active !== true || Number(usd.exchange_rate || 0) !== 1) {
+            await api('/api/collections/currencies/records/' + usd.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_base: true, active: true, exchange_rate: 1 }),
+            });
+            changed = true;
+          }
+          const wrongBase = state.currencies.filter((currency) => currency.id !== usd.id && currency.is_base === true);
+          for (const currency of wrongBase) {
+            await api('/api/collections/currencies/records/' + currency.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_base: false }),
+            });
+            changed = true;
+          }
+          const visible = visibleCurrencies();
+          let selectedDefault = visible.find((currency) => currency.id === defaultId()) || visible.find((currency) => currency.is_default === true) || visible[0] || null;
+          if (!selectedDefault && usd) {
+            await api('/api/collections/currencies/records/' + usd.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ active: true }),
+            });
+            selectedDefault = usd;
+            changed = true;
+          }
+          if (!selectedDefault) return changed;
+          for (const currency of state.currencies) {
+            const shouldBeDefault = currency.id === selectedDefault.id;
+            if (currency.is_default !== shouldBeDefault) {
+              await api('/api/collections/currencies/records/' + currency.id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_default: shouldBeDefault }),
+              });
+              changed = true;
+            }
+          }
+          if (state.settingsRecord?.id && defaultId() !== selectedDefault.id) {
+            await api('/api/collections/settings/records/' + state.settingsRecord.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ default_currency: selectedDefault.id }),
+            });
+            changed = true;
+          }
+          return changed;
+        }
+        async function loadCurrencies(shouldEnforce = true) {
+          if (!token()) return;
+          const [currencyResult, settingsResult] = await Promise.all([
+            api('/api/collections/currencies/records?' + withStoreFilter('sort=code&perPage=100')),
+            api('/api/collections/settings/records?' + withStoreFilter('filter=active%3Dtrue&sort=-updated&page=1&perPage=1')),
+          ]);
+          state.currencies = sortCurrencies(currencyResult.items || []);
+          state.settingsRecord = (settingsResult.items || [])[0] || null;
+          if (shouldEnforce && await enforceCurrencyState()) return loadCurrencies(false);
+          renderSummary();
+          renderCurrencies();
         }
         async function saveCurrency(row) {
           const id = row?.dataset?.currencyId;
-          const currency = currencies.find((item) => item.id === id);
+          const currency = state.currencies.find((item) => item.id === id);
           if (!id || !currency) return;
-          const code = String(currency.code || '').toUpperCase();
-          const data = {
-            name: row.querySelector('.js-currency-name')?.value?.trim() || code,
-            symbol: row.querySelector('.js-currency-symbol')?.value?.trim() || code,
-            exchange_rate: code === 'USD' ? 1 : Math.max(0, Number(row.querySelector('.js-currency-rate')?.value || 0)),
-            active: row.querySelector('.js-currency-active')?.checked === true,
-            is_default: row.querySelector('.js-currency-default')?.checked === true,
-          };
+          const code = normalizeCode(currency.code);
+          const isBase = code === 'USD' || currency.is_base === true;
+          const activeInput = row.querySelector('.js-currency-active');
+          const wantsVisible = isBase || activeInput?.checked === true;
+          const isDefault = currency.id === defaultId() || currency.is_default === true;
+          if (!wantsVisible && isDefault) {
+            if (activeInput) activeInput.checked = true;
+            return show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible primero.', 'error');
+          }
+          if (!wantsVisible && visibleCurrencies().filter((item) => item.id !== id).length === 0) {
+            if (activeInput) activeInput.checked = true;
+            return show('La tienda debe tener al menos una moneda visible.', 'error');
+          }
+          const payload = isBase
+            ? {
+                exchange_rate: 1,
+                active: true,
+                is_default: isDefault,
+                is_base: true,
+              }
+            : {
+                name: row.querySelector('.js-currency-name')?.value?.trim() || code,
+                symbol: row.querySelector('.js-currency-symbol')?.value?.trim() || code,
+                exchange_rate: Math.max(0, Number(row.querySelector('.js-currency-rate')?.value || 0)),
+                active: wantsVisible,
+                is_default: isDefault,
+                is_base: false,
+              };
           await api('/api/collections/currencies/records/' + id, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            body: JSON.stringify(payload),
           });
-          if (data.is_default && settingsRecord?.id) {
-            await api('/api/collections/settings/records/' + settingsRecord.id, {
+          if (isDefault && state.settingsRecord?.id && defaultId() !== id) {
+            await api('/api/collections/settings/records/' + state.settingsRecord.id, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ default_currency: id }),
@@ -3075,35 +4827,175 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           show('Moneda guardada correctamente.', 'success');
           await loadCurrencies();
         }
+        async function setDefaultCurrencyById(id) {
+          const currency = state.currencies.find((item) => item.id === id);
+          if (!id || !currency) return;
+          if (normalizeCode(currency.code) !== 'USD' && currency.active === false) return show('Para usar esta moneda como predeterminada, primero debes marcarla como visible.', 'error');
+          for (const item of state.currencies) {
+            if (item.is_default === (item.id === id)) continue;
+            await api('/api/collections/currencies/records/' + item.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_default: item.id === id }),
+            });
+          }
+          if (state.settingsRecord?.id && defaultId() !== id) {
+            await api('/api/collections/settings/records/' + state.settingsRecord.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ default_currency: id }),
+            });
+          }
+        }
+        async function setDefaultCurrency(row) {
+          const id = row?.dataset?.currencyId;
+          await setDefaultCurrencyById(id);
+          show('Moneda predeterminada actualizada.', 'success');
+          await loadCurrencies();
+        }
+        async function saveEditedCurrency(event) {
+          event.preventDefault();
+          const id = state.editingId;
+          const currency = state.currencies.find((item) => item.id === id);
+          if (!id || !currency) return;
+          const code = normalizeCode(currency.code);
+          if (code === 'USD' || currency.is_base === true) return;
+          const wantsVisible = byId('currency-edit-active')?.checked === true;
+          const wantsDefault = byId('currency-edit-default')?.checked === true;
+          const isDefault = currency.id === defaultId() || currency.is_default === true;
+          if (!wantsVisible && isDefault) return show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible primero.', 'error');
+          if (wantsDefault && !wantsVisible) return show('Para usar esta moneda como predeterminada, primero debes marcarla como visible.', 'error');
+          const payload = {
+            name: byId('currency-edit-name')?.value?.trim() || code,
+            symbol: byId('currency-edit-symbol')?.value?.trim() || code,
+            exchange_rate: Math.max(0, Number(byId('currency-edit-rate')?.value || 0)),
+            active: wantsVisible,
+            is_default: isDefault,
+            is_base: false,
+          };
+          await api('/api/collections/currencies/records/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (wantsDefault) await setDefaultCurrencyById(id);
+          closeEditModal();
+          show('Moneda guardada correctamente.', 'success');
+          await loadCurrencies();
+        }
         async function createCurrency(event) {
           event.preventDefault();
-          const code = String(codeInput?.value || '').trim().toUpperCase();
-          if (!code) return show('Escribe el código de la moneda.', 'error');
+          const codeInput = byId('currency-code');
+          const nameInput = byId('currency-name');
+          const symbolInput = byId('currency-symbol');
+          const rateInput = byId('currency-rate');
+          const code = normalizeCode(codeInput?.value || '');
+          if (!code) return show('Escribe el codigo de la moneda.', 'error');
+          if (!/^[A-Z0-9]{2,12}$/.test(code)) return show('El codigo debe tener de 2 a 12 letras o numeros, sin espacios.', 'error');
+          if (state.currencies.some((currency) => normalizeCode(currency.code) === code)) return show('Ya existe una moneda con ese codigo en esta tienda.', 'error');
           const payload = {
+            store: CURRENT_STORE_ID,
             code,
             name: nameInput?.value?.trim() || code,
             symbol: symbolInput?.value?.trim() || code,
             exchange_rate: code === 'USD' ? 1 : Math.max(0, Number(rateInput?.value || 0)),
             active: true,
             is_default: false,
+            is_system: false,
+            is_base: false,
           };
           await api('/api/collections/currencies/records', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
-          createForm?.reset();
+          clearCreateForm();
+          closeCurrencyModal();
           show('Moneda agregada correctamente.', 'success');
           await loadCurrencies();
         }
-        list?.addEventListener('click', (event) => {
-          const btn = event.target.closest('.js-currency-save');
-          if (!btn) return;
-          const row = btn.closest('[data-currency-id]');
+        async function deleteCurrency(row) {
+          const id = row?.dataset?.currencyId;
+          const currency = state.currencies.find((item) => item.id === id);
+          if (!id || !currency) return;
+          if (isSystemCurrency(currency)) return show('No puedes borrar una moneda fija del sistema.', 'error');
+          if (currency.id === defaultId() || currency.is_default === true) return show('No puedes borrar la moneda predeterminada. Selecciona otra moneda visible como predeterminada primero.', 'error');
+          if (currency.store && currency.store !== CURRENT_STORE_ID) return show('No puedes borrar monedas de otra tienda.', 'error');
+          if (!confirm('Deseas borrar esta moneda? Esta accion no afecta ordenes existentes.')) return;
+          await api('/api/collections/currencies/records/' + id, { method: 'DELETE' });
+          show('Moneda borrada correctamente.', 'success');
+          await loadCurrencies();
+        }
+        byId('currency-list')?.addEventListener('click', (event) => {
+          const target = event.target;
+          const row = target?.closest?.('[data-currency-id]');
+          if (!row) return;
+          if (target.closest('.js-currency-edit')) {
+            openEditModal(row);
+            return;
+          }
+          if (target.closest('.js-currency-set-default')) {
+            setDefaultCurrency(row).catch((error) => show(error.message || 'No se pudo seleccionar la moneda predeterminada.', 'error'));
+            return;
+          }
+          if (target.closest('.js-currency-delete')) {
+            deleteCurrency(row).catch((error) => show(error.message || 'No se pudo borrar la moneda.', 'error'));
+          }
+        });
+        byId('currency-list')?.addEventListener('change', (event) => {
+          const target = event.target;
+          const row = target?.closest?.('[data-currency-id]');
+          if (!row) return;
+          if (target.classList?.contains('js-currency-active') && !target.checked) {
+            const id = row.dataset.currencyId;
+            const currency = state.currencies.find((item) => item.id === id);
+            const isDefault = currency && (currency.id === defaultId() || currency.is_default === true);
+            if (isDefault) {
+              target.checked = true;
+              show('No puedes ocultar la moneda predeterminada. Selecciona otra moneda visible primero.', 'error');
+              return;
+            }
+            if (visibleCurrencies().filter((item) => item.id !== id).length === 0) {
+              target.checked = true;
+              show('La tienda debe tener al menos una moneda visible.', 'error');
+              return;
+            }
+          }
+          if (target.classList?.contains('js-currency-active')) {
+            const text = row.querySelector('.currency-switch-text');
+            if (text) text.textContent = target.checked ? 'Visible' : 'No visible';
+          }
           saveCurrency(row).catch((error) => show(error.message || 'No se pudo guardar la moneda.', 'error'));
         });
-        refreshBtn?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
-        createForm?.addEventListener('submit', (event) => createCurrency(event).catch((error) => show(error.message || 'No se pudo crear la moneda.', 'error')));
+        byId('currency-create-form')?.addEventListener('submit', (event) => createCurrency(event).catch((error) => show(error.message || 'No se pudo crear la moneda.', 'error')));
+        byId('currency-refresh-btn')?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
+        byId('currency-code')?.addEventListener('input', (event) => { event.target.value = normalizeCode(event.target.value); });
+        byId('currency-search')?.addEventListener('input', (event) => {
+          state.search = event.target?.value || '';
+          renderCurrencies();
+        });
+        document.querySelectorAll('[data-scroll-currency-create]').forEach((button) => button.addEventListener('click', openCurrencyModal));
+        byId('currency-edit-form')?.addEventListener('submit', (event) => saveEditedCurrency(event).catch((error) => show(error.message || 'No se pudo guardar la moneda.', 'error')));
+        byId('currency-edit-modal-close')?.addEventListener('click', closeEditModal);
+        byId('currency-edit-cancel')?.addEventListener('click', closeEditModal);
+        byId('currency-edit-active')?.addEventListener('change', (event) => {
+          const defaultInput = byId('currency-edit-default');
+          if (!defaultInput) return;
+          defaultInput.disabled = event.target?.checked !== true;
+          if (event.target?.checked !== true) defaultInput.checked = false;
+        });
+        byId('currency-modal-close')?.addEventListener('click', closeCurrencyModal);
+        byId('currency-modal-cancel')?.addEventListener('click', closeCurrencyModal);
+        byId('currency-create-modal')?.addEventListener('click', (event) => {
+          if (event.target === byId('currency-create-modal')) closeCurrencyModal();
+        });
+        byId('currency-edit-modal')?.addEventListener('click', (event) => {
+          if (event.target === byId('currency-edit-modal')) closeEditModal();
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !byId('currency-create-modal')?.classList.contains('hidden')) closeCurrencyModal();
+          if (event.key === 'Escape' && !byId('currency-edit-modal')?.classList.contains('hidden')) closeEditModal();
+        });
         document.querySelector('[data-tab="monedas"]')?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
         if (token()) loadCurrencies().catch(() => {});
       })();

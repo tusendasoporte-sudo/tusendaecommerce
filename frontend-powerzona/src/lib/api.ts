@@ -96,9 +96,9 @@ export async function getSubcategories(options?: StoreQueryInput) {
   });
 }
 
-export async function getCurrencies() {
+export async function getCurrencies(options?: StoreQueryInput) {
   return await pb.collection('currencies').getFullList({
-    filter: 'active = true',
+    filter: await storeFilter('active = true', options),
     sort: 'code',
   });
 }
