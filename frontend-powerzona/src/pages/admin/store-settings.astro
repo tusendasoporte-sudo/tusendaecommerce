@@ -1869,6 +1869,21 @@ const masterSupportHref = masterSupportWhatsapp
           font-size: 15px;
           font-weight: 850;
         }
+        .currency-mobile-control-line {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          align-items: center;
+          column-gap: 10px;
+          row-gap: 6px;
+          margin-top: 2px;
+          min-width: 0;
+        }
+        .currency-mobile-rate {
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 900;
+          min-width: fit-content;
+        }
         .currency-mobile-default {
           display: flex;
           align-items: center;
@@ -1879,6 +1894,7 @@ const masterSupportHref = masterSupportWhatsapp
           align-items: center;
           gap: 8px;
           justify-content: flex-end;
+          margin-left: auto;
           min-width: max-content;
         }
         .currency-table {
@@ -1913,6 +1929,13 @@ const masterSupportHref = masterSupportWhatsapp
           gap: 8px;
           min-width: 0;
           cursor: pointer;
+        }
+        .currency-mobile-control-line .currency-visible-control {
+          flex-wrap: wrap;
+        }
+        .currency-mobile-control-line .currency-switch-text {
+          line-height: 1.15;
+          white-space: normal;
         }
         .currency-mobile-meta .currency-switch-track {
           display: inline-flex;
@@ -4707,12 +4730,15 @@ const masterSupportHref = masterSupportWhatsapp
             const systemBadge = isSystem ? '<span class="currency-system-badge">Fija</span>' : '<span class="currency-system-badge currency-custom-badge">Personalizada</span>';
             const mobileMeta = isBase
               ? '<span class="currency-base-badge">Base</span><span>1</span><span class="currency-base-badge">Siempre visible</span>'
-              : `<span>${formatRate(rate)}</span><label class="currency-switch currency-visible-control"><input class="js-currency-active" type="checkbox" ${isVisible ? 'checked' : ''} /><span class="currency-switch-track"><span class="currency-switch-thumb"></span></span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No se muestra en tienda'}</span></label>`;
+              : '';
+            const mobileVisibilityControl = isBase
+              ? ''
+              : `<label class="currency-switch currency-visible-control"><input class="js-currency-active" type="checkbox" ${isVisible ? 'checked' : ''} /><span class="currency-switch-track"><span class="currency-switch-thumb"></span></span><span class="currency-switch-text">${isVisible ? 'Visible' : 'No se muestra en tienda'}</span></label>`;
             const mobileDefaultMarkup = isDefault
               ? '<span class="currency-default-badge"><svg viewBox="0 0 20 20" aria-hidden="true" class="default-star-icon"><path fill="currentColor" d="M10 1.8l2.45 5.18 5.55.84-4.02 4.02.95 5.68L10 14.84l-4.93 2.68.95-5.68L2 7.82l5.55-.84L10 1.8z"/></svg>Predeterminada</span>'
               : isVisible
                 ? '<button class="currency-default-option js-currency-set-default" type="button">Hacer predeterminada</button>'
-                : '<span class="currency-name">No se muestra en tienda</span>';
+                : '';
             const mobileActionsMarkup = isBase
               ? '<span class="currency-base-action">Moneda base</span>'
               : `<button class="currency-action-btn js-currency-edit" type="button" aria-label="Editar moneda">Editar</button>
@@ -4724,10 +4750,10 @@ const masterSupportHref = masterSupportWhatsapp
                   <div class="currency-mobile-body">
                     <div class="currency-mobile-title"><strong class="currency-mobile-code">${escapeHtml(code)}</strong>${systemBadge}</div>
                     <div class="currency-mobile-name">${escapeHtml(currency.name || (isBase ? 'Dolar Americano' : code))}</div>
-                    <div class="currency-mobile-meta">${mobileMeta}</div>
-                    <div class="currency-mobile-default">${mobileDefaultMarkup}</div>
+                    ${isBase ? `<div class="currency-mobile-meta">${mobileMeta}</div>` : `<div class="currency-mobile-control-line">${mobileVisibilityControl}<span class="currency-mobile-rate">${formatRate(rate)}</span><div class="currency-mobile-actions">${mobileActionsMarkup}</div></div>`}
+                    ${mobileDefaultMarkup ? `<div class="currency-mobile-default">${mobileDefaultMarkup}</div>` : ''}
                   </div>
-                  <div class="currency-mobile-actions">${mobileActionsMarkup}</div>
+                  ${isBase ? `<div class="currency-mobile-actions">${mobileActionsMarkup}</div>` : ''}
                 </div>
                 <div class="currency-main-cell">
                   ${currencyIconMarkup(currency)}
