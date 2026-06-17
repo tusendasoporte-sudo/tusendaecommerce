@@ -38,23 +38,29 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
 <!-- PZ-PRODUCT-CARD-V24-OFERTA-PUBLICA-20260605 -->
 <div class={`product-card ${isCompact ? 'product-card-compact' : ''} ${isLarge ? 'product-card-large' : ''} bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${isOutOfStock && !canPreorder ? 'opacity-90' : ''}`}>
   <style>
-    .product-card { transform: translateY(0); }
-    .product-card:hover { transform: translateY(-2px); }
-    .product-card-image-wrap { position: relative; width: 100%; padding-top: 100%; overflow: hidden; background: #fff; }
-    .product-card-compact .product-card-image-wrap { padding-top: 88%; }
+    .product-card {
+      transform: translateY(0);
+      border-radius: 8px !important;
+      border-color: #dbe7f6 !important;
+      box-shadow: 0 16px 38px rgba(37,99,235,.07) !important;
+      color: #08133f;
+    }
+    .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 48px rgba(37,99,235,.12) !important; }
+    .product-card-image-wrap { position: relative; width: 100%; padding-top: 100%; overflow: hidden; background: linear-gradient(180deg, #fff, #f4f9ff); }
+    .product-card-compact .product-card-image-wrap { padding-top: 78%; }
     .product-card-large .product-card-image-wrap { padding-top: 104%; }
-    .product-buy-chip { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; width: 100%; border-radius: 16px; background: #111827; color: #fff; padding: 11px 12px; font-size: 13px; font-weight: 1000; box-shadow: 0 12px 24px rgba(15,23,42,.16); }
-    .product-card-compact .product-buy-chip { padding: 9px 10px; font-size: 12px; border-radius: 14px; }
+    .product-buy-chip { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-radius: 8px; background: #0b63f6; color: #fff; padding: 12px 12px; font-size: 13px; font-weight: 1000; box-shadow: 0 14px 26px rgba(11,99,246,.22); }
+    .product-card-compact .product-buy-chip { padding: 10px 10px; font-size: 12px; border-radius: 8px; }
     .product-status-text { min-height: 18px; }
     .offer-ribbon { position: absolute; top: 10px; left: 10px; z-index: 2; display: inline-flex; align-items: center; border-radius: 999px; background: #dc2626; color: #fff; padding: 6px 9px; font-size: 10px; font-weight: 1000; letter-spacing: .03em; text-transform: uppercase; box-shadow: 0 12px 24px rgba(220,38,38,.22); }
     .price-stack { display: flex; flex-direction: column; gap: 2px; margin-top: 5px; }
     .regular-price { width: fit-content; color: #94a3b8; font-size: 12px; font-weight: 900; text-decoration: line-through; }
     .save-price { width: fit-content; color: #16a34a; font-size: 11px; font-weight: 1000; }
-    .automatic-promo-chip { display: inline-grid; gap: 1px; width: fit-content; margin-top: 7px; border-radius: 12px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; padding: 6px 8px; font-size: 10px; font-weight: 1000; line-height: 1.15; }
+    .automatic-promo-chip { display: inline-grid; gap: 1px; width: fit-content; margin-top: 7px; border-radius: 8px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; padding: 6px 8px; font-size: 10px; font-weight: 1000; line-height: 1.15; }
     .automatic-promo-chip span:first-child { color: #047857; text-transform: uppercase; letter-spacing: .04em; font-size: 9px; }
     .product-rating-chip { display: inline-flex; align-items: center; gap: 4px; width: fit-content; margin-top: 7px; border-radius: 999px; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 5px 8px; font-size: 11px; line-height: 1; font-weight: 1000; }
     @media (max-width: 640px) {
-      .product-buy-chip { padding: 9px 10px; font-size: 12px; border-radius: 14px; }
+      .product-buy-chip { padding: 9px 10px; font-size: 12px; border-radius: 8px; }
     }
   </style>
 

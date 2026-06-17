@@ -293,15 +293,16 @@ const variationItems = variations.map((variation) => {
 			min-height: 60px;
 			border: 0;
 			border-radius: 999px;
-			background: #020617;
+			background: #0b63f6;
 			color: #fff;
 			font-size: 16px;
 			font-weight: 1000;
 			line-height: 1.2;
 			padding: 16px 22px;
-			box-shadow: 0 18px 38px rgba(2,6,23,.28), 0 3px 10px rgba(15,23,42,.12);
+			box-shadow: 0 18px 38px rgba(11,99,246,.24), 0 3px 10px rgba(15,23,42,.10);
 			pointer-events: auto;
 		}
+		.product-mobile-cta button:hover { background: #0757dc; }
 		.product-mobile-cta button:active { transform: translateY(1px); }
 		.product-mobile-cta button.is-disabled {
 			background: #e5e7eb;
@@ -629,7 +630,7 @@ const variationItems = variations.map((variation) => {
 					<button
 						type="button"
 						id="quantity-plus-btn"
-						class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-3xl font-black leading-none text-white shadow-lg transition hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+						class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-3xl font-black leading-none text-white shadow-lg shadow-blue-500/20 transition hover:scale-105 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
 						aria-label="Aumentar cantidad"
 					>
 						+
@@ -659,7 +660,7 @@ const variationItems = variations.map((variation) => {
 				data-variation-label={firstVariation ? [firstVariation.variation_type, firstVariation.value].filter(Boolean).join(': ') : ''}
 				data-variation-ref={firstVariation?.internal_ref || ''}
 				disabled={initialButtonDisabled}
-				class={`w-full font-black py-4 rounded-[2rem] shadow-xl transition ${initialButtonDisabled ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-slate-950 hover:bg-slate-900 text-white'}`}
+				class={`w-full font-black py-4 rounded-[2rem] shadow-xl transition ${initialButtonDisabled ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}
 			>
 				{initialButtonText}
 			</button>
@@ -691,7 +692,7 @@ const variationItems = variations.map((variation) => {
 				const variationRadios = document.querySelectorAll('[data-variation-radio]');
 				const variationCheckCards = document.querySelectorAll('[data-variation-check-card]');
 				const baseButtonClass = 'w-full font-black py-4 rounded-[2rem] shadow-xl transition';
-				const activeButtonClass = 'bg-slate-950 hover:bg-slate-900 text-white';
+				const activeButtonClass = 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20';
 				const disabledButtonClass = 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none';
 				const tracksStock = addToCartBtn?.dataset.trackStock !== 'false';
 				const galleryData = document.getElementById('product-gallery-data');

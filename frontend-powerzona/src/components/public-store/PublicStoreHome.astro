@@ -34,7 +34,7 @@ const storeReviews = reviewsEnabled ? await getStoreReviews(storeQuery, 8) : [];
 // - Productos destacados usan vista más compacta que las páginas de categoría.
 // - Productos sin categoría se mantienen en portada.
 const homepageProducts = products.filter((product) => !product.category && product.featured !== true);
-const promoVisualItems = visualItems.filter((item) => item.type === 'promo_visual');
+const promoVisualItems = visualItems.filter((item) => item.type === 'promo_visual').slice(0, 2);
 const quickAccessItems = visualItems.filter((item) => item.type === 'acceso_rapido');
 
 const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
@@ -84,6 +84,7 @@ const featuredCategories = categories
   .slice(0, 2);
 const featuredCategoryIds = new Set(featuredCategories.map((category) => category.id));
 const normalCategories = categories.filter((category) => !featuredCategoryIds.has(category.id));
+const publicCategoryCards = [...featuredCategories, ...normalCategories];
 const quickCategories = categories.filter((category) => !category.parent && !category.parent_category && !category.category);
 
 function storeInitials(name: string) {
@@ -131,8 +132,27 @@ function parseJsonList(value: any) {
   }
 }
 
+function parseJsonArray(value: any) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
 const businessTypeLabels = new Map(BUSINESS_TYPE_GROUPS.flatMap((group) => group.options.map((option) => [option.slug, option.label])));
 const publicBusinessTypes = parseJsonList(settings?.business_types).map((slug) => businessTypeLabels.get(slug) || slug).filter(Boolean).slice(0, 3);
+const publicTrustItems = parseJsonArray(settings?.footer_trust_items)
+  .filter((item) => item && typeof item === 'object' && item.active !== false && String(item.title || '').trim())
+  .map((item) => ({
+    icon: String(item.icon || 'check').trim(),
+    title: String(item.title || '').trim(),
+    description: String(item.description || '').trim(),
+  }))
+  .slice(0, 2);
 
 function productsByCategoryTotal(categoryId: string) {
   const childSubcategoryIds = new Set(subcategoriesByCategory(categoryId).map((subcategory) => subcategory.id));
@@ -374,15 +394,502 @@ function getProductOfferView(product: any) {
       .quick-categories-modal { max-height: min(88dvh, 720px); border-radius: 26px; padding: 15px; }
       .quick-categories-modal-grid { max-height: 76dvh; }
     }
+    :global(body) {
+      background:
+        radial-gradient(circle at 20% 0%, rgba(37, 99, 235, .10), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, #eef6ff 48%, #f8fbff 100%);
+      color: #08133f;
+    }
+    .public-store-head {
+      display: grid;
+      grid-template-columns: minmax(220px, 320px) minmax(280px, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      margin: 0 0 16px;
+      padding: 0;
+    }
+    .public-store-brand { gap: 12px; text-decoration: none; }
+    .public-store-logo, .drawer-logo {
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0b63f6, #2588ff);
+      box-shadow: 0 14px 32px rgba(11,99,246,.18);
+    }
+    .public-store-logo { width: 58px; height: 58px; font-size: 23px; }
+    .public-store-name {
+      display: block;
+      margin: 0;
+      color: #071345;
+      font-size: 25px;
+      line-height: 1.05;
+      font-weight: 1000;
+      letter-spacing: 0;
+    }
+    .public-store-types {
+      margin: 5px 0 0;
+      color: #52648f;
+      font-size: 12px;
+      line-height: 1.25;
+      font-weight: 850;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .public-search-shell {
+      min-width: 0;
+      height: 54px;
+      border-radius: 8px;
+      border: 1px solid #cbd8ea;
+      background: rgba(255,255,255,.84);
+      box-shadow: 0 12px 28px rgba(15,23,42,.04);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 54px;
+      align-items: center;
+      overflow: hidden;
+      text-decoration: none;
+      color: #53628c;
+    }
+    .public-search-shell span {
+      padding: 0 20px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 15px;
+      font-weight: 850;
+    }
+    .public-search-shell svg { width: 24px; height: 24px; justify-self: center; color: #36446f; }
+    .public-header-actions { gap: 10px; }
+    .public-action-btn {
+      width: auto;
+      min-width: 58px;
+      height: 50px;
+      gap: 8px;
+      border-radius: 8px;
+      border-color: #cbd8ea;
+      color: #08133f;
+      box-shadow: 0 12px 28px rgba(15,23,42,.05);
+      font-size: 14px;
+      padding: 0 16px;
+    }
+    .public-menu-btn { font-size: 14px; padding-bottom: 0; }
+    .public-mobile-search { display: none; }
+    .public-hero {
+      min-height: clamp(285px, 31vw, 410px);
+      border-radius: 8px;
+      border-color: #dbe7f6;
+      background: linear-gradient(100deg, #eaf4ff 0%, #f8fbff 42%, #dceeff 100%);
+      box-shadow: 0 24px 70px rgba(37,99,235,.12);
+      margin-bottom: 16px;
+    }
+    .public-hero-cover { background: linear-gradient(100deg, #eaf4ff, #f8fbff 46%, #dceeff); }
+    .public-hero-cover::after {
+      background: linear-gradient(90deg, rgba(238,247,255,.96) 0%, rgba(238,247,255,.72) 34%, rgba(238,247,255,.16) 64%, rgba(238,247,255,.02) 100%);
+    }
+    .public-hero-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      opacity: .9;
+    }
+    .public-hero-slide img { opacity: .9; }
+    .public-hero-content {
+      min-height: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(28px, 6vw, 70px) clamp(24px, 9vw, 150px);
+      color: #08133f;
+      max-width: 640px;
+    }
+    .public-hero-kicker {
+      margin: 0 0 12px;
+      color: #0b63f6;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 1000;
+      text-transform: uppercase;
+    }
+    .public-hero-title {
+      color: #071345;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 1.05;
+      letter-spacing: 0;
+      max-width: 560px;
+    }
+    .public-hero-text {
+      margin-top: 14px;
+      color: #26365f;
+      font-size: 16px;
+      line-height: 1.55;
+      font-weight: 750;
+    }
+    .public-hero-primary {
+      width: max-content;
+      margin-top: 24px;
+      border-radius: 8px;
+      background: #0b63f6;
+      color: #fff;
+      padding: 14px 22px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 1000;
+      box-shadow: 0 16px 30px rgba(11,99,246,.24);
+    }
+    .hero-arrow {
+      position: absolute;
+      z-index: 3;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      border: 1px solid rgba(203,216,234,.9);
+      background: rgba(255,255,255,.86);
+      color: #08133f;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 900;
+      box-shadow: 0 14px 32px rgba(15,23,42,.08);
+    }
+    .hero-arrow.prev { left: 18px; }
+    .hero-arrow.next { right: 18px; }
+    .hero-dots {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      bottom: 20px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 9px;
+    }
+    .hero-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(11,99,246,.35);
+    }
+    .hero-dot.active { background: #0b63f6; width: 20px; }
+    .public-hero-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0;
+      margin: 0 0 22px;
+      border: 1px solid #dbe7f6;
+      border-radius: 8px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 14px 36px rgba(15,23,42,.06);
+      overflow: hidden;
+    }
+    .public-info-item, .public-location-line, .public-rating-link, .business-status, .hero-btn {
+      min-height: 58px;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+      background: transparent;
+      color: #21315d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      line-height: 1.25;
+      font-weight: 950;
+      text-decoration: none;
+      border-right: 1px solid #e6eef8;
+    }
+    .public-info-item svg, .hero-btn svg, .public-location-line svg { width: 22px; height: 22px; color: #0b63f6; flex: 0 0 auto; }
+    .public-rating-link { background: transparent; color: #21315d; width: auto; max-width: none; }
+    .public-rating-stars { color: #f5a400; }
+    .business-status { color: #0f766e; border-color: #e6eef8; }
+    .business-status.closed { background: transparent; color: #b45309; border-color: #e6eef8; }
+    .business-status strong { font-size: 14px; }
+    .hero-btn { background: transparent; color: #0b63f6; }
+    .hero-btn.whatsapp-link { color: #16a34a; }
+    .hero-btn.secondary { background: transparent; color: #21315d; border: 0; }
+    .public-store-description, .public-welcome-text { display: none; }
+    .quick-categories-section, .store-visual-section, .quick-access-section, #destacados, #regalos, #categorias, .homepage-products-section, .public-reviews-section {
+      margin-bottom: 26px;
+    }
+    .quick-categories-top { justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .quick-categories-top::before {
+      content: 'Categorías';
+      color: #08133f;
+      font-size: 19px;
+      font-weight: 1000;
+      letter-spacing: 0;
+    }
+    .quick-categories-view-all, .section-link {
+      border: 0;
+      background: transparent;
+      color: #0b63f6;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 0;
+      font-size: 13px;
+      font-weight: 1000;
+      text-decoration: none;
+    }
+    .quick-categories-strip {
+      grid-auto-columns: minmax(195px, 1fr);
+      grid-auto-flow: column;
+      gap: 18px;
+      padding: 0 0 6px;
+    }
+    .quick-category-card {
+      grid-template-columns: 72px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+      min-height: 88px;
+      padding: 14px;
+      border-radius: 8px;
+      border-color: #dbe7f6;
+      box-shadow: 0 14px 34px rgba(37,99,235,.07);
+    }
+    .quick-category-thumb { width: 66px; aspect-ratio: 1; border-radius: 8px; }
+    .quick-category-name, .quick-category-count { text-align: left; }
+    .quick-category-name { font-size: 14px; color: #08133f; }
+    .quick-category-count { font-size: 12px; color: #52648f; }
+    .quick-access-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 18px;
+    }
+    .quick-access-card {
+      min-height: 94px;
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+      border-radius: 8px;
+      border: 1px solid #dbe7f6;
+      background: #fff;
+      padding: 16px;
+      text-decoration: none;
+      color: #08133f;
+      box-shadow: 0 14px 34px rgba(37,99,235,.07);
+    }
+    .quick-access-card img, .quick-access-icon { width: 58px; height: 58px; border-radius: 8px; object-fit: cover; background: #eff6ff; display: grid; place-items: center; color: #0b63f6; font-size: 24px; font-weight: 1000; }
+    .quick-access-card strong { display: block; font-size: 14px; line-height: 1.2; font-weight: 1000; }
+    .quick-access-card small { display: block; margin-top: 4px; color: #52648f; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .promo-visual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .promo-visual-card {
+      min-height: 190px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid #dbe7f6;
+      background: linear-gradient(100deg, #eaf4ff, #fff);
+      box-shadow: 0 18px 44px rgba(37,99,235,.09);
+      color: #08133f;
+      text-decoration: none;
+      display: grid;
+      align-items: center;
+      padding: 26px;
+    }
+    .promo-visual-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .74; }
+    .promo-visual-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(248,251,255,.96), rgba(248,251,255,.36)); }
+    .promo-visual-copy { position: relative; z-index: 1; max-width: 310px; }
+    .promo-visual-copy h3 { margin: 0; font-size: 24px; line-height: 1.1; font-weight: 1000; }
+    .promo-visual-copy p { margin: 10px 0 0; color: #33446f; font-size: 14px; line-height: 1.45; font-weight: 800; }
+    .promo-visual-copy span { display: inline-flex; margin-top: 16px; border-radius: 8px; background: #0b63f6; color: #fff; padding: 11px 15px; font-size: 13px; font-weight: 1000; }
+    .section-head { align-items: center; margin-bottom: 14px; }
+    .section-title { color: #08133f; font-size: 21px; letter-spacing: 0; }
+    .featured-strip, .homepage-products-grid {
+      display: grid;
+      grid-auto-flow: row;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      overflow: visible;
+      padding: 0;
+    }
+    .featured-strip > a { min-width: 0; }
+    .public-gift-banner-link {
+      min-height: clamp(260px, 30vw, 360px);
+      display: grid;
+      grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+      align-items: stretch;
+      border-radius: 8px;
+      border: 1px solid #dbe7f6;
+      overflow: hidden;
+      background: linear-gradient(100deg, #eaf4ff, #fff);
+      box-shadow: 0 20px 52px rgba(37,99,235,.10);
+      color: #08133f;
+      text-decoration: none;
+    }
+    .public-gift-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(28px, 5vw, 48px);
+      gap: 14px;
+    }
+    .public-gift-kicker { width: 54px; height: 54px; border-radius: 999px; display: grid; place-items: center; background: #fff; color: #0b63f6; box-shadow: 0 12px 28px rgba(15,23,42,.08); font-size: 0; }
+    .public-gift-kicker::before { content: '✦'; font-size: 24px; }
+    .public-gift-copy-top { display: grid; gap: 18px; }
+    .public-gift-title { margin: 0; font-size: clamp(25px, 3vw, 38px); line-height: 1.18; font-weight: 1000; color: #08133f; letter-spacing: 0; }
+    .public-gift-text { max-width: 360px; color: #33446f; font-size: 15px; line-height: 1.6; font-weight: 800; }
+    .public-gift-cta { width: max-content; border-radius: 8px; background: #0b63f6; color: #fff; padding: 13px 18px; font-size: 14px; font-weight: 1000; }
+    .public-gift-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .public-gift-pill { border-radius: 999px; background: rgba(255,255,255,.78); border: 1px solid #dbe7f6; color: #33446f; padding: 7px 10px; font-size: 12px; font-weight: 950; }
+    .public-gift-banner { min-height: 100%; border-radius: 0; box-shadow: none; background: transparent; }
+    .public-gift-banner img { width: 100%; height: 100%; object-fit: cover; }
+    .public-gift-banner-fallback { width: 100%; height: 100%; min-height: 260px; display: grid; place-items: center; color: #0b63f6; font-size: 80px; background: radial-gradient(circle at center, #fff, #eaf4ff); }
+    .public-category-grid, .featured-category-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .public-category-grid.columns-1 { grid-template-columns: 1fr; }
+    .public-category-link {
+      min-height: clamp(260px, 30vw, 360px);
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      border: 1px solid #dbe7f6;
+      background: linear-gradient(100deg, #eaf4ff, #fff);
+      box-shadow: 0 20px 52px rgba(37,99,235,.10);
+      padding: clamp(24px, 4vw, 42px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+    }
+    .public-category-card {
+      position: absolute;
+      inset: 0;
+      border: 0;
+      border-radius: 0;
+      aspect-ratio: auto;
+      box-shadow: none;
+      background: transparent;
+      z-index: 0;
+    }
+    .public-category-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(248,251,255,.94), rgba(248,251,255,.30)); }
+    .public-category-card img { opacity: .84; }
+    .public-category-fallback { background: radial-gradient(circle at 76% 50%, #dbeafe, #f8fbff 55%); color: #0b63f6; }
+    .public-category-title-outside, .public-category-meta, .public-category-description, .public-category-button {
+      position: relative;
+      z-index: 1;
+      padding: 0;
+    }
+    .public-category-title-outside { max-width: 310px; font-size: clamp(23px, 3vw, 32px); letter-spacing: 0; color: #08133f; }
+    .public-category-meta { margin: 0; }
+    .public-category-pill { background: transparent; border: 0; padding: 0; color: #08133f; font-size: 13px; }
+    .public-category-description { max-width: 330px; margin: 0; color: #33446f; font-size: 14px; line-height: 1.5; font-weight: 800; }
+    .public-category-button { width: max-content; margin-top: 10px; border-radius: 8px; background: #fff; border: 1px solid #dbe7f6; color: #0b63f6; padding: 12px 15px; font-size: 13px; font-weight: 1000; box-shadow: 0 12px 28px rgba(15,23,42,.05); }
+    .public-category-go { display: none; }
+    @media (max-width: 980px) {
+      .public-store-head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+      .public-search-shell { display: none; }
+      .public-mobile-search { display: inline-flex; }
+      .public-store-logo { width: 48px; height: 48px; font-size: 19px; }
+      .public-store-name { font-size: 18px; }
+      .public-store-types { font-size: 11px; }
+      .public-action-btn { min-width: 46px; height: 46px; padding: 0 12px; }
+      .public-action-label { display: none; }
+      .public-hero { min-height: 310px; }
+      .public-hero-content { padding: 28px 24px; justify-content: flex-end; }
+      .public-hero-title { font-size: 34px; }
+      .public-hero-text { font-size: 14px; }
+      .hero-arrow { display: none; }
+      .public-hero-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .public-info-item, .public-location-line, .public-rating-link, .business-status, .hero-btn {
+        justify-content: flex-start;
+        min-height: 56px;
+        border-right: 0;
+        border-bottom: 1px solid #e6eef8;
+        font-size: 12px;
+      }
+      .quick-categories-strip { grid-auto-columns: minmax(190px, 78vw); }
+      .quick-access-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 78vw); overflow-x: auto; padding-bottom: 8px; }
+      .promo-visual-grid { grid-template-columns: 1fr; }
+      .featured-strip, .homepage-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .public-gift-banner-link { grid-template-columns: 1fr; }
+      .public-gift-banner { min-height: 210px; }
+      .public-category-grid, .featured-category-grid { grid-template-columns: 1fr; }
+      .public-category-grid.columns-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .public-category-link { min-height: 260px; padding: 18px; }
+      .public-category-title-outside { font-size: 22px; }
+      .public-category-description { font-size: 12px; }
+    }
+    @media (max-width: 560px) {
+      .public-store-head { align-items: center; }
+      .public-header-actions { gap: 6px; }
+      .public-action-btn { min-width: 42px; height: 42px; }
+      .public-hero-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .public-category-grid.columns-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .public-category-grid.columns-1 { grid-template-columns: 1fr; }
+      .public-category-link { min-height: 230px; }
+      .public-category-title-outside { font-size: 18px; }
+      .public-category-button { padding: 10px 11px; font-size: 11px; }
+    }
+
+    /* Imagenes nitidas: neutraliza reglas anteriores que lavaban fotos reales. */
+    .public-hero,
+    .promo-visual-card,
+    .public-gift-banner-link,
+    .public-category-link,
+    .quick-category-card,
+    .quick-access-card {
+      border-radius: 18px;
+      border-color: #d7e4f5;
+    }
+    .public-hero-cover img,
+    .public-hero-slide img,
+    .promo-visual-card img,
+    .public-gift-banner img,
+    .public-category-card img,
+    .quick-category-thumb img,
+    .quick-access-card img {
+      opacity: 1 !important;
+      filter: none !important;
+      transform: none;
+      image-rendering: auto;
+    }
+    .public-hero-cover::after {
+      background: linear-gradient(90deg, rgba(245,249,255,.76) 0%, rgba(245,249,255,.42) 34%, rgba(245,249,255,.08) 62%, rgba(245,249,255,0) 100%) !important;
+    }
+    .promo-visual-card::after {
+      background: linear-gradient(90deg, rgba(248,251,255,.72) 0%, rgba(248,251,255,.22) 48%, rgba(248,251,255,0) 100%) !important;
+    }
+    .public-category-card::after {
+      background: linear-gradient(90deg, rgba(248,251,255,.78) 0%, rgba(248,251,255,.28) 46%, rgba(248,251,255,0) 100%) !important;
+    }
+    .public-gift-banner::after,
+    .quick-category-thumb::after {
+      content: none !important;
+      display: none !important;
+    }
   </style>
 
   <div class="public-store-head" aria-label="Acciones principales">
     <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
       <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
+      <div>
+        <strong class="public-store-name">{storeName}</strong>
+        {publicBusinessTypes.length > 0 && <p class="public-store-types">{publicBusinessTypes.join(' • ')}</p>}
+      </div>
+    </a>
+    <a class="public-search-shell" href={searchPath} aria-label="Buscar productos y categorias">
+      <span>Buscar productos, marcas...</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
     </a>
     <div class="public-header-actions">
-      <a class="public-action-btn" href={searchPath} aria-label="Buscar productos y categorías">⌕</a>
-      <button id="public-menu-open" class="public-action-btn public-menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false">⋯</button>
+      <a class="public-action-btn public-mobile-search" href={searchPath} aria-label="Buscar productos y categorias">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      </a>
+      <button id="public-menu-open" class="public-action-btn public-menu-btn" type="button" aria-label="Abrir menú" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+        <span class="public-action-label">Menú</span>
+      </button>
     </div>
   </div>
 
@@ -416,8 +923,20 @@ function getProductOfferView(product: any) {
         </div>
       ))}
     </div>
+    {heroCarouselImages.length > 1 && (
+      <>
+        <button class="hero-arrow prev" type="button" data-hero-prev aria-label="Foto anterior">‹</button>
+        <button class="hero-arrow next" type="button" data-hero-next aria-label="Foto siguiente">›</button>
+        <div class="hero-dots" aria-hidden="true">
+          {heroCarouselImages.map((_, index) => <span class={`hero-dot ${index === 0 ? 'active' : ''}`}></span>)}
+        </div>
+      </>
+    )}
     <div class="public-hero-content">
+      {welcomeText && <p class="public-hero-kicker">{welcomeText}</p>}
       <h1 class="public-hero-title">{storeName}</h1>
+      {storeDescription && <p class="public-hero-text">{storeDescription}</p>}
+      <a class="public-hero-primary" href={productAnchorPath}>Ver productos</a>
     </div>
   </section>
 
@@ -441,16 +960,25 @@ function getProductOfferView(product: any) {
     {showStoreRating && storeReviewSummary.count === 0 && storeReviewsEnabled && (
       <a class="public-rating-link" href={reviewsAnchorPath}>Sé el primero en dejar una reseña</a>
     )}
+    {publicTrustItems.map((item) => (
+      <div class="public-info-item">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 3 5 6v5c0 4.4 2.8 8.4 7 10 4.2-1.6 7-5.6 7-10V6l-7-3Zm3.6 7.4-4.4 4.4-2.3-2.3 1.4-1.4.9.9 3-3 1.4 1.4Z"></path></svg>
+        <span>{item.title}</span>
+      </div>
+    ))}
     {welcomeText && <p class="public-welcome-text">{welcomeText}</p>}
     {storeDescription && <p class="public-store-description">{storeDescription}</p>}
-    {businessHoursStatus.mode === 'custom' && businessHoursStatus.isAvailable && <div class="business-status"><strong>Disponible ahora</strong></div>}
+    {!businessHoursStatus.isClosed && <div class="business-status"><strong>Disponible ahora</strong></div>}
     {businessHoursStatus.isClosed && (
       <div class="business-status closed">
         <strong>{businessHoursStatus.title}</strong>
         <p>{businessHoursStatus.message}</p>
       </div>
     )}
-    <a class="hero-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer">WhatsApp</a>
+    <a class="hero-btn whatsapp-link" href={whatsappStoreHref} target="_blank" rel="noreferrer">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2a9 9 0 0 0-7.7 13.7L3 22l6.4-1.2A9 9 0 1 0 12 2Zm0 2a7 7 0 1 1-2.1 13.7l-.4-.1-3.9.7.8-3.8-.2-.4A7 7 0 0 1 12 4Z"></path></svg>
+      WhatsApp
+    </a>
     <button id="store-info-open" class="hero-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
   </div>
 
@@ -549,39 +1077,39 @@ function getProductOfferView(product: any) {
 
   <PromoBar settings={settings} />
 
-  {promoVisualItems.length > 0 && (
-    <div class="mb-8">
-      <div class="section-head"><div><h2 class="section-title">Promociones</h2><p class="section-subtitle">Accesos visuales y ofertas del negocio.</p></div></div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {promoVisualItems.map((item) => (
-          <article class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            {item.imageUrl && <img src={item.imageUrl} alt={item.title} class="w-full h-44 object-cover" />}
-            <div class="p-5">
-              <h3 class="text-lg font-extrabold text-gray-900">{item.title}</h3>
-              {item.description && <p class="text-sm text-gray-500 mt-2 leading-relaxed">{item.description}</p>}
-              <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="inline-flex mt-4 rounded-2xl bg-gray-900 text-white px-4 py-3 text-sm font-extrabold">
-                {visualButtonText(item)}
-              </a>
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  )}
-
   {quickAccessItems.length > 0 && (
-    <div class="mb-8">
-      <div class="section-head"><div><h2 class="section-title">Accesos rápidos</h2><p class="section-subtitle">Entradas directas a zonas importantes.</p></div></div>
-      <div class="flex gap-3 overflow-x-auto pb-2">
+    <section class="quick-access-section">
+      <div class="section-head"><div><h2 class="section-title">Accesos rápidos</h2></div></div>
+      <div class="quick-access-grid">
         {quickAccessItems.map((item) => (
-          <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="min-w-[170px] bg-white rounded-2xl shadow-sm border border-gray-100 p-4 block">
-            {item.imageUrl ? <img src={item.imageUrl} alt={item.title} class="w-full h-24 object-cover rounded-xl mb-3" /> : <div class="w-full h-24 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-2xl mb-3">⚡</div>}
-            <p class="font-extrabold text-gray-900 text-sm">{item.title}</p>
-            {item.description && <p class="text-xs text-gray-500 mt-1 line-clamp-2">{item.description}</p>}
+          <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="quick-access-card">
+            {item.imageUrl ? <img src={item.imageUrl} alt={item.title} loading="lazy" /> : <span class="quick-access-icon">↗</span>}
+            <span>
+              <strong>{item.title}</strong>
+              {item.description && <small>{item.description}</small>}
+            </span>
           </a>
         ))}
       </div>
-    </div>
+    </section>
+  )}
+
+  {promoVisualItems.length > 0 && (
+    <section class="store-visual-section">
+      <div class="section-head"><div><h2 class="section-title">Promo visual</h2></div></div>
+      <div class="promo-visual-grid">
+        {promoVisualItems.map((item) => (
+          <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="promo-visual-card">
+            {item.imageUrl && <img src={item.imageUrl} alt={item.title} loading="lazy" />}
+            <div class="promo-visual-copy">
+              <h3>{item.title}</h3>
+              {item.description && <p>{item.description}</p>}
+              <span>{visualButtonText(item)}</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
   )}
 
   {featuredProducts.length > 0 && (
@@ -597,33 +1125,6 @@ function getProductOfferView(product: any) {
             <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
-      </div>
-    </section>
-  )}
-
-  {featuredCategories.length > 0 && (
-    <section class="mb-8 scroll-mt-24">
-      <div class="section-head">
-        <div>
-          <h2 class="section-title">Categorías destacadas</h2>
-        </div>
-      </div>
-      <div class="featured-category-grid">
-        {featuredCategories.map((category) => {
-          const categoryProducts = productsByCategoryTotal(category.id);
-          return (
-            <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
-              <h3 class="public-category-title-outside">{category.name}</h3>
-              <div class="public-category-card">
-                {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="public-category-fallback">PZ</div>}
-                <span class="public-category-go">›</span>
-              </div>
-              <div class="public-category-meta">
-                <span class="public-category-pill">{productCountLabel(categoryProducts.length)}</span>
-              </div>
-            </a>
-          );
-        })}
       </div>
     </section>
   )}
@@ -652,26 +1153,28 @@ function getProductOfferView(product: any) {
     </section>
   )}
 
-  {normalCategories.length > 0 && (
+  {publicCategoryCards.length > 0 && (
     <section id="categorias" class="mb-8 scroll-mt-24">
       <div class="section-head">
         <div>
-          <h2 class="section-title">Categorías</h2>
+          <h2 class="section-title">Explora por categorías</h2>
         </div>
       </div>
       <div class={`public-category-grid columns-${publicCategoryColumns}`}>
-        {normalCategories.map((category) => {
+        {publicCategoryCards.map((category) => {
           const categoryProducts = productsByCategoryTotal(category.id);
           return (
             <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
               <h3 class="public-category-title-outside">{category.name}</h3>
               <div class="public-category-card">
-                {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="public-category-fallback">PZ</div>}
+                {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="public-category-fallback">{categoryInitial(category.name)}</div>}
                 <span class="public-category-go">›</span>
               </div>
               <div class="public-category-meta">
                 <span class="public-category-pill">{productCountLabel(categoryProducts.length)}</span>
               </div>
+              {category.description && <p class="public-category-description">{category.description}</p>}
+              <span class="public-category-button">Ver categoría</span>
             </a>
           );
         })}
@@ -869,14 +1372,23 @@ function getProductOfferView(product: any) {
   <script>
     const heroCarousel = document.querySelector('[data-hero-carousel="true"]');
     const heroSlides = heroCarousel ? Array.from(heroCarousel.querySelectorAll('.public-hero-slide')) : [];
+    const heroDots = Array.from(document.querySelectorAll('.hero-dot'));
+    function setHeroSlide(nextIndex) {
+      if (!heroSlides.length) return;
+      heroSlides[heroSlideIndex]?.classList.remove('active');
+      heroDots[heroSlideIndex]?.classList.remove('active');
+      heroSlideIndex = (nextIndex + heroSlides.length) % heroSlides.length;
+      heroSlides[heroSlideIndex]?.classList.add('active');
+      heroDots[heroSlideIndex]?.classList.add('active');
+    }
+    let heroSlideIndex = 0;
     if (heroSlides.length > 1) {
-      let heroSlideIndex = 0;
       window.setInterval(() => {
-        heroSlides[heroSlideIndex]?.classList.remove('active');
-        heroSlideIndex = (heroSlideIndex + 1) % heroSlides.length;
-        heroSlides[heroSlideIndex]?.classList.add('active');
+        setHeroSlide(heroSlideIndex + 1);
       }, 6000);
     }
+    document.querySelector('[data-hero-prev]')?.addEventListener('click', () => setHeroSlide(heroSlideIndex - 1));
+    document.querySelector('[data-hero-next]')?.addEventListener('click', () => setHeroSlide(heroSlideIndex + 1));
 
     const storeInfoOpenBtn = document.getElementById('store-info-open');
     const storeInfoOverlay = document.getElementById('store-info-overlay');
@@ -946,7 +1458,6 @@ function getProductOfferView(product: any) {
     publicOverlay?.addEventListener('click', closePublicMenu);
     publicDrawer?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closePublicMenu));
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closePublicMenu(); closeStoreInfo(); closeHoursInfo(); } });
-
     const quickCategoriesOpenBtn = document.getElementById('quick-categories-open');
     const quickCategoriesCloseBtn = document.getElementById('quick-categories-close');
     const quickCategoriesOverlay = document.getElementById('quick-categories-overlay');
