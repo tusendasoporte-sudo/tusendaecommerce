@@ -1156,9 +1156,19 @@ function getProductOfferView(product: any) {
       display: none !important;
     }
     .public-hero {
-      min-height: clamp(300px, 34vw, 450px);
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 0;
       margin-bottom: 18px;
       background: linear-gradient(120deg, #eaf4ff, #f8fbff 52%, #dceeff);
+    }
+    .public-hero-cover,
+    .public-hero-slide {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #f8fafc, #eef4ff);
     }
     .public-hero-cover::after {
       content: none !important;
@@ -1166,8 +1176,11 @@ function getProductOfferView(product: any) {
     }
     .public-hero-cover img,
     .public-hero-slide img {
-      object-fit: cover;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
       object-position: center;
+      display: block;
     }
     .public-presentation-card {
       display: grid;
@@ -1242,7 +1255,8 @@ function getProductOfferView(product: any) {
     }
     @media (max-width: 760px) {
       .public-hero {
-        min-height: 220px;
+        aspect-ratio: 16 / 9;
+        min-height: 0;
         border-radius: 16px;
       }
     }
