@@ -219,7 +219,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .product-row:last-child { border-bottom: 0; }
       .product-row:hover { background: #fbfdff; }
       .product-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
-      .product-thumb { width: 58px; height: 58px; border-radius: 16px; object-fit: cover; flex: 0 0 58px; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .product-thumb { width: 58px; height: 58px; border-radius: 16px; object-fit: contain; flex: 0 0 58px; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
       .product-thumb.placeholder { display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 22px; font-weight: 1000; }
       .product-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
       .product-title.js-product-open, .product-thumb.js-product-open { cursor: pointer; }
@@ -435,7 +435,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .related-products-list { display:grid; gap:10px; margin-top:12px; }
       .related-product-row { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid #e5e7eb; border-radius:18px; background:#fff; padding:10px; }
       .related-product-info { min-width:0; display:flex; align-items:center; gap:10px; }
-      .related-product-thumb { width:48px; height:48px; border-radius:14px; object-fit:cover; background:#f1f5f9; flex:0 0 auto; }
+      .related-product-thumb { width:48px; height:48px; border-radius:14px; object-fit:contain; background:#f1f5f9; flex:0 0 auto; }
       .related-product-thumb.placeholder { display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:18px; }
       .related-product-name { margin:0; color:#0f172a; font-size:13px; font-weight:1000; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .related-product-meta { margin:3px 0 0; color:#64748b; font-size:12px; font-weight:800; }
@@ -488,12 +488,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .variation-grid .full { grid-column: 1 / -1; }
       .variation-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .variation-current-image { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-      .variation-current-image img { width: 58px; height: 58px; object-fit: cover; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .variation-current-image img { width: 58px; height: 58px; object-fit: contain; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
       .variation-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
       .variations-list { display: grid; gap: 10px; margin-top: 16px; }
       .variation-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(120px, .45fr) minmax(120px, .45fr) minmax(120px, .45fr) minmax(210px, auto); gap: 12px; align-items: center; padding: 13px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.88); }
       .variation-main { display: flex; align-items: center; gap: 11px; min-width: 0; }
-      .variation-thumb { width: 52px; height: 52px; border-radius: 15px; object-fit: cover; flex: 0 0 52px; border: 1px solid #e2e8f0; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.06); }
+      .variation-thumb { width: 52px; height: 52px; border-radius: 15px; object-fit: contain; flex: 0 0 52px; border: 1px solid #e2e8f0; background: #f1f5f9; display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.06); }
       .variation-name { margin: 0; font-size: 14px; font-weight: 1000; letter-spacing: -.015em; }
       .variation-meta { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 750; word-break: break-word; }
       .variation-mini-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1264,7 +1264,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .preview-thumb img {
         width: 100% !important;
         height: 100% !important;
-        object-fit: cover !important;
+        object-fit: contain !important;
       }
       .editor-preview-card strong {
         display: block !important;

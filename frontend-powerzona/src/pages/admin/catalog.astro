@@ -204,7 +204,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .row:last-child { border-bottom: 0; }
       .row.subcategory-row { grid-template-columns: minmax(0, 1.05fr) minmax(160px, .75fr) minmax(160px, .75fr) minmax(270px, auto); }
       .row-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
-      .row-thumb { width: 56px !important; height: 56px !important; max-width: 56px !important; min-width: 56px !important; max-height: 56px !important; min-height: 56px !important; flex: 0 0 56px !important; border-radius: 14px; object-fit: cover !important; display: block; background: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15, 23, 42, .08); }
+      .row-thumb { width: 56px !important; height: 56px !important; max-width: 56px !important; min-width: 56px !important; max-height: 56px !important; min-height: 56px !important; flex: 0 0 56px !important; border-radius: 14px; object-fit: contain !important; display: block; background: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15, 23, 42, .08); }
       .row-main .row-thumb, .list-body img.row-thumb { width: 56px !important; height: 56px !important; max-width: 56px !important; max-height: 56px !important; }
       .row-thumb.placeholder { display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 22px; font-weight: 900; }
       .row-title { margin: 0; font-size: 15px; font-weight: 950; }
@@ -1139,7 +1139,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         max-width: 56px !important;
         min-height: 56px !important;
         max-height: 56px !important;
-        object-fit: cover !important;
+        object-fit: contain !important;
       }
       .catalog-card-text {
         display: grid;
@@ -1715,23 +1715,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
           const targetWidth = 1200;
           const targetHeight = 675;
-          const targetRatio = targetWidth / targetHeight;
           const sourceWidth = image.naturalWidth || image.width;
           const sourceHeight = image.naturalHeight || image.height;
-          const sourceRatio = sourceWidth / sourceHeight;
-
-          let sx = 0;
-          let sy = 0;
-          let sw = sourceWidth;
-          let sh = sourceHeight;
-
-          if (sourceRatio > targetRatio) {
-            sw = sourceHeight * targetRatio;
-            sx = (sourceWidth - sw) / 2;
-          } else if (sourceRatio < targetRatio) {
-            sh = sourceWidth / targetRatio;
-            sy = (sourceHeight - sh) / 2;
-          }
+          const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight, 1);
+          const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+          const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+          const dx = Math.round((targetWidth - drawWidth) / 2);
+          const dy = Math.round((targetHeight - drawHeight) / 2);
 
           const canvas = document.createElement('canvas');
           canvas.width = targetWidth;
@@ -1739,7 +1729,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const ctx = canvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(image, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+          ctx.fillStyle = '#f8fbff';
+          ctx.fillRect(0, 0, targetWidth, targetHeight);
+          ctx.drawImage(image, 0, 0, sourceWidth, sourceHeight, dx, dy, drawWidth, drawHeight);
 
           const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
           if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -1763,7 +1755,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       function imageMarkup(collection, record, label) {
         const url = recordImageUrl(collection, record);
-        const thumbStyle = 'width:56px !important;height:56px !important;max-width:56px !important;max-height:56px !important;min-width:56px !important;min-height:56px !important;flex:0 0 56px !important;object-fit:cover !important;display:block;border-radius:14px;';
+        const thumbStyle = 'width:56px !important;height:56px !important;max-width:56px !important;max-height:56px !important;min-width:56px !important;min-height:56px !important;flex:0 0 56px !important;object-fit:contain !important;display:block;border-radius:14px;';
         if (!url) return `<span class="row-thumb placeholder" style="${thumbStyle}" aria-label="Sin imagen">+</span>`;
         return `<img class="row-thumb" style="${thumbStyle}" src="${escapeHtml(url)}" alt="${escapeHtml(label)}" loading="lazy" />`;
       }
@@ -1790,7 +1782,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function productImageMarkup(product) {
         const name = product?.name || 'Producto';
         const url = productImageUrl(product);
-        const thumbStyle = 'width:56px !important;height:56px !important;max-width:56px !important;max-height:56px !important;min-width:56px !important;min-height:56px !important;flex:0 0 56px !important;object-fit:cover !important;display:block;border-radius:14px;';
+        const thumbStyle = 'width:56px !important;height:56px !important;max-width:56px !important;max-height:56px !important;min-width:56px !important;min-height:56px !important;flex:0 0 56px !important;object-fit:contain !important;display:block;border-radius:14px;';
         if (!url) return `<span class="row-thumb placeholder" style="${thumbStyle}" aria-label="Sin imagen">P</span>`;
         return `<img class="row-thumb" style="${thumbStyle}" src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy" />`;
       }

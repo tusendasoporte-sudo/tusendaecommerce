@@ -84,7 +84,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         border-radius: 30px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
       }
       .hero-card { padding: 26px; margin-bottom: 18px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; overflow: hidden; position: relative; }
-      .hero-thumb { width: 82px; height: 82px; border-radius: 24px; object-fit: cover; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 16px 30px rgba(15,23,42,.10); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 1000; color: #94a3b8; }
+      .hero-thumb { width: 82px; height: 82px; border-radius: 24px; object-fit: contain; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 16px 30px rgba(15,23,42,.10); display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 1000; color: #94a3b8; }
       .badge { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 12px; background: #dbeafe; color: #1d4ed8; font-size: 12px; font-weight: 1000; }
       .page-title { margin: 10px 0 0; font-size: clamp(26px, 4vw, 42px); font-weight: 1000; letter-spacing: -.045em; line-height: 1.05; }
       .page-subtitle { margin: 8px 0 0; color: var(--muted); line-height: 1.5; font-size: 14px; font-weight: 760; }
@@ -130,7 +130,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 15px 18px; border-bottom: 1px solid #eef2f7; }
       .item-row:last-child { border-bottom: 0; }
       .item-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
-      .row-thumb { width: 54px; height: 54px; min-width: 54px; border-radius: 16px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 1000; }
+      .row-thumb { width: 54px; height: 54px; min-width: 54px; border-radius: 16px; object-fit: contain; background: #f1f5f9; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 1000; }
       .item-title { margin: 0; font-size: 14px; font-weight: 1000; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .item-meta { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 800; }
       .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
@@ -317,7 +317,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; border: 1px solid #e2e8f0; background: #eef2f7;
         display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 28px; font-weight: 1000; overflow: hidden;
       }
-      .form-image-preview img, .rail-thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .form-image-preview img, .rail-thumb img { width: 100%; height: 100%; object-fit: contain; }
       .image-picker-btn {
         display: inline-flex; justify-content: center; align-items: center; border-radius: 14px; padding: 11px 13px;
         background: #fff; border: 1px solid #e2e8f0; color: #0f172a; font-weight: 1000; cursor: pointer;
@@ -964,23 +964,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
           const targetWidth = 1200;
           const targetHeight = 675;
-          const targetRatio = targetWidth / targetHeight;
           const sourceWidth = image.naturalWidth || image.width;
           const sourceHeight = image.naturalHeight || image.height;
-          const sourceRatio = sourceWidth / sourceHeight;
-
-          let sx = 0;
-          let sy = 0;
-          let sw = sourceWidth;
-          let sh = sourceHeight;
-
-          if (sourceRatio > targetRatio) {
-            sw = sourceHeight * targetRatio;
-            sx = (sourceWidth - sw) / 2;
-          } else if (sourceRatio < targetRatio) {
-            sh = sourceWidth / targetRatio;
-            sy = (sourceHeight - sh) / 2;
-          }
+          const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight, 1);
+          const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
+          const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
+          const dx = Math.round((targetWidth - drawWidth) / 2);
+          const dy = Math.round((targetHeight - drawHeight) / 2);
 
           const canvas = document.createElement('canvas');
           canvas.width = targetWidth;
@@ -988,7 +978,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const ctx = canvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(image, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+          ctx.fillStyle = '#f8fbff';
+          ctx.fillRect(0, 0, targetWidth, targetHeight);
+          ctx.drawImage(image, 0, 0, sourceWidth, sourceHeight, dx, dy, drawWidth, drawHeight);
 
           const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
           if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -1226,7 +1218,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         categoryStatus.textContent = category?.active ? 'Visible' : 'Oculta';
         categoryStatus.className = `status-pill ${category?.active ? 'status-visible' : 'status-hidden'}`;
         const url = recordImageUrl('categories', category);
-        categoryHeroThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" style="width:100%;height:100%;object-fit:cover;border-radius:24px;" />` : '+';
+        categoryHeroThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" style="width:100%;height:100%;object-fit:contain;border-radius:24px;" />` : '+';
         if (categoryFormThumb) {
           categoryFormThumb.innerHTML = url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(category?.name || 'Categoría')}" />` : '+';
         }
