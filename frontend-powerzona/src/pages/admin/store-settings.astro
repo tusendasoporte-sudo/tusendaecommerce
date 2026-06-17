@@ -939,7 +939,78 @@ const masterSupportHref = masterSupportWhatsapp
         font-weight: 1000;
         cursor: pointer;
       }
+      .settings-file-control {
+        position: relative;
+        display: block;
+      }
+      .settings-file-control label {
+        width: max-content;
+        max-width: 100%;
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        border: 1px solid #93c5fd;
+        background: linear-gradient(135deg, #fff, #eff6ff);
+        color: #2563eb;
+        font-size: 13px;
+        line-height: 1.1;
+        font-weight: 1000;
+        box-shadow: 0 10px 22px rgba(37,99,235,.10);
+        cursor: pointer;
+        text-align: center;
+      }
+      .settings-file-control label:hover {
+        border-color: #60a5fa;
+        color: #1d4ed8;
+        box-shadow: 0 14px 28px rgba(37,99,235,.14);
+      }
       .settings-file-control input { width: 1px; height: 1px; position: absolute; opacity: 0; pointer-events: none; }
+      .settings-thumb-placeholder {
+        width: 100%;
+        height: 100%;
+        min-height: inherit;
+        display: grid;
+        place-items: center;
+        gap: 7px;
+        padding: 16px;
+        color: #64748b;
+        text-align: center;
+        background: linear-gradient(135deg, #f8fbff, #eff6ff);
+      }
+      .settings-thumb-placeholder-icon {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #2563eb;
+        font-size: 19px;
+        box-shadow: inset 0 0 0 1px rgba(96,165,250,.28);
+      }
+      .settings-thumb-placeholder strong {
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.2;
+        font-weight: 1000;
+      }
+      .settings-thumb-pending {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        border-radius: 999px;
+        padding: 5px 9px;
+        background: rgba(37,99,235,.92);
+        color: #fff;
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 1000;
+        box-shadow: 0 8px 18px rgba(15,23,42,.14);
+      }
       .settings-save-row {
         justify-content: flex-end;
       }
@@ -2151,7 +2222,7 @@ const masterSupportHref = masterSupportWhatsapp
                   <div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div>
                   <div id="settings-logo-preview" class="settings-thumb logo">Logo</div>
                   <div class="settings-upload-actions">
-                    <div class="field settings-file-control"><label for="settings-logo-image">Subir logo</label><input id="settings-logo-image" type="file" accept="image/*" /></div>
+                    <div class="field settings-file-control"><label id="settings-logo-upload-label" class="settings-upload-label" for="settings-logo-image">Subir nueva foto</label><input id="settings-logo-image" type="file" accept="image/*" /></div>
                   </div>
                   <p class="form-help">Recomendado: 512 x 512 px.</p>
                 </article>
@@ -2160,7 +2231,7 @@ const masterSupportHref = masterSupportWhatsapp
                   <div id="settings-cover-single-wrap">
                     <div id="settings-cover-preview" class="settings-thumb cover">Portada</div>
                     <div class="settings-upload-actions" style="margin-top:12px;">
-                      <div class="field settings-file-control"><label for="settings-cover-image">Subir portada</label><input id="settings-cover-image" type="file" accept="image/*" /></div>
+                      <div class="field settings-file-control"><label id="settings-cover-upload-label" class="settings-upload-label" for="settings-cover-image">Subir nueva foto</label><input id="settings-cover-image" type="file" accept="image/*" /></div>
                     </div>
                   </div>
                   <div id="settings-cover-carousel-wrap" class="hidden">
@@ -3266,6 +3337,8 @@ const masterSupportHref = masterSupportWhatsapp
           coverMode: document.getElementById('settings-cover-mode'),
           logo: document.getElementById('settings-logo-image'),
           cover: document.getElementById('settings-cover-image'),
+          logoUploadLabel: document.getElementById('settings-logo-upload-label'),
+          coverUploadLabel: document.getElementById('settings-cover-upload-label'),
           storeDescription: document.getElementById('settings-store-description'),
           welcome: document.getElementById('settings-welcome-text'),
           categoryColumns: document.getElementById('settings-public-category-columns'),
@@ -3319,6 +3392,7 @@ const masterSupportHref = masterSupportWhatsapp
         ];
         let selectedBusinessTypes = [];
         const galleryPreviewUrls = new Map();
+        const singlePreviewUrls = new Map();
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -3596,13 +3670,13 @@ const masterSupportHref = masterSupportWhatsapp
             const filename = slotItem.filename || '';
             const thumb = filename
               ? `<img src="${escapeHtml(fileUrlFor(filename, '700x260'))}" alt="Foto ${index + 1}" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`
-              : `Foto ${index + 1}`;
+              : placeholderMarkup(`Foto ${index + 1}`);
             return `
               <div class="settings-gallery-slot cover-carousel-slot" data-gallery-file="${escapeHtml(filename)}" data-gallery-field="${escapeHtml(slotItem.fieldName)}" data-gallery-source-field="${escapeHtml(slotItem.sourceField)}" data-gallery-index="${index}">
                 <p class="settings-slot-label">Foto ${index + 1}</p>
                 <div class="settings-thumb cover cover-carousel-preview">${thumb}</div>
                 <div class="field settings-file-control">
-                  <label class="cover-carousel-action" for="settings-cover-gallery-image-${index + 1}">${filename ? 'Cambiar' : 'Subir foto'}</label>
+                  <label class="cover-carousel-action" for="settings-cover-gallery-image-${index + 1}">${filename ? 'Cambiar foto' : 'Subir nueva foto'}</label>
                   <input id="settings-cover-gallery-image-${index + 1}" class="js-cover-gallery-file" data-current-file="${escapeHtml(filename)}" type="file" accept="image/*" />
                 </div>
               </div>
@@ -3645,9 +3719,16 @@ const masterSupportHref = masterSupportWhatsapp
           settingsRecord = (result.items || [])[0] || null;
           renderSettings();
         }
+        function placeholderMarkup(text) {
+          return `<div class="settings-thumb-placeholder" aria-label="${escapeHtml(text)}"><span class="settings-thumb-placeholder-icon" aria-hidden="true">+</span><strong>${escapeHtml(text)}</strong></div>`;
+        }
+        function setUploadLabel(label, hasImage) {
+          if (!label) return;
+          label.textContent = hasImage ? 'Cambiar foto' : 'Subir nueva foto';
+        }
         function renderImg(container, url, fallback, deleteClass = '') {
           if (!container) return;
-          if (!url) { container.textContent = fallback; return; }
+          if (!url) { container.innerHTML = placeholderMarkup(fallback); return; }
           container.innerHTML = '';
           const img = document.createElement('img');
           img.src = url;
@@ -3662,12 +3743,36 @@ const masterSupportHref = masterSupportWhatsapp
             container.appendChild(btn);
           }
         }
+        function renderPendingImg(container, file, fallback) {
+          if (!container || !file) return;
+          const key = container.id || fallback;
+          const previousUrl = singlePreviewUrls.get(key);
+          if (previousUrl) URL.revokeObjectURL(previousUrl);
+          const previewUrl = URL.createObjectURL(file);
+          singlePreviewUrls.set(key, previewUrl);
+          container.innerHTML = '';
+          const img = document.createElement('img');
+          img.src = previewUrl;
+          img.alt = `${fallback} pendiente`;
+          container.appendChild(img);
+          const badge = document.createElement('span');
+          badge.className = 'settings-thumb-pending';
+          badge.textContent = 'Pendiente';
+          container.appendChild(badge);
+        }
+        function clearSinglePreview(key) {
+          const previousUrl = singlePreviewUrls.get(key);
+          if (previousUrl) URL.revokeObjectURL(previousUrl);
+          singlePreviewUrls.delete(key);
+        }
         function normalizeOrderPrefix(value) {
           const clean = String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
           return clean || 'PP';
         }
         function renderSettings() {
           const record = settingsRecord || {};
+          clearSinglePreview('settings-logo-preview');
+          clearSinglePreview('settings-cover-preview');
           fields.storeName.value = record.store_name || record.stored_name || 'PowerZona';
           fields.orderPrefix.value = normalizeOrderPrefix(record.order_prefix || 'PP');
           const whatsapp = splitWhatsappNumber(record.whatsapp_number || '');
@@ -3700,8 +3805,12 @@ const masterSupportHref = masterSupportWhatsapp
           fields.footerSocialWhatsapp.value = footerSocial.whatsapp || '';
           fields.shippingDeliveryInfo.value = record.shipping_delivery_info || '';
           renderFooterTrustEditor(record.footer_trust_items || []);
+          const hasLogoImage = Boolean(fileName('logo_image'));
+          const hasCoverImage = Boolean(fileName('cover_image'));
           renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo', 'js-delete-logo-image');
           renderImg(fields.coverPreview, fileUrl('cover_image', '700x260'), 'Portada', 'js-delete-cover-image');
+          setUploadLabel(fields.logoUploadLabel, hasLogoImage);
+          setUploadLabel(fields.coverUploadLabel, hasCoverImage);
           updateCoverModeUI();
           renderCoverGallery();
         }
@@ -3866,6 +3975,26 @@ const masterSupportHref = masterSupportWhatsapp
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest('.js-delete-cover-image')) deleteSettingsFile('cover_image', fileName('cover_image')).catch((error) => show(error.message || 'No se pudo borrar la portada.', 'error'));
         });
+        fields.logo?.addEventListener('change', () => {
+          const file = fields.logo.files && fields.logo.files[0];
+          if (!file) {
+            renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo', 'js-delete-logo-image');
+            setUploadLabel(fields.logoUploadLabel, Boolean(fileName('logo_image')));
+            return;
+          }
+          renderPendingImg(fields.logoPreview, file, 'Logo');
+          setUploadLabel(fields.logoUploadLabel, true);
+        });
+        fields.cover?.addEventListener('change', () => {
+          const file = fields.cover.files && fields.cover.files[0];
+          if (!file) {
+            renderImg(fields.coverPreview, fileUrl('cover_image', '700x260'), 'Portada', 'js-delete-cover-image');
+            setUploadLabel(fields.coverUploadLabel, Boolean(fileName('cover_image')));
+            return;
+          }
+          renderPendingImg(fields.coverPreview, file, 'Portada');
+          setUploadLabel(fields.coverUploadLabel, true);
+        });
         fields.coverGalleryPreview?.addEventListener('click', (event) => {
           const target = event.target instanceof Element ? event.target : null;
           const slot = target?.closest('[data-gallery-file]');
@@ -3885,7 +4014,9 @@ const masterSupportHref = masterSupportWhatsapp
               delete slot.dataset.pendingFile;
               thumb.innerHTML = filename
                 ? `<img src="${escapeHtml(fileUrlFor(filename, '700x260'))}" alt="Foto ${index + 1}" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`
-                : `Foto ${index + 1}`;
+                : placeholderMarkup(`Foto ${index + 1}`);
+              const label = slot.querySelector('.settings-file-control label');
+              if (label) label.textContent = filename ? 'Cambiar foto' : 'Subir nueva foto';
               return;
             }
             deleteSettingsFile(sourceField, filename).catch((error) => show(error.message || 'No se pudo borrar la foto.', 'error'));
@@ -3906,6 +4037,8 @@ const masterSupportHref = masterSupportWhatsapp
           galleryPreviewUrls.set(key, previewUrl);
           thumb.innerHTML = `<img src="${escapeHtml(previewUrl)}" alt="Foto ${index + 1} pendiente" /><button class="settings-thumb-delete js-delete-gallery-image" type="button" aria-label="Borrar foto ${index + 1}">&#128465;</button>`;
           slot.dataset.pendingFile = 'true';
+          const label = slot.querySelector('.settings-file-control label');
+          if (label) label.textContent = 'Cambiar foto';
         });
         renderProvinceOptions();
         renderMunicipalityOptions('');
