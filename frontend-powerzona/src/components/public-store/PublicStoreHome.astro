@@ -26,7 +26,8 @@ const gifts = await getPublicGifts(storeQuery);
 const automaticPromotions = await getAutomaticPromotions(storeQuery);
 const reviewsEnabled = settings?.reviews_enabled !== false;
 const storeReviewSummary = reviewsEnabled ? await getStoreReviewSummary(storeQuery) : { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
-const storeReviews = reviewsEnabled ? await getStoreReviews(storeQuery, 8) : [];
+const storeReviews = reviewsEnabled ? await getStoreReviews(storeQuery, 50) : [];
+const publicReviewsPageSize = 5;
 
 // Regla pública:
 // - La portada no abre categorías en la misma página.
@@ -119,6 +120,18 @@ function reviewCountLabel(count: number) {
 function reviewStars(rating: number) {
   const rounded = Math.max(0, Math.min(5, Math.round(Number(rating || 0))));
   return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
+}
+
+function reviewInitials(name: string) {
+  const parts = String(name || 'Cliente').trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'C';
+}
+
+function formatReviewDate(value: string | undefined) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 }
 
 function parseJsonList(value: any) {
@@ -270,9 +283,279 @@ function getProductOfferView(product: any) {
     .public-review-rating button.active { color: #f59e0b; background: #fffbeb; border-color: #fde68a; }
     .public-review-alert { border-radius: 8px; padding: 11px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 13px; font-weight: 900; }
     .public-review-alert.success { background: #ecfdf5; border-color: #bbf7d0; color: #166534; }
-    .public-review-submit { border: 0; border-radius: 8px; padding: 13px 15px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 1000; cursor: pointer; }
+    .public-review-submit { border: 0; border-radius: 8px; padding: 13px 15px; background: #0b63f6; color: #fff; font-size: 14px; font-weight: 1000; cursor: pointer; }
     .public-review-submit:disabled { opacity: .68; cursor: wait; }
     .public-review-honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .public-reviews-section {
+      margin: 0 0 28px;
+      scroll-margin-top: 90px;
+      padding: clamp(20px, 4vw, 34px);
+      border-radius: 26px;
+      border: 1px solid #dbe7f6;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(219,234,254,.68), rgba(219,234,254,0) 34%),
+        linear-gradient(180deg, rgba(248,251,255,.94), rgba(239,246,255,.72));
+      box-shadow: 0 22px 58px rgba(37,99,235,.08);
+    }
+    .public-reviews-head {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    .public-reviews-icon {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #eaf4ff, #dbeafe);
+      color: #0b63f6;
+      box-shadow: 0 12px 26px rgba(37,99,235,.10);
+    }
+    .public-reviews-icon svg { width: 30px; height: 30px; }
+    .public-reviews-toggle {
+      width: 100%;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+      border: 1px solid #cfe0f6;
+      border-radius: 18px;
+      background: rgba(255,255,255,.94);
+      color: #08133f;
+      padding: 14px 18px;
+      font: inherit;
+      cursor: pointer;
+      box-shadow: 0 16px 38px rgba(37,99,235,.08);
+    }
+    .public-reviews-toggle-main { display: inline-flex; align-items: center; gap: 14px; min-width: 0; }
+    .public-reviews-toggle-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      background: #0b63f6;
+      color: #fff;
+      box-shadow: 0 12px 26px rgba(11,99,246,.20);
+    }
+    .public-reviews-toggle-icon svg { width: 21px; height: 21px; }
+    .public-reviews-toggle-title {
+      min-width: 0;
+      color: #08133f;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 1000;
+      text-align: left;
+    }
+    .public-reviews-toggle-chevron {
+      width: 24px;
+      height: 24px;
+      flex: 0 0 auto;
+      color: #071345;
+      transition: transform .2s ease;
+    }
+    .public-reviews-toggle[aria-expanded="true"] .public-reviews-toggle-chevron { transform: rotate(180deg); }
+    .public-review-form-shell {
+      display: none;
+      margin: -2px 0 20px;
+    }
+    .public-review-form-shell.is-open { display: block; }
+    .public-review-form {
+      margin: 0;
+      border: 1px solid #dbe7f6;
+      border-radius: 20px;
+      background: rgba(255,255,255,.96);
+      padding: clamp(16px, 3vw, 24px);
+      display: grid;
+      gap: 14px;
+      box-shadow: 0 18px 42px rgba(37,99,235,.08);
+    }
+    .public-review-form-title { display: none; }
+    .public-review-form-note {
+      margin: 0;
+      color: #52648f;
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 800;
+    }
+    .public-review-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .public-review-field { gap: 8px; }
+    .public-review-field.public-review-field-full { grid-column: 1 / -1; }
+    .public-review-field span { color: #52648f; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
+    .public-review-field input,
+    .public-review-field textarea {
+      border: 1px solid #cbd8ea;
+      border-radius: 12px;
+      background: #fff;
+      color: #08133f;
+      padding: 12px 13px;
+      font-size: 14px;
+      font-weight: 800;
+      box-shadow: 0 10px 24px rgba(15,23,42,.035);
+    }
+    .public-review-field input:focus,
+    .public-review-field textarea:focus {
+      border-color: #0b63f6;
+      box-shadow: 0 0 0 3px rgba(11,99,246,.12);
+    }
+    .public-review-rating button {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid #dbe7f6;
+      background: #f8fbff;
+      color: #b9c8dc;
+      font-size: 26px;
+      box-shadow: 0 8px 18px rgba(37,99,235,.04);
+    }
+    .public-review-rating button.active {
+      color: #f5a400;
+      background: #fff8e6;
+      border-color: #fde68a;
+    }
+    .public-review-alert {
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #9a3412;
+    }
+    .public-review-alert.success {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1d4ed8;
+    }
+    .public-review-submit {
+      width: max-content;
+      min-height: 46px;
+      border-radius: 12px;
+      padding: 0 18px;
+      background: #0b63f6;
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(11,99,246,.22);
+    }
+    .public-reviews-list {
+      display: grid;
+      gap: 14px;
+    }
+    .public-review-card {
+      display: grid;
+      grid-template-columns: 290px minmax(0, 1fr) auto;
+      gap: 26px;
+      align-items: center;
+      border: 1px solid #dbe7f6;
+      border-radius: 18px;
+      background: rgba(255,255,255,.96);
+      padding: 22px 24px;
+      box-shadow: 0 16px 38px rgba(37,99,235,.07);
+    }
+    .public-review-person {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      align-items: center;
+      gap: 14px;
+      padding-right: 24px;
+      border-right: 1px solid #e6eef8;
+    }
+    .public-review-avatar {
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #eaf4ff, #dbeafe);
+      color: #0b63f6;
+      font-size: 18px;
+      font-weight: 1000;
+    }
+    .public-review-name { margin: 0; color: #08133f; font-size: 16px; line-height: 1.15; font-weight: 1000; }
+    .public-review-date { margin: 6px 0 0; color: #52648f; font-size: 13px; font-weight: 800; }
+    .public-review-body { min-width: 0; display: grid; gap: 10px; }
+    .public-review-stars { color: #f5a400; font-size: 22px; letter-spacing: 2px; line-height: 1; }
+    .public-review-comment { margin: 0; color: #33446f; font-size: 15px; line-height: 1.55; font-weight: 800; white-space: pre-line; }
+    .public-review-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      border: 1px solid #bbf7d0;
+      background: #f0fdf4;
+      color: #16a34a;
+      box-shadow: 0 10px 24px rgba(22,163,74,.08);
+    }
+    .public-review-badge svg {
+      width: 19px;
+      height: 19px;
+    }
+    .public-reviews-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 18px;
+      color: #52648f;
+      font-size: 13px;
+      font-weight: 850;
+    }
+    .public-reviews-pages {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+    .public-reviews-page-btn {
+      min-width: 42px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      border: 1px solid #bfd3ef;
+      background: rgba(255,255,255,.92);
+      color: #0b63f6;
+      font-size: 14px;
+      font-weight: 1000;
+      cursor: pointer;
+    }
+    .public-reviews-page-btn.active {
+      background: #0b63f6;
+      border-color: #0b63f6;
+      color: #fff;
+      box-shadow: 0 12px 26px rgba(11,99,246,.22);
+    }
+    .public-reviews-page-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    @media (max-width: 860px) {
+      .public-review-card {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+      .public-review-person {
+        border-right: 0;
+        padding-right: 0;
+      }
+      .public-review-badge { justify-self: start; }
+      .public-review-form-grid { grid-template-columns: 1fr; }
+      .public-reviews-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
     .store-info-overlay { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.46); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
     .store-info-overlay[hidden] { display: none; }
     body.store-info-open { overflow: hidden; }
@@ -969,6 +1252,572 @@ function getProductOfferView(product: any) {
       .public-presentation-description { font-size: 14px; }
       .public-presentation-actions { grid-template-columns: 1fr; }
     }
+
+    /* Categorias tipo regalos: texto e imagen viven en zonas separadas. */
+    .public-category-grid {
+      align-items: stretch;
+      gap: 18px;
+    }
+    .public-category-grid.columns-1 {
+      grid-template-columns: 1fr;
+    }
+    .public-category-grid.columns-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .public-category-link {
+      min-height: clamp(270px, 27vw, 360px);
+      display: grid !important;
+      grid-template-columns: minmax(0, .88fr) minmax(180px, 1.12fr);
+      align-items: stretch;
+      gap: 0;
+      overflow: hidden;
+      padding: 0;
+      border-radius: 18px;
+      border: 1px solid #d7e4f5;
+      background: #fff;
+      box-shadow: 0 20px 52px rgba(37,99,235,.10);
+    }
+    .public-category-grid.columns-1 .public-category-link {
+      min-height: clamp(300px, 28vw, 380px);
+      grid-template-columns: minmax(260px, .78fr) minmax(0, 1.22fr);
+    }
+    .public-category-copy {
+      min-width: 0;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 11px;
+      padding: clamp(22px, 3vw, 40px);
+      background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
+    }
+    .public-category-title-outside {
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      color: #08133f;
+      font-size: clamp(23px, 2.7vw, 36px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .public-category-meta {
+      margin: 0;
+      padding: 0;
+    }
+    .public-category-pill {
+      border-radius: 999px;
+      border: 1px solid #dbe7f6;
+      background: rgba(255,255,255,.82);
+      color: #33446f;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 950;
+    }
+    .public-category-description {
+      max-width: 360px;
+      margin: 0;
+      padding: 0;
+      color: #33446f;
+      font-size: 14px;
+      line-height: 1.5;
+      font-weight: 800;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .public-category-button {
+      width: max-content;
+      margin: auto 0 0;
+      border-radius: 8px;
+      border: 1px solid #0b63f6;
+      background: #0b63f6;
+      color: #fff;
+      padding: 12px 15px;
+      font-size: 13px;
+      font-weight: 1000;
+      box-shadow: 0 14px 30px rgba(11,99,246,.18);
+    }
+    .public-category-card {
+      position: relative;
+      inset: auto;
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      aspect-ratio: auto;
+      overflow: hidden;
+      border-radius: 0;
+      border: 0;
+      background: #eff6ff;
+      box-shadow: none;
+      z-index: 0;
+    }
+    .public-category-card::after {
+      content: none !important;
+      display: none !important;
+    }
+    .public-category-card img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      opacity: 1 !important;
+      filter: none !important;
+      transform: none;
+    }
+    .public-category-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 35%, #fff, #eaf4ff 58%, #dbeafe);
+      color: #0b63f6;
+      font-size: 64px;
+      font-weight: 1000;
+    }
+    .public-category-go {
+      display: none;
+    }
+    @media (max-width: 980px) {
+      .public-category-grid.columns-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .public-category-link,
+      .public-category-grid.columns-1 .public-category-link {
+        min-height: auto;
+        grid-template-columns: 1fr;
+        align-content: start;
+        gap: 0;
+        padding: 0;
+      }
+      .public-category-copy {
+        order: 2;
+        padding: 16px;
+      }
+      .public-category-card {
+        order: 1;
+        min-height: 180px;
+        aspect-ratio: 16 / 10;
+      }
+      .public-category-title-outside {
+        font-size: 21px;
+      }
+      .public-category-description {
+        max-width: none;
+        -webkit-line-clamp: 2;
+      }
+    }
+    @media (max-width: 560px) {
+      .public-category-grid.columns-2 {
+        gap: 10px;
+      }
+      .public-category-grid.columns-2 .public-category-link {
+        border-radius: 14px;
+      }
+      .public-category-grid.columns-2 .public-category-copy {
+        padding: 10px;
+        gap: 6px;
+      }
+      .public-category-grid.columns-2 .public-category-card {
+        min-height: 0;
+        aspect-ratio: 1.12 / 1;
+      }
+      .public-category-grid.columns-2 .public-category-title-outside {
+        font-size: 15px;
+        line-height: 1.15;
+      }
+      .public-category-grid.columns-2 .public-category-description {
+        display: none;
+      }
+      .public-category-grid.columns-2 .public-category-pill {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        font-size: 11px;
+      }
+      .public-category-grid.columns-2 .public-category-button {
+        width: 100%;
+        margin-top: 2px;
+        padding: 9px 8px;
+        text-align: center;
+        font-size: 11px;
+      }
+      .public-category-grid.columns-1 .public-category-card {
+        min-height: 190px;
+      }
+    }
+
+    /* Mini categorias: conservan miniatura, con lenguaje visual premium. */
+    .quick-categories-strip {
+      grid-auto-columns: minmax(210px, 250px);
+      gap: 14px;
+      padding: 2px 2px 12px;
+    }
+    .quick-category-card {
+      grid-template-columns: 68px minmax(0, 1fr);
+      align-items: center;
+      gap: 13px;
+      min-height: 94px;
+      padding: 12px;
+      border-radius: 18px;
+      border: 1px solid #d7e4f5;
+      background: #fff;
+      box-shadow: 0 16px 36px rgba(37,99,235,.08);
+    }
+    .quick-category-thumb {
+      width: 68px;
+      aspect-ratio: 1;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #eff6ff;
+      box-shadow: inset 0 0 0 1px #dbe7f6;
+    }
+    .quick-category-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 1 !important;
+      filter: none !important;
+    }
+    .quick-category-name,
+    .quick-category-count {
+      text-align: left;
+    }
+    .quick-category-name {
+      color: #08133f;
+      font-size: 14px;
+      line-height: 1.18;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .quick-category-count {
+      color: #52648f;
+      font-size: 12px;
+    }
+    @media (max-width: 560px) {
+      .quick-categories-strip {
+        grid-auto-columns: minmax(170px, 70vw);
+        gap: 10px;
+      }
+      .quick-category-card {
+        grid-template-columns: 56px minmax(0, 1fr);
+        min-height: 78px;
+        padding: 10px;
+        border-radius: 14px;
+      }
+      .quick-category-thumb {
+        width: 56px;
+        border-radius: 12px;
+      }
+      .quick-category-name { font-size: 13px; }
+      .quick-category-count { font-size: 11px; }
+    }
+
+    /* V3: categorias grandes con clases nuevas, sin heredar las reglas public-category antiguas. */
+    .category-showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-items: stretch;
+    }
+    .category-showcase-grid.columns-1 {
+      grid-template-columns: 1fr;
+    }
+    .category-showcase-grid.columns-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .category-showcase-card {
+      min-height: 292px;
+      display: grid;
+      grid-template-columns: minmax(240px, 42%) minmax(0, 58%);
+      align-items: stretch;
+      overflow: hidden;
+      border-radius: 18px;
+      border: 1px solid #dbe7f6;
+      background: linear-gradient(100deg, #eaf4ff, #fff);
+      color: #08133f;
+      text-decoration: none;
+      box-shadow: 0 20px 52px rgba(37,99,235,.10);
+    }
+    .category-showcase-grid.columns-1 .category-showcase-card {
+      min-height: 340px;
+      grid-template-columns: minmax(280px, 38%) minmax(0, 62%);
+    }
+    .category-showcase-copy {
+      min-width: 0;
+      height: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+      padding: clamp(28px, 5vw, 48px);
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+    .category-showcase-grid.columns-2 .category-showcase-copy {
+      padding: clamp(22px, 3vw, 34px);
+    }
+    .category-showcase-title {
+      margin: 0;
+      color: #08133f;
+      font-size: clamp(24px, 2.7vw, 38px);
+      line-height: 1.08;
+      font-weight: 1000;
+      letter-spacing: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .category-showcase-count {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0;
+    }
+    .category-showcase-count span {
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      border-radius: 999px;
+      border: 1px solid #dbe7f6;
+      background: rgba(255,255,255,.88);
+      color: #33446f;
+      padding: 7px 10px;
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 950;
+      box-shadow: 0 8px 20px rgba(37,99,235,.06);
+    }
+    .category-showcase-description {
+      max-width: 390px;
+      margin: 0;
+      color: #33446f;
+      font-size: 14px;
+      line-height: 1.55;
+      font-weight: 780;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .category-showcase-button {
+      width: max-content;
+      margin-top: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: #0b63f6;
+      color: #fff;
+      padding: 12px 16px;
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 1000;
+      box-shadow: 0 14px 30px rgba(11,99,246,.20);
+    }
+    .category-showcase-media {
+      position: relative;
+      height: 100%;
+      min-height: 292px;
+      overflow: hidden;
+      background: #eff6ff;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    .category-showcase-grid.columns-1 .category-showcase-media {
+      min-height: 340px;
+    }
+    .category-showcase-media::after {
+      content: none !important;
+      display: none !important;
+    }
+    .category-showcase-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      opacity: 1 !important;
+      filter: none !important;
+      transform: none !important;
+      display: block;
+    }
+    .category-showcase-fallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 34%, #fff 0%, #eaf4ff 52%, #dbeafe 100%);
+      color: #0b63f6;
+      font-size: 68px;
+      font-weight: 1000;
+    }
+    @media (max-width: 980px) {
+      .category-showcase-grid.columns-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .category-showcase-card,
+      .category-showcase-grid.columns-1 .category-showcase-card {
+        min-height: auto;
+        grid-template-columns: 1fr;
+      }
+      .category-showcase-copy {
+        order: 1;
+        min-height: auto;
+        padding: 18px;
+      }
+      .category-showcase-media,
+      .category-showcase-grid.columns-1 .category-showcase-media {
+        order: 2;
+        min-height: 210px;
+      }
+      .category-showcase-title {
+        font-size: 22px;
+      }
+    }
+    @media (max-width: 560px) {
+      .category-showcase-grid.columns-2 {
+        gap: 10px;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-card {
+        border-radius: 14px;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-media {
+        order: 1;
+        min-height: 0;
+        aspect-ratio: 1.1 / 1;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-copy {
+        order: 2;
+        padding: 10px;
+        gap: 7px;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-title {
+        font-size: 15px;
+        line-height: 1.15;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-count span {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        color: #52648f;
+        font-size: 11px;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-description {
+        display: none;
+      }
+      .category-showcase-grid.columns-2 .category-showcase-button {
+        width: 100%;
+        padding: 9px 8px;
+        text-align: center;
+        font-size: 11px;
+      }
+      .category-showcase-grid.columns-1 .category-showcase-media {
+        min-height: 210px;
+      }
+    }
+
+    /* V3: mini categorias visibles con clases nuevas. */
+    .quick-categories-strip {
+      grid-auto-columns: minmax(210px, 252px);
+      gap: 14px;
+      padding: 2px 2px 12px;
+    }
+    .quick-category-premium-card {
+      scroll-snap-align: start;
+      min-width: 0;
+      min-height: 94px;
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      align-items: center;
+      gap: 13px;
+      padding: 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(194,211,233,.72);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(255,255,255,.74), rgba(255,255,255,0) 44%),
+        linear-gradient(135deg, rgba(255,255,255,.66), rgba(244,249,255,.54));
+      color: #08133f;
+      text-decoration: none;
+      box-shadow: 0 16px 36px rgba(37,99,235,.075), inset 0 1px 0 rgba(255,255,255,.70);
+      backdrop-filter: blur(8px);
+    }
+    .quick-category-premium-thumb {
+      width: 68px;
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 14px;
+      background: #eff6ff;
+      box-shadow: inset 0 0 0 1px #dbe7f6, 0 10px 20px rgba(37,99,235,.08);
+      display: grid;
+      place-items: center;
+    }
+    .quick-category-premium-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 1 !important;
+      filter: none !important;
+      display: block;
+    }
+    .quick-category-premium-copy {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+    }
+    .quick-category-premium-name {
+      margin: 0;
+      color: #08133f;
+      font-size: 14px;
+      line-height: 1.18;
+      font-weight: 1000;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .quick-category-premium-count {
+      margin: 0;
+      color: #52648f;
+      font-size: 12px;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+    @media (max-width: 560px) {
+      .quick-categories-strip {
+        grid-auto-columns: minmax(170px, 70vw);
+        gap: 10px;
+      }
+      .quick-category-premium-card {
+        min-height: 78px;
+        grid-template-columns: 56px minmax(0, 1fr);
+        padding: 10px;
+        border-radius: 14px;
+      }
+      .quick-category-premium-thumb {
+        width: 56px;
+        border-radius: 12px;
+      }
+      .quick-category-premium-name {
+        font-size: 13px;
+      }
+      .quick-category-premium-count {
+        font-size: 11px;
+      }
+    }
   </style>
 
   <div class="public-store-head" aria-label="Acciones principales">
@@ -1139,12 +1988,14 @@ function getProductOfferView(product: any) {
           {quickCategories.map((category) => {
             const categoryProducts = productsByCategoryTotal(category.id);
             return (
-              <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-category-card" aria-label={`Abrir categoría ${category.name}`}>
-                <div class="quick-category-thumb">
+              <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-category-premium-card" aria-label={`Abrir categoría ${category.name}`}>
+                <div class="quick-category-premium-thumb">
                   {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{categoryInitial(category.name)}</div>}
                 </div>
-                <p class="quick-category-name">{category.name}</p>
-                <p class="quick-category-count">{productCountLabel(categoryProducts.length)}</p>
+                <div class="quick-category-premium-copy">
+                  <p class="quick-category-premium-name">{category.name}</p>
+                  <p class="quick-category-premium-count">{productCountLabel(categoryProducts.length)}</p>
+                </div>
               </a>
             );
           })}
@@ -1263,21 +2114,22 @@ function getProductOfferView(product: any) {
           <h2 class="section-title">Explora por categorías</h2>
         </div>
       </div>
-      <div class={`public-category-grid columns-${publicCategoryColumns}`}>
+      <div class={`category-showcase-grid columns-${publicCategoryColumns}`}>
         {publicCategoryCards.map((category) => {
           const categoryProducts = productsByCategoryTotal(category.id);
           return (
-            <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="public-category-link" aria-label={`Abrir categoría ${category.name}`}>
-              <h3 class="public-category-title-outside">{category.name}</h3>
-              <div class="public-category-card">
-                {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="public-category-fallback">{categoryInitial(category.name)}</div>}
-                <span class="public-category-go">›</span>
+            <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="category-showcase-card" aria-label={`Abrir categoría ${category.name}`}>
+              <div class="category-showcase-copy">
+                <h3 class="category-showcase-title">{category.name}</h3>
+                <div class="category-showcase-count">
+                  <span>{productCountLabel(categoryProducts.length)}</span>
+                </div>
+                {category.description && <p class="category-showcase-description">{category.description}</p>}
+                <span class="category-showcase-button">Ver categoría</span>
               </div>
-              <div class="public-category-meta">
-                <span class="public-category-pill">{productCountLabel(categoryProducts.length)}</span>
+              <div class="category-showcase-media">
+                {category.imageUrl ? <img class="category-showcase-image" src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="category-showcase-fallback">{categoryInitial(category.name)}</div>}
               </div>
-              {category.description && <p class="public-category-description">{category.description}</p>}
-              <span class="public-category-button">Ver categoría</span>
             </a>
           );
         })}
@@ -1305,67 +2157,155 @@ function getProductOfferView(product: any) {
 
   {reviewsEnabled && (storeReviews.length > 0 || storeReviewsEnabled) && (
     <section id="resenas" class="public-reviews-section">
-      <div class="section-head">
+      <div class="public-reviews-head">
+        <div class="public-reviews-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 1 0-8.5-6"></path><path d="M8 13.5 10.2 16 16 9"></path><path d="M3 21l2.8-1"></path></svg>
+        </div>
         <div>
           <h2 class="section-title">Reseñas de clientes</h2>
           <p class="section-subtitle">Opiniones aprobadas de personas que compraron o visitaron la tienda.</p>
         </div>
       </div>
 
-      {storeReviews.length > 0 && (
-        <div class="public-reviews-grid">
-          {storeReviews.map((review) => (
-            <article class="public-review-card">
-              <div class="public-review-top">
-                <span class="public-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
-                {showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge">Compra verificada</span>}
+      {storeReviewsEnabled && (
+        <div class="public-review-form-shell-wrap">
+          <button id="public-review-toggle" class="public-reviews-toggle" type="button" aria-expanded="false" aria-controls="public-review-form-shell">
+            <span class="public-reviews-toggle-main">
+              <span class="public-reviews-toggle-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+              </span>
+              <span class="public-reviews-toggle-title">Dejar reseña</span>
+            </span>
+            <svg class="public-reviews-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+
+          <div id="public-review-form-shell" class="public-review-form-shell" hidden>
+            <form id="public-store-review-form" class="public-review-form">
+              <h3 class="public-review-form-title">Dejar reseña</h3>
+              <div class="public-review-form-grid">
+                <label class="public-review-field">
+                  <span>Nombre</span>
+                  <input id="public-review-name" name="customer_name" type="text" maxlength="120" required />
+                </label>
+                <div class="public-review-field">
+                  <span>Rating</span>
+                  <div class="public-review-rating" data-public-rating>
+                    <input id="public-review-rating" type="hidden" value="0" />
+                    <button type="button" data-value="1" aria-label="1 estrella">&#9733;</button>
+                    <button type="button" data-value="2" aria-label="2 estrellas">&#9733;</button>
+                    <button type="button" data-value="3" aria-label="3 estrellas">&#9733;</button>
+                    <button type="button" data-value="4" aria-label="4 estrellas">&#9733;</button>
+                    <button type="button" data-value="5" aria-label="5 estrellas">&#9733;</button>
+                  </div>
+                </div>
+                <label class="public-review-field public-review-field-full">
+                  <span>Comentario</span>
+                  <textarea id="public-review-comment" name="comment" rows="4" maxlength="1200" required></textarea>
+                </label>
               </div>
-              {review.comment && <p class="public-review-comment">{review.comment}</p>}
-              <p class="public-review-name">{review.customer_name || 'Cliente'}</p>
-            </article>
-          ))}
+              <label class="public-review-honeypot" aria-hidden="true">
+                Sitio web
+                <input id="public-review-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+              </label>
+              <p class="public-review-form-note">Tu reseña será revisada antes de publicarse.</p>
+              <div id="public-review-alert" class="public-review-alert hidden"></div>
+              <button id="public-review-submit" class="public-review-submit" type="submit">Enviar reseña</button>
+            </form>
+          </div>
         </div>
       )}
 
-      {storeReviewsEnabled && (
-        <form id="public-store-review-form" class="public-review-form">
-          <h3 class="public-review-form-title">Dejar reseña</h3>
-          <label class="public-review-field">
-            <span>Nombre</span>
-            <input id="public-review-name" name="customer_name" type="text" maxlength="120" required />
-          </label>
-          <div class="public-review-field">
-            <span>Rating</span>
-            <div class="public-review-rating" data-public-rating>
-              <input id="public-review-rating" type="hidden" value="0" />
-              <button type="button" data-value="1" aria-label="1 estrella">★</button>
-              <button type="button" data-value="2" aria-label="2 estrellas">★</button>
-              <button type="button" data-value="3" aria-label="3 estrellas">★</button>
-              <button type="button" data-value="4" aria-label="4 estrellas">★</button>
-              <button type="button" data-value="5" aria-label="5 estrellas">★</button>
-            </div>
+      {storeReviews.length > 0 && (
+        <>
+          <div class="public-reviews-list" data-public-reviews-list data-page-size={publicReviewsPageSize}>
+            {storeReviews.map((review, index) => (
+              <article class="public-review-card" data-review-card data-review-index={index} hidden={index >= publicReviewsPageSize}>
+                <div class="public-review-person">
+                  <div class="public-review-avatar" aria-hidden="true">{reviewInitials(review.customer_name || 'Cliente')}</div>
+                  <div>
+                    <p class="public-review-name">{review.customer_name || 'Cliente'}</p>
+                    {formatReviewDate(review.created) && <p class="public-review-date">{formatReviewDate(review.created)}</p>}
+                  </div>
+                </div>
+                <div class="public-review-body">
+                  <span class="public-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
+                  {review.comment && <p class="public-review-comment">{review.comment}</p>}
+                </div>
+                <span class="public-review-badge" aria-label="Reseña aprobada" title="Reseña aprobada">
+                  <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
+                    <path d="m9 12 2 2 4-5"></path>
+                  </svg>
+                </span>
+                {showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge" hidden>Compra verificada</span>}
+              </article>
+            ))}
           </div>
-          <label class="public-review-field">
-            <span>Comentario</span>
-            <textarea id="public-review-comment" name="comment" rows="4" maxlength="1200" required></textarea>
-          </label>
-          <label class="public-review-honeypot" aria-hidden="true">
-            Sitio web
-            <input id="public-review-website" name="website" type="text" tabindex="-1" autocomplete="off" />
-          </label>
-          <div id="public-review-alert" class="public-review-alert hidden"></div>
-          <button id="public-review-submit" class="public-review-submit" type="submit">Enviar reseña</button>
-        </form>
+          {storeReviews.length > publicReviewsPageSize && (
+            <div class="public-reviews-pagination" data-public-reviews-pagination>
+              <span data-public-reviews-range>Mostrando 1-5 de {reviewCountLabel(storeReviews.length)}</span>
+              <div class="public-reviews-pages" aria-label="Paginación de reseñas">
+                <button class="public-reviews-page-btn" type="button" data-review-prev aria-label="Página anterior">‹</button>
+                {Array.from({ length: Math.ceil(storeReviews.length / publicReviewsPageSize) }).map((_, index) => (
+                  <button class={`public-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-review-page={index + 1} aria-label={`Página ${index + 1}`}>{index + 1}</button>
+                ))}
+                <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página siguiente">›</button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   )}
-
   <PublicFooter settings={settings} />
 
   <script define:vars={{ pocketbaseUrl, currentStoreId }}>
     (() => {
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
+      const reviewToggle = document.getElementById('public-review-toggle');
+      const reviewFormShell = document.getElementById('public-review-form-shell');
+      function setReviewFormOpen(open) {
+        if (!reviewToggle || !reviewFormShell) return;
+        reviewToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        reviewFormShell.classList.toggle('is-open', open);
+        reviewFormShell.hidden = !open;
+      }
+      reviewToggle?.addEventListener('click', () => {
+        setReviewFormOpen(reviewToggle.getAttribute('aria-expanded') !== 'true');
+      });
+
+      const reviewCards = Array.from(document.querySelectorAll('[data-review-card]'));
+      const reviewPagination = document.querySelector('[data-public-reviews-pagination]');
+      const reviewRange = document.querySelector('[data-public-reviews-range]');
+      const reviewPageButtons = Array.from(document.querySelectorAll('[data-review-page]'));
+      const reviewPrev = document.querySelector('[data-review-prev]');
+      const reviewNext = document.querySelector('[data-review-next]');
+      const pageSize = Math.max(1, Number(document.querySelector('[data-public-reviews-list]')?.getAttribute('data-page-size') || 5));
+      const totalReviewPages = Math.max(1, Math.ceil(reviewCards.length / pageSize));
+      let currentReviewPage = 1;
+      function renderReviewPage(page) {
+        currentReviewPage = Math.max(1, Math.min(totalReviewPages, Number(page || 1)));
+        const start = (currentReviewPage - 1) * pageSize;
+        const end = Math.min(start + pageSize, reviewCards.length);
+        reviewCards.forEach((card, index) => {
+          card.hidden = index < start || index >= end;
+        });
+        if (reviewRange) reviewRange.textContent = `Mostrando ${start + 1}-${end} de ${reviewCards.length} ${reviewCards.length === 1 ? 'reseña' : 'reseñas'}`;
+        reviewPageButtons.forEach((button) => {
+          const isActive = Number(button.getAttribute('data-review-page') || 0) === currentReviewPage;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-current', isActive ? 'page' : 'false');
+        });
+        if (reviewPrev) reviewPrev.disabled = currentReviewPage === 1;
+        if (reviewNext) reviewNext.disabled = currentReviewPage === totalReviewPages;
+        if (reviewPagination) reviewPagination.hidden = reviewCards.length <= pageSize;
+      }
+      reviewPageButtons.forEach((button) => button.addEventListener('click', () => renderReviewPage(button.getAttribute('data-review-page'))));
+      reviewPrev?.addEventListener('click', () => renderReviewPage(currentReviewPage - 1));
+      reviewNext?.addEventListener('click', () => renderReviewPage(currentReviewPage + 1));
+      if (reviewCards.length) renderReviewPage(1);
+
       const form = document.getElementById('public-store-review-form');
       if (!form) return;
 
@@ -1416,7 +2356,8 @@ function getProductOfferView(product: any) {
         if (honeypot) {
           form.reset();
           setRating(0);
-          setPublicReviewAlert('Gracias por dejar tu reseña. Será publicada cuando la tienda la apruebe.', 'success');
+          setPublicReviewAlert('Gracias por dejar tu reseña. Tu opinión será revisada antes de publicarse.', 'success');
+          window.setTimeout(() => setReviewFormOpen(false), 1400);
           return;
         }
 
@@ -1458,7 +2399,8 @@ function getProductOfferView(product: any) {
           await createStoreReview(payload);
           form.reset();
           setRating(0);
-          setPublicReviewAlert('Gracias por dejar tu reseña. Será publicada cuando la tienda la apruebe.', 'success');
+          setPublicReviewAlert('Gracias por dejar tu reseña. Tu opinión será revisada antes de publicarse.', 'success');
+          window.setTimeout(() => setReviewFormOpen(false), 1400);
         } catch (error) {
           console.error(error);
           setPublicReviewAlert(error?.message || 'No se pudo enviar la reseña.');
@@ -1686,3 +2628,5 @@ function getProductOfferView(product: any) {
 
   </script>
 </Layout>
+
+
