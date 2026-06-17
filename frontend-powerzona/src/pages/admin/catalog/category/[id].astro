@@ -918,6 +918,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let pendingDeleteSubcategoryId = '';
       let currentEditingSubcategoryId = '';
       let activeSubcategoryMenuId = '';
+      let categoryPreviewObjectUrl = '';
+      let categoryImageChanged = false;
+      let categorySaving = false;
+      let categoryInitialSnapshot = null;
+      let categoryAlertTimer = null;
 
       function escapeHtml(value) {
         return String(value ?? '')
@@ -1004,6 +1009,73 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         element.textContent = message;
         element.className = `alert alert-${type}`;
         element.classList.toggle('hidden', !message);
+      }
+
+      function showCategoryNotice(message, type = 'info') {
+        if (categoryAlertTimer) {
+          window.clearTimeout(categoryAlertTimer);
+          categoryAlertTimer = null;
+        }
+        setAlert(categoryAlert, message, type);
+        const timeout = type === 'success' ? 2800 : type === 'error' ? 4800 : 0;
+        if (timeout && message) {
+          categoryAlertTimer = window.setTimeout(() => {
+            setAlert(categoryAlert, '', 'info');
+            categoryAlertTimer = null;
+          }, timeout);
+        }
+      }
+
+      function getCategorySubmitButtons() {
+        return Array.from(document.querySelectorAll('#category-submit, .primary-blue-btn[form="category-form"], .bottom-action.primary[form="category-form"]'));
+      }
+
+      function getCategoryFormSnapshot() {
+        return {
+          name: String(categoryName?.value || '').trim(),
+          description: String(categoryDescription?.value || '').trim(),
+          active: Boolean(categoryActive?.checked),
+          imageChanged: Boolean(categoryImageChanged),
+        };
+      }
+
+      function hasCategoryChanges() {
+        if (!categoryInitialSnapshot) return false;
+        const current = getCategoryFormSnapshot();
+        return current.name !== categoryInitialSnapshot.name
+          || current.description !== categoryInitialSnapshot.description
+          || current.active !== categoryInitialSnapshot.active
+          || current.imageChanged === true;
+      }
+
+      function syncCategorySubmitState() {
+        const canSubmit = hasCategoryChanges() && !categorySaving;
+        getCategorySubmitButtons().forEach((button) => {
+          if (!button.dataset.defaultText) button.dataset.defaultText = button.textContent || 'Guardar cambios';
+          button.disabled = !canSubmit;
+          button.textContent = categorySaving ? 'Guardando...' : button.dataset.defaultText;
+        });
+      }
+
+      function setCategoryInitialSnapshot() {
+        categoryInitialSnapshot = {
+          name: String(category?.name || '').trim(),
+          description: String(category?.description || '').trim(),
+          active: category?.active === true,
+          imageChanged: false,
+        };
+        syncCategorySubmitState();
+      }
+
+      function clearCategoryPreviewObjectUrl() {
+        if (categoryPreviewObjectUrl) URL.revokeObjectURL(categoryPreviewObjectUrl);
+        categoryPreviewObjectUrl = '';
+      }
+
+      function renderCategoryFormPreview(src = '') {
+        if (!categoryFormThumb) return;
+        const alt = escapeHtml(categoryName?.value || category?.name || 'Categoria');
+        categoryFormThumb.innerHTML = src ? `<img src="${escapeHtml(src)}" alt="${alt}" />` : '+';
       }
 
       function openSidebar() {
@@ -1234,6 +1306,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         categoryName.value = category?.name || '';
         categoryDescription.value = category?.description || '';
         categoryActive.checked = category?.active === true;
+        renderCategoryFormPreview(url);
+        setCategoryInitialSnapshot();
       }
 
       function renderSummary() {
@@ -1452,6 +1526,65 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         await loadPage();
       }
 
+      async function saveCategoryWithDirtyState(event) {
+        event.preventDefault();
+        if (categorySaving) return;
+
+        const name = String(categoryName?.value || '').trim();
+        if (!name) {
+          showCategoryNotice('El nombre de la categoria no puede estar vacio.', 'error');
+          return;
+        }
+        if (categoryNameExists(name)) {
+          showCategoryNotice(`Ya existe una categoria llamada "${name}".`, 'error');
+          return;
+        }
+        if (!hasCategoryChanges()) {
+          syncCategorySubmitState();
+          return;
+        }
+
+        categorySaving = true;
+        syncCategorySubmitState();
+        showCategoryNotice('Guardando categoria...', 'info');
+
+        try {
+          const imageFile = categoryImage?.files?.[0];
+          const changes = {
+            name,
+            slug: slugify(name),
+            description: String(categoryDescription?.value || '').trim(),
+            active: Boolean(categoryActive?.checked),
+            store: CURRENT_STORE_ID,
+          };
+
+          if (imageFile) {
+            const formData = new FormData();
+            Object.entries(changes).forEach(([key, value]) => formData.append(key, String(value)));
+            formData.append('image', await optimizeCatalogImageFile(imageFile));
+            category = await apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`, { method: 'PATCH', body: formData });
+          } else {
+            category = await apiRequest(`/api/collections/categories/records/${CATEGORY_ID}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(changes),
+            });
+          }
+
+          if (categoryImage) categoryImage.value = '';
+          clearCategoryPreviewObjectUrl();
+          categoryImageChanged = false;
+          await loadPage();
+          showCategoryNotice('Cambios guardados correctamente', 'success');
+        } catch (error) {
+          console.error(error);
+          showCategoryNotice(error?.message || 'No se pudieron guardar los cambios', 'error');
+        } finally {
+          categorySaving = false;
+          syncCategorySubmitState();
+        }
+      }
+
       async function createSubcategory(event) {
         event.preventDefault();
         const name = subcategoryName.value.trim();
@@ -1567,7 +1700,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
       sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSidebar));
 
-      categoryForm?.addEventListener('submit', saveCategory);
+      [categoryName, categoryDescription, categoryActive].forEach((field) => {
+        field?.addEventListener('input', syncCategorySubmitState);
+        field?.addEventListener('change', syncCategorySubmitState);
+      });
+      categoryImage?.addEventListener('change', () => {
+        const file = categoryImage.files?.[0];
+        clearCategoryPreviewObjectUrl();
+        categoryImageChanged = Boolean(file);
+        if (file) {
+          categoryPreviewObjectUrl = URL.createObjectURL(file);
+          renderCategoryFormPreview(categoryPreviewObjectUrl);
+        } else {
+          renderCategoryFormPreview(recordImageUrl('categories', category));
+        }
+        syncCategorySubmitState();
+      });
+      syncCategorySubmitState();
+      categoryForm?.addEventListener('submit', saveCategoryWithDirtyState);
       subcategoryForm?.addEventListener('submit', createSubcategory);
       newProductBtn?.addEventListener('click', () => {
         window.location.href = productCreateUrl(CATEGORY_ID, '');
