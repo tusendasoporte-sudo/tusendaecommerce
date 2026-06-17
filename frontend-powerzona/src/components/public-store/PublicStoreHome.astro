@@ -868,6 +868,107 @@ function getProductOfferView(product: any) {
       content: none !important;
       display: none !important;
     }
+    .public-store-head .public-store-types,
+    .public-hero-content {
+      display: none !important;
+    }
+    .public-hero {
+      min-height: clamp(300px, 34vw, 450px);
+      margin-bottom: 18px;
+      background: linear-gradient(120deg, #eaf4ff, #f8fbff 52%, #dceeff);
+    }
+    .public-hero-cover::after {
+      content: none !important;
+      display: none !important;
+    }
+    .public-hero-cover img,
+    .public-hero-slide img {
+      object-fit: cover;
+      object-position: center;
+    }
+    .public-presentation-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      margin: 0 0 18px;
+      padding: clamp(18px, 3vw, 26px);
+      border: 1px solid #dbe7f6;
+      border-radius: 18px;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 18px 44px rgba(37,99,235,.08);
+    }
+    .public-presentation-copy { min-width: 0; display: grid; gap: 8px; }
+    .public-presentation-title {
+      margin: 0;
+      color: #071345;
+      font-size: clamp(25px, 3.4vw, 38px);
+      line-height: 1.05;
+      font-weight: 1000;
+      letter-spacing: 0;
+    }
+    .public-presentation-types {
+      margin: 0;
+      color: #0b63f6;
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 950;
+    }
+    .public-presentation-description {
+      margin: 2px 0 0;
+      max-width: 720px;
+      color: #33446f;
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 800;
+      white-space: pre-line;
+    }
+    .public-presentation-actions {
+      display: grid;
+      grid-template-columns: repeat(2, max-content);
+      gap: 10px;
+      align-items: center;
+      justify-content: end;
+    }
+    .presentation-btn {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      padding: 0 18px;
+      border: 1px solid #dbe7f6;
+      background: #0b63f6;
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      line-height: 1;
+      font-weight: 1000;
+      box-shadow: 0 14px 30px rgba(11,99,246,.20);
+      white-space: nowrap;
+    }
+    .presentation-btn.secondary {
+      background: #fff;
+      color: #21315d;
+      box-shadow: 0 12px 26px rgba(15,23,42,.05);
+    }
+    @media (max-width: 980px) {
+      .public-presentation-card { grid-template-columns: 1fr; gap: 16px; }
+      .public-presentation-actions { justify-content: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .presentation-btn { width: 100%; padding: 0 12px; }
+    }
+    @media (max-width: 760px) {
+      .public-hero {
+        min-height: 220px;
+        border-radius: 16px;
+      }
+    }
+    @media (max-width: 560px) {
+      .public-presentation-card { padding: 16px; }
+      .public-presentation-title { font-size: 24px; }
+      .public-presentation-description { font-size: 14px; }
+      .public-presentation-actions { grid-template-columns: 1fr; }
+    }
   </style>
 
   <div class="public-store-head" aria-label="Acciones principales">
@@ -875,7 +976,6 @@ function getProductOfferView(product: any) {
       <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
       <div>
         <strong class="public-store-name">{storeName}</strong>
-        {publicBusinessTypes.length > 0 && <p class="public-store-types">{publicBusinessTypes.join(' • ')}</p>}
       </div>
     </a>
     <a class="public-search-shell" href={searchPath} aria-label="Buscar productos y categorias">
@@ -932,11 +1032,17 @@ function getProductOfferView(product: any) {
         </div>
       </>
     )}
-    <div class="public-hero-content">
-      {welcomeText && <p class="public-hero-kicker">{welcomeText}</p>}
-      <h1 class="public-hero-title">{storeName}</h1>
-      {storeDescription && <p class="public-hero-text">{storeDescription}</p>}
-      <a class="public-hero-primary" href={productAnchorPath}>Ver productos</a>
+  </section>
+
+  <section class="public-presentation-card" aria-labelledby="public-presentation-title">
+    <div class="public-presentation-copy">
+      <h1 id="public-presentation-title" class="public-presentation-title">{storeName}</h1>
+      {publicBusinessTypes.length > 0 && <p class="public-presentation-types">{publicBusinessTypes.join(' • ')}</p>}
+      {storeDescription && <p class="public-presentation-description">{storeDescription}</p>}
+    </div>
+    <div class="public-presentation-actions">
+      <a class="presentation-btn" href={productAnchorPath}>Ver productos</a>
+      <button id="store-info-open" class="presentation-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
     </div>
   </section>
 
@@ -966,8 +1072,6 @@ function getProductOfferView(product: any) {
         <span>{item.title}</span>
       </div>
     ))}
-    {welcomeText && <p class="public-welcome-text">{welcomeText}</p>}
-    {storeDescription && <p class="public-store-description">{storeDescription}</p>}
     {!businessHoursStatus.isClosed && <div class="business-status"><strong>Disponible ahora</strong></div>}
     {businessHoursStatus.isClosed && (
       <div class="business-status closed">
@@ -979,7 +1083,6 @@ function getProductOfferView(product: any) {
       <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2a9 9 0 0 0-7.7 13.7L3 22l6.4-1.2A9 9 0 1 0 12 2Zm0 2a7 7 0 1 1-2.1 13.7l-.4-.1-3.9.7.8-3.8-.2-.4A7 7 0 0 1 12 4Z"></path></svg>
       WhatsApp
     </a>
-    <button id="store-info-open" class="hero-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
   </div>
 
   <div id="store-info-overlay" class="store-info-overlay" hidden>
