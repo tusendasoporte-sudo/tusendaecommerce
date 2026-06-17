@@ -14,12 +14,12 @@ const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
 const whatsappRaw = settings?.whatsapp_number || currentStore?.owner_phone || '';
 const whatsappNumber = cleanPhone(whatsappRaw);
 const whatsappStoreHref = whatsappNumber
-  ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola ${storeName}, quiero informacion.`)}`
+  ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola ${storeName}, quiero información.`)}`
   : '';
 
 const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
-const creatorMessage = 'Hola soporte de Tu Senda 84, me gustaria crear mi tienda online.';
+const creatorMessage = 'Hola soporte de Tu Senda 84, me gustaría crear mi tienda online.';
 const creatorStoreHref = masterSupportWhatsapp
   ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(creatorMessage)}`
   : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Crear mi tienda en Tu Senda 84')}&body=${encodeURIComponent(creatorMessage)}` : '/');
@@ -218,7 +218,7 @@ function iconSvg(name: string) {
   </section>
 )}
 
-<footer class="pz-public-footer" aria-label="Informacion de la tienda">
+<footer class="pz-public-footer" aria-label="Información de la tienda">
   <div class="pz-footer-main">
     <section class="pz-footer-store" aria-label={storeName}>
       <a class="pz-footer-logo-link" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
@@ -239,8 +239,8 @@ function iconSvg(name: string) {
     </section>
 
     {infoLinks.length > 0 && (
-      <section class="pz-footer-info" aria-label="Informacion">
-        <h3>Informacion</h3>
+      <section class="pz-footer-info" aria-label="Información">
+        <h3>Información</h3>
         <nav>
           {infoLinks.map((item) => (
             item.id === 'contact'
@@ -360,37 +360,42 @@ function iconSvg(name: string) {
   .pz-trust-copy { min-width: 0; display: grid; gap: 5px; color: #0b1744; }
   .pz-trust-copy strong { font-size: 17px; line-height: 1.15; font-weight: 1000; }
   .pz-trust-copy small { color: #33446f; font-size: 14px; line-height: 1.35; font-weight: 800; }
-  .pz-public-footer { margin-top: 18px; border-radius: 8px; background: radial-gradient(circle at 18% 0%, rgba(37,99,235,.24), transparent 34%), linear-gradient(135deg, #061a42 0%, #08265a 52%, #06183d 100%); color: #fff; overflow: hidden; box-shadow: 0 -18px 55px rgba(15,23,42,.16); }
-  .pz-footer-main { padding: clamp(26px, 5vw, 42px); display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(180px, .75fr) minmax(210px, .9fr); gap: clamp(22px, 4vw, 54px); align-items: start; }
-  .pz-footer-store { min-width: 0; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 14px; align-items: center; }
-  .pz-footer-logo-link { width: 64px; height: 64px; border-radius: 8px; background: #0b63f6; color: #fff; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; text-decoration: none; font-weight: 1000; font-size: 25px; box-shadow: 0 16px 34px rgba(0,0,0,.20); }
+  .pz-public-footer { margin-top: 22px; border-radius: 20px; border: 1px solid rgba(147,197,253,.18); border-top-color: rgba(191,219,254,.28); background: radial-gradient(circle at 14% 0%, rgba(59,130,246,.30), transparent 34%), radial-gradient(circle at 92% 18%, rgba(14,165,233,.16), transparent 28%), linear-gradient(135deg, #061b45 0%, #082f6f 45%, #03132f 100%); color: #fff; overflow: hidden; box-shadow: 0 28px 78px rgba(3,19,47,.28), inset 0 1px 0 rgba(255,255,255,.08); }
+  .pz-footer-main { padding: clamp(30px, 5vw, 54px); display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(190px, .78fr) minmax(230px, .92fr); gap: clamp(28px, 4.8vw, 72px); align-items: start; }
+  .pz-footer-store { min-width: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 16px; align-items: center; }
+  .pz-footer-logo-link { width: 68px; height: 68px; border-radius: 15px; background: linear-gradient(135deg, #1d7cff, #0753d8); color: #fff; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; text-decoration: none; font-weight: 1000; font-size: 25px; border: 1px solid rgba(255,255,255,.22); box-shadow: 0 18px 38px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.26); }
   .pz-footer-logo-link img { width: 100%; height: 100%; object-fit: cover; }
   .pz-footer-logo-link span { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
   .pz-footer-brand-copy { min-width: 0; }
-  .pz-footer-brand-copy h2 { margin: 0; font-size: clamp(25px, 3vw, 34px); line-height: 1.02; font-weight: 1000; letter-spacing: 0; }
-  .pz-footer-types { margin: 6px 0 0; color: rgba(255,255,255,.84); font-size: 15px; line-height: 1.3; font-weight: 850; }
-  .pz-footer-description { grid-column: 1 / -1; margin: 18px 0 0; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.55; font-weight: 750; white-space: pre-line; }
-  .pz-footer-social { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
-  .pz-footer-social a { width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.10); text-decoration: none; }
-  .pz-footer-social svg, .pz-footer-contact-line svg, .pz-footer-whatsapp-btn svg { width: 25px; height: 25px; fill: currentColor; flex: 0 0 auto; }
-  .pz-footer-info h3, .pz-footer-contact h3 { margin: 0 0 20px; font-size: 21px; line-height: 1.15; font-weight: 1000; color: #fff; }
-  .pz-footer-info nav { display: grid; gap: 16px; }
-  .pz-footer-info a, .pz-footer-info button { width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; color: rgba(255,255,255,.88); font: inherit; font-size: 16px; line-height: 1.4; font-weight: 800; text-align: left; text-decoration: none; cursor: pointer; }
-  .pz-footer-contact { min-width: 0; display: grid; gap: 14px; }
-  .pz-footer-contact-line { margin: 0; min-width: 0; display: flex; align-items: center; gap: 14px; color: rgba(255,255,255,.88); font-size: 16px; line-height: 1.4; font-weight: 850; text-decoration: none; }
+  .pz-footer-brand-copy h2 { margin: 0; color: #fff; font-size: clamp(26px, 3vw, 36px); line-height: 1.03; font-weight: 1000; letter-spacing: 0; text-shadow: 0 10px 28px rgba(0,0,0,.18); }
+  .pz-footer-types { margin: 7px 0 0; color: rgba(219,234,254,.82); font-size: 14px; line-height: 1.35; font-weight: 850; }
+  .pz-footer-description { grid-column: 1 / -1; max-width: 520px; margin: 20px 0 0; color: rgba(239,246,255,.88); font-size: 16px; line-height: 1.65; font-weight: 750; white-space: pre-line; }
+  .pz-footer-social { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+  .pz-footer-social a { width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.105); color: #fff; border: 1px solid rgba(191,219,254,.18); text-decoration: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.10); transition: transform .18s ease, background .18s ease, border-color .18s ease, color .18s ease; }
+  .pz-footer-social a:hover { transform: translateY(-2px); background: rgba(219,234,254,.18); border-color: rgba(147,197,253,.42); color: #bfdbfe; }
+  .pz-footer-social svg, .pz-footer-contact-line svg, .pz-footer-whatsapp-btn svg { width: 24px; height: 24px; fill: currentColor; flex: 0 0 auto; }
+  .pz-footer-info h3, .pz-footer-contact h3 { margin: 0 0 22px; font-size: 22px; line-height: 1.12; font-weight: 1000; color: #fff; }
+  .pz-footer-info nav { display: grid; gap: 17px; }
+  .pz-footer-info a, .pz-footer-info button { width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; color: rgba(239,246,255,.84); font: inherit; font-size: 16px; line-height: 1.45; font-weight: 850; text-align: left; text-decoration: none; cursor: pointer; transition: color .18s ease, transform .18s ease; }
+  .pz-footer-info a:hover, .pz-footer-info button:hover { color: #93c5fd; transform: translateX(2px); }
+  .pz-footer-contact { min-width: 0; display: grid; gap: 15px; }
+  .pz-footer-contact-line { margin: 0; min-width: 0; display: flex; align-items: center; gap: 13px; color: rgba(239,246,255,.88); font-size: 16px; line-height: 1.45; font-weight: 850; text-decoration: none; }
+  .pz-footer-contact-line > span:first-child { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: rgba(255,255,255,.10); color: #bfdbfe; border: 1px solid rgba(191,219,254,.16); }
   .pz-footer-contact-line span:last-child { min-width: 0; overflow-wrap: anywhere; }
-  .pz-footer-whatsapp-btn { width: min(100%, 230px); margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 8px; padding: 14px 18px; background: #0b63f6; color: #fff; text-decoration: none; font-size: 16px; font-weight: 1000; box-shadow: 0 16px 32px rgba(0,0,0,.18); }
-  .pz-footer-platform-cta { grid-column: 1 / -1; margin-top: 16px; padding: 24px; border-radius: 8px; border: 1px solid rgba(96,165,250,.34); background: rgba(14,68,138,.36); display: grid; grid-template-columns: 78px minmax(0, 1fr) minmax(180px, 260px) minmax(150px, auto); gap: 24px; align-items: center; }
-  .pz-platform-icon { width: 78px; height: 78px; border-radius: 8px; display: grid; place-items: center; background: rgba(11,99,246,.18); border: 1px solid rgba(96,165,250,.34); }
+  .pz-footer-whatsapp-btn { width: min(100%, 250px); min-height: 58px; margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 13px; padding: 14px 20px; background: linear-gradient(135deg, #1272ff, #0757e8); color: #fff; text-decoration: none; font-size: 16px; font-weight: 1000; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 38px rgba(11,99,246,.30), inset 0 1px 0 rgba(255,255,255,.22); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+  .pz-footer-whatsapp-btn:hover { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 22px 46px rgba(11,99,246,.36), inset 0 1px 0 rgba(255,255,255,.24); }
+  .pz-footer-platform-cta { grid-column: 1 / -1; margin-top: 10px; padding: clamp(20px, 3vw, 28px); border-radius: 18px; border: 1px solid rgba(147,197,253,.34); background: linear-gradient(135deg, rgba(11,99,246,.22), rgba(14,68,138,.30)); display: grid; grid-template-columns: 82px minmax(0, 1fr) minmax(190px, 260px) minmax(150px, auto); gap: clamp(18px, 3vw, 28px); align-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 18px 42px rgba(3,19,47,.20); }
+  .pz-platform-icon { width: 82px; height: 82px; border-radius: 17px; display: grid; place-items: center; background: rgba(11,99,246,.24); border: 1px solid rgba(147,197,253,.36); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
   .pz-platform-icon span { width: 40px; height: 42px; position: relative; display: block; border-radius: 0 0 7px 7px; background: #0b63f6; box-shadow: inset 13px 0 0 rgba(255,255,255,.18); }
   .pz-platform-icon span::before { content: ''; position: absolute; left: -5px; right: -5px; top: -16px; height: 17px; border-radius: 7px 7px 3px 3px; background: repeating-linear-gradient(90deg, #fff 0 10px, #0b63f6 10px 20px); }
-  .pz-platform-copy h3 { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 1000; color: #fff; }
-  .pz-platform-copy p { margin: 9px 0 0; color: rgba(255,255,255,.86); font-size: 15px; line-height: 1.45; font-weight: 750; }
-  .pz-platform-button { min-height: 58px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; padding: 14px 18px; background: #fff; color: #0b63f6; text-decoration: none; font-size: 17px; font-weight: 1000; box-shadow: 0 12px 28px rgba(0,0,0,.12); }
+  .pz-platform-copy h3 { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 1000; color: #fff; }
+  .pz-platform-copy p { margin: 9px 0 0; color: rgba(239,246,255,.88); font-size: 15px; line-height: 1.5; font-weight: 750; }
+  .pz-platform-button { min-height: 58px; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; padding: 14px 20px; background: #fff; color: #0b63f6; text-decoration: none; font-size: 17px; font-weight: 1000; border: 1px solid rgba(255,255,255,.70); box-shadow: 0 16px 34px rgba(0,0,0,.18); transition: transform .18s ease, box-shadow .18s ease; }
+  .pz-platform-button:hover { transform: translateY(-2px); box-shadow: 0 20px 42px rgba(0,0,0,.22); }
   .pz-platform-backed { display: grid; gap: 6px; color: #fff; }
   .pz-platform-backed small { color: rgba(255,255,255,.82); font-size: 13px; line-height: 1.2; font-weight: 750; }
   .pz-platform-backed strong { font-size: 17px; line-height: 1.2; font-weight: 1000; }
-  .pz-footer-platform-note { grid-column: 1 / -1; margin: 0; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.16); color: rgba(255,255,255,.84); text-align: center; font-size: 15px; line-height: 1.4; font-weight: 800; }
+  .pz-footer-platform-note { grid-column: 1 / -1; margin: 0; padding-top: 22px; border-top: 1px solid rgba(219,234,254,.16); color: rgba(239,246,255,.80); text-align: center; font-size: 15px; line-height: 1.4; font-weight: 800; }
   .pz-footer-modal-overlay { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 18px; background: rgba(15,23,42,.54); opacity: 0; pointer-events: none; transition: opacity .16s ease; }
   .pz-footer-modal-overlay.open { opacity: 1; pointer-events: auto; }
   .pz-footer-modal { position: relative; width: min(560px, 100%); max-height: min(82vh, 680px); overflow: auto; border-radius: 8px; background: #fff; color: #111827; padding: 24px; box-shadow: 0 28px 90px rgba(15,23,42,.28); }
@@ -399,7 +404,7 @@ function iconSvg(name: string) {
   .pz-footer-modal p { margin: 0 0 12px; color: #334155; font-size: 15px; line-height: 1.6; font-weight: 750; white-space: pre-line; }
   .pz-footer-modal ul { margin: 0 0 14px; padding-left: 20px; color: #0f172a; font-size: 15px; line-height: 1.6; font-weight: 850; }
   @media (max-width: 980px) {
-    .pz-footer-main { grid-template-columns: 1fr; }
+    .pz-footer-main { grid-template-columns: 1fr; gap: 30px; }
     .pz-footer-platform-cta { grid-template-columns: 64px minmax(0, 1fr); }
     .pz-platform-button, .pz-platform-backed { grid-column: 1 / -1; }
     .pz-platform-backed { text-align: left; }
@@ -411,13 +416,15 @@ function iconSvg(name: string) {
     .pz-trust-icon { width: 52px; height: 52px; }
     .pz-trust-copy strong { font-size: 14px; }
     .pz-trust-copy small { font-size: 12px; }
-    .pz-public-footer { border-radius: 8px; }
-    .pz-footer-main { padding: 26px 18px; gap: 28px; }
-    .pz-footer-store { grid-template-columns: 58px minmax(0, 1fr); }
-    .pz-footer-logo-link { width: 56px; height: 56px; }
+    .pz-public-footer { border-radius: 18px; }
+    .pz-footer-main { padding: 28px 18px; gap: 30px; }
+    .pz-footer-store { grid-template-columns: 60px minmax(0, 1fr); }
+    .pz-footer-logo-link { width: 58px; height: 58px; border-radius: 14px; }
     .pz-footer-description { font-size: 15px; }
-    .pz-footer-platform-cta { padding: 18px; grid-template-columns: 1fr; justify-items: start; gap: 16px; }
+    .pz-footer-whatsapp-btn { width: 100%; }
+    .pz-footer-platform-cta { padding: 20px; grid-template-columns: 1fr; justify-items: center; text-align: center; gap: 17px; }
     .pz-platform-icon { width: 70px; height: 70px; }
     .pz-platform-button { width: 100%; }
+    .pz-platform-backed { text-align: center; }
   }
 </style>
