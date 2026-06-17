@@ -464,7 +464,7 @@ function getProductOfferView(product: any) {
         {publicLocationText && <div class="store-info-row"><span class="store-info-icon">PIN</span><span>{publicLocationText}</span></div>}
         {publicAddressDetail && <div class="store-info-row"><span class="store-info-icon">REF</span><span>{publicAddressDetail}</span></div>}
         {whatsappNumber && <div class="store-info-row"><span class="store-info-icon">WA</span><span>WhatsApp: {settings?.whatsapp_number || currentStore?.owner_phone}</span></div>}
-        {publicBusinessTypes.length > 0 && <div class="store-info-row"><span class="store-info-icon">TIPO</span><span>{publicBusinessTypes.join(', ')}</span></div>}
+        {publicBusinessTypes.length > 0 && <div class="store-info-row"><span class="store-info-icon">TIPO</span><span>{publicBusinessTypes.join(' • ')}</span></div>}
         {hasBusinessHoursInfo && (
           <div class="store-info-row">
             <span class="store-info-icon">HORA</span>

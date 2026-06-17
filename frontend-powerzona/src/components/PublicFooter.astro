@@ -1,36 +1,72 @@
 ---
-// PZ-PUBLIC-FOOTER-V4-LINKS-FLOTANTES-ARRIBA-CTA-FINAL-20260604
+// PZ-PUBLIC-FOOTER-V5-CONFIGURABLE-TUSENDA84-CTA-20260617
+import { getCurrencies } from '../lib/api';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
-import { formatBusinessHours } from '../lib/businessHours';
+import { BUSINESS_TYPE_GROUPS } from '../lib/businessTypes';
 
 const { settings = {} } = Astro.props;
 
 const currentStore = await getCurrentStore(Astro);
+const currentStoreId = currentStore?.id || settings?.store || '';
 const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
+const homePath = getPublicPath('/', currentStore, Astro.url.pathname);
+const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
 const whatsappRaw = settings?.whatsapp_number || currentStore?.owner_phone || '';
-const whatsappNumber = String(whatsappRaw).replace(/[^0-9]/g, '');
-
-const creatorStoreWhatsappHref = whatsappNumber
-  ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hola me gustaria tener mi tienda.')}`
+const whatsappNumber = cleanPhone(whatsappRaw);
+const whatsappStoreHref = whatsappNumber
+  ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hola ${storeName}, quiero informacion.`)}`
   : '';
 
-const footerTitle = settings?.footer_title || storeName;
-const footerText = settings?.footer_text || settings?.welcome_text || '';
-const footerContactText = settings?.footer_contact_text || '';
-const footerExtraText = settings?.footer_extra_text || settings?.reviews_text || '';
+const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const creatorMessage = 'Hola soporte de Tu Senda 84, me gustaria crear mi tienda online.';
+const creatorStoreHref = masterSupportWhatsapp
+  ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(creatorMessage)}`
+  : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Crear mi tienda en Tu Senda 84')}&body=${encodeURIComponent(creatorMessage)}` : '/');
+const creatorStoreTarget = creatorStoreHref.startsWith('http') ? '_blank' : undefined;
+
+const socialLinks = normalizeSocialLinks(settings?.footer_social_links);
+const socialItems = Object.entries(socialLinks)
+  .map(([key, value]) => ({ key, href: normalizeSocialHref(key, value), label: socialLabel(key) }))
+  .filter((item) => item.href);
+
+const trustItems = parseTrustItems(settings?.footer_trust_items);
 const province = String(settings?.province || '').trim();
 const municipality = String(settings?.municipality || '').trim();
 const addressDetail = String(settings?.address_detail || '').trim();
+const legacyAddress = String(settings?.address || '').trim();
 const locationText = province ? `${province}, ${municipality || 'Cuba'}` : '';
-const address = addressDetail || (!province && !municipality ? settings?.address || '' : '');
-const businessHours = formatBusinessHours(settings);
-const servicesText = settings?.public_services_text || '';
-const linkOneLabel = settings?.footer_link_1_label || '';
-const linkOneUrl = settings?.footer_link_1_url || '';
-const linkTwoLabel = settings?.footer_link_2_label || '';
-const linkTwoUrl = settings?.footer_link_2_url || '';
-const currentYear = new Date().getFullYear();
-const homePath = getPublicPath('/', currentStore, Astro.url.pathname);
+const addressText = addressDetail || (!province && !municipality ? legacyAddress : '');
+const storeDescription = String(settings?.store_description || settings?.footer_text || settings?.welcome_text || '').trim();
+const aboutStoreText = String(settings?.business_notes || settings?.footer_extra_text || '').trim();
+const shippingDeliveryInfo = String(settings?.shipping_delivery_info || '').trim();
+const businessTypeLabels = new Map(BUSINESS_TYPE_GROUPS.flatMap((group) => group.options.map((option) => [option.slug, option.label])));
+const publicBusinessTypes = parseJsonList(settings?.business_types)
+  .map((slug) => businessTypeLabels.get(slug) || slug)
+  .filter(Boolean)
+  .slice(0, 3);
+
+let activeCurrencies: any[] = [];
+try {
+  activeCurrencies = currentStoreId ? await getCurrencies({ storeId: currentStoreId }) : [];
+} catch (_) {
+  activeCurrencies = [];
+}
+const defaultCurrency = Array.isArray(settings?.expand?.default_currency)
+  ? settings.expand.default_currency[0]
+  : settings?.expand?.default_currency;
+const paymentCurrencies = normalizeCurrencies(activeCurrencies, defaultCurrency);
+
+const infoLinks = [
+  aboutStoreText ? { id: 'about', label: 'Sobre la tienda' } : null,
+  shippingDeliveryInfo ? { id: 'shipping', label: 'Envíos y entregas' } : null,
+  paymentCurrencies.length ? { id: 'payments', label: 'Métodos de pago' } : null,
+  whatsappStoreHref ? { id: 'contact', label: 'Contáctanos' } : null,
+].filter(Boolean);
+
+function cleanPhone(value: any) {
+  return String(value || '').replace(/[^0-9]/g, '');
+}
 
 function storeInitials(name: string) {
   return String(name || 'Tienda')
@@ -41,99 +77,347 @@ function storeInitials(name: string) {
     .join('') || 'T';
 }
 
-const hasExtraLinks = linkOneUrl || linkTwoUrl;
-const hasLocationCard = locationText || address;
-const hasContactCard = footerContactText || whatsappNumber;
-const hasInfoCard = businessHours || servicesText;
-const hasMainInfo = footerText || footerExtraText || hasLocationCard || hasContactCard || hasInfoCard || creatorStoreWhatsappHref || hasExtraLinks;
+function parseJsonObject(value: any) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function parseJsonList(value: any) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+  } catch (_) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+}
+
+function normalizeSocialLinks(value: any) {
+  const parsed = parseJsonObject(value);
+  return {
+    instagram: String(parsed.instagram || '').trim(),
+    facebook: String(parsed.facebook || '').trim(),
+    tiktok: String(parsed.tiktok || '').trim(),
+    youtube: String(parsed.youtube || '').trim(),
+    whatsapp: String(parsed.whatsapp || '').trim(),
+  };
+}
+
+function normalizeSocialHref(key: string, value: string) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (key === 'whatsapp') {
+    if (/^https?:\/\//i.test(raw)) return raw;
+    const phone = cleanPhone(raw);
+    return phone ? `https://wa.me/${phone}` : '';
+  }
+  if (!/^https?:\/\//i.test(raw)) return '';
+  return raw;
+}
+
+function socialLabel(key: string) {
+  return ({
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    tiktok: 'TikTok',
+    youtube: 'YouTube',
+    whatsapp: 'WhatsApp',
+  } as Record<string, string>)[key] || key;
+}
+
+function parseTrustItems(value: any) {
+  let rawItems: any[] = [];
+  if (Array.isArray(value)) {
+    rawItems = value;
+  } else if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      rawItems = Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      rawItems = [];
+    }
+  }
+  return rawItems
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      icon: allowedIcon(item.icon),
+      title: String(item.title || '').trim(),
+      description: String(item.description || '').trim(),
+      active: item.active !== false,
+    }))
+    .filter((item) => item.active && item.title)
+    .slice(0, 4);
+}
+
+function allowedIcon(icon: any) {
+  const value = String(icon || '').trim();
+  return ['shield', 'lock', 'truck', 'headset', 'star', 'gift', 'location', 'bolt', 'heart', 'bag', 'check', 'whatsapp'].includes(value) ? value : 'check';
+}
+
+function normalizeCurrencies(currencies: any[], fallbackCurrency: any) {
+  const list = (currencies || [])
+    .filter((currency) => currency && currency.active !== false)
+    .map(currencyView);
+  if (list.length) return list;
+  return fallbackCurrency ? [currencyView(fallbackCurrency)] : [];
+}
+
+function currencyView(currency: any) {
+  const code = String(currency?.code || '').trim().toUpperCase();
+  const name = String(currency?.name || code).trim();
+  const symbol = String(currency?.symbol || '').trim();
+  return {
+    code,
+    label: [code, name && name !== code ? name : '', symbol && symbol !== code ? `(${symbol})` : ''].filter(Boolean).join(' '),
+  };
+}
+
+function iconSvg(name: string) {
+  const paths: Record<string, string> = {
+    shield: '<path d="M12 3 5 6v5c0 4.4 2.8 8.4 7 10 4.2-1.6 7-5.6 7-10V6l-7-3Zm0 4.4 4 1.7v2c0 2.9-1.5 5.6-4 7-2.5-1.4-4-4.1-4-7v-2l4-1.7Zm3.5 3.1-4.2 4.2-2-2 1.4-1.4.6.6 2.8-2.8 1.4 1.4Z"/>',
+    lock: '<path d="M17 9V7a5 5 0 0 0-10 0v2H5v12h14V9h-2Zm-8 0V7a3 3 0 0 1 6 0v2H9Zm4 7.7V18h-2v-1.3a2 2 0 1 1 2 0Z"/>',
+    truck: '<path d="M3 6h11v8h2.2l1.8 2H21v-5.2L18.2 8H16V6h3l4 5v7h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-4h2V8H3V6Zm3 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm12 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>',
+    headset: '<path d="M12 3a8 8 0 0 0-8 8v4a3 3 0 0 0 3 3h2v-7H6a6 6 0 0 1 12 0h-3v7h2.2a5.2 5.2 0 0 1-4.2 2H11v2h2a7 7 0 0 0 7-7v-4a8 8 0 0 0-8-8Z"/>',
+    star: '<path d="m12 2 2.8 6 6.5.8-4.8 4.5 1.2 6.4L12 16.5l-5.7 3.2 1.2-6.4-4.8-4.5 6.5-.8L12 2Z"/>',
+    gift: '<path d="M20 7h-2.2A3 3 0 0 0 12 5.8 3 3 0 0 0 6.2 7H4v5h1v9h14v-9h1V7ZM9 5a1 1 0 0 1 1 1v1H9a1 1 0 0 1 0-2Zm6 0a1 1 0 0 1 0 2h-1V6a1 1 0 0 1 1-1Zm-8 7h4v7H7v-7Zm6 7v-7h4v7h-4Z"/>',
+    location: '<path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/>',
+    bolt: '<path d="M13 2 4 14h6l-1 8 10-13h-6l0-7Z"/>',
+    heart: '<path d="M12 21s-8-4.7-8-11a4.8 4.8 0 0 1 8-3.6A4.8 4.8 0 0 1 20 10c0 6.3-8 11-8 11Z"/>',
+    bag: '<path d="M7 8V7a5 5 0 0 1 10 0v1h3v13H4V8h3Zm2 0h6V7a3 3 0 0 0-6 0v1Z"/>',
+    check: '<path d="M9.2 16.2 4.8 11.8 3.4 13.2 9.2 19 21 7.2 19.6 5.8 9.2 16.2Z"/>',
+    whatsapp: '<path d="M12 2a9 9 0 0 0-7.7 13.7L3 22l6.4-1.2A9 9 0 1 0 12 2Zm0 2a7 7 0 1 1-2.1 13.7l-.4-.1-3.9.7.8-3.8-.2-.4A7 7 0 0 1 12 4Zm-3 3.8c-.2 0-.6.1-.9.5-.3.4-.8 1-.8 2.1s.8 2.2 1 2.4c.1.2 1.7 2.7 4.2 3.7 2.1.9 2.5.7 3 .7.4 0 1.4-.6 1.6-1.1.2-.6.2-1 .1-1.1-.1-.1-.3-.2-.7-.4l-1.6-.8c-.2-.1-.5-.1-.7.2l-.6.8c-.2.2-.4.2-.7.1-.4-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.6c.1-.2.2-.3.3-.5.1-.2.1-.4 0-.6L9 8.2c-.1-.3-.3-.4-.6-.4H9Z"/>',
+    instagram: '<path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm5.2-3.2a1 1 0 1 1 0 2 1 1 0 0 1 0-2Z"/>',
+    facebook: '<path d="M14 8h3V4h-3a5 5 0 0 0-5 5v3H6v4h3v6h4v-6h3l1-4h-4V9a1 1 0 0 1 1-1Z"/>',
+    tiktok: '<path d="M15 3c.4 2.5 1.8 4 4 4.3V11a7 7 0 0 1-4-1.3V16a6 6 0 1 1-6-6c.4 0 .7 0 1 .1v4.1A2 2 0 1 0 11 16V3h4Z"/>',
+    youtube: '<path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.6 4.6 12 4.6 12 4.6s-5.6 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.9.5 7.5.5 7.5.5s5.6 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8ZM10 15.2V8.8l5.5 3.2-5.5 3.2Z"/>',
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.check}</svg>`;
+}
 ---
 
-{hasMainInfo && (
-  <footer class="pz-public-footer" aria-label="Información de la tienda">
-    <div class="pz-footer-main">
-      <div class="pz-footer-brand">
-        <a class="pz-footer-logo-link" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
-          {settings?.logoImageUrl ? <img src={settings.logoImageUrl} alt={storeName} /> : <span>{storeInitials(storeName)}</span>}
-        </a>
-        <div>
-          <h2>{footerTitle}</h2>
-          {footerText && <p>{footerText}</p>}
-        </div>
-      </div>
-
-      {hasExtraLinks && (
-        <div class="pz-footer-floating-links" aria-label="Enlaces adicionales">
-          {linkOneUrl && <a href={linkOneUrl} target="_blank" rel="noreferrer">{linkOneLabel || 'Enlace 1'}</a>}
-          {linkTwoUrl && <a href={linkTwoUrl} target="_blank" rel="noreferrer">{linkTwoLabel || 'Enlace 2'}</a>}
-        </div>
-      )}
-
-      <div class="pz-footer-grid">
-        {hasLocationCard && (
-          <section class="pz-footer-card">
-            <h3>Ubicación</h3>
-            {locationText && <p>{locationText}</p>}
-            {address && <p>{address}</p>}
-          </section>
-        )}
-
-        {hasContactCard && (
-          <section class="pz-footer-card">
-            <h3>Contacto</h3>
-            {footerContactText && <p>{footerContactText}</p>}
-            {whatsappNumber && <p>WhatsApp: {whatsappRaw}</p>}
-          </section>
-        )}
-
-        {hasInfoCard && (
-          <section class="pz-footer-card">
-            <h3>Información</h3>
-            {businessHours && <p>{businessHours}</p>}
-            {servicesText && <p>{servicesText}</p>}
-          </section>
-        )}
-
-        {footerExtraText && (
-          <section class="pz-footer-card">
-            <h3>Detalles</h3>
-            <p>{footerExtraText}</p>
-          </section>
-        )}
-      </div>
-
-      {creatorStoreWhatsappHref && (
-        <section class="pz-footer-card pz-footer-creator-card">
-          <h3>Crea tu tienda</h3>
-          <p>¿Le gustaría crear su propia tienda como esta? <strong>Gratis</strong>.</p>
-          <a href={creatorStoreWhatsappHref} target="_blank" rel="noreferrer">Escribir por WhatsApp</a>
-        </section>
-      )}
+{trustItems.length > 0 && (
+  <section class="pz-trust-strip" aria-label="Beneficios de la tienda">
+    <div class={`pz-trust-grid count-${trustItems.length}`}>
+      {trustItems.map((item) => (
+        <article class="pz-trust-item">
+          <span class="pz-trust-icon" set:html={iconSvg(item.icon)} />
+          <span class="pz-trust-copy">
+            <strong>{item.title}</strong>
+            {item.description && <small>{item.description}</small>}
+          </span>
+        </article>
+      ))}
     </div>
-    <div class="pz-footer-bottom">
-      <span>© {currentYear} {storeName}</span>
-      <a href={homePath}>Inicio</a>
-    </div>
-  </footer>
+  </section>
 )}
 
+<footer class="pz-public-footer" aria-label="Informacion de la tienda">
+  <div class="pz-footer-main">
+    <section class="pz-footer-store" aria-label={storeName}>
+      <a class="pz-footer-logo-link" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
+        {logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : <span>{storeInitials(storeName)}</span>}
+      </a>
+      <div class="pz-footer-brand-copy">
+        <h2>{storeName}</h2>
+        {publicBusinessTypes.length > 0 && <p class="pz-footer-types">{publicBusinessTypes.join(' • ')}</p>}
+      </div>
+      {storeDescription && <p class="pz-footer-description">{storeDescription}</p>}
+      {socialItems.length > 0 && (
+        <div class="pz-footer-social" aria-label="Redes sociales">
+          {socialItems.map((item) => (
+            <a href={item.href} target="_blank" rel="noreferrer" aria-label={item.label} title={item.label} set:html={iconSvg(item.key)} />
+          ))}
+        </div>
+      )}
+    </section>
+
+    {infoLinks.length > 0 && (
+      <section class="pz-footer-info" aria-label="Informacion">
+        <h3>Informacion</h3>
+        <nav>
+          {infoLinks.map((item) => (
+            item.id === 'contact'
+              ? <a href={whatsappStoreHref} target="_blank" rel="noreferrer">{item.label}</a>
+              : <button type="button" data-pz-footer-modal-open={item.id}>{item.label}</button>
+          ))}
+        </nav>
+      </section>
+    )}
+
+    <section class="pz-footer-contact" aria-label="Contacto">
+      <h3>Contacto</h3>
+      {whatsappStoreHref && (
+        <a class="pz-footer-contact-line" href={whatsappStoreHref} target="_blank" rel="noreferrer">
+          <span set:html={iconSvg('whatsapp')} /> <span>WhatsApp</span>
+        </a>
+      )}
+      {(locationText || addressText) && (
+        <p class="pz-footer-contact-line">
+          <span set:html={iconSvg('location')} /> <span>{[locationText, addressText].filter(Boolean).join(' - ')}</span>
+        </p>
+      )}
+      {whatsappStoreHref && <a class="pz-footer-whatsapp-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer"><span set:html={iconSvg('whatsapp')} /> WhatsApp</a>}
+    </section>
+
+    <section class="pz-footer-platform-cta" aria-label="Crear tienda en Tu Senda 84">
+      <div class="pz-platform-icon" aria-hidden="true">
+        <span></span>
+      </div>
+      <div class="pz-platform-copy">
+        <h3>¿Le gustaría crear su propia tienda?</h3>
+        <p>Únase a Tu Senda 84 y comience hoy mismo su tienda online.</p>
+      </div>
+      <a class="pz-platform-button" href={creatorStoreHref} target={creatorStoreTarget} rel={creatorStoreTarget ? 'noreferrer' : undefined}>Crear mi tienda</a>
+      <div class="pz-platform-backed">
+        <small>Con el respaldo de</small>
+        <strong>Tu Senda 84</strong>
+      </div>
+    </section>
+
+    <p class="pz-footer-platform-note">Tienda pública de Tu Senda 84.</p>
+  </div>
+</footer>
+
+{aboutStoreText && (
+  <div class="pz-footer-modal-overlay" data-pz-footer-modal="about" hidden>
+    <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-about-title">
+      <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
+      <h2 id="pz-footer-about-title">Sobre la tienda</h2>
+      <p>{aboutStoreText}</p>
+    </section>
+  </div>
+)}
+
+{shippingDeliveryInfo && (
+  <div class="pz-footer-modal-overlay" data-pz-footer-modal="shipping" hidden>
+    <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-shipping-title">
+      <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
+      <h2 id="pz-footer-shipping-title">Envíos y entregas</h2>
+      <p>{shippingDeliveryInfo}</p>
+    </section>
+  </div>
+)}
+
+{paymentCurrencies.length > 0 && (
+  <div class="pz-footer-modal-overlay" data-pz-footer-modal="payments" hidden>
+    <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-payments-title">
+      <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
+      <h2 id="pz-footer-payments-title">Métodos de pago</h2>
+      <p>Monedas aceptadas por esta tienda</p>
+      <ul>
+        {paymentCurrencies.map((currency) => <li>{currency.label}</li>)}
+      </ul>
+      <p>El pago se coordina directamente con la tienda al confirmar el pedido.</p>
+    </section>
+  </div>
+)}
+
+<script>
+  (() => {
+    const overlays = Array.from(document.querySelectorAll('[data-pz-footer-modal]'));
+    function openFooterModal(id) {
+      const overlay = overlays.find((item) => item.dataset.pzFooterModal === id);
+      if (!overlay) return;
+      overlay.hidden = false;
+      requestAnimationFrame(() => overlay.classList.add('open'));
+    }
+    function closeFooterModal(overlay) {
+      if (!overlay) return;
+      overlay.classList.remove('open');
+      setTimeout(() => { if (!overlay.classList.contains('open')) overlay.hidden = true; }, 160);
+    }
+    document.querySelectorAll('[data-pz-footer-modal-open]').forEach((button) => {
+      button.addEventListener('click', () => openFooterModal(button.dataset.pzFooterModalOpen));
+    });
+    overlays.forEach((overlay) => {
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay || event.target.closest('[data-pz-footer-modal-close]')) closeFooterModal(overlay);
+      });
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') overlays.forEach(closeFooterModal);
+    });
+  })();
+</script>
+
 <style>
-  .pz-public-footer { margin-top: 34px; border-radius: 32px 32px 0 0; background: linear-gradient(135deg, #0f172a, #111827); color: #fff; overflow: hidden; box-shadow: 0 -18px 55px rgba(15,23,42,.16); }
-  .pz-footer-main { padding: clamp(22px, 5vw, 34px); display: grid; gap: 22px; }
-  .pz-footer-brand { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
-  .pz-footer-logo-link { width: 52px; height: 52px; border-radius: 19px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); color: #fff; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; text-decoration: none; font-weight: 1000; box-shadow: 0 16px 34px rgba(0,0,0,.20); }
+  .pz-trust-strip { margin: 28px 0 18px; border-radius: 8px; background: rgba(255,255,255,.96); border: 1px solid #e5edf7; box-shadow: 0 18px 45px rgba(15,23,42,.08); overflow: hidden; }
+  .pz-trust-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pz-trust-grid.count-1 { grid-template-columns: 1fr; }
+  .pz-trust-grid.count-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pz-trust-grid.count-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pz-trust-item { min-width: 0; display: flex; align-items: center; gap: 16px; padding: 24px; border-right: 1px solid #e5edf7; }
+  .pz-trust-item:last-child { border-right: 0; }
+  .pz-trust-icon { width: 58px; height: 58px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; color: #0b63f6; flex: 0 0 auto; }
+  .pz-trust-icon svg { width: 34px; height: 34px; fill: currentColor; }
+  .pz-trust-copy { min-width: 0; display: grid; gap: 5px; color: #0b1744; }
+  .pz-trust-copy strong { font-size: 17px; line-height: 1.15; font-weight: 1000; }
+  .pz-trust-copy small { color: #33446f; font-size: 14px; line-height: 1.35; font-weight: 800; }
+  .pz-public-footer { margin-top: 18px; border-radius: 8px; background: radial-gradient(circle at 18% 0%, rgba(37,99,235,.24), transparent 34%), linear-gradient(135deg, #061a42 0%, #08265a 52%, #06183d 100%); color: #fff; overflow: hidden; box-shadow: 0 -18px 55px rgba(15,23,42,.16); }
+  .pz-footer-main { padding: clamp(26px, 5vw, 42px); display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(180px, .75fr) minmax(210px, .9fr); gap: clamp(22px, 4vw, 54px); align-items: start; }
+  .pz-footer-store { min-width: 0; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 14px; align-items: center; }
+  .pz-footer-logo-link { width: 64px; height: 64px; border-radius: 8px; background: #0b63f6; color: #fff; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto; text-decoration: none; font-weight: 1000; font-size: 25px; box-shadow: 0 16px 34px rgba(0,0,0,.20); }
   .pz-footer-logo-link img { width: 100%; height: 100%; object-fit: cover; }
   .pz-footer-logo-link span { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
-  .pz-footer-brand h2 { margin: 0; font-size: clamp(24px, 5vw, 36px); line-height: 1; font-weight: 1000; letter-spacing: -.05em; }
-  .pz-footer-brand p, .pz-footer-card p, .pz-footer-more-area p { margin: 8px 0 0; color: rgba(255,255,255,.72); font-size: 14px; line-height: 1.55; font-weight: 750; white-space: pre-line; }
-  .pz-footer-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-  .pz-footer-card { border-radius: 24px; padding: 17px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); min-width: 0; }
-  .pz-footer-card h3 { margin: 0; font-size: 13px; font-weight: 1000; color: rgba(255,255,255,.92); text-transform: uppercase; letter-spacing: .07em; }
-  .pz-footer-card strong { color: #fff; font-weight: 1000; }
-  .pz-footer-card a, .pz-footer-bottom a, .pz-footer-floating-links a { color: #fff; font-weight: 1000; text-decoration: none; }
-  .pz-footer-card > a { display: inline-flex; margin-top: 12px; border-radius: 999px; padding: 10px 13px; background: #fff; color: #111827; font-size: 13px; }
-  .pz-footer-creator-card { order: 20; }
-  .pz-footer-floating-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .pz-footer-floating-links a { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 9px 12px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.14); font-size: 13px; box-shadow: 0 12px 24px rgba(0,0,0,.12); }
-  .pz-footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px clamp(22px, 5vw, 34px); background: rgba(0,0,0,.18); color: rgba(255,255,255,.70); font-size: 12px; font-weight: 900; }
-  @media (max-width: 820px) { .pz-footer-grid { grid-template-columns: 1fr; } .pz-public-footer { border-radius: 28px 28px 0 0; } }
+  .pz-footer-brand-copy { min-width: 0; }
+  .pz-footer-brand-copy h2 { margin: 0; font-size: clamp(25px, 3vw, 34px); line-height: 1.02; font-weight: 1000; letter-spacing: 0; }
+  .pz-footer-types { margin: 6px 0 0; color: rgba(255,255,255,.84); font-size: 15px; line-height: 1.3; font-weight: 850; }
+  .pz-footer-description { grid-column: 1 / -1; margin: 18px 0 0; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.55; font-weight: 750; white-space: pre-line; }
+  .pz-footer-social { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+  .pz-footer-social a { width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.10); text-decoration: none; }
+  .pz-footer-social svg, .pz-footer-contact-line svg, .pz-footer-whatsapp-btn svg { width: 25px; height: 25px; fill: currentColor; flex: 0 0 auto; }
+  .pz-footer-info h3, .pz-footer-contact h3 { margin: 0 0 20px; font-size: 21px; line-height: 1.15; font-weight: 1000; color: #fff; }
+  .pz-footer-info nav { display: grid; gap: 16px; }
+  .pz-footer-info a, .pz-footer-info button { width: max-content; max-width: 100%; padding: 0; border: 0; background: transparent; color: rgba(255,255,255,.88); font: inherit; font-size: 16px; line-height: 1.4; font-weight: 800; text-align: left; text-decoration: none; cursor: pointer; }
+  .pz-footer-contact { min-width: 0; display: grid; gap: 14px; }
+  .pz-footer-contact-line { margin: 0; min-width: 0; display: flex; align-items: center; gap: 14px; color: rgba(255,255,255,.88); font-size: 16px; line-height: 1.4; font-weight: 850; text-decoration: none; }
+  .pz-footer-contact-line span:last-child { min-width: 0; overflow-wrap: anywhere; }
+  .pz-footer-whatsapp-btn { width: min(100%, 230px); margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 8px; padding: 14px 18px; background: #0b63f6; color: #fff; text-decoration: none; font-size: 16px; font-weight: 1000; box-shadow: 0 16px 32px rgba(0,0,0,.18); }
+  .pz-footer-platform-cta { grid-column: 1 / -1; margin-top: 16px; padding: 24px; border-radius: 8px; border: 1px solid rgba(96,165,250,.34); background: rgba(14,68,138,.36); display: grid; grid-template-columns: 78px minmax(0, 1fr) minmax(180px, 260px) minmax(150px, auto); gap: 24px; align-items: center; }
+  .pz-platform-icon { width: 78px; height: 78px; border-radius: 8px; display: grid; place-items: center; background: rgba(11,99,246,.18); border: 1px solid rgba(96,165,250,.34); }
+  .pz-platform-icon span { width: 40px; height: 42px; position: relative; display: block; border-radius: 0 0 7px 7px; background: #0b63f6; box-shadow: inset 13px 0 0 rgba(255,255,255,.18); }
+  .pz-platform-icon span::before { content: ''; position: absolute; left: -5px; right: -5px; top: -16px; height: 17px; border-radius: 7px 7px 3px 3px; background: repeating-linear-gradient(90deg, #fff 0 10px, #0b63f6 10px 20px); }
+  .pz-platform-copy h3 { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 1000; color: #fff; }
+  .pz-platform-copy p { margin: 9px 0 0; color: rgba(255,255,255,.86); font-size: 15px; line-height: 1.45; font-weight: 750; }
+  .pz-platform-button { min-height: 58px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; padding: 14px 18px; background: #fff; color: #0b63f6; text-decoration: none; font-size: 17px; font-weight: 1000; box-shadow: 0 12px 28px rgba(0,0,0,.12); }
+  .pz-platform-backed { display: grid; gap: 6px; color: #fff; }
+  .pz-platform-backed small { color: rgba(255,255,255,.82); font-size: 13px; line-height: 1.2; font-weight: 750; }
+  .pz-platform-backed strong { font-size: 17px; line-height: 1.2; font-weight: 1000; }
+  .pz-footer-platform-note { grid-column: 1 / -1; margin: 0; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.16); color: rgba(255,255,255,.84); text-align: center; font-size: 15px; line-height: 1.4; font-weight: 800; }
+  .pz-footer-modal-overlay { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 18px; background: rgba(15,23,42,.54); opacity: 0; pointer-events: none; transition: opacity .16s ease; }
+  .pz-footer-modal-overlay.open { opacity: 1; pointer-events: auto; }
+  .pz-footer-modal { position: relative; width: min(560px, 100%); max-height: min(82vh, 680px); overflow: auto; border-radius: 8px; background: #fff; color: #111827; padding: 24px; box-shadow: 0 28px 90px rgba(15,23,42,.28); }
+  .pz-footer-modal-close { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #111827; font-size: 22px; line-height: 1; font-weight: 1000; }
+  .pz-footer-modal h2 { margin: 0 44px 14px 0; color: #111827; font-size: 24px; line-height: 1.1; font-weight: 1000; }
+  .pz-footer-modal p { margin: 0 0 12px; color: #334155; font-size: 15px; line-height: 1.6; font-weight: 750; white-space: pre-line; }
+  .pz-footer-modal ul { margin: 0 0 14px; padding-left: 20px; color: #0f172a; font-size: 15px; line-height: 1.6; font-weight: 850; }
+  @media (max-width: 980px) {
+    .pz-footer-main { grid-template-columns: 1fr; }
+    .pz-footer-platform-cta { grid-template-columns: 64px minmax(0, 1fr); }
+    .pz-platform-button, .pz-platform-backed { grid-column: 1 / -1; }
+    .pz-platform-backed { text-align: left; }
+  }
+  @media (max-width: 720px) {
+    .pz-trust-grid, .pz-trust-grid.count-3, .pz-trust-grid.count-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .pz-trust-grid.count-1 { grid-template-columns: 1fr; }
+    .pz-trust-item { display: grid; justify-items: center; text-align: center; padding: 18px 12px; border-right: 0; border-bottom: 1px solid #e5edf7; }
+    .pz-trust-icon { width: 52px; height: 52px; }
+    .pz-trust-copy strong { font-size: 14px; }
+    .pz-trust-copy small { font-size: 12px; }
+    .pz-public-footer { border-radius: 8px; }
+    .pz-footer-main { padding: 26px 18px; gap: 28px; }
+    .pz-footer-store { grid-template-columns: 58px minmax(0, 1fr); }
+    .pz-footer-logo-link { width: 56px; height: 56px; }
+    .pz-footer-description { font-size: 15px; }
+    .pz-footer-platform-cta { padding: 18px; grid-template-columns: 1fr; justify-items: start; gap: 16px; }
+    .pz-platform-icon { width: 70px; height: 70px; }
+    .pz-platform-button { width: 100%; }
+  }
 </style>
