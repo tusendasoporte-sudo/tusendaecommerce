@@ -477,7 +477,7 @@ const masterSupportHref = masterSupportWhatsapp
                 <div class="field"><label for="zone-modal-note">Nota interna opcional</label><textarea id="zone-modal-note" placeholder="Detalles internos para el administrador"></textarea></div>
                 <div class="form-actions">
                   <button id="zone-modal-cancel" class="mini-btn" type="button">Cancelar</button>
-                  <button class="mini-btn primary" type="submit">Guardar zona</button>
+                  <button id="zone-modal-save-btn" class="mini-btn primary" type="submit">Guardar zona</button>
                 </div>
                 <div id="zone-modal-alert" class="alert alert-info hidden"></div>
               </form>
@@ -510,6 +510,7 @@ const masterSupportHref = masterSupportWhatsapp
       const formTitle = document.getElementById('form-title');
       const formSubtitle = document.getElementById('form-subtitle');
       const formAlert = document.getElementById('form-alert');
+      const saveZoneBtn = document.getElementById('save-zone-btn');
       const listAlert = document.getElementById('list-alert');
       const zonesList = document.getElementById('zones-list');
       const paginationSummary = document.getElementById('pagination-summary');
@@ -524,6 +525,7 @@ const masterSupportHref = masterSupportWhatsapp
       const zoneModalForm = document.getElementById('zone-modal-form');
       const zoneModalClose = document.getElementById('zone-modal-close');
       const zoneModalCancel = document.getElementById('zone-modal-cancel');
+      const zoneModalSaveBtn = document.getElementById('zone-modal-save-btn');
       const zoneModalSubtitle = document.getElementById('zone-modal-subtitle');
       const zoneModalAlert = document.getElementById('zone-modal-alert');
       const zoneModalFields = {
@@ -542,12 +544,26 @@ const masterSupportHref = masterSupportWhatsapp
       };
       let shippingZones = [];
       let editingId = '';
+      let formInitialSnapshot = '';
+      let modalInitialSnapshot = '';
+      const noticeTimers = { form: null, modal: null, list: null };
+      let isSavingZone = false;
+      let isSavingModalZone = false;
       const expandedMunicipalities = new Set();
       function token(){return ADMIN_AUTH_TOKEN;}
       function showAlert(element,message='',type='info'){
         if(!element)return;
         if(!message){element.className='alert alert-info hidden';element.textContent='';return;}
         element.className='alert alert-'+type;element.textContent=message;
+      }
+      function showTimedAlert(element,message='',type='info',timerName='form'){
+        const key=noticeTimers[timerName]===undefined?'form':timerName;
+        if(noticeTimers[key]){window.clearTimeout(noticeTimers[key]);noticeTimers[key]=null;}
+        showAlert(element,message,type);
+        const timeout=type==='success'?2800:type==='error'?4800:0;
+        if(message&&timeout){
+          noticeTimers[key]=window.setTimeout(()=>{showAlert(element,'');noticeTimers[key]=null;},timeout);
+        }
       }
       function escapeHtml(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
       function formatMoney(value){return '$'+Number(value||0).toFixed(2);}
@@ -568,40 +584,81 @@ const masterSupportHref = masterSupportWhatsapp
       }
       function showAdmin(){loginView.classList.add('hidden');adminView.classList.remove('hidden');logoutBtn?.classList.remove('hidden');loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envios.','error'));}
       function showLogin(){adminView.classList.add('hidden');loginView.classList.remove('hidden');logoutBtn?.classList.add('hidden');}
-      function getPayload(){
-        const municipality=fields.municipality.value.trim();
-        const zone=fields.zone.value.trim();
+      function collectFormPayload(){
         const priceRaw=String(fields.price.value||'').replace(',', '.').trim();
-        const price=Number(priceRaw||0);
-        if(municipality.length<2)throw new Error('Escribe el municipio.');
-        if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio unico USD valido.');
-        return {municipality,zone,price_usd:price,active:fields.active.checked,note:fields.note.value.trim(),store:CURRENT_STORE_ID};
+        return {municipality:fields.municipality.value.trim(),zone:fields.zone.value.trim(),price_usd:priceRaw===''?'':Number(priceRaw),active:fields.active.checked,note:fields.note.value.trim(),store:CURRENT_STORE_ID};
       }
+      function collectModalPayload(){
+        const priceRaw=String(zoneModalFields.price.value||'').replace(',', '.').trim();
+        return {municipality:zoneModalFields.municipality.value.trim(),zone:zoneModalFields.zone.value.trim(),price_usd:priceRaw===''?'':Number(priceRaw),active:zoneModalFields.active.checked,note:zoneModalFields.note.value.trim(),store:CURRENT_STORE_ID};
+      }
+      function validateZonePayload(payload,{requireZone=false}={}){
+        if(String(payload.municipality||'').length<2)return 'Selecciona un municipio.';
+        if(requireZone&&String(payload.zone||'').length<2)return 'Completa el nombre de la zona.';
+        if(payload.price_usd==='')return 'Completa el precio de envío.';
+        if(!Number.isFinite(Number(payload.price_usd))||Number(payload.price_usd)<0)return 'Completa un precio de envío válido.';
+        return '';
+      }
+      function getPayload(){
+        const payload=collectFormPayload();
+        const error=validateZonePayload(payload);
+        if(error)throw new Error(error);
+        payload.price_usd=Number(payload.price_usd);
+        return payload;
+      }
+      function formSnapshot(){return JSON.stringify(collectFormPayload());}
+      function modalSnapshot(){return JSON.stringify(collectModalPayload());}
+      function hasFormChanges(){return Boolean(formInitialSnapshot)&&formSnapshot()!==formInitialSnapshot;}
+      function hasModalChanges(){return Boolean(modalInitialSnapshot)&&modalSnapshot()!==modalInitialSnapshot;}
+      function syncFormState(){
+        if(!saveZoneBtn)return;
+        const canSave=!validateZonePayload(collectFormPayload())&&hasFormChanges()&&!isSavingZone;
+        saveZoneBtn.disabled=!canSave;
+        saveZoneBtn.textContent=isSavingZone?'Guardando...':(editingId?'Guardar cambios':'Guardar zona');
+      }
+      function syncModalState(){
+        if(!zoneModalSaveBtn)return;
+        const canSave=!validateZonePayload(collectModalPayload(),{requireZone:true})&&hasModalChanges()&&!isSavingModalZone;
+        zoneModalSaveBtn.disabled=!canSave;
+        zoneModalSaveBtn.textContent=isSavingModalZone?'Guardando...':'Guardar zona';
+      }
+      function setFormSnapshot(){formInitialSnapshot=formSnapshot();syncFormState();}
+      function setModalSnapshot(){modalInitialSnapshot=modalSnapshot();syncModalState();}
       function setNewZoneButtonText(text){
         if(newZoneTopBtn)newZoneTopBtn.lastChild.textContent=text;
         if(newZoneMobileBtn)newZoneMobileBtn.lastChild.textContent=text === 'Cerrar panel' ? 'Cerrar' : 'Nueva zona';
       }
       function showMainForm(){document.getElementById('form-panel').classList.remove('hidden');newZoneTopBtn?.setAttribute('aria-expanded','true');setNewZoneButtonText('Cerrar panel');}
       function hideMainForm(){document.getElementById('form-panel').classList.add('hidden');newZoneTopBtn?.setAttribute('aria-expanded','false');setNewZoneButtonText('Nueva zona');}
-      function resetForm(){editingId='';form.reset();fields.active.checked=true;formTitle.textContent='Nueva zona';formSubtitle.textContent='Crea un municipio y su zona inicial con precio unico de entrega en USD.';cancelEditBtn.classList.add('hidden');document.getElementById('save-zone-btn').textContent='Guardar zona';showAlert(formAlert,'');}
-      function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envio';formSubtitle.textContent='Modifica municipio, zona, precio unico o estado.';cancelEditBtn.classList.remove('hidden');document.getElementById('save-zone-btn').textContent='Guardar cambios';document.getElementById('form-panel').scrollIntoView({behavior:'smooth',block:'start'});}
-      function openZoneModal(municipality){closeZoneMenus();zoneModalForm.reset();zoneModalFields.active.checked=true;zoneModalFields.municipality.value=municipality||'';zoneModalSubtitle.textContent='Nueva zona para '+(municipality||'el municipio seleccionado')+'.';showAlert(zoneModalAlert,'');zoneModal.classList.remove('hidden');zoneModal.setAttribute('aria-hidden','false');setTimeout(()=>zoneModalFields.zone.focus(),60);}
-      function closeZoneModal(){zoneModal.classList.add('hidden');zoneModal.setAttribute('aria-hidden','true');showAlert(zoneModalAlert,'');}
-      function getZoneModalPayload(){const municipality=zoneModalFields.municipality.value.trim();const zone=zoneModalFields.zone.value.trim();const priceRaw=String(zoneModalFields.price.value||'').replace(',', '.').trim();const price=Number(priceRaw||0);if(municipality.length<2)throw new Error('Falta el municipio.');if(zone.length<2)throw new Error('Escribe el nombre de la zona.');if(!Number.isFinite(price)||price<0)throw new Error('Escribe un precio unico USD valido.');return {municipality,zone,price_usd:price,active:zoneModalFields.active.checked,note:zoneModalFields.note.value.trim(),store:CURRENT_STORE_ID};}
-      async function saveZoneFromModal(event){event.preventDefault();showAlert(zoneModalAlert,'');const payload=getZoneModalPayload();await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(payload.municipality)expandedMunicipalities.add(payload.municipality);showAlert(zoneModalAlert,'Zona agregada correctamente.','success');closeZoneModal();await loadZones();}
+      function resetForm(){editingId='';form.reset();isSavingZone=false;fields.active.checked=true;formTitle.textContent='Nueva zona';formSubtitle.textContent='Crea un municipio y su zona inicial con precio unico de entrega en USD.';cancelEditBtn.classList.add('hidden');showTimedAlert(formAlert,'','info','form');setFormSnapshot();}
+      function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envio';formSubtitle.textContent='Modifica municipio, zona, precio unico o estado.';cancelEditBtn.classList.remove('hidden');setFormSnapshot();document.getElementById('form-panel').scrollIntoView({behavior:'smooth',block:'start'});}
+      function openZoneModal(municipality){closeZoneMenus();zoneModalForm.reset();isSavingModalZone=false;zoneModalFields.active.checked=true;zoneModalFields.municipality.value=municipality||'';zoneModalSubtitle.textContent='Nueva zona para '+(municipality||'el municipio seleccionado')+'.';showTimedAlert(zoneModalAlert,'','info','modal');setModalSnapshot();zoneModal.classList.remove('hidden');zoneModal.setAttribute('aria-hidden','false');setTimeout(()=>zoneModalFields.zone.focus(),60);}
+      function closeZoneModal(){zoneModal.classList.add('hidden');zoneModal.setAttribute('aria-hidden','true');showTimedAlert(zoneModalAlert,'','info','modal');}
+      function getZoneModalPayload(){const payload=collectModalPayload();const error=validateZonePayload(payload,{requireZone:true});if(error)throw new Error(error);payload.price_usd=Number(payload.price_usd);return payload;}
+      async function saveZoneFromModal(event){event.preventDefault();if(isSavingModalZone)return;showTimedAlert(zoneModalAlert,'','info','modal');const payload=getZoneModalPayload();if(!hasModalChanges()){syncModalState();return;}isSavingModalZone=true;syncModalState();showTimedAlert(zoneModalAlert,'Guardando cambios...','info','modal');try{await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(payload.municipality)expandedMunicipalities.add(payload.municipality);closeZoneModal();await loadZones();showTimedAlert(listAlert,'Zona de envío creada correctamente','success','list');}catch(error){showTimedAlert(zoneModalAlert,'No se pudieron guardar los cambios','error','modal');}finally{isSavingModalZone=false;syncModalState();}}
       async function saveZone(event){
-        event.preventDefault();showAlert(formAlert,'');
+        event.preventDefault();
+        if(isSavingZone)return;
+        showTimedAlert(formAlert,'','info','form');
         const payload=getPayload();
+        if(!hasFormChanges()){syncFormState();return;}
         const savedMunicipality=payload.municipality;
-        if(editingId){
-          await api('/api/collections/shipping_zones/records/'+editingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          showAlert(formAlert,'Zona actualizada correctamente.','success');
-        }else{
-          await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          showAlert(formAlert,'Zona agregada correctamente.','success');
+        const isEditing=Boolean(editingId);
+        isSavingZone=true;syncFormState();showTimedAlert(formAlert,'Guardando cambios...','info','form');
+        try{
+          if(isEditing){
+            await api('/api/collections/shipping_zones/records/'+editingId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+          }else{
+            await api('/api/collections/shipping_zones/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+          }
+          if(savedMunicipality)expandedMunicipalities.add(savedMunicipality);
+          resetForm();hideMainForm();await loadZones();
+          showTimedAlert(listAlert,isEditing?'Envío actualizado correctamente':'Zona de envío creada correctamente','success','list');
+        }catch(error){
+          showTimedAlert(formAlert,'No se pudieron guardar los cambios','error','form');
+        }finally{
+          isSavingZone=false;syncFormState();
         }
-        if(savedMunicipality)expandedMunicipalities.add(savedMunicipality);
-        resetForm();hideMainForm();await loadZones();
       }
       async function loadZones(){
         showAlert(listAlert,'');
@@ -725,7 +782,7 @@ const masterSupportHref = masterSupportWhatsapp
         if(event.target.closest('.js-toggle')){
           closeZoneMenus();
           api('/api/collections/shipping_zones/records/'+zone.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:zone.active===false})})
-            .then(loadZones).catch((error)=>showAlert(listAlert,error.message||'No se pudo cambiar el estado.','error'));
+            .then(()=>loadZones()).then(()=>showTimedAlert(listAlert,'Envío actualizado correctamente','success','list')).catch(()=>showTimedAlert(listAlert,'No se pudieron guardar los cambios','error','list'));
           return;
         }
         if(event.target.closest('.js-delete')){
@@ -734,16 +791,21 @@ const masterSupportHref = masterSupportWhatsapp
           if(!ok)return;
           api('/api/collections/shipping_zones/records/'+zone.id,{method:'DELETE'})
             .then(()=>{if(editingId===zone.id)resetForm();return loadZones();})
-            .catch((error)=>showAlert(listAlert,error.message||'No se pudo borrar la zona.','error'));
+            .then(()=>showTimedAlert(listAlert,'Zona de envío eliminada correctamente','success','list'))
+            .catch(()=>showTimedAlert(listAlert,'No se pudieron guardar los cambios','error','list'));
         }
       });
       document.addEventListener('click',(event)=>{if(!event.target.closest('.zone-menu-wrap'))closeZoneMenus();});
-      form.addEventListener('submit',(event)=>saveZone(event).catch((error)=>showAlert(formAlert,error.message||'No se pudo guardar la zona.','error')));
+      form.addEventListener('input',syncFormState);
+      form.addEventListener('change',syncFormState);
+      form.addEventListener('submit',(event)=>saveZone(event).catch((error)=>{isSavingZone=false;syncFormState();showTimedAlert(formAlert,error.message||'No se pudieron guardar los cambios','error','form');}));
       cancelEditBtn.addEventListener('click',()=>{resetForm();hideMainForm();});
       function toggleMainForm(){const panel=document.getElementById('form-panel');const willOpen=panel.classList.contains('hidden');resetForm();if(willOpen){showMainForm();panel.scrollIntoView({behavior:'smooth',block:'start'});}else{hideMainForm();}}
       newZoneTopBtn.addEventListener('click',toggleMainForm);
       newZoneMobileBtn.addEventListener('click',toggleMainForm);
-      zoneModalForm.addEventListener('submit',(event)=>saveZoneFromModal(event).catch((error)=>showAlert(zoneModalAlert,error.message||'No se pudo guardar la zona.','error')));
+      zoneModalForm.addEventListener('input',syncModalState);
+      zoneModalForm.addEventListener('change',syncModalState);
+      zoneModalForm.addEventListener('submit',(event)=>saveZoneFromModal(event).catch((error)=>{isSavingModalZone=false;syncModalState();showTimedAlert(zoneModalAlert,error.message||'No se pudieron guardar los cambios','error','modal');}));
       zoneModalClose.addEventListener('click',closeZoneModal);
       zoneModalCancel.addEventListener('click',closeZoneModal);
       zoneModal.addEventListener('click',(event)=>{if(event.target===zoneModal)closeZoneModal();});

@@ -2325,7 +2325,7 @@ const masterSupportHref = masterSupportWhatsapp
               <div class="field"><label for="settings-footer-link-2-url">URL enlace 2</label><input id="settings-footer-link-2-url" type="url" placeholder="https://..." /></div>
               <div id="footer-settings-alert" class="alert alert-info hidden full"></div>
               <div class="full hero-actions" style="justify-content:flex-start">
-                <button class="submit-btn" type="submit">Guardar footer público</button>
+                <button id="footer-settings-save-btn" class="submit-btn" type="submit">Guardar footer público</button>
                 <button id="footer-settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
               </div>
             </form>
@@ -2380,7 +2380,7 @@ const masterSupportHref = masterSupportWhatsapp
                 <p class="form-help">Si lo desactivas, el checkout bloqueará el botón de realizar pedido cuando la tienda esté cerrada.</p>
               </div>
               <div id="business-hours-alert" class="alert alert-info hidden full"></div>
-              <div class="editor-actions full"><button class="submit-btn" type="submit">Guardar horario</button></div>
+              <div class="editor-actions full"><button id="business-hours-save-btn" class="submit-btn" type="submit">Guardar horario</button></div>
             </form>
           </section>
 
@@ -3372,6 +3372,7 @@ const masterSupportHref = masterSupportWhatsapp
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
         const footerRefreshBtn = document.getElementById('footer-settings-refresh-btn');
+        const footerSaveBtn = document.getElementById('footer-settings-save-btn');
         const businessTypeTrigger = document.getElementById('business-type-trigger');
         const businessTypePanel = document.getElementById('business-type-panel');
         const businessTypeSearch = document.getElementById('business-type-search');
@@ -3396,6 +3397,9 @@ const masterSupportHref = masterSupportWhatsapp
         let settingsNoticeTimer = null;
         let settingsSaving = false;
         let settingsInitialSnapshot = null;
+        let footerNoticeTimer = null;
+        let footerSaving = false;
+        let footerInitialSnapshot = null;
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -3417,7 +3421,20 @@ const masterSupportHref = masterSupportWhatsapp
             }, timeout);
           }
         }
-        function showFooter(message = '', type = 'info') { showMessage(footerAlertBox, message, type); }
+        function showFooter(message = '', type = 'info') {
+          if (footerNoticeTimer) {
+            window.clearTimeout(footerNoticeTimer);
+            footerNoticeTimer = null;
+          }
+          showMessage(footerAlertBox, message, type);
+          const timeout = type === 'success' ? 2800 : type === 'error' ? 4800 : 0;
+          if (message && timeout) {
+            footerNoticeTimer = window.setTimeout(() => {
+              showMessage(footerAlertBox, '', 'info');
+              footerNoticeTimer = null;
+            }, timeout);
+          }
+        }
         function fileName(name) { const value = settingsRecord && settingsRecord[name]; return Array.isArray(value) ? value[0] : value || ''; }
         function fileNames(name) {
           const value = settingsRecord && settingsRecord[name];
@@ -3548,6 +3565,47 @@ const masterSupportHref = masterSupportWhatsapp
           if (whatsapp && !/^https?:\/\//i.test(whatsapp) && whatsapp.replace(/[^0-9]/g, '').length < 7) return 'WhatsApp debe ser un numero valido o un enlace.';
           if (whatsapp && /^https?:\/\//i.test(whatsapp) && !/^https?:\/\/\S+\.\S+/i.test(whatsapp)) return 'WhatsApp debe ser un enlace valido.';
           return '';
+        }
+        function collectFooterPayload() {
+          const socialLinks = {
+            instagram: normalizeFooterSocialUrl('instagram', fields.footerSocialInstagram?.value || ''),
+            facebook: normalizeFooterSocialUrl('facebook', fields.footerSocialFacebook?.value || ''),
+            tiktok: normalizeFooterSocialUrl('tiktok', fields.footerSocialTiktok?.value || ''),
+            youtube: normalizeFooterSocialUrl('youtube', fields.footerSocialYoutube?.value || ''),
+            whatsapp: normalizeFooterSocialUrl('whatsapp', fields.footerSocialWhatsapp?.value || ''),
+          };
+          return {
+            footer_title: fields.footerTitle?.value?.trim() || '',
+            footer_text: fields.footerText?.value?.trim() || '',
+            footer_contact_text: fields.footerContactText?.value?.trim() || '',
+            footer_extra_text: fields.footerExtraText?.value?.trim() || '',
+            footer_link_1_label: fields.footerLink1Label?.value?.trim() || '',
+            footer_link_1_url: fields.footerLink1Url?.value?.trim() || '',
+            footer_link_2_label: fields.footerLink2Label?.value?.trim() || '',
+            footer_link_2_url: fields.footerLink2Url?.value?.trim() || '',
+            footer_social_links: JSON.stringify(socialLinks),
+            footer_trust_items: JSON.stringify(collectFooterTrustItems()),
+            shipping_delivery_info: fields.shippingDeliveryInfo?.value?.trim() || '',
+            store: CURRENT_STORE_ID_PUBLIC_SETTINGS,
+          };
+        }
+        function footerSnapshot() {
+          return JSON.stringify(collectFooterPayload());
+        }
+        function hasFooterChanges() {
+          return Boolean(footerInitialSnapshot) && footerSnapshot() !== footerInitialSnapshot;
+        }
+        function syncFooterSubmitState() {
+          if (!footerSaveBtn) return;
+          const payload = collectFooterPayload();
+          const socialLinks = parseJsonObject(payload.footer_social_links);
+          const canSubmit = !validateFooterSocialLinks(socialLinks) && hasFooterChanges() && !footerSaving;
+          footerSaveBtn.disabled = !canSubmit;
+          footerSaveBtn.textContent = footerSaving ? 'Guardando...' : 'Guardar footer público';
+        }
+        function setFooterInitialSnapshot() {
+          footerInitialSnapshot = footerSnapshot();
+          syncFooterSubmitState();
         }
         function businessTypeLabel(slug) {
           for (const group of BUSINESS_TYPE_GROUPS_LOCAL) {
@@ -3889,6 +3947,7 @@ const masterSupportHref = masterSupportWhatsapp
           fields.footerSocialWhatsapp.value = footerSocial.whatsapp || '';
           fields.shippingDeliveryInfo.value = record.shipping_delivery_info || '';
           renderFooterTrustEditor(record.footer_trust_items || []);
+          setFooterInitialSnapshot();
           const hasLogoImage = Boolean(fileName('logo_image'));
           const hasCoverImage = Boolean(fileName('cover_image'));
           renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo', 'js-delete-logo-image');
@@ -3988,39 +4047,45 @@ const masterSupportHref = masterSupportWhatsapp
         }
         async function saveFooter(event) {
           event.preventDefault();
+          if (footerSaving) return;
+          const payload = collectFooterPayload();
+          const socialLinks = parseJsonObject(payload.footer_social_links);
+          const socialError = validateFooterSocialLinks(socialLinks);
+          if (socialError) {
+            showFooter(socialError, 'error');
+            syncFooterSubmitState();
+            return;
+          }
+          if (!hasFooterChanges()) {
+            syncFooterSubmitState();
+            return;
+          }
+          footerSaving = true;
+          syncFooterSubmitState();
+          showFooter('Guardando cambios...', 'info');
           if (!settingsRecord || !settingsRecord.id) {
             try {
               settingsRecord = await createSettingsRecord();
             } catch (error) {
-              showFooter(error.message || 'No se pudo crear el registro de ajustes de esta tienda.', 'error');
+              footerSaving = false;
+              syncFooterSubmitState();
+              showFooter('No se pudieron guardar los cambios', 'error');
               return;
             }
           }
           const data = new FormData();
-          const socialLinks = {
-            instagram: normalizeFooterSocialUrl('instagram', fields.footerSocialInstagram?.value || ''),
-            facebook: normalizeFooterSocialUrl('facebook', fields.footerSocialFacebook?.value || ''),
-            tiktok: normalizeFooterSocialUrl('tiktok', fields.footerSocialTiktok?.value || ''),
-            youtube: normalizeFooterSocialUrl('youtube', fields.footerSocialYoutube?.value || ''),
-            whatsapp: normalizeFooterSocialUrl('whatsapp', fields.footerSocialWhatsapp?.value || ''),
-          };
-          const socialError = validateFooterSocialLinks(socialLinks);
-          if (socialError) return showFooter(socialError, 'error');
-          data.append('footer_title', fields.footerTitle.value.trim());
-          data.append('footer_text', fields.footerText.value.trim());
-          data.append('footer_contact_text', fields.footerContactText.value.trim());
-          data.append('footer_extra_text', fields.footerExtraText.value.trim());
-          data.append('footer_link_1_label', fields.footerLink1Label.value.trim());
-          data.append('footer_link_1_url', fields.footerLink1Url.value.trim());
-          data.append('footer_link_2_label', fields.footerLink2Label.value.trim());
-          data.append('footer_link_2_url', fields.footerLink2Url.value.trim());
-          data.append('footer_social_links', JSON.stringify(socialLinks));
-          data.append('footer_trust_items', JSON.stringify(collectFooterTrustItems()));
-          data.append('shipping_delivery_info', fields.shippingDeliveryInfo?.value?.trim() || '');
-          data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
-          await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
-          showFooter('Footer público guardado correctamente.', 'success');
-          await loadSettings();
+          Object.entries(payload).forEach(([key, value]) => data.append(key, value));
+          try {
+            await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
+            showFooter('Footer actualizado correctamente', 'success');
+            await loadSettings();
+          } catch (error) {
+            console.error(error);
+            showFooter('No se pudieron guardar los cambios', 'error');
+          } finally {
+            footerSaving = false;
+            syncFooterSubmitState();
+          }
         }
         fields.orderPrefix && fields.orderPrefix.addEventListener('input', () => {
           fields.orderPrefix.value = String(fields.orderPrefix.value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
@@ -4158,8 +4223,14 @@ const masterSupportHref = masterSupportWhatsapp
         syncSettingsSubmitState();
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
         refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
-        footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch((error) => showFooter(error.message || 'No se pudo guardar el footer.', 'error')));
-        footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => loadSettings().catch((error) => showFooter(error.message || 'No se pudieron cargar los ajustes.', 'error')));
+        footerForm?.addEventListener('input', syncFooterSubmitState);
+        footerForm?.addEventListener('change', syncFooterSubmitState);
+        footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch(() => {
+          footerSaving = false;
+          syncFooterSubmitState();
+          showFooter('No se pudieron guardar los cambios', 'error');
+        }));
+        footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => loadSettings().catch(() => showFooter('No se pudieron cargar los ajustes.', 'error')));
         if (token()) loadSettings().catch(() => {});
       })();
     </script>
@@ -4795,19 +4866,35 @@ const masterSupportHref = masterSupportWhatsapp
         const form = document.getElementById('business-hours-form');
         const alertBox = document.getElementById('business-hours-alert');
         const refreshBtn = document.getElementById('business-hours-refresh-btn');
+        const saveBtn = document.getElementById('business-hours-save-btn');
         const daysBox = document.getElementById('business-hours-days');
         const daysGrid = document.getElementById('business-hours-days-grid');
         const closedMessage = document.getElementById('closed-message');
         const temporarilyClosedMessage = document.getElementById('temporarily-closed-message');
         const allowOrders = document.getElementById('allow-orders-when-closed');
         let settingsRecord = null;
+        let hoursNoticeTimer = null;
+        let hoursSaving = false;
+        let hoursInitialSnapshot = null;
 
         function token() { return ADMIN_AUTH_TOKEN; }
         function show(message = '', type = 'info') {
           if (!alertBox) return;
+          if (hoursNoticeTimer) {
+            window.clearTimeout(hoursNoticeTimer);
+            hoursNoticeTimer = null;
+          }
           if (!message) { alertBox.className = 'alert alert-info hidden'; alertBox.textContent = ''; return; }
           alertBox.className = 'alert alert-' + type;
           alertBox.textContent = message;
+          const timeout = type === 'success' ? 2800 : type === 'error' ? 4800 : 0;
+          if (timeout) {
+            hoursNoticeTimer = window.setTimeout(() => {
+              alertBox.className = 'alert alert-info hidden';
+              alertBox.textContent = '';
+              hoursNoticeTimer = null;
+            }, timeout);
+          }
         }
         async function api(path, options = {}) {
           const headers = Object.assign({}, options.headers || {});
@@ -4858,6 +4945,7 @@ const masterSupportHref = masterSupportWhatsapp
         }
         function updateModeUI() {
           if (daysBox) daysBox.classList.toggle('hidden', selectedMode() !== 'custom');
+          syncHoursSubmitState();
         }
         function renderDays(hours = DEFAULT_HOURS) {
           if (!daysGrid) return;
@@ -4876,6 +4964,7 @@ const masterSupportHref = masterSupportWhatsapp
               </article>
             `;
           }).join('');
+          syncHoursSubmitState();
         }
         function readDays() {
           const next = {};
@@ -4888,6 +4977,45 @@ const masterSupportHref = masterSupportWhatsapp
             };
           });
           return mergeHours(next);
+        }
+        function collectHoursPayload() {
+          return {
+            business_hours_mode: selectedMode(),
+            business_hours: JSON.stringify(readDays()),
+            closed_message: closedMessage?.value?.trim() || CLOSED_MESSAGE_DEFAULT,
+            temporarily_closed_message: temporarilyClosedMessage?.value?.trim() || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
+            allow_orders_when_closed: allowOrders?.checked !== false,
+            store: CURRENT_STORE_ID,
+          };
+        }
+        function validateHoursPayload(payload) {
+          if (payload.business_hours_mode !== 'custom') return '';
+          const hours = parseHours(payload.business_hours);
+          for (const [key, label] of DAYS) {
+            const day = hours[key] || {};
+            if (!day.enabled) continue;
+            if (!day.open) return `Completa la hora de apertura (${label}).`;
+            if (!day.close) return `Completa la hora de cierre (${label}).`;
+            if (day.close <= day.open) return `La hora de cierre debe ser posterior a la apertura (${label}).`;
+          }
+          return '';
+        }
+        function hoursSnapshot() {
+          return JSON.stringify(collectHoursPayload());
+        }
+        function hasHoursChanges() {
+          return Boolean(hoursInitialSnapshot) && hoursSnapshot() !== hoursInitialSnapshot;
+        }
+        function syncHoursSubmitState() {
+          if (!saveBtn) return;
+          const payload = collectHoursPayload();
+          const canSubmit = !validateHoursPayload(payload) && hasHoursChanges() && !hoursSaving;
+          saveBtn.disabled = !canSubmit;
+          saveBtn.textContent = hoursSaving ? 'Guardando...' : 'Guardar horario';
+        }
+        function setHoursInitialSnapshot() {
+          hoursInitialSnapshot = hoursSnapshot();
+          syncHoursSubmitState();
         }
         async function findDefaultCurrencyId() {
           const result = await api('/api/collections/currencies/records?' + withStoreFilter('filter=active%3Dtrue&sort=code&page=1&perPage=1'));
@@ -4922,31 +5050,53 @@ const masterSupportHref = masterSupportWhatsapp
           if (closedMessage) closedMessage.value = record.closed_message || CLOSED_MESSAGE_DEFAULT;
           if (temporarilyClosedMessage) temporarilyClosedMessage.value = record.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT;
           if (allowOrders) allowOrders.checked = record.allow_orders_when_closed !== false;
+          setHoursInitialSnapshot();
         }
         async function save(event) {
           event.preventDefault();
-          if (!settingsRecord?.id) settingsRecord = await createSettingsRecord();
-          const payload = {
-            business_hours_mode: selectedMode(),
-            business_hours: JSON.stringify(readDays()),
-            closed_message: closedMessage?.value?.trim() || CLOSED_MESSAGE_DEFAULT,
-            temporarily_closed_message: temporarilyClosedMessage?.value?.trim() || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
-            allow_orders_when_closed: allowOrders?.checked !== false,
-            store: CURRENT_STORE_ID,
-          };
-          await api('/api/collections/settings/records/' + settingsRecord.id, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          show('Horario guardado correctamente.', 'success');
-          await loadSettings();
+          if (hoursSaving) return;
+          const payload = collectHoursPayload();
+          const validationError = validateHoursPayload(payload);
+          if (validationError) {
+            show(validationError, 'error');
+            syncHoursSubmitState();
+            return;
+          }
+          if (!hasHoursChanges()) {
+            syncHoursSubmitState();
+            return;
+          }
+          hoursSaving = true;
+          syncHoursSubmitState();
+          show('Guardando cambios...', 'info');
+          try {
+            if (!settingsRecord?.id) settingsRecord = await createSettingsRecord();
+            await api('/api/collections/settings/records/' + settingsRecord.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            show('Horarios guardados correctamente', 'success');
+            await loadSettings();
+          } catch (error) {
+            console.error(error);
+            show('No se pudieron guardar los cambios', 'error');
+          } finally {
+            hoursSaving = false;
+            syncHoursSubmitState();
+          }
         }
 
         document.querySelectorAll('input[name="business_hours_mode"]').forEach((input) => input.addEventListener('change', updateModeUI));
-        form?.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar el horario.', 'error')));
-        refreshBtn?.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudo cargar el horario.', 'error')));
-        document.querySelector('[data-tab="horario"]')?.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudo cargar el horario.', 'error')));
+        form?.addEventListener('input', syncHoursSubmitState);
+        form?.addEventListener('change', syncHoursSubmitState);
+        form?.addEventListener('submit', (event) => save(event).catch(() => {
+          hoursSaving = false;
+          syncHoursSubmitState();
+          show('No se pudieron guardar los cambios', 'error');
+        }));
+        refreshBtn?.addEventListener('click', () => loadSettings().catch(() => show('No se pudo cargar el horario.', 'error')));
+        document.querySelector('[data-tab="horario"]')?.addEventListener('click', () => loadSettings().catch(() => show('No se pudo cargar el horario.', 'error')));
         renderDays(DEFAULT_HOURS);
         updateModeUI();
         if (token()) loadSettings().catch(() => {});
