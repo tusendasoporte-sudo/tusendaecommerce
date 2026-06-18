@@ -965,7 +965,8 @@ function getProductOfferView(product: any) {
       gap: 18px;
     }
     .promo-visual-card {
-      min-height: 190px;
+      min-height: 0;
+      aspect-ratio: 16 / 9;
       position: relative;
       overflow: hidden;
       border-radius: 8px;
@@ -978,7 +979,7 @@ function getProductOfferView(product: any) {
       align-items: center;
       padding: 26px;
     }
-    .promo-visual-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: .74; }
+    .promo-visual-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: .74; background: linear-gradient(135deg, #f8fbff, #eef4ff); }
     .promo-visual-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(248,251,255,.96), rgba(248,251,255,.36)); }
     .promo-visual-copy { position: relative; z-index: 1; max-width: 310px; }
     .promo-visual-copy h3 { margin: 0; font-size: 24px; line-height: 1.1; font-weight: 1000; }
@@ -1091,7 +1092,7 @@ function getProductOfferView(product: any) {
         font-size: 12px;
       }
       .quick-categories-strip { grid-auto-columns: minmax(190px, 78vw); }
-      .quick-access-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 78vw); overflow-x: auto; padding-bottom: 8px; }
+      .quick-access-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; padding-bottom: 0; }
       .promo-visual-grid { grid-template-columns: 1fr; }
       .featured-strip, .homepage-products-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .public-gift-banner-link { grid-template-columns: 1fr; }
@@ -1112,6 +1113,7 @@ function getProductOfferView(product: any) {
       .public-category-link { min-height: 230px; }
       .public-category-title-outside { font-size: 18px; }
       .public-category-button { padding: 10px 11px; font-size: 11px; }
+      .quick-access-grid { grid-template-columns: 1fr; }
     }
 
     /* Imagenes nitidas: neutraliza reglas anteriores que lavaban fotos reales. */

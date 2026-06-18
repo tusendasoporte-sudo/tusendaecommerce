@@ -139,7 +139,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.88); }
       .item-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
       .thumb { width: 58px; height: 58px; border-radius: 16px; object-fit: contain; flex: 0 0 58px; border: 1px solid #e2e8f0; background: #f1f5f9; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .item-row[data-visual-id] .thumb, .item-row[data-org-visual-id] .thumb { width: 104px; height: auto; aspect-ratio: 16 / 9; border-radius: 14px; object-fit: contain; background: linear-gradient(135deg, #f8fbff, #eef4ff); }
       .thumb.placeholder { display: inline-flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 22px; font-weight: 1000; }
+      .visual-image-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+      .visual-image-preview-card { display: grid; gap: 10px; border: 1px solid #e2e8f0; border-radius: 20px; background: linear-gradient(180deg, #fff, #f8fafc); padding: 10px; box-shadow: 0 10px 26px rgba(15,23,42,.06); }
+      .visual-image-preview { width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; border: 1px dashed #cbd5e1; background: linear-gradient(135deg, #f8fbff, #eef4ff); overflow: hidden; display: grid; place-items: center; color: #94a3b8; font-size: 28px; font-weight: 1000; }
+      .visual-image-preview img { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; background: #f8fbff; }
+      .visual-image-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+      .visual-image-action { flex: 1 1 150px; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #111827; padding: 9px 10px; font-size: 12px; font-weight: 1000; cursor: pointer; box-shadow: 0 8px 16px rgba(15,23,42,.05); text-align: center; }
+      .visual-image-action.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
       .item-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
       .item-meta { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 750; word-break: break-word; }
       .item-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -638,9 +646,9 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </div>
                 <div class="field">
                   <label for="visual-image">Imagen</label>
-                  <input id="visual-image" type="file" accept="image/jpeg,image/png,image/webp" />
+                  <input id="visual-image" class="visual-image-input" type="file" accept="image/jpeg,image/png,image/webp" />
+                  <div id="visual-current-image" class="visual-image-preview-card"></div>
                   <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
-                  <p id="visual-current-image" class="form-help"></p>
                 </div>
                 <div class="field">
                   <label for="visual-button-text">Texto del botón</label>
@@ -763,6 +771,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let visualItems = [];
       let activeTab = 'organizacion';
       const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
+      const visualNoticeTimers = new WeakMap();
+      let visualFormSnapshot = '';
+      let visualPreviewObjectUrl = '';
+      let currentVisualImageUrl = '';
+      let currentVisualImageName = '';
+      let visualImageMarkedForRemoval = false;
+      let currentVisualAttachmentName = '';
+      let isSavingVisual = false;
 
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -804,15 +820,24 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const visualCurrentAttachment = document.getElementById('visual-current-attachment');
       const visualActive = document.getElementById('visual-active');
       const visualCancelBtn = document.getElementById('visual-cancel-btn');
+      const visualSaveBtn = document.getElementById('visual-save-btn');
 
       function getAdminToken() { return ADMIN_AUTH_TOKEN; }
       function setAdminToken(_token) {}
       function clearAdminToken() {}
       function showAlert(el, message = '', type = 'info') {
         if (!el) return;
+        window.clearTimeout(visualNoticeTimers.get(el));
         if (!message) { el.className = 'alert alert-info hidden'; el.textContent = ''; return; }
         el.className = `alert alert-${type}`;
         el.textContent = message;
+        if (type === 'info') return;
+        const timer = window.setTimeout(() => {
+          el.className = `alert alert-${type} hidden`;
+          el.textContent = '';
+          visualNoticeTimers.delete(el);
+        }, type === 'error' ? 4600 : 2800);
+        visualNoticeTimers.set(el, timer);
       }
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
@@ -885,6 +910,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (!item?.id || !image) return '';
         return `${POCKETBASE_URL}/api/files/store_visual_items/${encodeURIComponent(item.id)}/${encodeURIComponent(image)}?thumb=300x200`;
       }
+      function visualImageFileName(item) {
+        const image = Array.isArray(item?.image) ? item.image[0] : item?.image;
+        return image || '';
+      }
       function visualAttachmentName(item) {
         const attachment = Array.isArray(item?.attachment) ? item.attachment[0] : item?.attachment;
         return attachment || '';
@@ -892,6 +921,72 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function thumbMarkup(url, fallback = '📦') {
         if (!url) return `<span class="thumb placeholder">${fallback}</span>`;
         return `<img class="thumb" src="${url}" alt="" loading="lazy" />`;
+      }
+      function clearVisualPreviewObjectUrl() {
+        if (visualPreviewObjectUrl) URL.revokeObjectURL(visualPreviewObjectUrl);
+        visualPreviewObjectUrl = '';
+      }
+      function renderVisualImagePreview() {
+        if (!visualCurrentImage) return;
+        const previewUrl = visualPreviewObjectUrl || (!visualImageMarkedForRemoval ? currentVisualImageUrl : '');
+        const hasImage = Boolean(previewUrl);
+        visualCurrentImage.innerHTML = `
+          <div class="visual-image-preview">${hasImage ? `<img src="${escapeHtml(previewUrl)}" alt="Imagen visual" />` : '+'}</div>
+          <div class="visual-image-actions">
+            <label class="visual-image-action" for="visual-image">${hasImage ? 'Cambiar foto' : 'Subir nueva foto'}</label>
+            ${hasImage ? '<button class="visual-image-action danger" type="button" data-visual-image-remove>Borrar</button>' : ''}
+          </div>
+        `;
+        visualCurrentImage.querySelector('[data-visual-image-remove]')?.addEventListener('click', () => {
+          clearVisualPreviewObjectUrl();
+          visualImage.value = '';
+          visualImageMarkedForRemoval = Boolean(currentVisualImageName);
+          renderVisualImagePreview();
+          updateVisualFormState();
+        });
+      }
+      function createVisualFormSnapshot() {
+        const imageFile = visualImage?.files?.[0] || null;
+        const attachmentFile = visualAttachment?.files?.[0] || null;
+        return JSON.stringify({
+          id: visualId?.value || '',
+          type: visualType?.value || 'promo_visual',
+          title: visualTitle?.value?.trim() || '',
+          description: visualDescription?.value?.trim() || '',
+          image: visualImageMarkedForRemoval ? '' : currentVisualImageName,
+          image_file: imageFile ? `${imageFile.name}:${imageFile.size}:${imageFile.lastModified}` : '',
+          image_remove: visualImageMarkedForRemoval,
+          button_text: visualButtonText?.value?.trim() || '',
+          action_type: visualActionType?.value || 'whatsapp',
+          sort_order: Number(visualOrder?.value || 0),
+          target_url: visualUrl?.value?.trim() || '',
+          whatsapp_message: visualWhatsappMessage?.value?.trim() || '',
+          category: visualCategory?.value || '',
+          attachment: currentVisualAttachmentName,
+          attachment_file: attachmentFile ? `${attachmentFile.name}:${attachmentFile.size}:${attachmentFile.lastModified}` : '',
+          active: visualActive?.checked !== false,
+        });
+      }
+      function visualHasMinimumData() {
+        if (!visualTitle?.value?.trim()) return false;
+        const action = visualActionType?.value || 'whatsapp';
+        if (action === 'url' && !visualUrl?.value?.trim()) return false;
+        if (action === 'categoria' && !visualCategory?.value) return false;
+        if (action === 'archivo' && !currentVisualAttachmentName && !visualAttachment?.files?.[0]) return false;
+        return true;
+      }
+      function visualFormHasChanges() {
+        return Boolean(visualFormSnapshot) && createVisualFormSnapshot() !== visualFormSnapshot;
+      }
+      function setVisualFormSnapshotFromCurrent() {
+        visualFormSnapshot = createVisualFormSnapshot();
+        updateVisualFormState();
+      }
+      function updateVisualFormState() {
+        if (!visualSaveBtn) return;
+        const canSave = visualHasMinimumData() && visualFormHasChanges();
+        visualSaveBtn.disabled = isSavingVisual || !canSave;
+        visualSaveBtn.textContent = isSavingVisual ? 'Guardando...' : 'Guardar';
       }
       function formatUsd(value) { return `$${Number(value || 0).toFixed(2)} USD`; }
       function readOnlyVisualRow(item) {
@@ -1286,16 +1381,22 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }
       function resetVisualForm() {
+        clearVisualPreviewObjectUrl();
         visualForm.reset();
         visualId.value = '';
         visualType.value = 'promo_visual';
         visualActionType.value = 'whatsapp';
         visualOrder.value = String(nextVisualOrder());
         visualActive.checked = true;
-        visualCurrentImage.textContent = '';
+        currentVisualImageUrl = '';
+        currentVisualImageName = '';
+        visualImageMarkedForRemoval = false;
+        currentVisualAttachmentName = '';
+        renderVisualImagePreview();
         visualCurrentAttachment.textContent = '';
         showAlert(visualAlert, '');
         updateActionFields();
+        setVisualFormSnapshotFromCurrent();
       }
       function openVisualForm(item = null) {
         resetVisualForm();
@@ -1311,12 +1412,17 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           visualWhatsappMessage.value = item.whatsapp_message || '';
           visualCategory.value = item.category || '';
           visualActive.checked = item.active !== false;
-          const img = Array.isArray(item.image) ? item.image[0] : item.image;
+          const img = visualImageFileName(item);
           const attachment = visualAttachmentName(item);
-          visualCurrentImage.textContent = img ? `Imagen actual: ${img}. Si subes otra, se reemplaza.` : '';
+          currentVisualImageName = img;
+          currentVisualImageUrl = visualImageUrl(item);
+          visualImageMarkedForRemoval = false;
+          currentVisualAttachmentName = attachment;
+          renderVisualImagePreview();
           visualCurrentAttachment.textContent = attachment ? `Archivo actual: ${attachment}. Si subes otro, se reemplaza.` : '';
         }
         updateActionFields();
+        setVisualFormSnapshotFromCurrent();
         setAdminBlockMode('visual', 'edit');
         visualForm.classList.remove('hidden');
         showTab('visuales');
@@ -1332,11 +1438,21 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         document.getElementById('visual-whatsapp-field').classList.toggle('hidden', action !== 'whatsapp');
         document.getElementById('visual-category-field').classList.toggle('hidden', action !== 'categoria');
         document.getElementById('visual-attachment-field').classList.toggle('hidden', action !== 'archivo');
+        updateVisualFormState();
       }
       async function saveVisualItem(event) {
         event.preventDefault();
+        if (isSavingVisual || visualSaveBtn?.disabled) return;
         const title = visualTitle.value.trim();
         if (!title) return showAlert(visualAlert, 'Escribe un título.', 'error');
+        if (!visualHasMinimumData()) {
+          showAlert(visualAlert, 'Completa los datos requeridos.', 'error');
+          updateVisualFormState();
+          return;
+        }
+        isSavingVisual = true;
+        updateVisualFormState();
+        showAlert(visualAlert, 'Guardando cambios...', 'info');
         const formData = new FormData();
         formData.append('type', visualType.value);
         formData.append('title', title);
@@ -1351,18 +1467,34 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         formData.append('store', CURRENT_STORE_ID);
         const imageFile = visualImage.files?.[0];
         const attachmentFile = visualAttachment.files?.[0];
+        if (visualImageMarkedForRemoval && currentVisualImageName) formData.append('image-', currentVisualImageName);
+        if (imageFile && currentVisualImageName) formData.append('image-', currentVisualImageName);
         if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
         if (attachmentFile) formData.append('attachment', attachmentFile);
         const id = visualId.value;
-        if (id) {
-          await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'PATCH', body: formData });
-          showAlert(visualAlert, 'Guardado correctamente.', 'success');
-        } else {
-          await apiRequest('/api/collections/store_visual_items/records', { method: 'POST', body: formData });
-          showAlert(visualAlert, 'Creado correctamente.', 'success');
+        try {
+          const saved = id
+            ? await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'PATCH', body: formData })
+            : await apiRequest('/api/collections/store_visual_items/records', { method: 'POST', body: formData });
+          await loadData();
+          const fresh = visualItems.find((item) => item.id === saved.id) || saved;
+          visualId.value = fresh.id || saved.id || '';
+          currentVisualImageName = visualImageFileName(fresh);
+          currentVisualImageUrl = visualImageUrl(fresh);
+          currentVisualAttachmentName = visualAttachmentName(fresh);
+          visualImageMarkedForRemoval = false;
+          visualImage.value = '';
+          visualAttachment.value = '';
+          clearVisualPreviewObjectUrl();
+          renderVisualImagePreview();
+          setVisualFormSnapshotFromCurrent();
+          showAlert(visualAlert, visualType.value === 'acceso_rapido' ? 'Acceso rápido guardado correctamente' : 'Promo visual guardada correctamente', 'success');
+        } catch (error) {
+          showAlert(visualAlert, 'No se pudieron guardar los cambios', 'error');
+        } finally {
+          isSavingVisual = false;
+          updateVisualFormState();
         }
-        await loadData();
-        closeVisualForm();
       }
       async function deleteVisualItem(id) {
         if (!id) return;
@@ -1400,7 +1532,35 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       openVisualFormBtn?.addEventListener('click', () => openVisualForm());
       visualCancelBtn?.addEventListener('click', closeVisualForm);
       visualActionType?.addEventListener('change', updateActionFields);
-      visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
+      visualForm?.addEventListener('input', (event) => {
+        if (event.target?.type === 'file') return;
+        updateVisualFormState();
+      });
+      visualForm?.addEventListener('change', (event) => {
+        if (event.target?.type === 'file') return;
+        updateVisualFormState();
+      });
+      visualImage?.addEventListener('change', () => {
+        const file = visualImage.files?.[0] || null;
+        clearVisualPreviewObjectUrl();
+        if (file) {
+          if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+            showAlert(visualAlert, 'Solo puedes subir imágenes JPG, PNG o WebP.', 'error');
+            visualImage.value = '';
+          } else {
+            visualPreviewObjectUrl = URL.createObjectURL(file);
+            visualImageMarkedForRemoval = false;
+          }
+        }
+        renderVisualImagePreview();
+        updateVisualFormState();
+      });
+      visualAttachment?.addEventListener('change', updateVisualFormState);
+      visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => {
+        isSavingVisual = false;
+        updateVisualFormState();
+        showAlert(visualAlert, 'No se pudieron guardar los cambios', 'error');
+      }));
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'edit'));
       });
