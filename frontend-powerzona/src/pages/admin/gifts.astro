@@ -657,6 +657,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const giftImageInput = document.getElementById('gift-image');
       const giftImagePreview = document.getElementById('gift-image-preview');
       const giftImagePreviewImg = document.getElementById('gift-image-preview-img');
+      const giftSubmitBtn = giftForm?.querySelector('button[type="submit"]');
+      const giftNameInput = document.getElementById('gift-name');
+      const giftDescriptionInput = document.getElementById('gift-description');
+      const giftStockInput = document.getElementById('gift-stock');
+      const giftMinInput = document.getElementById('gift-min');
+      const giftActiveInput = document.getElementById('gift-active');
+      const changeGiftImageBtn = document.getElementById('change-gift-image-btn');
+      const giftsPublicActiveInput = document.getElementById('gifts-public-active');
+      const giftsPublicTitleInput = document.getElementById('gifts-public-title');
+      const giftsPublicImageInput = document.getElementById('gifts-public-image');
       const previewImage = document.getElementById('preview-image');
       const previewImg = document.getElementById('preview-img');
       const previewName = document.getElementById('preview-name');
@@ -674,11 +684,35 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let settings = null;
       let localGiftImageUrl = '';
       let editingGiftImageUrl = '';
+      let localGiftsCategoryImageUrl = '';
+      let giftAlertTimer = null;
+      let giftImageChanged = false;
+      let giftSaving = false;
+      let giftInitialSnapshot = null;
+      let giftsCategoryImageChanged = false;
+      let giftsCategorySaving = false;
+      let giftsCategoryInitialSnapshot = null;
 
       const token = () => ADMIN_AUTH_TOKEN;
       function openSidebar(){ document.body.classList.add('sidebar-open'); if(sidebarOverlay) sidebarOverlay.hidden = false; sidebar?.setAttribute('aria-hidden','false'); sidebarOpenBtn?.setAttribute('aria-expanded','true'); }
       function closeSidebar(){ document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden','true'); sidebarOpenBtn?.setAttribute('aria-expanded','false'); setTimeout(()=>{ if(!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true; }, 220); }
-      function showAlert(message, type='info'){ if(!alertBox) return; alertBox.textContent=message; alertBox.className=`alert alert-${type}`; alertBox.classList.remove('hidden'); setTimeout(()=>alertBox.classList.add('hidden'), 4200); }
+      function showAlert(message, type='info'){
+        if(!alertBox) return;
+        if(giftAlertTimer){
+          window.clearTimeout(giftAlertTimer);
+          giftAlertTimer = null;
+        }
+        alertBox.textContent=message || '';
+        alertBox.className=`alert alert-${type}`;
+        alertBox.classList.toggle('hidden', !message);
+        const timeout = type === 'ok' || type === 'success' ? 2800 : type === 'error' ? 4800 : 0;
+        if(timeout && message){
+          giftAlertTimer = window.setTimeout(()=>{
+            alertBox.classList.add('hidden');
+            giftAlertTimer = null;
+          }, timeout);
+        }
+      }
       function escapeHtml(value){ return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
       function normalizeFile(value){ return Array.isArray(value) ? value[0] : value; }
       function fileUrl(record){ const file = normalizeFile(record?.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}` : 'https://placehold.co/640x360?text=Regalo'; }
@@ -686,6 +720,93 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function settingsFileUrl(field){ const file = normalizeFile(settings?.[field]); return settings?.id && file ? `${POCKETBASE_URL}/api/files/settings/${settings.id}/${file}?thumb=300x200` : ''; }
       function money(value){ return Number(value || 0).toFixed(2); }
       function activeGiftCount(){ return gifts.filter((gift) => gift.active !== false).length; }
+
+      function giftFormSnapshot(){
+        return {
+          name: String(giftNameInput?.value || '').trim(),
+          description: String(giftDescriptionInput?.value || '').trim(),
+          stock: Math.max(0, Math.floor(Number(giftStockInput?.value || 0))),
+          min_order_usd: Number(Number(giftMinInput?.value || 0).toFixed(2)),
+          active: giftActiveInput?.checked !== false,
+          imageChanged: Boolean(giftImageChanged),
+        };
+      }
+
+      function isGiftFormValid(){
+        return Boolean(String(giftNameInput?.value || '').trim());
+      }
+
+      function hasGiftChanges(){
+        const id = document.getElementById('gift-id')?.value || '';
+        if(!id) return isGiftFormValid();
+        if(!giftInitialSnapshot) return false;
+        const current = giftFormSnapshot();
+        return current.name !== giftInitialSnapshot.name
+          || current.description !== giftInitialSnapshot.description
+          || current.stock !== giftInitialSnapshot.stock
+          || current.min_order_usd !== giftInitialSnapshot.min_order_usd
+          || current.active !== giftInitialSnapshot.active
+          || current.imageChanged;
+      }
+
+      function syncGiftSubmitState(){
+        if(!giftSubmitBtn) return;
+        if(!giftSubmitBtn.dataset.defaultText) giftSubmitBtn.dataset.defaultText = giftSubmitBtn.textContent || 'Guardar regalo';
+        giftSubmitBtn.disabled = giftSaving || !isGiftFormValid() || !hasGiftChanges();
+        giftSubmitBtn.textContent = giftSaving ? 'Guardando...' : giftSubmitBtn.dataset.defaultText;
+      }
+
+      function updateGiftImageButton(){
+        if(!changeGiftImageBtn) return;
+        changeGiftImageBtn.textContent = localGiftImageUrl || editingGiftImageUrl ? 'Cambiar imagen' : 'Subir nueva foto';
+      }
+
+      function setGiftInitialSnapshot(){
+        giftInitialSnapshot = giftFormSnapshot();
+        giftInitialSnapshot.imageChanged = false;
+        syncGiftSubmitState();
+      }
+
+      function giftsCategorySnapshot(){
+        return {
+          active: giftsPublicActiveInput?.checked !== false,
+          title: String(giftsPublicTitleInput?.value || '').trim() || 'Regalos',
+          imageChanged: Boolean(giftsCategoryImageChanged),
+        };
+      }
+
+      function hasGiftsCategoryChanges(){
+        if(!giftsCategoryInitialSnapshot) return false;
+        const current = giftsCategorySnapshot();
+        return current.active !== giftsCategoryInitialSnapshot.active
+          || current.title !== giftsCategoryInitialSnapshot.title
+          || current.imageChanged;
+      }
+
+      function syncGiftsCategorySubmitState(){
+        if(!saveSettingsBtn) return;
+        if(!saveSettingsBtn.dataset.defaultText) saveSettingsBtn.dataset.defaultText = saveSettingsBtn.textContent || 'Guardar categoría';
+        saveSettingsBtn.disabled = giftsCategorySaving || !hasGiftsCategoryChanges();
+        saveSettingsBtn.textContent = giftsCategorySaving ? 'Guardando...' : saveSettingsBtn.dataset.defaultText;
+      }
+
+      function setGiftsCategoryInitialSnapshot(){
+        giftsCategoryInitialSnapshot = giftsCategorySnapshot();
+        giftsCategoryInitialSnapshot.imageChanged = false;
+        syncGiftsCategorySubmitState();
+      }
+
+      function clearLocalGiftsCategoryImageUrl(){
+        if(localGiftsCategoryImageUrl){
+          URL.revokeObjectURL(localGiftsCategoryImageUrl);
+          localGiftsCategoryImageUrl = '';
+        }
+      }
+
+      function renderGiftsCategoryPreview(url = ''){
+        categoryPreview?.classList.toggle('hidden', !url);
+        if(categoryPreviewImg) categoryPreviewImg.src = url || '';
+      }
 
       async function optimizeGiftImageFile(file) {
         if (!file || !file.type?.startsWith('image/')) return file;
@@ -753,8 +874,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           await createStoreSettings();
           return loadSettings();
         }
-        const publicActive = document.getElementById('gifts-public-active');
-        const publicTitle = document.getElementById('gifts-public-title');
+        const publicActive = giftsPublicActiveInput;
+        const publicTitle = giftsPublicTitleInput;
         if(publicActive) publicActive.checked = settings?.gifts_public_active !== false;
         if(publicTitle) publicTitle.value = settings?.gifts_public_title || 'Regalos';
         if(giftsCategoryStatus){
@@ -763,8 +884,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           giftsCategoryStatus.className = `badge ${visible ? 'visible' : 'hidden-badge'}`;
         }
         const preview = settingsFileUrl('gifts_public_image');
-        categoryPreview?.classList.toggle('hidden', !preview);
-        if(preview && categoryPreviewImg) categoryPreviewImg.src = preview;
+        renderGiftsCategoryPreview(preview);
+        giftsCategoryImageChanged = false;
+        setGiftsCategoryInitialSnapshot();
       }
 
       async function loadGifts(){
@@ -904,6 +1026,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if(summaryRule) summaryRule.textContent = `Desde ${money(min)} USD`;
         if(summaryActiveTotal) summaryActiveTotal.textContent = String(activeGiftCount());
         setPreviewImage(localGiftImageUrl || editingGiftImageUrl);
+        updateGiftImageButton();
+        syncGiftSubmitState();
       }
 
       function clearLocalImageUrl(){
@@ -952,6 +1076,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         giftForm?.reset();
         clearLocalImageUrl();
         editingGiftImageUrl = '';
+        giftImageChanged = false;
+        giftInitialSnapshot = null;
         const idInput = document.getElementById('gift-id');
         if(idInput) idInput.value='';
         const activeInput = document.getElementById('gift-active');
@@ -976,6 +1102,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const gift = gifts.find((item)=>item.id===id);
         if(!gift) return;
         clearLocalImageUrl();
+        giftImageChanged = false;
         editingGiftImageUrl = normalizeFile(gift.image) ? fileUrl(gift) : '';
         document.getElementById('gift-id').value=gift.id;
         document.getElementById('gift-name').value=gift.name||'';
@@ -987,28 +1114,52 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if(formTitle) formTitle.textContent='Editar regalo';
         cancelEditBtn?.classList.remove('hidden');
         renderPreview();
+        setGiftInitialSnapshot();
         openGiftModal();
       }
 
       async function saveGift(event){
         event.preventDefault();
-        const id = document.getElementById('gift-id').value;
-        const fd = new FormData();
-        fd.set('name', document.getElementById('gift-name').value.trim());
-        fd.set('description', document.getElementById('gift-description').value.trim());
-        fd.set('min_order_usd', String(Math.max(0, Number(document.getElementById('gift-min').value || 0))));
-        fd.set('stock', String(Math.max(0, Math.floor(Number(document.getElementById('gift-stock').value || 0)))));
-        if(!id) fd.set('sort_order', String(nextSortOrder()));
-        fd.set('active', document.getElementById('gift-active').checked ? 'true' : 'false');
-        const image = giftImageInput?.files?.[0];
-        if(image) fd.append('image', await optimizeGiftImageFile(image));
-        fd.set('store', CURRENT_STORE_ID);
-        if(id) await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', body:fd });
-        else await api('/api/collections/gifts/records', { method:'POST', body:fd });
-        closeGiftModal();
-        resetGiftForm();
-        await loadGifts();
-        showAlert('Regalo guardado correctamente.', 'ok');
+        if(giftSaving) return;
+        if(!isGiftFormValid()){
+          showAlert('Escribe el nombre del regalo.', 'error');
+          syncGiftSubmitState();
+          return;
+        }
+        if(!hasGiftChanges()){
+          syncGiftSubmitState();
+          return;
+        }
+        giftSaving = true;
+        syncGiftSubmitState();
+        try {
+          const id = document.getElementById('gift-id').value;
+          const fd = new FormData();
+          fd.set('name', giftNameInput.value.trim());
+          fd.set('description', giftDescriptionInput.value.trim());
+          fd.set('min_order_usd', String(Math.max(0, Number(giftMinInput.value || 0))));
+          fd.set('stock', String(Math.max(0, Math.floor(Number(giftStockInput.value || 0)))));
+          if(!id) fd.set('sort_order', String(nextSortOrder()));
+          fd.set('active', giftActiveInput.checked ? 'true' : 'false');
+          const image = giftImageInput?.files?.[0];
+          if(image) fd.append('image', await optimizeGiftImageFile(image));
+          fd.set('store', CURRENT_STORE_ID);
+          if(id) await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', body:fd });
+          else await api('/api/collections/gifts/records', { method:'POST', body:fd });
+          if(giftImageInput) giftImageInput.value = '';
+          clearLocalImageUrl();
+          giftImageChanged = false;
+          closeGiftModal();
+          resetGiftForm();
+          await loadGifts();
+          showAlert('Regalo guardado correctamente', 'ok');
+        } catch (error) {
+          console.error(error);
+          showAlert(error.message || 'No se pudo guardar el regalo', 'error');
+        } finally {
+          giftSaving = false;
+          syncGiftSubmitState();
+        }
       }
 
       function nextSortOrder(){ return gifts.length ? Math.max(...gifts.map((gift)=>Number(gift.sort_order || 0))) + 10 : 10; }
@@ -1039,6 +1190,37 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       }
 
+      async function saveSettingsSmart(){
+        if(!settings?.id){ showAlert('No se pudo guardar la categoria de regalos', 'error'); return; }
+        if(giftsCategorySaving) return;
+        if(!hasGiftsCategoryChanges()){
+          syncGiftsCategorySubmitState();
+          return;
+        }
+        giftsCategorySaving = true;
+        syncGiftsCategorySubmitState();
+        try {
+          const fd = new FormData();
+          fd.set('gifts_public_active', giftsPublicActiveInput.checked ? 'true' : 'false');
+          fd.set('gifts_public_title', giftsPublicTitleInput.value.trim() || 'Regalos');
+          const image = giftsPublicImageInput?.files?.[0];
+          if(image) fd.append('gifts_public_image', await optimizeGiftImageFile(image));
+          await api(`/api/collections/settings/records/${settings.id}`, { method:'PATCH', body:fd });
+          if(giftsPublicImageInput) giftsPublicImageInput.value = '';
+          clearLocalGiftsCategoryImageUrl();
+          giftsCategoryImageChanged = false;
+          await loadSettings();
+          closeGiftsCategoryInlineCard();
+          showAlert('Categoria de regalos actualizada correctamente', 'ok');
+        } catch (error) {
+          console.error(error);
+          showAlert(error.message || 'No se pudo guardar la categoria de regalos', 'error');
+        } finally {
+          giftsCategorySaving = false;
+          syncGiftsCategorySubmitState();
+        }
+      }
+
       function openGiftMenu(id){
         document.querySelectorAll('.gift-menu').forEach((menu)=>menu.classList.toggle('open', menu.id === `gift-menu-${id}` && !menu.classList.contains('open')));
       }
@@ -1065,7 +1247,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       toggleGiftsCategoryCardBtn?.addEventListener('click', toggleGiftsCategoryInlineCard);
       closeGiftsCategoryInlineBtn?.addEventListener('click', closeGiftsCategoryInlineCard);
       refreshBtn?.addEventListener('click', loadGifts);
-      saveSettingsBtn?.addEventListener('click', saveSettings);
+      saveSettingsBtn?.addEventListener('click', saveSettingsSmart);
       logoutBtn?.addEventListener('click', ()=>{ window.location.href = publicStorePath; });
       sidebarOpenBtn?.addEventListener('click', openSidebar);
       sidebarCloseBtn?.addEventListener('click', closeSidebar);
@@ -1077,11 +1259,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       giftImageInput?.addEventListener('change', () => {
         clearLocalImageUrl();
         const file = giftImageInput.files?.[0];
+        giftImageChanged = Boolean(file);
         if(file) localGiftImageUrl = URL.createObjectURL(file);
         renderPreview();
       });
-      ['gift-name', 'gift-min', 'gift-stock', 'gift-active'].forEach((id)=>document.getElementById(id)?.addEventListener('input', renderPreview));
+      ['gift-name', 'gift-description', 'gift-min', 'gift-stock', 'gift-active'].forEach((id)=>document.getElementById(id)?.addEventListener('input', renderPreview));
       document.getElementById('gift-active')?.addEventListener('change', renderPreview);
+      giftsPublicActiveInput?.addEventListener('change', syncGiftsCategorySubmitState);
+      giftsPublicTitleInput?.addEventListener('input', syncGiftsCategorySubmitState);
+      giftsPublicImageInput?.addEventListener('change', () => {
+        clearLocalGiftsCategoryImageUrl();
+        const file = giftsPublicImageInput.files?.[0];
+        giftsCategoryImageChanged = Boolean(file);
+        if(file){
+          localGiftsCategoryImageUrl = URL.createObjectURL(file);
+          renderGiftsCategoryPreview(localGiftsCategoryImageUrl);
+        } else {
+          renderGiftsCategoryPreview(settingsFileUrl('gifts_public_image'));
+        }
+        syncGiftsCategorySubmitState();
+      });
+      syncGiftSubmitState();
+      syncGiftsCategorySubmitState();
       document.addEventListener('click', closeGiftMenu);
       document.addEventListener('keydown', (event)=>{
         if(event.key !== 'Escape') return;
