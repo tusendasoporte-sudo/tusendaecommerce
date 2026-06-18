@@ -521,7 +521,7 @@ const variationItems = variations.map((variation) => {
 												data-variation-radio
 												class="h-4 w-4 accent-blue-600"
 											/>
-											<img src={variation.variationImage} alt={variation.variationLabel} class="w-11 h-11 rounded-xl object-cover border border-gray-100" />
+											<img src={variation.variationImage} alt={variation.variationLabel} class="w-11 h-11 rounded-xl object-contain bg-white border border-gray-100" />
 											<span class="min-w-0">
 												<span class="block font-black text-gray-900 text-sm truncate">{variation.variationLabel}</span>
 												<span class={`block text-xs font-bold ${variation.stockClass}`}>
@@ -553,7 +553,7 @@ const variationItems = variations.map((variation) => {
 									class={`variation-option text-left rounded-2xl border p-3 transition ${variation.id === firstVariation?.id ? 'border-blue-500 ring-2 ring-blue-100 bg-blue-50/40' : 'border-gray-100 bg-white hover:border-blue-200'} ${variation.variationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
 								>
 									<div class="flex items-center gap-3">
-										<img src={variation.variationImage} alt={variation.variationLabel} class="w-12 h-12 rounded-xl object-cover border border-gray-100" />
+										<img src={variation.variationImage} alt={variation.variationLabel} class="w-12 h-12 rounded-xl object-contain bg-white border border-gray-100" />
 										<div class="min-w-0">
 											<p class="font-black text-gray-900 text-sm truncate">{variation.variationLabel}</p>
 											<p class="text-blue-600 font-extrabold text-sm" data-pz-price-usd={variation.variationPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>{`$${variation.variationPrice.toFixed(2)} USD`}</p>

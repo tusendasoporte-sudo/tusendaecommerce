@@ -488,7 +488,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .variation-grid .full { grid-column: 1 / -1; }
       .variation-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .variation-current-image { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
-      .variation-current-image img { width: 58px; height: 58px; object-fit: contain; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .variation-current-image img, .variation-current-placeholder { width: 58px; height: 58px; object-fit: contain; border-radius: 16px; border: 1px solid #e2e8f0; background:#f8fafc; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
+      .variation-current-placeholder { display:inline-flex; align-items:center; justify-content:center; color:#94a3b8; font-weight:1000; font-size:20px; }
+      .variation-file-input { position:absolute; inline-size:1px; block-size:1px; opacity:0; pointer-events:none; }
       .variation-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
       .variations-list { display: grid; gap: 10px; margin-top: 16px; }
       .variation-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(120px, .45fr) minmax(120px, .45fr) minmax(120px, .45fr) minmax(210px, auto); gap: 12px; align-items: center; padding: 13px; border: 1px solid #e2e8f0; border-radius: 22px; background: rgba(255,255,255,.88); }
@@ -2061,7 +2063,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       <input id="variation-order" type="hidden" />
                       <div class="field">
                         <label for="variation-image">Foto de la variación</label>
-                        <input id="variation-image" type="file" accept="image/*" />
+                        <input id="variation-image" class="variation-file-input" type="file" accept="image/*" />
                         <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
                         <div id="variation-current-image" class="variation-current-image hidden"></div>
                       </div>
@@ -2251,6 +2253,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let pendingSoldoutProductId = "";
       let currentProductPage = 1;
       let editorPreviewObjectUrl = "";
+      let productNoticeTimer = null;
+      let variationNoticeTimer = null;
+      let isSavingProduct = false;
+      let isSavingVariation = false;
+      let productInitialSnapshot = "";
+      let variationInitialSnapshot = "";
+      let currentVariationImageUrl = "";
+      let variationPreviewObjectUrl = "";
 
       const sidebar = document.getElementById('admin-sidebar');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -2376,6 +2386,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const PRODUCT_IMAGE_SLOT_COUNT = 4;
       let productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
       let productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
+      let productImageSlotObjectUrls = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
       let productImagesToDelete = new Set();
       const PRODUCT_EXTRA_INFO_LIMIT = 3;
       let productExtraInfoItems = [];
@@ -2451,8 +2462,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return String(value).slice(0, 10);
       }
       function setFormAlert(message, type = 'info') {
-        productFormAlert.textContent = message || '';
-        productFormAlert.className = `alert alert-${type} ${message ? '' : 'hidden'}`;
+        showProductNotice(message, type);
+      }
+
+      function showTimedNotice(element, timerName, message, type = 'info') {
+        if (!element) return null;
+        window.clearTimeout(timerName === 'product' ? productNoticeTimer : variationNoticeTimer);
+        element.textContent = message || '';
+        element.className = `alert alert-${type} ${message ? '' : 'hidden'}`;
+        if (!message || type === 'info') return null;
+        const delay = type === 'error' ? 4600 : 2800;
+        return window.setTimeout(() => {
+          element.textContent = '';
+          element.className = `alert alert-${type} hidden`;
+        }, delay);
+      }
+
+      function showProductNotice(message, type = 'info') {
+        productNoticeTimer = showTimedNotice(productFormAlert, 'product', message, type);
+      }
+
+      function showVariationNotice(message, type = 'info') {
+        variationNoticeTimer = showTimedNotice(variationAlert, 'variation', message, type);
       }
 
       function showDuplicateProductToast(detail = '') {
@@ -2642,6 +2673,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         products = products.map((item) => item.id === editingProductId ? { ...item, extra_info: updatedProduct.extra_info } : item);
         productExtraInfoItems = normalizeProductExtraInfo(updatedProduct.extra_info);
         renderProductExtraInfo();
+        if (productIdInput?.value) productInitialSnapshot = createProductSnapshot();
+        updateProductFormState();
         setFormAlert(message, 'success');
       }
       async function saveExtraInfoEditor() {
@@ -2674,20 +2707,36 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!productId || !filename || !POCKETBASE_URL) return '';
         return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(productId)}/${encodeURIComponent(filename)}?thumb=300x300`;
       }
+      function clearProductImageObjectUrls() {
+        productImageSlotObjectUrls.forEach((url) => { if (url) URL.revokeObjectURL(url); });
+        productImageSlotObjectUrls = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
+      }
       function resetProductImageSlots() {
+        clearProductImageObjectUrls();
         productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
         productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
         productImagesToDelete = new Set();
         renderProductImageSlots();
         updateEditorPreview();
       }
+      function productSlotPreviewUrl(index, productId, existing) {
+        const selected = productImageSlotFiles[index] || null;
+        if (selected) {
+          if (!productImageSlotObjectUrls[index]) productImageSlotObjectUrls[index] = URL.createObjectURL(selected);
+          return productImageSlotObjectUrls[index];
+        }
+        if (productImageSlotObjectUrls[index]) {
+          URL.revokeObjectURL(productImageSlotObjectUrls[index]);
+          productImageSlotObjectUrls[index] = '';
+        }
+        return productImagePreviewUrl(productId, existing);
+      }
       function renderProductImageSlots(product = null) {
         if (!productImageSlotsBox) return;
         const productId = product?.id || productIdInput?.value || '';
         productImageSlotsBox.innerHTML = Array.from({ length: PRODUCT_IMAGE_SLOT_COUNT }, (_, index) => {
           const existing = productImageSlotExisting[index] || '';
-          const selected = productImageSlotFiles[index] || null;
-          const preview = selected ? URL.createObjectURL(selected) : productImagePreviewUrl(productId, existing);
+          const preview = productSlotPreviewUrl(index, productId, existing);
           const isCover = index === 0;
           const hasImage = Boolean(preview);
           const label = isCover ? 'Portada' : `Foto ${index + 1}`;
@@ -2697,7 +2746,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <div class="product-image-label"><span>${label}</span>${isCover ? '<span class="product-image-badge">Portada</span>' : ''}</div>
               <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
               <div class="product-image-actions">
-                <label class="product-image-action">${hasImage ? 'Cambiar' : 'Subir'}<input type="file" accept="image/*" data-image-input="${index}" /></label>
+                <label class="product-image-action">${hasImage ? 'Cambiar foto' : 'Subir nueva foto'}<input type="file" accept="image/*" data-image-input="${index}" /></label>
                 ${hasImage ? `<button type="button" class="product-image-action danger" data-image-remove="${index}">Borrar</button>` : ''}
               </div>
             </div>`;
@@ -2714,9 +2763,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             }
             const existing = productImageSlotExisting[slot] || '';
             if (existing) productImagesToDelete.add(existing);
+            if (productImageSlotObjectUrls[slot]) URL.revokeObjectURL(productImageSlotObjectUrls[slot]);
+            productImageSlotObjectUrls[slot] = URL.createObjectURL(file);
             productImageSlotFiles[slot] = file;
             renderProductImageSlots(product);
-            updateEditorPreview();
+            updateProductFormState();
           });
         });
         productImageSlotsBox.querySelectorAll('[data-image-remove]').forEach((button) => {
@@ -2725,14 +2776,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             const existing = productImageSlotExisting[slot] || '';
             if (existing) productImagesToDelete.add(existing);
             productImageSlotExisting[slot] = '';
+            if (productImageSlotObjectUrls[slot]) URL.revokeObjectURL(productImageSlotObjectUrls[slot]);
+            productImageSlotObjectUrls[slot] = '';
             productImageSlotFiles[slot] = null;
             renderProductImageSlots(product);
-            updateEditorPreview();
+            updateProductFormState();
           });
         });
         updateEditorPreview();
       }
       function renderCurrentImages(product) {
+        clearProductImageObjectUrls();
         const images = normalizeProductImages(product);
         productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('').map((_, index) => images[index] || '');
         productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
@@ -2813,9 +2867,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return `<img class="variation-thumb" src="${url}" alt="${escapeHtml(variation.value || 'Variación')}" loading="lazy" />`;
       }
       function setVariationAlert(message, type = 'info') {
-        if (!variationAlert) return;
-        variationAlert.textContent = message || '';
-        variationAlert.className = `alert alert-${type} ${message ? '' : 'hidden'}`;
+        showVariationNotice(message, type);
       }
       function productTracksStock(product = null) {
         if (product && Object.prototype.hasOwnProperty.call(product, TRACK_STOCK_FIELD)) return product[TRACK_STOCK_FIELD] !== false;
@@ -2823,6 +2875,80 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function getVariationStockSum() {
         return productVariations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stock || 0))), 0);
+      }
+      function sortedStrings(values) {
+        return [...values].filter(Boolean).map(String).sort();
+      }
+      function createProductSnapshot() {
+        const offerState = getValidOfferState();
+        const fileState = productImageSlotFiles.map((file) => file ? `${file.name}:${file.size}:${file.lastModified}` : '');
+        return JSON.stringify({
+          name: productNameInput?.value?.trim() || '',
+          slug: productSlugInput?.value?.trim() || '',
+          category: productCategoryInput?.value || '',
+          subcategory: productSubcategoryInput?.value || '',
+          price_usd: Number(readRegularPriceInput() || 0),
+          is_offer: Boolean(productIsOfferInput?.checked),
+          offer_price_usd: offerState.enabled ? Number(productOfferPriceInput?.value || 0) : 0,
+          cost_usd: Number(productCostInput?.value || 0),
+          stock: Number(productStockInput?.value || 0),
+          delivery_mode: productDeliveryModeInput?.value || 'both',
+          expiration_date: productExpirationDateInput?.value || '',
+          description: productDescriptionInput?.value?.trim() || '',
+          extra_info: normalizeProductExtraInfo(productExtraInfoItems),
+          internal_ref: productInternalRefInput?.value?.trim() || '',
+          active: productActiveInput?.checked !== false,
+          featured: Boolean(productFeaturedInput?.checked),
+          only_usd: Boolean(productOnlyUsdInput?.checked),
+          allow_preorder: Boolean(productAllowPreorderInput?.checked),
+          track_stock: productTracksStock(),
+          has_variations: Boolean(productHasVariationsInput?.checked),
+          variation_view: productVariationViewInput?.value || 'buttons',
+          related_products: selectedRelatedProductIds.slice(0, 4).filter(Boolean),
+          images: productImageSlotExisting.slice(0, PRODUCT_IMAGE_SLOT_COUNT),
+          image_files: fileState,
+          images_delete: sortedStrings(productImagesToDelete),
+        });
+      }
+      function hasProductChanges() {
+        return Boolean(productInitialSnapshot) && createProductSnapshot() !== productInitialSnapshot;
+      }
+      function setProductSnapshotFromCurrent() {
+        productInitialSnapshot = createProductSnapshot();
+        updateProductFormState();
+      }
+      function createVariationSnapshot() {
+        const file = variationImageInput?.files?.[0] || null;
+        return JSON.stringify({
+          id: variationIdInput?.value || '',
+          variation_type: variationTypeInput?.value?.trim() || 'Sabor',
+          value: variationValueInput?.value?.trim() || '',
+          price_usd: Number(variationPriceInput?.value || 0),
+          cost_usd: Number(variationCostInput?.value || 0),
+          stock: Number(variationStockInput?.value || 0),
+          internal_ref: variationRefInput?.value?.trim() || '',
+          sort_order: Number(variationOrderInput?.value || 0),
+          active: variationActiveInput?.checked !== false,
+          allow_preorder: Boolean(variationAllowPreorderInput?.checked),
+          image: currentVariationImageUrl || '',
+          image_file: file ? `${file.name}:${file.size}:${file.lastModified}` : '',
+        });
+      }
+      function variationHasMinimumData() {
+        if (!productIdInput?.value) return false;
+        if (!variationValueInput?.value?.trim()) return false;
+        if (productTracksStock() && variationStockInput?.value === '') return false;
+        return true;
+      }
+      function hasVariationChanges() {
+        return Boolean(variationInitialSnapshot) && createVariationSnapshot() !== variationInitialSnapshot;
+      }
+      function updateVariationFormState() {
+        if (!variationSaveBtn) return;
+        const isEditingVariation = Boolean(variationIdInput?.value);
+        const canSave = variationHasMinimumData() && (!isEditingVariation || hasVariationChanges());
+        variationSaveBtn.disabled = isSavingVariation || !canSave;
+        variationSaveBtn.textContent = isSavingVariation ? 'Guardando...' : 'Guardar variacion';
       }
       function updateProductFormState({ showMessage = false } = {}) {
         if (!productSaveBtn) return;
@@ -2871,12 +2997,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const missingName = !name;
         const missingStock = trackStock && !useVariations && !hasValidStock;
         const invalidOffer = offerState.enabled && !offerState.valid;
-        productSaveBtn.disabled = missingName || missingStock || invalidOffer;
-        productSaveBtn.textContent = 'Guardar producto';
+        const isDirtyEnough = isEditing ? hasProductChanges() : true;
+        productSaveBtn.disabled = isSavingProduct || missingName || missingStock || invalidOffer || !isDirtyEnough;
+        productSaveBtn.textContent = isSavingProduct ? 'Guardando...' : 'Guardar producto';
         if (editorSideSaveBtn) {
           editorSideSaveBtn.disabled = productSaveBtn.disabled;
           editorSideSaveBtn.textContent = productSaveBtn.textContent;
         }
+        updateVariationFormState();
         updateEditorPreview();
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
@@ -2893,12 +3021,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function getEditorPreviewImageUrl() {
-        const selected = productImageSlotFiles.find(Boolean);
-        if (selected) {
-          if (editorPreviewObjectUrl) URL.revokeObjectURL(editorPreviewObjectUrl);
-          editorPreviewObjectUrl = URL.createObjectURL(selected);
-          return editorPreviewObjectUrl;
-        }
+        const selectedIndex = productImageSlotFiles.findIndex(Boolean);
+        if (selectedIndex >= 0) return productImageSlotObjectUrls[selectedIndex] || '';
         if (editorPreviewObjectUrl) {
           URL.revokeObjectURL(editorPreviewObjectUrl);
           editorPreviewObjectUrl = '';
@@ -2992,6 +3116,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       function resetVariationEditor() {
         if (!variationEditor) return;
+        if (variationPreviewObjectUrl) URL.revokeObjectURL(variationPreviewObjectUrl);
+        variationPreviewObjectUrl = '';
+        currentVariationImageUrl = '';
+        variationInitialSnapshot = '';
         variationIdInput.value = '';
         variationTypeInput.value = 'Sabor';
         variationValueInput.value = '';
@@ -3003,8 +3131,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationImageInput.value = '';
         variationActiveInput.checked = true;
         variationAllowPreorderInput.checked = false;
-        variationCurrentImageBox.innerHTML = '';
-        variationCurrentImageBox.classList.add('hidden');
+        renderVariationImageSlot('');
         variationDeleteBtn?.classList.add('hidden');
         variationEditor.classList.add('hidden');
         updateProductFormState();
@@ -3031,12 +3158,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function renderVariationCurrentImage(variation) {
         const url = variationImageUrl(variation);
-        if (!url) {
-          variationCurrentImageBox.innerHTML = '';
-          variationCurrentImageBox.classList.add('hidden');
-          return;
-        }
-        variationCurrentImageBox.innerHTML = `<img src="${url}" alt="Foto actual" /><span class="form-help">Foto actual. Si subes otra, se reemplaza.</span>`;
+        currentVariationImageUrl = url || '';
+        renderVariationImageSlot(currentVariationImageUrl);
+      }
+      function renderVariationImageSlot(url = '') {
+        if (!variationCurrentImageBox) return;
+        const previewUrl = variationPreviewObjectUrl || url;
+        const hasImage = Boolean(previewUrl);
+        variationCurrentImageBox.innerHTML = `
+          ${hasImage ? `<img src="${escapeHtml(previewUrl)}" alt="Foto de variacion" />` : '<span class="variation-current-placeholder">+</span>'}
+          <label class="product-image-action" for="variation-image">${hasImage ? 'Cambiar foto' : 'Subir nueva foto'}</label>
+        `;
         variationCurrentImageBox.classList.remove('hidden');
       }
       function openVariationEditor(variationId = '') {
@@ -3057,6 +3189,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationActiveInput.checked = variation.active !== false;
         variationAllowPreorderInput.checked = Boolean(variation.allow_preorder);
         renderVariationCurrentImage(variation);
+        variationInitialSnapshot = createVariationSnapshot();
         variationDeleteBtn?.classList.remove('hidden');
         variationEditor?.classList.remove('hidden');
         updateProductFormState();
@@ -3197,9 +3330,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       async function saveVariation() {
         const currentProductId = productIdInput.value;
-        if (!currentProductId) return;
+        if (!currentProductId || isSavingVariation || variationSaveBtn.disabled) return;
         const editingVariationId = variationIdInput.value;
-        variationSaveBtn.disabled = true;
+        isSavingVariation = true;
+        updateVariationFormState();
         setVariationAlert(editingVariationId ? 'Guardando variación...' : 'Creando variación...', 'info');
         try {
           const formData = buildVariationFormData();
@@ -3210,17 +3344,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             await apiRequest('/api/collections/product_variations/records', { method: 'POST', body: formData });
             setVariationAlert('Variación creada correctamente.', 'success');
           }
+          setVariationAlert('VariaciÃ³n guardada correctamente.', 'success');
           await loadProductVariations(currentProductId);
           await syncProductVariationFlag();
           resetVariationEditor();
         } catch (error) {
-          setVariationAlert(error.message || 'No se pudo guardar la variación.', 'error');
+          setVariationAlert('No se pudo guardar la variación.', 'error');
         } finally {
-          variationSaveBtn.disabled = false;
+          isSavingVariation = false;
+          updateVariationFormState();
         }
       }
       function resetProductForm() {
         productForm.reset();
+        productInitialSnapshot = '';
         productIdInput.value = '';
         productActiveInput.checked = true;
         productCostInput.value = '';
@@ -3315,6 +3452,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         renderCurrentImages(product);
         if (productHasVariationsOption) productHasVariationsOption.classList.remove('hidden');
         setupVariationManager(product);
+        productInitialSnapshot = createProductSnapshot();
         productEditor.classList.remove('hidden');
         updateProductFormState();
         setCatalogOverviewVisible(false);
@@ -3488,25 +3626,31 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function saveProduct() {
+        if (isSavingProduct || productSaveBtn.disabled) return;
         const editingId = productIdInput.value;
         const requestedTrackStock = productTracksStock();
         const requestedStock = Math.max(0, Math.floor(Number(productStockInput.value || 0)));
-        if (!requestedTrackStock || (editingId && productHasVariationsInput?.checked)) productStockInput.value = '0';
-        const formData = await buildProductFormData({ forceHasVariations: editingId ? null : false });
-        productSaveBtn.disabled = true;
-        productSaveBtn.textContent = 'Guardando...';
-        if (editorSideSaveBtn) {
-          editorSideSaveBtn.disabled = true;
-          editorSideSaveBtn.textContent = 'Guardando...';
+        let formData;
+        try {
+          if (!requestedTrackStock || (editingId && productHasVariationsInput?.checked)) productStockInput.value = '0';
+          formData = await buildProductFormData({ forceHasVariations: editingId ? null : false });
+        } catch (error) {
+          setFormAlert('No se pudo guardar el producto', 'error');
+          updateProductFormState();
+          return;
         }
+        isSavingProduct = true;
+        updateProductFormState();
         setFormAlert(editingId ? 'Guardando cambios...' : 'Creando producto...', 'info');
         try {
           if (editingId) {
             const updatedProduct = await apiRequest(`/api/collections/products/records/${editingId}`, { method: 'PATCH', body: formData });
-            await syncProductImageOrder(updatedProduct);
-            setFormAlert('Producto actualizado correctamente.', 'success');
+            const savedProduct = await syncProductImageOrder(updatedProduct);
             await loadProducts();
-            closeProductEditor();
+            const freshProduct = products.find((item) => item.id === editingId) || savedProduct || updatedProduct;
+            renderCurrentImages(freshProduct);
+            setProductSnapshotFromCurrent();
+            setFormAlert('Cambios guardados correctamente', 'success');
           } else {
             let created;
 
@@ -3539,6 +3683,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
             await loadProducts();
             productIdInput.value = created.id;
+            const freshCreatedProduct = products.find((item) => item.id === created.id) || created;
+            renderCurrentImages(freshCreatedProduct);
             editorTitle.textContent = 'Producto creado';
             editorSubtitle.textContent = `Producto guardado: ${created.name || productNameInput.value.trim()}`;
             productHasVariationsInput.checked = false;
@@ -3546,15 +3692,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               productTrackStockInput.checked = true;
               productStockInput.value = String(requestedStock);
             }
-            updateProductFormState();
+            setProductSnapshotFromCurrent();
             setFormAlert('Producto creado correctamente.', 'success');
             showPostSaveVariationPrompt(created.id);
           }
         } catch (error) {
-          setFormAlert(error.message || 'No se pudo guardar el producto.', 'error');
+          setFormAlert('No se pudo guardar el producto', 'error');
         } finally {
-          productSaveBtn.textContent = 'Guardar producto';
-          if (editorSideSaveBtn) editorSideSaveBtn.textContent = 'Guardar producto';
+          isSavingProduct = false;
           updateProductFormState();
         }
       }
@@ -3714,6 +3859,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           button.addEventListener('click', () => {
             selectedRelatedProductIds = selectedRelatedProductIds.filter((id) => id !== button.dataset.relatedRemove);
             renderSelectedRelatedProducts();
+            updateProductFormState();
           });
         });
       }
@@ -3782,6 +3928,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         selectedRelatedProductIds = modalRelatedProductIds.slice(0, 4);
         renderSelectedRelatedProducts();
         closeRelatedProductsModal();
+        updateProductFormState();
       }
       function getCategory(id) { return categories.find((item) => item.id === id) || null; }
       function getSubcategory(id) { return subcategories.find((item) => item.id === id) || null; }
@@ -4196,6 +4343,27 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       });
       variationSaveBtn?.addEventListener('click', saveVariation);
+      [variationTypeInput, variationValueInput, variationPriceInput, variationCostInput, variationStockInput, variationRefInput].forEach((input) => {
+        input?.addEventListener('input', updateVariationFormState);
+      });
+      [variationActiveInput, variationAllowPreorderInput].forEach((input) => {
+        input?.addEventListener('change', updateVariationFormState);
+      });
+      variationImageInput?.addEventListener('change', () => {
+        const file = variationImageInput.files?.[0] || null;
+        if (variationPreviewObjectUrl) URL.revokeObjectURL(variationPreviewObjectUrl);
+        variationPreviewObjectUrl = '';
+        if (file) {
+          if (!file.type.startsWith('image/')) {
+            setVariationAlert('Solo puedes subir imagenes.', 'error');
+            variationImageInput.value = '';
+          } else {
+            variationPreviewObjectUrl = URL.createObjectURL(file);
+          }
+        }
+        renderVariationImageSlot(currentVariationImageUrl);
+        updateVariationFormState();
+      });
       variationEditor?.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
         const tagName = String(event.target?.tagName || '').toLowerCase();
@@ -4233,6 +4401,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       productForm?.addEventListener('submit', async (event) => {
         event.preventDefault();
         await saveProduct();
+      });
+      productForm?.addEventListener('input', (event) => {
+        if (event.target?.type === 'file') return;
+        updateProductFormState();
+      });
+      productForm?.addEventListener('change', (event) => {
+        if (event.target?.type === 'file') return;
+        updateProductFormState();
       });
       postSaveVariationYesBtn?.addEventListener('click', confirmPostSaveVariationChoice);
       postSaveVariationNoBtn?.addEventListener('click', declinePostSaveVariationChoice);
