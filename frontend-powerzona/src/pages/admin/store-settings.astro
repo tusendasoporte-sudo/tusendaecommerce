@@ -3393,6 +3393,9 @@ const masterSupportHref = masterSupportWhatsapp
         let selectedBusinessTypes = [];
         const galleryPreviewUrls = new Map();
         const singlePreviewUrls = new Map();
+        let settingsNoticeTimer = null;
+        let settingsSaving = false;
+        let settingsInitialSnapshot = null;
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -3400,7 +3403,20 @@ const masterSupportHref = masterSupportWhatsapp
           box.className = 'alert alert-' + type;
           box.textContent = message;
         }
-        function show(message = '', type = 'info') { showMessage(alertBox, message, type); }
+        function show(message = '', type = 'info') {
+          if (settingsNoticeTimer) {
+            window.clearTimeout(settingsNoticeTimer);
+            settingsNoticeTimer = null;
+          }
+          showMessage(alertBox, message, type);
+          const timeout = type === 'success' ? 2800 : type === 'error' ? 4800 : 0;
+          if (message && timeout) {
+            settingsNoticeTimer = window.setTimeout(() => {
+              showMessage(alertBox, '', 'info');
+              settingsNoticeTimer = null;
+            }, timeout);
+          }
+        }
         function showFooter(message = '', type = 'info') { showMessage(footerAlertBox, message, type); }
         function fileName(name) { const value = settingsRecord && settingsRecord[name]; return Array.isArray(value) ? value[0] : value || ''; }
         function fileNames(name) {
@@ -3418,11 +3434,13 @@ const masterSupportHref = masterSupportWhatsapp
         function fileUrl(name, thumb) {
           const filename = fileName(name);
           if (!settingsRecord || !settingsRecord.id || !filename) return '';
-          return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) : '');
+          const version = encodeURIComponent(settingsRecord.updated || Date.now());
+          return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) + '&t=' + version : '?t=' + version);
         }
         function fileUrlFor(filename, thumb, fieldName = '') {
           if (!settingsRecord || !settingsRecord.id || !filename) return '';
-          return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) : '');
+          const version = encodeURIComponent(settingsRecord.updated || Date.now());
+          return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) + '&t=' + version : '?t=' + version);
         }
         function coverSlotItems() {
           const slotItems = ['cover_image_1', 'cover_image_2', 'cover_image_3', 'cover_image_4'].map((fieldName) => ({
@@ -3565,6 +3583,72 @@ const masterSupportHref = masterSupportWhatsapp
         }
         function composeAddress() {
           return fields.addressDetail?.value?.trim() || '';
+        }
+
+        function getSettingsSubmitButtons() {
+          return Array.from(document.querySelectorAll('#settings-form button[type="submit"], button[form="settings-form"]'));
+        }
+
+        function galleryPendingState() {
+          return Array.from(document.querySelectorAll('.js-cover-gallery-file')).map((input) => {
+            const slot = input.closest('[data-gallery-field]');
+            return {
+              field: slot?.dataset?.galleryField || '',
+              pending: Boolean(input.files && input.files[0]),
+            };
+          });
+        }
+
+        function settingsSnapshot() {
+          return {
+            storeName: fields.storeName?.value?.trim() || '',
+            orderPrefix: normalizeOrderPrefix(fields.orderPrefix?.value || ''),
+            whatsappCountry: fields.whatsappCountry?.value || 'CU',
+            whatsapp: cleanWhatsappNumber(fields.whatsapp?.value || '').replace(/^\+/, ''),
+            coverMode: fields.coverMode?.value || 'single',
+            storeDescription: fields.storeDescription?.value?.trim() || '',
+            welcome: fields.welcome?.value?.trim() || '',
+            categoryColumns: fields.categoryColumns?.value || '2',
+            province: fields.province?.value || '',
+            municipality: fields.municipality?.value || '',
+            addressDetail: fields.addressDetail?.value?.trim() || '',
+            reviews: fields.reviews?.value?.trim() || '',
+            businessTypes: selectedBusinessTypes.join('|'),
+            logoChanged: Boolean(fields.logo?.files && fields.logo.files[0]),
+            coverChanged: Boolean(fields.cover?.files && fields.cover.files[0]),
+            galleryChanged: galleryPendingState().some((item) => item.pending),
+          };
+        }
+
+        function hasSettingsChanges() {
+          if (!settingsInitialSnapshot) return false;
+          return JSON.stringify(settingsSnapshot()) !== JSON.stringify(settingsInitialSnapshot);
+        }
+
+        function syncSettingsSubmitState() {
+          const canSubmit = hasSettingsChanges() && !settingsSaving;
+          getSettingsSubmitButtons().forEach((button) => {
+            let label = button.querySelector('[data-settings-submit-label]') || button.querySelector('span');
+            if (!label && button.querySelector('svg')) {
+              const originalText = button.textContent?.trim() || 'Guardar ajustes generales';
+              const svg = button.querySelector('svg');
+              button.innerHTML = '';
+              if (svg) button.appendChild(svg);
+              label = document.createElement('span');
+              label.dataset.settingsSubmitLabel = 'true';
+              label.textContent = originalText;
+              button.appendChild(label);
+            }
+            if (!label) label = button;
+            if (!button.dataset.defaultText) button.dataset.defaultText = label.textContent?.trim() || 'Guardar ajustes generales';
+            button.disabled = !canSubmit;
+            label.textContent = settingsSaving ? 'Guardando...' : button.dataset.defaultText;
+          });
+        }
+
+        function setSettingsInitialSnapshot() {
+          settingsInitialSnapshot = settingsSnapshot();
+          syncSettingsSubmitState();
         }
 
         async function optimizeCoverImageFile(file) {
@@ -3813,53 +3897,72 @@ const masterSupportHref = masterSupportWhatsapp
           setUploadLabel(fields.coverUploadLabel, hasCoverImage);
           updateCoverModeUI();
           renderCoverGallery();
+          setSettingsInitialSnapshot();
         }
         async function save(event) {
           event.preventDefault();
+          if (settingsSaving) return;
+          if (!hasSettingsChanges()) {
+            syncSettingsSubmitState();
+            return;
+          }
+          settingsSaving = true;
+          syncSettingsSubmitState();
+          show('Guardando ajustes...', 'info');
           if (!settingsRecord || !settingsRecord.id) {
             try {
               settingsRecord = await createSettingsRecord();
             } catch (error) {
-              show(error.message || 'No se pudo crear el registro de ajustes de esta tienda.', 'error');
+              settingsSaving = false;
+              syncSettingsSubmitState();
+              show(error.message || 'No se pudieron guardar los cambios', 'error');
               return;
             }
           }
-          const data = new FormData();
-          data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
-          data.append('stored_name', fields.storeName.value.trim() || 'PowerZona');
-          data.append('order_prefix', normalizeOrderPrefix(fields.orderPrefix.value));
-          data.append('whatsapp_number', composeWhatsappNumber());
-          data.append('store_description', fields.storeDescription.value.trim());
-          data.append('welcome_text', fields.welcome.value.trim());
-          data.append('public_category_columns', fields.categoryColumns.value || '2');
-          data.append('cover_mode', fields.coverMode.value || 'single');
-          data.append('business_types', JSON.stringify(selectedBusinessTypes));
-          data.append('province', fields.province?.value || '');
-          data.append('municipality', fields.municipality?.value || '');
-          data.append('address_detail', fields.addressDetail?.value?.trim() || '');
-          data.append('address', composeAddress());
-          data.append('public_services_text', selectedBusinessTypes.map(businessTypeLabel).join(', '));
-          data.append('reviews_text', fields.reviews.value.trim());
-          data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
-          if (fields.logo.files && fields.logo.files[0]) data.append('logo_image', fields.logo.files[0]);
-          if (fields.cover.files && fields.cover.files[0]) data.append('cover_image', await optimizeCoverImageFile(fields.cover.files[0]));
-          const galleryInputs = Array.from(document.querySelectorAll('.js-cover-gallery-file'));
-          const selectedGalleryInputs = galleryInputs.filter((input) => input.files && input.files[0]);
-          for (const input of selectedGalleryInputs) {
-            const slot = input.closest('[data-gallery-field]');
-            const fieldName = slot?.dataset?.galleryField || '';
-            const sourceField = slot?.dataset?.gallerySourceField || fieldName;
-            const currentFile = input.dataset.currentFile || '';
-            if (!/^cover_image_[1-4]$/.test(fieldName)) continue;
-            if (currentFile) data.append(sourceField + '-', currentFile);
-            data.append(fieldName, await optimizeCoverImageFile(input.files[0]));
+          try {
+            const data = new FormData();
+            data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
+            data.append('stored_name', fields.storeName.value.trim() || 'PowerZona');
+            data.append('order_prefix', normalizeOrderPrefix(fields.orderPrefix.value));
+            data.append('whatsapp_number', composeWhatsappNumber());
+            data.append('store_description', fields.storeDescription.value.trim());
+            data.append('welcome_text', fields.welcome.value.trim());
+            data.append('public_category_columns', fields.categoryColumns.value || '2');
+            data.append('cover_mode', fields.coverMode.value || 'single');
+            data.append('business_types', JSON.stringify(selectedBusinessTypes));
+            data.append('province', fields.province?.value || '');
+            data.append('municipality', fields.municipality?.value || '');
+            data.append('address_detail', fields.addressDetail?.value?.trim() || '');
+            data.append('address', composeAddress());
+            data.append('public_services_text', selectedBusinessTypes.map(businessTypeLabel).join(', '));
+            data.append('reviews_text', fields.reviews.value.trim());
+            data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
+            if (fields.logo.files && fields.logo.files[0]) data.append('logo_image', fields.logo.files[0]);
+            if (fields.cover.files && fields.cover.files[0]) data.append('cover_image', await optimizeCoverImageFile(fields.cover.files[0]));
+            const galleryInputs = Array.from(document.querySelectorAll('.js-cover-gallery-file'));
+            const selectedGalleryInputs = galleryInputs.filter((input) => input.files && input.files[0]);
+            for (const input of selectedGalleryInputs) {
+              const slot = input.closest('[data-gallery-field]');
+              const fieldName = slot?.dataset?.galleryField || '';
+              const sourceField = slot?.dataset?.gallerySourceField || fieldName;
+              const currentFile = input.dataset.currentFile || '';
+              if (!/^cover_image_[1-4]$/.test(fieldName)) continue;
+              if (currentFile) data.append(sourceField + '-', currentFile);
+              data.append(fieldName, await optimizeCoverImageFile(input.files[0]));
+            }
+            await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
+            fields.logo.value = '';
+            fields.cover.value = '';
+            galleryInputs.forEach((input) => { input.value = ''; });
+            show('Cambios guardados correctamente', 'success');
+            await loadSettings();
+          } catch (error) {
+            console.error(error);
+            show(error.message || 'No se pudieron guardar los cambios', 'error');
+          } finally {
+            settingsSaving = false;
+            syncSettingsSubmitState();
           }
-          await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
-          fields.logo.value = '';
-          fields.cover.value = '';
-          galleryInputs.forEach((input) => { input.value = ''; });
-          show('Ajustes generales guardados correctamente.', 'success');
-          await loadSettings();
         }
         async function deleteSettingsFile(fieldName, filename) {
           if (!settingsRecord?.id || !filename) return;
@@ -3951,6 +4054,7 @@ const masterSupportHref = masterSupportWhatsapp
           }
           renderBusinessTypeChips();
           renderBusinessTypeOptions();
+          syncSettingsSubmitState();
         });
         businessTypeChips?.addEventListener('click', (event) => {
           const target = event.target instanceof Element ? event.target : null;
@@ -3959,6 +4063,7 @@ const masterSupportHref = masterSupportWhatsapp
           selectedBusinessTypes = selectedBusinessTypes.filter((slug) => slug !== btn.dataset.removeBusinessType);
           renderBusinessTypeChips();
           renderBusinessTypeOptions();
+          syncSettingsSubmitState();
         });
         document.addEventListener('click', (event) => {
           if (!businessTypePanel || businessTypePanel.classList.contains('hidden')) return;
@@ -4017,6 +4122,7 @@ const masterSupportHref = masterSupportWhatsapp
                 : placeholderMarkup(`Foto ${index + 1}`);
               const label = slot.querySelector('.settings-file-control label');
               if (label) label.textContent = filename ? 'Cambiar foto' : 'Subir nueva foto';
+              syncSettingsSubmitState();
               return;
             }
             deleteSettingsFile(sourceField, filename).catch((error) => show(error.message || 'No se pudo borrar la foto.', 'error'));
@@ -4039,11 +4145,17 @@ const masterSupportHref = masterSupportWhatsapp
           slot.dataset.pendingFile = 'true';
           const label = slot.querySelector('.settings-file-control label');
           if (label) label.textContent = 'Cambiar foto';
+          syncSettingsSubmitState();
         });
         renderProvinceOptions();
         renderMunicipalityOptions('');
         renderBusinessTypeChips();
         renderBusinessTypeOptions();
+        form?.querySelectorAll('input, select, textarea').forEach((element) => {
+          element.addEventListener('input', syncSettingsSubmitState);
+          element.addEventListener('change', syncSettingsSubmitState);
+        });
+        syncSettingsSubmitState();
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
         refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
         footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch((error) => showFooter(error.message || 'No se pudo guardar el footer.', 'error')));
