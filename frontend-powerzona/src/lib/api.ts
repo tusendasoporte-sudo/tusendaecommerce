@@ -90,10 +90,18 @@ export async function getSubcategories(options?: StoreQueryInput) {
     expand: 'category',
   });
 
-  return subcategories.filter((subcategory: any) => {
-    const categoryIsVisible = !subcategory.category || subcategory.expand?.category?.active === true;
-    return subcategory.active === true && categoryIsVisible;
-  });
+  return subcategories
+    .filter((subcategory: any) => {
+      const categoryIsVisible = !subcategory.category || subcategory.expand?.category?.active === true;
+      return subcategory.active === true && categoryIsVisible;
+    })
+    .map((subcategory: any) => {
+      const image = normalizeFileValue(subcategory.image)[0] || '';
+      return {
+        ...subcategory,
+        imageUrl: image ? getPocketBaseFileUrl('subcategories', subcategory.id, image) : null,
+      };
+    });
 }
 
 export async function getCurrencies(options?: StoreQueryInput) {

@@ -38,6 +38,11 @@ const showProductRating = settings?.reviews_enabled !== false && settings?.show_
 const productReviewSummaries = showProductRating
   ? await getProductReviewSummaries(subcategoryProducts.map((product) => product.id).filter(Boolean), storeQuery)
   : {};
+
+function subcategoryInitial(name: string) {
+  return String(name || 'S').trim()[0]?.toUpperCase() || 'S';
+}
+
 function getProductOfferView(product: any) {
   const activePrice = Number(product?.base_price_usd || 0);
   const regularPrice = Number(product?.regular_price_usd || activePrice);
@@ -65,10 +70,16 @@ function getProductOfferView(product: any) {
     .kicker { margin: 0; color: #16a34a; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .11em; }
     .title { margin: 0; font-size: clamp(32px, 7vw, 58px); line-height: .96; font-weight: 1000; letter-spacing: -.06em; color:#111827; }
     .subtitle { margin: 0; color: #64748b; font-size: 14px; font-weight: 850; line-height:1.45; }
+    .description { margin: 0; max-width: 760px; color: #475569; font-size: 15px; line-height: 1.55; font-weight: 800; white-space: pre-line; }
+    .subcategory-hero { position: relative; min-height: 260px; aspect-ratio: 16 / 9; border-radius: 34px; overflow: hidden; background: linear-gradient(135deg, #f8fafc, #eef4ff); border: 1px solid rgba(226,232,240,.9); box-shadow: 0 24px 70px rgba(15,23,42,.15); margin-bottom: 24px; }
+    .subcategory-hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; opacity: .98; display: block; }
+    .subcategory-hero-fallback { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 34%, #fff 0%, #eaf4ff 52%, #dbeafe 100%); color: #0b63f6; font-size: 68px; font-weight: 1000; }
+    .section-head { margin: 0 0 14px; }
+    .section-title { margin: 0; color: #111827; font-size: 22px; font-weight: 1000; letter-spacing: -.04em; }
     .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .empty-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 24px; padding: 22px; color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
     @media (min-width: 768px) { .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; } }
-    @media (max-width: 640px) { .hero { border-radius: 28px; } .back-btn { padding: 10px 11px; } .top { align-items: flex-start; } .top-actions { flex-wrap: wrap; } }
+    @media (max-width: 640px) { .subcategory-hero { border-radius: 28px; min-height: 210px; } .back-btn { padding: 10px 11px; } .top { align-items: flex-start; } .top-actions { flex-wrap: wrap; } }
   </style>
 
   <div class="top">
@@ -85,8 +96,18 @@ function getProductOfferView(product: any) {
   <section class="hero-copy">
     <p class="kicker">Subcategoría{category ? ` · ${category.name}` : ''}</p>
     <h1 class="title">{subcategory.name}</h1>
+    {subcategory.description && <p class="description">{subcategory.description}</p>}
     <p class="subtitle">{productCountLabel}</p>
   </section>
+
+  <section class="subcategory-hero">
+    {subcategory.imageUrl ? <img src={subcategory.imageUrl} alt={subcategory.name} /> : <div class="subcategory-hero-fallback">{subcategoryInitial(subcategory.name)}</div>}
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2 class="section-title">Productos de {subcategory.name}</h2>
+    </div>
 
   {subcategoryProducts.length > 0 ? (
     <div class="product-grid">
@@ -99,6 +120,8 @@ function getProductOfferView(product: any) {
   ) : (
     <div class="empty-box">Esta subcategoría todavía no tiene productos visibles.</div>
   )}
+
+  </section>
 
   <PublicFooter settings={settings} />
 </Layout>

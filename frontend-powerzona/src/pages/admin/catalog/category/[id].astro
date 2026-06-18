@@ -1188,8 +1188,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function recordImageUrl(collection, record) {
-        if (!record?.image) return '';
-        return `${POCKETBASE_URL}/api/files/${collection}/${encodeURIComponent(record.id)}/${encodeURIComponent(record.image)}`;
+        const image = Array.isArray(record?.image) ? record.image.filter(Boolean)[0] : record?.image;
+        if (!image) return '';
+        return `${POCKETBASE_URL}/api/files/${collection}/${encodeURIComponent(record.id)}/${encodeURIComponent(image)}`;
       }
 
       function imageMarkup(collection, record, label, placeholder = '+') {

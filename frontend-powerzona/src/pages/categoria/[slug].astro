@@ -43,6 +43,11 @@ const productReviewSummaries = showProductRating
 function productsBySubcategory(subcategoryId: string) {
   return products.filter((product) => product.subcategory === subcategoryId);
 }
+
+function subcategoryInitial(name: string) {
+  return String(name || 'S').trim()[0]?.toUpperCase() || 'S';
+}
+
 function getProductOfferView(product: any) {
   const activePrice = Number(product?.base_price_usd || 0);
   const regularPrice = Number(product?.regular_price_usd || activePrice);
@@ -78,22 +83,31 @@ function getProductOfferView(product: any) {
     .section-head { margin: 0 0 14px; }
     .section-title { margin: 0; color: #111827; font-size: 22px; font-weight: 1000; letter-spacing: -.04em; }
     .section-subtitle { margin: 3px 0 0; color: #64748b; font-size: 13px; font-weight: 800; }
-    .subcategory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 26px; }
-    .subcategory-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 22px; padding: 15px; box-shadow: 0 12px 32px rgba(15,23,42,.06); color: #111827; }
-    .subcategory-card strong { display: block; font-size: 14px; font-weight: 1000; line-height: 1.15; }
-    .subcategory-card span { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 850; }
-    .subcategory-arrow { width: 34px; height: 34px; border-radius: 999px; background: #111827; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 1000; flex: 0 0 auto; }
+    .subcategory-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 28px; overflow: hidden; }
+    .subcategory-card { min-width: 0; display: grid; grid-template-columns: minmax(160px, 42%) minmax(0, 58%); overflow: hidden; border-radius: 18px; border: 1px solid #dbe7f6; background: linear-gradient(100deg, #eaf4ff, #fff); color: #08133f; text-decoration: none; box-shadow: 0 20px 52px rgba(37,99,235,.10); }
+    .subcategory-media { position: relative; width: 100%; height: auto; min-height: 0; aspect-ratio: 16 / 9; overflow: hidden; background: #f6f9ff; }
+    .subcategory-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; transition: transform .35s ease; }
+    .subcategory-card:hover .subcategory-media img { transform: scale(1.04); }
+    .subcategory-fallback { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 34%, #fff 0%, #eaf4ff 52%, #dbeafe 100%); color: #0b63f6; font-size: 54px; font-weight: 1000; }
+    .subcategory-copy { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: clamp(18px, 3vw, 28px); }
+    .subcategory-card strong { display: -webkit-box; color: #08133f; font-size: clamp(20px, 2.2vw, 30px); font-weight: 1000; line-height: 1.08; letter-spacing: 0; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .subcategory-description { display: -webkit-box; margin: 0; color: #33446f; font-size: 13px; line-height: 1.45; font-weight: 780; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .subcategory-count { display: inline-flex; width: max-content; max-width: 100%; border-radius: 999px; border: 1px solid #dbe7f6; background: rgba(255,255,255,.88); color: #33446f; padding: 7px 10px; font-size: 12px; line-height: 1; font-weight: 950; box-shadow: 0 8px 20px rgba(37,99,235,.06); }
     .product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
     .empty-box { background: #fff; border: 1px dashed #cbd5e1; border-radius: 24px; padding: 22px; color: #64748b; font-size: 14px; font-weight: 850; text-align: center; }
     @media (min-width: 768px) {
       .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
-      .subcategory-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     }
     @media (max-width: 640px) {
       .category-hero { border-radius: 28px; min-height: 210px; }
       .back-btn { padding: 10px 11px; }
       .category-top { align-items: flex-start; }
       .category-top-actions { flex-wrap: wrap; }
+      .subcategory-grid { grid-template-columns: 1fr; gap: 12px; }
+      .subcategory-card { grid-template-columns: 1fr; }
+      .subcategory-media { order: 1; aspect-ratio: 16 / 9; }
+      .subcategory-copy { order: 2; padding: 16px; }
+      .subcategory-card strong { font-size: 20px; }
     }
   </style>
 
@@ -131,12 +145,15 @@ function getProductOfferView(product: any) {
         {categorySubcategories.map((subcategory) => {
           const count = productsBySubcategory(subcategory.id).length;
           return (
-            <a href={getPublicPath(`/subcategoria/${subcategory.slug}`, currentStore, currentPathname)} class="subcategory-card">
-              <div>
-                <strong>{subcategory.name}</strong>
-                <span>{count} productos</span>
+            <a href={getPublicPath(`/subcategoria/${subcategory.slug}`, currentStore, currentPathname)} class="subcategory-card" aria-label={`Abrir subcategoría ${subcategory.name}`}>
+              <div class="subcategory-media">
+                {subcategory.imageUrl ? <img src={subcategory.imageUrl} alt={subcategory.name} loading="lazy" /> : <div class="subcategory-fallback">{subcategoryInitial(subcategory.name)}</div>}
               </div>
-              <div class="subcategory-arrow">›</div>
+              <div class="subcategory-copy">
+                <strong>{subcategory.name}</strong>
+                {subcategory.description && <p class="subcategory-description">{subcategory.description}</p>}
+                <span class="subcategory-count">{count} productos</span>
+              </div>
             </a>
           );
         })}
@@ -144,6 +161,7 @@ function getProductOfferView(product: any) {
     </section>
   )}
 
+  {(directProducts.length > 0 || categorySubcategories.length === 0) && (
   <section>
     <div class="section-head">
       <h2 class="section-title">Productos de {category.name}</h2>
@@ -161,6 +179,7 @@ function getProductOfferView(product: any) {
       <div class="empty-box">Esta categoría no tiene productos directos visibles. Revisa sus subcategorías.</div>
     )}
   </section>
+  )}
 
   <PublicFooter settings={settings} />
 </Layout>
