@@ -599,7 +599,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </fieldset>
               ))}
               <div id="marketing-bar-alert" class="alert alert-info hidden full"></div>
-              <div class="editor-actions full" data-marketing-bar-advanced><button class="submit-btn" type="submit">Guardar cambios</button></div>
+              <div class="editor-actions full" data-marketing-bar-advanced><button id="marketing-bar-save-btn" class="submit-btn" type="submit">Guardar cambios</button></div>
             </form>
           </section>
 
@@ -881,7 +881,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
               <div id="promotion-alert" class="alert alert-info hidden full"></div>
               <div class="editor-actions full">
                 <button id="promotion-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                <button class="submit-btn" type="submit">Guardar promoción</button>
+                <button id="promotion-save-btn" class="submit-btn" type="submit">Guardar promoción</button>
               </div>
             </form>
 
@@ -943,6 +943,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
               </div>
             </div>
 
+            <div id="coupon-alert" class="alert alert-info hidden"></div>
             <form id="coupon-form" class="visual-form-grid hidden">
               <input id="coupon-id" type="hidden" />
               <div class="field"><label for="coupon-code">Código del cupón</label><input id="coupon-code" type="text" placeholder="POWER5" required /></div>
@@ -978,10 +979,9 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
               </select></div>
               <div class="field" data-coupon-field="maxUses"><label for="coupon-max-uses">Máximo de usos</label><input id="coupon-max-uses" type="number" min="1" step="1" /></div>
               <div class="field full"><label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="coupon-active" type="checkbox" checked /> Activo</label></div>
-              <div id="coupon-alert" class="alert alert-info hidden full"></div>
               <div class="editor-actions full">
                 <button id="coupon-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                <button class="submit-btn" type="submit">Guardar cupón</button>
+                <button id="coupon-save-btn" class="submit-btn" type="submit">Guardar cupón</button>
               </div>
             </form>
 
@@ -1119,6 +1119,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let promotionFilter = 'all';
       let pendingPromotionDeleteId = '';
       let pendingCouponDeleteId = '';
+      let promotionInitialSnapshot = '';
+      let promotionNoticeTimer = null;
+      let isSavingPromotion = false;
+      let couponInitialSnapshot = '';
+      let couponNoticeTimer = null;
+      let isSavingCoupon = false;
       const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
       const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
 
@@ -1177,6 +1183,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const promotionDeleteCancelBtn = document.getElementById('promotion-delete-cancel-btn');
       const promotionDeleteConfirmBtn = document.getElementById('promotion-delete-confirm-btn');
       const promotionCancelBtn = document.getElementById('promotion-cancel-btn');
+      const promotionSaveBtn = document.getElementById('promotion-save-btn');
       const promotionId = document.getElementById('promotion-id');
       const promotionName = document.getElementById('promotion-name');
       const promotionType = document.getElementById('promotion-type');
@@ -1212,6 +1219,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const couponDeleteCancelBtn = document.getElementById('coupon-delete-cancel-btn');
       const couponDeleteConfirmBtn = document.getElementById('coupon-delete-confirm-btn');
       const couponCancelBtn = document.getElementById('coupon-cancel-btn');
+      const couponSaveBtn = document.getElementById('coupon-save-btn');
       const couponId = document.getElementById('coupon-id');
       const couponCode = document.getElementById('coupon-code');
       const couponName = document.getElementById('coupon-name');
@@ -1240,6 +1248,38 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (!message) { el.className = 'alert alert-info hidden'; el.textContent = ''; return; }
         el.className = `alert alert-${type}`;
         el.textContent = message;
+      }
+      function showPromotionNotice(message = '', type = 'info') {
+        if (!promotionAlert) return;
+        window.clearTimeout(promotionNoticeTimer);
+        if (!message) {
+          promotionAlert.className = 'alert alert-info hidden';
+          promotionAlert.textContent = '';
+          return;
+        }
+        promotionAlert.className = `alert alert-${type}`;
+        promotionAlert.textContent = message;
+        if (type === 'info') return;
+        promotionNoticeTimer = window.setTimeout(() => {
+          promotionAlert.className = `alert alert-${type} hidden`;
+          promotionAlert.textContent = '';
+        }, type === 'error' ? 4600 : 2800);
+      }
+      function showCouponNotice(message = '', type = 'info') {
+        if (!couponAlert) return;
+        window.clearTimeout(couponNoticeTimer);
+        if (!message) {
+          couponAlert.className = 'alert alert-info hidden';
+          couponAlert.textContent = '';
+          return;
+        }
+        couponAlert.className = `alert alert-${type}`;
+        couponAlert.textContent = message;
+        if (type === 'info') return;
+        couponNoticeTimer = window.setTimeout(() => {
+          couponAlert.className = `alert alert-${type} hidden`;
+          couponAlert.textContent = '';
+        }, type === 'error' ? 4600 : 2800);
       }
       function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
@@ -1674,6 +1714,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const visible = { buy: type === 'buy_x_pay_y', pay: type === 'buy_x_pay_y', minQty: type === 'volume_discount', minSubtotal: type === 'cart_subtotal_discount', product: ['product_discount', 'volume_discount', 'buy_x_pay_y'].includes(type), category: ['category_discount', 'subcategory_discount'].includes(type), subcategory: type === 'subcategory_discount', discount: type !== 'buy_x_pay_y' };
         document.querySelectorAll('[data-promo-field]').forEach((field) => field.classList.toggle('hidden', !visible[field.dataset.promoField]));
         promotionDiscountType?.closest('.field')?.classList.toggle('hidden', type === 'buy_x_pay_y');
+        updatePromotionFormState();
       }
       function promotionDateTime(value, boundary = 'start') {
         if (!value) return 0;
@@ -1928,6 +1969,47 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           maxUses: couponUsesMode?.value === 'limited',
         };
         document.querySelectorAll('[data-coupon-field]').forEach((field) => field.classList.toggle('hidden', !visible[field.dataset.couponField]));
+        updateCouponFormState();
+      }
+      function collectCouponPayload() {
+        const scope = couponScope?.value || 'cart';
+        return {
+          code: couponCode?.value?.trim().toUpperCase() || '',
+          name: couponName?.value?.trim() || '',
+          customer_message: couponMessage?.value?.trim() || '',
+          active: couponActive?.checked === true,
+          scope,
+          discount_type: scope === 'free_shipping' ? '' : couponDiscountType?.value || 'percentage',
+          discount_value: scope === 'free_shipping' ? 0 : Number(couponDiscountValue?.value || 0),
+          min_subtotal_usd: Number(couponMinSubtotal?.value || 0),
+          product: scope === 'product' ? couponProduct?.value || '' : '',
+          category: ['category', 'subcategory'].includes(scope) ? couponCategory?.value || '' : '',
+          subcategory: scope === 'subcategory' ? couponSubcategory?.value || '' : '',
+          starts_at: dateInputToIso(couponStarts?.value || '', 'start'),
+          ends_at: dateInputToIso(couponEnds?.value || '', 'end'),
+          unlimited_uses: couponUsesMode?.value !== 'limited',
+          max_uses: couponUsesMode?.value === 'limited' ? Number(couponMaxUses?.value || 0) : 0,
+          used_count: Number(manualCoupons.find((item) => item.id === couponId?.value)?.used_count || 0),
+          store: CURRENT_STORE_ID,
+        };
+      }
+      function createCouponSnapshot() {
+        return JSON.stringify(collectCouponPayload());
+      }
+      function couponFormHasChanges() {
+        return Boolean(couponInitialSnapshot) && createCouponSnapshot() !== couponInitialSnapshot;
+      }
+      function setCouponSnapshotFromCurrent() {
+        couponInitialSnapshot = createCouponSnapshot();
+        updateCouponFormState();
+      }
+      function updateCouponFormState() {
+        if (!couponSaveBtn || !couponForm) return;
+        const payload = collectCouponPayload();
+        const error = validateCouponPayload(payload, couponId?.value || '');
+        const canSave = !error && couponFormHasChanges();
+        couponSaveBtn.disabled = isSavingCoupon || !canSave;
+        couponSaveBtn.textContent = isSavingCoupon ? 'Guardando...' : 'Guardar cupón';
       }
       function renderCoupons() {
         if (!couponList) return;
@@ -1964,16 +2046,19 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       function resetCouponForm() {
         couponForm?.reset();
+        couponInitialSnapshot = '';
+        isSavingCoupon = false;
         if (couponId) couponId.value = '';
         if (couponScope) couponScope.value = 'cart';
         if (couponDiscountType) couponDiscountType.value = 'percentage';
         if (couponUsesMode) couponUsesMode.value = 'unlimited';
         if (couponActive) couponActive.checked = true;
         if (couponProductSearch) couponProductSearch.value = '';
-        showAlert(couponAlert, '');
+        showCouponNotice('');
         updateCouponFields();
         renderCouponProductSelected();
         renderCouponProductResults();
+        setCouponSnapshotFromCurrent();
       }
       function openCouponForm(item = null) {
         resetCouponForm();
@@ -1998,6 +2083,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           couponActive.checked = item.active !== false;
         }
         updateCouponFields();
+        setCouponSnapshotFromCurrent();
         couponForm?.classList.remove('hidden');
         showTab('cupones');
         couponCode?.focus();
@@ -2023,52 +2109,56 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function saveCoupon(event) {
         event.preventDefault();
-        const scope = couponScope.value;
-        const payload = {
-          code: couponCode.value.trim().toUpperCase(),
-          name: couponName.value.trim(),
-          customer_message: couponMessage.value.trim(),
-          active: couponActive.checked,
-          scope,
-          discount_type: scope === 'free_shipping' ? '' : couponDiscountType.value,
-          discount_value: scope === 'free_shipping' ? 0 : Number(couponDiscountValue.value || 0),
-          min_subtotal_usd: Number(couponMinSubtotal.value || 0),
-          product: scope === 'product' ? couponProduct.value : '',
-          category: ['category', 'subcategory'].includes(scope) ? couponCategory.value : '',
-          subcategory: scope === 'subcategory' ? couponSubcategory.value : '',
-          starts_at: dateInputToIso(couponStarts.value, 'start'),
-          ends_at: dateInputToIso(couponEnds.value, 'end'),
-          unlimited_uses: couponUsesMode.value !== 'limited',
-          max_uses: couponUsesMode.value === 'limited' ? Number(couponMaxUses.value || 0) : 0,
-          used_count: Number(manualCoupons.find((item) => item.id === couponId.value)?.used_count || 0),
-          store: CURRENT_STORE_ID,
-        };
-        const id = couponId.value;
+        if (isSavingCoupon) return;
+        const payload = collectCouponPayload();
+        const id = couponId?.value || '';
         const error = validateCouponPayload(payload, id);
-        if (error) return showAlert(couponAlert, error, 'error');
-        await apiRequest(`/api/collections/manual_coupons/records${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        showAlert(couponAlert, 'Cupón guardado correctamente.', 'success');
-        await loadData();
-        closeCouponForm();
+        if (error) { showCouponNotice(error, 'error'); updateCouponFormState(); return; }
+        if (!couponFormHasChanges()) { updateCouponFormState(); return; }
+        isSavingCoupon = true;
+        updateCouponFormState();
+        showCouponNotice('Guardando cupón...', 'info');
+        try {
+          await apiRequest(`/api/collections/manual_coupons/records${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          const message = id ? 'Cambios guardados correctamente' : 'Cupón creado correctamente';
+          await loadData();
+          closeCouponForm();
+          showCouponNotice(message, 'success');
+        } catch (_) {
+          showCouponNotice('No se pudo guardar el cupón', 'error');
+        } finally {
+          isSavingCoupon = false;
+          updateCouponFormState();
+        }
       }
       async function toggleCoupon(id) {
         const item = manualCoupons.find((coupon) => coupon.id === id);
         if (!item) return;
-        await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: item.active === false }) });
-        await loadData();
+        try {
+          await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: item.active === false }) });
+          await loadData();
+          showCouponNotice('Cupón actualizado correctamente', 'success');
+        } catch (_) {
+          showCouponNotice('No se pudo guardar el cupón', 'error');
+        }
       }
       async function deleteCoupon(id) {
         if (!id) return;
-        await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'DELETE' });
-        if (couponId?.value === id) closeCouponForm();
-        closeCouponDeleteModal();
-        await loadData();
+        try {
+          await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'DELETE' });
+          if (couponId?.value === id) closeCouponForm();
+          closeCouponDeleteModal();
+          await loadData();
+          showCouponNotice('Cupón eliminado correctamente', 'success');
+        } catch (_) {
+          showCouponNotice('No se pudo eliminar el cupón', 'error');
+        }
       }
       async function copyCouponLink(id) {
         const item = manualCoupons.find((coupon) => coupon.id === id);
         if (!item) return;
         await navigator.clipboard?.writeText(couponLink(item));
-        showAlert(couponAlert, 'Enlace copiado.', 'success');
+        showCouponNotice('Enlace copiado.', 'success');
       }
       function openCouponReadme() { couponReadmeModal?.classList.remove('hidden'); couponReadmeModal?.setAttribute('aria-hidden', 'false'); }
       function closeCouponReadme() { couponReadmeModal?.classList.add('hidden'); couponReadmeModal?.setAttribute('aria-hidden', 'true'); }
@@ -2326,16 +2416,19 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       function resetPromotionForm() {
         promotionForm?.reset();
+        promotionInitialSnapshot = '';
+        isSavingPromotion = false;
         if (promotionId) promotionId.value = '';
         if (promotionActive) promotionActive.checked = true;
         if (promotionType) promotionType.value = 'buy_x_pay_y';
         if (promotionDiscountType) promotionDiscountType.value = 'percentage';
         if (promotionProductSearch) promotionProductSearch.value = '';
         if (promotionProductSelected) promotionProductSelected.innerHTML = '';
-        showAlert(promotionAlert, '');
+        showPromotionNotice('');
         updatePromotionFields();
         renderPromotionProductSelected();
         renderPromotionProductResults();
+        setPromotionSnapshotFromCurrent();
       }
       function openPromotionForm(item = null) {
         resetPromotionForm();
@@ -2360,6 +2453,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           promotionActive.checked = item.active !== false;
         }
         updatePromotionFields();
+        setPromotionSnapshotFromCurrent();
         promotionForm?.classList.remove('hidden');
         showTab('promociones');
         promotionName?.focus();
@@ -2373,6 +2467,48 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (type === 'subcategory_discount') return 'subcategory';
         if (type === 'cart_subtotal_discount') return 'cart';
         return 'product';
+      }
+      function collectPromotionPayload() {
+        const type = promotionType.value;
+        return {
+          name: promotionName.value.trim(),
+          active: promotionActive.checked,
+          type,
+          scope: promotionScopeForType(type),
+          discount_type: type === 'buy_x_pay_y' ? '' : promotionDiscountType.value,
+          discount_value: type === 'buy_x_pay_y' ? 0 : Number(promotionDiscountValue.value || 0),
+          buy_qty: Number(promotionBuyQty.value || 0),
+          pay_qty: Number(promotionPayQty.value || 0),
+          min_qty: Number(promotionMinQty.value || 0),
+          min_subtotal_usd: Number(promotionMinSubtotal.value || 0),
+          product: ['product_discount', 'volume_discount', 'buy_x_pay_y'].includes(type) ? promotionProduct.value : '',
+          category: ['category_discount', 'subcategory_discount'].includes(type) ? promotionCategory.value : '',
+          subcategory: type === 'subcategory_discount' ? promotionSubcategory.value : '',
+          starts_at: dateInputToIso(promotionStarts.value, 'start'),
+          ends_at: dateInputToIso(promotionEnds.value, 'end'),
+          badge_text: promotionBadge.value.trim(),
+          priority: 0,
+          stackable: false,
+          store: CURRENT_STORE_ID,
+        };
+      }
+      function createPromotionSnapshot() {
+        return JSON.stringify(collectPromotionPayload());
+      }
+      function promotionFormHasChanges() {
+        return Boolean(promotionInitialSnapshot) && createPromotionSnapshot() !== promotionInitialSnapshot;
+      }
+      function setPromotionSnapshotFromCurrent() {
+        promotionInitialSnapshot = createPromotionSnapshot();
+        updatePromotionFormState();
+      }
+      function updatePromotionFormState() {
+        if (!promotionSaveBtn || !promotionForm) return;
+        const payload = collectPromotionPayload();
+        const isValid = !validatePromotionPayload(payload);
+        const canSave = isValid && promotionFormHasChanges();
+        promotionSaveBtn.disabled = isSavingPromotion || !canSave;
+        promotionSaveBtn.textContent = isSavingPromotion ? 'Guardando...' : 'Guardar promoción';
       }
       function validatePromotionPayload(payload) {
         if (!payload.name) return 'Escribe el nombre de la promoción.';
@@ -2394,6 +2530,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function savePromotion(event) {
         event.preventDefault();
+        if (isSavingPromotion) return;
         const type = promotionType.value;
         const payload = {
           name: promotionName.value.trim(),
@@ -2417,14 +2554,37 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           store: CURRENT_STORE_ID,
         };
         const error = validatePromotionPayload(payload);
-        if (error) return showAlert(promotionAlert, error, 'error');
+        if (error) {
+          showPromotionNotice(error, 'error');
+          updatePromotionFormState();
+          return;
+        }
         const id = promotionId.value;
         const conflict = findActivePromotionConflict(payload, id);
-        if (conflict) return showAlert(promotionAlert, conflict, 'error');
-        await apiRequest(`/api/collections/automatic_promotions/records${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        showAlert(promotionAlert, 'Promoción guardada correctamente.', 'success');
-        await loadData();
-        closePromotionForm();
+        if (conflict) {
+          showPromotionNotice(conflict, 'error');
+          updatePromotionFormState();
+          return;
+        }
+        if (!promotionFormHasChanges()) {
+          updatePromotionFormState();
+          return;
+        }
+        isSavingPromotion = true;
+        updatePromotionFormState();
+        showPromotionNotice('Guardando promoción...', 'info');
+        try {
+          await apiRequest(`/api/collections/automatic_promotions/records${id ? `/${id}` : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+          showPromotionNotice(id ? 'Cambios guardados correctamente' : 'Promoción creada correctamente', 'success');
+          await loadData();
+          closePromotionForm();
+          showPromotionNotice(id ? 'Cambios guardados correctamente' : 'Promoción creada correctamente', 'success');
+        } catch (error) {
+          showPromotionNotice('No se pudo guardar la promoción', 'error');
+        } finally {
+          isSavingPromotion = false;
+          updatePromotionFormState();
+        }
       }
       async function togglePromotion(id) {
         const item = automaticPromotions.find((promotion) => promotion.id === id);
@@ -2432,17 +2592,27 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const nextActive = item.active === false;
         if (nextActive) {
           const conflict = findActivePromotionConflict({ ...item, active: true }, id);
-          if (conflict) return showAlert(promotionAlert, conflict, 'error');
+          if (conflict) return showPromotionNotice(conflict, 'error');
         }
-        await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: nextActive }) });
-        await loadData();
+        try {
+          await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: nextActive }) });
+          await loadData();
+          showPromotionNotice('Promoción actualizada correctamente', 'success');
+        } catch (error) {
+          showPromotionNotice('No se pudo guardar la promoción', 'error');
+        }
       }
       async function deletePromotion(id) {
         if (!id) return;
-        await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'DELETE' });
-        if (promotionId?.value === id) closePromotionForm();
-        closePromotionDeleteModal();
-        await loadData();
+        try {
+          await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'DELETE' });
+          if (promotionId?.value === id) closePromotionForm();
+          closePromotionDeleteModal();
+          await loadData();
+          showPromotionNotice('Promoción eliminada correctamente', 'success');
+        } catch (error) {
+          showPromotionNotice('No se pudo eliminar la promoción', 'error');
+        }
       }
       function openPromotionDeleteModal(id) {
         pendingPromotionDeleteId = id || '';
@@ -2507,7 +2677,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (event.target === promotionDeleteModal) closePromotionDeleteModal();
       });
       promotionDeleteConfirmBtn?.addEventListener('click', () => {
-        deletePromotion(pendingPromotionDeleteId).catch((error) => showAlert(promotionAlert, error.message || 'No se pudo eliminar.', 'error'));
+        deletePromotion(pendingPromotionDeleteId).catch(() => showPromotionNotice('No se pudo eliminar la promoción', 'error'));
       });
       promotionFilters?.addEventListener('click', (event) => {
         const button = event.target.closest('[data-promotion-filter]');
@@ -2517,22 +2687,37 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       });
       promotionCancelBtn?.addEventListener('click', closePromotionForm);
       promotionType?.addEventListener('change', updatePromotionFields);
-      promotionCategory?.addEventListener('change', renderPromotionSubcategoryOptions);
-      promotionForm?.addEventListener('submit', (event) => savePromotion(event).catch((error) => showAlert(promotionAlert, error.message || 'No se pudo guardar la promoción.', 'error')));
+      promotionCategory?.addEventListener('change', () => {
+        renderPromotionSubcategoryOptions();
+        updatePromotionFormState();
+      });
+      promotionForm?.addEventListener('input', (event) => {
+        if (event.target === promotionProductSearch) return;
+        updatePromotionFormState();
+      });
+      promotionForm?.addEventListener('change', updatePromotionFormState);
+      promotionForm?.addEventListener('submit', (event) => savePromotion(event).catch(() => {
+        isSavingPromotion = false;
+        updatePromotionFormState();
+        showPromotionNotice('No se pudo guardar la promoción', 'error');
+      }));
       promotionProductSearch?.addEventListener('input', () => {
         if (promotionProduct && promotionProductSearch.value.trim() !== getPromotionSelectedProduct()?.name) promotionProduct.value = '';
         renderPromotionProductSelected();
         renderPromotionProductResults();
+        updatePromotionFormState();
       });
       promotionProductResults?.addEventListener('click', (event) => {
         const button = event.target.closest('.js-promotion-product-select');
         if (!button) return;
         selectPromotionProduct(button.dataset.productId || '');
+        updatePromotionFormState();
       });
       promotionProductSelected?.addEventListener('click', (event) => {
         if (!event.target.closest('.js-promotion-product-clear')) return;
         selectPromotionProduct('');
         promotionProductSearch?.focus();
+        updatePromotionFormState();
       });
       couponNewBtn?.addEventListener('click', () => openCouponForm());
       couponCancelBtn?.addEventListener('click', closeCouponForm);
@@ -2545,26 +2730,35 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       couponDeleteCancelBtn?.addEventListener('click', closeCouponDeleteModal);
       couponDeleteModal?.addEventListener('click', (event) => { if (event.target === couponDeleteModal) closeCouponDeleteModal(); });
       couponDeleteConfirmBtn?.addEventListener('click', () => {
-        deleteCoupon(pendingCouponDeleteId).catch((error) => showAlert(couponAlert, error.message || 'No se pudo eliminar.', 'error'));
+        deleteCoupon(pendingCouponDeleteId).catch(() => showCouponNotice('No se pudo eliminar el cupón', 'error'));
       });
       couponScope?.addEventListener('change', updateCouponFields);
       couponUsesMode?.addEventListener('change', updateCouponFields);
-      couponCategory?.addEventListener('change', renderCouponSubcategoryOptions);
-      couponForm?.addEventListener('submit', (event) => saveCoupon(event).catch((error) => showAlert(couponAlert, error.message || 'No se pudo guardar el cupón.', 'error')));
+      couponCategory?.addEventListener('change', () => {
+        renderCouponSubcategoryOptions();
+        updateCouponFormState();
+      });
+      couponSubcategory?.addEventListener('change', updateCouponFormState);
+      couponForm?.addEventListener('input', updateCouponFormState);
+      couponForm?.addEventListener('change', updateCouponFormState);
+      couponForm?.addEventListener('submit', (event) => saveCoupon(event).catch(() => showCouponNotice('No se pudo guardar el cupón', 'error')));
       couponProductSearch?.addEventListener('input', () => {
         if (couponProduct && couponProductSearch.value.trim() !== getCouponSelectedProduct()?.name) couponProduct.value = '';
         renderCouponProductSelected();
         renderCouponProductResults();
+        updateCouponFormState();
       });
       couponProductResults?.addEventListener('click', (event) => {
         const button = event.target.closest('.js-coupon-product-select');
         if (!button) return;
         selectCouponProduct(button.dataset.productId || '');
+        updateCouponFormState();
       });
       couponProductSelected?.addEventListener('click', (event) => {
         if (!event.target.closest('.js-coupon-product-clear')) return;
         selectCouponProduct('');
         couponProductSearch?.focus();
+        updateCouponFormState();
       });
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'edit'));
@@ -2631,7 +2825,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         if (event.target.closest('.js-promotion-toggle')) {
           closePromotionMenus();
-          togglePromotion(id).catch((error) => showAlert(promotionAlert, error.message || 'No se pudo cambiar el estado.', 'error'));
+          togglePromotion(id).catch(() => showPromotionNotice('No se pudo guardar la promoción', 'error'));
           return;
         }
         if (event.target.closest('.js-promotion-delete')) {
@@ -2655,7 +2849,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         if (event.target.closest('.js-coupon-toggle')) {
           closePromotionMenus();
-          toggleCoupon(id).catch((error) => showAlert(couponAlert, error.message || 'No se pudo cambiar el estado.', 'error'));
+          toggleCoupon(id).catch(() => showCouponNotice('No se pudo guardar el cupón', 'error'));
           return;
         }
         if (event.target.closest('.js-coupon-history')) {
@@ -2664,7 +2858,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         if (event.target.closest('.js-coupon-copy')) {
           closePromotionMenus();
-          copyCouponLink(id).catch((error) => showAlert(couponAlert, error.message || 'No se pudo copiar el enlace.', 'error'));
+          copyCouponLink(id).catch(() => showCouponNotice('No se pudo copiar el enlace.', 'error'));
           return;
         }
         if (event.target.closest('.js-coupon-delete')) {
@@ -2795,6 +2989,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const marketingOfferCloseBtn = document.getElementById('marketing-offer-close-btn');
         const marketingOfferCancelBtn = document.getElementById('marketing-offer-cancel-btn');
         const marketingBarAdvancedNodes = Array.from(document.querySelectorAll('[data-marketing-bar-advanced]'));
+        const marketingBarSaveBtn = document.getElementById('marketing-bar-save-btn');
+        let marketingBarInitialSnapshot = '';
+        let marketingBarNoticeTimer = null;
+        let isSavingMarketingBar = false;
         function token() { return ADMIN_AUTH_TOKEN; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -2804,7 +3002,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         function show(message = '', type = 'info') { showMessage(alertBox, message, type); }
         function showFooter(message = '', type = 'info') { showMessage(footerAlertBox, message, type); }
-        function showMarketingBar(message = '', type = 'info') { showMessage(marketingBarAlertBox, message, type); }
+        function showMarketingBar(message = '', type = 'info') {
+          window.clearTimeout(marketingBarNoticeTimer);
+          showMessage(marketingBarAlertBox, message, type);
+          if (!message || type === 'info') return;
+          marketingBarNoticeTimer = window.setTimeout(() => showMessage(marketingBarAlertBox, '', type), type === 'error' ? 4600 : 2800);
+        }
         function updateMarketingBarPanelVisibility() {
           const isActive = fields.marketingBarActive?.checked === true;
           marketingBarAdvancedNodes.forEach((node) => node.classList.toggle('hidden', !isActive));
@@ -2812,6 +3015,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             closeMarketingMenus();
             closeMarketingOfferForm();
           }
+          updateMarketingBarFormState();
         }
         function parseMarketingItems(value) {
           if (!value) return [];
@@ -2847,6 +3051,41 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             }))
             .filter((item) => item.text || item.button_text || item.url);
         }
+        function collectMarketingBarPayload() {
+          const items = currentMarketingItems();
+          const firstVisibleItem = items.find((item) => item.active && item.text) || items.find((item) => item.text) || {};
+          return {
+            marketing_bar_active: fields.marketingBarActive?.checked === true,
+            marketing_bar_theme: fields.marketingBarTheme?.value || 'black',
+            marketing_bar_motion: fields.marketingBarMotion?.value || 'carousel',
+            marketing_bar_items_json: JSON.stringify(items),
+            marketing_bar_text: firstVisibleItem.text || '',
+            marketing_bar_button_text: firstVisibleItem.button_text || '',
+            marketing_bar_url: firstVisibleItem.url || '',
+          };
+        }
+        function validateMarketingBarPayload(payload) {
+          const items = parseMarketingItems(payload.marketing_bar_items_json);
+          if (payload.marketing_bar_active && !items.some((item) => item.active !== false && String(item.text || '').trim())) return 'Completa el mensaje del cintillo.';
+          return '';
+        }
+        function createMarketingBarSnapshot() {
+          return JSON.stringify(collectMarketingBarPayload());
+        }
+        function marketingBarHasChanges() {
+          return Boolean(marketingBarInitialSnapshot) && createMarketingBarSnapshot() !== marketingBarInitialSnapshot;
+        }
+        function updateMarketingBarFormState() {
+          if (!marketingBarSaveBtn) return;
+          const payload = collectMarketingBarPayload();
+          const canSave = !validateMarketingBarPayload(payload) && marketingBarHasChanges();
+          marketingBarSaveBtn.disabled = isSavingMarketingBar || !canSave;
+          marketingBarSaveBtn.textContent = isSavingMarketingBar ? 'Guardando...' : 'Guardar cambios';
+        }
+        function setMarketingBarSnapshotFromCurrent() {
+          marketingBarInitialSnapshot = createMarketingBarSnapshot();
+          updateMarketingBarFormState();
+        }
         function setMarketingItems(items) {
           const normalized = items.slice(0, 3);
           fields.marketingBarItems.forEach((fieldSet, index) => {
@@ -2857,6 +3096,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             if (fieldSet.url) fieldSet.url.value = item.url || '';
           });
           renderMarketingOffers();
+          updateMarketingBarFormState();
         }
         function renderMarketingOffers() {
           if (!marketingOffersList) return;
@@ -2990,6 +3230,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           const marketingItems = getMarketingItems(record);
           setMarketingItems(marketingItems);
           updateMarketingBarPanelVisibility();
+          setMarketingBarSnapshotFromCurrent();
           fields.currentLogo.textContent = fileName('logo_image') ? 'Logo actual: ' + fileName('logo_image') + '. Si subes otro, se reemplaza.' : '';
           fields.currentCover.textContent = fileName('cover_image') ? 'Portada actual: ' + fileName('cover_image') + '. Si subes otra, se reemplaza.' : '';
           renderImg(fields.logoPreview, fileUrl('logo_image', '160x160'), 'Logo / icono');
@@ -3034,29 +3275,41 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         async function saveMarketingBar(event) {
           event.preventDefault();
           if (!settingsRecord || !settingsRecord.id) { showMarketingBar('No se encontro el registro activo de ajustes.', 'error'); return; }
-          const items = currentMarketingItems();
-          const firstVisibleItem = items.find((item) => item.active && item.text) || items.find((item) => item.text) || {};
-          const data = {
-            marketing_bar_active: fields.marketingBarActive?.checked === true,
-            marketing_bar_theme: fields.marketingBarTheme?.value || 'black',
-            marketing_bar_motion: fields.marketingBarMotion?.value || 'carousel',
-            marketing_bar_items_json: JSON.stringify(items),
-            marketing_bar_text: firstVisibleItem.text || '',
-            marketing_bar_button_text: firstVisibleItem.button_text || '',
-            marketing_bar_url: firstVisibleItem.url || '',
-          };
-          await api('/api/collections/settings/records/' + settingsRecord.id, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          });
-          showMarketingBar('Cintillo promocional guardado correctamente.', 'success');
-          await loadSettings();
+          if (isSavingMarketingBar) return;
+          const data = collectMarketingBarPayload();
+          const error = validateMarketingBarPayload(data);
+          if (error) { showMarketingBar(error, 'error'); updateMarketingBarFormState(); return; }
+          if (!marketingBarHasChanges()) { updateMarketingBarFormState(); return; }
+          isSavingMarketingBar = true;
+          updateMarketingBarFormState();
+          showMarketingBar('Guardando cintillo...', 'info');
+          try {
+            await api('/api/collections/settings/records/' + settingsRecord.id, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data),
+            });
+            showMarketingBar('Cintillo actualizado correctamente', 'success');
+            await loadSettings();
+          } catch (_) {
+            showMarketingBar('No se pudo guardar el cintillo', 'error');
+          } finally {
+            isSavingMarketingBar = false;
+            updateMarketingBarFormState();
+          }
         }
         async function saveMarketingBarActive() {
           if (!settingsRecord || !settingsRecord.id) { showMarketingBar('No se encontro el registro activo de ajustes.', 'error'); return; }
           const isActive = fields.marketingBarActive?.checked === true;
           updateMarketingBarPanelVisibility();
+          const validationError = validateMarketingBarPayload(collectMarketingBarPayload());
+          if (validationError) {
+            if (fields.marketingBarActive) fields.marketingBarActive.checked = !isActive;
+            updateMarketingBarPanelVisibility();
+            updateMarketingBarFormState();
+            showMarketingBar(validationError, 'error');
+            return;
+          }
           try {
             await api('/api/collections/settings/records/' + settingsRecord.id, {
               method: 'PATCH',
@@ -3064,10 +3317,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
               body: JSON.stringify({ marketing_bar_active: isActive }),
             });
             settingsRecord.marketing_bar_active = isActive;
-            showMarketingBar('', 'info');
+            setMarketingBarSnapshotFromCurrent();
+            showMarketingBar('Cintillo actualizado correctamente', 'success');
           } catch (error) {
             if (fields.marketingBarActive) fields.marketingBarActive.checked = !isActive;
             updateMarketingBarPanelVisibility();
+            updateMarketingBarFormState();
             throw error;
           }
         }
@@ -3104,7 +3359,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             if (!items[index]) return;
             items[index].active = !items[index].active;
             setMarketingItems(items);
-            saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+            saveMarketingBar({ preventDefault() {} }).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error'));
             return;
           }
           if (target.closest('.js-marketing-delete')) {
@@ -3114,7 +3369,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             if (!confirm('¿Borrar esta oferta del cintillo?')) return;
             items.splice(index, 1);
             setMarketingItems(items);
-            saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+            saveMarketingBar({ preventDefault() {} }).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error'));
           }
         });
         marketingOffersList && marketingOffersList.addEventListener('change', (event) => {
@@ -3126,7 +3381,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (!items[index]) return;
           items[index].active = target.checked === true;
           setMarketingItems(items);
-          saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+          saveMarketingBar({ preventDefault() {} }).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error'));
         });
         marketingOfferForm && marketingOfferForm.addEventListener('submit', (event) => {
           event.preventDefault();
@@ -3152,7 +3407,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           }
           setMarketingItems(items);
           closeMarketingOfferForm();
-          saveMarketingBar({ preventDefault() {} }).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+          saveMarketingBar({ preventDefault() {} }).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error'));
         });
         marketingOfferCloseBtn && marketingOfferCloseBtn.addEventListener('click', closeMarketingOfferForm);
         marketingOfferCancelBtn && marketingOfferCancelBtn.addEventListener('click', closeMarketingOfferForm);
@@ -3162,10 +3417,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       document.addEventListener('click', (event) => {
         if (!event.target.closest('.marketing-menu-wrap')) closeMarketingMenus();
       });
-        fields.marketingBarActive?.addEventListener('change', () => {
-          saveMarketingBarActive().catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error'));
+          fields.marketingBarActive?.addEventListener('change', () => {
+          saveMarketingBarActive().catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error'));
         });
-        marketingBarForm && marketingBarForm.addEventListener('submit', (event) => saveMarketingBar(event).catch((error) => showMarketingBar(error.message || 'No se pudo guardar el cintillo.', 'error')));
+        marketingBarForm && marketingBarForm.addEventListener('input', updateMarketingBarFormState);
+        marketingBarForm && marketingBarForm.addEventListener('change', updateMarketingBarFormState);
+        marketingBarForm && marketingBarForm.addEventListener('submit', (event) => saveMarketingBar(event).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error')));
         if (token()) loadSettings().catch(() => {});
       })();
     </script>
