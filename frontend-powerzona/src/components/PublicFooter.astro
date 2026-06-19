@@ -4,7 +4,7 @@ import { getCurrencies } from '../lib/api';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../lib/businessTypes';
 
-const { settings = {} } = Astro.props;
+const { settings = {}, showPlatformCta = true } = Astro.props;
 
 const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore?.id || settings?.store || '';
@@ -24,6 +24,7 @@ const socialLinks = normalizeSocialLinks(settings?.footer_social_links);
 const socialItems = Object.entries(socialLinks)
   .map(([key, value]) => ({ key, href: normalizeSocialHref(key, value), label: socialLabel(key) }))
   .filter((item) => item.href);
+const extraLinks = normalizeExtraLinks(settings);
 
 const trustItems = parseTrustItems(settings?.footer_trust_items);
 const province = String(settings?.province || '').trim();
@@ -115,6 +116,26 @@ function normalizeSocialHref(key: string, value: string) {
   }
   if (!/^https?:\/\//i.test(raw)) return '';
   return raw;
+}
+
+function normalizeExtraLinks(source: any) {
+  return [
+    {
+      active: source?.footer_link_1_active !== false,
+      label: String(source?.footer_link_1_label || '').trim(),
+      href: normalizePlainHref(source?.footer_link_1_url),
+    },
+    {
+      active: source?.footer_link_2_active !== false,
+      label: String(source?.footer_link_2_label || '').trim(),
+      href: normalizePlainHref(source?.footer_link_2_url),
+    },
+  ].filter((item) => item.active && item.label && item.href);
+}
+
+function normalizePlainHref(value: any) {
+  const raw = String(value || '').trim();
+  return /^https?:\/\/\S+\.\S+/i.test(raw) ? raw : '';
 }
 
 function socialLabel(key: string) {
@@ -255,9 +276,16 @@ function iconSvg(name: string) {
         </p>
       )}
       {whatsappStoreHref && <a class="pz-footer-whatsapp-btn" href={whatsappStoreHref} target="_blank" rel="noreferrer"><span set:html={iconSvg('whatsapp')} /> WhatsApp</a>}
+      {extraLinks.length > 0 && (
+        <div class="pz-footer-extra-links" aria-label="Enlaces adicionales">
+          {extraLinks.map((item) => (
+            <a class="pz-footer-extra-link" href={item.href} target="_blank" rel="noreferrer">{item.label}</a>
+          ))}
+        </div>
+      )}
     </section>
 
-    <section class="pz-footer-platform-cta" aria-label="Crear tienda en Tu Senda 84">
+    {showPlatformCta && <section class="pz-footer-platform-cta" aria-label="Crear tienda en Tu Senda 84">
       <div class="pz-platform-icon" aria-hidden="true">
         <span></span>
       </div>
@@ -275,9 +303,9 @@ function iconSvg(name: string) {
           <strong>Tu Senda 84</strong>
         </div>
       </div>
-    </section>
+    </section>}
 
-    <p class="pz-footer-platform-note">Tienda pública de Tu Senda 84.</p>
+    {showPlatformCta && <p class="pz-footer-platform-note">Tienda pública de Tu Senda 84.</p>}
   </div>
 </footer>
 
@@ -383,6 +411,9 @@ function iconSvg(name: string) {
   .pz-contact-location .pz-footer-contact-icon { color: #fff; background: linear-gradient(145deg, rgba(59,130,246,.38), rgba(37,99,235,.18)); border-color: rgba(147,197,253,.42); }
   .pz-footer-whatsapp-btn { width: min(100%, 250px); min-height: 58px; margin-top: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 13px; padding: 14px 20px; background: linear-gradient(135deg, #1272ff, #0757e8); color: #fff; text-decoration: none; font-size: 16px; font-weight: 1000; border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 38px rgba(11,99,246,.30), inset 0 1px 0 rgba(255,255,255,.22); transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
   .pz-footer-whatsapp-btn:hover { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 22px 46px rgba(11,99,246,.36), inset 0 1px 0 rgba(255,255,255,.24); }
+  .pz-footer-extra-links { display: grid; gap: 10px; margin-top: 4px; }
+  .pz-footer-extra-link { width: min(100%, 250px); min-height: 48px; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; padding: 12px 16px; background: rgba(255,255,255,.10); color: #fff; border: 1px solid rgba(191,219,254,.24); text-decoration: none; font-size: 15px; line-height: 1.2; font-weight: 1000; box-shadow: inset 0 1px 0 rgba(255,255,255,.10); transition: transform .18s ease, background .18s ease, border-color .18s ease; }
+  .pz-footer-extra-link:hover { transform: translateY(-2px); background: rgba(219,234,254,.18); border-color: rgba(147,197,253,.42); }
   .pz-footer-platform-cta { grid-column: 1 / -1; margin-top: 10px; padding: clamp(20px, 3vw, 28px); border-radius: 18px; border: 1px solid rgba(147,197,253,.34); background: linear-gradient(135deg, rgba(11,99,246,.22), rgba(14,68,138,.30)); display: grid; grid-template-columns: 82px minmax(0, 1fr) minmax(190px, 260px) minmax(150px, auto); gap: clamp(18px, 3vw, 28px); align-items: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 18px 42px rgba(3,19,47,.20); }
   .pz-platform-icon { width: 82px; height: 82px; border-radius: 17px; display: grid; place-items: center; background: rgba(11,99,246,.24); border: 1px solid rgba(147,197,253,.36); box-shadow: inset 0 1px 0 rgba(255,255,255,.14); }
   .pz-platform-icon span { width: 40px; height: 42px; position: relative; display: block; border-radius: 0 0 7px 7px; background: #0b63f6; box-shadow: inset 13px 0 0 rgba(255,255,255,.18); }

@@ -4,6 +4,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { CUBA_LOCATIONS } from '../../lib/cubaLocations';
+import PublicFooter from '../../components/PublicFooter.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -28,6 +29,29 @@ const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con los ajus
 const masterSupportHref = masterSupportWhatsapp
   ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
   : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Ajustes Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+let footerPreviewSettings: any = {
+  store: currentStoreId,
+  store_name: currentStoreName,
+  stored_name: currentStoreName,
+};
+try {
+  const previewRecord = await authPb.collection('settings').getFirstListItem(`store="${currentStoreId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" && active=true`, {
+    sort: '-updated',
+    expand: 'default_currency',
+  });
+  const logoFile = Array.isArray(previewRecord.logo_image) ? previewRecord.logo_image[0] : previewRecord.logo_image;
+  footerPreviewSettings = {
+    ...previewRecord,
+    logoImageUrl: logoFile
+      ? `${String(pocketbaseUrl || '').replace(/\/$/, '')}/api/files/settings/${previewRecord.id}/${encodeURIComponent(logoFile)}?thumb=160x160&t=${encodeURIComponent(previewRecord.updated || '')}`
+      : '',
+  };
+} catch (_) {
+  footerPreviewSettings = {
+    ...footerPreviewSettings,
+    whatsapp_number: adminContext.store.owner_phone || '',
+  };
+}
 ---
 <!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
   Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
@@ -1827,27 +1851,310 @@ const masterSupportHref = masterSupportWhatsapp
       @media (max-width: 1023px) {
         #settings-form { grid-template-columns: 1fr; }
       }
-      .footer-admin-block { grid-column: 1 / -1; display: grid; gap: 14px; padding: 16px; border-radius: 22px; border: 1px solid #e2e8f0; background: #fff; }
+      .footer-admin-block { grid-column: 1 / -1; display: grid; gap: 14px; padding: 18px; border-radius: 22px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.06); }
       .footer-admin-block-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
       .footer-admin-block-title { margin: 0; color: #0f172a; font-size: 17px; line-height: 1.15; font-weight: 1000; letter-spacing: -.025em; }
       .footer-admin-block-help { margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 750; }
+      .footer-social-details { padding: 0; overflow: hidden; }
+      .footer-social-summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px; cursor: pointer; }
+      .footer-social-summary::-webkit-details-marker { display: none; }
+      .footer-social-status { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+      .footer-social-badge { border-radius: 999px; padding: 7px 11px; background: #dbeafe; color: #2563eb; font-size: 12px; font-weight: 1000; white-space: nowrap; }
+      .footer-social-chevron { width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; font-size: 13px; font-weight: 1000; transition: transform .18s ease; }
+      .footer-social-details[open] .footer-social-chevron,
+      .footer-shipping-details[open] .footer-social-chevron,
+      .footer-trust-details[open] .footer-social-chevron,
+      .footer-extra-details[open] .footer-social-chevron { transform: rotate(180deg); }
+      .footer-social-body { padding: 0 18px 18px; }
       .footer-social-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .footer-trust-editor { display: grid; gap: 12px; }
-      .footer-trust-card { display: grid; grid-template-columns: 120px minmax(140px, 180px) minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: end; padding: 12px; border-radius: 18px; border: 1px solid #e2e8f0; background: #f8fafc; }
+      .footer-trust-card { display: grid; grid-template-columns: 120px minmax(140px, 180px) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: end; padding: 14px; border-radius: 18px; border: 1px solid #e2e8f0; background: linear-gradient(135deg, #ffffff, #f8fafc); box-shadow: 0 10px 22px rgba(15,23,42,.045); }
       .footer-trust-card .toggle-row { align-self: center; }
       .footer-trust-card select, .footer-trust-card input { min-height: 46px; }
+      .footer-shipping-block textarea,
+      .footer-shipping-details textarea { min-height: 132px; }
+      .footer-extra-links-grid { display: grid; gap: 12px; }
+      .footer-extra-link-row { display: grid; grid-template-columns: 190px minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: end; padding: 14px; border-radius: 18px; border: 1px solid #e2e8f0; background: linear-gradient(135deg, #ffffff, #f8fafc); }
+      .footer-extra-link-row .switch-control { align-self: center; min-height: 46px; color: #334155; font-size: 13px; font-weight: 950; }
+      .footer-preview-block { grid-column: 1 / -1; display: grid; gap: 14px; padding: 18px; border-radius: 22px; border: 1px solid #dbeafe; background: linear-gradient(135deg, #ffffff, #eff6ff); box-shadow: 0 16px 38px rgba(37,99,235,.08); }
+      .footer-preview-frame { overflow: hidden; border-radius: 20px; background: #061b45; }
+      .footer-preview-frame .pz-trust-strip { margin: 0 0 14px; border-radius: 0; box-shadow: none; }
+      .footer-preview-frame .pz-public-footer { margin-top: 0; border-radius: 0; box-shadow: none; }
       #footer-settings-form .field:has(#settings-footer-title),
       #footer-settings-form .field:has(#settings-footer-contact-text),
       #footer-settings-form .field:has(#settings-footer-text),
-      #footer-settings-form .field:has(#settings-footer-extra-text),
-      #footer-settings-form .field:has(#settings-footer-link-1-label),
-      #footer-settings-form .field:has(#settings-footer-link-1-url),
-      #footer-settings-form .field:has(#settings-footer-link-2-label),
-      #footer-settings-form .field:has(#settings-footer-link-2-url) {
+      #footer-settings-form .field:has(#settings-footer-extra-text) {
         display: none;
       }
       @media (max-width: 980px) {
-        .footer-social-grid, .footer-trust-card { grid-template-columns: 1fr; }
+        .footer-social-grid, .footer-trust-card, .footer-extra-link-row { grid-template-columns: 1fr; }
+        .footer-social-summary { align-items: flex-start; }
+      }
+      #admin-view > .tabs {
+        display: none !important;
+      }
+      #footer-settings-form.footer-settings-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      .footer-editor-column {
+        display: grid;
+        gap: 14px;
+        min-width: 0;
+      }
+      .footer-preview-column {
+        min-width: 0;
+        position: static;
+      }
+      .footer-block-title-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        min-width: 0;
+      }
+      .footer-block-icon {
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 13px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #2563eb;
+      }
+      .footer-block-icon svg {
+        width: 19px;
+        height: 19px;
+        fill: currentColor;
+      }
+      .footer-block-icon.trust { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+      .footer-block-icon.shipping { color: #7c3aed; border-color: #ddd6fe; background: #f5f3ff; }
+      .footer-block-icon.links { color: #f97316; border-color: #fed7aa; background: #fff7ed; }
+      .footer-social-summary {
+        align-items: flex-start;
+      }
+      .footer-social-grid {
+        grid-template-columns: repeat(2, minmax(280px, 1fr));
+        gap: 16px 18px;
+      }
+      .footer-social-field {
+        display: grid;
+        gap: 7px;
+        min-width: 0;
+      }
+      .footer-social-field label {
+        margin: 0;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 1000;
+        letter-spacing: .035em;
+        text-transform: uppercase;
+      }
+      .footer-social-field input,
+      .footer-extra-link-row input,
+      .footer-trust-row input,
+      .footer-trust-row select,
+      .footer-trust-icon-picker select {
+        width: 100%;
+        min-width: 0;
+      }
+      .footer-social-input-wrap {
+        min-width: 0;
+        min-height: 48px;
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        align-items: center;
+        border-radius: 15px;
+        border: 1px solid #dbe3ef;
+        background: #fff;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.72);
+        overflow: hidden;
+      }
+      .footer-social-input-icon {
+        width: 42px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .footer-social-input-icon svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+        fill: currentColor;
+      }
+      .footer-social-input-wrap input {
+        width: 100%;
+        min-width: 0;
+        height: 48px;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 14px 0 0;
+        color: #0f172a;
+        font-weight: 850;
+      }
+      .footer-social-input-wrap.instagram .footer-social-input-icon { color: #e11d48; }
+      .footer-social-input-wrap.facebook .footer-social-input-icon { color: #2563eb; }
+      .footer-social-input-wrap.tiktok .footer-social-input-icon { color: #020617; }
+      .footer-social-input-wrap.youtube .footer-social-input-icon { color: #dc2626; }
+      .footer-social-input-wrap.whatsapp .footer-social-input-icon { color: #16a34a; }
+      .footer-trust-row {
+        display: grid;
+        grid-template-columns: 52px minmax(178px, 220px) minmax(0, 1fr) minmax(0, 1.15fr);
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 18px;
+        border: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #ffffff, #f8fafc);
+        box-shadow: 0 10px 22px rgba(15,23,42,.045);
+      }
+      .footer-trust-icon-picker {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+      }
+      .footer-trust-icon-preview {
+        width: 36px;
+        height: 36px;
+        border-radius: 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #2563eb;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, .05);
+      }
+      .footer-trust-icon-preview svg {
+        width: 18px;
+        height: 18px;
+        display: block;
+        fill: currentColor;
+      }
+      .footer-trust-switch,
+      .footer-extra-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 950;
+        cursor: pointer;
+      }
+      .footer-trust-switch input,
+      .footer-extra-switch input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .footer-switch-track {
+        width: 44px;
+        height: 26px;
+        border-radius: 999px;
+        position: relative;
+        flex: 0 0 auto;
+        background: #cbd5e1;
+        box-shadow: inset 0 2px 6px rgba(15,23,42,.16);
+        transition: background .18s ease, box-shadow .18s ease;
+      }
+      .footer-switch-track::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(15,23,42,.25);
+        transition: transform .18s ease;
+      }
+      .footer-trust-switch input:checked + .footer-switch-track,
+      .footer-extra-switch input:checked + .footer-switch-track {
+        background: #2563eb;
+        box-shadow: inset 0 2px 8px rgba(37,99,235,.24);
+      }
+      .footer-trust-switch input:checked + .footer-switch-track::after,
+      .footer-extra-switch input:checked + .footer-switch-track::after {
+        transform: translateX(18px);
+      }
+      .footer-extra-link-row {
+        grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .footer-extra-link-row .switch-control {
+        display: none;
+      }
+      .footer-preview-block {
+        grid-column: 1 / -1;
+      }
+      .footer-shipping-details,
+      .footer-trust-details,
+      .footer-extra-details {
+        padding: 0;
+        overflow: hidden;
+      }
+      .footer-preview-toggle-block {
+        display: grid;
+        gap: 12px;
+        min-width: 0;
+      }
+      .footer-preview-toggle-btn {
+        justify-self: start;
+      }
+      .footer-preview-panel.hidden {
+        display: none;
+      }
+      .footer-section-head {
+        align-items: flex-start;
+      }
+      .footer-save-top-btn {
+        flex: 0 0 auto;
+        min-width: 190px;
+      }
+      .footer-preview-frame .pz-footer-platform-cta,
+      .footer-preview-frame .pz-footer-platform-note {
+        display: none !important;
+      }
+      @media (max-width: 720px) {
+        .footer-section-head {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .footer-save-top-btn {
+          width: 100%;
+        }
+        #footer-settings-form.footer-settings-layout {
+          gap: 12px;
+        }
+        .footer-admin-block,
+        .footer-preview-block {
+          border-radius: 18px;
+          padding: 14px;
+        }
+        .footer-social-summary {
+          padding: 14px;
+        }
+        .footer-social-body {
+          padding: 0 14px 14px;
+        }
+        .footer-social-grid {
+          grid-template-columns: 1fr;
+        }
+        .footer-trust-row {
+          grid-template-columns: 1fr;
+          gap: 9px;
+          align-items: center;
+        }
+        .footer-extra-link-row {
+          grid-template-columns: 1fr;
+        }
       }
       @media (min-width: 1024px) {
         .settings-section-card,
@@ -2690,7 +2997,7 @@ const masterSupportHref = masterSupportWhatsapp
   <body>
     <header class="settings-mobile-topbar">
       <button id="sidebar-open" class="settings-icon-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
-      <h1>PowerZona <span>Admin</span></h1>
+      <h1 id="settings-mobile-title">PowerZona <span>Admin</span></h1>
       <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
       <button class="primary-blue-btn" type="submit" form="settings-form"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Zm2 2v14h10V7.8L14.2 5H13v5H8V5H7Zm3 0v3h1V5h-1Zm-1 9h6v2H9v-2Z"/></svg><span>Guardar</span></button>
     </header>
@@ -2788,7 +3095,7 @@ const masterSupportHref = masterSupportWhatsapp
             <button class="tab-btn active" data-tab="generales" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg><span>Generales</span></button>
             <button class="tab-btn" data-tab="footer" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg><span>Footer p&uacute;blico</span></button>
             <button class="tab-btn" data-tab="monedas" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg><span>Monedas</span></button>
-            <button class="tab-btn" data-tab="horario" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg><span>Horario</span></button>
+            <button class="tab-btn" data-tab="horario" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg><span>Horarios</span></button>
             <button class="tab-btn" data-tab="rating" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg><span>Rating y rese&ntilde;as</span></button>
           </div>
 
@@ -2896,58 +3203,136 @@ const masterSupportHref = masterSupportWhatsapp
           </section>
 
           <section id="tab-footer" class="panel-card tab-panel hidden">
-            <div class="section-head">
+            <div class="section-head footer-section-head">
               <div>
                 <h2 class="section-title">Footer público</h2>
                 <p class="section-subtitle">Agrega la información inferior que saldrá en portada, categoría, subcategoría y producto.</p>
               </div>
+              <button id="footer-settings-save-btn" class="submit-btn footer-save-top-btn" type="submit" form="footer-settings-form">Guardar footer público</button>
             </div>
-            <form id="footer-settings-form" class="visual-form-grid">
-              <section class="footer-admin-block">
-                <div class="footer-admin-block-head">
-                  <div>
-                    <h3 class="footer-admin-block-title">Redes sociales</h3>
-                    <p class="footer-admin-block-help">Las redes vac&iacute;as no se muestran en el footer p&uacute;blico.</p>
+            <form id="footer-settings-form" class="footer-settings-layout">
+              <div class="footer-editor-column">
+              <details class="footer-admin-block footer-social-details" open>
+                <summary class="footer-social-summary">
+                  <div class="footer-block-title-row">
+                    <span class="footer-block-icon social" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 16.1c-.8 0-1.5.3-2 .9L8.9 12.9a3.3 3.3 0 0 0 0-1.8L16 7a3 3 0 1 0-1-1.7L7.9 9.4a3 3 0 1 0 0 5.2l7.1 4.1a3 3 0 1 0 3-2.6Z"/></svg></span>
+                    <div>
+                      <h3 class="footer-admin-block-title">Redes sociales</h3>
+                      <p class="footer-admin-block-help">Las redes visibles se mostrar&aacute;n en el footer p&uacute;blico.</p>
+                    </div>
                   </div>
-                </div>
+                  <span class="footer-social-status">
+                    <span id="footer-social-active-badge" class="footer-social-badge">0 activas</span>
+                    <span class="footer-social-chevron" aria-hidden="true">⌃</span>
+                  </span>
+                </summary>
+                <div class="footer-social-body">
                 <div class="footer-social-grid">
-                  <div class="field"><label for="settings-footer-social-instagram">Instagram</label><input id="settings-footer-social-instagram" type="url" placeholder="https://instagram.com/tu-tienda" /></div>
-                  <div class="field"><label for="settings-footer-social-facebook">Facebook</label><input id="settings-footer-social-facebook" type="url" placeholder="https://facebook.com/tu-tienda" /></div>
-                  <div class="field"><label for="settings-footer-social-tiktok">TikTok</label><input id="settings-footer-social-tiktok" type="url" placeholder="https://tiktok.com/@tu-tienda" /></div>
-                  <div class="field"><label for="settings-footer-social-youtube">YouTube</label><input id="settings-footer-social-youtube" type="url" placeholder="https://youtube.com/@tu-tienda" /></div>
-                  <div class="field"><label for="settings-footer-social-whatsapp">WhatsApp</label><input id="settings-footer-social-whatsapp" type="text" placeholder="+53 5000 0000 o https://wa.me/..." /></div>
+                  <div class="footer-social-field"><label for="settings-footer-social-instagram">Instagram</label><div class="footer-social-input-wrap instagram"><span class="footer-social-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3.5A4.5 4.5 0 1 1 12 16a4.5 4.5 0 0 1 0-9Zm0 2A2.5 2.5 0 1 0 12 14a2.5 2.5 0 0 0 0-5Zm5.2-2.3a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg></span><input id="settings-footer-social-instagram" type="url" placeholder="https://instagram.com/tu-tienda" /></div></div>
+                  <div class="footer-social-field"><label for="settings-footer-social-facebook">Facebook</label><div class="footer-social-input-wrap facebook"><span class="footer-social-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 8h2V4h-3a5 5 0 0 0-5 5v2H6v4h2v7h4v-7h3l1-4h-4V9a1 1 0 0 1 1-1h1Z"/></svg></span><input id="settings-footer-social-facebook" type="url" placeholder="https://facebook.com/tu-tienda" /></div></div>
+                  <div class="footer-social-field"><label for="settings-footer-social-tiktok">TikTok</label><div class="footer-social-input-wrap tiktok"><span class="footer-social-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 3c.4 3 2.1 4.9 5 5.2v3.3a8.6 8.6 0 0 1-5-1.6v5.7A6.4 6.4 0 1 1 9.3 9.2v3.5a3 3 0 1 0 2.3 2.9V3h3.4Z"/></svg></span><input id="settings-footer-social-tiktok" type="url" placeholder="https://tiktok.com/@tu-tienda" /></div></div>
+                  <div class="footer-social-field"><label for="settings-footer-social-youtube">YouTube</label><div class="footer-social-input-wrap youtube"><span class="footer-social-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21.6 7.2a3 3 0 0 0-2.1-2.1C17.7 4.6 12 4.6 12 4.6s-5.7 0-7.5.5a3 3 0 0 0-2.1 2.1A31 31 0 0 0 2 12a31 31 0 0 0 .4 4.8 3 3 0 0 0 2.1 2.1c1.8.5 7.5.5 7.5.5s5.7 0 7.5-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 22 12a31 31 0 0 0-.4-4.8ZM10 15.5v-7l6 3.5-6 3.5Z"/></svg></span><input id="settings-footer-social-youtube" type="url" placeholder="https://youtube.com/@tu-tienda" /></div></div>
+                  <div class="footer-social-field"><label for="settings-footer-social-whatsapp">WhatsApp</label><div class="footer-social-input-wrap whatsapp"><span class="footer-social-input-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 0 0-7.7 13.7L3 22l6.4-1.2A9 9 0 1 0 12 2Zm0 2a7 7 0 1 1-2.1 13.7l-.4-.1-3.9.7.8-3.8-.2-.4A7 7 0 0 1 12 4Zm-2 3.8c.2 0 .4 0 .5.4l.8 1.9c.1.3.1.5-.1.7l-.5.6c.6 1 1.4 1.8 2.5 2.4l.7-.7c.2-.2.5-.2.7-.1l1.8.9c.3.1.4.3.4.6 0 .8-.7 1.8-1.7 1.8-2.8 0-6.5-3.2-6.5-6.4 0-1 .9-2.1 1.8-2.1Z"/></svg></span><input id="settings-footer-social-whatsapp" type="text" placeholder="+53 5000 0000 o https://wa.me/..." /></div></div>
                 </div>
-              </section>
+                </div>
+              </details>
 
-              <section class="footer-admin-block">
-                <div class="footer-admin-block-head">
-                  <div>
-                    <h3 class="footer-admin-block-title">Beneficios p&uacute;blicos</h3>
-                    <p class="footer-admin-block-help">Puedes activar hasta 4 beneficios. Si el t&iacute;tulo queda vac&iacute;o, no se publica.</p>
+              <details class="footer-admin-block footer-trust-details">
+                <summary class="footer-social-summary">
+                  <div class="footer-block-title-row">
+                    <span class="footer-block-icon trust" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.4 2.8 8.4 7 10 4.2-1.6 7-5.6 7-10V6l-7-3Zm3.5 7.5-4.2 4.2-2-2 1.4-1.4.6.6 2.8-2.8 1.4 1.4Z"/></svg></span>
+                    <div>
+                      <h3 class="footer-admin-block-title">Beneficios p&uacute;blicos</h3>
+                      <p class="footer-admin-block-help">Administra los beneficios que se mostrar&aacute;n en el footer.</p>
+                    </div>
                   </div>
+                  <span class="footer-social-status">
+                    <span id="footer-trust-active-badge" class="footer-social-badge">0 activos</span>
+                    <span class="footer-social-chevron" aria-hidden="true">⌃</span>
+                  </span>
+                </summary>
+                <div class="footer-social-body">
+                  <div id="footer-trust-editor" class="footer-trust-editor" aria-label="Beneficios p&uacute;blicos"></div>
                 </div>
-                <div id="footer-trust-editor" class="footer-trust-editor" aria-label="Beneficios p&uacute;blicos"></div>
-              </section>
+              </details>
 
-              <section class="footer-admin-block">
-                <div class="field">
-                  <label for="settings-shipping-delivery-info">Explicaci&oacute;n p&uacute;blica de env&iacute;os y entregas</label>
+              <details class="footer-admin-block footer-shipping-details">
+                <summary class="footer-social-summary">
+                  <div class="footer-block-title-row">
+                    <span class="footer-block-icon shipping" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h11v8h2.2l1.8 2H21v-5.2L18.2 8H16V6h3l4 5v7h-2.2a3 3 0 0 1-5.6 0H9.8a3 3 0 0 1-5.6 0H2v-4h2V8H3V6Zm3 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm12 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span>
+                    <div>
+                      <h3 class="footer-admin-block-title">Explicaci&oacute;n p&uacute;blica de env&iacute;os y entregas</h3>
+                      <p class="footer-admin-block-help">Este texto se muestra en el footer de tu tienda.</p>
+                    </div>
+                  </div>
+                  <span class="footer-social-status">
+                    <span id="footer-shipping-status-badge" class="footer-social-badge">Pendiente</span>
+                    <span class="footer-social-chevron" aria-hidden="true">⌃</span>
+                  </span>
+                </summary>
+                <div class="footer-social-body">
                   <textarea id="settings-shipping-delivery-info" maxlength="1200" placeholder="Explica zonas, tiempos, coordinaci&oacute;n de entrega o recogida."></textarea>
                 </div>
-              </section>
-              <div class="field"><label for="settings-footer-title">Título del footer</label><input id="settings-footer-title" type="text" placeholder="Ej: PowerZona" /></div>
-              <div class="field"><label for="settings-footer-contact-text">Texto de contacto</label><textarea id="settings-footer-contact-text" placeholder="Ej: Escríbenos para confirmar disponibilidad, combos o entregas."></textarea></div>
-              <div class="field full"><label for="settings-footer-text">Descripción del footer</label><textarea id="settings-footer-text" placeholder="Texto corto para cerrar la tienda pública."></textarea></div>
-              <div class="field full"><label for="settings-footer-extra-text">Información extra</label><textarea id="settings-footer-extra-text" placeholder="Ej: Políticas, garantía, nota de confianza o información adicional."></textarea></div>
-              <div class="field"><label for="settings-footer-link-1-label">Botón / enlace 1</label><input id="settings-footer-link-1-label" type="text" placeholder="Ej: Grupo de WhatsApp" /></div>
-              <div class="field"><label for="settings-footer-link-1-url">URL enlace 1</label><input id="settings-footer-link-1-url" type="url" placeholder="https://..." /></div>
-              <div class="field"><label for="settings-footer-link-2-label">Botón / enlace 2</label><input id="settings-footer-link-2-label" type="text" placeholder="Ej: Instagram" /></div>
-              <div class="field"><label for="settings-footer-link-2-url">URL enlace 2</label><input id="settings-footer-link-2-url" type="url" placeholder="https://..." /></div>
-              <div id="footer-settings-alert" class="alert alert-info hidden full"></div>
-              <div class="full hero-actions" style="justify-content:flex-start">
-                <button id="footer-settings-save-btn" class="submit-btn" type="submit">Guardar footer público</button>
-                <button id="footer-settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+              </details>
+              <div class="field hidden"><label for="settings-footer-title">Título del footer</label><input id="settings-footer-title" type="text" placeholder="Ej: PowerZona" /></div>
+              <div class="field hidden"><label for="settings-footer-contact-text">Texto de contacto</label><textarea id="settings-footer-contact-text" placeholder="Ej: Escríbenos para confirmar disponibilidad, combos o entregas."></textarea></div>
+              <div class="field full hidden"><label for="settings-footer-text">Descripción del footer</label><textarea id="settings-footer-text" placeholder="Texto corto para cerrar la tienda pública."></textarea></div>
+              <div class="field full hidden"><label for="settings-footer-extra-text">Información extra</label><textarea id="settings-footer-extra-text" placeholder="Ej: Políticas, garantía, nota de confianza o información adicional."></textarea></div>
+              <details class="footer-admin-block footer-extra-details">
+                <summary class="footer-social-summary">
+                  <div class="footer-block-title-row">
+                    <span class="footer-block-icon links" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10.6 13.4a2 2 0 0 1 0-2.8l3-3a4 4 0 0 1 5.7 5.7l-2.1 2.1-1.4-1.4 2.1-2.1a2 2 0 0 0-2.8-2.8l-3 3a2 2 0 0 0 0 2.8l-1.5 1.5Zm2.8-2.8a2 2 0 0 1 0 2.8l-3 3a4 4 0 1 1-5.7-5.7l2.1-2.1 1.4 1.4-2.1 2.1a2 2 0 1 0 2.8 2.8l3-3a2 2 0 0 0 0-2.8l1.5-1.5Z"/></svg></span>
+                    <div>
+                      <h3 class="footer-admin-block-title">Botones extra</h3>
+                      <p class="footer-admin-block-help">Agrega hasta 2 enlaces adicionales que se mostrar&aacute;n en el footer.</p>
+                    </div>
+                  </div>
+                  <span class="footer-social-status">
+                    <span id="footer-extra-links-badge" class="footer-social-badge">0 links</span>
+                    <span class="footer-social-chevron" aria-hidden="true">⌃</span>
+                  </span>
+                </summary>
+                <div class="footer-social-body">
+                <div class="footer-extra-links-grid">
+                  <div class="footer-extra-link-row">
+                    <label class="footer-extra-switch" for="settings-footer-link-1-active">
+                      <input id="settings-footer-link-1-active" type="checkbox" checked />
+                      <span class="footer-switch-track" aria-hidden="true"></span>
+                      <span>Mostrar bot&oacute;n 1</span>
+                    </label>
+                    <div class="field"><label for="settings-footer-link-1-label">Bot&oacute;n / enlace 1</label><input id="settings-footer-link-1-label" type="text" placeholder="Ej: Grupo de WhatsApp" /></div>
+                    <div class="field"><label for="settings-footer-link-1-url">URL enlace 1</label><input id="settings-footer-link-1-url" type="url" placeholder="https://..." /></div>
+                  </div>
+                  <div class="footer-extra-link-row">
+                    <label class="footer-extra-switch" for="settings-footer-link-2-active">
+                      <input id="settings-footer-link-2-active" type="checkbox" checked />
+                      <span class="footer-switch-track" aria-hidden="true"></span>
+                      <span>Mostrar bot&oacute;n 2</span>
+                    </label>
+                    <div class="field"><label for="settings-footer-link-2-label">Bot&oacute;n / enlace 2</label><input id="settings-footer-link-2-label" type="text" placeholder="Ej: Instagram" /></div>
+                    <div class="field"><label for="settings-footer-link-2-url">URL enlace 2</label><input id="settings-footer-link-2-url" type="url" placeholder="https://..." /></div>
+                  </div>
+                </div>
+                </div>
+              </details>
+              <div id="footer-settings-alert" class="alert alert-info hidden"></div>
               </div>
+              <section class="footer-preview-toggle-block">
+                <button id="footer-preview-toggle-btn" class="mini-btn footer-preview-toggle-btn" type="button" aria-expanded="false" aria-controls="footer-preview-panel">Mostrar vista previa</button>
+                <div id="footer-preview-panel" class="footer-preview-panel hidden">
+                  <section class="footer-preview-block">
+                    <div class="footer-admin-block-head">
+                      <div>
+                        <h3 class="footer-admin-block-title">Vista previa p&uacute;blica</h3>
+                        <p class="footer-admin-block-help">As&iacute; se ver&aacute; el footer en tu tienda.</p>
+                      </div>
+                    </div>
+                    <div class="footer-preview-frame">
+                      <PublicFooter settings={footerPreviewSettings} showPlatformCta={false} />
+                    </div>
+                  </section>
+                </div>
+              </section>
             </form>
           </section>
 
@@ -3945,7 +4330,7 @@ const masterSupportHref = masterSupportWhatsapp
         activeTab = tab;
         const tabLabels = {
           generales: 'Ajustes generales',
-          footer: 'Footer publico',
+          footer: 'Footer público',
           monedas: 'Monedas',
           horario: 'Horarios',
           rating: 'Rating y rese\u00f1as',
@@ -3957,13 +4342,17 @@ const masterSupportHref = masterSupportWhatsapp
         document.getElementById('settings-general-summary-grid')?.classList.toggle('hidden', tab !== 'generales');
         const sectionLabel = document.getElementById('settings-current-section');
         const pageTitle = document.getElementById('settings-page-title');
+        const mobileTitle = document.getElementById('settings-mobile-title');
         const subtitle = document.getElementById('admin-subtitle');
         if (sectionLabel) sectionLabel.textContent = tabLabels[tab] || 'Ajustes generales';
         if (pageTitle) pageTitle.textContent = tabLabels[tab] || 'Ajustes de tienda';
+        if (mobileTitle) mobileTitle.innerHTML = `${tabLabels[tab] || 'Ajustes de tienda'} <span>Admin</span>`;
         if (subtitle) {
-          subtitle.textContent = tab === 'horario'
-            ? 'Define los horarios de atenci\u00f3n de tu tienda. Estos horarios se muestran en el cat\u00e1logo p\u00fablico y en la informaci\u00f3n de la tienda.'
-            : 'Configura los datos p\u00fablicos, portada, footer, monedas, horario y rese\u00f1as de tu tienda.';
+          subtitle.textContent = tab === 'footer'
+            ? 'Agrega la informaci\u00f3n inferior que saldr\u00e1 en portada, categor\u00eda, subcategor\u00eda y producto.'
+            : tab === 'horario'
+              ? 'Define los horarios de atenci\u00f3n de tu tienda. Estos horarios se muestran en el cat\u00e1logo p\u00fablico y en la informaci\u00f3n de la tienda.'
+              : 'Configura los datos p\u00fablicos, portada, footer, monedas, horario y rese\u00f1as de tu tienda.';
         }
         if (window.location.hash !== `#${tab}`) history.replaceState(null, '', `#${tab}`);
         document.querySelector(`.tab-btn[data-tab="${tab}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
@@ -4100,8 +4489,10 @@ const masterSupportHref = masterSupportWhatsapp
           footerText: document.getElementById('settings-footer-text'),
           footerContactText: document.getElementById('settings-footer-contact-text'),
           footerExtraText: document.getElementById('settings-footer-extra-text'),
+          footerLink1Active: document.getElementById('settings-footer-link-1-active'),
           footerLink1Label: document.getElementById('settings-footer-link-1-label'),
           footerLink1Url: document.getElementById('settings-footer-link-1-url'),
+          footerLink2Active: document.getElementById('settings-footer-link-2-active'),
           footerLink2Label: document.getElementById('settings-footer-link-2-label'),
           footerLink2Url: document.getElementById('settings-footer-link-2-url'),
           footerSocialInstagram: document.getElementById('settings-footer-social-instagram'),
@@ -4114,8 +4505,12 @@ const masterSupportHref = masterSupportWhatsapp
         };
         const footerForm = document.getElementById('footer-settings-form');
         const footerAlertBox = document.getElementById('footer-settings-alert');
-        const footerRefreshBtn = document.getElementById('footer-settings-refresh-btn');
         const footerSaveBtn = document.getElementById('footer-settings-save-btn');
+        const footerSocialActiveBadge = document.getElementById('footer-social-active-badge');
+        const footerExtraLinksBadge = document.getElementById('footer-extra-links-badge');
+        const footerShippingStatusBadge = document.getElementById('footer-shipping-status-badge');
+        const footerPreviewToggleBtn = document.getElementById('footer-preview-toggle-btn');
+        const footerPreviewPanel = document.getElementById('footer-preview-panel');
         const businessTypeTrigger = document.getElementById('business-type-trigger');
         const businessTypePanel = document.getElementById('business-type-panel');
         const businessTypeSearch = document.getElementById('business-type-search');
@@ -4249,6 +4644,40 @@ const masterSupportHref = masterSupportWhatsapp
           }
         }
         const FOOTER_TRUST_ICONS = ['shield', 'lock', 'truck', 'headset', 'star', 'gift', 'location', 'bolt', 'heart', 'bag', 'check', 'whatsapp'];
+        const FOOTER_TRUST_ICON_LABELS = {
+          shield: 'Compra segura',
+          lock: 'Seguridad',
+          truck: 'Entrega',
+          headset: 'Atencion',
+          star: 'Destacado',
+          gift: 'Regalo',
+          location: 'Ubicacion',
+          bolt: 'Rapido',
+          heart: 'Favorito',
+          bag: 'Compra',
+          check: 'Check',
+          whatsapp: 'WhatsApp',
+        };
+        function footerTrustIconLabel(icon) {
+          return FOOTER_TRUST_ICON_LABELS[icon] || FOOTER_TRUST_ICON_LABELS.check;
+        }
+        function footerTrustIconSvg(icon) {
+          const icons = {
+            shield: '<svg viewBox="0 0 24 24"><path d="M12 2 20 5v6c0 5-3.4 9.7-8 11-4.6-1.3-8-6-8-11V5l8-3Zm-1 13.2 5.4-5.4-1.4-1.4-4 4-2-2L7.6 12l3.4 3.2Z"/></svg>',
+            truck: '<svg viewBox="0 0 24 24"><path d="M3 6h11v9h1.4l2-3H21v6h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V8a2 2 0 0 1 1-2Zm2 2v7h7V8H5Zm11 6.2V15h3v-1h-.6l-.8 1.2H16ZM6 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>',
+            whatsapp: '<svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 0 0-7.7 13.7L3 22l6.4-1.2A9 9 0 1 0 12 2Zm0 2a7 7 0 1 1-2.1 13.7l-.4-.1-3.9.7.8-3.8-.2-.4A7 7 0 0 1 12 4Z"/></svg>',
+            gift: '<svg viewBox="0 0 24 24"><path d="M20 7h-2.2A3 3 0 0 0 12 5.8 3 3 0 0 0 6.2 7H4v5h1v9h14v-9h1V7ZM9 5a1 1 0 0 1 1 1v1H8a1 1 0 0 1 1-2Zm6 0a1 1 0 0 1 1 2h-2V6a1 1 0 0 1 1-1ZM7 12h4v7H7v-7Zm6 7v-7h4v7h-4Z"/></svg>',
+            star: '<svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg>',
+            check: '<svg viewBox="0 0 24 24"><path d="m9.2 16.6-4.2-4.2L3.6 14l5.6 5.6L21 7.8 19.6 6.4 9.2 16.6Z"/></svg>',
+            lock: '<svg viewBox="0 0 24 24"><path d="M17 9V7A5 5 0 0 0 7 7v2H5v12h14V9h-2Zm-8 0V7a3 3 0 0 1 6 0v2H9Z"/></svg>',
+            headset: '<svg viewBox="0 0 24 24"><path d="M12 3a8 8 0 0 0-8 8v5a3 3 0 0 0 3 3h2v-8H6a6 6 0 0 1 12 0h-3v8h2a5 5 0 0 1-5 3h-2v-2h2a3 3 0 0 0 3-1h2a3 3 0 0 0 3-3v-5a8 8 0 0 0-8-8Z"/></svg>',
+            bolt: '<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 10-13h-7l0-7Z"/></svg>',
+            heart: '<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.5-8.4C.2 8.8 2.4 4 6.8 4 9 4 10.7 5.1 12 6.7 13.3 5.1 15 4 17.2 4c4.4 0 6.6 4.8 4.3 8.6C19 16.6 12 21 12 21Z"/></svg>',
+            bag: '<svg viewBox="0 0 24 24"><path d="M7 7V6a5 5 0 0 1 10 0v1h3v14H4V7h3Zm2 0h6V6a3 3 0 0 0-6 0v1Z"/></svg>',
+            location: '<svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg>',
+          };
+          return icons[icon] || icons.check;
+        }
         function normalizeFooterTrustItems(value) {
           const source = parseJsonArray(value).filter((item) => item && typeof item === 'object').slice(0, 4);
           const filled = source.concat(Array.from({ length: Math.max(0, 4 - source.length) }, () => ({ icon: 'check', title: '', description: '', active: false }))).slice(0, 4);
@@ -4262,22 +4691,31 @@ const masterSupportHref = masterSupportWhatsapp
         function renderFooterTrustEditor(items) {
           if (!fields.footerTrustEditor) return;
           const normalizedItems = normalizeFooterTrustItems(items);
+          const activeCount = normalizedItems.filter((item) => item.active && item.title).length;
+          const trustBadge = document.getElementById('footer-trust-active-badge');
+          if (trustBadge) trustBadge.textContent = `${activeCount} ${activeCount === 1 ? 'activo' : 'activos'}`;
           fields.footerTrustEditor.innerHTML = normalizedItems.map((item, index) => `
-            <article class="footer-trust-card" data-footer-trust-index="${index}">
-              <label class="toggle-row"><input class="js-footer-trust-active" type="checkbox" ${item.active ? 'checked' : ''} /> Activo</label>
-              <div class="field">
+            <article class="footer-trust-row" data-footer-trust-index="${index}">
+              <label class="footer-trust-switch" title="Activar beneficio">
+                <input class="js-footer-trust-active" type="checkbox" ${item.active ? 'checked' : ''} />
+                <span class="footer-switch-track" aria-hidden="true"></span>
+              </label>
+              <div class="field footer-trust-icon-field">
                 <label>Icono</label>
-                <select class="js-footer-trust-icon">
-                  ${FOOTER_TRUST_ICONS.map((icon) => `<option value="${escapeHtml(icon)}" ${item.icon === icon ? 'selected' : ''}>${escapeHtml(icon)}</option>`).join('')}
-                </select>
+                <div class="footer-trust-icon-picker">
+                  <span class="footer-trust-icon-preview" data-icon="${escapeHtml(item.icon)}">${footerTrustIconSvg(item.icon)}</span>
+                  <select class="js-footer-trust-icon">
+                    ${FOOTER_TRUST_ICONS.map((icon) => `<option value="${escapeHtml(icon)}" ${item.icon === icon ? 'selected' : ''}>${escapeHtml(footerTrustIconLabel(icon))}</option>`).join('')}
+                  </select>
+                </div>
               </div>
-              <div class="field">
+              <div class="field footer-trust-title-field">
                 <label>T&iacute;tulo</label>
-                <input class="js-footer-trust-title" type="text" maxlength="80" value="${escapeHtml(item.title)}" />
+                <input class="js-footer-trust-title" type="text" maxlength="80" value="${escapeHtml(item.title)}" placeholder="Ej: Compra segura" />
               </div>
-              <div class="field">
+              <div class="field footer-trust-description-field">
                 <label>Descripci&oacute;n</label>
-                <input class="js-footer-trust-description" type="text" maxlength="120" value="${escapeHtml(item.description)}" />
+                <input class="js-footer-trust-description" type="text" maxlength="120" value="${escapeHtml(item.description)}" placeholder="Ej: Pagos 100% protegidos" />
               </div>
             </article>
           `).join('');
@@ -4289,6 +4727,12 @@ const masterSupportHref = masterSupportWhatsapp
             description: row.querySelector('.js-footer-trust-description')?.value?.trim() || '',
             active: row.querySelector('.js-footer-trust-active')?.checked === true,
           })).slice(0, 4);
+        }
+        function updateFooterTrustBadge() {
+          const trustBadge = document.getElementById('footer-trust-active-badge');
+          if (!trustBadge) return;
+          const activeCount = collectFooterTrustItems().filter((item) => item.active && item.title).length;
+          trustBadge.textContent = `${activeCount} ${activeCount === 1 ? 'activo' : 'activos'}`;
         }
         function normalizeFooterSocialUrl(kind, value) {
           const raw = String(value || '').trim();
@@ -4322,8 +4766,10 @@ const masterSupportHref = masterSupportWhatsapp
             footer_text: fields.footerText?.value?.trim() || '',
             footer_contact_text: fields.footerContactText?.value?.trim() || '',
             footer_extra_text: fields.footerExtraText?.value?.trim() || '',
+            footer_link_1_active: fields.footerLink1Active?.checked === true,
             footer_link_1_label: fields.footerLink1Label?.value?.trim() || '',
             footer_link_1_url: fields.footerLink1Url?.value?.trim() || '',
+            footer_link_2_active: fields.footerLink2Active?.checked === true,
             footer_link_2_label: fields.footerLink2Label?.value?.trim() || '',
             footer_link_2_url: fields.footerLink2Url?.value?.trim() || '',
             footer_social_links: JSON.stringify(socialLinks),
@@ -4342,9 +4788,41 @@ const masterSupportHref = masterSupportWhatsapp
           if (!footerSaveBtn) return;
           const payload = collectFooterPayload();
           const socialLinks = parseJsonObject(payload.footer_social_links);
+          updateFooterSocialBadge(socialLinks);
+          updateFooterTrustBadge();
+          updateFooterExtraLinksBadge();
+          updateFooterShippingBadge();
           const canSubmit = !validateFooterSocialLinks(socialLinks) && hasFooterChanges() && !footerSaving;
           footerSaveBtn.disabled = !canSubmit;
           footerSaveBtn.textContent = footerSaving ? 'Guardando...' : 'Guardar footer público';
+        }
+        function updateFooterSocialBadge(links = null) {
+          if (!footerSocialActiveBadge) return;
+          const source = links || {
+            instagram: fields.footerSocialInstagram?.value || '',
+            facebook: fields.footerSocialFacebook?.value || '',
+            tiktok: fields.footerSocialTiktok?.value || '',
+            youtube: fields.footerSocialYoutube?.value || '',
+            whatsapp: fields.footerSocialWhatsapp?.value || '',
+          };
+          const count = ['instagram', 'facebook', 'tiktok', 'youtube', 'whatsapp'].filter((key) => String(source[key] || '').trim()).length;
+          footerSocialActiveBadge.textContent = `${count} ${count === 1 ? 'activa' : 'activas'}`;
+        }
+        function updateFooterExtraLinksBadge() {
+          if (!footerExtraLinksBadge) return;
+          const link1Ready = fields.footerLink1Active?.checked !== false
+            && fields.footerLink1Label?.value?.trim()
+            && fields.footerLink1Url?.value?.trim();
+          const link2Ready = fields.footerLink2Active?.checked !== false
+            && fields.footerLink2Label?.value?.trim()
+            && fields.footerLink2Url?.value?.trim();
+          const count = [link1Ready, link2Ready].filter(Boolean).length;
+          footerExtraLinksBadge.textContent = `${count} ${count === 1 ? 'link' : 'links'}`;
+        }
+        function updateFooterShippingBadge() {
+          if (!footerShippingStatusBadge) return;
+          const hasText = String(fields.shippingDeliveryInfo?.value || '').trim().length > 0;
+          footerShippingStatusBadge.textContent = hasText ? 'Configurado' : 'Pendiente';
         }
         function setFooterInitialSnapshot() {
           footerInitialSnapshot = footerSnapshot();
@@ -4678,8 +5156,10 @@ const masterSupportHref = masterSupportWhatsapp
           fields.footerText.value = record.footer_text || '';
           fields.footerContactText.value = record.footer_contact_text || '';
           fields.footerExtraText.value = record.footer_extra_text || '';
+          fields.footerLink1Active.checked = record.footer_link_1_active !== false;
           fields.footerLink1Label.value = record.footer_link_1_label || '';
           fields.footerLink1Url.value = record.footer_link_1_url || '';
+          fields.footerLink2Active.checked = record.footer_link_2_active !== false;
           fields.footerLink2Label.value = record.footer_link_2_label || '';
           fields.footerLink2Url.value = record.footer_link_2_url || '';
           const footerSocial = parseJsonObject(record.footer_social_links);
@@ -4967,13 +5447,29 @@ const masterSupportHref = masterSupportWhatsapp
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
         refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
         footerForm?.addEventListener('input', syncFooterSubmitState);
+        footerPreviewToggleBtn?.addEventListener('click', () => {
+          const isOpen = footerPreviewToggleBtn.getAttribute('aria-expanded') === 'true';
+          const nextOpen = !isOpen;
+          footerPreviewToggleBtn.setAttribute('aria-expanded', String(nextOpen));
+          footerPreviewToggleBtn.textContent = nextOpen ? 'Ocultar vista previa' : 'Mostrar vista previa';
+          footerPreviewPanel?.classList.toggle('hidden', !nextOpen);
+        });
+        fields.footerTrustEditor?.addEventListener('change', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const select = target?.closest('.js-footer-trust-icon');
+          if (!select) return;
+          const row = select.closest('[data-footer-trust-index]');
+          const preview = row?.querySelector('.footer-trust-icon-preview');
+          if (!preview) return;
+          preview.dataset.icon = select.value;
+          preview.innerHTML = footerTrustIconSvg(select.value);
+        });
         footerForm?.addEventListener('change', syncFooterSubmitState);
         footerForm && footerForm.addEventListener('submit', (event) => saveFooter(event).catch(() => {
           footerSaving = false;
           syncFooterSubmitState();
           showFooter('No se pudieron guardar los cambios', 'error');
         }));
-        footerRefreshBtn && footerRefreshBtn.addEventListener('click', () => loadSettings().catch(() => showFooter('No se pudieron cargar los ajustes.', 'error')));
         if (token()) loadSettings().catch(() => {});
       })();
     </script>
