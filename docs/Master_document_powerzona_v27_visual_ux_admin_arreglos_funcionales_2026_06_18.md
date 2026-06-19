@@ -1,6 +1,6 @@
 # 🛒 Master Document - Project WEB Power Zona E-commerce
 
-**Fecha de actualización:** 2026-06-14 — actualización documental V26: proyecto visual del admin de tiendas Tu Senda 84  
+**Fecha de actualización:** 2026-06-18 — actualización documental V27: cierre parcial de fase visual/UX admin y preparación de arreglos funcionales
 **Estado del proyecto:** Base funcional de tienda individual + checkout WhatsApp + panel admin + catálogo/variaciones + ajustes públicos + monedas + regalos + comprobante público + optimización de imágenes + prefijo de órdenes + fotos limpias. Infraestructura profesional con GitHub/Coolify/staging funcionando como base. **Marketing 12.1 cerrado. Marketing 12.2 Promociones automáticas implementado y ajustado como base funcional: promociones por producto/categoría/subcategoría/subtotal, reglas de prioridad, carrito mixto, envío separado, WhatsApp y órdenes. Marketing 12.3 Cupón manual queda definido e iniciado: cupón en checkout, cupones por enlace, cupón de envío gratis, límite total de usos, historial por cupón, selección de un cupón por orden, comparación con promociones automáticas y visualización en WhatsApp/órdenes.** Bloque 21.30 Tu Senda 84 iniciado y avanzado: base multitienda `stores` creada, PowerZona como primer store, relación `store` en colecciones principales, helper central, consultas públicas por store, rutas públicas `/t/[storeSlug]`, carrito separado por store, Bazar principal visual en `/`, tienda pública PowerZona en `/t/powerzona`, base visual del Master Admin en `/master`, login administrativo con roles, `/master` protegido para `master_admin`, gestión básica de tiendas desde Master Admin validada, creación de usuarios de tienda desde Master Admin corregida y validada, acceso profesional por tienda en `/t/[storeSlug]/admin`, rutas administrativas profesionales por tienda, Bazar con tiendas destacadas controladas desde Master Admin, descripción comercial de tienda, categorías destacadas, descripción de categorías y detalle de pedidos en página completa para móvil. **21.30.19 cerrado/implementado en source actualizado: aislamiento operativo por tienda reforzado para envíos, promociones automáticas, cupones manuales, regalos, settings, pedidos, reportes y keys públicas por tienda. También quedan implementadas las mini categorías rápidas de tienda pública con modal `Ver todas`, horario simple por tienda y la mejora de Ajustes generales de tienda pública: portada única/carrusel, selector de tipo de negocio, dirección estructurada Cuba, ubicación pública con pin, modal Info de la tienda y reparación real de persistencia en `settings`. Queda documentado como pendiente inmediato la limpieza visual pública: quitar texto default, quitar grilla fija Servicios/Reseña/Moneda, mantener Horarios como modal desde drawer y ordenar footer sin mostrar JSON crudo.** **Nuevo bloque inmediato definido antes de pasar mejoras visuales profundas: Rating y reseñas dentro de Ajustes de tienda, empezando por la pestaña `Rating y reseñas` en `/admin/store-settings`, con aprobación manual del admin, reseñas públicas, reseñas verificadas desde órdenes entregadas, botón manual de WhatsApp y cálculo sin cron al abrir el panel.** **Nuevo bloque visual aprobado: rediseño del admin de Tiendas públicas Tu Senda 84, empezando por Productos como pantalla piloto, con simetría PC/móvil, sidebar fija en PC, menú hamburguesa en móvil y bloque inferior “Contactar a soporte” dirigido al Master Admin del Bazar.**
 
 ---
@@ -21160,5 +21160,647 @@ Estado:
 ✅ Productos definido como pantalla piloto.
 ✅ Rating y reseñas queda alineado con el mismo lenguaje visual para trabajo posterior.
 🔜 Próximo paso: abrir nueva pestaña/chat con source actualizado y comenzar implementación visual en Productos.
+```
+
+---
+
+## 22. Actualización acumulativa V27 — Fase visual/UX del admin aplicada por módulos y preparación de arreglos funcionales
+
+Esta sección se agrega como actualización acumulativa sin reemplazar las secciones anteriores del Master Document.
+
+Estado general de esta actualización:
+
+```txt
+🟡 IMPLEMENTADO EN SOURCE / PENDIENTE DE ARREGLOS FUNCIONALES Y PRUEBA GLOBAL
+```
+
+Nombre interno del bloque:
+
+```txt
+Fase visual/UX admin — patrón de guardado, previews, avisos temporales e imágenes sin cortes
+```
+
+Fecha documental:
+
+```txt
+2026-06-18
+```
+
+Marca de versión documental:
+
+```txt
+PZ-MASTER-V27-VISUAL-UX-ADMIN-ARREGLOS-FUNCIONALES-20260618
+```
+
+---
+
+### 22.1. Motivo de esta actualización
+
+Después de aprobar el sidebar fijo oficial del admin y avanzar en el rediseño visual de las pantallas principales, se detectó que varios módulos del panel admin tenían comportamientos diferentes al guardar, subir imágenes o mostrar avisos.
+
+Problemas generales detectados:
+
+```txt
+- Botones Guardar activos aunque no hubiera cambios.
+- Carteles verdes de éxito que se quedaban fijos.
+- Al guardar otra vez no era claro si el aviso correspondía al guardado nuevo o al anterior.
+- Al cambiar una foto, algunas pantallas no mostraban preview inmediato.
+- Al borrar una foto, algunas pantallas no mostraban “Subir nueva foto”.
+- Varias imágenes recomendadas como 16:9 se veían cortadas o con bordes por object-fit/contendor incorrecto.
+- Algunos módulos tenían hover/zoom y otros no.
+```
+
+Decisión tomada:
+
+```txt
+No hacer una corrección global agresiva en un solo prompt.
+Aplicar el patrón por módulos para evitar romper lógica funcional existente.
+```
+
+---
+
+### 22.2. Regla oficial nueva de UX para formularios admin
+
+A partir de esta fase, todos los formularios del admin deben seguir el mismo patrón.
+
+Regla de botón Guardar:
+
+```txt
+- Guardar inicia desactivado si no hay cambios.
+- Guardar se activa cuando existe una modificación real.
+- Si el usuario devuelve los campos al estado original, Guardar vuelve a desactivarse cuando sea posible.
+- Mientras guarda, el botón queda desactivado y muestra “Guardando…”.
+- Si guarda correctamente, Guardar vuelve a desactivarse.
+- Si falla, Guardar vuelve a activarse si todavía hay cambios pendientes.
+```
+
+Regla de avisos:
+
+```txt
+- Aviso verde de éxito debe ser temporal.
+- El aviso verde debe desaparecer solo después de 2.5 a 3 segundos.
+- Si se guarda otra vez, el aviso debe reiniciarse desde cero.
+- Si hay error, debe mostrarse aviso rojo limpio.
+- No deben mostrarse errores técnicos de PocketBase al usuario final/admin.
+```
+
+Regla de imágenes:
+
+```txt
+- Al seleccionar una imagen nueva, debe verse preview inmediato.
+- La imagen anterior no debe borrarse hasta que el guardado termine correctamente.
+- Después de guardar, se debe mostrar la imagen real guardada desde PocketBase.
+- Si falla, el formulario debe quedar listo para reintentar.
+- Los objectURL temporales deben limpiarse con URL.revokeObjectURL cuando corresponda.
+```
+
+Regla de botones de imagen:
+
+```txt
+- Si no hay imagen: “Subir nueva foto”.
+- Si hay imagen: “Cambiar foto”.
+- Si se borra una imagen, el slot no debe desaparecer y debe quedar disponible “Subir nueva foto”.
+```
+
+Regla visual de imágenes sin cortes:
+
+```txt
+- Portadas, categorías, subcategorías, promo visual y banners: 16:9.
+- Productos, regalos individuales y miniaturas cuadradas: 1:1.
+- object-fit: contain para imágenes subidas por admin.
+- No usar object-fit: cover en imágenes administrables con texto/productos importantes.
+- El marco debe respetar aspect-ratio real para evitar bordes innecesarios.
+- No aplicar reglas globales a todos los img del proyecto para no romper iconos.
+```
+
+---
+
+### 22.3. Prompts aplicados en esta fase visual/UX
+
+Prompts aplicados y propósito:
+
+```txt
+21.30.21D  → Categorías principales como patrón base.
+21.30.21D-1B → Hotfix y mejora de subcategorías.
+21.30.21E  → Regalos y categoría pública de regalos.
+21.30.21F  → Ajustes de tienda / Generales.
+21.30.21G  → Productos y Variaciones.
+21.30.21H  → Promo Visual / Destacados / Accesos rápidos.
+21.30.21I  → Promociones automáticas.
+21.30.21J  → Cupones manuales + Cintillo promocional.
+21.30.21K  → Envíos / Horarios / Footer público / Ajustes secundarios.
+```
+
+Regla importante de esta fase:
+
+```txt
+Cada prompt debía tocar solo su módulo y no revertir lo ya corregido en módulos anteriores.
+```
+
+---
+
+### 22.4. Prompt 1 — Categorías principales
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21D
+```
+
+Estado:
+
+```txt
+✅ FUNCIONANDO SEGÚN PRUEBA DEL USUARIO
+```
+
+Cambios logrados:
+
+```txt
+- Preview inmediato al cambiar foto de categoría principal.
+- Botones Guardar desactivados hasta que haya cambios.
+- Guardar vuelve a desactivarse después de guardar.
+- Aviso verde temporal y reiniciable.
+- Imagen pública de categoría en 16:9 sin cortes.
+- Corrección de bordes laterales cuando la imagen es 16:9.
+- Hover zoom suave en categoría pública.
+```
+
+Archivos principales relacionados:
+
+```txt
+src/pages/admin/catalog/category/[id].astro
+src/components/public-store/PublicStoreHome.astro
+```
+
+---
+
+### 22.5. Prompt 1B — Subcategorías
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21D-1B HOTFIX SUBCATEGORÍAS AJUSTADO
+```
+
+Estado:
+
+```txt
+✅ FUNCIONANDO SEGÚN PRUEBA DEL USUARIO
+```
+
+Cambios logrados:
+
+```txt
+- Crear subcategoría con foto.
+- La foto se guarda correctamente.
+- La subcategoría aparece dentro de la categoría padre.
+- En la categoría padre se muestra como tarjeta visual con foto.
+- El estilo se alinea con las categorías principales de la página principal.
+- Al tocar la subcategoría, abre su página propia.
+- La página de subcategoría se comporta como categoría: portada arriba y productos abajo.
+```
+
+Regla pública definida:
+
+```txt
+Categoría padre:
+- Muestra subcategorías como tarjetas visuales.
+- Si también tiene productos directos, puede mostrarlos debajo.
+
+Subcategoría:
+- Muestra portada/foto.
+- Muestra nombre/descripción si existe.
+- Muestra productos de esa subcategoría debajo.
+```
+
+---
+
+### 22.6. Prompt 2 — Regalos
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21E
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Preview inmediato en regalo individual.
+- Botón Guardar inteligente.
+- Aviso verde temporal.
+- Botón “Subir nueva foto” si no hay imagen.
+- Botón “Cambiar foto” si hay imagen.
+- Categoría pública de regalos con preview y guardado inteligente.
+- Corrección de bordes/espacios de la portada de Regalos en página principal.
+- Mantener hover zoom suave.
+- Fotos de regalos completas, sin cortes ni deformación.
+```
+
+Archivos principales relacionados:
+
+```txt
+src/pages/admin/gifts.astro
+src/components/public-store/PublicStoreHome.astro
+src/pages/t/[storeSlug]/regalos/index.astro
+```
+
+---
+
+### 22.7. Prompt 3 — Ajustes de tienda / Generales
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21F
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Logo con preview inmediato.
+- Portada única con preview inmediato.
+- Carrusel de portada con preview por slot.
+- Botón “Subir nueva foto” después de borrar imagen.
+- Botón “Cambiar foto” cuando ya existe imagen.
+- Guardar inteligente en Ajustes generales.
+- Aviso verde temporal y reiniciable.
+- Mantener portada/carrusel público 16:9 sin cortes.
+- No romper automatización WebP.
+```
+
+Archivo principal relacionado:
+
+```txt
+src/pages/admin/store-settings.astro
+```
+
+Regla crítica:
+
+```txt
+No cambiar nombres de campos ni lógica de PocketBase.
+No romper la optimización automática WebP existente.
+No romper el carrusel automático público.
+```
+
+---
+
+### 22.8. Prompt 4A — Productos y Variaciones
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21G
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Crear producto con Guardar desactivado hasta datos válidos.
+- Editar producto con Guardar desactivado si no hay cambios.
+- Preview inmediato en fotos de producto.
+- Slots de fotos con “Subir nueva foto” / “Cambiar foto”.
+- Aviso verde temporal.
+- Fotos de producto completas, preferiblemente 1:1 con object-fit: contain.
+- Variaciones con preview inmediato.
+- Botón Guardar variación inteligente.
+- Mantener stock padre = suma de variaciones.
+- No romper track_stock.
+- No romper oferta.
+- No romper allow_preorder.
+- No romper productos relacionados.
+```
+
+Archivos principales relacionados:
+
+```txt
+src/pages/admin/products.astro
+src/pages/t/[storeSlug]/producto/[slug].astro
+src/components/public-store/*
+```
+
+Regla crítica:
+
+```txt
+Productos es un módulo delicado.
+Cualquier arreglo futuro debe evitar tocar stock, variaciones, oferta, preorder y relaciones si no es necesario.
+```
+
+---
+
+### 22.9. Prompt 4B — Promo Visual / Destacados / Accesos rápidos
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21H
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Promo Visual con preview inmediato.
+- Botón Guardar inteligente.
+- Aviso verde temporal.
+- Imagen Promo Visual 16:9 sin cortes ni bordes raros.
+- Destacados con avisos temporales y orden estable.
+- Accesos rápidos con guardado inteligente.
+- Mantener orden con flechas.
+- No romper store_visual_items.
+- No romper links, WhatsApp, grupo, descargas ni navegación pública.
+```
+
+Archivos principales relacionados:
+
+```txt
+src/pages/admin/visual-organization.astro
+src/pages/admin/store-settings.astro
+src/components/public-store/PublicStoreHome.astro
+```
+
+---
+
+### 22.10. Prompt 5A — Promociones automáticas
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21I
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Crear promoción con botón Guardar inteligente.
+- Editar promoción con snapshot inicial.
+- Aviso verde temporal.
+- Activar/desactivar promoción con aviso temporal.
+- Borrar promoción con aviso temporal.
+- Validaciones visuales limpias.
+- No romper tipos de promociones existentes.
+```
+
+Tipos que deben seguir funcionando:
+
+```txt
+- Compra X paga Y.
+- Descuento por producto.
+- Descuento por categoría.
+- Descuento por subcategoría.
+- Descuento por carrito/subtotal.
+- Descuento de valor fijo.
+```
+
+Reglas críticas:
+
+```txt
+- No romper mayor beneficio.
+- No romper carrito mixto CUP/USD.
+- No romper envío separado.
+- No romper checkout.
+- No romper WhatsApp final.
+```
+
+---
+
+### 22.11. Prompt 5B — Cupones manuales + Cintillo promocional
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21J
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Crear cupón con botón Guardar inteligente.
+- Editar cupón con Guardar desactivado sin cambios.
+- Aviso verde temporal.
+- Activar/desactivar cupón con aviso temporal.
+- Borrar cupón con aviso temporal.
+- Validaciones limpias.
+- Link público de cupón estable.
+- Cintillo promocional con Guardar inteligente.
+- Cintillo público sin romper móvil/PC.
+```
+
+Reglas críticas:
+
+```txt
+- Un cupón por orden.
+- Cupón compite contra promociones automáticas.
+- Gana el mayor beneficio.
+- Cupón de envío gratis debe mantener envío en 0 si aplica.
+- No romper checkout ni WhatsApp final.
+- No aplicar cupón de otra tienda.
+```
+
+---
+
+### 22.12. Prompt 6 — Envíos, Horarios, Footer público y Ajustes secundarios
+
+Prompt aplicado:
+
+```txt
+PROMPT 21.30.21K
+```
+
+Estado:
+
+```txt
+🟡 IMPLEMENTADO / PENDIENTE DE PRUEBA FINAL COMPLETA
+```
+
+Cambios buscados/aplicados:
+
+```txt
+- Zonas de envío con Guardar inteligente.
+- Avisos temporales al crear/editar/borrar zonas.
+- Horarios con Guardar inteligente.
+- Validaciones limpias de horario.
+- Footer público con Guardar inteligente.
+- Ajustes secundarios restantes con patrón estable.
+- No romper checkout ni cálculo de envío.
+```
+
+Reglas críticas de envío:
+
+```txt
+- Envío sigue calculándose en USD real.
+- Recogida = 0.
+- Coordinar = 0.
+- Cupón de envío gratis sigue funcionando si existe.
+- WhatsApp final debe mostrar envío correctamente.
+- No sumar envío al total mixto de productos si la lógica lo mantiene separado.
+```
+
+Reglas críticas de horario:
+
+```txt
+- Público mantiene “Disponible ahora”.
+- Info de tienda muestra semana completa.
+- Panel/menú público de Horario muestra semana completa.
+```
+
+Reglas críticas de footer:
+
+```txt
+- Footer ordenado en PC y móvil.
+- No duplicar icono de WhatsApp si ya existe botón.
+- Mantener botón Crear mi tienda como wa.me configurado.
+- Mantener logo/icono Tu Senda 84 si está implementado.
+```
+
+---
+
+### 22.13. Estado actual antes de arreglos funcionales
+
+Después de aplicar hasta el Prompt 6, se decidió NO hacer todavía el Prompt 7 de revisión global.
+
+Motivo:
+
+```txt
+Antes de una revisión global visual, todavía hay que corregir varios arreglos funcionales detectados en pruebas.
+```
+
+Nueva fase inmediata:
+
+```txt
+Fase 6B — Arreglos funcionales antes de revisión global.
+```
+
+Orden recomendado:
+
+```txt
+1. Corregir problemas funcionales primero.
+2. Corregir problemas visuales puntuales después.
+3. Corregir consistencia de avisos/previews/botones si quedó algo fuera.
+4. Solo después ejecutar Prompt 7 de revisión global / limpieza final.
+```
+
+---
+
+### 22.14. Regla para los próximos arreglos funcionales
+
+Antes de cada arreglo, documentar:
+
+```txt
+Módulo:
+Ruta:
+Problema:
+Qué debería pasar:
+Qué no se debe romper:
+Captura si existe:
+```
+
+Reglas de trabajo:
+
+```txt
+- No hacer prompts globales grandes si el problema es puntual.
+- No tocar módulos que ya quedaron funcionando, salvo dependencia directa.
+- No mezclar arreglos funcionales con rediseños grandes.
+- No iniciar campanita/notificaciones hasta cerrar arreglos funcionales.
+- No iniciar Rating y reseñas hasta estabilizar los módulos actuales.
+```
+
+---
+
+### 22.15. Prompt 7 queda pendiente
+
+Prompt 7 planificado:
+
+```txt
+Revisión global / limpieza final de UX.
+```
+
+Estado:
+
+```txt
+⏳ PENDIENTE
+```
+
+Debe ejecutarse solo después de arreglos funcionales.
+
+Objetivos futuros del Prompt 7:
+
+```txt
+- Revisar que todos los botones Guardar funcionen igual.
+- Revisar que todos los avisos verdes desaparezcan.
+- Revisar que no haya textos técnicos visibles.
+- Revisar que no haya imágenes cortadas ni con bordes raros.
+- Revisar que no haya scroll horizontal en móvil.
+- Revisar que sidebar fijo aprobado siga intacto.
+- Revisar tienda pública en PC/móvil.
+- Revisar checkout, cupones, promociones y envíos.
+```
+
+---
+
+### 22.16. Próximo paso recomendado inmediato
+
+Próximo bloque real:
+
+```txt
+Arreglos funcionales detectados después de aplicar prompts 21.30.21D a 21.30.21K.
+```
+
+Mensaje recomendado para continuar:
+
+```txt
+PowerZona / Tu Senda 84 — Arreglos funcionales después de fase visual admin. Source actualizado hasta prompt 21.30.21K.
+```
+
+Formato recomendado para reportar cada arreglo:
+
+```txt
+1. Módulo:
+   Problema:
+   Ruta:
+   Captura:
+   Resultado esperado:
+```
+
+Estado final de esta actualización documental:
+
+```txt
+✅ Master Document actualizado hasta Prompt 6 / 21.30.21K.
+🔜 Siguiente paso: empezar arreglos funcionales puntuales antes del Prompt 7 global.
 ```
 
