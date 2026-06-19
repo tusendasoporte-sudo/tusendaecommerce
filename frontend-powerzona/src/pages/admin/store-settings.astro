@@ -1081,6 +1081,26 @@ try {
         padding: 22px;
         border-radius: 28px;
       }
+      .general-settings-stack { display: grid; gap: 14px; }
+      .general-settings-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+      .general-settings-header-copy { min-width: 0; }
+      .general-settings-save-btn { flex: 0 0 auto; min-width: 190px; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 14px 28px rgba(37,99,235,.22); }
+      .general-settings-accordion { overflow: hidden; border-radius: 22px; border: 1px solid #e2e8f0; background: rgba(255,255,255,.96); box-shadow: 0 16px 38px rgba(15,23,42,.06); }
+      .general-settings-summary { list-style: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px; cursor: pointer; }
+      .general-settings-summary::-webkit-details-marker { display: none; }
+      .general-settings-summary-main { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+      .general-settings-icon { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; }
+      .general-settings-icon svg { width: 18px; height: 18px; fill: currentColor; }
+      .general-settings-summary h3 { margin: 0; color: #0f172a; font-size: 17px; line-height: 1.15; font-weight: 1000; letter-spacing: 0; }
+      .general-settings-summary p { margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 750; }
+      .general-settings-summary-meta { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+      .general-settings-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; border-radius: 999px; padding: 6px 11px; background: #dbeafe; color: #2563eb; font-size: 12px; font-weight: 1000; white-space: nowrap; }
+      .general-settings-badge.pending { background: #f1f5f9; color: #64748b; }
+      .general-settings-chevron { width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px solid #e2e8f0; color: #475569; font-size: 13px; font-weight: 1000; transition: transform .18s ease; }
+      .general-settings-accordion[open] .general-settings-chevron { transform: rotate(180deg); }
+      .general-settings-body { padding: 0 18px 18px; display: grid; gap: 14px; }
+      .general-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 14px 18px; }
+      .general-settings-grid .full { grid-column: 1 / -1; }
       .settings-panel-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
@@ -1772,16 +1792,7 @@ try {
       .topbar,
       .hero-card { display: none !important; }
       .tabs {
-        display: grid !important;
-        grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-        gap: 0 !important;
-        margin-bottom: 22px !important;
-        padding: 0 16px !important;
-        background: rgba(255,255,255,.94) !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 18px !important;
-        box-shadow: 0 12px 26px rgba(15,23,42,.05) !important;
-        overflow: hidden !important;
+        display: none !important;
       }
       .tab-btn {
         position: relative !important;
@@ -1814,14 +1825,7 @@ try {
       }
       @media (max-width: 1023px) {
         .tabs {
-          display: flex !important;
-          overflow-x: auto !important;
-          gap: 8px !important;
-          padding: 4px 2px 10px !important;
-          border: 0 !important;
-          background: transparent !important;
-          box-shadow: none !important;
-          scrollbar-width: none;
+          display: none !important;
         }
         .tabs::-webkit-scrollbar { display: none; }
         .tab-btn {
@@ -1839,7 +1843,6 @@ try {
       }
       #settings-form {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 14px;
       }
       #settings-address,
@@ -1850,6 +1853,14 @@ try {
       }
       @media (max-width: 1023px) {
         #settings-form { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 720px) {
+        .general-settings-header { flex-direction: column; align-items: stretch; }
+        .general-settings-save-btn { width: 100%; }
+        .general-settings-summary { padding: 14px; }
+        .general-settings-body { padding: 0 14px 14px; }
+        .general-settings-grid { grid-template-columns: 1fr; }
+        .general-settings-summary-meta { align-self: flex-start; }
       }
       .footer-admin-block { grid-column: 1 / -1; display: grid; gap: 14px; padding: 18px; border-radius: 22px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 14px 34px rgba(15,23,42,.06); }
       .footer-admin-block-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -3103,7 +3114,7 @@ try {
             <article class="settings-summary-card"><span class="summary-icon blue"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12h-6v-7h-4v7H4Zm3-3h2v-6h6v6h2V10.5l-5-3.8-5 3.8V18Z"/></svg></span><div><p class="summary-label">Perfil p&uacute;blico</p><p class="summary-value">Configurado</p><p class="summary-help">Datos principales listos</p></div></article>
             <article class="settings-summary-card"><span class="summary-icon green"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5V5Zm2 2v10h10V7H7Zm2 8 2.1-2.8 1.6 2.1 1.2-1.5L16 15H9Zm1.5-4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></span><div><p class="summary-label">Im&aacute;genes</p><p class="summary-value">Logo + portada</p><p class="summary-help">Actualizadas</p></div></article>
             <article class="settings-summary-card"><span class="summary-icon purple"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><div><p class="summary-label">Monedas</p><p id="summary-currencies-value" class="summary-value">Pendiente</p><p id="summary-currencies-help" class="summary-help">Sin configurar</p></div></article>
-            <article class="settings-summary-card"><span class="summary-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p class="summary-label">Horario</p><p class="summary-value">Activo</p><p class="summary-help">Tienda disponible</p></div></article>
+            <article class="settings-summary-card"><span class="summary-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p class="summary-label">Horarios</p><p class="summary-value">Activo</p><p class="summary-help">Tienda disponible</p></div></article>
           </div>
 
           <div class="stats-grid hidden">
@@ -3113,92 +3124,67 @@ try {
           </div>
 
           <section id="tab-generales" class="panel-card tab-panel settings-panel">
-            <div class="section-head">
-              <div>
-                <h2 class="section-title">Ajustes generales públicos</h2>
-                <p class="section-subtitle">Edita los datos principales que verá el cliente en la tienda pública.</p>
+            <div class="general-settings-header">
+              <div class="general-settings-header-copy">
+                <h2 class="section-title">Ajustes generales</h2>
+                <p class="section-subtitle">Configura la informaci&oacute;n principal de tu tienda p&uacute;blica.</p>
               </div>
-              <button id="settings-refresh-btn" class="mini-btn" type="button">Actualizar</button>
+              <button class="submit-btn general-settings-save-btn" type="submit" form="settings-form">Guardar ajustes</button>
             </div>
-            <form id="settings-form" class="form-grid">
-              <div class="settings-section-card">
-                <div class="settings-section-head">
-                  <div class="settings-section-titleline">
-                    <span class="settings-section-icon blue"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z"/></svg></span>
-                    <h3>Identidad de la tienda</h3>
-                  </div>
-                  <button class="settings-section-chevron" type="button" tabindex="-1" aria-hidden="true">⌃</button>
-                </div>
-                <div class="settings-two-grid">
-              <div class="field"><label for="settings-store-name">Nombre p&uacute;blico de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
-              <div class="field"><label for="settings-order-prefix">Prefijo de &oacute;rdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
-              <div class="field full"><label for="settings-whatsapp-number">WhatsApp principal</label><div class="phone-row"><select id="settings-whatsapp-country" class="phone-prefix" aria-label="Pais"><option value="CU">CU +53</option><option value="US">US +1</option><option value="DO">DO +1</option><option value="MX">MX +52</option><option value="CO">CO +57</option><option value="VE">VE +58</option><option value="ES">ES +34</option><option value="PA">PA +507</option></select><input id="settings-whatsapp-number" type="text" placeholder="5 000 0000" required /></div><p class="form-help">Número principal para contacto con clientes</p></div>
-              <div class="field full"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select><p class="form-help">Cómo se mostrará la portada en la tienda</p></div>
-                </div>
-              </div>
-              <div class="settings-section-card">
-                <div class="settings-section-head">
-                  <div class="settings-section-titleline">
-                    <span class="settings-section-icon green"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5V5Zm2 2v10h10V7H7Zm2 8 2.1-2.8 1.6 2.1 1.2-1.5L16 15H9Zm1.5-4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></span>
-                    <h3>Imágenes</h3>
-                  </div>
-                  <button class="settings-section-chevron" type="button" tabindex="-1" aria-hidden="true">⌃</button>
-                </div>
-              <div class="settings-image-grid image-settings-grid">
-                <article class="settings-image-card">
-                  <div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div>
-                  <div id="settings-logo-preview" class="settings-thumb logo">Logo</div>
-                  <div class="settings-upload-actions">
-                    <div class="field settings-file-control"><label id="settings-logo-upload-label" class="settings-upload-label" for="settings-logo-image">Subir nueva foto</label><input id="settings-logo-image" type="file" accept="image/*" /></div>
-                  </div>
-                  <p class="form-help">Recomendado: 512 x 512 px.</p>
-                </article>
-                <article class="settings-image-card">
-                  <div class="settings-image-head"><h3 class="settings-image-title">Portada</h3></div>
-                  <div id="settings-cover-single-wrap">
-                    <div id="settings-cover-preview" class="settings-thumb cover">Portada</div>
-                    <div class="settings-upload-actions" style="margin-top:12px;">
-                      <div class="field settings-file-control"><label id="settings-cover-upload-label" class="settings-upload-label" for="settings-cover-image">Subir nueva foto</label><input id="settings-cover-image" type="file" accept="image/*" /></div>
-                    </div>
-                  </div>
-                  <div id="settings-cover-carousel-wrap" class="hidden">
-                    <div id="settings-cover-gallery-preview" class="settings-gallery-grid"></div>
-                  </div>
-                  <p class="form-help">Recomendado: 1600 x 900 px.</p>
-                </article>
-              </div>
-              </div>
-              <div class="settings-section-card">
-                <div class="settings-section-head"><div class="settings-section-titleline"><span class="settings-section-icon purple"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h6v2H8v-2Z"/></svg></span><h3>Contenido público</h3></div></div>
-              <div class="field full"><label for="settings-store-description">Descripci&oacute;n de la tienda</label><textarea id="settings-store-description" maxlength="500" placeholder="Descripci&oacute;n m&aacute;s completa para Bazar, ficha de tienda o SEO."></textarea></div>
-              <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
-              <div class="field full"><label for="settings-reviews-text">Rese&ntilde;a / texto de confianza</label><textarea id="settings-reviews-text" maxlength="150" placeholder="Ej: Gracias por elegir PowerZona. Atenci&oacute;n personalizada y productos seleccionados."></textarea></div>
-              </div>
-              <div class="settings-section-card">
-                <div class="settings-section-head"><div class="settings-section-titleline"><span class="settings-section-icon blue"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg></span><h3>Ubicación y clasificación</h3></div></div>
-              <div class="settings-two-grid">
-              <div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div>
-              <div class="field full">
-                <label>Tipo de negocio</label>
-                <div class="business-type-picker">
-                  <button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button>
-                  <div id="business-type-chips" class="chip-list"></div>
-                  <div id="business-type-panel" class="business-type-panel hidden">
-                    <input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." />
-                    <div id="business-type-options"></div>
+            <form id="settings-form" class="general-settings-stack">
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary">
+                  <div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z"/></svg></span><div><h3>Informaci&oacute;n principal</h3><p>Nombre, bienvenida y datos principales de la tienda.</p></div></div>
+                  <div class="general-settings-summary-meta"><span id="general-status-main" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div>
+                </summary>
+                <div class="general-settings-body"><div class="general-settings-grid">
+                  <div class="field"><label for="settings-store-name">Nombre p&uacute;blico de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
+                  <div class="field"><label for="settings-order-prefix">Prefijo de &oacute;rdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
+                  <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
+                </div></div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary">
+                  <div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M5 5h14v14H5V5Zm2 2v10h10V7H7Zm2 8 2.1-2.8 1.6 2.1 1.2-1.5L16 15H9Zm1.5-4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg></span><div><h3>Identidad visual</h3><p>Logo, portada e imagen p&uacute;blica de tu tienda.</p></div></div>
+                  <div class="general-settings-summary-meta"><span id="general-status-visual" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div>
+                </summary>
+                <div class="general-settings-body">
+                  <div class="settings-image-grid image-settings-grid">
+                    <article class="settings-image-card"><div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div><div id="settings-logo-preview" class="settings-thumb logo">Logo</div><div class="settings-upload-actions"><div class="field settings-file-control"><label id="settings-logo-upload-label" class="settings-upload-label" for="settings-logo-image">Subir nueva foto</label><input id="settings-logo-image" type="file" accept="image/*" /></div></div><p class="form-help">Recomendado: 512 x 512 px.</p></article>
+                    <article class="settings-image-card"><div class="settings-image-head"><h3 class="settings-image-title">Portada</h3></div><div id="settings-cover-single-wrap"><div id="settings-cover-preview" class="settings-thumb cover">Portada</div><div class="settings-upload-actions" style="margin-top:12px;"><div class="field settings-file-control"><label id="settings-cover-upload-label" class="settings-upload-label" for="settings-cover-image">Subir nueva foto</label><input id="settings-cover-image" type="file" accept="image/*" /></div></div></div><div id="settings-cover-carousel-wrap" class="hidden"><div id="settings-cover-gallery-preview" class="settings-gallery-grid"></div></div><p class="form-help">Recomendado: 1600 x 900 px.</p></article>
                   </div>
                 </div>
-                <p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p>
-              </div>
-              <div class="field"><label for="settings-province">Provincia</label><select id="settings-province"><option value="">Selecciona provincia</option></select></div>
-              <div class="field"><label for="settings-municipality">Municipio</label><select id="settings-municipality" disabled><option value="">Primero selecciona provincia</option></select></div>
-              <div class="field full"><label for="settings-address-detail">Direcci&oacute;n exacta / Referencia</label><textarea id="settings-address-detail" placeholder="Calle, n&uacute;mero, reparto, barrio o referencia"></textarea></div>
-              </div>
-              </div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg></span><div><h3>Ubicaci&oacute;n de la tienda</h3><p>Datos de ubicaci&oacute;n visibles para tus clientes.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-location" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <div class="general-settings-body"><div class="general-settings-grid"><div class="field"><label for="settings-province">Provincia</label><select id="settings-province"><option value="">Selecciona provincia</option></select></div><div class="field"><label for="settings-municipality">Municipio</label><select id="settings-municipality" disabled><option value="">Primero selecciona provincia</option></select></div><div class="field full"><label for="settings-address-detail">Direcci&oacute;n exacta / Referencia</label><textarea id="settings-address-detail" placeholder="Calle, n&uacute;mero, reparto, barrio o referencia"></textarea></div></div></div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.8-.4 1.2-.3 1.3.4 2.6.6 4 .6.7 0 1.2.5 1.2 1.2v3.5c0 .7-.5 1.2-1.2 1.2C10.4 22 2 13.6 2 3.4 2 2.7 2.5 2 3.2 2h3.6C7.5 2 8 2.5 8 3.2c0 1.4.2 2.7.6 4 .1.4 0 .8-.3 1.1l-1.7 2.5Z"/></svg></span><div><h3>Contacto p&uacute;blico</h3><p>Canales para que los clientes contacten la tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-contact" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <div class="general-settings-body"><div class="general-settings-grid"><div class="field full"><label for="settings-whatsapp-number">WhatsApp principal</label><div class="phone-row"><select id="settings-whatsapp-country" class="phone-prefix" aria-label="Pais"><option value="CU">CU +53</option><option value="US">US +1</option><option value="DO">DO +1</option><option value="MX">MX +52</option><option value="CO">CO +57</option><option value="VE">VE +58</option><option value="ES">ES +34</option><option value="PA">PA +507</option></select><input id="settings-whatsapp-number" type="text" placeholder="5 000 0000" required /></div><p class="form-help">N&uacute;mero principal para contacto con clientes</p></div></div></div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h6v2H8v-2Z"/></svg></span><div><h3>Tipo de negocio</h3><p>Clasificaci&oacute;n p&uacute;blica de tu tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-business" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <div class="general-settings-body"><div class="general-settings-grid"><div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div><div class="field full"><label>Tipo de negocio</label><div class="business-type-picker"><button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button><div id="business-type-chips" class="chip-list"></div><div id="business-type-panel" class="business-type-panel hidden"><input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." /><div id="business-type-options"></div></div></div><p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p></div></div></div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z"/></svg></span><div><h3>Descripci&oacute;n y confianza</h3><p>Textos que ayudan a presentar tu tienda al cliente.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-trust" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <div class="general-settings-body"><div class="general-settings-grid"><div class="field full"><label for="settings-store-description">Descripci&oacute;n de la tienda</label><textarea id="settings-store-description" maxlength="500" placeholder="Descripci&oacute;n m&aacute;s completa para Bazar, ficha de tienda o SEO."></textarea></div><div class="field full"><label for="settings-reviews-text">Rese&ntilde;a / texto de confianza</label><textarea id="settings-reviews-text" maxlength="150" placeholder="Ej: Gracias por elegir PowerZona. Atenci&oacute;n personalizada y productos seleccionados."></textarea></div></div></div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H4V4Zm2 2v8h12V6H6Zm2 10h8v2H8v-2Zm3 3h2v2h-2v-2Z"/></svg></span><div><h3>Portada / presentaci&oacute;n p&uacute;blica</h3><p>Contenido visual principal que aparece en la tienda p&uacute;blica.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-cover" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <div class="general-settings-body"><div class="general-settings-grid"><div class="field full"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select><p class="form-help">C&oacute;mo se mostrar&aacute; la portada en la tienda</p></div></div></div>
+              </details>
+
               <textarea id="settings-address" class="hidden" aria-hidden="true"></textarea>
               <textarea id="settings-public-services-text" class="hidden" aria-hidden="true"></textarea>
               <div id="settings-alert" class="alert alert-info hidden full"></div>
-              <div class="editor-actions full settings-save-row"><button class="submit-btn" type="submit">Guardar ajustes generales</button></div>
             </form>
           </section>
 
@@ -4459,7 +4445,6 @@ try {
         const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(adminAuthToken || '');
         const form = document.getElementById('settings-form');
         const alertBox = document.getElementById('settings-alert');
-        const refreshBtn = document.getElementById('settings-refresh-btn');
         let settingsRecord = null;
         const fields = {
           storeName: document.getElementById('settings-store-name'),
@@ -4538,6 +4523,15 @@ try {
         let footerNoticeTimer = null;
         let footerSaving = false;
         let footerInitialSnapshot = null;
+        const generalStatusBadges = {
+          main: document.getElementById('general-status-main'),
+          visual: document.getElementById('general-status-visual'),
+          location: document.getElementById('general-status-location'),
+          contact: document.getElementById('general-status-contact'),
+          business: document.getElementById('general-status-business'),
+          trust: document.getElementById('general-status-trust'),
+          cover: document.getElementById('general-status-cover'),
+        };
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
@@ -4904,7 +4898,32 @@ try {
           return JSON.stringify(settingsSnapshot()) !== JSON.stringify(settingsInitialSnapshot);
         }
 
+        function setGeneralStatusBadge(key, ready, readyText) {
+          const badge = generalStatusBadges[key];
+          if (!badge) return;
+          badge.textContent = ready ? readyText : 'Pendiente';
+          badge.classList.toggle('pending', !ready);
+        }
+
+        function syncGeneralStatusBadges() {
+          const hasMainInfo = Boolean(fields.storeName?.value?.trim() && fields.welcome?.value?.trim());
+          const hasVisualIdentity = Boolean(fileName('logo_image') || fields.logo?.files?.[0]);
+          const hasCover = Boolean(fileName('cover_image') || fileNames('cover_gallery').length || fields.cover?.files?.[0] || galleryPendingState().some((item) => item.pending));
+          const hasLocation = Boolean(fields.province?.value || fields.municipality?.value || fields.addressDetail?.value?.trim());
+          const hasContact = Boolean(cleanWhatsappNumber(fields.whatsapp?.value || '').replace(/^\+/, ''));
+          const hasBusinessType = selectedBusinessTypes.length > 0;
+          const hasTrustText = Boolean(fields.storeDescription?.value?.trim() || fields.reviews?.value?.trim());
+          setGeneralStatusBadge('main', hasMainInfo, 'Configurado');
+          setGeneralStatusBadge('visual', hasVisualIdentity, 'Lista');
+          setGeneralStatusBadge('location', hasLocation, 'Configurada');
+          setGeneralStatusBadge('contact', hasContact, 'Configurado');
+          setGeneralStatusBadge('business', hasBusinessType, 'Seleccionado');
+          setGeneralStatusBadge('trust', hasTrustText, 'Configurada');
+          setGeneralStatusBadge('cover', hasCover, 'Configurada');
+        }
+
         function syncSettingsSubmitState() {
+          syncGeneralStatusBadges();
           const canSubmit = hasSettingsChanges() && !settingsSaving;
           getSettingsSubmitButtons().forEach((button) => {
             let label = button.querySelector('[data-settings-submit-label]') || button.querySelector('span');
@@ -5445,7 +5464,6 @@ try {
         });
         syncSettingsSubmitState();
         form && form.addEventListener('submit', (event) => save(event).catch((error) => show(error.message || 'No se pudo guardar.', 'error')));
-        refreshBtn && refreshBtn.addEventListener('click', () => loadSettings().catch((error) => show(error.message || 'No se pudieron cargar los ajustes.', 'error')));
         footerForm?.addEventListener('input', syncFooterSubmitState);
         footerPreviewToggleBtn?.addEventListener('click', () => {
           const isOpen = footerPreviewToggleBtn.getAttribute('aria-expanded') === 'true';
