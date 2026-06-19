@@ -3,12 +3,14 @@
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import { getSettings, getPublicGifts } from '../../lib/api';
+import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
 const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
+if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 const gifts = await getPublicGifts(storeQuery);
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';

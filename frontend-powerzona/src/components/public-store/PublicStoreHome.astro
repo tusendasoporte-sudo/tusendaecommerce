@@ -8,6 +8,7 @@ import PublicFooter from '../PublicFooter.astro';
 import PromoBar from '../PromoBar.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
+import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 
@@ -17,13 +18,15 @@ const storeQuery = { storeId: currentStoreId };
 const currentPathname = Astro.url.pathname;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const settings = await getSettings(storeQuery);
-const categories = await getCategories(storeQuery);
-const subcategories = await getSubcategories(storeQuery);
-const products = await getProducts(storeQuery);
-const featuredProducts = await getFeaturedProducts(storeQuery);
-const visualItems = await getStoreVisualItems(storeQuery);
-const gifts = await getPublicGifts(storeQuery);
-const automaticPromotions = await getAutomaticPromotions(storeQuery);
+const isTemporarilyClosed = isStoreTemporarilyClosed(settings);
+const temporarilyClosedMessage = getTemporarilyClosedMessage(settings);
+const categories = isTemporarilyClosed ? [] : await getCategories(storeQuery);
+const subcategories = isTemporarilyClosed ? [] : await getSubcategories(storeQuery);
+const products = isTemporarilyClosed ? [] : await getProducts(storeQuery);
+const featuredProducts = isTemporarilyClosed ? [] : await getFeaturedProducts(storeQuery);
+const visualItems = isTemporarilyClosed ? [] : await getStoreVisualItems(storeQuery);
+const gifts = isTemporarilyClosed ? [] : await getPublicGifts(storeQuery);
+const automaticPromotions = isTemporarilyClosed ? [] : await getAutomaticPromotions(storeQuery);
 const reviewsEnabled = settings?.reviews_enabled !== false;
 const storeReviewSummary = reviewsEnabled ? await getStoreReviewSummary(storeQuery) : { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
 const storeReviews = reviewsEnabled ? await getStoreReviews(storeQuery, 50) : [];
@@ -211,7 +214,7 @@ function getProductOfferView(product: any) {
 ---
 
 <!-- PZ-INDEX-V24-FOOTER-PUBLICO-NAVEGACION-20260603 -->
-<Layout>
+<Layout hideStoreFloatingUi={isTemporarilyClosed}>
   <style>
     .public-store-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
     .public-store-brand { min-width: 0; display: flex; align-items: center; gap: 12px; }
@@ -1840,7 +1843,79 @@ function getProductOfferView(product: any) {
         font-size: 11px;
       }
     }
+    .store-normal-hidden {
+      display: none !important;
+    }
+    .store-temporary-closed-page {
+      min-height: min(760px, calc(100vh - 48px));
+      display: grid;
+      place-items: center;
+      padding: 36px 14px;
+      background: #f8fafc;
+    }
+    .store-temporary-closed-card {
+      width: min(560px, 100%);
+      border: 1px solid #e2e8f0;
+      border-radius: 28px;
+      background: #fff;
+      padding: 34px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(15,23,42,.12);
+    }
+    .store-temporary-closed-logo {
+      width: 74px;
+      height: 74px;
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 24px;
+      overflow: hidden;
+      background: #111827;
+      color: #fff;
+      font-size: 22px;
+      font-weight: 1000;
+    }
+    .store-temporary-closed-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .store-temporary-closed-kicker {
+      margin: 0 0 8px;
+      color: #dc2626;
+      font-size: 12px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .store-temporary-closed-card h1 {
+      margin: 0;
+      color: #0f172a;
+      font-size: clamp(30px, 7vw, 48px);
+      line-height: 1;
+      font-weight: 1000;
+    }
+    .store-temporary-closed-card p:last-child {
+      max-width: 420px;
+      margin: 14px auto 0;
+      color: #475569;
+      font-size: 16px;
+      line-height: 1.5;
+      font-weight: 800;
+    }
   </style>
+
+  {isTemporarilyClosed && (
+    <main class="store-temporary-closed-page">
+      <section class="store-temporary-closed-card" aria-labelledby="store-temporary-closed-title">
+        <div class="store-temporary-closed-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
+        <p class="store-temporary-closed-kicker">Tienda no disponible</p>
+        <h1 id="store-temporary-closed-title">Negocio cerrado temporalmente</h1>
+        <p>{temporarilyClosedMessage}</p>
+      </section>
+    </main>
+  )}
+  <div class={isTemporarilyClosed ? 'store-normal-hidden' : ''}>
 
   <div class="public-store-head" aria-label="Acciones principales">
     <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
@@ -2649,6 +2724,7 @@ function getProductOfferView(product: any) {
     syncGiftButtons();
 
   </script>
+  </div>
 </Layout>
 
 

@@ -387,7 +387,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const CHECKOUT_CART_STORAGE_KEY = window.PZ_CHECKOUT_CART_STORAGE_KEY || `${CART_STORAGE_KEY}_checkout`;
 		const cartStorage = window.PZCartStorage || null;
 		const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
-		const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto.';
+		const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Vuelve pronto.';
 		const BUSINESS_DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 		const DEFAULT_BUSINESS_HOURS = {
 			monday: { enabled: false, open: '09:00', close: '18:00' },
@@ -453,7 +453,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					title: 'Cerrado temporalmente',
 					message: settings?.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
 					note: 'Nota: pedido realizado mientras la tienda estaba cerrada temporalmente.',
-					allowOrders: settings?.allow_orders_when_closed !== false,
+					allowOrders: false,
 				};
 			}
 			if (mode !== 'custom') return { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
@@ -1216,7 +1216,9 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 
 			if (!errors.stock && errors.business_hours) {
-				checkoutValidationAlert.textContent = 'La tienda no acepta pedidos fuera de horario en este momento.';
+				checkoutValidationAlert.textContent = businessHoursStatus.mode === 'temporarily_closed'
+					? 'Negocio cerrado temporalmente. No se aceptan pedidos en este momento.'
+					: 'La tienda no acepta pedidos fuera de horario en este momento.';
 				checkoutValidationAlert.classList.remove('hidden');
 			}
 
@@ -1963,7 +1965,9 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 
 			const settings = await getActiveSettings();
 			if (businessHoursStatus.isClosed && businessHoursStatus.allowOrders === false) {
-				throw new Error('La tienda no acepta pedidos fuera de horario en este momento.');
+				throw new Error(businessHoursStatus.mode === 'temporarily_closed'
+					? 'Negocio cerrado temporalmente. No se aceptan pedidos en este momento.'
+					: 'La tienda no acepta pedidos fuera de horario en este momento.');
 			}
 			const whatsappNumber = normalizeWhatsAppNumber(settings.whatsapp_number);
 

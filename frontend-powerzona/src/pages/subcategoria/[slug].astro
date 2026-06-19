@@ -5,6 +5,7 @@ import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
+import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 export async function getStaticPaths() {
@@ -17,6 +18,7 @@ const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
 const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
+if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
 const products = await getProducts(storeQuery);

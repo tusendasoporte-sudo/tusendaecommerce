@@ -4,7 +4,7 @@ export const CLOSED_MESSAGE_DEFAULT =
   'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
 
 export const TEMPORARILY_CLOSED_MESSAGE_DEFAULT =
-  'Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto.';
+  'Estamos cerrados temporalmente. Vuelve pronto.';
 
 export const DEFAULT_BUSINESS_HOURS = {
   monday: { enabled: false, open: '09:00', close: '18:00' },
@@ -120,7 +120,7 @@ export function getBusinessHoursStatus(settings: any, date = new Date()) {
       title: 'Cerrado temporalmente',
       message: settings?.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
       note: 'Nota: pedido realizado mientras la tienda estaba cerrada temporalmente.',
-      allowOrders: settings?.allow_orders_when_closed !== false,
+      allowOrders: false,
     };
   }
 

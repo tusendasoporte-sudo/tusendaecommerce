@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummary, getProductReviews } from '../../lib/api';
+import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 export async function getStaticPaths() {
@@ -21,6 +22,7 @@ const storeQuery = { storeId: currentStoreId };
 const currentPathname = Astro.url.pathname;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const settings = await getSettings(storeQuery);
+if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 let product;
 try {
 	product = await getProductBySlug(slug as string, storeQuery);

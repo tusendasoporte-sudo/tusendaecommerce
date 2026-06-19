@@ -2,12 +2,14 @@
 // PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603
 import Layout from '../layouts/Layout.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
+import { isStoreTemporarilyClosed } from '../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id };
 const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
+if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
 const products = await getProducts(storeQuery);

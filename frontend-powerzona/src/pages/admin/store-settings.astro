@@ -1169,10 +1169,18 @@ const masterSupportHref = masterSupportWhatsapp
         gap: 18px;
         padding: 0;
       }
-      #business-hours-days { order: 1; }
-      .business-hours-alert-row { order: 2; }
-      .hours-save-row { order: 3; }
-      .hours-advanced-card { order: 4; }
+      #hours-always-available-card { order: 2; }
+      #hours-temporarily-closed-card { order: 2; }
+      .hours-mode-state-card { order: 2; }
+      .hours-advanced-card { order: 1; }
+      #business-hours-days { order: 3; }
+      .hours-message-grid { order: 4; }
+      .hours-orders-panel { order: 5; }
+      .business-hours-alert-row { order: 6; }
+      .hours-save-row { order: 7; }
+      .hours-hidden {
+        display: none !important;
+      }
       .hours-mode-panel,
       .hours-message-grid,
       .hours-orders-panel {
@@ -1355,6 +1363,35 @@ const masterSupportHref = masterSupportWhatsapp
       #business-hours-form > .hours-orders-panel {
         display: none;
       }
+      .hours-mode-state-card {
+        margin: 0 24px;
+        border: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.92);
+        border-radius: 24px;
+        padding: 18px;
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+      }
+      .hours-mode-state-card h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 18px;
+        font-weight: 1000;
+      }
+      .hours-mode-state-card p {
+        margin: 6px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+      .hours-mode-state-card.success {
+        background: linear-gradient(135deg, rgba(220,252,231,.9), rgba(255,255,255,.96));
+        border-color: #bbf7d0;
+      }
+      .hours-mode-state-card.danger {
+        background: linear-gradient(135deg, rgba(254,226,226,.88), rgba(255,255,255,.96));
+        border-color: #fecaca;
+      }
 
       @media (min-width: 1024px) {
         .app-shell { padding: 28px 32px 48px 326px !important; }
@@ -1473,6 +1510,7 @@ const masterSupportHref = masterSupportWhatsapp
         .hours-message-grid,
         .hours-orders-panel,
         .hours-advanced-card,
+        .hours-mode-state-card,
         .business-hours-alert-row,
         .hours-save-row {
           margin-left: 16px;
@@ -2788,10 +2826,10 @@ const masterSupportHref = masterSupportWhatsapp
           <section id="tab-horario" class="tab-panel hidden">
             <div class="hours-workspace">
               <div class="hours-summary-grid">
-                <article class="hours-summary-card"><span class="summary-icon green"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p class="summary-label">Disponible ahora</p><p class="summary-value open">Abierto</p></div></article>
-                <article class="hours-summary-card"><span class="summary-icon blue"><svg viewBox="0 0 24 24"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm11 8H6v10h12V10ZM6 8h12V6H6v2Z"/></svg></span><div><p class="summary-label">D&iacute;as configurados</p><p class="summary-value">6 de 7</p></div></article>
-                <article class="hours-summary-card"><span class="summary-icon purple"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p class="summary-label">Horario principal</p><p class="summary-value">8:00 AM - 6:00 PM</p><p class="summary-help">Lun - Vie</p></div></article>
-                <article class="hours-summary-card"><span class="summary-icon orange"><svg viewBox="0 0 24 24"><path d="M13 2v2.1a8 8 0 1 1-7.4 3.3L7 8.8A6 6 0 1 0 13 6v3l-4-4 4-4v1Zm-1 6h2v5h-5v-2h3V8Z"/></svg></span><div><p class="summary-label">Actualizado</p><p class="summary-value">Hoy</p></div></article>
+                <article class="hours-summary-card"><span class="summary-icon green"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p id="hours-summary-availability-label" class="summary-label">Disponible ahora</p><p id="hours-summary-availability-value" class="summary-value open">Abierto</p></div></article>
+                <article class="hours-summary-card"><span class="summary-icon blue"><svg viewBox="0 0 24 24"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm11 8H6v10h12V10ZM6 8h12V6H6v2Z"/></svg></span><div><p class="summary-label">D&iacute;as configurados</p><p id="hours-summary-days-value" class="summary-value">6 de 7</p></div></article>
+                <article class="hours-summary-card"><span class="summary-icon purple"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><div><p class="summary-label">Horario principal</p><p id="hours-summary-main-value" class="summary-value">8:00 AM - 6:00 PM</p><p id="hours-summary-main-help" class="summary-help">Lun - Vie</p></div></article>
+                <article class="hours-summary-card"><span class="summary-icon orange"><svg viewBox="0 0 24 24"><path d="M13 2v2.1a8 8 0 1 1-7.4 3.3L7 8.8A6 6 0 1 0 13 6v3l-4-4 4-4v1Zm-1 6h2v5h-5v-2h3V8Z"/></svg></span><div><p class="summary-label">Actualizado</p><p id="hours-summary-updated-value" class="summary-value">Hoy</p></div></article>
               </div>
               <section class="panel-card hours-panel">
             <div class="hours-panel-head">
@@ -2823,6 +2861,15 @@ const masterSupportHref = masterSupportWhatsapp
                 </div>
               </div>
 
+              <section id="hours-always-available-card" class="hours-mode-state-card success hours-hidden">
+                <h3>Tienda siempre disponible</h3>
+                <p>No se muestra horario semanal ni mensajes de cerrado. Los clientes pueden comprar en cualquier momento.</p>
+              </section>
+              <section id="hours-temporarily-closed-card" class="hours-mode-state-card danger hours-hidden">
+                <h3>Negocio cerrado temporalmente</h3>
+                <p>La tienda publica mostrara solo el aviso de cierre temporal y el checkout quedara bloqueado.</p>
+              </section>
+
               <div id="business-hours-days" class="field full">
                 <label>Días y horas</label>
                 <div class="hours-table-head" aria-hidden="true"><span>D&iacute;a</span><span>Abierto</span><span>Hora de apertura</span><span>Hora de cierre</span></div>
@@ -2846,14 +2893,14 @@ const masterSupportHref = masterSupportWhatsapp
               <div id="business-hours-alert" class="alert alert-info hidden full business-hours-alert-row"></div>
               <div class="editor-actions full hours-save-row"><button id="business-hours-save-btn" class="submit-btn" type="submit">Guardar horarios</button></div>
               <section class="hours-advanced-card">
-                <button id="hours-advanced-toggle" class="hours-advanced-toggle" type="button" aria-expanded="false" aria-controls="hours-advanced-content">
+                <button id="hours-advanced-toggle" class="hours-advanced-toggle" type="button" aria-expanded="true" aria-controls="hours-advanced-content">
                   <div>
                     <h3>Opciones avanzadas</h3>
                     <p>Modo de disponibilidad, mensajes y permisos fuera de horario.</p>
                   </div>
                   <span class="hours-advanced-chevron" aria-hidden="true">v</span>
                 </button>
-                <div id="hours-advanced-content" class="hours-advanced-content collapsed"></div>
+                <div id="hours-advanced-content" class="hours-advanced-content"></div>
               </section>
             </form>
               </section>
@@ -5373,7 +5420,7 @@ const masterSupportHref = masterSupportWhatsapp
         const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
-        const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Puedes realizar tu pedido y te responderemos pronto.';
+        const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Vuelve pronto.';
         const DAYS = [
           ['monday', 'Lunes'],
           ['tuesday', 'Martes'],
@@ -5398,6 +5445,13 @@ const masterSupportHref = masterSupportWhatsapp
         const hoursModePanel = document.querySelector('.hours-mode-panel');
         const hoursMessageGrid = document.querySelector('.hours-message-grid');
         const hoursOrdersPanel = document.querySelector('.hours-orders-panel');
+        const hoursAlwaysAvailableCard = document.getElementById('hours-always-available-card');
+        const hoursTemporarilyClosedCard = document.getElementById('hours-temporarily-closed-card');
+        const hoursSummaryAvailabilityLabel = document.getElementById('hours-summary-availability-label');
+        const hoursSummaryAvailabilityValue = document.getElementById('hours-summary-availability-value');
+        const hoursSummaryDaysValue = document.getElementById('hours-summary-days-value');
+        const hoursSummaryMainValue = document.getElementById('hours-summary-main-value');
+        const hoursSummaryMainHelp = document.getElementById('hours-summary-main-help');
         let settingsRecord = null;
         let hoursNoticeTimer = null;
         let hoursSaving = false;
@@ -5475,8 +5529,32 @@ const masterSupportHref = masterSupportWhatsapp
           if (input) input.checked = true;
           updateModeUI();
         }
+        function setNodeVisible(node, visible) {
+          if (!node) return;
+          node.classList.toggle('hours-hidden', !visible);
+        }
+        function updateModeSummary(mode) {
+          if (hoursSummaryAvailabilityLabel) hoursSummaryAvailabilityLabel.textContent = mode === 'temporarily_closed' ? 'Estado publico' : 'Disponible ahora';
+          if (hoursSummaryAvailabilityValue) {
+            hoursSummaryAvailabilityValue.textContent = mode === 'temporarily_closed' ? 'Cerrado' : mode === 'custom' ? 'Segun horario' : 'Abierto';
+            hoursSummaryAvailabilityValue.classList.toggle('open', mode !== 'temporarily_closed');
+          }
+          if (hoursSummaryDaysValue) hoursSummaryDaysValue.textContent = mode === 'custom' ? 'Configurable' : 'No aplica';
+          if (hoursSummaryMainValue) hoursSummaryMainValue.textContent = mode === 'temporarily_closed' ? 'Cerrado temporal' : mode === 'custom' ? 'Horario semanal' : 'Siempre disponible';
+          if (hoursSummaryMainHelp) hoursSummaryMainHelp.textContent = mode === 'custom' ? 'Personalizado' : 'Modo activo';
+        }
         function updateModeUI() {
-          if (daysBox) daysBox.classList.remove('hidden');
+          const mode = selectedMode();
+          const closedMessageField = closedMessage?.closest('.field');
+          const temporarilyClosedMessageField = temporarilyClosedMessage?.closest('.field');
+          setNodeVisible(hoursAlwaysAvailableCard, mode === 'always_available');
+          setNodeVisible(hoursTemporarilyClosedCard, mode === 'temporarily_closed');
+          setNodeVisible(daysBox, mode === 'custom');
+          setNodeVisible(closedMessageField, mode === 'custom');
+          setNodeVisible(hoursOrdersPanel, mode === 'custom');
+          setNodeVisible(temporarilyClosedMessageField, mode === 'temporarily_closed');
+          if (allowOrders) allowOrders.disabled = mode !== 'custom';
+          updateModeSummary(mode);
           syncHoursSubmitState();
         }
         function renderDays(hours = DEFAULT_HOURS) {
@@ -5516,7 +5594,7 @@ const masterSupportHref = masterSupportWhatsapp
             business_hours: JSON.stringify(readDays()),
             closed_message: closedMessage?.value?.trim() || CLOSED_MESSAGE_DEFAULT,
             temporarily_closed_message: temporarilyClosedMessage?.value?.trim() || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
-            allow_orders_when_closed: allowOrders?.checked !== false,
+            allow_orders_when_closed: selectedMode() === 'custom' ? allowOrders?.checked !== false : false,
             store: CURRENT_STORE_ID,
           };
         }
@@ -5563,7 +5641,7 @@ const masterSupportHref = masterSupportWhatsapp
             business_hours: JSON.stringify(readDays()),
             closed_message: closedMessage?.value?.trim() || CLOSED_MESSAGE_DEFAULT,
             temporarily_closed_message: temporarilyClosedMessage?.value?.trim() || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
-            allow_orders_when_closed: allowOrders?.checked !== false,
+            allow_orders_when_closed: selectedMode() === 'custom' ? allowOrders?.checked !== false : false,
           };
           const defaultCurrencyId = await findDefaultCurrencyId();
           if (defaultCurrencyId) payload.default_currency = defaultCurrencyId;

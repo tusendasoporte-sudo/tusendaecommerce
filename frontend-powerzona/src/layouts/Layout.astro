@@ -4,9 +4,9 @@ import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 
-const { isBazar = false, isMaster = false } = Astro.props;
+const { isBazar = false, isMaster = false, hideStoreFloatingUi: hideStoreFloatingUiProp = false } = Astro.props;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const hideStoreFloatingUi = Boolean(isBazar || isMaster);
+const hideStoreFloatingUi = Boolean(isBazar || isMaster || hideStoreFloatingUiProp);
 const currentStore = hideStoreFloatingUi ? { id: '', slug: '' } : await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
 const currentStoreSlug = currentStore.slug || 'powerzona';
