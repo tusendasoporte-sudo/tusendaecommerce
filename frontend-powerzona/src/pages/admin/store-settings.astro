@@ -5,6 +5,7 @@ import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { CUBA_LOCATIONS } from '../../lib/cubaLocations';
 import PublicFooter from '../../components/PublicFooter.astro';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -124,7 +125,14 @@ try {
       .sidebar-close { margin-left: auto; width: 36px; height: 36px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
       .menu-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 18px; padding: 12px 15px; background: #0f172a; color: #fff; border: 1px solid #0f172a; box-shadow: 0 12px 26px rgba(15,23,42,.16); font-weight: 1000; }
 
-      .main-wrap { min-width: 0; padding: 2px 0 28px; }
+      .main-wrap {
+        width: 100%;
+        max-width: 1180px;
+        min-width: 0;
+        margin-left: auto;
+        margin-right: auto;
+        padding: 2px 0 28px;
+      }
       .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; }
       .action-btn, .mini-btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border-radius: 16px; padding: 11px 14px; background: rgba(255,255,255,.92); border: 1px solid rgba(226, 232, 240, 0.95); box-shadow: 0 12px 26px rgba(15,23,42,.07); font-weight: 950; }
       .action-btn.dark, .mini-btn.primary { background: #0f172a; color: #fff; border-color: #0f172a; }
@@ -507,6 +515,7 @@ try {
       }
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid, .settings-image-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } .settings-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       @media (max-width: 520px) { .day-times { grid-template-columns: 1fr; } }
+      @media (max-width: 900px) { .main-wrap { max-width: 100%; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } .rating-section-head, .rating-control-head, .rating-control-foot { flex-direction: column; align-items: stretch; } .rating-control-head { gap: 12px; } .rating-main-toggle { justify-content: space-between; width: 100%; } .rating-control-foot .mini-btn, .rating-section-head .mini-btn { width: 100%; } .rating-filter-field { width: 100%; } .rating-summary-row { min-height: 96px; padding: 14px; grid-template-columns: 36px minmax(0, 1fr); } .rating-stat-icon, .rating-system-icon { width: 36px; height: 36px; border-radius: 14px; } .rating-review-row-head { grid-template-columns: minmax(0, 1fr) auto auto; } .rating-review-row-head .rating-row-actions { grid-column: 1 / -1; justify-content: flex-start; } }
 
 
@@ -3229,66 +3238,7 @@ try {
     </header>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell">
-      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
-        <div class="sidebar-inner">
-          <div class="brand">
-            <span class="brand-logo">PZ</span>
-            <div>
-              <p class="brand-title">PowerZona</p>
-              <p class="brand-subtitle">Panel administrativo</p>
-              <div class="sidebar-plan-meta" aria-label="Informaci&oacute;n del plan">
-                <p><strong>Plan:</strong> B&aacute;sico</p>
-                <p><strong>D&iacute;as restantes:</strong> &mdash;</p>
-              </div>
-            </div>
-            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">&times;</button>
-          </div>
-
-          <p class="sidebar-label">Principal</p>
-          <nav class="nav-list">
-            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
-          </nav>
-
-          <p class="sidebar-label">Tienda</p>
-          <nav class="nav-list">
-            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <div class="nav-settings-group">
-              <button id="settings-sidebar-toggle" class="nav-item settings-parent active" type="button" aria-expanded="true" aria-controls="settings-sidebar-subnav"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="settings-sidebar-chevron" aria-hidden="true">v</span></button>
-              <div id="settings-sidebar-subnav" class="settings-sidebar-subnav" data-settings-subnav aria-label="Secciones de ajustes de tienda">
-                <a class="settings-sidebar-subitem active" data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>
-                <a class="settings-sidebar-subitem" data-settings-subitem="footer" href={`${adminStoreSettingsPath}#footer`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg></span><span>Footer p&uacute;blico</span></a>
-                <a class="settings-sidebar-subitem" data-settings-subitem="monedas" href={`${adminStoreSettingsPath}#monedas`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><span>Monedas</span></a>
-                <a class="settings-sidebar-subitem" data-settings-subitem="horario" href={`${adminStoreSettingsPath}#horario`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><span>Horarios</span></a>
-                <a class="settings-sidebar-subitem" data-settings-subitem="rating" href={`${adminStoreSettingsPath}#rating`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Rating y rese&ntilde;as</span></a>
-              </div>
-            </div>
-          </nav>
-
-          <p class="sidebar-label">Divisiones</p>
-          <nav class="nav-list">
-            <a class="nav-item" href={adminPromosPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
-            <a class="nav-item" href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
-          </nav>
-
-          <div class="settings-sidebar-bottom">
-            <a class="settings-sidebar-action" href={publicStorePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver cat&aacute;logo p&uacute;blico</span></a>
-            <button id="logout-btn" class="settings-sidebar-action danger hidden" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesi&oacute;n</span></button>
-            <div class="settings-support-card">
-              <strong>Soporte Tu Senda 84</strong>
-              <span>&iquest;Necesitas ayuda?</span>
-              {masterSupportHref ? (
-                <a class="settings-support-btn" href={masterSupportHref} target="_blank" rel="noreferrer">Contactar a soporte</a>
-              ) : (
-                <button class="settings-support-btn" type="button" disabled>Contactar a soporte</button>
-              )}
-            </div>
-          </div>
-        </div>
-      </aside>
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="settings" />
 
       <main class="main-wrap">
         <header class="topbar">

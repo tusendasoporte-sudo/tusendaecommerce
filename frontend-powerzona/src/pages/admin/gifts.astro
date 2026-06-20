@@ -2,6 +2,7 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -393,54 +394,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell">
-      <aside id="admin-sidebar" class="sidebar" aria-label="Panel lateral de administración" aria-hidden="true">
-        <div class="sidebar-inner">
-          <div class="brand">
-            <span class="brand-logo">PZ</span>
-            <div>
-              <p class="brand-title">PowerZona</p>
-              <p class="brand-subtitle">Admin premium</p>
-              <div class="sidebar-plan-meta" aria-label="Informaci&oacute;n del plan">
-                <p><strong>Plan:</strong> B&aacute;sico</p>
-                <p><strong>D&iacute;as restantes:</strong> &mdash;</p>
-              </div>
-            </div>
-            <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">X</button>
-          </div>
-
-          <p class="sidebar-label">Principal</p>
-          <nav class="nav-list">
-            <a class="nav-item" href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-            <a class="nav-item" href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-            <a class="nav-item" href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
-          </nav>
-
-          <p class="sidebar-label">Tienda</p>
-          <nav class="nav-list">
-            <a class="nav-item" href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-            <a class="nav-item active" href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-            <a class="nav-item" href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
-            <a class="nav-item" href={adminStoreSettingsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span></a>
-          </nav>
-
-          <div class="sidebar-utility">
-            <a class="nav-item" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 8 5 9 7-1 2-4 7-9 7s-8-5-9-7c1-2 4-7 9-7Zm0 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg></span><span>Ver catálogo público</span></a>
-            <button id="logout-btn" class="nav-item danger" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v2H5V5h5v2H7v10h3Zm4.7-.3-1.4-1.4 2.3-2.3H9v-2h6.6l-2.3-2.3 1.4-1.4L19.4 12l-4.7 4.7Z"/></svg></span><span>Cerrar sesión</span></button>
-          </div>
-
-          {masterSupportHref ? (
-            <a class="sidebar-footer" href={masterSupportHref} target="_blank" rel="noreferrer">
-              <strong>{masterSupportLabel}</strong>
-              <span>Soporte Master Admin de Tu Senda 84 para esta tienda.</span>
-            </a>
-          ) : (
-            <div class="sidebar-footer" aria-label="Soporte Tu Senda 84 no configurado">
-              <strong>{masterSupportLabel}</strong>
-              <span>Soporte global pendiente de configurar. No se usa el contacto del admin de tienda.</span>
-            </div>
-          )}
-        </div>
-      </aside>
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="gifts" />
 
       <main class="admin-main">
         <div class="mobile-topbar">

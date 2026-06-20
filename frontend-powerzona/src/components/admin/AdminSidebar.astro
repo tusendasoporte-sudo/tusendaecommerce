@@ -1,0 +1,324 @@
+---
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+
+interface Props {
+  storeSlug?: string;
+  storeName?: string;
+  activeSection?: string;
+  activeSubsection?: string;
+  planName?: string;
+  daysRemaining?: string | number;
+}
+
+const {
+  storeSlug = 'powerzona',
+  storeName = 'PowerZona',
+  activeSection = '',
+  activeSubsection = '',
+  planName = 'Básico',
+  daysRemaining = '—',
+} = Astro.props;
+
+const adminBasePath = getStoreAdminPath(storeSlug);
+const adminCatalogPath = getStoreAdminPath(storeSlug, 'catalog');
+const adminProductsPath = getStoreAdminPath(storeSlug, 'products');
+const adminOrdersPath = getStoreAdminPath(storeSlug, 'orders');
+const adminStoreSettingsPath = getStoreAdminPath(storeSlug, 'store-settings');
+const adminGiftsPath = getStoreAdminPath(storeSlug, 'gifts');
+const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
+const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(storeSlug, 'organization');
+const publicStorePath = getPublicStorePath(storeSlug);
+
+const isSettingsActive = activeSection === 'settings';
+const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
+const supportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
+const supportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
+const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el admin de ${storeName} (${storeSlug || 'sin-slug'}).`;
+const masterSupportHref = supportWhatsapp
+  ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
+  : (supportEmail ? `mailto:${supportEmail}?subject=${encodeURIComponent('Soporte Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+
+const navClass = (section: string) => `nav-item${activeSection === section ? ' active' : ''}`;
+const settingsParentClass = `nav-item settings-parent${isSettingsActive ? ' active' : ''}`;
+const settingsSubnavClass = `settings-sidebar-subnav${isSettingsActive ? '' : ' collapsed'}`;
+const subClass = (subsection: string) => {
+  const isGeneral = subsection === 'generales' && ['general', 'generales', ''].includes(normalizedSubsection);
+  return `settings-sidebar-subitem${isSettingsActive && (normalizedSubsection === subsection || isGeneral) ? ' active' : ''}`;
+};
+---
+
+<aside id="admin-sidebar" class="sidebar" data-admin-sidebar-root aria-label="Panel lateral de administración" aria-hidden="true">
+  <div class="sidebar-inner">
+    <div class="brand">
+      <span class="brand-logo">PZ</span>
+      <div>
+        <p class="brand-title">{storeName || 'PowerZona'}</p>
+        <p class="brand-subtitle">Admin Panel</p>
+        <div class="sidebar-plan-meta" aria-label="Información del plan">
+          <p><strong>Plan:</strong> {planName || 'Básico'}</p>
+          <p><strong>Días restantes:</strong> {daysRemaining ?? '—'}</p>
+        </div>
+      </div>
+      <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">&times;</button>
+    </div>
+
+    <p class="sidebar-label">Principal</p>
+    <nav class="nav-list">
+      <a class={navClass('overview')} href={adminBasePath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
+      <a class={navClass('orders')} href={adminOrdersPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
+      <a class={navClass('catalog')} href={adminCatalogPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+    </nav>
+
+    <p class="sidebar-label">Tienda</p>
+    <nav class="nav-list">
+      <a class={navClass('products')} href={adminProductsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
+      <a class={navClass('gifts')} href={adminGiftsPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
+      <a class={navClass('shipping')} href={adminShippingPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+
+      <div class="nav-settings-group">
+        <button id="settings-sidebar-toggle" class={settingsParentClass} type="button" aria-expanded={isSettingsActive ? 'true' : 'false'} aria-controls="settings-sidebar-subnav"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="settings-sidebar-chevron" aria-hidden="true">v</span></button>
+        <div id="settings-sidebar-subnav" class={settingsSubnavClass} data-settings-subnav aria-label="Secciones de ajustes de tienda">
+          <a class={subClass('generales')} data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>
+          <a class={subClass('footer')} data-settings-subitem="footer" href={`${adminStoreSettingsPath}#footer`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg></span><span>Footer público</span></a>
+          <a class={subClass('monedas')} data-settings-subitem="monedas" href={`${adminStoreSettingsPath}#monedas`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><span>Monedas</span></a>
+          <a class={subClass('horario')} data-settings-subitem="horario" href={`${adminStoreSettingsPath}#horario`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><span>Horarios</span></a>
+          <a class={subClass('rating')} data-settings-subitem="rating" href={`${adminStoreSettingsPath}#rating`}><span class="settings-sidebar-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Rating y reseñas</span></a>
+        </div>
+      </div>
+    </nav>
+
+    <p class="sidebar-label">Divisiones</p>
+    <nav class="nav-list">
+      <a class={navClass('marketing')} href={adminPromosPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
+      <a class={navClass('organization')} href={adminOrganizationPath}><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
+    </nav>
+
+    <div class="settings-sidebar-bottom">
+      <a class="settings-sidebar-action" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver catálogo público</span></a>
+      <button id="logout-btn" class="settings-sidebar-action danger hidden" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesión</span></button>
+      <div class="settings-support-card">
+        <strong>Soporte Tu Senda 84</strong>
+        <span>¿Necesitas ayuda?</span>
+        {masterSupportHref ? (
+          <a class="settings-support-btn" href={masterSupportHref} target="_blank" rel="noreferrer">Contactar a soporte</a>
+        ) : (
+          <button class="settings-support-btn" type="button" disabled>Contactar a soporte</button>
+        )}
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script is:inline>
+  (() => {
+    const toggle = document.getElementById('settings-sidebar-toggle');
+    const subnav = document.getElementById('settings-sidebar-subnav');
+    if (!toggle || !subnav) return;
+
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const willOpen = subnav.classList.contains('collapsed');
+      subnav.classList.toggle('collapsed', !willOpen);
+      toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }, true);
+  })();
+</script>
+
+<style is:global>
+  #admin-sidebar {
+    position: fixed !important;
+    top: 18px !important;
+    left: 18px !important;
+    bottom: 18px !important;
+    z-index: 90 !important;
+    width: min(286px, calc(100vw - 36px)) !important;
+    border-radius: 30px !important;
+    padding: 18px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(226, 232, 240, .95) !important;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95) !important;
+    overflow: hidden auto !important;
+    transform: translateX(calc(-100% - 36px)) !important;
+    transition: transform .24s ease !important;
+  }
+  body.sidebar-open #admin-sidebar { transform: translateX(0) !important; }
+  #admin-sidebar::before { content: '' !important; position: absolute !important; inset: 0 !important; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important; pointer-events: none !important; }
+  .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; min-height: 100% !important; }
+  .brand { display: flex !important; align-items: center !important; gap: 11px !important; padding: 8px 8px 18px !important; border-bottom: 1px solid #e2e8f0 !important; margin: 0 0 14px !important; }
+  .brand-title { margin: 0 !important; font-size: 22px !important; font-weight: 1000 !important; letter-spacing: -.035em !important; color: #0f172a !important; line-height: 1.1 !important; }
+  .brand-subtitle { margin: 4px 0 0 !important; color: #334155 !important; font-size: 12px !important; font-weight: 850 !important; line-height: 1.2 !important; }
+  .brand-logo { width: 42px !important; height: 42px !important; border-radius: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: linear-gradient(135deg, #0f172a, #020617) !important; color: #ffffff !important; font-size: 12px !important; font-weight: 1000 !important; box-shadow: 0 14px 26px rgba(15,23,42,.18) !important; }
+  .sidebar-close, #sidebar-close { margin-left: auto !important; width: 42px !important; height: 42px !important; min-width: 42px !important; border-radius: 16px !important; border: 1px solid #e2e8f0 !important; background: #ffffff !important; color: #0f172a !important; font-size: 18px !important; font-weight: 1000 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important; }
+  .sidebar-label { margin: 18px 9px 9px !important; color: #475569 !important; font-size: 10px !important; font-weight: 1000 !important; text-transform: uppercase !important; letter-spacing: .14em !important; }
+  .nav-list { display: grid !important; gap: 6px !important; }
+  .nav-item { min-height: 50px !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 11px !important; width: 100% !important; padding: 8px 10px !important; border-radius: 16px !important; background: transparent !important; color: #0f172a !important; border: 1px solid transparent !important; font-size: 15px !important; font-weight: 1000 !important; line-height: 1.18 !important; text-decoration: none !important; box-shadow: none !important; transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease !important; }
+  .nav-item:hover { transform: translateX(2px) !important; background: #f8fafc !important; color: #020617 !important; border-color: #e2e8f0 !important; box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important; }
+  .nav-item.active { background: linear-gradient(135deg, #0f172a, #020617) !important; color: #ffffff !important; border-color: rgba(15,23,42,.95) !important; box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important; }
+  .nav-icon { width: 34px !important; height: 34px !important; min-width: 34px !important; border-radius: 14px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: #ffffff !important; color: #0f172a !important; border: 1px solid #e2e8f0 !important; box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important; }
+  .nav-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
+  .nav-item.active .nav-icon, .nav-item:hover .nav-icon { background: rgba(255,255,255,.12) !important; color: #ffffff !important; border-color: rgba(255,255,255,.20) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important; }
+  .nav-item:hover:not(.active) .nav-icon { background: #020617 !important; color: #ffffff !important; border-color: #020617 !important; box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important; }
+  .nav-settings-group { display: grid; gap: 7px; }
+  .nav-item.settings-parent { cursor: pointer; text-align: left; }
+  .settings-sidebar-chevron { margin-left: auto; color: #475569; font-size: 12px; font-weight: 1000; transition: transform .18s ease; }
+  .settings-parent.active .settings-sidebar-chevron { color: rgba(255,255,255,.82); }
+  .settings-parent[aria-expanded="true"] .settings-sidebar-chevron { transform: rotate(180deg); }
+  .settings-sidebar-subnav { display: grid; gap: 6px; margin: 8px 0 10px 16px; padding-left: 12px; border-left: 1px solid rgba(148, 163, 184, .35); overflow: hidden; max-height: 280px; opacity: 1; transition: max-height .22s ease, opacity .18s ease, margin .18s ease; }
+  .settings-sidebar-subnav.collapsed { max-height: 0; opacity: 0; margin-top: 0; margin-bottom: 0; pointer-events: none; }
+  .settings-sidebar-subitem { min-height: 38px; width: 100%; display: flex; align-items: center; gap: 9px; border: 0; border-radius: 14px; padding: 8px 10px; background: transparent; color: #334155; font-size: 12px; font-weight: 900; text-align: left; text-decoration: none; }
+  .settings-sidebar-subitem:hover { background: #f1f5f9; color: #0f172a; }
+  .settings-sidebar-subitem.active { background: #dbeafe; color: #2563eb; }
+  .settings-sidebar-subicon { width: 26px; height: 26px; min-width: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: #fff; border: 1px solid #e2e8f0; color: currentColor; }
+  .settings-sidebar-subitem.active .settings-sidebar-subicon { background: #eff6ff; border-color: #bfdbfe; }
+  .settings-sidebar-subicon svg { width: 15px; height: 15px; fill: currentColor; }
+  .settings-sidebar-bottom { margin-top: auto; padding-top: 18px; border-top: 1px solid #e2e8f0; display: grid; gap: 10px; }
+  .settings-sidebar-action { width: 100%; min-height: 42px; display: inline-flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 18px; background: rgba(255,255,255,.88); border: 1px solid #e2e8f0; color: #0f172a; font-size: 12px; font-weight: 950; text-decoration: none; }
+  .settings-sidebar-action.danger { color: #dc2626; background: #fff7f7; border-color: #fecaca; }
+  .settings-sidebar-action .nav-icon { width: 32px !important; height: 32px !important; min-width: 32px !important; }
+  .settings-support-card { padding: 14px; border-radius: 20px; background: #f8fafc; border: 1px solid #e2e8f0; }
+  .settings-support-card strong { display: block; margin: 0 0 12px; color: #0f172a; font-size: 12px; font-weight: 900; }
+  .settings-support-card span { display: block; margin: 0 0 12px; color: #334155; font-size: 12px; font-weight: 850; }
+  .settings-support-btn { width: 100%; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 16px; border: 1px solid #bfdbfe; background: #fff; color: #2563eb; font-size: 12px; font-weight: 1000; text-decoration: none; }
+  .sidebar-plan-meta { margin-top: 10px; display: grid; gap: 4px; padding: 9px 10px; border-radius: 14px; background: rgba(37, 99, 235, .06); border: 1px solid rgba(37, 99, 235, .10); }
+  .sidebar-plan-meta p { margin: 0; color: #475569; font-size: 11px; line-height: 1.25; font-weight: 800; }
+  .sidebar-plan-meta strong { color: #0f172a; font-weight: 1000; }
+  @media (min-width: 1024px) {
+    #admin-sidebar { transform: translateX(0) !important; width: 278px !important; }
+  }
+  @media (max-width: 620px) {
+    #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
+  }
+
+  #admin-sidebar[data-admin-sidebar-root] {
+    top: 18px !important;
+    left: 18px !important;
+    bottom: 18px !important;
+    width: min(286px, calc(100vw - 36px)) !important;
+    border-radius: 30px !important;
+    padding: 18px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid rgba(226, 232, 240, .95) !important;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95) !important;
+    color: #0f172a !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .sidebar-inner {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100% !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 11px !important;
+    padding: 8px 8px 18px !important;
+    margin: 0 0 14px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .brand-logo {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    border-radius: 16px !important;
+    background: linear-gradient(135deg, #0f172a, #020617) !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 1000 !important;
+    box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .brand-title {
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-size: 22px !important;
+    line-height: 1.1 !important;
+    letter-spacing: -.035em !important;
+    font-weight: 1000 !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .brand-subtitle {
+    margin: 4px 0 0 !important;
+    color: #334155 !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    font-weight: 850 !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .sidebar-plan-meta {
+    margin-top: 10px !important;
+    display: grid !important;
+    gap: 4px !important;
+    padding: 9px 10px !important;
+    border-radius: 14px !important;
+    background: rgba(37, 99, 235, .06) !important;
+    border: 1px solid rgba(37, 99, 235, .10) !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .sidebar-label {
+    margin: 18px 9px 9px !important;
+    color: #475569 !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: .14em !important;
+    font-weight: 1000 !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .nav-list {
+    display: grid !important;
+    gap: 6px !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .nav-item {
+    min-height: 50px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 11px !important;
+    width: 100% !important;
+    padding: 8px 10px !important;
+    border-radius: 16px !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    border: 1px solid transparent !important;
+    font-size: 15px !important;
+    line-height: 1.18 !important;
+    font-weight: 1000 !important;
+    box-shadow: none !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .nav-item.active {
+    background: linear-gradient(135deg, #0f172a, #020617) !important;
+    color: #ffffff !important;
+    border-color: rgba(15,23,42,.95) !important;
+    box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .nav-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    border-radius: 14px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .nav-item.active .nav-icon {
+    background: rgba(255,255,255,.12) !important;
+    color: #ffffff !important;
+    border-color: rgba(255,255,255,.20) !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .settings-sidebar-bottom {
+    margin-top: auto !important;
+    padding-top: 18px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    display: grid !important;
+    gap: 10px !important;
+  }
+  #admin-sidebar[data-admin-sidebar-root] .settings-support-card {
+    padding: 14px !important;
+    border-radius: 20px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  @media (min-width: 1024px) {
+    #admin-sidebar[data-admin-sidebar-root] { width: 278px !important; transform: translateX(0) !important; }
+  }
+  @media (max-width: 620px) {
+    #admin-sidebar[data-admin-sidebar-root] { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
+  }
+</style>
