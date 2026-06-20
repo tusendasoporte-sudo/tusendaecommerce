@@ -507,7 +507,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       @media (max-width: 1120px) { .variation-grid, .variation-row, .variation-checks { grid-template-columns: 1fr; } .variation-grid .wide { grid-column: 1 / -1; } .variation-mini-actions { justify-content: flex-start; } }
 
       @media (min-width: 1121px) {
-        .app-shell { width: 100%; max-width: 1600px; padding: 24px 28px 32px 330px; }
+        .app-shell { width: auto; max-width: none; }
         .sidebar, #admin-sidebar { transform: translateX(0) !important; }
         .sidebar-close, #sidebar-close { display: none !important; }
         .sidebar-overlay, #sidebar-overlay { display: none !important; }
@@ -874,7 +874,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .admin-main,
       .main-wrap {
         min-height: 100vh !important;
-        margin-left: 248px !important;
+        margin-left: 0 !important;
         padding: 38px 40px 48px !important;
       }
       .mobile-topbar {
@@ -1717,12 +1717,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <div class="app-shell admin-dashboard-shell">
+    <div class="app-shell admin-dashboard-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="products" />
 
-      <main class="main-wrap admin-main">
+      <main class="main-wrap admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰</button>
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰</button>
           <strong id="mobile-topbar-title">Productos</strong>
           <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
@@ -2240,7 +2240,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let currentVariationImageUrl = "";
       let variationPreviewObjectUrl = "";
 
-      const sidebar = document.getElementById('admin-sidebar');
+      const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');

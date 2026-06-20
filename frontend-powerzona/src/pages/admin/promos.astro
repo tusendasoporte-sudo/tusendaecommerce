@@ -476,12 +476,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <div class="app-shell">
+    <div class="app-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="marketing" />
 
-      <main class="main-wrap">
+      <main class="main-wrap pz-admin-content-inner">
         <header class="topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰ Menú</button>
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰ Menú</button>
           <div class="hero-actions">
             <a class="action-btn" href={adminProductsPath}>Productos</a>
             <a class="action-btn" href="/">Ver tienda pública</a>
@@ -1121,7 +1121,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
       const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
 
-      const sidebar = document.getElementById('admin-sidebar');
+      const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');

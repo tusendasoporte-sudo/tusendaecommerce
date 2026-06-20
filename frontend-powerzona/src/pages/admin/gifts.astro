@@ -328,7 +328,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       @media (min-width: 1024px) {
         .sidebar { transform: translateX(0); width: 278px; }
         .sidebar-close, .sidebar-overlay { display: none !important; }
-        .admin-main { padding-left: 298px; }
+        .admin-main { }
         .mobile-topbar, .mobile-new-btn { display: none !important; }
       }
       @media (max-width: 1120px) {
@@ -393,12 +393,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <div class="app-shell">
+    <div class="app-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="gifts" />
 
-      <main class="admin-main">
+      <main class="admin-main pz-admin-content-inner">
         <div class="mobile-topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir menú">☰</button>
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir menú">☰</button>
           <strong>Regalos</strong>
           <button class="notifications-btn" type="button" aria-label="Notificaciones del admin">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
@@ -617,7 +617,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const alertBox = document.getElementById('alert');
       const logoutBtn = document.getElementById('logout-btn');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
-      const sidebar = document.getElementById('admin-sidebar');
+      const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const refreshBtn = document.getElementById('refresh-btn');

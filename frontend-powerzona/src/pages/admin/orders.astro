@@ -450,7 +450,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .admin-grid.detail-page .detail-panel { position: static !important; width: 100% !important; }
       @media (min-width: 1024px) {
         #admin-sidebar.sidebar { transform: translateX(0) !important; }
-        .main-wrap { width: min(1480px, 100%) !important; padding: 28px 28px 36px 326px !important; margin: 0 auto !important; }
+        .main-wrap { width: 100% !important; padding: 0 !important; margin: 0 !important; }
         #sidebar-overlay { display: none !important; }
         #admin-sidebar .sidebar-close { display: none !important; }
       }
@@ -879,17 +879,17 @@ const isOrderDetailPage = Boolean(initialOrderId);
 </head>
   <body>
     <main>
-      <section id="admin-view">
+      <section id="admin-view" class="pz-admin-content">
         <div id="sidebar-overlay" class="sidebar-overlay"></div>
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="orders" />
 
         <header class="mobile-topbar">
-          <button id="sidebar-open-btn" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">&#9776;</button>
+          <button id="sidebar-open-btn" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">&#9776;</button>
           <h2 class="mobile-topbar-title">Pedidos</h2>
           <button class="notifications-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-5H5l1.5-2.2V10a5.5 5.5 0 0 1 11 0v4.8L19 17Z"/></svg></button>
         </header>
 
-        <div class="main-wrap">
+        <div class="main-wrap pz-admin-content-inner">
           <header class="topbar">
             <div class="topbar-left">
               <button class="menu-btn hidden" type="button" aria-hidden="true">&#9776;</button>
@@ -1099,7 +1099,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
       const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
       const adminView = document.getElementById('admin-view');
-      const sidebar = document.getElementById('admin-sidebar');
+      const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
       const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
       const sidebarCloseBtn = document.getElementById('sidebar-close-btn');

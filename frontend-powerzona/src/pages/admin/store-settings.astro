@@ -1728,7 +1728,7 @@ try {
       }
 
       @media (min-width: 1024px) {
-        .app-shell { padding: 28px 32px 48px 326px !important; }
+        .app-shell { }
         #admin-sidebar { transform: translateX(0) !important; width: 278px !important; }
         #sidebar-close,
         #sidebar-overlay,
@@ -3231,18 +3231,18 @@ try {
   </head>
   <body>
     <header class="settings-mobile-topbar">
-      <button id="sidebar-open" class="settings-icon-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
+      <button id="sidebar-open" class="settings-icon-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
       <h1 id="settings-mobile-title">PowerZona <span>Admin</span></h1>
       <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
       <button class="primary-blue-btn" type="submit" form="settings-form"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Zm2 2v14h10V7.8L14.2 5H13v5H8V5H7Zm3 0v3h1V5h-1Zm-1 9h6v2H9v-2Z"/></svg><span>Guardar</span></button>
     </header>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <div class="app-shell">
+    <div class="app-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="settings" />
 
-      <main class="main-wrap">
+      <main class="main-wrap pz-admin-content-inner">
         <header class="topbar">
-          <button id="sidebar-open-legacy" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">&#9776; Menú</button>
+          <button id="sidebar-open-legacy" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">&#9776; Menú</button>
           <div class="hero-actions">
             <a class="action-btn" href={adminProductsPath}>Productos</a>
             <a class="action-btn" href={publicStorePath}>Ver cat&aacute;logo p&uacute;blico</a>
@@ -4204,7 +4204,7 @@ try {
       let visualItems = [];
       let activeTab = 'generales';
 
-      const sidebar = document.getElementById('admin-sidebar');
+      const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');

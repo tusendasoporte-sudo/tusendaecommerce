@@ -164,7 +164,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       /* PZ-EDIT-CATEGORY-VISUAL-V18 */
       body { background: #eef3f9; overflow-x: hidden; }
-      .app-shell { width: auto; max-width: none; margin: 0; padding: 28px 28px 34px 304px; }
+      .app-shell { width: auto; max-width: none; margin: 0; }
       .sidebar-overlay {
         position: fixed; inset: 0; z-index: 80; background: rgba(15,23,42,.36);
         opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
@@ -282,7 +282,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       /* PZ-EDIT-CATEGORY-VISUAL-FINAL-213020A */
       .legacy-hero { display: none; }
-      .app-shell { padding-left: 300px; }
+      .app-shell { }
       .nav-item.active { background: #0f172a; color: #fff; box-shadow: 0 14px 28px rgba(15,23,42,.18); }
       .nav-item.active .nav-icon { background: rgba(255,255,255,.16); color: #fff; }
       .brand-logo { background: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
@@ -611,7 +611,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
       }
       @media (min-width: 1024px) {
-        .app-shell { width: 100% !important; max-width: none !important; padding: 38px 40px 48px 326px !important; }
+        .app-shell { width: auto !important; max-width: none !important; }
         .sidebar,
         #admin-sidebar {
           transform: translateX(0) !important;
@@ -655,9 +655,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
           <AdminSidebar storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="catalog" />
-    <div class="app-shell">
+    <div class="app-shell pz-admin-content">
       <header class="mobile-topbar">
-        <button id="sidebar-open" class="menu-btn" type="button" aria-controls="admin-sidebar" aria-expanded="false">☰</button>
+        <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰</button>
         <strong>Editar categoria</strong>
         <button id="admin-notifications-btn-mobile" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
@@ -692,7 +692,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         </section>
 
         <div class="editor-layout">
-          <main class="editor-main">
+          <main class="editor-main pz-admin-content-inner">
             <section class="panel-card info-panel">
               <div>
                 <h2 class="panel-title">Información de la categoría</h2>
@@ -877,7 +877,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const newProductBtn = document.getElementById('new-product-btn');
       const contentSummaryGrid = document.getElementById('content-summary-grid');
       const subcategoryProductsList = document.getElementById('subcategory-products-list');
-      const sidebar = document.getElementById('admin-sidebar');
+      const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
       const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');

@@ -2655,11 +2655,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 	</head>
 	<body>
 		<main>
-			<section id="admin-view" class="admin-view">
+			<section id="admin-view" class="admin-view pz-admin-content">
 				<div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="overview" />
 
-				<div class="main-wrap">
+				<div class="main-wrap pz-admin-content-inner">
 					<header class="topbar">
 						<div class="topbar-left">
 							<button id="sidebar-open-btn" class="menu-btn" type="button" aria-label="Abrir menú"><span class="menu-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M5 12h14M5 17h14" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="menu-btn-text">Menú</span></button>
@@ -2914,7 +2914,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 			const salesChartMeta = document.getElementById('sales-chart-meta');
 			const ordersChartMeta = document.getElementById('orders-chart-meta');
 			const profitChartMeta = document.getElementById('profit-chart-meta');
-			const sidebar = document.getElementById('admin-sidebar');
+			const sidebar = document.querySelector('[data-admin-sidebar-root]');
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
 			const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
 			const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
