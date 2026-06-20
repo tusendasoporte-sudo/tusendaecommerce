@@ -202,6 +202,21 @@ const subClass = (subsection: string) => {
 </script>
 
 <style is:global>
+  #pz-admin-sidebar,
+  #pz-admin-sidebar *,
+  #pz-admin-sidebar::before,
+  #pz-admin-sidebar::after,
+  #pz-admin-sidebar *::before,
+  #pz-admin-sidebar *::after,
+  .pz-admin-sidebar,
+  .pz-admin-sidebar *,
+  .pz-admin-sidebar::before,
+  .pz-admin-sidebar::after,
+  .pz-admin-sidebar *::before,
+  .pz-admin-sidebar *::after {
+    box-sizing: border-box;
+  }
+
   .sidebar-overlay,
   #sidebar-overlay {
     position: fixed !important;

@@ -66,9 +66,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           radial-gradient(circle at 85% 8%, rgba(22, 163, 74, 0.10), transparent 25%),
           linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
       }
-      body.orders-admin-page {
-        --pz-admin-content-max: none;
-      }
       button, input, select, textarea { font: inherit; }
       button { cursor: pointer; }
       a { color: inherit; text-decoration: none; }
@@ -92,21 +89,71 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .alert-error { background: #fee2e2; color: #991b1b; }
       .alert-success { background: #dcfce7; color: #166534; }
       .alert-info { background: #dbeafe; color: #1e40af; }
-      .admin-main { min-width: 0; padding-bottom: 92px; }
-      .menu-btn { width: 42px; height: 42px; padding: 0; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.94); color: #020617; border: 1px solid rgba(226,232,240,.95); box-shadow: 0 12px 26px rgba(15,23,42,.07); font-weight: 1000; }
-      .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 20px; }
-      .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-      .page-title { margin: 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.045em; font-weight: 950; }
-      .page-subtitle { margin: 6px 0 0; color: var(--muted); line-height: 1.5; }
+      .app-shell:not(.pz-admin-content) { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .orders-main { min-width: 0; padding: 2px 0 96px; }
+      .icon-btn, .menu-btn, .notification-btn, .primary-blue-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 232, 240, .95);
+        background: rgba(255, 255, 255, .92);
+        color: #0f172a;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .07);
+        font-weight: 950;
+      }
+      .icon-btn, .menu-btn { width: 46px; height: 46px; padding: 0; box-shadow: none; }
+      .icon-btn svg, .menu-btn svg, .notification-btn svg, .primary-blue-btn svg { width: 18px; height: 18px; fill: currentColor; }
+      .primary-blue-btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border-color: rgba(37, 99, 235, .88);
+        box-shadow: 0 14px 28px rgba(37, 99, 235, .22);
+      }
+      .notification-btn { width: 48px; height: 48px; position: relative; }
+      .notification-btn::after { content: ''; position: absolute; top: 12px; right: 12px; width: 7px; height: 7px; border-radius: 999px; background: #f97316; box-shadow: 0 0 0 3px #fff; }
+      .topbar {
+        background: rgba(255, 255, 255, .92);
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 30px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+        padding: 26px 28px;
+        margin-bottom: 18px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+      }
+      .topbar-left, .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .topbar-right { justify-content: flex-end; }
+      .hero-eyebrow { margin: 0 0 8px; color: #2563eb; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
+      .page-title { margin: 0; font-size: clamp(30px, 3.3vw, 46px); font-weight: 1000; letter-spacing: -.045em; line-height: 1.03; }
+      .page-subtitle { margin: 9px 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; max-width: 790px; font-weight: 700; }
       .action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 18px; padding: 12px 15px; background: linear-gradient(180deg,#fff 0%,#f8fafc 100%); border: 1px solid rgba(226,232,240,.9); box-shadow: var(--shadow); font-weight: 950; color: #0f172a; transition: transform .18s ease, box-shadow .18s ease; }
       .action-btn:hover { transform: translateY(-2px); box-shadow: 0 22px 42px rgba(15,23,42,.12), 0 8px 16px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95); }
       .action-btn svg { width: 18px; height: 18px; }
-      .card { background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.96)); border: 1px solid rgba(226,232,240,.92); border-radius: 28px; box-shadow: var(--shadow-3d); }
-      .stats-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
-      .stat-card { padding: 16px; }
-      .stat-label { color: #64748b; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
-      .stat-value { font-size: 24px; font-weight: 950; margin-top: 6px; }
-      .toolbar { display: grid; grid-template-columns: 1fr 220px 180px; gap: 12px; padding: 18px; margin-bottom: 18px; }
+      .card {
+        background: rgba(255, 255, 255, .92);
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 30px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+      .stats-grid { display: grid; grid-template-columns: repeat(5, minmax(145px, 1fr)); gap: 18px; margin-bottom: 18px; }
+      .stat-card { min-height: 112px; display: grid; align-content: center; gap: 8px; border-radius: 26px; padding: 18px 20px; box-shadow: 0 12px 28px rgba(15, 23, 42, .06); }
+      .stat-label { margin: 0; color: #475569; font-size: 13px; font-weight: 950; }
+      .stat-value { margin: 0; color: #0f172a; font-size: 28px; font-weight: 1000; letter-spacing: -.04em; }
+      .toolbar { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(170px, .5fr) minmax(170px, .5fr); gap: 18px; align-items: end; padding: 22px; margin-bottom: 18px; }
+      .toolbar input,
+      .toolbar select {
+        background: #fff;
+        font-weight: 800;
+        box-shadow: inset 0 1px 0 rgba(15, 23, 42, .02);
+      }
       .cleanup-panel { padding: 18px; margin-bottom: 18px; }
       .cleanup-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
       .cleanup-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -0.03em; }
@@ -119,7 +166,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .cleanup-main span { display: block; margin-top: 3px; font-size: 12px; color: #64748b; font-weight: 800; }
       .cleanup-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-top: 14px; }
       .admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, .95fr); gap: 18px; align-items: start; }
-      .orders-list { overflow: hidden; }
+      .orders-list { overflow: hidden; border-radius: 30px; box-shadow: var(--shadow); }
       .orders-list #orders-list { display: flex; flex-direction: column; gap: 18px; padding: 14px; }
       .order-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; width: 100%; min-height: 96px; padding: 17px 20px; border: 1px solid rgba(226,232,240,.92); border-radius: 22px; background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%); text-align: left; transition: background .16s ease, transform .16s ease, box-shadow .16s ease, border-color .16s ease; box-shadow: 0 12px 26px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.92); }
       .order-row > div:first-child { min-width: 0; flex: 1 1 auto; }
@@ -181,7 +228,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .quick-actions .btn { padding: 11px 12px; }
       .danger-zone { margin-top: 16px; padding: 14px; border: 1px solid #fecaca; background: rgba(254,226,226,.48); border-radius: 20px; }
       .danger-zone p { margin: 0 0 10px; color: #991b1b; font-size: 13px; font-weight: 800; line-height: 1.45; }
-      @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .toolbar, .admin-grid { grid-template-columns: 1fr; } .detail-panel { position: static; } }
+      @media (max-width: 1300px) { .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+      @media (max-width: 1100px) { .toolbar, .admin-grid { grid-template-columns: 1fr; } .detail-panel { position: static; } }
       @media (max-width: 720px) { .topbar { flex-direction: column; } .toolbar, .info-grid, .form-grid.two, .quick-actions, .product-edit-grid, .add-product-actions { grid-template-columns: 1fr; } .order-row { flex-direction: column; align-items: stretch; } .order-right { align-items: flex-start; min-width: 0; } .order-status-big { min-width: 0; width: fit-content; } .total-text { text-align: left; } .item-row { grid-template-columns: 1fr; gap: 10px; padding: 18px; } .item-main { padding-left: 4px; } .item-price { text-align: left; padding-left: 4px; } .order-product-card { grid-template-columns: 58px minmax(0,1fr); padding: 12px; } .order-product-img, .order-product-placeholder { width: 58px; height: 58px; border-radius: 16px; } .order-product-head { flex-direction: column; } .order-product-total { text-align: left; } }
 
       .cleanup-selection-bar { padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border: 1px solid rgba(248,113,113,.28); background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(254,242,242,.92)); }
@@ -377,21 +425,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
         .admin-grid.detail-page { padding-bottom: 82px; }
       }
 
-      .mobile-topbar { display: none; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin-bottom: 14px; }
-      .mobile-topbar strong { text-align: center; font-size: 16px; font-weight: 1000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .mobile-topbar-slot { width: 42px; height: 42px; }
-      .icon-btn, .notifications-btn {
-        width: 46px; height: 46px; border-radius: 16px; display: inline-grid; place-items: center;
-        border: 1px solid #e2e8f0; background: #fff; color: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.08);
-      }
-      .icon-btn svg, .notifications-btn svg { width: 19px; height: 19px; fill: currentColor; }
-      .topbar {
-        align-items: center !important; padding: 20px !important; border-radius: 30px !important;
-        background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,250,252,.96)) !important;
-        border: 1px solid rgba(226,232,240,.92) !important; box-shadow: var(--shadow-3d) !important;
-      }
-      .page-title { font-size: clamp(30px, 4vw, 46px) !important; }
-      .topbar-right .btn-primary { min-height: 46px; border-radius: 16px; }
+      .mobile-topbar { display: none; align-items: center; gap: 12px; margin-bottom: 14px; }
+      .mobile-topbar-title { margin: 0; font-size: 24px; font-weight: 1000; letter-spacing: -.03em; flex: 1; }
       .cleanup-soft-btn { color: #991b1b !important; background: #fff !important; border-color: #fecaca !important; box-shadow: 0 10px 22px rgba(153,27,27,.06) !important; }
       .cleanup-soft-btn svg { width: 17px; height: 17px; }
       .admin-grid { grid-template-columns: 1fr !important; }
@@ -399,19 +434,34 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .admin-grid.detail-page { grid-template-columns: 1fr !important; }
       .admin-grid.detail-page .detail-panel { position: static !important; width: 100% !important; }
       @media (min-width: 1024px) {
+        .app-shell:not(.pz-admin-content) { width: auto; max-width: none; }
+        .orders-main { padding-bottom: 28px; }
         .mobile-topbar { display: none !important; }
         body.orders-admin-page .pz-admin-content-inner {
           width: 100% !important;
-          max-width: none !important;
           min-width: 0 !important;
         }
       }
       @media (max-width: 1023px) {
-        .mobile-topbar { display: grid; }
-        .menu-btn { display: inline-flex; }
-        .admin-main { padding-bottom: 92px !important; }
-        .topbar { align-items: flex-start !important; flex-direction: column !important; }
+        .mobile-topbar { display: flex; }
+        .orders-main { padding-bottom: 92px !important; }
+        .topbar { display: none; }
         .toolbar { grid-template-columns: 1fr !important; }
+      }
+      @media (max-width: 900px) {
+        .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .stat-card { min-height: 132px; align-content: start; }
+      }
+      @media (max-width: 620px) {
+        .app-shell:not(.pz-admin-content) { padding: 10px 14px 100px; }
+        .mobile-topbar { gap: 10px; }
+        .mobile-topbar-title { font-size: 23px; }
+        .primary-blue-btn { min-height: 46px; padding: 10px 13px; border-radius: 15px; font-size: 13px; white-space: nowrap; }
+        .notification-btn, .icon-btn, .menu-btn { width: 44px; height: 44px; border-radius: 15px; }
+        .stats-grid { gap: 10px; }
+        .stat-card { border-radius: 20px; padding: 16px; min-height: 132px; }
+        .stat-label { font-size: 12px; }
+        .stat-value { font-size: 25px; }
       }
     </style>
     <style is:global>
@@ -812,23 +862,25 @@ const isOrderDetailPage = Boolean(initialOrderId);
     <div class="app-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="orders" />
 
-      <main id="admin-view" class="admin-main pz-admin-content-inner">
+      <main id="admin-view" class="orders-main pz-admin-content-inner">
         <header class="mobile-topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir menu">&#9776;</button>
-          <strong>Pedidos</strong>
-          <span class="mobile-topbar-slot" aria-hidden="true"></span>
+          <button id="sidebar-open" class="icon-btn menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
+          <h1 class="mobile-topbar-title">Pedidos</h1>
+          <button id="refresh-mobile-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h8V3l-3.3 3.3Z"/></svg>Actualizar</button>
+          <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
         </header>
 
           <header class="topbar">
             <div class="topbar-left">
               <div>
+                <p class="hero-eyebrow">Pedidos</p>
                 <h1 class="page-title">Pedidos</h1>
                 <p id="admin-subtitle" class="page-subtitle">Administra y da seguimiento a los pedidos de tu tienda.</p>
               </div>
             </div>
             <div class="topbar-right">
-              <button class="notifications-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-5H5l1.5-2.2V10a5.5 5.5 0 0 1 11 0v4.8L19 17Z"/></svg></button>
-              <button id="refresh-btn" class="btn btn-primary" type="button">Actualizar</button>
+              <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
+              <button id="refresh-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h8V3l-3.3 3.3Z"/></svg>Actualizar</button>
             </div>
           </header>
 
@@ -1026,8 +1078,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
       const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
       const adminView = document.getElementById('admin-view');
-      const logoutBtn = document.getElementById('logout-btn');
       const refreshBtn = document.getElementById('refresh-btn');
+      const refreshMobileBtn = document.getElementById('refresh-mobile-btn');
       const cleanupOrdersOpenBtn = document.getElementById('cleanup-orders-open-btn');
       const cleanupOrdersPanel = document.getElementById('cleanup-orders-panel');
       const cleanupOrdersCloseBtn = document.getElementById('cleanup-orders-close-btn');
@@ -3495,14 +3547,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
           },
         });
       }
-      refreshBtn.addEventListener('click', () => {
+      const refreshOrdersView = () => {
         loadStoreSettings();
         loadOrders();
-      });
-      ordersListRefreshBtn?.addEventListener('click', () => {
-        loadStoreSettings();
-        loadOrders();
-      });
+      };
+      refreshBtn.addEventListener('click', refreshOrdersView);
+      refreshMobileBtn?.addEventListener('click', refreshOrdersView);
+      ordersListRefreshBtn?.addEventListener('click', refreshOrdersView);
       searchInput.addEventListener('input', () => { currentOrdersPage = 1; renderOrders(); });
       statusFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
       deliveryFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
