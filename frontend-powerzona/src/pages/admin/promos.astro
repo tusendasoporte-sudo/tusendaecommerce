@@ -1,4 +1,4 @@
----
+﻿---
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
@@ -53,6 +53,330 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         --purple: #7c3aed;
         --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
       }
+      /* PZ-MARKETING-VISUAL-DESTACADOS-STYLE-20260620
+         Estilo visual alineado con Ajustes de tienda / Ajustes generales.
+         Solo afecta la sección Destacados visuales. */
+      .marketing-settings-hero {
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 8px 0 22px;
+        margin-bottom: 22px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 18px;
+        align-items: center;
+        backdrop-filter: blur(10px);
+      }
+      .marketing-settings-eyebrow {
+        margin: 0 0 9px;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 1000;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .marketing-settings-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(30px, 3vw, 42px);
+        font-weight: 1000;
+        letter-spacing: -.045em;
+        line-height: 1.03;
+      }
+      .marketing-settings-subtitle {
+        margin: 10px 0 0;
+        color: #475569;
+        font-size: 15px;
+        line-height: 1.55;
+        font-weight: 750;
+        max-width: 900px;
+      }
+      .marketing-settings-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .notification-btn,
+      .primary-blue-btn,
+      .marketing-settings-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        box-shadow: 0 12px 26px rgba(15,23,42,.07);
+        font-weight: 1000;
+      }
+      .notification-btn {
+        width: 48px;
+        height: 48px;
+        position: relative;
+      }
+      .notification-btn::after {
+        content: '';
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #2563eb;
+        box-shadow: 0 0 0 3px #fff;
+      }
+      .primary-blue-btn {
+        min-height: 48px;
+        padding: 12px 18px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        border-color: rgba(37,99,235,.88);
+        box-shadow: 0 14px 28px rgba(37,99,235,.22);
+      }
+      .notification-btn svg,
+      .primary-blue-btn svg,
+      .marketing-settings-icon-btn svg,
+      .marketing-summary-icon svg,
+      .marketing-featured-icon svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+      .marketing-featured-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 22px;
+      }
+      .marketing-featured-summary-card {
+        min-height: 116px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 20px 22px;
+        border-radius: 22px;
+        border: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.94);
+        box-shadow: 0 14px 34px rgba(15,23,42,.06);
+      }
+      .marketing-summary-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+      }
+      .marketing-summary-icon.blue { background: #dbeafe; color: #2563eb; }
+      .marketing-summary-icon.green { background: #dcfce7; color: #16a34a; }
+      .marketing-summary-icon.purple { background: #ede9fe; color: #7c3aed; }
+      .marketing-summary-help {
+        margin: 6px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .marketing-featured-panel {
+        padding: 22px;
+        border-radius: 28px;
+        border: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.96);
+        box-shadow: 0 18px 45px rgba(15,23,42,.08);
+        backdrop-filter: blur(10px);
+      }
+      .marketing-featured-accordion {
+        overflow: hidden;
+        border-radius: 22px;
+        border: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.96);
+        box-shadow: 0 16px 38px rgba(15,23,42,.06);
+      }
+      .marketing-featured-summary {
+        list-style: none;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px;
+      }
+      .marketing-featured-summary-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        min-width: 0;
+      }
+      .marketing-featured-icon {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        color: #2563eb;
+      }
+      .marketing-featured-copy { min-width: 0; }
+      .marketing-featured-copy h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1.15;
+        font-weight: 1000;
+        letter-spacing: -.03em;
+      }
+      .marketing-featured-copy p {
+        margin: 7px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+      .marketing-featured-summary-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex: 0 0 auto;
+      }
+      .marketing-featured-toggle { min-width: 108px; }
+      .marketing-featured-chevron {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 1000;
+        transition: transform .18s ease;
+      }
+      .marketing-featured-accordion.is-open .marketing-featured-chevron { transform: rotate(180deg); }
+      .marketing-featured-body {
+        display: grid;
+        gap: 14px;
+        padding: 0 18px 18px;
+      }
+      .marketing-featured-body.hidden { display: none !important; }
+      .marketing-featured-search { position: relative; }
+      .marketing-featured-search svg {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        transform: translateY(-50%);
+        color: #64748b;
+        fill: currentColor;
+        pointer-events: none;
+      }
+      .marketing-featured-search input {
+        width: 100%;
+        min-height: 48px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #fff;
+        color: #0f172a;
+        padding: 12px 14px 12px 45px;
+        outline: none;
+        font-weight: 800;
+        box-shadow: inset 0 1px 0 rgba(15,23,42,.02);
+      }
+      .marketing-featured-search input::placeholder { color: #94a3b8; }
+      .marketing-featured-list-title {
+        margin: 2px 0 -4px;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+      .items-list.featured-products-list {
+        margin-top: 0 !important;
+        display: grid;
+        gap: 10px;
+      }
+      .featured-products-list .item-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04);
+      }
+      .featured-products-list .item-main {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+      .featured-products-list .item-thumb,
+      .featured-products-list img,
+      .featured-products-list .thumb {
+        width: 58px;
+        height: 58px;
+        border-radius: 14px;
+        object-fit: cover;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        flex: 0 0 auto;
+      }
+      .featured-products-list .item-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 15px;
+        font-weight: 1000;
+        line-height: 1.25;
+      }
+      .featured-products-list .item-meta {
+        margin: 5px 0 0;
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+      .featured-products-list .item-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .featured-products-list .pill-visible,
+      .featured-products-list .pill-hidden {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 6px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .featured-products-list .pill-visible { background: #dcfce7; color: #16a34a; }
+      .featured-products-list .pill-hidden { background: #f1f5f9; color: #64748b; }
+      .featured-products-list .mini-btn {
+        min-height: 38px;
+        padding: 9px 11px;
+        border-radius: 14px;
+        font-size: 12px;
+      }
+      .featured-products-list .mini-btn.danger {
+        background: #fff;
+        color: #e11d48;
+        border-color: #fecdd3;
+      }
+      #admin-view > .tabs { display: none; }
       * { box-sizing: border-box; }
       html, body { margin: 0; min-height: 100%; }
       body {
@@ -113,6 +437,22 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       .marketing-summary-item { display: grid; place-items: center; gap: 6px; min-height: 92px; padding: 16px 10px; background: linear-gradient(180deg, #fff, #f8fafc); text-align: center; }
       .marketing-summary-label { margin: 0; color: #64748b; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .045em; }
       .marketing-summary-value { margin: 0; color: #0f172a; font-size: 30px; line-height: 1; font-weight: 1000; letter-spacing: -.035em; }
+      .marketing-featured-summary-card .marketing-summary-label {
+        margin: 0;
+        color: #475569;
+        font-size: 13px;
+        font-weight: 900;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .marketing-featured-summary-card .marketing-summary-value {
+        margin: 6px 0 0;
+        color: #16a34a;
+        font-size: 22px;
+        font-weight: 1000;
+        letter-spacing: -.02em;
+        line-height: 1;
+      }
       .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
       .section-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
       .section-subtitle { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 800; line-height: 1.45; }
@@ -194,8 +534,46 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       .marketing-modal-title { margin: 0; font-size: 21px; font-weight: 1000; letter-spacing: -.03em; }
       .marketing-modal-subtitle { margin: 5px 0 0; color: #64748b; font-size: 13px; font-weight: 800; line-height: 1.45; }
       .marketing-modal-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; }
-      @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .marketing-summary-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions, .admin-block-summary-actions { justify-content: flex-start; } .admin-block-summary { align-items: flex-start; flex-direction: column; } }
-      @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .marketing-offer-row { grid-template-columns: minmax(0, 1fr) auto; } .marketing-switch { grid-column: 1 / -1; order: 3; } .marketing-menu-wrap { justify-content: flex-end; } }
+      @media (max-width: 980px) {
+        .hero-card, .visual-form-grid, .stats-grid, .marketing-summary-grid, .product-picker, .item-row { grid-template-columns: 1fr; }
+        .hero-actions, .action-btn { width: 100%; }
+        .item-actions, .admin-block-summary-actions { justify-content: flex-start; }
+        .admin-block-summary { align-items: flex-start; flex-direction: column; }
+        .marketing-settings-hero { grid-template-columns: 1fr; }
+        .marketing-settings-actions { justify-content: flex-start; }
+        .marketing-featured-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .featured-products-list .item-row { grid-template-columns: 1fr; align-items: stretch; }
+        .featured-products-list .item-actions { justify-content: flex-start; }
+      }
+      @media (max-width: 640px) {
+        .app-shell { padding: 0; }
+        .main-wrap { padding: 0 10px 92px; }
+        .hero-card, .panel-card, .list-card { border-radius: 24px; }
+        .marketing-offer-row { grid-template-columns: minmax(0, 1fr) auto; }
+        .marketing-switch { grid-column: 1 / -1; order: 3; }
+        .marketing-menu-wrap { justify-content: flex-end; }
+        .marketing-featured-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .marketing-featured-summary-card { min-height: 154px; display: grid; align-content: start; gap: 13px; padding: 16px; border-radius: 20px; }
+        .marketing-featured-summary-card:nth-child(3) { grid-column: 1 / -1; min-height: 112px; }
+        .marketing-summary-icon { width: 50px; height: 50px; border-radius: 18px; }
+        .marketing-featured-panel { padding: 0; border: 0; background: transparent; box-shadow: none; }
+        .marketing-featured-accordion { border-radius: 22px; }
+        .marketing-featured-summary { padding: 16px; gap: 12px; }
+        .marketing-featured-copy h2 { font-size: 18px; }
+        .marketing-featured-summary-actions { align-items: flex-start; }
+        .marketing-featured-toggle { min-width: 84px; min-height: 44px; padding: 10px 14px; border-radius: 15px; font-size: 13px; }
+        .marketing-featured-chevron { width: 32px; height: 32px; }
+        .marketing-featured-body { padding: 0 14px 14px; }
+        .marketing-featured-search input { min-height: 46px; font-size: 13px; }
+        .featured-products-list .item-row { padding: 12px; border-radius: 18px; }
+        .featured-products-list .item-main { align-items: flex-start; }
+        .featured-products-list .item-thumb,
+        .featured-products-list img,
+        .featured-products-list .thumb { width: 56px; height: 56px; }
+        .featured-products-list .item-actions { justify-content: space-between; }
+        .notification-btn { width: 44px; height: 44px; border-radius: 15px; }
+        .primary-blue-btn { min-height: 44px; padding: 10px 14px; border-radius: 15px; font-size: 13px; }
+      }
       .nav-group { margin: 14px 0 !important; }
       .nav-list { display: grid !important; gap: 6px !important; }
       .nav-left { display: inline-flex !important; align-items: center !important; gap: 11px !important; min-width: 0 !important; }
@@ -209,7 +587,381 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         font-size: 11px !important;
         font-weight: 1000 !important;
       }
-      @media (max-width: 620px) {}</style>
+      /* Layout Destacados visuales estilo Ajustes de tienda */
+      .marketing-mobile-topbar { display: none; }
+      .mobile-topbar-copy { min-width: 0; display: flex; align-items: center; justify-content: center; text-align: center; }
+      .mobile-topbar-copy strong { color: #0f172a; font-size: 20px; line-height: 1.05; font-weight: 1000; letter-spacing: -.04em; }
+      .marketing-settings-hero { background: transparent; border: 0; box-shadow: none; padding: 8px 0 22px; margin-bottom: 22px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+      .marketing-settings-eyebrow { margin: 0 0 10px; color: #475569; font-size: 13px; font-weight: 1000; }
+      .marketing-settings-title { margin: 0; color: #0f172a; font-size: clamp(30px, 3vw, 42px); font-weight: 1000; letter-spacing: -.045em; line-height: 1.03; }
+      .marketing-settings-subtitle { margin: 10px 0 0; color: #475569; font-size: 15px; line-height: 1.55; font-weight: 750; max-width: 900px; }
+      .marketing-settings-actions { display: flex; align-items: center; justify-content: flex-end; }
+      .notification-btn { width: 48px; height: 48px; position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; box-shadow: 0 12px 26px rgba(15, 23, 42, .07); }
+      .notification-btn::after { content: ''; position: absolute; top: 12px; right: 12px; width: 7px; height: 7px; border-radius: 999px; background: #2563eb; box-shadow: 0 0 0 3px #fff; }
+      .notification-btn svg, .menu-btn svg, .marketing-summary-icon svg, .marketing-featured-icon svg, .marketing-featured-chevron svg { width: 19px; height: 19px; fill: currentColor; }
+      .primary-blue-btn { min-height: 48px; padding: 12px 22px; border-radius: 16px; border: 1px solid rgba(37, 99, 235, .9); background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 15px; font-weight: 1000; box-shadow: 0 14px 28px rgba(37, 99, 235, .22); }
+      .marketing-featured-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: 22px; }
+      .marketing-featured-summary-card { min-height: 118px; display: flex; align-items: center; gap: 18px; padding: 20px 22px; border-radius: 22px; border: 1px solid #e2e8f0; background: rgba(255, 255, 255, .95); box-shadow: 0 14px 34px rgba(15, 23, 42, .06); }
+      .marketing-summary-icon { width: 58px; height: 58px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+      .marketing-summary-icon.blue { background: #dbeafe; color: #2563eb; }
+      .marketing-summary-icon.green { background: #dcfce7; color: #16a34a; }
+      .marketing-summary-icon.purple { background: #ede9fe; color: #7c3aed; }
+      .marketing-summary-label { margin: 0; color: #475569; font-size: 13px; font-weight: 1000; text-transform: none; letter-spacing: 0; }
+      .marketing-summary-value { margin: 6px 0 0; color: #16a34a; font-size: 24px; font-weight: 1000; letter-spacing: -.03em; }
+      .marketing-summary-help { margin: 6px 0 0; color: #64748b; font-size: 13px; font-weight: 850; }
+      .marketing-featured-panel { padding: 22px; border-radius: 28px; border: 1px solid #e2e8f0; background: rgba(255, 255, 255, .96); box-shadow: 0 18px 45px rgba(15, 23, 42, .08); }
+      .marketing-featured-accordion { overflow: hidden; border-radius: 22px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 16px 38px rgba(15, 23, 42, .06); }
+      .marketing-featured-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px; }
+      .marketing-featured-summary-main { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+      .marketing-featured-icon { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; }
+      .marketing-featured-copy h2 { margin: 0; color: #0f172a; font-size: 22px; line-height: 1.1; font-weight: 1000; letter-spacing: -.035em; }
+      .marketing-featured-copy p { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.45; font-weight: 850; }
+      .marketing-featured-summary-actions { display: inline-flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+      .marketing-featured-toggle { min-width: 118px; }
+      .marketing-featured-chevron { width: 48px; height: 48px; border-radius: 16px; border: 1px solid #e2e8f0; background: #fff; color: #475569; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 12px 26px rgba(15, 23, 42, .06); }
+      .marketing-featured-accordion.is-open .marketing-featured-chevron { transform: none; }
+      .marketing-featured-accordion:not(.is-open) .marketing-featured-chevron svg { transform: rotate(180deg); }
+      .marketing-featured-body { display: grid; gap: 14px; padding: 0 18px 18px; }
+      .marketing-featured-body.hidden { display: none !important; }
+      .marketing-featured-search { position: relative; }
+      .marketing-featured-search svg { position: absolute; left: 15px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: #64748b; fill: currentColor; pointer-events: none; }
+      .marketing-featured-search input { width: 100%; min-height: 48px; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; color: #0f172a; padding: 12px 14px 12px 45px; outline: none; font-size: 14px; font-weight: 850; }
+      .marketing-featured-search input::placeholder { color: #94a3b8; }
+      .marketing-featured-list-title { margin: 2px 0 -4px; color: #0f172a; font-size: 14px; font-weight: 1000; }
+      .featured-search-results, .featured-products-list { display: grid; gap: 10px; }
+      .featured-products-list .item-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
+      .featured-products-list .item-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
+      .featured-products-list .item-thumb, .featured-products-list img, .featured-products-list .thumb { width: 58px; height: 58px; border-radius: 14px; object-fit: cover; border: 1px solid #e2e8f0; background: #f8fafc; flex: 0 0 auto; }
+      .featured-products-list .item-title { margin: 0; color: #0f172a; font-size: 15px; font-weight: 1000; line-height: 1.25; }
+      .featured-products-list .item-meta { margin: 5px 0 0; color: #475569; font-size: 12px; line-height: 1.45; font-weight: 850; }
+      .featured-products-list .item-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+      .featured-products-list .pill-visible, .featured-products-list .pill-hidden { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 1000; }
+      .featured-products-list .pill-visible { background: #dcfce7; color: #16a34a; }
+      .featured-products-list .pill-hidden { background: #f1f5f9; color: #64748b; }
+      .featured-products-list .mini-btn { min-height: 38px; padding: 9px 14px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 13px; font-weight: 1000; }
+      .featured-products-list .mini-btn.danger { color: #e11d48; border-color: #fecdd3; }
+      @media (max-width: 640px) {
+        .marketing-mobile-topbar { position: sticky; top: 0; z-index: 50; display: grid; grid-template-columns: 58px minmax(0, 1fr) 58px; align-items: center; gap: 10px; margin: 0 -10px 22px; padding: 12px 10px; background: rgba(255, 255, 255, .94); border-bottom: 1px solid #e2e8f0; box-shadow: 0 12px 26px rgba(15, 23, 42, .06); backdrop-filter: blur(14px); }
+        .mobile-topbar-copy { min-width: 0; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .mobile-topbar-copy strong { color: #0f172a; font-size: 20px; line-height: 1.05; font-weight: 1000; letter-spacing: -.04em; }
+        .menu-btn { width: 52px; height: 52px; padding: 0; border-radius: 18px; background: #fff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 12px 26px rgba(15, 23, 42, .07); }
+        .mobile-notification-btn { width: 52px; height: 52px; border-radius: 18px; }
+        .desktop-notification-btn { display: none; }
+        .marketing-settings-hero { display: block; padding: 0 0 18px; margin-bottom: 18px; }
+        .marketing-settings-eyebrow { display: block; margin: 0 0 10px; color: #475569; font-size: 15px; font-weight: 1000; }
+        .marketing-settings-title { display: none; }
+        .marketing-settings-actions { display: none; }
+        .marketing-settings-subtitle { display: block; margin: 0; color: #475569; font-size: 15px; line-height: 1.5; font-weight: 850; }
+        .marketing-featured-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .marketing-featured-summary-card { min-height: 150px; display: grid; align-content: center; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; padding: 18px; border-radius: 22px; }
+        .marketing-featured-summary-card-wide { grid-column: 1 / -1; min-height: 138px; }
+        .marketing-summary-icon { width: 62px; height: 62px; border-radius: 22px; }
+        .marketing-featured-panel { padding: 0; border: 0; background: transparent; box-shadow: none; }
+        .marketing-featured-summary { padding: 18px; gap: 12px; }
+        .marketing-featured-summary-main { gap: 10px; }
+        .marketing-featured-copy h2 { font-size: 24px; }
+        .marketing-featured-copy p { font-size: 15px; line-height: 1.45; }
+        .marketing-featured-summary-actions { align-items: flex-start; }
+        .marketing-featured-toggle { min-width: 96px; min-height: 52px; padding: 12px 18px; border-radius: 18px; font-size: 15px; }
+        .marketing-featured-chevron { width: 52px; height: 52px; border-radius: 18px; }
+        .marketing-featured-body { padding: 0 14px 16px; }
+        .marketing-featured-search input { min-height: 54px; border-radius: 18px; font-size: 15px; }
+        .featured-products-list .item-row { grid-template-columns: 1fr; padding: 16px; border-radius: 20px; }
+        .featured-products-list .item-main { align-items: flex-start; }
+        .featured-products-list .item-thumb, .featured-products-list img, .featured-products-list .thumb { width: 84px; height: 84px; border-radius: 18px; }
+        .featured-products-list .item-title { font-size: 18px; }
+        .featured-products-list .item-meta { font-size: 14px; }
+        .featured-products-list .item-actions { justify-content: flex-start; }
+      }
+      /* PZ-DESTACADOS-ADD-FLOW-20260620
+         Separación visual entre agregar destacados y destacados actuales. */
+      .featured-add-zone,
+      .featured-current-zone { display: grid; gap: 12px; }
+      .featured-add-zone { padding: 16px; border-radius: 20px; border: 1px solid #e2e8f0; background: rgba(248, 250, 252, .72); }
+      .featured-zone-head { display: grid; gap: 4px; }
+      .featured-zone-head h3 { margin: 0; color: #0f172a; font-size: 16px; line-height: 1.15; font-weight: 1000; letter-spacing: -.025em; }
+      .featured-zone-head p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.4; font-weight: 800; }
+      .featured-search-results { display: grid; gap: 10px; }
+      .featured-result-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 12px; box-shadow: 0 10px 24px rgba(15, 23, 42, .04); }
+      .featured-result-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .featured-result-thumb,
+      .featured-result-row img,
+      .featured-result-row .thumb { width: 54px; height: 54px; border-radius: 14px; object-fit: cover; border: 1px solid #e2e8f0; background: #f8fafc; flex: 0 0 auto; }
+      .featured-result-title { margin: 0; color: #0f172a; font-size: 14px; line-height: 1.25; font-weight: 1000; }
+      .featured-result-meta { margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
+      .featured-result-add-btn { min-height: 40px; padding: 9px 14px; border-radius: 14px; border: 1px solid rgba(37, 99, 235, .85); background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; font-size: 13px; font-weight: 1000; box-shadow: 0 10px 20px rgba(37, 99, 235, .18); }
+      .featured-result-add-btn:disabled { cursor: wait; opacity: .7; }
+      @media (max-width: 640px) {
+        .featured-add-zone { padding: 14px; border-radius: 18px; }
+        .featured-result-row { grid-template-columns: 1fr; align-items: stretch; padding: 12px; }
+        .featured-result-main { align-items: flex-start; }
+        .featured-result-thumb,
+        .featured-result-row img,
+        .featured-result-row .thumb { width: 58px; height: 58px; }
+        .featured-result-add-btn { width: 100%; justify-content: center; }
+      }
+      /* PZ-DESTACADOS-MOBILE-APPROVED-20260620
+         Vista móvil exacta aprobada para Destacados visuales. */
+
+      .marketing-mobile-topbar,
+      .marketing-mobile-bottom-nav {
+        display: none;
+      }
+
+      .marketing-mobile-menu-btn,
+      .marketing-mobile-notification-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, .07);
+      }
+
+      .marketing-mobile-menu-btn svg,
+      .marketing-mobile-notification-btn svg,
+      .marketing-mobile-bottom-link svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+
+      .marketing-mobile-notification-btn {
+        position: relative;
+      }
+
+      .marketing-mobile-notification-btn::after {
+        content: '';
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #2563eb;
+        box-shadow: 0 0 0 3px #fff;
+      }
+
+      #logout-btn.hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 1024px) {
+        .app-shell {
+          width: 100%;
+          padding: 0 !important;
+        }
+
+        .main-wrap {
+          width: 100%;
+          padding: 0 18px 116px !important;
+        }
+
+        .marketing-mobile-topbar {
+          position: sticky;
+          top: 0;
+          z-index: 80;
+          display: grid !important;
+          grid-template-columns: 54px minmax(0, 1fr) 54px;
+          align-items: center;
+          gap: 10px;
+          margin: 0 -18px 26px;
+          padding: 12px 18px;
+          min-height: 82px;
+          background: rgba(255, 255, 255, .96);
+          border-bottom: 1px solid #e2e8f0;
+          border-radius: 0 0 22px 22px;
+          box-shadow: 0 14px 30px rgba(15, 23, 42, .07);
+          backdrop-filter: blur(14px);
+        }
+
+        .marketing-mobile-menu-btn,
+        .marketing-mobile-notification-btn {
+          width: 54px;
+          height: 54px;
+          padding: 0;
+          border-radius: 18px;
+        }
+
+        .marketing-mobile-title {
+          min-width: 0;
+          display: block;
+          text-align: left;
+          color: #0f172a;
+          font-size: 24px;
+          line-height: 1.05;
+          font-weight: 1000;
+          letter-spacing: -.045em;
+        }
+
+        .desktop-notification-btn,
+        .marketing-settings-actions {
+          display: none !important;
+        }
+
+        .marketing-settings-hero {
+          display: block !important;
+          padding: 0 0 22px !important;
+          margin: 0 0 22px !important;
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+        }
+
+        .marketing-settings-eyebrow {
+          display: block !important;
+          margin: 0 0 12px !important;
+          color: #475569 !important;
+          font-size: 15px !important;
+          line-height: 1.35 !important;
+          font-weight: 1000 !important;
+        }
+
+        .marketing-settings-title {
+          display: none !important;
+        }
+
+        .marketing-settings-subtitle {
+          display: block !important;
+          margin: 0 !important;
+          max-width: none !important;
+          color: #475569 !important;
+          font-size: 16px !important;
+          line-height: 1.5 !important;
+          font-weight: 850 !important;
+        }
+
+        .marketing-featured-summary-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 12px !important;
+          margin-bottom: 18px !important;
+        }
+
+        .marketing-featured-summary-card {
+          min-height: 134px !important;
+          display: grid !important;
+          grid-template-columns: 58px minmax(0, 1fr) !important;
+          align-items: center !important;
+          gap: 14px !important;
+          padding: 16px !important;
+          border-radius: 22px !important;
+        }
+
+        .marketing-featured-summary-card-wide {
+          grid-column: 1 / -1 !important;
+          min-height: 118px !important;
+        }
+
+        .marketing-summary-icon {
+          width: 54px !important;
+          height: 54px !important;
+          border-radius: 20px !important;
+        }
+
+        .marketing-featured-panel {
+          padding: 0 !important;
+          border: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+
+        .marketing-featured-accordion {
+          border-radius: 24px !important;
+        }
+
+        .marketing-featured-summary {
+          padding: 16px !important;
+          gap: 12px !important;
+          align-items: flex-start !important;
+        }
+
+        .marketing-featured-summary-main {
+          gap: 10px !important;
+        }
+
+        .marketing-featured-copy h2 {
+          font-size: 22px !important;
+        }
+
+        .marketing-featured-copy p {
+          font-size: 14px !important;
+          line-height: 1.45 !important;
+        }
+
+        .marketing-featured-summary-actions {
+          align-items: flex-start !important;
+          gap: 8px !important;
+        }
+
+        .marketing-featured-toggle {
+          min-width: 92px !important;
+          min-height: 48px !important;
+          padding: 11px 16px !important;
+          border-radius: 17px !important;
+          font-size: 14px !important;
+        }
+
+        .marketing-featured-chevron {
+          width: 48px !important;
+          height: 48px !important;
+          border-radius: 17px !important;
+        }
+
+        .marketing-featured-body {
+          padding: 0 14px 16px !important;
+        }
+
+        .marketing-mobile-bottom-nav {
+          position: fixed;
+          left: 18px;
+          right: 18px;
+          bottom: 10px;
+          z-index: 100;
+          display: grid !important;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 6px;
+          padding: 8px;
+          min-height: 76px;
+          border: 1px solid #e2e8f0;
+          border-radius: 24px;
+          background: rgba(255, 255, 255, .96);
+          box-shadow: 0 20px 55px rgba(15, 23, 42, .18);
+          backdrop-filter: blur(18px);
+        }
+
+        .marketing-mobile-bottom-link {
+          display: grid;
+          place-items: center;
+          align-content: center;
+          gap: 5px;
+          min-width: 0;
+          min-height: 58px;
+          border-radius: 20px;
+          color: #475569;
+          font-size: 11px;
+          line-height: 1.1;
+          font-weight: 900;
+          text-align: center;
+          text-decoration: none;
+        }
+
+        .marketing-mobile-bottom-link.is-active {
+          background: #dbeafe;
+          color: #2563eb;
+        }
+
+        .marketing-mobile-bottom-link span {
+          display: block;
+        }
+      }
+
+      @media (min-width: 1025px) {
+        .marketing-mobile-topbar,
+        .marketing-mobile-bottom-nav {
+          display: none !important;
+        }
+      }</style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -217,24 +969,49 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="marketing" />
 
       <main class="main-wrap pz-admin-content-inner">
-        <header class="topbar">
-          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰ Menú</button>
-          <div class="hero-actions">
-            <a class="action-btn" href={adminProductsPath}>Productos</a>
-            <a class="action-btn" href="/">Ver tienda pública</a>
-            <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
-          </div>
+        <header class="marketing-mobile-topbar" aria-label="Encabezado móvil de destacados">
+          <button
+            id="sidebar-open"
+            class="marketing-mobile-menu-btn"
+            type="button"
+            aria-controls="pz-admin-sidebar"
+            aria-expanded="false"
+            aria-label="Abrir menú de navegación"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"></path>
+            </svg>
+          </button>
+
+          <strong class="marketing-mobile-title">Destacados</strong>
+
+          <button class="marketing-mobile-notification-btn" type="button" aria-label="Notificaciones">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"></path>
+            </svg>
+          </button>
         </header>
 
-        <section class="hero-card">
+        <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
+
+        <section class="marketing-settings-hero" aria-labelledby="marketing-featured-title">
           <div>
-            <span class="badge">⚙️ Ajustes de la tienda</span>
-            <h1 class="page-title">Crear <span>Producto/Promo</span></h1>
-            <p id="admin-subtitle" class="page-subtitle">Gestiona productos destacados, promos visuales y accesos rápidos sin mezclar esta parte con la edición normal del inventario.</p>
+            <p class="marketing-settings-eyebrow">Marketing y Visual / Destacados visuales</p>
+            <h1 id="marketing-featured-title" class="marketing-settings-title">Destacados visuales</h1>
+            <p id="admin-subtitle" class="marketing-settings-subtitle">
+              Configura qué productos aparecen destacados en la portada pública de tu tienda.
+            </p>
+          </div>
+          <div class="marketing-settings-actions">
+            <button class="notification-btn desktop-notification-btn" type="button" aria-label="Notificaciones">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/>
+              </svg>
+            </button>
           </div>
         </section>
 
-        <section id="marketing-summary-card" class="marketing-summary-card hidden" aria-label="Resumen de marketing">
+        <section id="marketing-summary-card" class="marketing-summary-card hidden" aria-label="Resumen de marketing" aria-hidden="true">
           <div class="marketing-summary-grid">
             <article class="marketing-summary-item">
               <p class="marketing-summary-label">Productos destacados</p>
@@ -340,7 +1117,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <h3 id="marketing-offer-modal-title" class="marketing-modal-title">Oferta del cintillo</h3>
                   <p class="marketing-modal-subtitle">Edita el texto, botón y enlace que verá el cliente.</p>
                 </div>
-                <button id="marketing-offer-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="marketing-offer-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <input id="marketing-offer-index" type="hidden" />
               <div class="visual-form-grid">
@@ -432,42 +1209,133 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </form>
           </section>
 
-          <section id="tab-destacados" class="panel-card tab-panel">
-            <div class="admin-block-summary" data-admin-block-summary="featured">
-              <div class="admin-block-summary-main">
-                <h2 class="section-title">Productos destacados</h2>
-                <p class="section-subtitle">Marca productos existentes para que salgan en la sección pública “Productos destacados”. Aquí ves el resumen de todos los marcados.</p>
-                <p class="admin-block-total" data-featured-total>Total de destacados: 0</p>
-              </div>
-              <div class="admin-block-summary-actions">
-                <button class="mini-btn primary js-admin-block-edit" data-admin-block="featured" data-featured-summary-action type="button">Editar</button>
-              </div>
-            </div>
-            <div class="hidden" data-admin-block-panel="featured-editor">
-              <div class="section-head">
+          <section id="tab-destacados" class="tab-panel">
+            <div class="marketing-featured-summary-grid" aria-label="Resumen de destacados visuales">
+              <article class="marketing-featured-summary-card">
+                <span class="marketing-summary-icon blue" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="m12 2 2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 16.9 6.2 20l1.1-6.5-4.8-4.6 6.6-.9L12 2Zm0 4.6-1.7 3.5-3.8.5 2.8 2.7-.7 3.8 3.4-1.8 3.4 1.8-.7-3.8 2.8-2.7-3.8-.5L12 6.6Z"></path>
+                  </svg>
+                </span>
                 <div>
-                  <h2 class="section-title">Productos destacados</h2>
-                  <p class="section-subtitle">Marca productos existentes para que salgan en la sección pública “Productos destacados”. Aquí ves el resumen de todos los marcados.</p>
+                  <p class="marketing-summary-label">Destacados</p>
+                  <p id="featured-summary-total" class="marketing-summary-value">0</p>
+                  <p class="marketing-summary-help">Productos seleccionados</p>
                 </div>
-                <div class="hero-actions">
-                  <button id="refresh-btn" class="mini-btn" type="button">Actualizar</button>
-                  <button class="mini-btn js-admin-block-close" data-admin-block="featured" type="button">Cerrar</button>
-                </div>
-              </div>
-              <div class="product-picker">
-                <div class="field">
-                  <label for="featured-product-search">Buscar producto</label>
-                  <input id="featured-product-search" type="search" placeholder="Escribe nombre, referencia o categoría" autocomplete="off" />
-                  <select id="featured-product-select" class="hidden" aria-hidden="true"><option value="">Selecciona un producto</option></select>
-                  <div id="featured-product-results" class="featured-search-results"><div class="empty-state">Escribe para buscar productos.</div></div>
-                </div>
-                <button id="mark-featured-btn" class="submit-btn hidden" type="button" aria-hidden="true">Marcar destacado</button>
-              </div>
-              <div id="featured-alert" class="alert alert-info hidden"></div>
-              <div id="featured-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando destacados...</div></div>
-            </div>
-          </section>
+              </article>
 
+              <article class="marketing-featured-summary-card">
+                <span class="marketing-summary-icon green" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 5c5.5 0 9.5 5.1 10 7-.5 1.9-4.5 7-10 7S2.5 13.9 2 12c.5-1.9 4.5-7 10-7Zm0 2C8.2 7 5.1 10.1 4.2 12c.9 1.9 4 5 7.8 5s6.9-3.1 7.8-5C18.9 10.1 15.8 7 12 7Zm0 2.5A2.5 2.5 0 1 1 12 14.5 2.5 2.5 0 0 1 12 9.5Z"></path>
+                  </svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Visibles</p>
+                  <p id="featured-summary-visible" class="marketing-summary-value">0</p>
+                  <p class="marketing-summary-help">Activos en portada</p>
+                </div>
+              </article>
+
+              <article class="marketing-featured-summary-card marketing-featured-summary-card-wide">
+                <span class="marketing-summary-icon purple" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M2.8 3.4 4.2 2l17 17-1.4 1.4-3-3A10.6 10.6 0 0 1 12 19c-5.5 0-9.5-5.1-10-7 .3-1.1 1.8-3.4 4.1-5.1L2.8 3.4Zm5 5C5.9 9.6 4.7 11.1 4.2 12c.9 1.9 4 5 7.8 5 1.2 0 2.3-.3 3.3-.8l-2-2A2.5 2.5 0 0 1 9.8 10.7l-2-2.3ZM12 5c5.5 0 9.5 5.1 10 7-.2.8-1.1 2.2-2.4 3.6l-1.4-1.4c.8-.8 1.4-1.6 1.7-2.2-.9-1.9-4-5-7.8-5-.8 0-1.6.1-2.3.4L8.1 5.7C9.3 5.2 10.6 5 12 5Z"></path>
+                  </svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Ocultos</p>
+                  <p id="featured-summary-hidden" class="marketing-summary-value">0</p>
+                  <p class="marketing-summary-help">No visibles</p>
+                </div>
+              </article>
+            </div>
+
+            <section class="marketing-featured-panel" aria-label="Productos destacados">
+              <article id="featured-accordion" class="marketing-featured-accordion is-open" data-featured-accordion>
+                <div class="marketing-featured-summary" data-admin-block-summary="featured">
+                  <div class="marketing-featured-summary-main">
+                    <span class="marketing-featured-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path d="m12 2 2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 16.9 6.2 20l1.1-6.5-4.8-4.6 6.6-.9L12 2Zm0 4.6-1.7 3.5-3.8.5 2.8 2.7-.7 3.8 3.4-1.8 3.4 1.8-.7-3.8 2.8-2.7-3.8-.5L12 6.6Z"></path>
+                      </svg>
+                    </span>
+                    <div class="marketing-featured-copy">
+                      <h2>Productos destacados</h2>
+                      <p>Selecciona productos existentes para mostrarlos en la sección de destacados.</p>
+                    </div>
+                  </div>
+
+                  <div class="marketing-featured-summary-actions">
+                    <button
+                      class="primary-blue-btn marketing-featured-toggle js-admin-block-edit"
+                      data-admin-block="featured"
+                      data-featured-summary-action
+                      type="button"
+                      aria-expanded="true"
+                      aria-controls="featured-editor-panel"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      class="marketing-featured-chevron"
+                      type="button"
+                      data-admin-block="featured"
+                      data-featured-chevron
+                      aria-label="Cerrar panel de productos destacados"
+                    >
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M7.4 14.6 12 10l4.6 4.6L18 13.2l-6-6-6 6 1.4 1.4Z"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <div id="featured-editor-panel" class="marketing-featured-body" data-admin-block-panel="featured-editor">
+                  <section class="featured-add-zone" aria-label="Agregar producto destacado">
+                    <div class="featured-zone-head">
+                      <h3>Agregar producto destacado</h3>
+                      <p>Busca productos existentes de tu catálogo y agrégalos a la portada pública.</p>
+                    </div>
+
+                    <div class="marketing-featured-search">
+                      <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z"></path>
+                      </svg>
+
+                      <input
+                        id="featured-product-search"
+                        type="search"
+                        placeholder="Buscar producto por nombre, referencia o categoría..."
+                        autocomplete="off"
+                      />
+
+                      <select id="featured-product-select" class="hidden" aria-hidden="true">
+                        <option value="">Selecciona un producto</option>
+                      </select>
+                    </div>
+
+                    <div id="featured-product-results" class="featured-search-results">
+                      <div class="empty-state">Escribe para buscar productos.</div>
+                    </div>
+
+                    <button id="mark-featured-btn" class="submit-btn hidden" type="button" aria-hidden="true">
+                      Marcar destacado
+                    </button>
+
+                    <div id="featured-alert" class="alert alert-info hidden"></div>
+                  </section>
+
+                  <section class="featured-current-zone" aria-label="Productos destacados actuales">
+                    <p class="marketing-featured-list-title">Productos destacados actuales</p>
+
+                    <div id="featured-list" class="items-list featured-products-list">
+                      <div class="empty-state">Cargando destacados...</div>
+                    </div>
+                  </section>
+                </div>              </article>
+            </section>
+          </section>
           <section id="tab-visuales" class="panel-card tab-panel hidden">
             <div class="admin-block-summary" data-admin-block-summary="visual">
               <div class="admin-block-summary-main">
@@ -631,7 +1499,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <h3 class="marketing-modal-title">¿Eliminar esta promoción?</h3>
                   <p class="marketing-modal-subtitle">Esta acción no afecta órdenes anteriores.</p>
                 </div>
-                <button id="promotion-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="promotion-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <div class="editor-actions">
                 <button id="promotion-delete-cancel-btn" class="mini-btn" type="button">Cancelar</button>
@@ -647,15 +1515,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <h3 class="marketing-modal-title">Guía rápida de promociones automáticas</h3>
                   <p class="marketing-modal-subtitle">Una explicación sencilla para elegir la promoción correcta.</p>
                 </div>
-                <button id="promotion-readme-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="promotion-readme-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <ol class="promotion-guide-list">
-                <li><strong>Compra X y paga Y</strong><p>Sirve para promociones como “Compra 3 y paga 2”. El sistema descuenta automáticamente las unidades gratis cuando el carrito cumple la cantidad.</p></li>
-                <li><strong>Descuento por volumen</strong><p>Sirve para dar descuento cuando el cliente compra una cantidad mínima. Ejemplo: “Desde 3 unidades, 10% de descuento” o “Desde 3 unidades, 5 USD de descuento”.</p></li>
-                <li><strong>Descuento directo por producto</strong><p>Aplica un descuento automático a un producto específico. Ejemplo: “Creatina con 10% de descuento”.</p></li>
-                <li><strong>Descuento por categoría</strong><p>Aplica un descuento automático a todos los productos de una categoría. Ejemplo: “10% en Proteínas”.</p></li>
-                <li><strong>Descuento por subcategoría</strong><p>Aplica un descuento automático a los productos de una subcategoría específica. Ejemplo: “15% en Creatinas”.</p></li>
-                <li><strong>Descuento por subtotal del carrito</strong><p>Aplica un descuento cuando el subtotal de productos llega a un monto mínimo. Ejemplo: “Por compras desde 100 USD, recibe 5 USD de descuento”.</p></li>
+                <li><strong>Compra X y paga Y</strong><p>Sirve para promociones como &quot;Compra 3 y paga 2&quot;. El sistema descuenta automáticamente las unidades gratis cuando el carrito cumple la cantidad.</p></li>
+                <li><strong>Descuento por volumen</strong><p>Sirve para dar descuento cuando el cliente compra una cantidad mínima. Ejemplo: &quot;Desde 3 unidades, 10% de descuento&quot; o &quot;Desde 3 unidades, 5 USD de descuento&quot;.</p></li>
+                <li><strong>Descuento directo por producto</strong><p>Aplica un descuento automático a un producto específico. Ejemplo: &quot;Creatina con 10% de descuento&quot;.</p></li>
+                <li><strong>Descuento por categoría</strong><p>Aplica un descuento automático a todos los productos de una categoría. Ejemplo: &quot;10% en Proteínas&quot;.</p></li>
+                <li><strong>Descuento por subcategoría</strong><p>Aplica un descuento automático a los productos de una subcategoría específica. Ejemplo: &quot;15% en Creatinas&quot;.</p></li>
+                <li><strong>Descuento por subtotal del carrito</strong><p>Aplica un descuento cuando el subtotal de productos llega a un monto mínimo. Ejemplo: &quot;Por compras desde 100 USD, recibe 5 USD de descuento&quot;.</p></li>
               </ol>
               <div class="alert alert-info">Los descuentos se aplican solo a productos. El envío se mantiene aparte y no entra en promociones.</div>
             </div>
@@ -725,7 +1593,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <h3 class="marketing-modal-title">Guía rápida de cupones manuales</h3>
                   <p class="marketing-modal-subtitle">Una explicación sencilla para usar cupones sin complicar el checkout.</p>
                 </div>
-                <button id="coupon-readme-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="coupon-readme-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <ol class="promotion-guide-list">
                 <li><strong>¿Qué es un cupón manual?</strong><p>Es un código que el cliente puede escribir en checkout o recibir por enlace compartido por la tienda.</p></li>
@@ -749,7 +1617,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <h3 class="marketing-modal-title">Historial de uso</h3>
                   <p id="coupon-history-subtitle" class="marketing-modal-subtitle">Usos registrados para este cupón.</p>
                 </div>
-                <button id="coupon-history-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="coupon-history-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <div id="coupon-history-list" class="items-list"></div>
             </div>
@@ -762,7 +1630,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <h3 class="marketing-modal-title">¿Eliminar este cupón?</h3>
                   <p class="marketing-modal-subtitle">Esta acción no afecta órdenes anteriores.</p>
                 </div>
-                <button id="coupon-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">×</button>
+                <button id="coupon-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <div class="editor-actions">
                 <button id="coupon-delete-cancel-btn" class="mini-btn" type="button">Cancelar</button>
@@ -785,7 +1653,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 <div class="admin-block-summary" data-admin-block-summary="orgFeatured">
                   <div class="admin-block-summary-main">
                     <h3 class="organization-title">Productos destacados</h3>
-                    <p class="organization-help">Cambia el orden de la sección “Productos destacados”. Si quieres ocultar uno solo de destacados, usa “Quitar destacado” para no ocultar el producto completo de la tienda.</p>
+                    <p class="organization-help">Cambia el orden de la sección &quot;Productos destacados&quot;. Si quieres ocultar uno solo de destacados, usa &quot;Quitar destacado&quot; para no ocultar el producto completo de la tienda.</p>
                     <p class="admin-block-total" data-featured-total>Total de destacados: 0</p>
                   </div>
                   <div class="admin-block-summary-actions">
@@ -796,7 +1664,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <div class="section-head">
                     <div>
                       <h3 class="organization-title">Productos destacados</h3>
-                      <p class="organization-help">Cambia el orden de la sección “Productos destacados”. Si quieres ocultar uno solo de destacados, usa “Quitar destacado” para no ocultar el producto completo de la tienda.</p>
+                      <p class="organization-help">Cambia el orden de la sección &quot;Productos destacados&quot;. Si quieres ocultar uno solo de destacados, usa &quot;Quitar destacado&quot; para no ocultar el producto completo de la tienda.</p>
                     </div>
                     <button class="mini-btn js-admin-block-close" data-admin-block="orgFeatured" type="button">Cerrar</button>
                   </div>
@@ -828,13 +1696,44 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </div>
           </section>
         </section>
+
+        <nav class="marketing-mobile-bottom-nav" aria-label="Navegación móvil del admin">
+          <a class="marketing-mobile-bottom-link" href={adminBasePath}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 11.5 12 5l7 6.5V20a1 1 0 0 1-1 1h-4v-6h-4v6H6a1 1 0 0 1-1-1v-8.5Z"></path>
+            </svg>
+            <span>Resumen</span>
+          </a>
+
+          <a class="marketing-mobile-bottom-link" href={adminOrdersPath}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-3 2V5a2 2 0 0 1 2-2Zm2 5h6V6H9v2Zm0 4h8v-2H9v2Zm0 4h5v-2H9v2Z"></path>
+            </svg>
+            <span>Pedidos</span>
+          </a>
+
+          <a class="marketing-mobile-bottom-link" href={adminShippingPath}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 6h11v9h1.2a3 3 0 0 1 5.6 0H22v-5l-3-4h-3V4H3v2Zm13 2h2l1.5 2H16V8ZM7 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"></path>
+            </svg>
+            <span>Envíos</span>
+          </a>
+
+          <a class="marketing-mobile-bottom-link is-active" href={adminStoreSettingsPath}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.6 7.6 0 0 0-2.6-1.5L14 2h-4l-.4 3a7.6 7.6 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.6 7.6 0 0 0 2.6 1.5l.4 3h4l.4-3a7.6 7.6 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"></path>
+            </svg>
+            <span>Ajustes</span>
+          </a>
+        </nav>
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath, adminProductsPath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
@@ -855,7 +1754,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let couponInitialSnapshot = '';
       let couponNoticeTimer = null;
       let isSavingCoupon = false;
-      const adminBlockModes = { featured: 'closed', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
+      const adminBlockModes = { featured: 'edit', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
       const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
 
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
@@ -1085,7 +1984,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const attachment = Array.isArray(item?.attachment) ? item.attachment[0] : item?.attachment;
         return attachment || '';
       }
-      function thumbMarkup(url, fallback = '📦') {
+      function thumbMarkup(url, fallback = 'BOX') {
         if (!url) return `<span class="thumb placeholder">${fallback}</span>`;
         return `<img class="thumb" src="${url}" alt="" loading="lazy" />`;
       }
@@ -1094,7 +1993,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         return `
           <article class="item-row">
             <div class="item-main">
-              ${thumbMarkup(visualImageUrl(item), '🏷️')}
+              ${thumbMarkup(visualImageUrl(item), 'TAG')}
               <div>
                 <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
                 <p class="item-meta">Promo visual · Orden ${Number(item.sort_order || 0)} · ${item.active !== false ? 'Visible' : 'Oculta'}</p>
@@ -1108,6 +2007,18 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         document.getElementById('stat-featured').textContent = String(products.filter((p) => p.featured === true).length);
         document.getElementById('stat-promos').textContent = String(visualItems.filter((item) => item.type === 'promo_visual').length);
         document.getElementById('stat-shortcuts').textContent = String(visualItems.filter((item) => item.type === 'acceso_rapido').length);
+        updateFeaturedVisualSummary();
+      }
+      function updateFeaturedVisualSummary() {
+        const featured = products.filter((product) => product.featured === true);
+        const visible = featured.filter((product) => product.active !== false);
+        const hidden = featured.filter((product) => product.active === false);
+        const totalNode = document.getElementById('featured-summary-total');
+        const visibleNode = document.getElementById('featured-summary-visible');
+        const hiddenNode = document.getElementById('featured-summary-hidden');
+        if (totalNode) totalNode.textContent = String(featured.length);
+        if (visibleNode) visibleNode.textContent = String(visible.length);
+        if (hiddenNode) hiddenNode.textContent = String(hidden.length);
       }
       function renderProductSelect() {
         const available = products.filter((product) => product.active !== false);
@@ -1138,31 +2049,41 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           return;
         }
         const matches = products
-          .filter((product) => product.active !== false || product.featured === true)
+          .filter((product) => product.active !== false)
+          .filter((product) => product.featured !== true)
           .filter((product) => productSearchText(product).includes(query))
           .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
-          .slice(0, 15);
+          .slice(0, 12);
         if (!matches.length) {
-          featuredProductResults.innerHTML = '<div class="empty-state">No se encontraron productos.</div>';
+          featuredProductResults.innerHTML = '<div class="empty-state">No hay productos disponibles para agregar con esa búsqueda.</div>';
           return;
         }
         featuredProductResults.innerHTML = matches.map((product) => {
-          const alreadyFeatured = product.featured === true;
           const categoryText = productCategoryText(product);
           const meta = [
             formatUsd(product.base_price_usd),
-            `Stock ${Number(product.stock || 0)}`,
+            `Stock: ${Number(product.stock || 0)}`,
             product.active === false ? 'Oculto' : 'Visible',
-            product.internal_ref ? `Ref ${product.internal_ref}` : '',
+            product.internal_ref ? `Ref: ${product.internal_ref}` : '',
             categoryText,
           ].filter(Boolean).join(' · ');
           return `
-            <article class="featured-result-row">
-              <div>
-                <p class="featured-result-title">${escapeHtml(product.name || 'Sin nombre')}</p>
-                <p class="featured-result-meta">${escapeHtml(meta)}</p>
+            <article class="featured-result-row" data-product-id="${product.id}">
+              <div class="featured-result-main">
+                ${thumbMarkup(productImageUrl(product), 'IMG')}
+                <div>
+                  <p class="featured-result-title">${escapeHtml(product.name || 'Sin nombre')}</p>
+                  <p class="featured-result-meta">${escapeHtml(meta)}</p>
+                </div>
               </div>
-              <button class="mini-btn ${alreadyFeatured ? '' : 'primary'} js-featured-result-add" data-product-id="${product.id}" type="button" ${alreadyFeatured ? 'disabled' : ''}>${alreadyFeatured ? 'Ya agregado' : 'Agregar'}</button>
+              <button
+                class="featured-result-add-btn js-featured-result-add"
+                data-product-id="${product.id}"
+                type="button"
+                aria-label="Agregar ${escapeHtml(product.name || 'producto')} a destacados"
+              >
+                Agregar
+              </button>
             </article>
           `;
         }).join('');
@@ -1185,7 +2106,11 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const featured = getFeaturedProductsSorted();
         const visuals = getAllVisualItemsSorted();
         document.querySelectorAll('[data-featured-total]').forEach((node) => { node.textContent = `Total de destacados: ${featured.length}`; });
-        document.querySelectorAll('[data-featured-summary-action]').forEach((button) => { button.textContent = featured.length > 0 ? 'Editar' : 'Agregar'; });
+        document.querySelectorAll('[data-admin-block="featured"][data-featured-summary-action]').forEach((button) => {
+          const isOpen = adminBlockModes.featured === 'edit';
+          button.textContent = isOpen ? 'Cerrar' : 'Editar';
+          button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
         document.querySelectorAll('[data-visual-total]').forEach((node) => { node.textContent = `Total de promos: ${visuals.length}`; });
         document.querySelectorAll('[data-visual-summary-action]').forEach((button) => { button.textContent = visuals.length > 0 ? 'Editar' : 'Agregar'; });
         if (adminBlockModes.visual === 'view') adminBlockModes.visual = 'closed';
@@ -1196,6 +2121,27 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const summary = document.querySelector(`[data-admin-block-summary="${block}"]`);
         const viewPanel = document.querySelector(`[data-admin-block-panel="${block}-view"]`);
         const editorPanel = document.querySelector(`[data-admin-block-panel="${block}-editor"]`);
+        if (block === 'featured') {
+          const isOpen = mode === 'edit';
+          const accordion = document.querySelector('[data-featured-accordion]');
+          const actionButton = document.querySelector('[data-admin-block="featured"][data-featured-summary-action]');
+          const chevronButton = document.querySelector('[data-featured-chevron]');
+          summary?.classList.remove('hidden');
+          viewPanel?.classList.add('hidden');
+          editorPanel?.classList.toggle('hidden', !isOpen);
+          accordion?.classList.toggle('is-open', isOpen);
+          if (actionButton) {
+            actionButton.textContent = isOpen ? 'Cerrar' : 'Editar';
+            actionButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          }
+          if (chevronButton) {
+            chevronButton.setAttribute(
+              'aria-label',
+              isOpen ? 'Cerrar panel de productos destacados' : 'Abrir panel de productos destacados'
+            );
+          }
+          return;
+        }
         summary?.classList.toggle('hidden', mode !== 'closed');
         viewPanel?.classList.toggle('hidden', mode !== 'view');
         editorPanel?.classList.toggle('hidden', mode !== 'edit');
@@ -1216,26 +2162,50 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       function renderFeaturedList() {
         const featured = getFeaturedProductsSorted();
+        updateFeaturedVisualSummary();
         if (!featured.length) {
-          featuredList.innerHTML = '<div class="empty-state">Todavía no hay productos marcados como destacados.<div class="editor-actions"><button class="submit-btn js-featured-empty-add" type="button">Agregar producto a destacado</button></div></div>';
-          return;
-        }
-        featuredList.innerHTML = featured.map((product) => `
-          <article class="item-row" data-product-id="${product.id}">
-            <div class="item-main">
-              ${thumbMarkup(productImageUrl(product), '📦')}
-              <div>
-                <p class="item-title">${escapeHtml(product.name || 'Sin nombre')}</p>
-                <p class="item-meta">${formatUsd(product.base_price_usd)} · Stock ${Number(product.stock || 0)} · Orden destacado ${Number(product.featured_order || 0)} · ${product.active === false ? 'Oculto' : 'Visible'}</p>
+          featuredList.innerHTML = `
+            <div class="empty-state">
+              Todav&iacute;a no hay productos marcados como destacados.
+              <div class="editor-actions">
+                <button class="submit-btn js-featured-empty-add" type="button">Agregar producto a destacado</button>
               </div>
             </div>
-            <div class="item-actions">
-              <span class="pill pill-visible">Destacado</span>
-              <a class="mini-btn" href="/admin/products?product=${encodeURIComponent(product.id)}">Editar producto</a>
-              <button class="mini-btn danger js-unfeature" type="button">Quitar</button>
-            </div>
-          </article>
-        `).join('');
+          `;
+          return;
+        }
+        featuredList.innerHTML = featured.map((product) => {
+          const isVisible = product.active !== false;
+          const statusLabel = isVisible ? 'Visible' : 'Oculto';
+          const statusClass = isVisible ? 'pill-visible' : 'pill-hidden';
+          const metaParts = [
+            `Ref: ${escapeHtml(product.ref || product.sku || product.internal_ref || product.id || 'Sin ref')}`,
+            formatUsd(product.base_price_usd),
+            `Stock: ${Number(product.stock || 0)}`,
+            `Orden ${Number(product.featured_order || 0)}`,
+          ];
+          const metaHtml = metaParts.filter(Boolean).join(' &middot; ');
+          return `
+            <article class="item-row" data-product-id="${product.id}">
+              <div class="item-main">
+                ${thumbMarkup(productImageUrl(product), 'BOX')}
+                <div>
+                  <p class="item-title">${escapeHtml(product.name || 'Sin nombre')}</p>
+                  <p class="item-meta">${metaHtml}</p>
+                </div>
+              </div>
+              <div class="item-actions">
+                <span class="pill ${statusClass}">${statusLabel}</span>
+                <a class="mini-btn" href="${ADMIN_PRODUCTS_PATH}?product=${encodeURIComponent(product.id)}" aria-label="Editar producto ${escapeHtml(product.name || '')}">
+                  Editar
+                </a>
+                <button class="mini-btn danger js-unfeature" type="button" aria-label="Quitar destacado ${escapeHtml(product.name || '')}">
+                  Quitar
+                </button>
+              </div>
+            </article>
+          `;
+        }).join('');
       }
       function renderVisualList() {
         const sortedVisuals = getAllVisualItemsSorted();
@@ -1254,18 +2224,18 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             return `
               <article class="item-row" data-visual-id="${item.id}">
                 <div class="item-main">
-                  ${thumbMarkup(visualImageUrl(item), item.type === 'promo_visual' ? '🏷️' : '⚡')}
+                  ${thumbMarkup(visualImageUrl(item), item.type === 'promo_visual' ? 'TAG' : 'FLASH')}
                   <div>
                     <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
                     <p class="item-meta">${escapeHtml(typeLabel)} · ${escapeHtml(actionLabel)} · Orden ${Number(item.sort_order || 0)}${attachment ? ` · Archivo: ${escapeHtml(attachment)}` : ''}</p>
                   </div>
                 </div>
                 <div class="item-actions">
-                  <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
-                  <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === sortedVisuals.length - 1 ? 'disabled' : ''}>↓</button>
+                  <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
+                  <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === sortedVisuals.length - 1 ? 'disabled' : ''}>&darr;</button>
                   <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${escapeHtml(stateLabel)}</span>
                   <div class="visual-menu-wrap">
-                    <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                    <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
                     <div class="visual-floating-menu" role="menu">
                       <button class="js-visual-edit" type="button">Editar</button>
                       <button class="${item.active !== false ? '' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
@@ -1286,15 +2256,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         organizationFeaturedList.innerHTML = featured.map((product, index) => `
           <article class="item-row" data-org-product-id="${product.id}">
             <div class="item-main">
-              ${thumbMarkup(productImageUrl(product), '📦')}
+              ${thumbMarkup(productImageUrl(product), 'BOX')}
               <div>
                 <p class="item-title">${escapeHtml(product.name || 'Sin nombre')}</p>
                 <p class="item-meta">Orden ${Number(product.featured_order || 0)} · ${formatUsd(product.base_price_usd)} · ${product.active === false ? 'Producto oculto' : 'Producto visible'}</p>
               </div>
             </div>
             <div class="item-actions">
-              <button class="mini-btn order-btn js-featured-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
-              <button class="mini-btn order-btn js-featured-move" data-direction="down" type="button" ${index === featured.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="mini-btn order-btn js-featured-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
+              <button class="mini-btn order-btn js-featured-move" data-direction="down" type="button" ${index === featured.length - 1 ? 'disabled' : ''}>&darr;</button>
               <button class="mini-btn warning js-featured-org-remove" type="button">Quitar destacado</button>
             </div>
           </article>
@@ -1308,18 +2278,18 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         return `
           <article class="item-row" data-org-visual-id="${item.id}">
             <div class="item-main">
-              ${thumbMarkup(visualImageUrl(item), item.type === 'promo_visual' ? '🏷️' : '⚡')}
+              ${thumbMarkup(visualImageUrl(item), item.type === 'promo_visual' ? 'TAG' : 'FLASH')}
               <div>
                 <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
                 <p class="item-meta">${escapeHtml(typeLabel)} · Orden ${Number(item.sort_order || 0)} · ${item.active !== false ? 'Visible' : 'Oculto'}</p>
               </div>
             </div>
             <div class="item-actions">
-              <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
-              <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === total - 1 ? 'disabled' : ''}>↓</button>
+              <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
+              <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === total - 1 ? 'disabled' : ''}>&darr;</button>
               <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${escapeHtml(stateLabel)}</span>
               <div class="visual-menu-wrap">
-                <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
                 <div class="visual-floating-menu" role="menu">
                   <button class="js-visual-org-edit" type="button">Editar</button>
                   <button class="${item.active !== false ? '' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
@@ -1576,7 +2546,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                     <div class="item-actions">
                       <button class="mini-btn ${item.active !== false ? '' : 'success'} js-promotion-toggle" type="button">${item.active !== false ? 'Activa' : 'Inactiva'}</button>
                       <div class="promotion-menu-wrap">
-                        <button class="promotion-kebab-btn js-promotion-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                        <button class="promotion-kebab-btn js-promotion-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
                         <div class="promotion-floating-menu" role="menu">
                           <button class="js-promotion-edit" type="button">Editar</button>
                           <button class="danger js-promotion-delete" type="button">Eliminar</button>
@@ -1761,7 +2731,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
               <div class="item-actions">
                 <button class="mini-btn ${item.active !== false ? '' : 'success'} js-coupon-toggle" type="button">${item.active !== false ? 'Activo' : 'Inactivo'}</button>
                 <div class="promotion-menu-wrap">
-                  <button class="promotion-kebab-btn js-coupon-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                  <button class="promotion-kebab-btn js-coupon-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
                   <div class="promotion-floating-menu" role="menu">
                     <button class="js-coupon-edit" type="button">Editar</button>
                     <button class="js-coupon-history" type="button">Ver historial</button>
@@ -1944,16 +2914,31 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         renderAll();
       }
       async function markFeatured(productIdOverride = '') {
-        const productId = productIdOverride || featuredProductSelect.value;
-        if (!productId) return showAlert(featuredAlert, 'Selecciona un producto primero.', 'error');
+        const productId = productIdOverride || featuredProductSelect?.value || '';
+        if (!productId) {
+          return showAlert(featuredAlert, 'Selecciona un producto primero.', 'error');
+        }
+        const product = products.find((item) => item.id === productId);
+        if (!product) {
+          return showAlert(featuredAlert, 'No se encontró el producto seleccionado.', 'error');
+        }
+        if (product.featured === true) {
+          return showAlert(featuredAlert, 'Este producto ya está en destacados.', 'info');
+        }
         const formData = new FormData();
         formData.append('featured', 'true');
         formData.append('featured_order', String(nextFeaturedOrder()));
-        await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: formData });
-        showAlert(featuredAlert, 'Producto marcado como destacado.', 'success');
+        await apiRequest(`/api/collections/products/records/${productId}`, {
+          method: 'PATCH',
+          body: formData,
+        });
+        showAlert(featuredAlert, 'Producto agregado a destacados.', 'success');
         if (featuredProductSearch) featuredProductSearch.value = '';
         if (featuredProductSelect) featuredProductSelect.value = '';
         await loadData();
+        renderFeaturedProductResults();
+        renderFeaturedList();
+        updateFeaturedVisualSummary();
       }
       async function unfeatureProduct(productId) {
         const formData = new FormData();
@@ -2381,7 +3366,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       function openSidebar() { document.body.classList.add('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'false'); sidebarOverlay.hidden = false; sidebarOpenBtn?.setAttribute('aria-expanded', 'true'); }
       function closeSidebar() { document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'true'); sidebarOpenBtn?.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!document.body.classList.contains('sidebar-open')) sidebarOverlay.hidden = true; }, 220); }
-      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); marketingSummaryCard?.classList.remove('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
+      function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); marketingSummaryCard?.classList.add('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
       function showLogin() { adminView.classList.add('hidden'); marketingSummaryCard?.classList.add('hidden'); loginView.classList.remove('hidden'); }
 
       sidebarOpenBtn?.addEventListener('click', openSidebar);
@@ -2393,8 +3378,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const button = event.target.closest('.js-featured-result-add');
         if (!button || button.disabled) return;
         const productId = button.dataset.productId || '';
+        if (!productId) return;
+        button.disabled = true;
+        button.textContent = 'Agregando...';
         if (featuredProductSelect) featuredProductSelect.value = productId;
-        markFeatured(productId).catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error'));
+        markFeatured(productId).catch((error) => {
+          button.disabled = false;
+          button.textContent = 'Agregar';
+          showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error');
+        });
       });
       refreshBtn?.addEventListener('click', () => loadData());
       refreshOrgBtn?.addEventListener('click', () => loadData());
@@ -2498,7 +3490,31 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         updateCouponFormState();
       });
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
-        button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'edit'));
+        button.addEventListener('click', () => {
+          const block = button.dataset.adminBlock;
+          if (block === 'featured') {
+            const nextMode = adminBlockModes.featured === 'edit' ? 'closed' : 'edit';
+            setAdminBlockMode('featured', nextMode);
+            if (nextMode === 'edit') {
+              renderFeaturedProductResults();
+              renderFeaturedList();
+              setTimeout(() => featuredProductSearch?.focus(), 80);
+            }
+            return;
+          }
+          setAdminBlockMode(block, 'edit');
+        });
+      });
+      document.querySelectorAll('[data-featured-chevron]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const nextMode = adminBlockModes.featured === 'edit' ? 'closed' : 'edit';
+          setAdminBlockMode('featured', nextMode);
+          if (nextMode === 'edit') {
+            renderFeaturedProductResults();
+            renderFeaturedList();
+            setTimeout(() => featuredProductSearch?.focus(), 80);
+          }
+        });
       });
       document.querySelectorAll('.js-admin-block-close').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'closed'));
@@ -2857,7 +3873,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   ${isActive ? 'Activa' : 'Inactiva'}
                 </label>
                 <div class="marketing-menu-wrap">
-                  <button class="marketing-kebab-btn js-marketing-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">⋯</button>
+                  <button class="marketing-kebab-btn js-marketing-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
                   <div class="marketing-floating-menu" role="menu">
                     <button class="js-marketing-edit" type="button" role="menuitem">Editar</button>
                     <button class="${isActive ? 'danger' : 'success'} js-marketing-toggle" type="button" role="menuitem">${isActive ? 'Desactivar' : 'Activar'}</button>
