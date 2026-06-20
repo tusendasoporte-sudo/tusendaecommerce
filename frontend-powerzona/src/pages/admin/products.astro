@@ -750,9 +750,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         background: #f6f8fb !important;
         color: #111827;
       }
-      .admin-dashboard-shell,
-      .app-shell {
-        width: 100% !important;
+      .admin-dashboard-shell {
+        width: auto !important;
         max-width: none !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -875,7 +874,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .main-wrap {
         min-height: 100vh !important;
         margin-left: 0 !important;
-        padding: 38px 40px 48px !important;
+        padding: 0 !important;
       }
       .mobile-topbar {
         display: none !important;
@@ -1387,7 +1386,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .admin-main,
         .main-wrap {
           margin-left: 0 !important;
-          padding: 14px 14px 28px !important;
+          padding: 0 !important;
         }
         .mobile-topbar {
           display: grid !important;
@@ -1717,10 +1716,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-    <div class="app-shell admin-dashboard-shell pz-admin-content">
+    <div class="app-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="products" />
 
-      <main class="main-wrap admin-main pz-admin-content-inner">
+      <main class="admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰</button>
           <strong id="mobile-topbar-title">Productos</strong>
