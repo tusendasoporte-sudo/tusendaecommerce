@@ -2369,6 +2369,16 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
         marketingBarPanel?.classList.toggle('hidden', tab !== 'visuales');
       }
+      function showTabFromHash() {
+        const hashTabMap = {
+          '#destacados': 'destacados',
+          '#promociones': 'promociones',
+          '#cupones': 'cupones',
+          '#visuales': 'visuales',
+          '#cintillo': 'visuales',
+        };
+        showTab(hashTabMap[window.location.hash] || 'destacados');
+      }
       function openSidebar() { document.body.classList.add('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'false'); sidebarOverlay.hidden = false; sidebarOpenBtn?.setAttribute('aria-expanded', 'true'); }
       function closeSidebar() { document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'true'); sidebarOpenBtn?.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!document.body.classList.contains('sidebar-open')) sidebarOverlay.hidden = true; }, 220); }
       function showAdmin() { loginView.classList.add('hidden'); adminView.classList.remove('hidden'); marketingSummaryCard?.classList.remove('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
@@ -2648,10 +2658,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (!event.target.closest('.visual-menu-wrap')) closeVisualMenus();
         if (!event.target.closest('.promotion-menu-wrap')) closePromotionMenus();
       });
+      window.addEventListener('hashchange', showTabFromHash);
 
       showAdmin();
-      if (window.location.hash === '#visuales') showTab('visuales');
-      else showTab('destacados');
+      showTabFromHash();
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603

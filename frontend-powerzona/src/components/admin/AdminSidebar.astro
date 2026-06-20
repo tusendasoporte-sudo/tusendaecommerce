@@ -31,6 +31,7 @@ const adminOrganizationPath = getStoreAdminPath(storeSlug, 'organization');
 const publicStorePath = getPublicStorePath(storeSlug);
 
 const isSettingsActive = activeSection === 'settings';
+const isMarketingVisualActive = activeSection === 'marketing' || activeSection === 'organization';
 const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
 const supportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const supportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
@@ -42,9 +43,16 @@ const masterSupportHref = supportWhatsapp
 const navClass = (section: string) => `pz-admin-sidebar__nav-item${activeSection === section ? ' is-active' : ''}`;
 const settingsToggleClass = `pz-admin-sidebar__nav-item pz-admin-sidebar__settings-toggle${isSettingsActive ? ' is-active' : ''}`;
 const settingsSubnavClass = `pz-admin-sidebar__settings-subnav${isSettingsActive ? '' : ' is-collapsed'}`;
+const marketingVisualToggleClass = `pz-admin-sidebar__nav-item pz-admin-sidebar__settings-toggle${isMarketingVisualActive ? ' is-active' : ''}`;
+const marketingVisualSubnavClass = `pz-admin-sidebar__settings-subnav${isMarketingVisualActive ? '' : ' is-collapsed'}`;
 const subClass = (subsection: string) => {
   const isGeneral = subsection === 'generales' && ['general', 'generales', ''].includes(normalizedSubsection);
   return `pz-admin-sidebar__settings-subitem${isSettingsActive && (normalizedSubsection === subsection || isGeneral) ? ' is-active' : ''}`;
+};
+const marketingVisualSubClass = (subsection: string) => {
+  const isDefaultMarketing = activeSection === 'marketing' && subsection === 'destacados';
+  const isOrganizationItem = activeSection === 'organization' && subsection === 'organization';
+  return `pz-admin-sidebar__settings-subitem${isDefaultMarketing || isOrganizationItem ? ' is-active' : ''}`;
 };
 ---
 
@@ -96,8 +104,17 @@ const subClass = (subsection: string) => {
 
     <p class="pz-admin-sidebar__section-label">Divisiones</p>
     <nav class="pz-admin-sidebar__nav-list">
-      <a class={navClass('marketing')} href={adminPromosPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Marketing</span></a>
-      <a class={navClass('organization')} href={adminOrganizationPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Organización Visual</span></a>
+      <div class="pz-admin-sidebar__settings-group">
+        <button class={marketingVisualToggleClass} type="button" aria-expanded={isMarketingVisualActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-marketing-visual-subnav" data-marketing-visual-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Marketing y Visual</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
+        <div id="pz-admin-sidebar-marketing-visual-subnav" class={marketingVisualSubnavClass} aria-label="Secciones de marketing y organización visual">
+          <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={`${adminPromosPath}#destacados`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>
+          <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones</span></a>
+          <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>
+          <a class={marketingVisualSubClass('cintillo')} data-marketing-visual-subitem="cintillo" href={`${adminPromosPath}#cintillo`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v5H3V6Zm2 7h14v5H5v-5Zm3-5v1h8V8H8Zm0 7v1h8v-1H8Z"/></svg></span><span>Cintillo promocional</span></a>
+          <a class={marketingVisualSubClass('visuales')} data-marketing-visual-subitem="visuales" href={`${adminPromosPath}#visuales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></span><span>Accesos rápidos</span></a>
+          <a class={marketingVisualSubClass('organization')} data-marketing-visual-subitem="organization" href={adminOrganizationPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Orden visual de portada</span></a>
+        </div>
+      </div>
     </nav>
 
     <div class="pz-admin-sidebar__bottom">
@@ -198,6 +215,36 @@ const subClass = (subsection: string) => {
       settingsSubnav?.classList.toggle('is-collapsed', !willOpen);
       settingsToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
     }, true);
+
+    const marketingVisualToggle = document.querySelector('[data-marketing-visual-sidebar-toggle]');
+    const marketingVisualSubnav = document.getElementById('pz-admin-sidebar-marketing-visual-subnav');
+    marketingVisualToggle?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const willOpen = marketingVisualSubnav?.classList.contains('is-collapsed');
+      marketingVisualSubnav?.classList.toggle('is-collapsed', !willOpen);
+      marketingVisualToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    }, true);
+
+    const syncMarketingVisualActiveItem = () => {
+      const items = document.querySelectorAll('[data-marketing-visual-subitem]');
+      if (!items.length) return;
+      const path = window.location.pathname.replace(/\/+$/, '');
+      const hashMap = {
+        '#destacados': 'destacados',
+        '#promociones': 'promociones',
+        '#cupones': 'cupones',
+        '#cintillo': 'cintillo',
+        '#visuales': 'visuales',
+      };
+      const isPromos = /\/admin\/promos$/.test(path);
+      const isOrganization = /\/admin\/organization$/.test(path);
+      const activeKey = isOrganization ? 'organization' : (isPromos ? (hashMap[window.location.hash] || 'destacados') : '');
+      items.forEach((item) => item.classList.toggle('is-active', item.getAttribute('data-marketing-visual-subitem') === activeKey));
+    };
+
+    syncMarketingVisualActiveItem();
+    window.addEventListener('hashchange', syncMarketingVisualActiveItem);
   })();
 </script>
 
