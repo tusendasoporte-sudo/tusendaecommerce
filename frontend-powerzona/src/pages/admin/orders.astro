@@ -66,6 +66,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
           radial-gradient(circle at 85% 8%, rgba(22, 163, 74, 0.10), transparent 25%),
           linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
       }
+      body.orders-admin-page {
+        --pz-admin-content-max: none;
+      }
       button, input, select, textarea { font: inherit; }
       button { cursor: pointer; }
       a { color: inherit; text-decoration: none; }
@@ -89,15 +92,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .alert-error { background: #fee2e2; color: #991b1b; }
       .alert-success { background: #dcfce7; color: #166534; }
       .alert-info { background: #dbeafe; color: #1e40af; }
-      .main-wrap { width: min(1520px, 100%); margin: 0 auto; padding: 28px; }
-      .sidebar-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.28); backdrop-filter: blur(3px); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 50; }
-      .sidebar-overlay.show { opacity: 1; pointer-events: auto; }
-      .sidebar { position: fixed; top: 18px; left: 18px; bottom: 18px; width: min(286px, calc(100vw - 36px)); background: linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); color: #020617; border: 1px solid rgba(226,232,240,.95); border-radius: 28px; padding: 16px; z-index: 60; overflow-y: auto; transform: translateX(calc(-100% - 40px)); transition: transform .22s ease; box-shadow: 0 26px 65px rgba(15,23,42,.16), 0 10px 24px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95); }
-      .sidebar.open { transform: translateX(0); }
-      .close-btn, .menu-btn { width: 48px; height: 48px; border-radius: 18px; display: grid; place-items: center; background: linear-gradient(180deg,#fff 0%,#f8fafc 100%); color: #020617; border: 1px solid #e2e8f0; box-shadow: var(--shadow); font-weight: 1000; }
-      .nav-label { font-size: 10px; text-transform: uppercase; letter-spacing: .14em; color: #475569; padding-left: 8px; margin: 0 0 7px; font-weight: 1000; }
-      .nav-icon, .premium-icon { width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; color: #020617; background: linear-gradient(180deg,#ffffff 0%,#f1f5f9 100%); box-shadow: 0 10px 18px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.95); border: 1px solid #e2e8f0; }
-      .nav-icon svg, .premium-icon svg { width: 17px; height: 17px; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+      .admin-main { min-width: 0; padding-bottom: 92px; }
+      .menu-btn { width: 42px; height: 42px; padding: 0; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.94); color: #020617; border: 1px solid rgba(226,232,240,.95); box-shadow: 0 12px 26px rgba(15,23,42,.07); font-weight: 1000; }
       .topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 20px; }
       .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
       .page-title { margin: 0; font-size: clamp(28px, 4vw, 42px); letter-spacing: -0.045em; font-weight: 950; }
@@ -186,8 +182,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .danger-zone { margin-top: 16px; padding: 14px; border: 1px solid #fecaca; background: rgba(254,226,226,.48); border-radius: 20px; }
       .danger-zone p { margin: 0 0 10px; color: #991b1b; font-size: 13px; font-weight: 800; line-height: 1.45; }
       @media (max-width: 1100px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .toolbar, .admin-grid { grid-template-columns: 1fr; } .detail-panel { position: static; } }
-      @media (max-width: 720px) { .main-wrap { padding: 16px; } .topbar { flex-direction: column; } .toolbar, .info-grid, .form-grid.two, .quick-actions, .product-edit-grid, .add-product-actions { grid-template-columns: 1fr; } .order-row { flex-direction: column; align-items: stretch; } .order-right { align-items: flex-start; min-width: 0; } .order-status-big { min-width: 0; width: fit-content; } .total-text { text-align: left; } .item-row { grid-template-columns: 1fr; gap: 10px; padding: 18px; } .item-main { padding-left: 4px; } .item-price { text-align: left; padding-left: 4px; } .order-product-card { grid-template-columns: 58px minmax(0,1fr); padding: 12px; } .order-product-img, .order-product-placeholder { width: 58px; height: 58px; border-radius: 16px; } .order-product-head { flex-direction: column; } .order-product-total { text-align: left; } }
-
+      @media (max-width: 720px) { .topbar { flex-direction: column; } .toolbar, .info-grid, .form-grid.two, .quick-actions, .product-edit-grid, .add-product-actions { grid-template-columns: 1fr; } .order-row { flex-direction: column; align-items: stretch; } .order-right { align-items: flex-start; min-width: 0; } .order-status-big { min-width: 0; width: fit-content; } .total-text { text-align: left; } .item-row { grid-template-columns: 1fr; gap: 10px; padding: 18px; } .item-main { padding-left: 4px; } .item-price { text-align: left; padding-left: 4px; } .order-product-card { grid-template-columns: 58px minmax(0,1fr); padding: 12px; } .order-product-img, .order-product-placeholder { width: 58px; height: 58px; border-radius: 16px; } .order-product-head { flex-direction: column; } .order-product-total { text-align: left; } }
 
       .cleanup-selection-bar { padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border: 1px solid rgba(248,113,113,.28); background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(254,242,242,.92)); }
       .cleanup-selection-copy { min-width: 240px; }
@@ -229,8 +224,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         #orders-list .order-right { align-items: flex-start !important; }
         #orders-list .order-status-big { min-width: 0 !important; width: fit-content !important; }
       }
-
-
 
       /* AJUSTES FINALES POWERZONA: resumen de orden limpio */
       .edit-order-header {
@@ -314,7 +307,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         .edit-order-header .btn { width: 100%; }
       }
 
-
       /* POWERZONA PREMIUM ORDERS LIST + PAGINACIÓN 15 POR PÁGINA */
       .orders-pagination {
         display: flex;
@@ -385,51 +377,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
         .admin-grid.detail-page { padding-bottom: 82px; }
       }
 
-      /* PZ-ORDERS-VISUAL-ADMIN-22A-20260615 */
-      #admin-sidebar.sidebar {
-        top: 18px !important;
-        left: 18px !important;
-        bottom: 18px !important;
-        width: 286px !important;
-        padding: 16px !important;
-        border-radius: 28px !important;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-        border: 1px solid rgba(226, 232, 240, .95) !important;
-        box-shadow: 0 26px 65px rgba(15, 23, 42, .16), 0 10px 24px rgba(15, 23, 42, .07), inset 0 1px 0 rgba(255,255,255,.95) !important;
-        overflow: hidden auto !important;
-      }
-      #admin-sidebar .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100%; }
-      #admin-sidebar .brand { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 4px 4px 16px; border-bottom: 1px solid #e5e7eb; margin-bottom: 14px; }
-      #admin-sidebar .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #0f172a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; box-shadow: 0 14px 30px rgba(15,23,42,.18); }
-      #admin-sidebar .brand-title { display: block; font-size: 20px; font-weight: 1000; letter-spacing: -.045em; color: #020617; line-height: 1; }
-      #admin-sidebar .brand-subtitle { display: block; margin-top: 4px; color: #64748b; font-size: 12px; font-weight: 900; line-height: 1.1; }
-      #admin-sidebar .sidebar-close { width: 40px; height: 40px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 10px 22px rgba(15,23,42,.08); }
-      #admin-sidebar .sidebar-label { margin: 14px 8px 8px; color: #94a3b8; font-size: 10px; font-weight: 1000; letter-spacing: .14em; text-transform: uppercase; }
-      #admin-sidebar .nav-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-      #admin-sidebar .nav-item {
-        min-height: 50px; display: flex; align-items: center; gap: 10px; width: 100%;
-        padding: 9px 10px; border-radius: 16px; border: 1px solid transparent;
-        background: transparent; color: #0f172a; font-weight: 1000; text-align: left;
-        transition: transform .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease, color .16s ease;
-      }
-      #admin-sidebar .nav-item:hover { transform: translateX(2px); background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95); }
-      #admin-sidebar .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15,23,42,.16); }
-      #admin-sidebar .nav-item.danger { color: #991b1b; background: #fff1f2; border-color: #ffe4e6; }
-      #admin-sidebar .nav-icon { width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; color: #020617; background: linear-gradient(180deg,#fff 0%,#f1f5f9 100%); box-shadow: 0 10px 18px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.95); border: 1px solid #e2e8f0; }
-      #admin-sidebar .nav-icon svg { width: 17px; height: 17px; fill: currentColor; stroke: none; }
-      #admin-sidebar .nav-item.active .nav-icon { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.24); box-shadow: none; }
-      #admin-sidebar .sidebar-utility { margin-top: auto; display: grid; gap: 8px; padding-top: 14px; }
-      #admin-sidebar .sidebar-footer { margin-top: 14px; padding: 14px; border-radius: 18px; background: #f8fafc; border: 1px solid #e2e8f0; color: #64748b; display: grid; gap: 4px; font-size: 12px; font-weight: 800; line-height: 1.35; }
-      #admin-sidebar .sidebar-footer strong { color: #0f172a; font-size: 13px; font-weight: 1000; }
-      #admin-sidebar a.sidebar-footer:hover { background: #f1f5f9; border-color: #cbd5e1; }
-      .mobile-topbar {
-        display: none; position: fixed; top: 10px; left: 10px; right: 10px; z-index: 45;
-        align-items: center; justify-content: space-between; gap: 10px;
-        min-height: 58px; padding: 8px 10px; border-radius: 22px;
-        background: rgba(255,255,255,.94); border: 1px solid rgba(226,232,240,.95);
-        box-shadow: 0 20px 44px rgba(15,23,42,.14); backdrop-filter: blur(12px);
-      }
-      .mobile-topbar-title { margin: 0; font-size: 18px; font-weight: 1000; letter-spacing: -.035em; }
+      .mobile-topbar { display: none; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin-bottom: 14px; }
+      .mobile-topbar strong { text-align: center; font-size: 16px; font-weight: 1000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mobile-topbar-slot { width: 42px; height: 42px; }
       .icon-btn, .notifications-btn {
         width: 46px; height: 46px; border-radius: 16px; display: inline-grid; place-items: center;
         border: 1px solid #e2e8f0; background: #fff; color: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.08);
@@ -449,40 +399,19 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .admin-grid.detail-page { grid-template-columns: 1fr !important; }
       .admin-grid.detail-page .detail-panel { position: static !important; width: 100% !important; }
       @media (min-width: 1024px) {
-        #admin-sidebar.sidebar { transform: translateX(0) !important; }
-        .main-wrap { width: 100% !important; padding: 0 !important; margin: 0 !important; }
-        #sidebar-overlay { display: none !important; }
-        #admin-sidebar .sidebar-close { display: none !important; }
+        .mobile-topbar { display: none !important; }
+        body.orders-admin-page .pz-admin-content-inner {
+          width: 100% !important;
+          max-width: none !important;
+          min-width: 0 !important;
+        }
       }
       @media (max-width: 1023px) {
-        #admin-sidebar.sidebar { width: min(286px, calc(100vw - 24px)) !important; top: 12px !important; left: 12px !important; bottom: 12px !important; transform: translateX(calc(-100% - 32px)) !important; z-index: 70 !important; }
-        #admin-sidebar.sidebar.open, body.sidebar-open #admin-sidebar.sidebar { transform: translateX(0) !important; }
-        .sidebar-overlay.show, body.sidebar-open #sidebar-overlay { opacity: 1 !important; pointer-events: auto !important; }
-        .mobile-topbar { display: flex; }
-        .main-wrap { padding: 82px 14px 92px !important; }
+        .mobile-topbar { display: grid; }
+        .menu-btn { display: inline-flex; }
+        .admin-main { padding-bottom: 92px !important; }
         .topbar { align-items: flex-start !important; flex-direction: column !important; }
         .toolbar { grid-template-columns: 1fr !important; }
-      }
-
-      .sidebar-plan-meta {
-        margin-top: 10px;
-        display: grid;
-        gap: 4px;
-        padding: 9px 10px;
-        border-radius: 14px;
-        background: rgba(37, 99, 235, .06);
-        border: 1px solid rgba(37, 99, 235, .10);
-      }
-      .sidebar-plan-meta p {
-        margin: 0;
-        color: #475569;
-        font-size: 11px;
-        line-height: 1.25;
-        font-weight: 800;
-      }
-      .sidebar-plan-meta strong {
-        color: #0f172a;
-        font-weight: 1000;
       }
     </style>
     <style is:global>
@@ -877,22 +806,21 @@ const isOrderDetailPage = Boolean(initialOrderId);
     </style>
     <!-- PowerZona Orders V10 -->
 </head>
-  <body>
-    <main>
-      <section id="admin-view" class="pz-admin-content">
-        <div id="sidebar-overlay" class="sidebar-overlay"></div>
+  <body class="orders-admin-page">
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+
+    <div class="app-shell pz-admin-content">
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="orders" />
 
+      <main id="admin-view" class="admin-main pz-admin-content-inner">
         <header class="mobile-topbar">
-          <button id="sidebar-open-btn" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">&#9776;</button>
-          <h2 class="mobile-topbar-title">Pedidos</h2>
-          <button class="notifications-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.4-2h-4.8A2.5 2.5 0 0 0 12 22Zm7-5H5l1.5-2.2V10a5.5 5.5 0 0 1 11 0v4.8L19 17Z"/></svg></button>
+          <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir menu">&#9776;</button>
+          <strong>Pedidos</strong>
+          <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
 
-        <div class="main-wrap pz-admin-content-inner">
           <header class="topbar">
             <div class="topbar-left">
-              <button class="menu-btn hidden" type="button" aria-hidden="true">&#9776;</button>
               <div>
                 <h1 class="page-title">Pedidos</h1>
                 <p id="admin-subtitle" class="page-subtitle">Administra y da seguimiento a los pedidos de tu tienda.</p>
@@ -1064,8 +992,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               </div>
             </aside>
           </div>
-        </div>
-      </section>
+      </main>
 
       <div id="order-delete-confirm-modal" class="order-confirm-modal hidden" role="dialog" aria-modal="true" aria-labelledby="order-delete-confirm-title" aria-hidden="true">
         <div class="order-confirm-card">
@@ -1088,7 +1015,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           Eliminar pedido
         </button>
       )}
-    </main>
+    </div>
 
     <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, adminOrdersPath, initialOrderId, isOrderDetailPage, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
@@ -1099,11 +1026,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
       const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
       const adminView = document.getElementById('admin-view');
-      const sidebar = document.querySelector('[data-admin-sidebar-root]');
-      const sidebarOverlay = document.getElementById('sidebar-overlay');
-      const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
-      const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
-      const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
+      const logoutBtn = document.getElementById('logout-btn');
       const refreshBtn = document.getElementById('refresh-btn');
       const cleanupOrdersOpenBtn = document.getElementById('cleanup-orders-open-btn');
       const cleanupOrdersPanel = document.getElementById('cleanup-orders-panel');
@@ -1799,7 +1722,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         return Number.isFinite(numeric) ? Math.max(0, numeric) : null;
       }
 
-      // PZ-ORDERS-V22-TRACK-STOCK-SEGURO-20260601
       // Regla segura: track_stock=false significa que el producto se puede vender sin validar ni descontar inventario.
       function productTracksStock(product) {
         return product?.track_stock !== false;
@@ -3573,25 +3495,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           },
         });
       }
-
-      function openSidebar() {
-        document.body.classList.add('sidebar-open');
-        sidebar?.classList.add('open');
-        sidebar?.setAttribute('aria-hidden', 'false');
-        sidebarOpenBtn?.setAttribute('aria-expanded', 'true');
-        sidebarOverlay?.classList.add('show');
-      }
-      function closeSidebar() {
-        document.body.classList.remove('sidebar-open');
-        sidebar?.classList.remove('open');
-        sidebar?.setAttribute('aria-hidden', 'true');
-        sidebarOpenBtn?.setAttribute('aria-expanded', 'false');
-        sidebarOverlay?.classList.remove('show');
-      }
-      sidebarOpenBtn?.addEventListener('click', openSidebar);
-      sidebarCloseBtn?.addEventListener('click', closeSidebar);
-      sidebarOverlay?.addEventListener('click', closeSidebar);
-      sidebarLogoutBtn?.addEventListener('click', () => { clearAdminToken(); window.location.assign('/login'); });
       refreshBtn.addEventListener('click', () => {
         loadStoreSettings();
         loadOrders();

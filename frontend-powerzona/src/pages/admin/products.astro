@@ -105,36 +105,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .hidden { display: none !important; }
 
       .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; display: block; }
-      .sidebar-overlay {
-        position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .36);
-        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
-      }
-      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
-      .sidebar {
-        position: fixed; top: 18px; left: 18px; bottom: 18px; z-index: 90; width: min(286px, calc(100vw - 36px));
-        border-radius: 30px; padding: 18px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        color: #0f172a; border: 1px solid rgba(226, 232, 240, .95); box-shadow: 0 28px 80px rgba(15, 23, 42, .22);
-        overflow: hidden; transform: translateX(calc(-100% - 28px)); transition: transform .24s ease;
-      }
-      body.sidebar-open .sidebar { transform: translateX(0); }
-      .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
-      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
       .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
-      .brand-logo { width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; background: #0f172a; color: #fff; box-shadow: 0 14px 30px rgba(15, 23, 42, .18); font-weight: 1000; }
-      .brand-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; }
-      .brand-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; }
-      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
       .nav-list { display: grid; gap: 8px; }
-      .nav-item { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 18px; color: #334155; font-size: 13px; font-weight: 950; border: 1px solid transparent; }
-      .nav-item:hover { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; }
-      .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15,23,42,.16); }
-      .nav-icon { width: 34px; height: 34px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0; flex: 0 0 auto; }
-      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
-      .nav-item.active .nav-icon { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.20); }
-      .sidebar-footer { margin-top: auto; padding: 14px; border-radius: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
-      .sidebar-footer strong { display: block; font-size: 12px; margin-bottom: 5px; color: #0f172a; }
-      .sidebar-footer span { display: block; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 750; }
-      .sidebar-close { margin-left: auto; width: 36px; height: 36px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
       .menu-btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-radius: 18px; padding: 12px 15px; background: #0f172a; color: #fff; border: 1px solid #0f172a; box-shadow: 0 12px 26px rgba(15,23,42,.16); font-weight: 1000; }
 
       .main-wrap { min-width: 0; padding: 2px 0 28px; }
@@ -479,7 +451,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .page-btn.is-active { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 12px 24px rgba(37,99,235,.22); }
       .page-btn:disabled { background: #f8fafc; color: #94a3b8; box-shadow: none; }
 
-
       .variation-manager { margin-top: 18px; border: 1px solid #e2e8f0; border-radius: 26px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); padding: 18px; box-shadow: 0 12px 28px rgba(15,23,42,.05); }
       .variation-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
       .variation-title { margin: 0; font-size: 17px; font-weight: 1000; letter-spacing: -.025em; }
@@ -508,217 +479,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       @media (min-width: 1121px) {
         .app-shell { width: auto; max-width: none; }
-        .sidebar, #admin-sidebar { transform: translateX(0) !important; }
-        .sidebar-close, #sidebar-close { display: none !important; }
-        .sidebar-overlay, #sidebar-overlay { display: none !important; }
         .menu-btn { display: none; }
         .topbar { justify-content: flex-end; }
       }
       @media (max-width: 1120px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .toolbar, .product-row, .product-form-grid, .check-grid, .quick-create-grid { grid-template-columns: 1fr; } .list-head { display: none; } .product-row { margin: 12px; border: 1px solid #eef2f7; border-radius: 22px; box-shadow: 0 12px 28px rgba(15,23,42,.05); } .row-actions { justify-content: flex-start; } .price-offer-admin { align-items:flex-start; } }
       @media (max-width: 980px) { .hero-card { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .stats-grid { grid-template-columns: 1fr; } }
-
-
-      /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
-         Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
-      .sidebar-overlay,
-      #sidebar-overlay {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 80 !important;
-        background: rgba(15, 23, 42, .36) !important;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity .22s ease !important;
-        backdrop-filter: blur(3px) !important;
-      }
-      .sidebar-overlay.show,
-      body.sidebar-open .sidebar-overlay,
-      body.sidebar-open #sidebar-overlay {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-      }
-      .sidebar,
-      #admin-sidebar {
-        position: fixed !important;
-        top: 18px !important;
-        left: 18px !important;
-        bottom: 18px !important;
-        z-index: 90 !important;
-        width: min(286px, calc(100vw - 36px)) !important;
-        border-radius: 30px !important;
-        padding: 18px !important;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-        color: #0f172a !important;
-        border: 1px solid rgba(226, 232, 240, .95) !important;
-        box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95) !important;
-        overflow: hidden auto !important;
-        transform: translateX(calc(-100% - 36px)) !important;
-        transition: transform .24s ease !important;
-      }
-      .sidebar.open,
-      body.sidebar-open .sidebar,
-      body.sidebar-open #admin-sidebar {
-        transform: translateX(0) !important;
-      }
-      .sidebar::before,
-      #admin-sidebar::before {
-        content: '' !important;
-        position: absolute !important;
-        inset: 0 !important;
-        background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important;
-        pointer-events: none !important;
-      }
-      .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; min-height: 100% !important; }
-      .sidebar-top,
-      .brand,
-      .sidebar-brand-row {
-        display: flex !important;
-        align-items: center !important;
-        gap: 11px !important;
-        padding: 8px 8px 18px !important;
-        border-bottom: 1px solid #e2e8f0 !important;
-        margin: 0 0 14px !important;
-      }
-      .sidebar-brand,
-      .brand-title,
-      .sidebar-title {
-        margin: 0 !important;
-        font-size: 22px !important;
-        font-weight: 1000 !important;
-        letter-spacing: -.035em !important;
-        color: #0f172a !important;
-        line-height: 1.1 !important;
-      }
-      .sidebar-sub,
-      .brand-subtitle,
-      .sidebar-subtitle {
-        margin: 4px 0 0 !important;
-        color: #334155 !important;
-        font-size: 12px !important;
-        font-weight: 850 !important;
-        line-height: 1.2 !important;
-      }
-      .brand-logo {
-        width: 42px !important;
-        height: 42px !important;
-        border-radius: 16px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: linear-gradient(135deg, #0f172a, #020617) !important;
-        color: #ffffff !important;
-        font-size: 12px !important;
-        font-weight: 1000 !important;
-        box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
-      }
-      .close-btn,
-      .sidebar-close,
-      #sidebar-close,
-      #sidebar-close-btn {
-        margin-left: auto !important;
-        width: 42px !important;
-        height: 42px !important;
-        min-width: 42px !important;
-        border-radius: 16px !important;
-        border: 1px solid #e2e8f0 !important;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        font-size: 18px !important;
-        font-weight: 1000 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
       .nav-group { margin: 14px 0 !important; }
-      .sidebar-label,
-      .nav-label {
-        margin: 18px 9px 9px !important;
-        color: #475569 !important;
-        font-size: 10px !important;
-        font-weight: 1000 !important;
-        text-transform: uppercase !important;
-        letter-spacing: .14em !important;
-      }
       .nav-list { display: grid !important; gap: 6px !important; }
-      .nav-item,
-      .nav-link {
-        min-height: 50px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        gap: 11px !important;
-        width: 100% !important;
-        padding: 8px 10px !important;
-        border-radius: 16px !important;
-        background: transparent !important;
-        color: #0f172a !important;
-        border: 1px solid transparent !important;
-        font-size: 15px !important;
-        font-weight: 1000 !important;
-        line-height: 1.18 !important;
-        text-decoration: none !important;
-        box-shadow: none !important;
-        transition: transform .16s ease, background .16s ease, box-shadow .16s ease, border-color .16s ease, color .16s ease !important;
-      }
       .nav-left { display: inline-flex !important; align-items: center !important; gap: 11px !important; min-width: 0 !important; }
-      .nav-item:hover,
-      .nav-link:hover {
-        transform: translateX(2px) !important;
-        background: #f8fafc !important;
-        color: #020617 !important;
-        border-color: #e2e8f0 !important;
-        box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
-      .nav-item.active,
-      .nav-link.active {
-        background: linear-gradient(135deg, #0f172a, #020617) !important;
-        color: #ffffff !important;
-        border-color: rgba(15,23,42,.95) !important;
-        box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-icon,
-      .premium-icon {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        border-radius: 14px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
-      .nav-icon svg,
-      .premium-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
-      .nav-icon svg path,
-      .premium-icon svg path { stroke: currentColor; }
-      .nav-item.active .nav-icon,
-      .nav-link.active .nav-icon,
-      .nav-link.active .premium-icon,
-      .nav-item:hover .nav-icon,
-      .nav-link:hover .nav-icon,
-      .nav-link:hover .premium-icon {
-        background: rgba(255,255,255,.12) !important;
-        color: #ffffff !important;
-        border-color: rgba(255,255,255,.20) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-item:hover:not(.active) .nav-icon,
-      .nav-link:hover:not(.active) .nav-icon,
-      .nav-link:hover:not(.active) .premium-icon {
-        background: #020617 !important;
-        color: #ffffff !important;
-        border-color: #020617 !important;
-        box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-link > span:last-child:not(.nav-left):not(.nav-pill),
-      .nav-link > .arrow,
-      .nav-item > .arrow,
-      .nav-arrow { display: none !important; }
       .nav-pill {
         margin-left: auto !important;
         background: #f1f5f9 !important;
@@ -729,21 +498,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         font-size: 11px !important;
         font-weight: 1000 !important;
       }
-      .nav-link.active .nav-pill,
-      .nav-item.active .nav-pill { background: rgba(255,255,255,.14) !important; color: #fff !important; border-color: rgba(255,255,255,.25) !important; }
-      .sidebar-footer {
-        margin-top: auto !important;
-        padding: 14px !important;
-        border-radius: 22px !important;
-        background: #f8fafc !important;
-        border: 1px solid #e2e8f0 !important;
-      }
-      .sidebar-footer strong { display: block !important; font-size: 12px !important; margin-bottom: 5px !important; color: #0f172a !important; }
-      .sidebar-footer span { display: block !important; color: #475569 !important; font-size: 11px !important; line-height: 1.45 !important; font-weight: 750 !important; }
-      @media (max-width: 620px) {
-        .sidebar,
-        #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
-      }
+      @media (max-width: 620px) {}
 
       /* PZ-V26-PRODUCTOS-DASHBOARD-CORRECCION-VISUAL-20260614 */
       body {
@@ -756,119 +511,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         margin: 0 !important;
         padding: 0 !important;
       }
-      .admin-sidebar,
-      #admin-sidebar {
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
-        width: 248px !important;
-        border-radius: 0 !important;
-        padding: 22px 16px !important;
-        background: #ffffff !important;
-        border: 0 !important;
-        border-right: 1px solid #e5e7eb !important;
-        box-shadow: none !important;
-        transform: translateX(0) !important;
-      }
-      .admin-sidebar::before,
-      #admin-sidebar::before {
-        display: none !important;
-      }
-      .sidebar-inner {
-        min-height: 100% !important;
-        height: 100% !important;
-      }
       .brand {
         padding: 0 4px 22px !important;
         border-bottom: 0 !important;
         margin-bottom: 8px !important;
-      }
-      .brand-logo {
-        width: 40px !important;
-        height: 40px !important;
-        border-radius: 12px !important;
-        background: #2563eb !important;
-        box-shadow: 0 10px 22px rgba(37, 99, 235, .22) !important;
-      }
-      .brand-title {
-        max-width: 142px !important;
-        font-size: 17px !important;
-        letter-spacing: 0 !important;
-        white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
-      }
-      .brand-subtitle {
-        color: #6b7280 !important;
-        font-size: 11px !important;
-      }
-      .sidebar-label {
-        margin: 18px 10px 8px !important;
-        color: #9ca3af !important;
-        letter-spacing: .08em !important;
-      }
-      .nav-item,
-      .sidebar-action {
-        min-height: 42px !important;
-        padding: 8px 10px !important;
-        border-radius: 12px !important;
-        color: #4b5563 !important;
-        background: transparent !important;
-        border: 1px solid transparent !important;
-        font-size: 13px !important;
-        font-weight: 850 !important;
-      }
-      button.nav-item {
-        text-align: left !important;
-        font: inherit !important;
-      }
-      .nav-icon {
-        width: 30px !important;
-        height: 30px !important;
-        min-width: 30px !important;
-        border-radius: 10px !important;
-        background: #f3f4f6 !important;
-        color: #6b7280 !important;
-        border: 0 !important;
-        box-shadow: none !important;
-      }
-      .nav-item:hover:not(.active) {
-        transform: none !important;
-        background: #f9fafb !important;
-        color: #111827 !important;
-        box-shadow: none !important;
-      }
-      .nav-item.active {
-        position: relative !important;
-        background: #eff6ff !important;
-        color: #1d4ed8 !important;
-        border-color: #dbeafe !important;
-        box-shadow: none !important;
-      }
-      .nav-item.active::before {
-        content: "" !important;
-        position: absolute !important;
-        left: -6px !important;
-        top: 10px !important;
-        bottom: 10px !important;
-        width: 3px !important;
-        border-radius: 999px !important;
-        background: #2563eb !important;
-      }
-      .nav-item.active .nav-icon,
-      .nav-item:hover:not(.active) .nav-icon {
-        background: #dbeafe !important;
-        color: #2563eb !important;
-        border: 0 !important;
-        box-shadow: none !important;
-      }
-      .sidebar-footer {
-        margin-top: auto !important;
-        border-radius: 14px !important;
-        background: #f8fafc !important;
-        border: 1px solid #e5e7eb !important;
-        padding: 13px !important;
-        box-shadow: none !important;
       }
       .admin-main,
       .main-wrap {
@@ -1360,29 +1006,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         body {
           background: #f6f8fb !important;
         }
-        .admin-sidebar,
-        #admin-sidebar {
-          top: 0 !important;
-          left: 0 !important;
-          bottom: 0 !important;
-          width: min(286px, 82vw) !important;
-          border-radius: 0 20px 20px 0 !important;
-          box-shadow: 20px 0 60px rgba(15,23,42,.18) !important;
-          transform: translateX(-100%) !important;
-        }
-        body.sidebar-open .admin-sidebar,
-        body.sidebar-open #admin-sidebar,
-        .admin-sidebar.is-open {
-          transform: translateX(0) !important;
-        }
-        .sidebar-close,
-        #sidebar-close {
-          display: inline-flex !important;
-        }
-        .sidebar-overlay,
-        #sidebar-overlay {
-          display: block !important;
-        }
         .admin-main,
         .main-wrap {
           margin-left: 0 !important;
@@ -1689,30 +1312,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           width: 100% !important;
           text-align: center !important;
         }
-      }
-
-
-      .sidebar-plan-meta {
-        margin-top: 10px;
-        display: grid;
-        gap: 4px;
-        padding: 9px 10px;
-        border-radius: 14px;
-        background: rgba(37, 99, 235, .06);
-        border: 1px solid rgba(37, 99, 235, .10);
-      }
-      .sidebar-plan-meta p {
-        margin: 0;
-        color: #475569;
-        font-size: 11px;
-        line-height: 1.25;
-        font-weight: 800;
-      }
-      .sidebar-plan-meta strong {
-        color: #0f172a;
-        font-weight: 1000;
-      }
-    </style>
+      }</style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -2241,7 +1841,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
-      const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
@@ -2399,7 +1998,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }, 230);
       }
       sidebarOpenBtn?.addEventListener('click', openSidebar);
-      sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSidebar));
       if (window.matchMedia('(min-width: 1121px)').matches) sidebar?.setAttribute('aria-hidden', 'false');
@@ -2419,7 +2017,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function getAdminToken() { return ADMIN_AUTH_TOKEN; }
       function clearAdminToken() { document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax'; }
-      function showAdmin() { adminView.classList.remove('hidden'); logoutBtn.classList.remove('hidden'); }
+      function showAdmin() { adminView.classList.remove('hidden'); }
       function setAlert(element, message) {
         element.textContent = message || '';
         element.classList.toggle('hidden', !message);
@@ -4142,10 +3740,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           if (refreshBtn) refreshBtn.disabled = false;
         }
       }
-      logoutBtn?.addEventListener('click', () => {
-        clearAdminToken();
-        window.location.assign('/login');
-      });
       refreshBtn?.addEventListener('click', loadProducts);
       relatedProductsOpenBtn?.addEventListener('click', openRelatedProductsModal);
       relatedProductsCloseBtn?.addEventListener('click', closeRelatedProductsModal);

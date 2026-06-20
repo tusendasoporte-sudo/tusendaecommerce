@@ -69,54 +69,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .hidden { display: none !important; }
 
       .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
-      .sidebar-overlay {
-        position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, .36);
-        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(3px);
-      }
-      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
-      .sidebar {
-        position: fixed; top: 18px; left: 18px; bottom: 18px; z-index: 90; width: min(286px, calc(100vw - 36px));
-        border-radius: 30px; padding: 18px; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        color: #0f172a; border: 1px solid rgba(226, 232, 240, .95);
-        box-shadow: 0 28px 80px rgba(15, 23, 42, .22), inset 0 1px 0 rgba(255,255,255,.95);
-        overflow: hidden auto; transform: translateX(calc(-100% - 36px)); transition: transform .24s ease;
-      }
-      body.sidebar-open .sidebar { transform: translateX(0); }
-      .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
-      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100%; }
       .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
-      .brand-logo {
-        width: 42px; height: 42px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;
-        background: linear-gradient(135deg, #0f172a, #020617); color: #fff; font-size: 12px; font-weight: 1000;
-        box-shadow: 0 14px 26px rgba(15,23,42,.18);
-      }
-      .brand-title { margin: 0; font-size: 22px; font-weight: 1000; letter-spacing: -.035em; line-height: 1.1; }
-      .brand-subtitle { margin: 4px 0 0; color: #334155; font-size: 12px; font-weight: 850; line-height: 1.2; }
-      .sidebar-close {
-        margin-left: auto; width: 42px; height: 42px; min-width: 42px; border-radius: 16px; border: 1px solid #e2e8f0;
-        background: #fff; color: #0f172a; font-size: 18px; font-weight: 1000; box-shadow: 0 10px 20px rgba(15,23,42,.06);
-      }
-      .sidebar-label { margin: 18px 9px 9px; color: #475569; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .14em; }
       .nav-list { display: grid; gap: 6px; }
-      .nav-item {
-        min-height: 50px; display: flex; align-items: center; gap: 11px; width: 100%; padding: 8px 10px; border-radius: 16px;
-        background: transparent; color: #0f172a; border: 1px solid transparent; font-size: 15px; font-weight: 1000; line-height: 1.18;
-      }
-      .nav-item:hover { transform: translateX(2px); background: #f8fafc; color: #020617; border-color: #e2e8f0; box-shadow: 0 12px 26px rgba(15,23,42,.07); }
-      .nav-item.active { background: linear-gradient(135deg, #0f172a, #020617); color: #fff; border-color: rgba(15,23,42,.95); box-shadow: 0 16px 32px rgba(15,23,42,.18); }
-      .nav-icon {
-        width: 34px; height: 34px; min-width: 34px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center;
-        background: #fff; color: #0f172a; border: 1px solid #e2e8f0; box-shadow: 0 9px 18px rgba(15,23,42,.06);
-      }
-      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
-      .nav-item.active .nav-icon, .nav-item:hover .nav-icon { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.20); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
-      .nav-item:hover:not(.active) .nav-icon { background: #020617; color: #fff; }
-      .sidebar-utility { display: grid; gap: 8px; margin-top: auto; padding-top: 14px; }
-      .sidebar-utility .nav-item { border: 0; text-align: left; }
-      .sidebar-utility .nav-item.danger { color: #991b1b; background: #fff7f7; border-color: #fecaca; }
-      .sidebar-footer { margin-top: 14px; padding: 14px; border-radius: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
-      .sidebar-footer strong { display: block; font-size: 12px; margin-bottom: 5px; color: #0f172a; }
-      .sidebar-footer span { display: block; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 750; }
 
       .admin-main { min-width: 0; padding-bottom: 92px; }
       .mobile-topbar { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin-bottom: 14px; }
@@ -326,8 +280,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .empty strong { color: #0f172a; font-size: 18px; font-weight: 1000; }
 
       @media (min-width: 1024px) {
-        .sidebar { transform: translateX(0); width: 278px; }
-        .sidebar-close, .sidebar-overlay { display: none !important; }
         .admin-main { }
         .mobile-topbar, .mobile-new-btn { display: none !important; }
       }
@@ -340,7 +292,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       @media (max-width: 720px) {
         .app-shell { padding: 14px; }
-        .sidebar { top: 12px; left: 12px; bottom: 12px; width: calc(100vw - 24px); }
         .page-header { display: none; }
         .mobile-new-btn { margin-bottom: 12px; }
         .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -367,29 +318,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .category-inline-head { padding: 16px; }
         .category-inline-body { padding: 16px; }
         .category-inline-actions .btn { width: 100%; }
-      }
-
-      .sidebar-plan-meta {
-        margin-top: 10px;
-        display: grid;
-        gap: 4px;
-        padding: 9px 10px;
-        border-radius: 14px;
-        background: rgba(37, 99, 235, .06);
-        border: 1px solid rgba(37, 99, 235, .10);
-      }
-      .sidebar-plan-meta p {
-        margin: 0;
-        color: #475569;
-        font-size: 11px;
-        line-height: 1.25;
-        font-weight: 800;
-      }
-      .sidebar-plan-meta strong {
-        color: #0f172a;
-        font-weight: 1000;
-      }
-    </style>
+      }</style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -619,7 +548,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const sidebarOverlay = document.getElementById('sidebar-overlay');
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
-      const sidebarCloseBtn = document.getElementById('sidebar-close');
       const refreshBtn = document.getElementById('refresh-btn');
       const saveSettingsBtn = document.getElementById('save-settings-btn');
       const giftsCategoryInlineCard = document.getElementById('gifts-category-inline-card');
@@ -1227,9 +1155,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       closeGiftsCategoryInlineBtn?.addEventListener('click', closeGiftsCategoryInlineCard);
       refreshBtn?.addEventListener('click', loadGifts);
       saveSettingsBtn?.addEventListener('click', saveSettingsSmart);
-      logoutBtn?.addEventListener('click', ()=>{ window.location.href = publicStorePath; });
       sidebarOpenBtn?.addEventListener('click', openSidebar);
-      sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       giftSearch?.addEventListener('input', () => applyGiftFilters(true));
       giftStatusFilter?.addEventListener('change', () => applyGiftFilters(true));

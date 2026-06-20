@@ -165,39 +165,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       /* PZ-EDIT-CATEGORY-VISUAL-V18 */
       body { background: #eef3f9; overflow-x: hidden; }
       .app-shell { width: auto; max-width: none; margin: 0; }
-      .sidebar-overlay {
-        position: fixed; inset: 0; z-index: 80; background: rgba(15,23,42,.36);
-        opacity: 0; pointer-events: none; transition: opacity .22s ease; backdrop-filter: blur(2px);
-      }
-      body.sidebar-open .sidebar-overlay { opacity: 1; pointer-events: auto; }
-      .sidebar {
-        position: fixed; z-index: 90; top: 18px; left: 18px; bottom: 18px; width: min(286px, calc(100vw - 36px));
-        border-radius: 30px; border: 1px solid rgba(226,232,240,.95); background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-        color: #0f172a; box-shadow: 0 28px 80px rgba(15,23,42,.22); padding: 18px; overflow: hidden; transform: none;
-      }
-      .sidebar::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%); pointer-events: none; }
-      .sidebar-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
       .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
-      .brand-logo { width: 42px; height: 42px; border-radius: 16px; background: #0f172a; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 1000; box-shadow: 0 14px 30px rgba(15,23,42,.18); }
-      .brand-title { margin: 0; font-size: 15px; font-weight: 1000; letter-spacing: -.02em; color: #0f172a; }
-      .brand-subtitle { margin: 2px 0 0; color: #64748b; font-size: 11px; font-weight: 850; }
-      .sidebar-label { margin: 18px 9px 9px; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .12em; }
       .nav-list { display: grid; gap: 8px; }
-      .nav-item {
-        width: 100%; display: flex; align-items: center; gap: 11px; border-radius: 18px; padding: 11px 12px;
-        background: transparent; color: #334155; font-size: 13px; font-weight: 950; text-align: left; border: 1px solid transparent;
-      }
-      .nav-item:hover { background: #f1f5f9; border-color: #e2e8f0; color: #0f172a; }
-      .nav-item.active { background: #0f172a; border-color: #0f172a; color: #fff; box-shadow: 0 12px 26px rgba(15,23,42,.16); }
-      .nav-item.danger { color: #991b1b; background: #fff1f2; }
-      .nav-icon { width: 34px; height: 34px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; background: #f8fafc; color: #0f172a; border: 1px solid #e2e8f0; }
-      .nav-icon svg { width: 18px; height: 18px; display: block; fill: currentColor; }
-      .nav-item.active .nav-icon { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.20); }
-      .sidebar-utility { margin-top: auto; display: grid; gap: 8px; padding-top: 14px; }
-      .sidebar-footer { margin-top: 12px; padding: 14px; border-radius: 22px; background: #f8fafc; border: 1px solid #e2e8f0; }
-      .sidebar-footer strong { display: block; color: #0f172a; font-size: 12px; margin-bottom: 5px; }
-      .sidebar-footer span { display: block; color: #475569; font-size: 11px; line-height: 1.45; font-weight: 750; }
-      .sidebar-close { margin-left: auto; width: 36px; height: 36px; border-radius: 14px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; box-shadow: 0 8px 18px rgba(15,23,42,.05); display: none; }
       .mobile-topbar { display: none; }
       .topbar {
         margin-bottom: 20px; padding: 18px 20px; border-radius: 26px; border: 1px solid rgba(226,232,240,.96);
@@ -246,9 +215,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       @media (max-width: 980px) {
         .app-shell { padding: 82px 16px 94px; }
-        .sidebar { transform: translateX(-112%); top: 12px; left: 12px; bottom: 12px; width: min(320px, calc(100vw - 24px)); transition: transform .22s ease; }
-        body.sidebar-open .sidebar { transform: translateX(0); }
-        .sidebar-close { display: inline-flex; align-items: center; justify-content: center; }
         .mobile-topbar {
           position: fixed; top: 10px; left: 10px; right: 10px; z-index: 60; display: flex; align-items: center; justify-content: space-between;
           padding: 10px 12px; border-radius: 20px; background: rgba(255,255,255,.96); border: 1px solid #e2e8f0; box-shadow: 0 14px 34px rgba(15,23,42,.10);
@@ -283,9 +249,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       /* PZ-EDIT-CATEGORY-VISUAL-FINAL-213020A */
       .legacy-hero { display: none; }
       .app-shell { }
-      .nav-item.active { background: #0f172a; color: #fff; box-shadow: 0 14px 28px rgba(15,23,42,.18); }
-      .nav-item.active .nav-icon { background: rgba(255,255,255,.16); color: #fff; }
-      .brand-logo { background: #0f172a; box-shadow: 0 12px 24px rgba(15,23,42,.18); }
       .editor-topbar {
         display: flex; align-items: center; justify-content: space-between; gap: 16px;
         padding: 16px 18px; margin-bottom: 18px; border-radius: 24px;
@@ -433,52 +396,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .subcategory-modal-actions .mini-btn,
         .subcategory-modal-actions .submit-btn { flex: 1 1 100%; }
       }
-      /* PZ-SIDEBAR-MATCH-CATALOG-213020F */
-      .sidebar-overlay,
-      #sidebar-overlay {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 80 !important;
-        background: rgba(15, 23, 42, .36) !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-        transition: opacity .22s ease !important;
-        backdrop-filter: blur(2px) !important;
-      }
-      body.sidebar-open .sidebar-overlay,
-      body.sidebar-open #sidebar-overlay {
-        opacity: 1 !important;
-        pointer-events: auto !important;
-      }
-      .sidebar,
-      #admin-sidebar {
-        position: fixed !important;
-        top: 18px !important;
-        left: 18px !important;
-        bottom: 18px !important;
-        z-index: 90 !important;
-        width: min(286px, calc(100vw - 36px)) !important;
-        border-radius: 30px !important;
-        padding: 18px !important;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-        color: #0f172a !important;
-        border: 1px solid rgba(226, 232, 240, .95) !important;
-        box-shadow: 0 28px 80px rgba(15, 23, 42, .22) !important;
-        overflow: hidden !important;
-        transform: translateX(calc(-100% - 28px)) !important;
-        transition: transform .24s ease !important;
-      }
-      body.sidebar-open .sidebar,
-      body.sidebar-open #admin-sidebar { transform: translateX(0) !important; }
-      .sidebar::before,
-      #admin-sidebar::before {
-        content: '' !important;
-        position: absolute !important;
-        inset: 0 !important;
-        background: radial-gradient(circle at 18% 0%, rgba(15,23,42,.06), transparent 32%) !important;
-        pointer-events: none !important;
-      }
-      .sidebar-inner { position: relative !important; z-index: 1 !important; display: flex !important; flex-direction: column !important; height: 100% !important; min-height: 0 !important; }
       .brand {
         display: flex !important;
         align-items: center !important;
@@ -487,170 +404,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         border-bottom: 1px solid #e2e8f0 !important;
         margin: 0 0 14px !important;
       }
-      .brand-logo {
-        width: 42px !important;
-        height: 42px !important;
-        border-radius: 16px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: linear-gradient(135deg, #0f172a, #020617) !important;
-        color: #ffffff !important;
-        font-size: 12px !important;
-        font-weight: 1000 !important;
-        box-shadow: 0 14px 26px rgba(15,23,42,.18) !important;
-      }
-      .brand-title {
-        margin: 0 !important;
-        font-size: 22px !important;
-        font-weight: 1000 !important;
-        letter-spacing: -.035em !important;
-        color: #0f172a !important;
-        line-height: 1.1 !important;
-      }
-      .brand-subtitle {
-        margin: 4px 0 0 !important;
-        color: #334155 !important;
-        font-size: 12px !important;
-        font-weight: 850 !important;
-        line-height: 1.2 !important;
-      }
-      .sidebar-label {
-        margin: 18px 9px 9px !important;
-        color: #475569 !important;
-        font-size: 10px !important;
-        font-weight: 1000 !important;
-        text-transform: uppercase !important;
-        letter-spacing: .14em !important;
-      }
       .nav-list { display: grid !important; gap: 6px !important; }
-      .nav-item {
-        min-height: 50px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        gap: 11px !important;
-        width: 100% !important;
-        padding: 8px 10px !important;
-        border-radius: 16px !important;
-        background: transparent !important;
-        color: #0f172a !important;
-        border: 1px solid transparent !important;
-        font-size: 15px !important;
-        font-weight: 1000 !important;
-        line-height: 1.18 !important;
-        text-decoration: none !important;
-        box-shadow: none !important;
-      }
-      .nav-item:hover {
-        transform: translateX(2px) !important;
-        background: #f8fafc !important;
-        color: #020617 !important;
-        border-color: #e2e8f0 !important;
-        box-shadow: 0 12px 26px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
-      .nav-item.active {
-        background: linear-gradient(135deg, #0f172a, #020617) !important;
-        color: #ffffff !important;
-        border-color: rgba(15,23,42,.95) !important;
-        box-shadow: 0 16px 32px rgba(15,23,42,.18), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-icon {
-        width: 34px !important;
-        height: 34px !important;
-        min-width: 34px !important;
-        border-radius: 14px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #e2e8f0 !important;
-        box-shadow: 0 9px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
-      .nav-icon svg { width: 18px !important; height: 18px !important; display: block !important; fill: currentColor !important; }
-      .nav-icon svg path { stroke: currentColor; }
-      .nav-item.active .nav-icon {
-        background: rgba(255,255,255,.12) !important;
-        color: #ffffff !important;
-        border-color: rgba(255,255,255,.20) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .nav-item:hover:not(.active) .nav-icon {
-        background: #020617 !important;
-        color: #ffffff !important;
-        border-color: #020617 !important;
-        box-shadow: 0 12px 22px rgba(15,23,42,.20), inset 0 1px 0 rgba(255,255,255,.12) !important;
-      }
-      .sidebar-utility { margin-top: auto !important; display: grid !important; gap: 8px !important; padding-top: 14px !important; }
-      .nav-item.danger { background: #fff1f2 !important; color: #991b1b !important; border-color: #ffe4e6 !important; }
-      .sidebar-footer {
-        margin-top: 14px !important;
-        padding: 14px !important;
-        border-radius: 22px !important;
-        background: #f8fafc !important;
-        border: 1px solid #e2e8f0 !important;
-      }
-      .sidebar-footer strong { display: block !important; font-size: 12px !important; margin-bottom: 5px !important; color: #0f172a !important; }
-      .sidebar-footer span { display: block !important; color: #475569 !important; font-size: 11px !important; line-height: 1.45 !important; font-weight: 750 !important; }
-      .sidebar-close,
-      #sidebar-close {
-        margin-left: auto !important;
-        width: 42px !important;
-        height: 42px !important;
-        min-width: 42px !important;
-        border-radius: 16px !important;
-        border: 1px solid #e2e8f0 !important;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        font-size: 18px !important;
-        font-weight: 1000 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 10px 20px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95) !important;
-      }
       @media (min-width: 1024px) {
-        .app-shell { width: auto !important; max-width: none !important; }
-        .sidebar,
-        #admin-sidebar {
-          transform: translateX(0) !important;
-          width: 278px !important;
-          top: 18px !important;
-          left: 18px !important;
-          bottom: 18px !important;
-        }
-        .sidebar-close,
-        #sidebar-close { display: none !important; }
-        .sidebar-overlay,
-        #sidebar-overlay { display: none !important; }
-      }
-      @media (max-width: 620px) {
-        .sidebar,
-        #admin-sidebar { top: 12px !important; left: 12px !important; bottom: 12px !important; width: calc(100vw - 24px) !important; }
-      }
-
-      .sidebar-plan-meta {
-        margin-top: 10px;
-        display: grid;
-        gap: 4px;
-        padding: 9px 10px;
-        border-radius: 14px;
-        background: rgba(37, 99, 235, .06);
-        border: 1px solid rgba(37, 99, 235, .10);
-      }
-      .sidebar-plan-meta p {
-        margin: 0;
-        color: #475569;
-        font-size: 11px;
-        line-height: 1.25;
-        font-weight: 800;
-      }
-      .sidebar-plan-meta strong {
-        color: #0f172a;
-        font-weight: 1000;
-      }
-    </style>
+        .app-shell { width: auto !important; max-width: none !important; }}
+      @media (max-width: 620px) {}</style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -879,7 +636,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const subcategoryProductsList = document.getElementById('subcategory-products-list');
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
-      const sidebarCloseBtn = document.getElementById('sidebar-close');
       const sidebarOverlay = document.getElementById('sidebar-overlay');
       const breadcrumbCategoryName = document.getElementById('breadcrumb-category-name');
       const subcategoryModalOverlay = document.getElementById('subcategory-modal-overlay');
@@ -985,7 +741,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       }
       function getAdminToken() { return ADMIN_AUTH_TOKEN; }
-      function showAdmin() { adminView?.classList.remove('hidden'); logoutBtn?.classList.remove('hidden'); }
+      function showAdmin() { adminView?.classList.remove('hidden'); }
 
       function setAlert(element, message, type = 'info') {
         if (!element) return;
@@ -1668,12 +1424,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         );
         await loadPage();
       }
-      logoutBtn?.addEventListener('click', () => {
-        document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
-        window.location.assign('/login');
-      });
       sidebarOpenBtn?.addEventListener('click', openSidebar);
-      sidebarCloseBtn?.addEventListener('click', closeSidebar);
       sidebarOverlay?.addEventListener('click', closeSidebar);
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {

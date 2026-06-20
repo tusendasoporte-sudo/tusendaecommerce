@@ -102,7 +102,7 @@ const subClass = (subsection: string) => {
 
     <div class="pz-admin-sidebar__bottom">
       <a class="pz-admin-sidebar__action" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver catálogo público</span></a>
-      <button id="logout-btn" class="pz-admin-sidebar__action pz-admin-sidebar__action--danger hidden" type="button"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesión</span></button>
+      <button id="logout-btn" class="pz-admin-sidebar__action pz-admin-sidebar__action--danger" type="button"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesión</span></button>
       <div class="pz-admin-sidebar__support-card">
         <strong>Soporte Tu Senda 84</strong>
         <span>¿Necesitas ayuda?</span>
@@ -151,27 +151,42 @@ const subClass = (subsection: string) => {
       }, 220);
     };
 
-    openButtons.forEach((selector) => {
-      document.querySelectorAll(selector).forEach((button) => {
-        button.setAttribute('aria-controls', 'pz-admin-sidebar');
-        button.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          openSidebar();
-        }, true);
+    const isOpenButton = (target) => target instanceof Element && openButtons.some((selector) => target.closest(selector));
+    const hydrateOpenButtons = () => {
+      openButtons.forEach((selector) => {
+        document.querySelectorAll(selector).forEach((button) => {
+          button.setAttribute('aria-controls', 'pz-admin-sidebar');
+          button.setAttribute('aria-expanded', document.body.classList.contains('sidebar-open') ? 'true' : 'false');
+        });
       });
-    });
+    };
 
-    document.querySelectorAll('[data-sidebar-close]').forEach((button) => {
-      button.addEventListener('click', (event) => {
+    hydrateOpenButtons();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hydrateOpenButtons, { once: true });
+
+    document.addEventListener('click', (event) => {
+      if (isOpenButton(event.target)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        openSidebar();
+        return;
+      }
+
+      const closeButton = event.target instanceof Element ? event.target.closest('[data-sidebar-close]') : null;
+      if (closeButton) {
         event.preventDefault();
         closeSidebar();
-      });
-    });
+      }
+    }, true);
 
     getOverlay()?.addEventListener('click', closeSidebar);
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') closeSidebar();
+    });
+
+    document.getElementById('logout-btn')?.addEventListener('click', () => {
+      document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
+      window.location.assign('/login');
     });
 
     const settingsToggle = document.querySelector('[data-settings-sidebar-toggle]');
@@ -187,6 +202,22 @@ const subClass = (subsection: string) => {
 </script>
 
 <style is:global>
+  .sidebar-overlay,
+  #sidebar-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 80 !important;
+    background: rgba(15, 23, 42, .36) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity .22s ease !important;
+    backdrop-filter: blur(3px) !important;
+  }
+  body.sidebar-open .sidebar-overlay,
+  body.sidebar-open #sidebar-overlay {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
   .pz-admin-sidebar {
     position: fixed !important;
     top: 18px !important;
@@ -523,6 +554,11 @@ const subClass = (subsection: string) => {
     .pz-admin-sidebar {
       width: 278px !important;
       transform: translateX(0) !important;
+    }
+    .pz-admin-sidebar__close,
+    .sidebar-overlay,
+    #sidebar-overlay {
+      display: none !important;
     }
   }
   @media (max-width: 620px) {
