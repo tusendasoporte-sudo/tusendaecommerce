@@ -508,7 +508,7 @@ try {
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .product-picker, .item-row, .option-grid, .hours-grid, .settings-image-grid { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions { justify-content: flex-start; } .settings-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       @media (max-width: 520px) { .day-times { grid-template-columns: 1fr; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .editor-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } .editor-actions > * { width: 100%; } .rating-section-head, .rating-control-head, .rating-control-foot { flex-direction: column; align-items: stretch; } .rating-control-head { gap: 12px; } .rating-main-toggle { justify-content: space-between; width: 100%; } .rating-control-foot .mini-btn, .rating-section-head .mini-btn { width: 100%; } .rating-filter-field { width: 100%; } .rating-summary-row { min-height: 96px; padding: 14px; grid-template-columns: 36px minmax(0, 1fr); } .rating-stat-icon, .rating-system-icon { width: 36px; height: 36px; border-radius: 14px; } .rating-review-row-head { grid-template-columns: minmax(0, 1fr) auto auto; } .rating-review-row-head .rating-row-actions { grid-column: 1 / -1; justify-content: flex-start; } }
-    
+
 
       /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
          Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
@@ -3034,7 +3034,28 @@ try {
         }
       }
 
-      </style>
+
+      .sidebar-plan-meta {
+        margin-top: 10px;
+        display: grid;
+        gap: 4px;
+        padding: 9px 10px;
+        border-radius: 14px;
+        background: rgba(37, 99, 235, .06);
+        border: 1px solid rgba(37, 99, 235, .10);
+      }
+      .sidebar-plan-meta p {
+        margin: 0;
+        color: #475569;
+        font-size: 11px;
+        line-height: 1.25;
+        font-weight: 800;
+      }
+      .sidebar-plan-meta strong {
+        color: #0f172a;
+        font-weight: 1000;
+      }
+    </style>
   </head>
   <body>
     <header class="settings-mobile-topbar">
@@ -3052,6 +3073,10 @@ try {
             <div>
               <p class="brand-title">PowerZona</p>
               <p class="brand-subtitle">Panel administrativo</p>
+              <div class="sidebar-plan-meta" aria-label="Informaci&oacute;n del plan">
+                <p><strong>Plan:</strong> B&aacute;sico</p>
+                <p><strong>D&iacute;as restantes:</strong> &mdash;</p>
+              </div>
             </div>
             <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">&times;</button>
           </div>
@@ -3119,7 +3144,7 @@ try {
             <p id="admin-subtitle-legacy" class="page-subtitle">Configura los datos generales de la tienda, el footer público y las monedas visibles.</p>
           </div>
           <div class="hero-actions">
-            
+
           </div>
         </section>
         <section class="settings-hero">

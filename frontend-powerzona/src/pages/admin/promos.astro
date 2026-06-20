@@ -215,7 +215,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       .marketing-modal-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; }
       @media (max-width: 980px) { .hero-card, .visual-form-grid, .stats-grid, .marketing-summary-grid, .product-picker, .item-row { grid-template-columns: 1fr; } .hero-actions, .action-btn { width: 100%; } .item-actions, .admin-block-summary-actions { justify-content: flex-start; } .admin-block-summary { align-items: flex-start; flex-direction: column; } }
       @media (max-width: 640px) { .app-shell { padding: 14px; } .hero-card, .panel-card, .list-card { border-radius: 24px; } .marketing-offer-row { grid-template-columns: minmax(0, 1fr) auto; } .marketing-switch { grid-column: 1 / -1; order: 3; } .marketing-menu-wrap { justify-content: flex-end; } }
-    
+
 
       /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
          Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
@@ -450,7 +450,28 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         display: none !important;
       }
 
-      </style>
+
+      .sidebar-plan-meta {
+        margin-top: 10px;
+        display: grid;
+        gap: 4px;
+        padding: 9px 10px;
+        border-radius: 14px;
+        background: rgba(37, 99, 235, .06);
+        border: 1px solid rgba(37, 99, 235, .10);
+      }
+      .sidebar-plan-meta p {
+        margin: 0;
+        color: #475569;
+        font-size: 11px;
+        line-height: 1.25;
+        font-weight: 800;
+      }
+      .sidebar-plan-meta strong {
+        color: #0f172a;
+        font-weight: 1000;
+      }
+    </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -462,6 +483,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             <div>
               <p class="brand-title">PowerZona</p>
               <p class="brand-subtitle">Panel administrativo</p>
+              <div class="sidebar-plan-meta" aria-label="Informaci&oacute;n del plan">
+                <p><strong>Plan:</strong> B&aacute;sico</p>
+                <p><strong>D&iacute;as restantes:</strong> &mdash;</p>
+              </div>
             </div>
             <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
           </div>

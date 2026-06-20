@@ -462,6 +462,27 @@ const isOrderDetailPage = Boolean(initialOrderId);
         .topbar { align-items: flex-start !important; flex-direction: column !important; }
         .toolbar { grid-template-columns: 1fr !important; }
       }
+
+      .sidebar-plan-meta {
+        margin-top: 10px;
+        display: grid;
+        gap: 4px;
+        padding: 9px 10px;
+        border-radius: 14px;
+        background: rgba(37, 99, 235, .06);
+        border: 1px solid rgba(37, 99, 235, .10);
+      }
+      .sidebar-plan-meta p {
+        margin: 0;
+        color: #475569;
+        font-size: 11px;
+        line-height: 1.25;
+        font-weight: 800;
+      }
+      .sidebar-plan-meta strong {
+        color: #0f172a;
+        font-weight: 1000;
+      }
     </style>
     <style is:global>
       .orders-list {
@@ -863,7 +884,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           <div class="sidebar-inner">
             <div class="brand">
               <span class="brand-logo">PZ</span>
-              <span><span class="brand-title">PowerZona</span><span class="brand-subtitle">Admin Panel</span></span>
+              <div><span class="brand-title">PowerZona</span><span class="brand-subtitle">Admin Panel</span><div class="sidebar-plan-meta" aria-label="Informaci&oacute;n del plan"><p><strong>Plan:</strong> B&aacute;sico</p><p><strong>D&iacute;as restantes:</strong> &mdash;</p></div></div>
               <button id="sidebar-close-btn" class="sidebar-close" type="button" aria-label="Cerrar menu">&times;</button>
             </div>
             <p class="sidebar-label">Principal</p>

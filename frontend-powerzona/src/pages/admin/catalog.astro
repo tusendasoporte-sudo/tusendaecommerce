@@ -717,7 +717,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .nav-list { grid-template-columns: 1fr; }
         .hero-card, .panel-card { border-radius: 24px; padding: 18px; }
       }
-    
+
 
       /* PZ-V25C-SIDEBAR-UNIFICADO-20260605
          Menú lateral único: estilo premium como Resumen, activo sombreado negro, sin flechas. */
@@ -1346,7 +1346,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .create-panel { padding: 0 16px 16px !important; }
       }
 
-      </style>
+
+      .sidebar-plan-meta {
+        margin-top: 10px;
+        display: grid;
+        gap: 4px;
+        padding: 9px 10px;
+        border-radius: 14px;
+        background: rgba(37, 99, 235, .06);
+        border: 1px solid rgba(37, 99, 235, .10);
+      }
+      .sidebar-plan-meta p {
+        margin: 0;
+        color: #475569;
+        font-size: 11px;
+        line-height: 1.25;
+        font-weight: 800;
+      }
+      .sidebar-plan-meta strong {
+        color: #0f172a;
+        font-weight: 1000;
+      }
+    </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -1358,6 +1379,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             <div>
               <p class="brand-title">PowerZona</p>
               <p class="brand-subtitle">Admin Panel</p>
+              <div class="sidebar-plan-meta" aria-label="Informaci&oacute;n del plan">
+                <p><strong>Plan:</strong> B&aacute;sico</p>
+                <p><strong>D&iacute;as restantes:</strong> &mdash;</p>
+              </div>
             </div>
             <button id="sidebar-close" class="sidebar-close" type="button" aria-label="Cerrar menú">×</button>
           </div>
