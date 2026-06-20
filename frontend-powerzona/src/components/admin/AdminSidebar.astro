@@ -30,6 +30,20 @@ const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(storeSlug, 'organization');
 const publicStorePath = getPublicStorePath(storeSlug);
 
+const mobileBottomClass = (target: 'overview' | 'orders' | 'shipping' | 'settings') => {
+  const directMatch =
+    (target === 'overview' && activeSection === 'overview') ||
+    (target === 'orders' && activeSection === 'orders') ||
+    (target === 'shipping' && activeSection === 'shipping') ||
+    (target === 'settings' && activeSection === 'settings');
+
+  const fallbackSettingsActive =
+    target === 'settings' &&
+    !['overview', 'orders', 'shipping'].includes(activeSection || '');
+
+  return `pz-admin-mobile-bottom-nav__link${directMatch || fallbackSettingsActive ? ' is-active' : ''}`;
+};
+
 const isSettingsActive = activeSection === 'settings';
 const isMarketingVisualActive = activeSection === 'marketing' || activeSection === 'organization';
 const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
@@ -132,6 +146,44 @@ const marketingVisualSubClass = (subsection: string) => {
     </div>
   </div>
 </aside>
+
+<nav class="pz-admin-mobile-bottom-nav" aria-label="Navegación móvil principal del admin">
+  <a class={mobileBottomClass('overview')} href={adminBasePath}>
+    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"></path>
+      </svg>
+    </span>
+    <span>Resumen</span>
+  </a>
+
+  <a class={mobileBottomClass('orders')} href={adminOrdersPath}>
+    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"></path>
+      </svg>
+    </span>
+    <span>Pedidos</span>
+  </a>
+
+  <a class={mobileBottomClass('shipping')} href={adminShippingPath}>
+    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path>
+      </svg>
+    </span>
+    <span>Envíos</span>
+  </a>
+
+  <a class={mobileBottomClass('settings')} href={adminStoreSettingsPath}>
+    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path>
+      </svg>
+    </span>
+    <span>Ajustes</span>
+  </a>
+</nav>
 
 <script is:inline>
   (() => {
@@ -642,6 +694,101 @@ const marketingVisualSubClass = (subsection: string) => {
     --pz-admin-content-max: 1180px;
   }
 
+  /* PZ-ADMIN-MOBILE-BOTTOM-NAV-GLOBAL-20260620
+     Barra inferior móvil global para todo el admin público. */
+
+  .pz-admin-mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .pz-admin-mobile-bottom-nav,
+  .pz-admin-mobile-bottom-nav *,
+  .pz-admin-mobile-bottom-nav::before,
+  .pz-admin-mobile-bottom-nav::after,
+  .pz-admin-mobile-bottom-nav *::before,
+  .pz-admin-mobile-bottom-nav *::after {
+    box-sizing: border-box !important;
+  }
+
+  @media (max-width: 1023px) {
+    .mobile-bottom-nav,
+    .bottom-nav,
+    .marketing-mobile-bottom-nav {
+      display: none !important;
+    }
+
+    .pz-admin-mobile-bottom-nav {
+      position: fixed !important;
+      left: 10px !important;
+      right: 10px !important;
+      bottom: 10px !important;
+      z-index: 120 !important;
+      display: grid !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      gap: 6px !important;
+      min-height: 76px !important;
+      padding: 8px !important;
+      border-radius: 24px !important;
+      border: 1px solid rgba(226, 232, 240, .95) !important;
+      background: rgba(255, 255, 255, .96) !important;
+      box-shadow: 0 20px 55px rgba(15, 23, 42, .18) !important;
+      backdrop-filter: blur(18px) !important;
+    }
+
+    .pz-admin-mobile-bottom-nav__link {
+      min-width: 0 !important;
+      min-height: 58px !important;
+      display: grid !important;
+      place-items: center !important;
+      align-content: center !important;
+      gap: 5px !important;
+      border-radius: 20px !important;
+      color: #475569 !important;
+      text-decoration: none !important;
+      text-align: center !important;
+      font-size: 11px !important;
+      line-height: 1.1 !important;
+      font-weight: 900 !important;
+      -webkit-tap-highlight-color: transparent !important;
+      transition: background .16s ease, color .16s ease, transform .16s ease !important;
+    }
+
+    .pz-admin-mobile-bottom-nav__link:active {
+      transform: scale(.98) !important;
+    }
+
+    .pz-admin-mobile-bottom-nav__link.is-active {
+      background: #dbeafe !important;
+      color: #2563eb !important;
+    }
+
+    .pz-admin-mobile-bottom-nav__icon {
+      width: 24px !important;
+      height: 24px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      color: currentColor !important;
+    }
+
+    .pz-admin-mobile-bottom-nav__icon svg {
+      width: 20px !important;
+      height: 20px !important;
+      display: block !important;
+      fill: currentColor !important;
+    }
+
+    .pz-admin-mobile-bottom-nav__link span:last-child {
+      display: block !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .pz-admin-mobile-bottom-nav {
+      display: none !important;
+    }
+  }
+
   @media (min-width: 1024px) {
     .pz-admin-content {
       width: auto !important;
@@ -675,7 +822,7 @@ const marketingVisualSubClass = (subsection: string) => {
       max-width: 100% !important;
       min-height: 100vh !important;
       margin: 0 !important;
-      padding: 82px 14px 100px !important;
+      padding: 82px 14px 118px !important;
     }
 
     .pz-admin-content-inner,
