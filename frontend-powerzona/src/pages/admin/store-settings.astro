@@ -1101,6 +1101,9 @@ try {
       .general-settings-body { padding: 0 18px 18px; display: grid; gap: 14px; }
       .general-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 14px 18px; }
       .general-settings-grid .full { grid-column: 1 / -1; }
+      .image-settings-grid .full { grid-column: 1 / -1; }
+      .settings-logo-card { max-width: 240px; }
+      .settings-cover-card { width: 100%; max-width: 100%; }
       .settings-panel-grid {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
@@ -2179,8 +2182,22 @@ try {
           box-sizing: border-box;
         }
         .image-settings-grid {
-          grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+          display: grid;
+          grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+          gap: 18px;
           align-items: start;
+        }
+        .settings-logo-card {
+          grid-column: 1;
+          max-width: 240px;
+        }
+        .settings-cover-mode-field {
+          grid-column: 1 / -1;
+        }
+        .settings-cover-card {
+          grid-column: 1 / -1;
+          width: 100%;
+          max-width: 100%;
         }
         .settings-image-card {
           overflow: visible;
@@ -2194,8 +2211,8 @@ try {
         }
         #settings-cover-carousel-wrap .settings-gallery-grid {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px;
+          grid-template-columns: repeat(2, minmax(280px, 1fr));
+          gap: 18px;
           align-items: start;
           width: 100%;
           max-width: 100%;
@@ -2203,11 +2220,12 @@ try {
         #settings-cover-carousel-wrap .settings-gallery-slot {
           min-width: 0;
           display: grid;
-          gap: 8px;
-          padding: 10px;
-          border: 1px solid rgba(226, 232, 240, .95);
+          gap: 10px;
+          padding: 12px;
+          border: 1px solid #e2e8f0;
           border-radius: 18px;
-          background: rgba(255, 255, 255, .9);
+          background: #ffffff;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
         }
         #settings-cover-carousel-wrap .settings-slot-label {
           margin: 0;
@@ -2221,8 +2239,8 @@ try {
           position: relative;
           width: 100% !important;
           aspect-ratio: 16 / 9;
-          min-height: 0;
-          border-radius: 14px !important;
+          min-height: 150px;
+          border-radius: 16px !important;
           overflow: hidden;
           background: #f8fafc;
           border: 1px solid rgba(226, 232, 240, .95);
@@ -2232,7 +2250,7 @@ try {
         #settings-cover-carousel-wrap .settings-thumb.cover img {
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          object-fit: cover;
           display: block;
         }
         #settings-cover-carousel-wrap .settings-thumb-delete {
@@ -2247,8 +2265,10 @@ try {
           font-size: 13px;
           box-shadow: 0 8px 18px rgba(15, 23, 42, .12);
         }
+        #settings-cover-carousel-wrap .settings-upload-actions,
         #settings-cover-carousel-wrap .settings-file-control {
           display: block;
+          width: 100%;
         }
         #settings-cover-carousel-wrap .settings-file-control label {
           width: 100%;
@@ -2268,9 +2288,19 @@ try {
           cursor: pointer;
         }
       }
-      @media (min-width: 1024px) and (max-width: 1279px) {
+      @media (max-width: 720px) {
         .image-settings-grid {
           grid-template-columns: 1fr;
+        }
+        .settings-logo-card,
+        .settings-cover-card,
+        .settings-cover-mode-field {
+          grid-column: 1 / -1;
+          max-width: 100%;
+        }
+        #settings-cover-carousel-wrap .settings-gallery-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
         }
       }
       .settings-summary-grid.hidden {
@@ -3151,8 +3181,9 @@ try {
                 </summary>
                 <div class="general-settings-body">
                   <div class="settings-image-grid image-settings-grid">
-                    <article class="settings-image-card"><div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div><div id="settings-logo-preview" class="settings-thumb logo">Logo</div><div class="settings-upload-actions"><div class="field settings-file-control"><label id="settings-logo-upload-label" class="settings-upload-label" for="settings-logo-image">Subir nueva foto</label><input id="settings-logo-image" type="file" accept="image/*" /></div></div><p class="form-help">Recomendado: 512 x 512 px.</p></article>
-                    <article class="settings-image-card"><div class="settings-image-head"><h3 class="settings-image-title">Portada</h3></div><div id="settings-cover-single-wrap"><div id="settings-cover-preview" class="settings-thumb cover">Portada</div><div class="settings-upload-actions" style="margin-top:12px;"><div class="field settings-file-control"><label id="settings-cover-upload-label" class="settings-upload-label" for="settings-cover-image">Subir nueva foto</label><input id="settings-cover-image" type="file" accept="image/*" /></div></div></div><div id="settings-cover-carousel-wrap" class="hidden"><div id="settings-cover-gallery-preview" class="settings-gallery-grid"></div></div><p class="form-help">Recomendado: 1600 x 900 px.</p></article>
+                    <article class="settings-image-card settings-logo-card"><div class="settings-image-head"><h3 class="settings-image-title">Logo</h3></div><div id="settings-logo-preview" class="settings-thumb logo">Logo</div><div class="settings-upload-actions"><div class="field settings-file-control"><label id="settings-logo-upload-label" class="settings-upload-label" for="settings-logo-image">Subir nueva foto</label><input id="settings-logo-image" type="file" accept="image/*" /></div></div><p class="form-help">Recomendado: 512 x 512 px.</p></article>
+                    <div class="field full settings-cover-mode-field"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select><p class="form-help">C&oacute;mo se mostrar&aacute; la portada en la tienda</p></div>
+                    <article class="settings-image-card settings-cover-card full"><div class="settings-image-head"><h3 class="settings-image-title">Portada</h3></div><div id="settings-cover-single-wrap"><div id="settings-cover-preview" class="settings-thumb cover">Portada</div><div class="settings-upload-actions" style="margin-top:12px;"><div class="field settings-file-control"><label id="settings-cover-upload-label" class="settings-upload-label" for="settings-cover-image">Subir nueva foto</label><input id="settings-cover-image" type="file" accept="image/*" /></div></div></div><div id="settings-cover-carousel-wrap" class="hidden"><div id="settings-cover-gallery-preview" class="settings-gallery-grid"></div></div><p class="form-help">Recomendado: 1600 x 900 px.</p></article>
                   </div>
                 </div>
               </details>
@@ -3175,11 +3206,6 @@ try {
               <details class="general-settings-accordion">
                 <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z"/></svg></span><div><h3>Descripci&oacute;n y confianza</h3><p>Textos que ayudan a presentar tu tienda al cliente.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-trust" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
                 <div class="general-settings-body"><div class="general-settings-grid"><div class="field full"><label for="settings-store-description">Descripci&oacute;n de la tienda</label><textarea id="settings-store-description" maxlength="500" placeholder="Descripci&oacute;n m&aacute;s completa para Bazar, ficha de tienda o SEO."></textarea></div><div class="field full"><label for="settings-reviews-text">Rese&ntilde;a / texto de confianza</label><textarea id="settings-reviews-text" maxlength="150" placeholder="Ej: Gracias por elegir PowerZona. Atenci&oacute;n personalizada y productos seleccionados."></textarea></div></div></div>
-              </details>
-
-              <details class="general-settings-accordion">
-                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H4V4Zm2 2v8h12V6H6Zm2 10h8v2H8v-2Zm3 3h2v2h-2v-2Z"/></svg></span><div><h3>Portada / presentaci&oacute;n p&uacute;blica</h3><p>Contenido visual principal que aparece en la tienda p&uacute;blica.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-cover" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
-                <div class="general-settings-body"><div class="general-settings-grid"><div class="field full"><label for="settings-cover-mode">Tipo de portada</label><select id="settings-cover-mode"><option value="single">Foto &uacute;nica</option><option value="carousel">Carrusel de fotos</option></select><p class="form-help">C&oacute;mo se mostrar&aacute; la portada en la tienda</p></div></div></div>
               </details>
 
               <textarea id="settings-address" class="hidden" aria-hidden="true"></textarea>
@@ -4530,7 +4556,6 @@ try {
           contact: document.getElementById('general-status-contact'),
           business: document.getElementById('general-status-business'),
           trust: document.getElementById('general-status-trust'),
-          cover: document.getElementById('general-status-cover'),
         };
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
         function showMessage(box, message = '', type = 'info') {
@@ -4907,19 +4932,21 @@ try {
 
         function syncGeneralStatusBadges() {
           const hasMainInfo = Boolean(fields.storeName?.value?.trim() && fields.welcome?.value?.trim());
-          const hasVisualIdentity = Boolean(fileName('logo_image') || fields.logo?.files?.[0]);
+          const hasLogo = Boolean(fileName('logo_image') || fields.logo?.files?.[0]);
           const hasCover = Boolean(fileName('cover_image') || fileNames('cover_gallery').length || fields.cover?.files?.[0] || galleryPendingState().some((item) => item.pending));
+          const hasSelectedCoverMode = Boolean(fields.coverMode?.value);
           const hasLocation = Boolean(fields.province?.value || fields.municipality?.value || fields.addressDetail?.value?.trim());
           const hasContact = Boolean(cleanWhatsappNumber(fields.whatsapp?.value || '').replace(/^\+/, ''));
           const hasBusinessType = selectedBusinessTypes.length > 0;
           const hasTrustText = Boolean(fields.storeDescription?.value?.trim() || fields.reviews?.value?.trim());
+          const hasVisualIdentity = hasLogo && hasCover && hasSelectedCoverMode;
+          const hasPartialVisualIdentity = !hasVisualIdentity && (hasLogo || hasCover);
           setGeneralStatusBadge('main', hasMainInfo, 'Configurado');
-          setGeneralStatusBadge('visual', hasVisualIdentity, 'Lista');
+          setGeneralStatusBadge('visual', hasVisualIdentity || hasPartialVisualIdentity, hasVisualIdentity ? 'Lista' : 'Parcial');
           setGeneralStatusBadge('location', hasLocation, 'Configurada');
           setGeneralStatusBadge('contact', hasContact, 'Configurado');
           setGeneralStatusBadge('business', hasBusinessType, 'Seleccionado');
           setGeneralStatusBadge('trust', hasTrustText, 'Configurada');
-          setGeneralStatusBadge('cover', hasCover, 'Configurada');
         }
 
         function syncSettingsSubmitState() {
