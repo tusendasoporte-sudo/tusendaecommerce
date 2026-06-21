@@ -733,6 +733,16 @@ const marketingVisualSubClass = (subsection: string) => {
       background: rgba(255, 255, 255, .96) !important;
       box-shadow: 0 20px 55px rgba(15, 23, 42, .18) !important;
       backdrop-filter: blur(18px) !important;
+      transition:
+        opacity .18s ease,
+        transform .18s ease,
+        visibility .18s ease !important;
+    }
+
+    body.sidebar-open .pz-admin-mobile-bottom-nav {
+      opacity: 0 !important;
+      pointer-events: none !important;
+      transform: translateY(18px) !important;
     }
 
     .pz-admin-mobile-bottom-nav__link {
