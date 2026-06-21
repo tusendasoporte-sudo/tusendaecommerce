@@ -1297,6 +1297,87 @@ const marketingVisualSubClass = (subsection: string) => {
     color: #0f172a !important;
   }
 
+  .pz-admin-btn--readme,
+  .pz-admin-content .pz-admin-btn--readme,
+  .pz-admin-content .settings-help-btn,
+  .pz-admin-content .promotion-readme-btn {
+    min-height: var(--pz-admin-btn-height, 46px) !important;
+    padding: var(--pz-admin-btn-padding-y, 11px) var(--pz-admin-btn-padding-x, 16px) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    border-radius: var(--pz-admin-btn-radius, 16px) !important;
+    border: 1px solid #dbe3ef !important;
+    background: #ffffff !important;
+    color: #2563eb !important;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .07) !important;
+    font-size: 14px !important;
+    line-height: 1.1 !important;
+    font-weight: 1000 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    appearance: none !important;
+    transition:
+      transform .16s ease,
+      box-shadow .16s ease,
+      border-color .16s ease,
+      background .16s ease,
+      color .16s ease,
+      opacity .16s ease !important;
+  }
+
+  .pz-admin-btn--readme:hover,
+  .pz-admin-content .pz-admin-btn--readme:hover,
+  .pz-admin-content .settings-help-btn:hover,
+  .pz-admin-content .promotion-readme-btn:hover {
+    transform: translateY(-1px) !important;
+    border-color: #bfdbfe !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, .12) !important;
+  }
+
+  .pz-admin-btn--readme:active,
+  .pz-admin-content .pz-admin-btn--readme:active,
+  .pz-admin-content .settings-help-btn:active,
+  .pz-admin-content .promotion-readme-btn:active {
+    transform: translateY(0) scale(.99) !important;
+  }
+
+  .pz-admin-btn--readme:focus-visible,
+  .pz-admin-content .pz-admin-btn--readme:focus-visible,
+  .pz-admin-content .settings-help-btn:focus-visible,
+  .pz-admin-content .promotion-readme-btn:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .22) !important;
+    outline-offset: 2px !important;
+  }
+
+  .pz-admin-btn--readme svg,
+  .pz-admin-content .pz-admin-btn--readme svg,
+  .pz-admin-content .settings-help-btn svg,
+  .pz-admin-content .promotion-readme-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
+    fill: currentColor !important;
+    flex: 0 0 auto !important;
+  }
+
+  .pz-admin-content .settings-help-btn::before,
+  .pz-admin-content .promotion-readme-btn::before {
+    content: '' !important;
+    width: 18px !important;
+    height: 18px !important;
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    background: currentColor !important;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3V4Zm2 2v9.2c.3-.1.7-.2 1-.2h8V7a1 1 0 0 0-1-1H7Zm12 0h1a1 1 0 0 1 1 1v13h-1V6Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3V4Zm2 2v9.2c.3-.1.7-.2 1-.2h8V7a1 1 0 0 0-1-1H7Zm12 0h1a1 1 0 0 1 1 1v13h-1V6Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+  }
+
   .pz-admin-btn--ghost,
   .pz-admin-content .pz-admin-btn--ghost {
     border-color: #e2e8f0 !important;
@@ -1528,6 +1609,14 @@ const marketingVisualSubClass = (subsection: string) => {
     .pz-admin-btn,
     .pz-admin-content .pz-admin-btn {
       min-height: var(--pz-admin-btn-height-mobile) !important;
+      padding: 12px 16px !important;
+    }
+
+    .pz-admin-btn--readme,
+    .pz-admin-content .pz-admin-btn--readme,
+    .pz-admin-content .settings-help-btn,
+    .pz-admin-content .promotion-readme-btn {
+      min-height: var(--pz-admin-btn-height-mobile, 48px) !important;
       padding: 12px 16px !important;
     }
 
