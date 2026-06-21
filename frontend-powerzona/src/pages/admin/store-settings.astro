@@ -597,7 +597,6 @@ try {
       }
       @media (max-width: 620px) {}
 
-      .settings-mobile-topbar,
       .mobile-bottom-nav { display: none; }
 
       .app-shell {
@@ -1457,49 +1456,21 @@ try {
         .app-shell { }}
 
       @media (max-width: 1023px) {
-        .settings-mobile-topbar {
-          position: sticky;
-          top: 0;
-          z-index: 70;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 14px;
-          margin: -14px -14px 14px;
-          background: rgba(255,255,255,.92);
-          border-bottom: 1px solid #e2e8f0;
-          backdrop-filter: blur(12px);
-        }
-        .settings-mobile-topbar h1 {
-          flex: 1;
-          margin: 0;
-          color: #0f172a;
-          font-size: 22px;
-          font-weight: 1000;
-          letter-spacing: -.03em;
-        }
-        .settings-mobile-topbar h1 span {
-          display: block;
-          color: #475569;
-          font-size: 11px;
-          font-weight: 850;
-          letter-spacing: 0;
-        }
-        .settings-icon-btn {
+.settings-icon-btn {
           width: 44px;
           height: 44px;
           padding: 0;
           box-shadow: none;
         }
-        .settings-mobile-topbar .primary-blue-btn {
-          min-height: 44px;
-          padding: 10px 14px;
-          border-radius: 14px;
+        .settings-hero,
+        .settings-panel,
+        .settings-section-card {
+          scroll-margin-top: var(--pz-admin-mobile-scroll-offset, 136px) !important;
         }
-        .app-shell { padding: 14px 14px 108px !important; }
         .settings-hero {
           display: block;
           padding: 18px 0 18px;
+          margin-top: 4px !important;
           margin-bottom: 14px;
           background: transparent;
           border: 0;
@@ -1661,9 +1632,7 @@ try {
       }
 
       @media (max-width: 620px) {
-        .settings-mobile-topbar .notification-btn { width: 44px; height: 44px; min-width: 44px; }
-        .settings-mobile-topbar .primary-blue-btn { display: none; }
-        .phone-row { grid-template-columns: 122px minmax(0, 1fr); }
+.phone-row { grid-template-columns: 122px minmax(0, 1fr); }
         .settings-save-row { display: none; }
       }
 
@@ -2924,24 +2893,18 @@ try {
       }</style>
   </head>
   <body>
-    <header class="settings-mobile-topbar">
-      <button id="sidebar-open" class="settings-icon-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
-      <h1 id="settings-mobile-title">PowerZona <span>Admin</span></h1>
-      <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
-      <button class="primary-blue-btn" type="submit" form="settings-form"><svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Zm2 2v14h10V7.8L14.2 5H13v5H8V5H7Zm3 0v3h1V5h-1Zm-1 9h6v2H9v-2Z"/></svg><span>Guardar</span></button>
-    </header>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="settings" />
+      <AdminSidebar
+        storeSlug={currentStoreSlug}
+        storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
+        activeSection="settings"
+        mobileTitle="Ajustes"
+        mobileActionLabel="Guardar"
+        mobileActionEvent="pz:store-settings:save"
+      />
 
       <main class="main-wrap pz-admin-content-inner">
-        <header class="topbar">
-          <button id="sidebar-open-legacy" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">&#9776; Menú</button>
-          <div class="hero-actions">
-            <a class="action-btn" href={adminProductsPath}>Productos</a>
-            <a class="action-btn" href={publicStorePath}>Ver cat&aacute;logo p&uacute;blico</a>
-          </div>
-        </header>
 
         <section class="hero-card">
           <div>
@@ -4370,11 +4333,9 @@ try {
         document.getElementById('settings-general-summary-grid')?.classList.toggle('hidden', tab !== 'generales');
         const sectionLabel = document.getElementById('settings-current-section');
         const pageTitle = document.getElementById('settings-page-title');
-        const mobileTitle = document.getElementById('settings-mobile-title');
         const subtitle = document.getElementById('admin-subtitle');
         if (sectionLabel) sectionLabel.textContent = tabLabels[tab] || 'Ajustes generales';
         if (pageTitle) pageTitle.textContent = tabLabels[tab] || 'Ajustes de tienda';
-        if (mobileTitle) mobileTitle.innerHTML = `${tabLabels[tab] || 'Ajustes de tienda'} <span>Admin</span>`;
         if (subtitle) {
           subtitle.textContent = tab === 'footer'
             ? 'Agrega la informaci\u00f3n inferior que saldr\u00e1 en portada, categor\u00eda, subcategor\u00eda y producto.'
@@ -4484,6 +4445,19 @@ try {
         const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(adminAuthToken || '');
         const form = document.getElementById('settings-form');
+        window.addEventListener('pz:store-settings:save', () => {
+          const form = document.getElementById('settings-form');
+
+          if (form && typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+            return;
+          }
+
+          const submitButton = document.querySelector('[type="submit"][form="settings-form"]');
+          if (submitButton && typeof submitButton.click === 'function') {
+            submitButton.click();
+          }
+        });
         const alertBox = document.getElementById('settings-alert');
         let settingsRecord = null;
         const fields = {

@@ -961,7 +961,116 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .marketing-mobile-bottom-nav {
           display: none !important;
         }
+      }
+
+      @media (max-width: 1023px) {
+        .marketing-settings-hero {
+          display: block !important;
+          padding: 6px 0 22px !important;
+          margin: 0 0 22px !important;
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          scroll-margin-top: var(--pz-admin-mobile-scroll-offset, 136px) !important;
+        }
+
+        .marketing-settings-eyebrow {
+          display: block !important;
+          margin: 0 0 12px !important;
+          color: #475569 !important;
+          font-size: 15px !important;
+          line-height: 1.35 !important;
+          font-weight: 1000 !important;
+        }
+
+        .marketing-settings-title {
+          display: none !important;
+        }
+
+        .marketing-settings-actions {
+          display: none !important;
+        }
+
+        .marketing-settings-subtitle {
+          display: block !important;
+          margin: 0 !important;
+          max-width: none !important;
+          color: #475569 !important;
+          font-size: 15px !important;
+          line-height: 1.5 !important;
+          font-weight: 850 !important;
+        }
       }</style>
+      <style is:global>
+      /* PZ-MARKETING-MOBILE-TOPBAR-SAFE-OFFSET-20260620
+         Corrige que la barra superior fija global tape el breadcrumb/descripcion
+         en todas las secciones de Marketing y Visual. */
+
+      @media (max-width: 1023px) {
+        body .app-shell.pz-admin-content {
+          padding-top: 0 !important;
+          padding-left: 14px !important;
+          padding-right: 14px !important;
+          padding-bottom: 118px !important;
+        }
+
+        body .app-shell.pz-admin-content > main.main-wrap,
+        body .app-shell.pz-admin-content > main.pz-admin-content-inner,
+        body .app-shell.pz-admin-content > main.main-wrap.pz-admin-content-inner {
+          padding-top: 138px !important;
+        }
+
+        body .marketing-settings-hero {
+          display: block !important;
+          padding: 0 0 24px !important;
+          margin: 0 0 22px !important;
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          scroll-margin-top: 160px !important;
+        }
+
+        body .marketing-settings-eyebrow {
+          display: block !important;
+          margin: 0 0 12px !important;
+          color: #475569 !important;
+          font-size: 15px !important;
+          line-height: 1.35 !important;
+          font-weight: 1000 !important;
+        }
+
+        body .marketing-settings-title {
+          display: none !important;
+        }
+
+        body .marketing-settings-actions {
+          display: none !important;
+        }
+
+        body .marketing-settings-subtitle {
+          display: block !important;
+          margin: 0 !important;
+          max-width: none !important;
+          color: #475569 !important;
+          font-size: 15px !important;
+          line-height: 1.5 !important;
+          font-weight: 850 !important;
+        }
+
+        body #admin-view,
+        body .tab-panel,
+        body .panel-card,
+        body .marketing-featured-panel,
+        body .marketing-featured-accordion,
+        body #marketing-bar-panel,
+        body #tab-destacados,
+        body #tab-promociones,
+        body #tab-cupones,
+        body #tab-visuales {
+          scroll-margin-top: 160px !important;
+        }
+      }
+      </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -970,14 +1079,13 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         storeSlug={currentStoreSlug}
         storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
         activeSection="marketing"
-        activeSubsection="featured"
-        mobileTitle="Destacados"
+        mobileTitle="Marketing"
       />
 
       <main class="main-wrap pz-admin-content-inner">
         <section class="marketing-settings-hero" aria-labelledby="marketing-featured-title">
           <div>
-            <p class="marketing-settings-eyebrow">Marketing y Visual / Destacados visuales</p>
+            <p id="marketing-mobile-eyebrow" class="marketing-settings-eyebrow">Marketing y Visual / Destacados visuales</p>
             <h1 id="marketing-featured-title" class="marketing-settings-title">Destacados visuales</h1>
             <p id="admin-subtitle" class="marketing-settings-subtitle">
               Configura qué productos aparecen destacados en la portada pública de tu tienda.
@@ -3299,22 +3407,72 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         promotionReadmeModal?.classList.add('hidden');
         promotionReadmeModal?.setAttribute('aria-hidden', 'true');
       }
-      function showTab(tab) {
+      const marketingSectionCopy = {
+        destacados: {
+          label: 'Destacados visuales',
+          eyebrow: 'Marketing y Visual / Destacados visuales',
+          title: 'Destacados visuales',
+          subtitle: 'Configura qué productos aparecen destacados en la portada pública de tu tienda.',
+        },
+        promociones: {
+          label: 'Promociones',
+          eyebrow: 'Marketing y Visual / Promociones',
+          title: 'Promociones',
+          subtitle: 'Configura promociones automáticas para productos, categorías, subcategorías o carrito.',
+        },
+        cupones: {
+          label: 'Cupones',
+          eyebrow: 'Marketing y Visual / Cupones',
+          title: 'Cupones',
+          subtitle: 'Crea y administra cupones manuales para descuentos, beneficios o envío gratis.',
+        },
+        cintillo: {
+          label: 'Cintillo promocional',
+          eyebrow: 'Marketing y Visual / Cintillo promocional',
+          title: 'Cintillo promocional',
+          subtitle: 'Configura los mensajes promocionales que se muestran en la portada pública de la tienda.',
+        },
+        visuales: {
+          label: 'Accesos rápidos',
+          eyebrow: 'Marketing y Visual / Accesos rápidos',
+          title: 'Accesos rápidos',
+          subtitle: 'Administra accesos visuales, enlaces rápidos y piezas promocionales visibles en la tienda.',
+        },
+      };
+
+      function updateMarketingSectionCopy(sectionKey = 'destacados') {
+        const copy = marketingSectionCopy[sectionKey] || marketingSectionCopy.destacados;
+        const eyebrowNode = document.getElementById('marketing-mobile-eyebrow');
+        const titleNode = document.getElementById('marketing-featured-title');
+        const subtitleNode = document.getElementById('admin-subtitle');
+
+        if (eyebrowNode) eyebrowNode.textContent = copy.eyebrow;
+        if (titleNode) titleNode.textContent = copy.title;
+        if (subtitleNode) subtitleNode.textContent = copy.subtitle;
+      }
+
+      function resolveMarketingTabFromHash() {
+        const hash = window.location.hash || '#destacados';
+        if (hash === '#promociones') return { tab: 'promociones', copy: 'promociones' };
+        if (hash === '#cupones') return { tab: 'cupones', copy: 'cupones' };
+        if (hash === '#cintillo') return { tab: 'visuales', copy: 'cintillo' };
+        if (hash === '#visuales') return { tab: 'visuales', copy: 'visuales' };
+        if (hash === '#destacados') return { tab: 'destacados', copy: 'destacados' };
+        return { tab: 'destacados', copy: 'destacados' };
+      }
+
+      function showTab(tab, copyKey = tab) {
         activeTab = tab;
         document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
         document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.add('hidden'));
         document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
         marketingBarPanel?.classList.toggle('hidden', tab !== 'visuales');
+        updateMarketingSectionCopy(copyKey || tab);
       }
-      function showTabFromHash() {
-        const hashTabMap = {
-          '#destacados': 'destacados',
-          '#promociones': 'promociones',
-          '#cupones': 'cupones',
-          '#visuales': 'visuales',
-          '#cintillo': 'visuales',
-        };
-        showTab(hashTabMap[window.location.hash] || 'destacados');
+      function hydrateMarketingHashState() {
+        const section = resolveMarketingTabFromHash();
+        showTab(section.tab, section.copy);
+        updateMarketingSectionCopy(section.copy);
       }
       function openSidebar() { document.body.classList.add('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'false'); sidebarOverlay.hidden = false; sidebarOpenBtn?.setAttribute('aria-expanded', 'true'); }
       function closeSidebar() { document.body.classList.remove('sidebar-open'); sidebar?.setAttribute('aria-hidden', 'true'); sidebarOpenBtn?.setAttribute('aria-expanded', 'false'); setTimeout(() => { if (!document.body.classList.contains('sidebar-open')) sidebarOverlay.hidden = true; }, 220); }
@@ -3471,7 +3629,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       document.querySelectorAll('.js-admin-block-close').forEach((button) => {
         button.addEventListener('click', () => setAdminBlockMode(button.dataset.adminBlock, 'closed'));
       });
-      document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => showTab(btn.dataset.tab || 'destacados')));
+      document.querySelectorAll('.tab-btn').forEach((btn) => btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab || 'destacados';
+        showTab(tab, tab);
+      }));
       featuredList?.addEventListener('click', (event) => {
         if (event.target.closest('.js-featured-empty-add')) {
           openFeaturedAddFlow();
@@ -3626,10 +3787,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (!event.target.closest('.visual-menu-wrap')) closeVisualMenus();
         if (!event.target.closest('.promotion-menu-wrap')) closePromotionMenus();
       });
-      window.addEventListener('hashchange', showTabFromHash);
+      window.addEventListener('hashchange', hydrateMarketingHashState);
 
       showAdmin();
-      showTabFromHash();
+      hydrateMarketingHashState();
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
       // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
