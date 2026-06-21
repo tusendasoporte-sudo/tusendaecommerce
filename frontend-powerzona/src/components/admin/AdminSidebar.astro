@@ -448,8 +448,37 @@ const marketingVisualSubClass = (subsection: string) => {
       items.forEach((item) => item.classList.toggle('is-active', item.getAttribute('data-marketing-visual-subitem') === activeKey));
     };
 
+    const syncSettingsActiveItem = () => {
+      const items = document.querySelectorAll('[data-settings-subitem]');
+      if (!items.length) return;
+
+      const path = window.location.pathname.replace(/\/+$/, '');
+      const isSettings = /\/admin\/store-settings$/.test(path);
+
+      const hashMap = {
+        '#generales': 'generales',
+        '#general': 'generales',
+        '#footer': 'footer',
+        '#monedas': 'monedas',
+        '#horario': 'horario',
+        '#schedule': 'horario',
+        '#rating': 'rating',
+      };
+
+      const activeKey = isSettings ? (hashMap[window.location.hash] || 'generales') : '';
+
+      items.forEach((item) => {
+        item.classList.toggle(
+          'is-active',
+          item.getAttribute('data-settings-subitem') === activeKey
+        );
+      });
+    };
+
     syncMarketingVisualActiveItem();
+    syncSettingsActiveItem();
     window.addEventListener('hashchange', syncMarketingVisualActiveItem);
+    window.addEventListener('hashchange', syncSettingsActiveItem);
   })();
 </script>
 
