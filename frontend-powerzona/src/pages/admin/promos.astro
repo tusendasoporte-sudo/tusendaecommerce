@@ -535,6 +535,9 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         gap: 10px;
         flex-wrap: wrap;
       }
+      #marketing-bar-panel [data-marketing-bar-active-only].hidden {
+        display: none !important;
+      }
       .marketing-bar-section {
         display: grid;
         gap: 14px;
@@ -783,6 +786,16 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         color: #2563eb;
         font-size: 12px;
         font-weight: 1000;
+      }
+      .marketing-bar-offers-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .marketing-bar-offers-actions .marketing-bar-available-hint {
+        margin: 0;
       }
       .marketing-bar-panel .marketing-offers-list {
         display: grid;
@@ -1640,7 +1653,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         .marketing-bar-panel-actions {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr;
         }
         .marketing-bar-section { padding: 18px 0; }
         .marketing-bar-section-label { gap: 12px; }
@@ -1704,6 +1717,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           grid-template-columns: 1fr;
         }
         .marketing-bar-save-row .pz-admin-btn { width: 100%; }
+        .marketing-bar-offers-actions {
+          width: 100%;
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .marketing-bar-offers-actions .pz-admin-btn { width: 100%; }
         .marketing-featured-toggle { min-width: 84px; min-height: 44px; padding: 10px 14px; border-radius: 15px; font-size: 13px; }
         .marketing-featured-chevron { width: 32px; height: 32px; }
         .marketing-featured-body { padding: 0 14px 14px; }
@@ -2286,7 +2305,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           </div>
 
           <section id="marketing-bar-panel" class="marketing-bar-screen hidden">
-            <div class="marketing-featured-summary-grid marketing-bar-summary-grid">
+            <div class="marketing-featured-summary-grid marketing-bar-summary-grid" data-marketing-bar-active-only>
               <article class="marketing-featured-summary-card marketing-bar-summary-card">
                 <span class="marketing-summary-icon green" aria-hidden="true">
                   <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5 7.4-6.2 6.2L7 11.8l1.4-1.4 2.4 2.4 4.8-4.8L17 9.4Z"/></svg>
@@ -2340,11 +2359,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                     </span>
                     <span class="pz-admin-btn__label">Léeme</span>
                   </button>
-
-                  <button id="marketing-add-offer-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
-                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
-                    <span class="pz-admin-btn__label">Agregar oferta</span>
-                  </button>
                 </div>
               </div>
 
@@ -2368,7 +2382,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </label>
               </section>
 
-              <section class="marketing-bar-section">
+              <section class="marketing-bar-section" data-marketing-bar-active-only>
                 <div class="marketing-bar-section-label">
                   <span class="marketing-bar-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
@@ -2409,7 +2423,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 <div id="marketing-bar-preview-dots" class="marketing-bar-preview-dots" aria-hidden="true"></div>
               </section>
 
-              <section class="marketing-bar-section">
+              <section class="marketing-bar-section" data-marketing-bar-active-only>
                 <div class="marketing-bar-section-label">
                   <span class="marketing-bar-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg>
@@ -2442,7 +2456,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </div>
               </section>
 
-              <section class="marketing-bar-section">
+              <section class="marketing-bar-section" data-marketing-bar-active-only>
                 <div class="marketing-bar-section-head">
                   <div class="marketing-bar-section-label">
                     <span class="marketing-bar-section-icon" aria-hidden="true">
@@ -2454,7 +2468,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                     </div>
                   </div>
 
-                  <p id="marketing-bar-available-hint" class="marketing-bar-available-hint">Puedes agregar 3 ofertas</p>
+                  <div class="marketing-bar-offers-actions">
+                    <p id="marketing-bar-available-hint" class="marketing-bar-available-hint">Puedes agregar 3 ofertas</p>
+
+                    <button id="marketing-add-offer-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                      <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                      <span class="pz-admin-btn__label">Agregar oferta</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div id="marketing-offers-list" class="marketing-offers-list"></div>
@@ -2471,7 +2492,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </div>
               </section>
 
-              <div class="editor-actions marketing-bar-save-row">
+              <div class="editor-actions marketing-bar-save-row" data-marketing-bar-active-only>
                 <button id="marketing-bar-save-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--wide" type="submit">
                   <span class="pz-admin-btn__icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M5 3h12l2 2v16H5V3Zm2 2v5h9V5H7Zm0 14h10v-7H7v7Z"/></svg>
@@ -5324,18 +5345,19 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const hash = window.location.hash || '#destacados';
         if (hash === '#promociones') return { tab: 'promociones', copy: 'promociones' };
         if (hash === '#cupones') return { tab: 'cupones', copy: 'cupones' };
-        if (hash === '#cintillo') return { tab: 'visuales', copy: 'cintillo' };
+        if (hash === '#cintillo') return { tab: 'cintillo', copy: 'cintillo' };
         if (hash === '#visuales') return { tab: 'visuales', copy: 'visuales' };
         if (hash === '#destacados') return { tab: 'destacados', copy: 'destacados' };
         return { tab: 'destacados', copy: 'destacados' };
       }
 
       function showTab(tab, copyKey = tab) {
+        const isCintillo = tab === 'cintillo' || copyKey === 'cintillo';
         activeTab = tab;
-        document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
+        document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', !isCintillo && btn.dataset.tab === tab));
         document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.add('hidden'));
-        document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
-        marketingBarPanel?.classList.toggle('hidden', tab !== 'visuales');
+        if (!isCintillo) document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
+        marketingBarPanel?.classList.toggle('hidden', !isCintillo);
         updateMarketingSectionCopy(copyKey || tab);
       }
       function hydrateMarketingHashState() {
@@ -5746,6 +5768,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const marketingBarAlertBox = document.getElementById('marketing-bar-alert');
         const marketingOffersList = document.getElementById('marketing-offers-list');
         const marketingAddOfferBtn = document.getElementById('marketing-add-offer-btn');
+        const marketingBarActiveOnlyNodes = Array.from(document.querySelectorAll('[data-marketing-bar-active-only]'));
         const marketingBarSummaryStatus = document.getElementById('marketing-bar-summary-status');
         const marketingBarSummaryStatusHelp = document.getElementById('marketing-bar-summary-status-help');
         const marketingBarSummaryOffers = document.getElementById('marketing-bar-summary-offers');
@@ -5792,7 +5815,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         function updateMarketingBarPanelVisibility() {
           const isActive = fields.marketingBarActive?.checked === true;
+          marketingBarActiveOnlyNodes.forEach((node) => {
+            node.classList.toggle('hidden', !isActive);
+          });
           marketingBarPanel?.classList.toggle('is-bar-inactive', !isActive);
+          if (!isActive) {
+            closeMarketingMenus?.();
+            closeMarketingOfferForm?.();
+          }
           updateMarketingBarVisualState();
           updateMarketingBarFormState();
         }
@@ -6165,14 +6195,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (!settingsRecord || !settingsRecord.id) { showMarketingBar('No se encontro el registro activo de ajustes.', 'error'); return; }
           const isActive = fields.marketingBarActive?.checked === true;
           updateMarketingBarPanelVisibility();
-          const validationError = validateMarketingBarPayload(collectMarketingBarPayload());
-          if (validationError) {
-            if (fields.marketingBarActive) fields.marketingBarActive.checked = !isActive;
-            updateMarketingBarPanelVisibility();
-            updateMarketingBarFormState();
-            showMarketingBar(validationError, 'error');
-            return;
-          }
           try {
             await api('/api/collections/settings/records/' + settingsRecord.id, {
               method: 'PATCH',
