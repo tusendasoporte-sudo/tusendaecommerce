@@ -5,7 +5,7 @@
 // V14 - Ajuste visual pedidos recientes: fila tipo botón y estado resaltado inline.
 // V15 - Top 10 productos: filas modernas tipo cápsula con cantidad y total resaltados.
 import { refreshAuthFromCookie } from '../../lib/auth';
-import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 
@@ -19,7 +19,6 @@ const currentStoreRoleLabel = adminContext.roleLabel;
 const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
 const adminAuthToken = authPb.authStore.token;
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
-const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
@@ -27,7 +26,6 @@ const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
-const publicStorePath = getPublicStorePath(currentStoreSlug);
 ---
 
 <!doctype html>
@@ -246,13 +244,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				margin-bottom: 22px;
 			}
 
-			.topbar-left, .topbar-actions {
-				display: flex;
-				align-items: center;
-				gap: 14px;
-				flex-wrap: wrap;
-			}
-
 			.page-title {
 				font-size: clamp(30px, 4vw, 44px);
 				font-weight: 950;
@@ -298,12 +289,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				font-size: 16px;
 				font-weight: 950;
 				margin: 0;
-			}
-
-			.quick-actions {
-				display: flex;
-				gap: 12px;
-				flex-wrap: wrap;
 			}
 
 			.period-tabs {
@@ -726,26 +711,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				font-weight: 850;
 			}
 
-			.quick-panel {
-				display: grid;
-				grid-template-columns: minmax(0, 1fr) auto;
-				align-items: center;
-				gap: 18px;
-				background: rgba(255,255,255,0.72);
-				border: 1px solid rgba(226,232,240,0.9);
-				border-radius: 28px;
-				padding: 18px;
-				box-shadow: var(--shadow);
-				margin: 14px 0 18px;
-			}
-
-			.quick-actions {
-				display: flex;
-				gap: 12px;
-				flex-wrap: wrap;
-				justify-content: flex-end;
-			}
-
 			.metric-card {
 				background: #ffffff;
 				border: 1px solid rgba(226, 232, 240, 0.95);
@@ -849,8 +814,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 			@media (max-width: 720px) {
 				.top-product-item { grid-template-columns: auto minmax(0, 1fr); }
 				.top-product-qty { grid-column: 2; text-align: left; }
-				.quick-panel { grid-template-columns: 1fr; }
-				.quick-actions { justify-content: stretch; }
 				.wide-metric { grid-column: auto; }
 			}
 
@@ -1331,7 +1294,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				}
 				.main-wrap { padding: 18px; }
 				.topbar { align-items: flex-start; flex-direction: column; }
-				.topbar-actions, .action-btn { width: 100%; }
+				.action-btn { width: 100%; }
 				.action-btn { justify-content: center; }
 				.kpi-grid, .status-grid { grid-template-columns: 1fr; }
 				.wide-kpi { grid-column: auto; }
@@ -2066,57 +2029,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       }
       @media (max-width: 620px) {}
 
-      /* PZ-V25F-BOTON-MENU-PREMIUM-20260605
-         Botón Menú del Resumen igual al estilo premium negro: icono blanco, texto en una sola línea. */
-      #sidebar-open-btn.menu-btn {
-        width: auto !important;
-        min-width: 122px !important;
-        height: 52px !important;
-        padding: 0 18px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 10px !important;
-        border-radius: 18px !important;
-        border: 1px solid rgba(15, 23, 42, 0.96) !important;
-        background: linear-gradient(180deg, #111827 0%, #020617 100%) !important;
-        color: #ffffff !important;
-        font-size: 15px !important;
-        font-weight: 850 !important;
-        line-height: 1 !important;
-        white-space: nowrap !important;
-        letter-spacing: -0.01em !important;
-        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22), 0 7px 16px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
-        overflow: hidden !important;
-      }
-
-      #sidebar-open-btn.menu-btn:hover {
-        transform: translateY(-1px) !important;
-        box-shadow: 0 24px 46px rgba(15, 23, 42, 0.27), 0 9px 20px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
-      }
-
-      #sidebar-open-btn.menu-btn .menu-btn-icon {
-        width: 20px !important;
-        height: 20px !important;
-        display: inline-grid !important;
-        place-items: center !important;
-        flex: 0 0 auto !important;
-        color: #ffffff !important;
-      }
-
-      #sidebar-open-btn.menu-btn .menu-btn-icon svg {
-        width: 20px !important;
-        height: 20px !important;
-        display: block !important;
-        stroke: currentColor !important;
-      }
-
-      #sidebar-open-btn.menu-btn .menu-btn-text {
-        display: inline-block !important;
-        color: #ffffff !important;
-        line-height: 1 !important;
-      }
-
 			/* PZ 2026-06-06: organización final de analíticas por bloques */
 			#kpi-grid.analytics-card-grid-main {
 				display: grid !important;
@@ -2176,30 +2088,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
 				<div class="main-wrap pz-admin-content-inner">
 					<header class="topbar">
-						<div class="topbar-left">
-							<button id="sidebar-open-btn" class="menu-btn" type="button" aria-label="Abrir menú"><span class="menu-btn-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14M5 12h14M5 17h14" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="menu-btn-text">Menú</span></button>
-							<div>
-								<h1 class="page-title">Panel de <span>{currentStoreName}</span></h1>
-								<p id="dashboard-subtitle" class="page-subtitle">Cargando resumen del negocio...</p>
-							</div>
-						</div>
-
-						<div class="topbar-actions">
-							<a class="action-btn" href={publicStorePath}><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Ver catálogo</a>
-							<a class="action-btn" href={adminOrdersPath}><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-3 2V5a2 2 0 0 1 2-2Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="2" stroke-linejoin="round"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"/></svg>Ver pedidos</a>
+						<div>
+							<h1 class="page-title">Panel de <span>{currentStoreName}</span></h1>
+							<p id="dashboard-subtitle" class="page-subtitle">Cargando resumen del negocio...</p>
 						</div>
 					</header>
-
-					<div class="quick-panel">
-						<div>
-							<h2 class="section-title">Acciones rápidas</h2>
-							<p class="page-subtitle" style="margin-top: 4px;">Atajos preparados para los próximos módulos del panel.</p>
-						</div>
-						<div class="quick-actions">
-							<a class="action-btn" href={adminCatalogPath}><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" fill="#DCFCE7" stroke="#16A34A" stroke-width="2" stroke-linejoin="round"/><path d="M4.5 8 12 12.5 19.5 8M12 21v-8.5" stroke="#15803D" stroke-width="2" stroke-linecap="round"/></svg>Gestionar catálogo</a>
-							<a class="action-btn" href={adminProductsPath}><svg viewBox="0 0 24 24" fill="none"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z" fill="#F5F3FF" stroke="#7C3AED" stroke-width="2" stroke-linejoin="round"/></svg>Gestionar productos</a>
-						</div>
-					</div>
 
 					<div class="section-row">
 						<div>
@@ -2431,7 +2324,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 			const profitChartMeta = document.getElementById('profit-chart-meta');
 			const sidebar = document.querySelector('[data-admin-sidebar-root]');
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
-			const sidebarOpenBtn = document.getElementById('sidebar-open-btn');
 			const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
 			const periodButtons = Array.from(document.querySelectorAll('.period-btn'));
 			const expirationButtons = Array.from(document.querySelectorAll('.expiration-btn'));
@@ -3276,22 +3168,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 				renderDashboard();
 			}
 
-			function openSidebar() {
-				document.body.classList.add('sidebar-open');
-				sidebar?.classList.add('open');
-				sidebar?.setAttribute('aria-hidden', 'false');
-				sidebarOpenBtn?.setAttribute('aria-expanded', 'true');
-				if (sidebarOverlay) {
-					sidebarOverlay.hidden = false;
-					sidebarOverlay.classList.add('show');
-				}
-			}
-
 			function closeSidebar() {
 				document.body.classList.remove('sidebar-open');
 				sidebar?.classList.remove('open');
 				sidebar?.setAttribute('aria-hidden', 'true');
-				sidebarOpenBtn?.setAttribute('aria-expanded', 'false');
 				if (sidebarOverlay) {
 					sidebarOverlay.classList.remove('show');
 					window.setTimeout(() => {
@@ -3317,7 +3197,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 					renderExpirationProducts();
 				});
 			});
-			sidebarOpenBtn?.addEventListener('click', openSidebar);
 			sidebarOverlay?.addEventListener('click', closeSidebar);
 			document.addEventListener('keydown', (event) => {
 				if (event.key === 'Escape') closeSidebar();
