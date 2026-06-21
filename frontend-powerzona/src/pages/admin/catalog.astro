@@ -1782,7 +1782,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function getProductCountForCategory(categoryId) {
-        return getDirectProductsForCategory(categoryId).length;
+        const childSubcategoryIds = new Set(
+          subcategories
+            .filter((subcategory) => subcategory.category === categoryId)
+            .map((subcategory) => subcategory.id)
+        );
+
+        const productIds = new Set();
+
+        products.forEach((product) => {
+          const belongsDirectlyToCategory = product.category === categoryId;
+          const belongsToChildSubcategory = product.subcategory && childSubcategoryIds.has(product.subcategory);
+
+          if (belongsDirectlyToCategory || belongsToChildSubcategory) {
+            productIds.add(product.id);
+          }
+        });
+
+        return productIds.size;
       }
 
       function getProductCountForSubcategory(subcategoryId) {
