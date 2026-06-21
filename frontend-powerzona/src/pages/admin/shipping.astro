@@ -220,6 +220,44 @@ const masterSupportHref = masterSupportWhatsapp
       .modal-subtitle { margin: 5px 0 0; color: #64748b; font-size: 13px; font-weight: 750; line-height: 1.45; }
       .modal-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; }
       .collapsed-panel.hidden { display: none !important; }
+      /* PZ-SHIPPING-MAIN-FORM-VISIBLE-20260620
+         Tarjeta visible para crear nuevo municipio. */
+      .shipping-main-form-panel {
+        position: relative;
+        scroll-margin-top: 118px;
+        border: 1px solid #bfdbfe !important;
+        background:
+          linear-gradient(180deg, rgba(239, 246, 255, .72), rgba(255, 255, 255, .98)) !important;
+        box-shadow:
+          0 22px 55px rgba(37, 99, 235, .14),
+          0 10px 28px rgba(15, 23, 42, .08) !important;
+      }
+      .shipping-main-form-panel::before {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 5px;
+        border-radius: 24px 0 0 24px;
+        background: linear-gradient(180deg, #2563eb, #60a5fa);
+      }
+      .shipping-main-form-panel.is-attention { animation: pzShippingFormAttention .72s ease both; }
+      @keyframes pzShippingFormAttention {
+        0% { transform: translateY(-6px); box-shadow: 0 0 0 0 rgba(37, 99, 235, .22), 0 22px 55px rgba(37, 99, 235, .14); }
+        55% { transform: translateY(0); box-shadow: 0 0 0 6px rgba(37, 99, 235, .10), 0 24px 58px rgba(37, 99, 235, .18); }
+        100% { transform: translateY(0); box-shadow: 0 22px 55px rgba(37, 99, 235, .14), 0 10px 28px rgba(15, 23, 42, .08); }
+      }
+      .shipping-main-form-head { align-items: flex-start; }
+      .shipping-form-eyebrow {
+        margin: 0 0 6px;
+        color: #2563eb;
+        font-size: 12px;
+        line-height: 1;
+        font-weight: 1000;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+      }
+      .shipping-main-form-actions { display: inline-flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+      .shipping-close-form-btn { border-color: #bfdbfe !important; color: #2563eb !important; background: #eff6ff !important; }
 
       .bottom-nav {
         position: fixed;
@@ -287,17 +325,41 @@ const masterSupportHref = masterSupportWhatsapp
         .floating-menu { right: 0; }
         .pagination-row { align-items: flex-start; flex-direction: column; }
         .pager { align-self: flex-end; }
+        .shipping-main-form-panel {
+          scroll-margin-top: 154px;
+          border-radius: 24px !important;
+          padding: 18px !important;
+        }
+        .shipping-main-form-head {
+          display: grid !important;
+          gap: 14px !important;
+        }
+        .shipping-main-form-actions {
+          width: 100%;
+          justify-content: stretch;
+        }
+        .shipping-main-form-actions .mini-btn {
+          flex: 1 1 auto;
+          min-height: 44px;
+        }
       }</style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="shipping" />
+      <AdminSidebar
+        storeSlug={currentStoreSlug}
+        storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
+        activeSection="shipping"
+        mobileTitle="Envíos"
+        mobileActionLabel="Nuevo Municipio"
+        mobileActionTarget="#new-zone-top-btn"
+      />
       <main class="main-wrap pz-admin-content-inner">
         <header class="mobile-topbar">
           <button id="sidebar-open" class="icon-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
           <h1 class="mobile-topbar-title">Env&iacute;os</h1>
-          <button id="new-zone-mobile-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button>
+          <button id="new-zone-mobile-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nuevo Municipio</button>
           <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
         </header>
         <section class="hero-card">
@@ -308,7 +370,7 @@ const masterSupportHref = masterSupportWhatsapp
           </div>
           <div class="hero-actions">
             <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
-            <button id="new-zone-top-btn" class="primary-blue-btn" type="button" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button>
+            <button id="new-zone-top-btn" class="primary-blue-btn" type="button" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nuevo Municipio</button>
           </div>
         </section>
         <section id="login-view" class="panel-card login-card hidden">
@@ -332,10 +394,28 @@ const masterSupportHref = masterSupportWhatsapp
             <article class="stat-card"><div class="stat-top"><span class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="m2.8 4.2 1.4-1.4 17 17-1.4 1.4-3-3A10.8 10.8 0 0 1 12 19c-5 0-9-5.2-9-7 0-.9 1-2.7 2.8-4.2l-3-3.6ZM12 5c5 0 9 5.2 9 7 0 .7-.7 2.1-2 3.4l-3-3A4 4 0 0 0 11.6 8l-2-2A9.6 9.6 0 0 1 12 5Zm0 11.5c.7 0 1.3-.2 1.8-.5L8 10.2A4 4 0 0 0 12 16.5Z"/></svg></span><p class="stat-label">Zonas ocultas</p></div><p id="stat-hidden-zones" class="stat-value">0</p></article>
             <article class="stat-card"><div class="stat-top"><span class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><p class="stat-label">Promedio</p></div><p id="stat-average-price" class="stat-value">$0.00</p></article>
           </div>
-          <section class="panel-card collapsed-panel hidden" id="form-panel">
-            <div class="section-head">
-              <div><h2 id="form-title" class="section-title">Nueva zona</h2><p id="form-subtitle" class="section-subtitle">Crea un municipio y su zona inicial con precio unico de entrega en USD.</p></div>
-              <button id="cancel-edit-btn" class="mini-btn hidden" type="button">Cancelar edicion</button>
+          <section class="panel-card shipping-main-form-panel collapsed-panel hidden" id="form-panel" aria-live="polite">
+            <div class="section-head shipping-main-form-head">
+              <div>
+                <p class="shipping-form-eyebrow">Municipio</p>
+                <h2 id="form-title" class="section-title">Nuevo municipio</h2>
+                <p id="form-subtitle" class="section-subtitle">
+                  Crea un municipio y su zona inicial con precio &uacute;nico de entrega en USD.
+                </p>
+              </div>
+              <div class="shipping-main-form-actions">
+                <button id="cancel-edit-btn" class="mini-btn hidden" type="button">
+                  Cancelar edici&oacute;n
+                </button>
+                <button
+                  id="close-main-form-btn"
+                  class="mini-btn ghost shipping-close-form-btn"
+                  type="button"
+                  aria-label="Cerrar formulario de municipio"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
             <form id="shipping-form" class="shipping-form-grid">
               <div class="field"><label for="municipality-input">Municipio</label><input id="municipality-input" type="text" placeholder="Nombre del municipio" required /></div>
@@ -343,7 +423,7 @@ const masterSupportHref = masterSupportWhatsapp
               <div class="field"><label for="price-input">Precio &uacute;nico USD</label><input id="price-input" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
               <div class="field"><label for="active-input">Estado</label><label class="check-row"><input id="active-input" type="checkbox" checked /> Activo en checkout</label></div>
               <div class="field full"><label for="note-input">Nota interna opcional</label><textarea id="note-input" placeholder="Detalles internos para el administrador"></textarea></div>
-              <div class="form-actions full"><button id="save-zone-btn" class="mini-btn primary" type="submit">Guardar zona</button></div>
+              <div class="form-actions full"><button id="save-zone-btn" class="mini-btn primary" type="submit">Guardar municipio</button></div>
             </form>
             <div id="form-alert" class="alert alert-info hidden"></div>
           </section>
@@ -412,6 +492,7 @@ const masterSupportHref = masterSupportWhatsapp
       const loginForm = document.getElementById('login-form');
       const loginAlert = document.getElementById('login-alert');
       const form = document.getElementById('shipping-form');
+      const formPanel = document.getElementById('form-panel');
       const formTitle = document.getElementById('form-title');
       const formSubtitle = document.getElementById('form-subtitle');
       const formAlert = document.getElementById('form-alert');
@@ -420,6 +501,7 @@ const masterSupportHref = masterSupportWhatsapp
       const zonesList = document.getElementById('zones-list');
       const paginationSummary = document.getElementById('pagination-summary');
       const cancelEditBtn = document.getElementById('cancel-edit-btn');
+      const closeMainFormBtn = document.getElementById('close-main-form-btn');
       const newZoneTopBtn = document.getElementById('new-zone-top-btn');
       const newZoneMobileBtn = document.getElementById('new-zone-mobile-btn');
       const searchInput = document.getElementById('search-input');
@@ -518,7 +600,7 @@ const masterSupportHref = masterSupportWhatsapp
         if(!saveZoneBtn)return;
         const canSave=!validateZonePayload(collectFormPayload())&&hasFormChanges()&&!isSavingZone;
         saveZoneBtn.disabled=!canSave;
-        saveZoneBtn.textContent=isSavingZone?'Guardando...':(editingId?'Guardar cambios':'Guardar zona');
+        saveZoneBtn.textContent=isSavingZone?'Guardando...':(editingId?'Guardar cambios':'Guardar municipio');
       }
       function syncModalState(){
         if(!zoneModalSaveBtn)return;
@@ -529,13 +611,37 @@ const masterSupportHref = masterSupportWhatsapp
       function setFormSnapshot(){formInitialSnapshot=formSnapshot();syncFormState();}
       function setModalSnapshot(){modalInitialSnapshot=modalSnapshot();syncModalState();}
       function setNewZoneButtonText(text){
-        if(newZoneTopBtn)newZoneTopBtn.lastChild.textContent=text;
-        if(newZoneMobileBtn)newZoneMobileBtn.lastChild.textContent=text === 'Cerrar panel' ? 'Cerrar' : 'Nueva zona';
+        if(newZoneTopBtn&&newZoneTopBtn.lastChild)newZoneTopBtn.lastChild.textContent=text;
+        if(newZoneMobileBtn&&newZoneMobileBtn.lastChild)newZoneMobileBtn.lastChild.textContent=text==='Cerrar panel'?'Cerrar':'Nuevo Municipio';
       }
-      function showMainForm(){document.getElementById('form-panel').classList.remove('hidden');newZoneTopBtn?.setAttribute('aria-expanded','true');setNewZoneButtonText('Cerrar panel');}
-      function hideMainForm(){document.getElementById('form-panel').classList.add('hidden');newZoneTopBtn?.setAttribute('aria-expanded','false');setNewZoneButtonText('Nueva zona');}
-      function resetForm(){editingId='';form.reset();isSavingZone=false;fields.active.checked=true;formTitle.textContent='Nueva zona';formSubtitle.textContent='Crea un municipio y su zona inicial con precio unico de entrega en USD.';cancelEditBtn.classList.add('hidden');showTimedAlert(formAlert,'','info','form');setFormSnapshot();}
-      function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envio';formSubtitle.textContent='Modifica municipio, zona, precio unico o estado.';cancelEditBtn.classList.remove('hidden');setFormSnapshot();document.getElementById('form-panel').scrollIntoView({behavior:'smooth',block:'start'});}
+      function showMainForm(){
+        formPanel?.classList.remove('hidden');
+        formPanel?.classList.add('is-attention');
+        newZoneTopBtn?.setAttribute('aria-expanded','true');
+        newZoneMobileBtn?.setAttribute('aria-expanded','true');
+        setNewZoneButtonText('Cerrar panel');
+        window.setTimeout(()=>{formPanel?.classList.remove('is-attention');},850);
+      }
+      function hideMainForm(){
+        formPanel?.classList.add('hidden');
+        formPanel?.classList.remove('is-attention');
+        newZoneTopBtn?.setAttribute('aria-expanded','false');
+        newZoneMobileBtn?.setAttribute('aria-expanded','false');
+        setNewZoneButtonText('Nuevo Municipio');
+      }
+      function resetForm(){
+        editingId='';
+        form.reset();
+        isSavingZone=false;
+        fields.active.checked=true;
+        formTitle.textContent='Nuevo municipio';
+        formSubtitle.textContent='Crea un municipio y su zona inicial con precio único de entrega en USD.';
+        if(saveZoneBtn)saveZoneBtn.textContent='Guardar municipio';
+        cancelEditBtn.classList.add('hidden');
+        showTimedAlert(formAlert,'','info','form');
+        setFormSnapshot();
+      }
+      function fillForm(zone){editingId=zone.id;showMainForm();fields.municipality.value=zone.municipality||'';fields.zone.value=zone.zone||'';fields.price.value=Number(zone.price_usd||0).toString();fields.active.checked=zone.active!==false;fields.note.value=zone.note||'';formTitle.textContent='Editar zona de envio';formSubtitle.textContent='Modifica municipio, zona, precio unico o estado.';if(saveZoneBtn)saveZoneBtn.textContent='Guardar cambios';cancelEditBtn.classList.remove('hidden');setFormSnapshot();formPanel?.scrollIntoView({behavior:'smooth',block:'start'});}
       function openZoneModal(municipality){closeZoneMenus();zoneModalForm.reset();isSavingModalZone=false;zoneModalFields.active.checked=true;zoneModalFields.municipality.value=municipality||'';zoneModalSubtitle.textContent='Nueva zona para '+(municipality||'el municipio seleccionado')+'.';showTimedAlert(zoneModalAlert,'','info','modal');setModalSnapshot();zoneModal.classList.remove('hidden');zoneModal.setAttribute('aria-hidden','false');setTimeout(()=>zoneModalFields.zone.focus(),60);}
       function closeZoneModal(){zoneModal.classList.add('hidden');zoneModal.setAttribute('aria-hidden','true');showTimedAlert(zoneModalAlert,'','info','modal');}
       function getZoneModalPayload(){const payload=collectModalPayload();const error=validateZonePayload(payload,{requireZone:true});if(error)throw new Error(error);payload.price_usd=Number(payload.price_usd);return payload;}
@@ -557,7 +663,7 @@ const masterSupportHref = masterSupportWhatsapp
           }
           if(savedMunicipality)expandedMunicipalities.add(savedMunicipality);
           resetForm();hideMainForm();await loadZones();
-          showTimedAlert(listAlert,isEditing?'Envío actualizado correctamente':'Zona de envío creada correctamente','success','list');
+          showTimedAlert(listAlert,isEditing?'Envío actualizado correctamente':'Municipio creado correctamente','success','list');
         }catch(error){
           showTimedAlert(formAlert,'No se pudieron guardar los cambios','error','form');
         }finally{
@@ -704,7 +810,20 @@ const masterSupportHref = masterSupportWhatsapp
       form.addEventListener('change',syncFormState);
       form.addEventListener('submit',(event)=>saveZone(event).catch((error)=>{isSavingZone=false;syncFormState();showTimedAlert(formAlert,error.message||'No se pudieron guardar los cambios','error','form');}));
       cancelEditBtn.addEventListener('click',()=>{resetForm();hideMainForm();});
-      function toggleMainForm(){const panel=document.getElementById('form-panel');const willOpen=panel.classList.contains('hidden');resetForm();if(willOpen){showMainForm();panel.scrollIntoView({behavior:'smooth',block:'start'});}else{hideMainForm();}}
+      closeMainFormBtn?.addEventListener('click',()=>{resetForm();hideMainForm();});
+      function toggleMainForm(){
+        const willOpen=formPanel?.classList.contains('hidden');
+        resetForm();
+        if(willOpen){
+          showMainForm();
+          window.setTimeout(()=>{
+            formPanel?.scrollIntoView({behavior:'smooth',block:'start'});
+            fields.municipality?.focus();
+          },80);
+        }else{
+          hideMainForm();
+        }
+      }
       newZoneTopBtn.addEventListener('click',toggleMainForm);
       newZoneMobileBtn.addEventListener('click',toggleMainForm);
       zoneModalForm.addEventListener('input',syncModalState);

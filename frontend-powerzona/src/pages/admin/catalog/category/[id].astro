@@ -411,16 +411,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-          <AdminSidebar storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="catalog" />
+          <AdminSidebar
+            storeSlug={currentStoreSlug}
+            storeName={currentStoreName}
+            activeSection="catalog"
+            mobileTitle="Categoría"
+            mobileBackHref={adminCatalogPath}
+            mobileBackLabel="Volver a Categorías"
+          />
     <div class="app-shell pz-admin-content">
-      <header class="mobile-topbar">
-        <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰</button>
-        <strong>Editar categoria</strong>
-        <button id="admin-notifications-btn-mobile" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
-          <span class="notifications-dot" aria-hidden="true"></span>
-        </button>
-      </header>
       <header class="topbar editor-topbar">
         <div class="topbar-left editor-heading">
           <a class="square-back" href={adminCatalogPath} aria-label="Volver a categorías">←</a>

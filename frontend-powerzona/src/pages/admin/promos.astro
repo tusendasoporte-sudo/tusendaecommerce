@@ -966,34 +966,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="marketing" />
+      <AdminSidebar
+        storeSlug={currentStoreSlug}
+        storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
+        activeSection="marketing"
+        activeSubsection="featured"
+        mobileTitle="Destacados"
+      />
 
       <main class="main-wrap pz-admin-content-inner">
-        <header class="marketing-mobile-topbar" aria-label="Encabezado móvil de destacados">
-          <button
-            id="sidebar-open"
-            class="marketing-mobile-menu-btn"
-            type="button"
-            aria-controls="pz-admin-sidebar"
-            aria-expanded="false"
-            aria-label="Abrir menú de navegación"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"></path>
-            </svg>
-          </button>
-
-          <strong class="marketing-mobile-title">Destacados</strong>
-
-          <button class="marketing-mobile-notification-btn" type="button" aria-label="Notificaciones">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"></path>
-            </svg>
-          </button>
-        </header>
-
-        <button id="logout-btn" class="action-btn danger hidden" type="button">Cerrar sesión</button>
-
         <section class="marketing-settings-hero" aria-labelledby="marketing-featured-title">
           <div>
             <p class="marketing-settings-eyebrow">Marketing y Visual / Destacados visuales</p>
