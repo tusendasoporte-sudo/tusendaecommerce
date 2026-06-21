@@ -1798,8 +1798,13 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   </div>
                 </div>
                 <div class="marketing-promos-panel-actions">
-                  <button id="promotion-readme-btn" class="marketing-settings-icon-btn promotion-readme-btn" type="button">Léeme</button>
-                  <button id="promotion-new-btn" class="primary-blue-btn" type="button">Nueva promoción</button>
+                  <button id="promotion-readme-btn" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--full-mobile promotion-readme-btn" type="button">
+                    <span class="pz-admin-btn__label">Léeme</span>
+                  </button>
+                  <button id="promotion-new-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                    <span class="pz-admin-btn__label">Nueva promoción</span>
+                  </button>
                 </div>
               </div>
 
@@ -1874,8 +1879,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 
               <div id="promotion-alert" class="alert alert-info hidden"></div>
               <div class="editor-actions">
-                <button id="promotion-cancel-btn" class="mini-btn" type="button">Cerrar</button>
-                <button id="promotion-save-btn" class="submit-btn" type="submit">Guardar promoción</button>
+                <button id="promotion-cancel-btn" class="pz-admin-btn pz-admin-btn--secondary" type="button">
+                  <span class="pz-admin-btn__label">Cerrar</span>
+                </button>
+                <button id="promotion-save-btn" class="pz-admin-btn pz-admin-btn--primary" type="submit">
+                  <span class="pz-admin-btn__label">Guardar promoción</span>
+                </button>
               </div>
             </form>
 
@@ -1906,8 +1915,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 <button id="promotion-delete-close-btn" class="marketing-modal-close" type="button" aria-label="Cerrar">&times;</button>
               </div>
               <div class="editor-actions">
-                <button id="promotion-delete-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                <button id="promotion-delete-confirm-btn" class="mini-btn danger" type="button">Eliminar</button>
+                <button id="promotion-delete-cancel-btn" class="pz-admin-btn pz-admin-btn--secondary" type="button">
+                  <span class="pz-admin-btn__label">Cancelar</span>
+                </button>
+                <button id="promotion-delete-confirm-btn" class="pz-admin-btn pz-admin-btn--danger" type="button">
+                  <span class="pz-admin-btn__label">Eliminar</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2890,12 +2903,20 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             <div class="promotion-row-actions">
               <span class="promotion-status-pill ${statusClass}">${escapeHtml(statusLabel)}</span>
               ${endDate ? `<span class="promotion-row-date">Hasta ${escapeHtml(endDate)}</span>` : ''}
-              <button class="mini-btn ${item.active !== false ? '' : 'success'} js-promotion-toggle" type="button">${item.active !== false ? 'Activa' : 'Inactiva'}</button>
+              <button class="js-promotion-toggle pz-admin-btn ${item.active !== false ? 'pz-admin-btn--secondary' : 'pz-admin-btn--success'} pz-admin-btn--compact" type="button">
+                <span class="pz-admin-btn__label">${item.active !== false ? 'Activa' : 'Inactiva'}</span>
+              </button>
               <div class="promotion-menu-wrap">
-                <button class="promotion-kebab-btn js-promotion-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
+                <button class="promotion-kebab-btn js-promotion-menu pz-admin-btn pz-admin-btn--icon pz-admin-btn--compact" type="button" aria-label="Abrir opciones" aria-expanded="false">
+                  <span aria-hidden="true">⋮</span>
+                </button>
                 <div class="promotion-floating-menu" role="menu">
-                  <button class="js-promotion-edit" type="button">Editar</button>
-                  <button class="danger js-promotion-delete" type="button">Eliminar</button>
+                  <button class="js-promotion-edit pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" type="button">
+                    <span class="pz-admin-btn__label">Editar</span>
+                  </button>
+                  <button class="danger js-promotion-delete pz-admin-btn pz-admin-btn--danger pz-admin-btn--compact" type="button">
+                    <span class="pz-admin-btn__label">Eliminar</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -3608,13 +3629,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         updatePromotionFields();
         setPromotionSnapshotFromCurrent();
         promotionForm?.classList.remove('hidden');
-        if (promotionNewBtn) promotionNewBtn.textContent = 'Cerrar formulario';
+        setAdminButtonLabel(promotionNewBtn, 'Cerrar formulario');
+        promotionNewBtn?.querySelector('.pz-admin-btn__icon')?.classList.add('hidden');
         showTab('promociones');
         promotionName?.focus();
       }
       function closePromotionForm() {
         promotionForm?.classList.add('hidden');
-        if (promotionNewBtn) promotionNewBtn.textContent = 'Nueva promoción';
+        setAdminButtonLabel(promotionNewBtn, 'Nueva promoción');
+        promotionNewBtn?.querySelector('.pz-admin-btn__icon')?.classList.remove('hidden');
         resetPromotionForm();
       }
       function promotionScopeForType(type) {
@@ -3657,13 +3680,22 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         promotionInitialSnapshot = createPromotionSnapshot();
         updatePromotionFormState();
       }
+      function setAdminButtonLabel(button, label) {
+        if (!button) return;
+        const labelNode = button.querySelector('.pz-admin-btn__label');
+        if (labelNode) {
+          labelNode.textContent = label;
+          return;
+        }
+        button.textContent = label;
+      }
       function updatePromotionFormState() {
         if (!promotionSaveBtn || !promotionForm) return;
         const payload = collectPromotionPayload();
         const isValid = !validatePromotionPayload(payload);
         const canSave = isValid && promotionFormHasChanges();
         promotionSaveBtn.disabled = isSavingPromotion || !canSave;
-        promotionSaveBtn.textContent = isSavingPromotion ? 'Guardando...' : 'Guardar promoción';
+        setAdminButtonLabel(promotionSaveBtn, isSavingPromotion ? 'Guardando...' : 'Guardar promoción');
       }
       function validatePromotionPayload(payload) {
         if (!payload.name) return 'Escribe el nombre de la promoción.';

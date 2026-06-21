@@ -1169,12 +1169,253 @@ const marketingVisualSubClass = (subsection: string) => {
     .pz-admin-mobile-bottom-nav__link span:last-child {
       display: block !important;
     }
+
+    .pz-admin-btn--full-mobile,
+    .pz-admin-content .pz-admin-btn--full-mobile {
+      width: 100% !important;
+    }
+
+    .pz-admin-btn,
+    .pz-admin-content .pz-admin-btn {
+      min-height: 46px !important;
+      border-radius: 16px !important;
+    }
+
+    .pz-admin-btn--icon,
+    .pz-admin-content .pz-admin-btn--icon {
+      width: 46px !important;
+      min-width: 46px !important;
+      height: 46px !important;
+    }
   }
 
   @media (min-width: 1024px) {
     .pz-admin-mobile-bottom-nav {
       display: none !important;
     }
+  }
+
+  /* PZ-ADMIN-GLOBAL-BUTTONS-20260621
+     Sistema global de botones para el admin publico de tiendas.
+     No cambia logica, solo unifica estilo visual. */
+
+  .pz-admin-btn,
+  .pz-admin-content .pz-admin-btn {
+    min-height: 46px !important;
+    padding: 11px 16px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    border-radius: 16px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .07) !important;
+    font-size: 14px !important;
+    line-height: 1.1 !important;
+    font-weight: 1000 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition:
+      transform .16s ease,
+      box-shadow .16s ease,
+      border-color .16s ease,
+      background .16s ease,
+      color .16s ease,
+      opacity .16s ease !important;
+  }
+
+  .pz-admin-btn:hover,
+  .pz-admin-content .pz-admin-btn:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .10) !important;
+  }
+
+  .pz-admin-btn:active,
+  .pz-admin-content .pz-admin-btn:active {
+    transform: translateY(0) scale(.99) !important;
+  }
+
+  .pz-admin-btn:disabled,
+  .pz-admin-content .pz-admin-btn:disabled,
+  .pz-admin-btn[aria-disabled="true"],
+  .pz-admin-content .pz-admin-btn[aria-disabled="true"] {
+    opacity: .58 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .05) !important;
+  }
+
+  .pz-admin-btn--primary,
+  .pz-admin-content .pz-admin-btn--primary {
+    border-color: rgba(37, 99, 235, .88) !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
+  }
+
+  .pz-admin-btn--primary:hover,
+  .pz-admin-content .pz-admin-btn--primary:hover {
+    box-shadow: 0 18px 38px rgba(37, 99, 235, .28) !important;
+  }
+
+  .pz-admin-btn--secondary,
+  .pz-admin-content .pz-admin-btn--secondary {
+    border-color: #dbe3ef !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .pz-admin-btn--ghost,
+  .pz-admin-content .pz-admin-btn--ghost {
+    border-color: #e2e8f0 !important;
+    background: rgba(255, 255, 255, .78) !important;
+    color: #334155 !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .04) !important;
+  }
+
+  .pz-admin-btn--danger,
+  .pz-admin-content .pz-admin-btn--danger {
+    border-color: #fecaca !important;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    box-shadow: 0 12px 24px rgba(220, 38, 38, .10) !important;
+  }
+
+  .pz-admin-btn--success,
+  .pz-admin-content .pz-admin-btn--success {
+    border-color: #bbf7d0 !important;
+    background: #dcfce7 !important;
+    color: #166534 !important;
+    box-shadow: 0 12px 24px rgba(22, 163, 74, .10) !important;
+  }
+
+  .pz-admin-btn--warning,
+  .pz-admin-content .pz-admin-btn--warning {
+    border-color: #fed7aa !important;
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    box-shadow: 0 12px 24px rgba(249, 115, 22, .10) !important;
+  }
+
+  .pz-admin-btn--icon,
+  .pz-admin-content .pz-admin-btn--icon {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+  }
+
+  .pz-admin-btn--compact,
+  .pz-admin-content .pz-admin-btn--compact {
+    min-height: 38px !important;
+    padding: 8px 12px !important;
+    border-radius: 14px !important;
+    font-size: 12px !important;
+  }
+
+  .pz-admin-btn--wide,
+  .pz-admin-content .pz-admin-btn--wide {
+    min-width: 170px !important;
+  }
+
+  .pz-admin-btn__icon,
+  .pz-admin-content .pz-admin-btn__icon {
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+    font-weight: 1000 !important;
+  }
+
+  .pz-admin-btn__label,
+  .pz-admin-content .pz-admin-btn__label {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .pz-admin-btn svg,
+  .pz-admin-content .pz-admin-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
+    fill: currentColor !important;
+    flex: 0 0 auto !important;
+  }
+
+  .pz-admin-content .primary-blue-btn,
+  .pz-admin-content .submit-btn {
+    min-height: 46px !important;
+    padding: 11px 16px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(37, 99, 235, .88) !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
+    font-weight: 1000 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+  }
+
+  .pz-admin-content .action-btn:not(.dark):not(.danger),
+  .pz-admin-content .mini-btn:not(.primary):not(.danger) {
+    min-height: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border-radius: 15px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .06) !important;
+    font-weight: 950 !important;
+  }
+
+  .pz-admin-content .mini-btn.primary,
+  .pz-admin-content .action-btn.dark {
+    border-color: rgba(37, 99, 235, .88) !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, .20) !important;
+  }
+
+  .pz-admin-content .mini-btn.danger,
+  .pz-admin-content .action-btn.danger {
+    border-color: #fecaca !important;
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    box-shadow: 0 10px 22px rgba(220, 38, 38, .08) !important;
+  }
+
+  .pz-admin-content .mini-btn.success,
+  .pz-admin-content .action-btn.success {
+    border-color: #bbf7d0 !important;
+    background: #dcfce7 !important;
+    color: #166534 !important;
+    box-shadow: 0 10px 22px rgba(22, 163, 74, .08) !important;
+  }
+
+  .pz-admin-content .mini-btn.warning,
+  .pz-admin-content .action-btn.warning {
+    border-color: #fed7aa !important;
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    box-shadow: 0 10px 22px rgba(249, 115, 22, .08) !important;
   }
 
   @media (min-width: 1024px) {
