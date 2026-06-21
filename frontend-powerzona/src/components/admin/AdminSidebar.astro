@@ -43,7 +43,6 @@ const adminStoreSettingsPath = getStoreAdminPath(storeSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(storeSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
-const adminOrganizationPath = getStoreAdminPath(storeSlug, 'organization');
 const publicStorePath = getPublicStorePath(storeSlug);
 
 const defaultMobileTitleBySection: Record<string, string> = {
@@ -55,7 +54,6 @@ const defaultMobileTitleBySection: Record<string, string> = {
   shipping: 'Envíos',
   settings: 'Ajustes',
   marketing: 'Marketing',
-  organization: 'Visual',
 };
 
 const resolvedMobileTitle =
@@ -88,7 +86,7 @@ const mobileBottomClass = (target: 'overview' | 'orders' | 'shipping' | 'setting
 };
 
 const isSettingsActive = activeSection === 'settings';
-const isMarketingVisualActive = activeSection === 'marketing' || activeSection === 'organization';
+const isMarketingVisualActive = activeSection === 'marketing';
 const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
 const supportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const supportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
@@ -108,8 +106,7 @@ const subClass = (subsection: string) => {
 };
 const marketingVisualSubClass = (subsection: string) => {
   const isDefaultMarketing = activeSection === 'marketing' && subsection === 'destacados';
-  const isOrganizationItem = activeSection === 'organization' && subsection === 'organization';
-  return `pz-admin-sidebar__settings-subitem${isDefaultMarketing || isOrganizationItem ? ' is-active' : ''}`;
+  return `pz-admin-sidebar__settings-subitem${isDefaultMarketing ? ' is-active' : ''}`;
 };
 ---
 
@@ -169,7 +166,6 @@ const marketingVisualSubClass = (subsection: string) => {
           <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>
           <a class={marketingVisualSubClass('cintillo')} data-marketing-visual-subitem="cintillo" href={`${adminPromosPath}#cintillo`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v5H3V6Zm2 7h14v5H5v-5Zm3-5v1h8V8H8Zm0 7v1h8v-1H8Z"/></svg></span><span>Cintillo promocional</span></a>
           <a class={marketingVisualSubClass('visuales')} data-marketing-visual-subitem="visuales" href={`${adminPromosPath}#visuales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></span><span>Accesos rápidos</span></a>
-          <a class={marketingVisualSubClass('organization')} data-marketing-visual-subitem="organization" href={adminOrganizationPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Orden visual de portada</span></a>
         </div>
       </div>
     </nav>
@@ -443,8 +439,7 @@ const marketingVisualSubClass = (subsection: string) => {
         '#visuales': 'visuales',
       };
       const isPromos = /\/admin\/promos$/.test(path);
-      const isOrganization = /\/admin\/organization$/.test(path);
-      const activeKey = isOrganization ? 'organization' : (isPromos ? (hashMap[window.location.hash] || 'destacados') : '');
+      const activeKey = isPromos ? (hashMap[window.location.hash] || 'destacados') : '';
       items.forEach((item) => item.classList.toggle('is-active', item.getAttribute('data-marketing-visual-subitem') === activeKey));
     };
 

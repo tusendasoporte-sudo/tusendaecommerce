@@ -18,7 +18,6 @@ const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settin
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
-const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
@@ -481,11 +480,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       .pill-type { background: #eef2ff; color: #3730a3; border-color: #c7d2fe; }
       .empty-state { border: 1px dashed #cbd5e1; background: #f8fafc; border-radius: 22px; padding: 18px; color: #64748b; font-size: 13px; font-weight: 850; line-height: 1.45; }
       .editor-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-      .organization-grid { display: grid; gap: 16px; }
-      .organization-card { border: 1px solid #e2e8f0; background: rgba(248,250,252,.86); border-radius: 26px; padding: 16px; }
-      .organization-card + .organization-card { margin-top: 16px; }
-      .organization-title { margin: 0; font-size: 16px; font-weight: 1000; letter-spacing: -.025em; }
-      .organization-help { margin: 5px 0 14px; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.45; }
       .admin-block-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
       .admin-block-summary-main { min-width: 0; }
       .admin-block-summary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
@@ -1043,6 +1037,263 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         display: grid;
         gap: 12px;
       }
+      #tab-visuales.marketing-quick-screen {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .marketing-quick-summary-grid { margin-bottom: 22px; }
+      .marketing-quick-summary-card .marketing-summary-value { color: #2563eb; }
+      .marketing-quick-summary-card .marketing-summary-value.green { color: #16a34a; }
+      .marketing-quick-summary-card .marketing-summary-value.orange { color: #f97316; }
+      .marketing-quick-panel { display: grid; gap: 18px; }
+      .marketing-quick-panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .marketing-quick-panel-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .marketing-quick-form {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+      }
+      .marketing-quick-form.hidden { display: none !important; }
+      .marketing-quick-form-section {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, .96);
+      }
+      .marketing-quick-form-section-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #2563eb;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+      .marketing-quick-form-icon {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: #dbeafe;
+        color: #2563eb;
+        flex: 0 0 auto;
+      }
+      .marketing-quick-form-icon svg {
+        width: 17px;
+        height: 17px;
+        fill: currentColor;
+      }
+      .marketing-quick-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .marketing-quick-form-grid .full { grid-column: 1 / -1; }
+      .marketing-quick-switch-field { align-content: end; }
+      .marketing-quick-switch {
+        min-height: 46px;
+        padding: 10px 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #fff;
+        color: #0f172a;
+        font-weight: 1000;
+      }
+      .marketing-quick-switch input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .marketing-quick-switch span {
+        width: 46px;
+        height: 26px;
+        padding: 3px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #cbd5e1;
+        transition: background .16s ease;
+      }
+      .marketing-quick-switch span::before {
+        content: '';
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, .18);
+        transition: transform .16s ease;
+      }
+      .marketing-quick-switch input:checked + span { background: #2563eb; }
+      .marketing-quick-switch input:checked + span::before { transform: translateX(20px); }
+      .marketing-quick-form-actions { justify-content: flex-end; }
+      .marketing-quick-list-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 14px;
+        margin-top: 4px;
+      }
+      .marketing-quick-list-head h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1.15;
+        font-weight: 1000;
+        letter-spacing: -.03em;
+      }
+      .marketing-quick-list-head p {
+        margin: 5px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+      .marketing-quick-results-count {
+        margin: 0;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .marketing-quick-filters { margin-top: 0; }
+      .marketing-quick-list {
+        margin-top: 0 !important;
+        display: grid;
+        gap: 10px;
+      }
+      .marketing-quick-row {
+        display: grid;
+        grid-template-columns: 190px minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+        padding: 10px 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
+      }
+      .marketing-quick-thumb {
+        width: 190px;
+        height: 70px;
+        display: block;
+        overflow: hidden;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #eff6ff;
+      }
+      .marketing-quick-thumb img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+      }
+      .marketing-quick-thumb-placeholder {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 1000;
+        background: linear-gradient(135deg, #dbeafe, #eff6ff);
+      }
+      .marketing-quick-main { min-width: 0; }
+      .marketing-quick-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 18px;
+        line-height: 1.2;
+        font-weight: 1000;
+        letter-spacing: -.02em;
+      }
+      .marketing-quick-meta {
+        margin: 6px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.4;
+        font-weight: 850;
+      }
+      .marketing-quick-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 9px;
+      }
+      .marketing-quick-status {
+        min-height: 30px;
+        padding: 6px 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+      .marketing-quick-status::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+      .marketing-quick-status.is-visible {
+        background: #dcfce7;
+        color: #16a34a;
+      }
+      .marketing-quick-status.is-hidden {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+      .marketing-quick-note {
+        margin-top: 6px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-top: 1px solid #e2e8f0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .marketing-quick-note span {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #2563eb;
+        font-weight: 1000;
+      }
+      .marketing-quick-note p { margin: 0; }
+      .marketing-quick-note strong { color: #2563eb; }
       .promotion-group {
         border: 1px solid #e2e8f0;
         border-radius: 22px;
@@ -1542,6 +1793,21 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .marketing-promos-form-grid,
         .marketing-promos-form-grid.two { grid-template-columns: 1fr; }
         .marketing-promos-list-head { align-items: flex-start; flex-direction: column; }
+        .marketing-quick-panel-head { flex-direction: column; }
+        .marketing-quick-panel-actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
+        .marketing-quick-panel-actions > button { width: 100%; }
+        .marketing-quick-form-grid { grid-template-columns: 1fr; }
+        .marketing-quick-list-head {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .marketing-quick-row {
+          grid-template-columns: 140px minmax(0, 1fr) auto;
+        }
+        .marketing-quick-thumb { width: 140px; }
         .marketing-coupons-panel-head { flex-direction: column; }
         .marketing-coupons-panel-actions { width: 100%; justify-content: flex-start; }
         .marketing-coupons-panel-actions > button { flex: 1 1 180px; }
@@ -1580,6 +1846,48 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .marketing-promos-form-section { padding: 12px; border-radius: 18px; }
         .promotion-filters { gap: 8px; }
         .promotion-filter-btn { min-height: 38px; padding: 9px 12px; }
+        #tab-visuales.marketing-quick-screen { padding-bottom: 8px; }
+        .marketing-quick-panel {
+          padding: 16px;
+          border-radius: 24px;
+          border: 1px solid #e2e8f0;
+          background: rgba(255,255,255,.96);
+          box-shadow: 0 18px 45px rgba(15,23,42,.08);
+        }
+        .marketing-quick-panel-head {
+          gap: 14px;
+          padding-bottom: 14px;
+        }
+        .marketing-quick-form {
+          padding: 12px;
+          border-radius: 20px;
+        }
+        .marketing-quick-form-section {
+          padding: 12px;
+          border-radius: 18px;
+        }
+        .marketing-quick-form-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .marketing-quick-row {
+          grid-template-columns: 120px minmax(0, 1fr) auto;
+          gap: 12px;
+          padding: 10px;
+          border-radius: 18px;
+        }
+        .marketing-quick-thumb {
+          width: 120px;
+          height: 92px;
+          border-radius: 14px;
+        }
+        .marketing-quick-title { font-size: 16px; }
+        .marketing-quick-meta { font-size: 13px; }
+        .marketing-quick-status { display: none; }
+        .marketing-quick-actions { align-self: stretch; }
+        .marketing-quick-note { display: none; }
+        .marketing-quick-filters { gap: 8px; }
+        .marketing-quick-filters .promotion-filter-btn { min-height: 42px; }
         .marketing-coupons-panel {
           padding: 16px;
           border-radius: 24px;
@@ -1735,6 +2043,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .featured-products-list .item-actions { justify-content: space-between; }
         .notification-btn { width: 44px; height: 44px; border-radius: 15px; }
         .primary-blue-btn { min-height: 44px; padding: 10px 14px; border-radius: 15px; font-size: 13px; }
+      }
+      @media (max-width: 430px) {
+        .marketing-quick-row {
+          grid-template-columns: 96px minmax(0, 1fr) 38px;
+        }
+        .marketing-quick-thumb {
+          width: 96px;
+          height: 86px;
+        }
       }
       .nav-group { margin: 14px 0 !important; }
       .nav-list { display: grid !important; gap: 6px !important; }
@@ -2777,98 +3094,221 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </div>              </article>
             </section>
           </section>
-          <section id="tab-visuales" class="panel-card tab-panel hidden">
-            <div class="admin-block-summary" data-admin-block-summary="visual">
-              <div class="admin-block-summary-main">
-                <h2 class="section-title">Promo visual / Acceso rápido</h2>
-                <p class="section-subtitle">Crea tarjetas visuales para ofertas o accesos a WhatsApp, enlaces, categorías o archivos.</p>
-                <p class="admin-block-total" data-visual-total>Total de promos: 0</p>
-              </div>
-              <div class="admin-block-summary-actions">
-                <button class="mini-btn primary js-admin-block-edit" data-admin-block="visual" data-visual-summary-action type="button">Editar</button>
-              </div>
-            </div>
-            <div class="hidden" data-admin-block-panel="visual-editor">
-              <div class="section-head">
+          <section id="tab-visuales" class="tab-panel hidden marketing-quick-screen">
+            <div class="marketing-featured-summary-grid marketing-quick-summary-grid">
+              <article class="marketing-featured-summary-card marketing-quick-summary-card">
+                <span class="marketing-summary-icon blue" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Zm-7 8.2 7 3.5 7-3.5v2.3L12 17l-7-3.5v-2.3Zm0 5 7 3.5 7-3.5v2.3L12 22l-7-3.5v-2.3Z"/></svg>
+                </span>
                 <div>
-                  <h2 class="section-title">Promo visual / Acceso rápido</h2>
-                  <p class="section-subtitle">Crea tarjetas visuales para ofertas o accesos a WhatsApp, enlaces, categorías o archivos.</p>
+                  <p class="marketing-summary-label">Total tarjetas</p>
+                  <p id="visual-summary-total" class="marketing-summary-value">0</p>
+                  <p class="marketing-summary-help">Elementos creados</p>
                 </div>
-                <div class="hero-actions">
-                  <button id="open-visual-form-btn" class="mini-btn primary" type="button">+ Crear</button>
-                  <button class="mini-btn js-admin-block-close" data-admin-block="visual" type="button">Cerrar</button>
+              </article>
+
+              <article class="marketing-featured-summary-card marketing-quick-summary-card">
+                <span class="marketing-summary-icon green" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Visibles</p>
+                  <p id="visual-summary-visible" class="marketing-summary-value green">0</p>
+                  <p class="marketing-summary-help">Se muestran en tienda</p>
+                </div>
+              </article>
+
+              <article class="marketing-featured-summary-card marketing-quick-summary-card">
+                <span class="marketing-summary-icon orange" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5h-2v6l5 3 .9-1.7-3.9-2.3V7Z"/></svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Revisión</p>
+                  <p id="visual-summary-review" class="marketing-summary-value orange">0</p>
+                  <p class="marketing-summary-help">Ocultas</p>
+                </div>
+              </article>
+            </div>
+
+            <div class="marketing-featured-panel marketing-quick-panel">
+              <div class="marketing-quick-panel-head">
+                <div class="marketing-featured-summary-main">
+                  <span class="marketing-featured-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg>
+                  </span>
+                  <div class="marketing-featured-copy">
+                    <h2>Accesos rápidos</h2>
+                    <p>Tarjetas visuales para WhatsApp, enlaces, categorías o archivos.</p>
+                  </div>
+                </div>
+
+                <div class="marketing-quick-panel-actions">
+                  <button id="open-visual-form-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                    <span class="pz-admin-btn__label">Crear tarjeta</span>
+                  </button>
                 </div>
               </div>
 
-              <form id="visual-form" class="visual-form-grid hidden">
+              <form id="visual-form" class="marketing-quick-form hidden">
                 <input id="visual-id" type="hidden" />
-                <div class="field">
-                  <label for="visual-type">Tipo</label>
-                  <select id="visual-type" required>
-                    <option value="promo_visual">Promo visual</option>
-                    <option value="acceso_rapido">Acceso rápido</option>
-                  </select>
+
+                <div class="marketing-quick-form-section">
+                  <div class="marketing-quick-form-section-title">
+                    <span class="marketing-quick-form-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h14v10H5V10Zm2 2v6h10v-6H7Z"/></svg>
+                    </span>
+                    <strong>Básico</strong>
+                  </div>
+
+                  <div class="marketing-quick-form-grid">
+                    <div class="field">
+                      <label for="visual-type">Tipo</label>
+                      <select id="visual-type" required>
+                        <option value="promo_visual">Promo visual</option>
+                        <option value="acceso_rapido">Acceso rápido</option>
+                      </select>
+                    </div>
+
+                    <div class="field">
+                      <label for="visual-title">Título</label>
+                      <input id="visual-title" type="text" placeholder="Ej: Combo especial" required />
+                    </div>
+
+                    <div class="field full">
+                      <label for="visual-description">Descripción corta</label>
+                      <textarea id="visual-description" placeholder="Texto corto para mostrar en la tienda pública"></textarea>
+                    </div>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="visual-title">Título</label>
-                  <input id="visual-title" type="text" placeholder="Ej: Combo especial" required />
+
+                <div class="marketing-quick-form-section">
+                  <div class="marketing-quick-form-section-title">
+                    <span class="marketing-quick-form-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M5 3h14v18H5V3Zm2 2v10l3.2-3.2 2.3 2.3 3.5-4.1 1 1.1V5H7Zm0 14h10v-4.9l-1-1.1-3.3 3.9-2.4-2.4L7 17.8V19Z"/></svg>
+                    </span>
+                    <strong>Visual</strong>
+                  </div>
+
+                  <div class="marketing-quick-form-grid">
+                    <div class="field">
+                      <label for="visual-image">Imagen</label>
+                      <input id="visual-image" type="file" accept="image/jpeg,image/png,image/webp" />
+                      <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
+                      <p id="visual-current-image" class="form-help"></p>
+                    </div>
+
+                    <div class="field">
+                      <label for="visual-button-text">Texto del botón</label>
+                      <input id="visual-button-text" type="text" placeholder="Ej: Contactar por WhatsApp" />
+                    </div>
+                  </div>
                 </div>
-                <div class="field full">
-                  <label for="visual-description">Descripción corta</label>
-                  <textarea id="visual-description" placeholder="Texto corto para mostrar en la tienda pública"></textarea>
+
+                <div class="marketing-quick-form-section">
+                  <div class="marketing-quick-form-section-title">
+                    <span class="marketing-quick-form-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M3.9 12a5 5 0 0 1 5-5H12v2H8.9a3 3 0 0 0 0 6H12v2H8.9a5 5 0 0 1-5-5Zm5.1 1v-2h6v2H9Zm3-4V7h3.1a5 5 0 0 1 0 10H12v-2h3.1a3 3 0 0 0 0-6H12Z"/></svg>
+                    </span>
+                    <strong>Acción y destino</strong>
+                  </div>
+
+                  <div class="marketing-quick-form-grid">
+                    <div class="field">
+                      <label for="visual-action-type">Acción</label>
+                      <select id="visual-action-type">
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="url">Enlace externo</option>
+                        <option value="categoria">Categoría</option>
+                        <option value="archivo">Archivo</option>
+                      </select>
+                    </div>
+
+                    <div class="field" id="visual-url-field">
+                      <label for="visual-url">URL / enlace</label>
+                      <input id="visual-url" type="url" placeholder="https://..." />
+                    </div>
+
+                    <div class="field full" id="visual-whatsapp-field">
+                      <label for="visual-whatsapp-message">Mensaje de WhatsApp</label>
+                      <textarea id="visual-whatsapp-message" placeholder="Hola PowerZona, quiero información sobre..."></textarea>
+                    </div>
+
+                    <div class="field" id="visual-category-field">
+                      <label for="visual-category">Categoría</label>
+                      <select id="visual-category"><option value="">Selecciona categoría</option></select>
+                    </div>
+
+                    <div class="field" id="visual-attachment-field">
+                      <label for="visual-attachment">Archivo</label>
+                      <input id="visual-attachment" type="file" accept="application/pdf,image/*" />
+                      <p id="visual-current-attachment" class="form-help"></p>
+                    </div>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="visual-image">Imagen</label>
-                  <input id="visual-image" type="file" accept="image/jpeg,image/png,image/webp" />
-                  <p class="form-help">Recomendado: imagen horizontal 16:9, mínimo 1200 x 675 px.</p>
-                  <p id="visual-current-image" class="form-help"></p>
+
+                <div class="marketing-quick-form-section">
+                  <div class="marketing-quick-form-section-title">
+                    <span class="marketing-quick-form-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M7 4h10v2H7V4Zm0 14h10v2H7v-2Zm-3-7h16v2H4v-2Z"/></svg>
+                    </span>
+                    <strong>Estado y orden</strong>
+                  </div>
+
+                  <div class="marketing-quick-form-grid">
+                    <div class="field">
+                      <label for="visual-order">Orden visual</label>
+                      <input id="visual-order" type="number" min="0" step="1" placeholder="0" />
+                    </div>
+
+                    <div class="field marketing-quick-switch-field">
+                      <label>Estado</label>
+                      <label class="marketing-quick-switch">
+                        <input id="visual-active" type="checkbox" checked />
+                        <span></span>
+                        <strong>Visible en tienda pública</strong>
+                      </label>
+                    </div>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="visual-button-text">Texto del botón</label>
-                  <input id="visual-button-text" type="text" placeholder="Ej: Contactar por WhatsApp" />
-                </div>
-                <div class="field">
-                  <label for="visual-action-type">Acción</label>
-                  <select id="visual-action-type">
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="url">Enlace externo</option>
-                    <option value="categoria">Categoría</option>
-                    <option value="archivo">Archivo</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="visual-order">Orden visual</label>
-                  <input id="visual-order" type="number" min="0" step="1" placeholder="0" />
-                </div>
-                <div class="field full" id="visual-url-field">
-                  <label for="visual-url">URL / enlace</label>
-                  <input id="visual-url" type="url" placeholder="https://..." />
-                </div>
-                <div class="field full" id="visual-whatsapp-field">
-                  <label for="visual-whatsapp-message">Mensaje de WhatsApp</label>
-                  <textarea id="visual-whatsapp-message" placeholder="Hola PowerZona, quiero información sobre..."></textarea>
-                </div>
-                <div class="field" id="visual-category-field">
-                  <label for="visual-category">Categoría</label>
-                  <select id="visual-category"><option value="">Selecciona categoría</option></select>
-                </div>
-                <div class="field" id="visual-attachment-field">
-                  <label for="visual-attachment">Archivo</label>
-                  <input id="visual-attachment" type="file" accept="application/pdf,image/*" />
-                  <p id="visual-current-attachment" class="form-help"></p>
-                </div>
-                <div class="field full">
-                  <label>Estado</label>
-                  <label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="visual-active" type="checkbox" checked /> Visible en tienda pública</label>
-                </div>
-                <div id="visual-alert" class="alert alert-info hidden full"></div>
-                <div class="editor-actions full">
-                  <button id="visual-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                  <button id="visual-save-btn" class="submit-btn" type="submit">Guardar</button>
+
+                <div id="visual-alert" class="alert alert-info hidden"></div>
+
+                <div class="editor-actions marketing-quick-form-actions">
+                  <button id="visual-cancel-btn" class="pz-admin-btn pz-admin-btn--secondary" type="button">
+                    <span class="pz-admin-btn__label">Cerrar</span>
+                  </button>
+
+                  <button id="visual-save-btn" class="pz-admin-btn pz-admin-btn--primary" type="submit">
+                    <span class="pz-admin-btn__label">Guardar</span>
+                  </button>
                 </div>
               </form>
 
-              <div id="visual-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando promos y accesos...</div></div>
+              <div class="marketing-quick-list-head">
+                <div>
+                  <h3>Tarjetas actuales</h3>
+                  <p>Gestiona el orden y la visibilidad de las tarjetas que se muestran en la tienda.</p>
+                </div>
+                <p id="visual-results-count" class="marketing-quick-results-count">0 tarjetas</p>
+              </div>
+
+              <div id="visual-filters" class="promotion-filters marketing-quick-filters" aria-label="Filtrar accesos rápidos">
+                <button class="promotion-filter-btn active" data-visual-filter="all" type="button">Todas</button>
+                <button class="promotion-filter-btn" data-visual-filter="promo_visual" type="button">Promo visual</button>
+                <button class="promotion-filter-btn" data-visual-filter="acceso_rapido" type="button">Acceso rápido</button>
+                <button class="promotion-filter-btn" data-visual-filter="visible" type="button">Visibles</button>
+                <button class="promotion-filter-btn" data-visual-filter="hidden" type="button">Ocultas</button>
+              </div>
+
+              <div id="visual-list" class="items-list marketing-quick-list">
+                <div class="empty-state">Cargando promos y accesos...</div>
+              </div>
+
+              <div class="marketing-quick-note">
+                <span aria-hidden="true">i</span>
+                <p>El formulario para crear o editar tarjetas se mostrará al presionar <strong>Crear tarjeta</strong>.</p>
+              </div>
             </div>
           </section>
 
@@ -3371,62 +3811,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </div>
           </div>
 
-          <section id="tab-organizacion" class="panel-card tab-panel hidden">
-            <div class="section-head" id="organizacion">
-              <div>
-                <h2 class="section-title">Organización Visual</h2>
-                <p class="section-subtitle">Ordena lo que ve el cliente en la tienda pública. En este paso puedes mover productos destacados, promos visuales y accesos rápidos.</p>
-              </div>
-              <button id="refresh-org-btn" class="mini-btn" type="button">Actualizar</button>
-            </div>
-            <div id="organization-alert" class="alert alert-info hidden"></div>
-            <div class="organization-grid">
-              <article class="organization-card">
-                <div class="admin-block-summary" data-admin-block-summary="orgFeatured">
-                  <div class="admin-block-summary-main">
-                    <h3 class="organization-title">Productos destacados</h3>
-                    <p class="organization-help">Cambia el orden de la sección &quot;Productos destacados&quot;. Si quieres ocultar uno solo de destacados, usa &quot;Quitar destacado&quot; para no ocultar el producto completo de la tienda.</p>
-                    <p class="admin-block-total" data-featured-total>Total de destacados: 0</p>
-                  </div>
-                  <div class="admin-block-summary-actions">
-                    <button class="mini-btn primary js-admin-block-edit" data-admin-block="orgFeatured" data-featured-summary-action type="button">Editar</button>
-                  </div>
-                </div>
-                <div class="hidden" data-admin-block-panel="orgFeatured-editor">
-                  <div class="section-head">
-                    <div>
-                      <h3 class="organization-title">Productos destacados</h3>
-                      <p class="organization-help">Cambia el orden de la sección &quot;Productos destacados&quot;. Si quieres ocultar uno solo de destacados, usa &quot;Quitar destacado&quot; para no ocultar el producto completo de la tienda.</p>
-                    </div>
-                    <button class="mini-btn js-admin-block-close" data-admin-block="orgFeatured" type="button">Cerrar</button>
-                  </div>
-                  <div id="organization-featured-list" class="items-list"><div class="empty-state">Cargando destacados...</div></div>
-                </div>
-              </article>
-              <article class="organization-card">
-                <div class="admin-block-summary" data-admin-block-summary="orgPromos">
-                  <div class="admin-block-summary-main">
-                    <h3 class="organization-title">Promo visual / Acceso rápido</h3>
-                    <p class="organization-help">Ordena y activa/desactiva las tarjetas visuales y accesos rápidos que aparecen en la portada pública.</p>
-                    <p class="admin-block-total" data-visual-total>Total de promos: 0</p>
-                  </div>
-                  <div class="admin-block-summary-actions">
-                    <button class="mini-btn primary js-admin-block-edit" data-admin-block="orgPromos" data-visual-summary-action type="button">Editar</button>
-                  </div>
-                </div>
-                <div class="hidden" data-admin-block-panel="orgPromos-editor">
-                  <div class="section-head">
-                    <div>
-                      <h3 class="organization-title">Promo visual / Acceso rápido</h3>
-                      <p class="organization-help">Ordena y activa/desactiva las tarjetas visuales y accesos rápidos que aparecen en la portada pública.</p>
-                    </div>
-                    <button class="mini-btn js-admin-block-close" data-admin-block="orgPromos" type="button">Cerrar</button>
-                  </div>
-                  <div id="organization-promos-list" class="items-list"><div class="empty-state">Cargando promos...</div></div>
-                </div>
-              </article>
-            </div>
-          </section>
         </section>
 
       </main>
@@ -3458,7 +3842,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let couponInitialSnapshot = '';
       let couponNoticeTimer = null;
       let isSavingCoupon = false;
-      const adminBlockModes = { featured: 'edit', visual: 'closed', orgFeatured: 'closed', orgPromos: 'closed' };
+      const adminBlockModes = { featured: 'edit', visual: 'closed' };
       const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
       const PROMOTION_GROUP_VISIBLE_LIMIT = 10;
       const expandedPromotionGroups = new Set();
@@ -3483,11 +3867,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const visualList = document.getElementById('visual-list');
       const visualAlert = document.getElementById('visual-alert');
       const openVisualFormBtn = document.getElementById('open-visual-form-btn');
+      let visualFilter = 'all';
+
+      const visualSummaryTotal = document.getElementById('visual-summary-total');
+      const visualSummaryVisible = document.getElementById('visual-summary-visible');
+      const visualSummaryReview = document.getElementById('visual-summary-review');
+      const visualFilters = document.getElementById('visual-filters');
+      const visualResultsCount = document.getElementById('visual-results-count');
+      const visualSaveBtn = document.getElementById('visual-save-btn');
       const refreshBtn = document.getElementById('refresh-btn');
-      const refreshOrgBtn = document.getElementById('refresh-org-btn');
-      const organizationAlert = document.getElementById('organization-alert');
-      const organizationFeaturedList = document.getElementById('organization-featured-list');
-      const organizationPromosList = document.getElementById('organization-promos-list');
       const visualId = document.getElementById('visual-id');
       const visualType = document.getElementById('visual-type');
       const visualTitle = document.getElementById('visual-title');
@@ -3834,7 +4222,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         document.querySelectorAll('[data-visual-total]').forEach((node) => { node.textContent = `Total de promos: ${visuals.length}`; });
         document.querySelectorAll('[data-visual-summary-action]').forEach((button) => { button.textContent = visuals.length > 0 ? 'Editar' : 'Agregar'; });
         if (adminBlockModes.visual === 'view') adminBlockModes.visual = 'closed';
-        if (adminBlockModes.orgPromos === 'view') adminBlockModes.orgPromos = 'closed';
       }
       function setAdminBlockMode(block, mode = 'closed') {
         adminBlockModes[block] = mode;
@@ -3871,8 +4258,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         renderAdminReadPanels();
         setAdminBlockMode('featured', adminBlockModes.featured);
         setAdminBlockMode('visual', adminBlockModes.visual);
-        setAdminBlockMode('orgFeatured', adminBlockModes.orgFeatured);
-        setAdminBlockMode('orgPromos', adminBlockModes.orgPromos);
       }
       function openFeaturedAddFlow() {
         showTab('destacados');
@@ -3927,35 +4312,111 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           `;
         }).join('');
       }
+      function visualTypeLabel(item) {
+        return item?.type === 'promo_visual' ? 'Promo visual' : 'Acceso rápido';
+      }
+      function visualActionLabel(value) {
+        return ({
+          whatsapp: 'WhatsApp',
+          url: 'URL',
+          categoria: 'Categoría',
+          archivo: 'Archivo',
+        })[value] || 'Sin acción';
+      }
+      function visualMatchesFilter(item) {
+        if (visualFilter === 'promo_visual') return item.type === 'promo_visual';
+        if (visualFilter === 'acceso_rapido') return item.type === 'acceso_rapido';
+        if (visualFilter === 'visible') return item.active !== false;
+        if (visualFilter === 'hidden') return item.active === false;
+        return true;
+      }
+      function renderVisualSummary() {
+        const total = visualItems.length;
+        const visible = visualItems.filter((item) => item.active !== false).length;
+        const hidden = visualItems.filter((item) => item.active === false).length;
+
+        if (visualSummaryTotal) visualSummaryTotal.textContent = String(total);
+        if (visualSummaryVisible) visualSummaryVisible.textContent = String(visible);
+        if (visualSummaryReview) visualSummaryReview.textContent = String(hidden);
+      }
+      function renderVisualQuickThumb(item) {
+        const url = visualImageUrl(item);
+        const fallback = item.type === 'promo_visual' ? 'PROMO' : 'ACCESO';
+
+        if (url) {
+          return `
+            <span class="marketing-quick-thumb">
+              <img src="${url}" alt="" loading="lazy" />
+            </span>
+          `;
+        }
+
+        return `
+          <span class="marketing-quick-thumb">
+            <span class="marketing-quick-thumb-placeholder">${escapeHtml(fallback)}</span>
+          </span>
+        `;
+      }
       function renderVisualList() {
+        if (!visualList) return;
+
+        renderVisualSummary();
+
+        visualFilters?.querySelectorAll('[data-visual-filter]').forEach((button) => {
+          button.classList.toggle('active', button.dataset.visualFilter === visualFilter);
+        });
+
         const sortedVisuals = getAllVisualItemsSorted();
+        const filteredVisuals = sortedVisuals.filter(visualMatchesFilter);
+
+        if (visualResultsCount) {
+          visualResultsCount.textContent = `${filteredVisuals.length} ${filteredVisuals.length === 1 ? 'tarjeta' : 'tarjetas'}`;
+        }
+
         if (!sortedVisuals.length) {
           visualList.innerHTML = '<div class="empty-state">Todavía no hay promos visuales ni accesos rápidos.</div>';
           return;
         }
-        visualList.innerHTML = sortedVisuals
-          .map((item, index) => {
-            const typeLabel = item.type === 'promo_visual' ? 'Promo visual' : 'Acceso rápido';
-            const stateLabel = item.active !== false
-              ? `Visible ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`
-              : `Oculto ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`;
-            const actionLabel = item.action_type ? `Acción: ${item.action_type}` : 'Sin acción';
+
+        if (!filteredVisuals.length) {
+          visualList.innerHTML = '<div class="empty-state">No hay tarjetas en este filtro.</div>';
+          return;
+        }
+
+        visualList.innerHTML = filteredVisuals
+          .map((item) => {
+            const sortedIndex = sortedVisuals.findIndex((entry) => entry.id === item.id);
+            const typeLabel = visualTypeLabel(item);
+            const actionLabel = visualActionLabel(item.action_type);
+            const statusLabel = item.active !== false ? 'Visible' : 'Oculta';
             const attachment = visualAttachmentName(item);
+
             return `
-              <article class="item-row" data-visual-id="${item.id}">
-                <div class="item-main">
-                  ${thumbMarkup(visualImageUrl(item), item.type === 'promo_visual' ? 'TAG' : 'FLASH')}
-                  <div>
-                    <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
-                    <p class="item-meta">${escapeHtml(typeLabel)} · ${escapeHtml(actionLabel)} · Orden ${Number(item.sort_order || 0)}${attachment ? ` · Archivo: ${escapeHtml(attachment)}` : ''}</p>
-                  </div>
+              <article class="marketing-quick-row" data-visual-id="${item.id}">
+                ${renderVisualQuickThumb(item)}
+
+                <div class="marketing-quick-main">
+                  <p class="marketing-quick-title">${escapeHtml(item.title || 'Sin título')}</p>
+                  <p class="marketing-quick-meta">
+                    ${escapeHtml(typeLabel)} · Acción: ${escapeHtml(actionLabel)} · Orden ${Number(item.sort_order || 0)}
+                    ${attachment ? ` · Archivo: ${escapeHtml(attachment)}` : ''}
+                  </p>
                 </div>
-                <div class="item-actions">
-                  <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
-                  <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === sortedVisuals.length - 1 ? 'disabled' : ''}>&darr;</button>
-                  <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${escapeHtml(stateLabel)}</span>
+
+                <div class="marketing-quick-actions">
+                  <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-visual-move" data-direction="up" type="button" ${sortedIndex <= 0 ? 'disabled' : ''} aria-label="Mover arriba">
+                    ↑
+                  </button>
+                  <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-visual-move" data-direction="down" type="button" ${sortedIndex === sortedVisuals.length - 1 ? 'disabled' : ''} aria-label="Mover abajo">
+                    ↓
+                  </button>
+
+                  <span class="marketing-quick-status ${item.active !== false ? 'is-visible' : 'is-hidden'}">${escapeHtml(statusLabel)}</span>
+
                   <div class="visual-menu-wrap">
-                    <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
+                    <button class="visual-kebab-btn js-visual-menu pz-admin-btn pz-admin-btn--icon pz-admin-btn--compact" type="button" aria-label="Abrir opciones" aria-expanded="false">
+                      <span aria-hidden="true">⋮</span>
+                    </button>
                     <div class="visual-floating-menu" role="menu">
                       <button class="js-visual-edit" type="button">Editar</button>
                       <button class="${item.active !== false ? '' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
@@ -3967,69 +4428,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             `;
           }).join('');
       }
-      function renderOrganizationFeaturedList() {
-        const featured = getFeaturedProductsSorted();
-        if (!featured.length) {
-          organizationFeaturedList.innerHTML = '<div class="empty-state">Todavía no hay productos destacados para ordenar.<div class="editor-actions"><button class="submit-btn js-featured-empty-add" type="button">Agregar producto a destacado</button></div></div>';
-          return;
-        }
-        organizationFeaturedList.innerHTML = featured.map((product, index) => `
-          <article class="item-row" data-org-product-id="${product.id}">
-            <div class="item-main">
-              ${thumbMarkup(productImageUrl(product), 'BOX')}
-              <div>
-                <p class="item-title">${escapeHtml(product.name || 'Sin nombre')}</p>
-                <p class="item-meta">Orden ${Number(product.featured_order || 0)} · ${formatUsd(product.base_price_usd)} · ${product.active === false ? 'Producto oculto' : 'Producto visible'}</p>
-              </div>
-            </div>
-            <div class="item-actions">
-              <button class="mini-btn order-btn js-featured-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
-              <button class="mini-btn order-btn js-featured-move" data-direction="down" type="button" ${index === featured.length - 1 ? 'disabled' : ''}>&darr;</button>
-              <button class="mini-btn warning js-featured-org-remove" type="button">Quitar destacado</button>
-            </div>
-          </article>
-        `).join('');
-      }
-      function organizationVisualRow(item, index, total) {
-        const typeLabel = item.type === 'promo_visual' ? 'Promo visual' : 'Acceso rápido';
-        const stateLabel = item.active !== false
-          ? `Visible ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`
-          : `Oculto ${item.type === 'promo_visual' ? 'promo visual' : 'acceso rápido'}`;
-        return `
-          <article class="item-row" data-org-visual-id="${item.id}">
-            <div class="item-main">
-              ${thumbMarkup(visualImageUrl(item), item.type === 'promo_visual' ? 'TAG' : 'FLASH')}
-              <div>
-                <p class="item-title">${escapeHtml(item.title || 'Sin título')}</p>
-                <p class="item-meta">${escapeHtml(typeLabel)} · Orden ${Number(item.sort_order || 0)} · ${item.active !== false ? 'Visible' : 'Oculto'}</p>
-              </div>
-            </div>
-            <div class="item-actions">
-              <button class="mini-btn order-btn js-visual-move" data-direction="up" type="button" ${index === 0 ? 'disabled' : ''}>&uarr;</button>
-              <button class="mini-btn order-btn js-visual-move" data-direction="down" type="button" ${index === total - 1 ? 'disabled' : ''}>&darr;</button>
-              <span class="pill ${item.active !== false ? 'pill-visible' : 'pill-hidden'}">${escapeHtml(stateLabel)}</span>
-              <div class="visual-menu-wrap">
-                <button class="visual-kebab-btn js-visual-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
-                <div class="visual-floating-menu" role="menu">
-                  <button class="js-visual-org-edit" type="button">Editar</button>
-                  <button class="${item.active !== false ? '' : 'success'} js-visual-toggle" type="button">${item.active !== false ? 'Ocultar' : 'Mostrar'}</button>
-                  <button class="danger js-visual-delete" type="button">Borrar</button>
-                </div>
-              </div>
-            </div>
-          </article>
-        `;
-      }
-      function renderOrganizationVisualLists() {
-        const promos = getAllVisualItemsSorted();
-        organizationPromosList.innerHTML = promos.length
-          ? promos.map((item, index) => organizationVisualRow(item, index, promos.length)).join('')
-          : '<div class="empty-state">Todavía no hay promos visuales ni accesos rápidos para ordenar.</div>';
-      }
-      function renderOrganization() {
-        renderOrganizationFeaturedList();
-        renderOrganizationVisualLists();
-      }
       function renderAll() {
         renderStats();
         renderProductSelect();
@@ -4040,7 +4438,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         renderPromotions();
         renderCouponOptions();
         renderCoupons();
-        renderOrganization();
         syncAdminBlockPanels();
       }
       function renderCategoryOptions() {
@@ -4892,27 +5289,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function nextVisualOrder() {
         return visualItems.reduce((max, item) => Math.max(max, Number(item.sort_order || 0)), 0) + 1;
       }
-      async function swapProductFeaturedOrder(productId, direction) {
-        const featured = getFeaturedProductsSorted();
-        const currentIndex = featured.findIndex((item) => item.id === productId);
-        const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= featured.length) return;
-        const current = featured[currentIndex];
-        const target = featured[targetIndex];
-        const currentOrder = Number(current.featured_order || currentIndex + 1);
-        const targetOrder = Number(target.featured_order || targetIndex + 1);
-        const currentData = new FormData();
-        const targetData = new FormData();
-        currentData.append('featured_order', String(targetOrder));
-        targetData.append('featured_order', String(currentOrder));
-        await Promise.all([
-          apiRequest(`/api/collections/products/records/${current.id}`, { method: 'PATCH', body: currentData }),
-          apiRequest(`/api/collections/products/records/${target.id}`, { method: 'PATCH', body: targetData }),
-        ]);
-        showAlert(organizationAlert, 'Orden de destacados actualizado.', 'success');
-        await loadData();
-      }
-      async function swapVisualOrder(itemId, direction, alertTarget = organizationAlert) {
+      async function swapVisualOrder(itemId, direction, alertTarget = visualAlert) {
         const currentItem = visualItems.find((item) => item.id === itemId);
         if (!currentItem) return;
         const sameTypeItems = getAllVisualItemsSorted();
@@ -4934,7 +5311,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         showAlert(alertTarget, 'Orden visual actualizado.', 'success');
         await loadData();
       }
-      async function toggleVisualActive(itemId, alertTarget = organizationAlert) {
+      async function toggleVisualActive(itemId, alertTarget = visualAlert) {
         const item = visualItems.find((entry) => entry.id === itemId);
         if (!item) return;
         const formData = new FormData();
@@ -4994,6 +5371,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       function openVisualForm(item = null) {
         resetVisualForm();
+
         if (item) {
           visualId.value = item.id || '';
           visualType.value = item.type || 'promo_visual';
@@ -5011,15 +5389,36 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           visualCurrentImage.textContent = img ? `Imagen actual: ${img}. Si subes otra, se reemplaza.` : '';
           visualCurrentAttachment.textContent = attachment ? `Archivo actual: ${attachment}. Si subes otro, se reemplaza.` : '';
         }
+
         updateActionFields();
-        setAdminBlockMode('visual', 'edit');
+
         visualForm.classList.remove('hidden');
-        showTab('visuales');
-        visualTitle.focus();
+
+        if (openVisualFormBtn) {
+          openVisualFormBtn.classList.remove('pz-admin-btn--primary');
+          openVisualFormBtn.classList.add('pz-admin-btn--secondary');
+          openVisualFormBtn.innerHTML = '<span class="pz-admin-btn__label">Cerrar formulario</span>';
+        }
+
+        showTab('visuales', 'visuales');
+
+        requestAnimationFrame(() => {
+          visualForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          visualTitle.focus();
+        });
       }
       function closeVisualForm() {
         visualForm.classList.add('hidden');
         resetVisualForm();
+
+        if (openVisualFormBtn) {
+          openVisualFormBtn.classList.remove('pz-admin-btn--secondary');
+          openVisualFormBtn.classList.add('pz-admin-btn--primary');
+          openVisualFormBtn.innerHTML = `
+            <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+            <span class="pz-admin-btn__label">Crear tarjeta</span>
+          `;
+        }
       }
       function updateActionFields() {
         const action = visualActionType.value;
@@ -5032,32 +5431,43 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         event.preventDefault();
         const title = visualTitle.value.trim();
         if (!title) return showAlert(visualAlert, 'Escribe un título.', 'error');
-        const formData = new FormData();
-        formData.append('type', visualType.value);
-        formData.append('title', title);
-        formData.append('description', visualDescription.value.trim());
-        formData.append('button_text', visualButtonText.value.trim());
-        formData.append('action_type', visualActionType.value);
-        formData.append('target_url', visualUrl.value.trim());
-        formData.append('whatsapp_message', visualWhatsappMessage.value.trim());
-        formData.append('category', visualCategory.value || '');
-        formData.append('sort_order', String(Number(visualOrder.value || 0)));
-        formData.append('active', visualActive.checked ? 'true' : 'false');
-        formData.append('store', CURRENT_STORE_ID);
-        const imageFile = visualImage.files?.[0];
-        const attachmentFile = visualAttachment.files?.[0];
-        if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
-        if (attachmentFile) formData.append('attachment', attachmentFile);
-        const id = visualId.value;
-        if (id) {
-          await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'PATCH', body: formData });
-          showAlert(visualAlert, 'Guardado correctamente.', 'success');
-        } else {
-          await apiRequest('/api/collections/store_visual_items/records', { method: 'POST', body: formData });
-          showAlert(visualAlert, 'Creado correctamente.', 'success');
+        if (visualSaveBtn) {
+          visualSaveBtn.disabled = true;
+          visualSaveBtn.innerHTML = '<span class="pz-admin-btn__label">Guardando...</span>';
         }
-        await loadData();
-        closeVisualForm();
+        try {
+          const formData = new FormData();
+          formData.append('type', visualType.value);
+          formData.append('title', title);
+          formData.append('description', visualDescription.value.trim());
+          formData.append('button_text', visualButtonText.value.trim());
+          formData.append('action_type', visualActionType.value);
+          formData.append('target_url', visualUrl.value.trim());
+          formData.append('whatsapp_message', visualWhatsappMessage.value.trim());
+          formData.append('category', visualCategory.value || '');
+          formData.append('sort_order', String(Number(visualOrder.value || 0)));
+          formData.append('active', visualActive.checked ? 'true' : 'false');
+          formData.append('store', CURRENT_STORE_ID);
+          const imageFile = visualImage.files?.[0];
+          const attachmentFile = visualAttachment.files?.[0];
+          if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
+          if (attachmentFile) formData.append('attachment', attachmentFile);
+          const id = visualId.value;
+          if (id) {
+            await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'PATCH', body: formData });
+            showAlert(visualAlert, 'Guardado correctamente.', 'success');
+          } else {
+            await apiRequest('/api/collections/store_visual_items/records', { method: 'POST', body: formData });
+            showAlert(visualAlert, 'Creado correctamente.', 'success');
+          }
+          await loadData();
+          closeVisualForm();
+        } finally {
+          if (visualSaveBtn) {
+            visualSaveBtn.disabled = false;
+            visualSaveBtn.innerHTML = '<span class="pz-admin-btn__label">Guardar</span>';
+          }
+        }
       }
       async function deleteVisualItem(id) {
         if (!id) return;
@@ -5390,11 +5800,24 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         });
       });
       refreshBtn?.addEventListener('click', () => loadData());
-      refreshOrgBtn?.addEventListener('click', () => loadData());
-      openVisualFormBtn?.addEventListener('click', () => openVisualForm());
+      openVisualFormBtn?.addEventListener('click', () => {
+        if (visualForm && !visualForm.classList.contains('hidden')) {
+          closeVisualForm();
+          return;
+        }
+
+        openVisualForm();
+      });
       visualCancelBtn?.addEventListener('click', closeVisualForm);
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
+      visualFilters?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-visual-filter]');
+        if (!button) return;
+
+        visualFilter = button.dataset.visualFilter || 'all';
+        renderVisualList();
+      });
       promotionNewBtn?.addEventListener('click', () => {
         if (promotionForm && !promotionForm.classList.contains('hidden')) {
           closePromotionForm();
@@ -5653,57 +6076,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (event.target.closest('.js-coupon-delete')) {
           openCouponDeleteModal(id);
         }
-      });
-
-      organizationFeaturedList?.addEventListener('click', (event) => {
-        if (event.target.closest('.js-featured-empty-add')) {
-          openFeaturedAddFlow();
-          return;
-        }
-        const row = event.target.closest('[data-org-product-id]');
-        if (!row) return;
-        const id = row.dataset.orgProductId;
-        const moveBtn = event.target.closest('.js-featured-move');
-        if (moveBtn) {
-          swapProductFeaturedOrder(id, moveBtn.dataset.direction || 'up').catch((error) => showAlert(organizationAlert, error.message || 'No se pudo ordenar destacado.', 'error'));
-          return;
-        }
-        if (event.target.closest('.js-featured-org-remove')) {
-          unfeatureProduct(id).catch((error) => showAlert(organizationAlert, error.message || 'No se pudo quitar destacado.', 'error'));
-        }
-      });
-      document.querySelectorAll('#organization-promos-list').forEach((list) => {
-        list.addEventListener('click', (event) => {
-          const row = event.target.closest('[data-org-visual-id]');
-          if (!row) return;
-          const id = row.dataset.orgVisualId;
-          const menuBtn = event.target.closest('.js-visual-menu');
-          if (menuBtn) {
-            toggleVisualMenu(menuBtn.closest('.visual-menu-wrap'));
-            return;
-          }
-          const moveBtn = event.target.closest('.js-visual-move');
-          if (moveBtn) {
-            closeVisualMenus();
-            swapVisualOrder(id, moveBtn.dataset.direction || 'up').catch((error) => showAlert(organizationAlert, error.message || 'No se pudo ordenar elemento visual.', 'error'));
-            return;
-          }
-          if (event.target.closest('.js-visual-toggle')) {
-            closeVisualMenus();
-            toggleVisualActive(id).catch((error) => showAlert(organizationAlert, error.message || 'No se pudo cambiar visibilidad.', 'error'));
-            return;
-          }
-          if (event.target.closest('.js-visual-delete')) {
-            closeVisualMenus();
-            deleteVisualItem(id).catch((error) => showAlert(organizationAlert, error.message || 'No se pudo borrar.', 'error'));
-            return;
-          }
-          if (event.target.closest('.js-visual-org-edit')) {
-            closeVisualMenus();
-            const item = visualItems.find((entry) => entry.id === id);
-            openVisualForm(item);
-          }
-        });
       });
 
       document.addEventListener('click', (event) => {
