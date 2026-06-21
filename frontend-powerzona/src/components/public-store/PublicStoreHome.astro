@@ -6,6 +6,7 @@ import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../ProductCard.astro';
 import PublicFooter from '../PublicFooter.astro';
 import PromoBar from '../PromoBar.astro';
+import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
 import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
@@ -2354,6 +2355,7 @@ function getProductOfferView(product: any) {
       )}
     </section>
   )}
+  <StoreAnalyticsTracker storeId={currentStoreId} pageType="store_home" />
   <PublicFooter settings={settings} />
 
   <script define:vars={{ pocketbaseUrl, currentStoreId }}>

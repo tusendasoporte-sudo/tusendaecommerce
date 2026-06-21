@@ -1,0 +1,83 @@
+---
+type Props = {
+  storeId?: string;
+  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'search' | 'checkout' | 'other';
+  entityType?: string;
+  entityId?: string;
+};
+
+const {
+  storeId = '',
+  pageType = 'other',
+  entityType = '',
+  entityId = '',
+} = Astro.props;
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+{storeId && pocketbaseUrl && (
+  <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId }}>
+    (() => {
+      try {
+        const path = window.location.pathname || '';
+        if (path.includes('/admin') || path.includes('/master')) return;
+        if (navigator.doNotTrack === '1') return;
+
+        const storageKey = 'tusenda84_visitor_id';
+        const sessionKey = 'tusenda84_session_id';
+
+        const makeId = (prefix) => {
+          const randomPart = Math.random().toString(36).slice(2, 12);
+          const timePart = Date.now().toString(36);
+          return `${prefix}_${timePart}_${randomPart}`;
+        };
+
+        let visitorId = localStorage.getItem(storageKey);
+        if (!visitorId) {
+          visitorId = makeId('v');
+          localStorage.setItem(storageKey, visitorId);
+        }
+
+        let sessionId = sessionStorage.getItem(sessionKey);
+        if (!sessionId) {
+          sessionId = makeId('s');
+          sessionStorage.setItem(sessionKey, sessionId);
+        }
+
+        const now = new Date();
+        const localDay = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 10);
+
+        const payload = {
+          store: storeId,
+          day: localDay,
+          visitor_id: visitorId,
+          session_id: sessionId,
+          page_type: pageType || 'other',
+          entity_type: entityType || '',
+          entity_id: entityId || '',
+          path: window.location.pathname.slice(0, 240),
+          referrer: document.referrer ? document.referrer.slice(0, 240) : '',
+          user_agent: navigator.userAgent ? navigator.userAgent.slice(0, 260) : '',
+        };
+
+        const endpoint = `${String(pocketbaseUrl).replace(/\/$/, '')}/api/collections/store_analytics_events/records`;
+
+        if ('sendBeacon' in navigator) {
+          const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+          const sent = navigator.sendBeacon(endpoint, blob);
+          if (sent) return;
+        }
+
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        }).catch(() => {});
+      } catch (_) {}
+    })();
+  </script>
+)}

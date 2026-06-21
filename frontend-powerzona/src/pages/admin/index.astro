@@ -2029,6 +2029,68 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
       }
       @media (max-width: 620px) {}
 
+			.dashboard-traffic-block { margin-top: 18px; }
+			.traffic-analytics-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+			.traffic-chart-card {
+				min-height: 430px;
+				padding: 26px 30px 22px;
+				border: 1px solid rgba(226, 232, 240, .96);
+				border-radius: 28px;
+				background: rgba(255, 255, 255, .96);
+				box-shadow: 0 18px 45px rgba(15, 23, 42, .07);
+				display: grid;
+				gap: 16px;
+			}
+			.traffic-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+			.traffic-card-title-row { display: flex; align-items: center; gap: 16px; }
+			.traffic-card-icon { width: 62px; height: 62px; display: inline-flex; align-items: center; justify-content: center; border-radius: 20px; flex: 0 0 auto; }
+			.traffic-card-icon svg { width: 28px; height: 28px; fill: currentColor; }
+			.traffic-card-icon.blue { background: #dbeafe; color: #2563eb; }
+			.traffic-card-icon.dark { background: #e2e8f0; color: #0f172a; }
+			.traffic-card-label { margin: 0 0 5px; color: #334155; font-size: 16px; line-height: 1.2; font-weight: 850; }
+			.traffic-card-title-row strong { display: block; color: #0f172a; font-size: 32px; line-height: 1; font-weight: 1000; letter-spacing: -.04em; }
+			.traffic-average-pill {
+				margin: 0;
+				min-height: 38px;
+				padding: 9px 13px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border: 1px solid #e2e8f0;
+				border-radius: 13px;
+				background: #fff;
+				color: #475569;
+				font-size: 13px;
+				font-weight: 900;
+				box-shadow: 0 8px 18px rgba(15, 23, 42, .04);
+			}
+			.traffic-average-pill strong { color: #2563eb; font-weight: 1000; }
+			.traffic-chart-box { min-height: 270px; display: grid; align-items: stretch; }
+			.traffic-chart-svg { width: 100%; height: 100%; min-height: 270px; display: block; }
+			.traffic-card-footer { padding-top: 14px; border-top: 1px solid #e2e8f0; }
+			.traffic-card-footer h3 { margin: 0; color: #0f172a; font-size: 17px; line-height: 1.2; font-weight: 1000; letter-spacing: -.025em; }
+			.traffic-card-footer p { margin: 5px 0 0; color: #64748b; font-size: 13px; line-height: 1.45; font-weight: 800; }
+			.traffic-empty-state {
+				min-height: 240px;
+				display: grid;
+				place-items: center;
+				border: 1px dashed #cbd5e1;
+				border-radius: 20px;
+				color: #64748b;
+				font-size: 13px;
+				font-weight: 850;
+				background: #f8fafc;
+				text-align: center;
+				padding: 18px;
+			}
+			@media (max-width: 720px) {
+				.traffic-chart-card { min-height: auto; padding: 18px; border-radius: 24px; }
+				.traffic-card-head { display: grid; }
+				.traffic-average-pill { width: max-content; }
+				.traffic-chart-box { min-height: 220px; }
+				.traffic-chart-svg { min-height: 220px; }
+			}
+
 			/* PZ 2026-06-06: organización final de analíticas por bloques */
 			#kpi-grid.analytics-card-grid-main {
 				display: grid !important;
@@ -2110,6 +2172,63 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 							<button class="period-btn" type="button" data-range="all">De por vida</button>
 						</div>
 					</div>
+
+					<section class="dashboard-block dashboard-traffic-block" aria-labelledby="dashboard-traffic-title">
+						<div class="dashboard-block-head">
+							<div>
+								<h2 id="dashboard-traffic-title" class="dashboard-block-title">Resumen</h2>
+								<p class="dashboard-block-subtitle">AnalÃ­ticas de la tienda y comportamiento reciente.</p>
+							</div>
+						</div>
+
+						<div class="traffic-analytics-grid">
+							<article class="traffic-chart-card traffic-chart-card-blue">
+								<div class="traffic-card-head">
+									<div class="traffic-card-title-row">
+										<span class="traffic-card-icon blue" aria-hidden="true">
+											<svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
+										</span>
+										<div>
+											<p class="traffic-card-label">Visitas totales</p>
+											<strong id="traffic-visits-total">0</strong>
+										</div>
+									</div>
+
+									<p id="traffic-visits-average" class="traffic-average-pill">Promedio diario: 0</p>
+								</div>
+
+								<div id="traffic-visits-chart" class="traffic-chart-box"></div>
+
+								<div class="traffic-card-footer">
+									<h3>Resumen de visitas</h3>
+									<p>InformaciÃ³n sobre las visitas en el perÃ­odo seleccionado y su promedio diario.</p>
+								</div>
+							</article>
+
+							<article class="traffic-chart-card traffic-chart-card-dark">
+								<div class="traffic-card-head">
+									<div class="traffic-card-title-row">
+										<span class="traffic-card-icon dark" aria-hidden="true">
+											<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"/></svg>
+										</span>
+										<div>
+											<p class="traffic-card-label">Visitantes activos</p>
+											<strong id="traffic-visitors-total">0</strong>
+										</div>
+									</div>
+
+									<p id="traffic-visitors-average" class="traffic-average-pill">Promedio diario: 0</p>
+								</div>
+
+								<div id="traffic-visitors-chart" class="traffic-chart-box"></div>
+
+								<div class="traffic-card-footer">
+									<h3>Resumen de visitantes activos</h3>
+									<p>Visitantes Ãºnicos diarios detectados en el perÃ­odo seleccionado.</p>
+								</div>
+							</article>
+						</div>
+					</section>
 
 					<section class="dashboard-block" aria-labelledby="dashboard-main-title">
 						<div class="dashboard-block-head">
@@ -2322,6 +2441,12 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const salesChartMeta = document.getElementById('sales-chart-meta');
 			const ordersChartMeta = document.getElementById('orders-chart-meta');
 			const profitChartMeta = document.getElementById('profit-chart-meta');
+			const trafficVisitsTotal = document.getElementById('traffic-visits-total');
+			const trafficVisitorsTotal = document.getElementById('traffic-visitors-total');
+			const trafficVisitsAverage = document.getElementById('traffic-visits-average');
+			const trafficVisitorsAverage = document.getElementById('traffic-visitors-average');
+			const trafficVisitsChart = document.getElementById('traffic-visits-chart');
+			const trafficVisitorsChart = document.getElementById('traffic-visitors-chart');
 			const sidebar = document.querySelector('[data-admin-sidebar-root]');
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
 			const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
@@ -2331,6 +2456,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			let orders = [];
 			let orderItems = [];
 			let products = [];
+			let analyticsEvents = [];
 			let reviews = [];
 			let settingsRecord = null;
 			let reviewsCollectionAvailable = true;
@@ -2731,6 +2857,183 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const expiredCount = items.filter((item) => item.daysLeft < 0).length;
 				const validCount = items.length - expiredCount;
 				return { items, expiredCount, validCount };
+			}
+
+			function localDayKey(date) {
+				const value = date instanceof Date ? date : new Date(date);
+				if (Number.isNaN(value.getTime())) return '';
+				const local = new Date(value.getTime() - value.getTimezoneOffset() * 60000);
+				return local.toISOString().slice(0, 10);
+			}
+
+			function shortDayLabel(dayKey) {
+				const date = new Date(`${dayKey}T00:00:00`);
+				if (Number.isNaN(date.getTime())) return dayKey;
+				return date.toLocaleDateString('es', { day: '2-digit', month: 'short' }).replace('.', '');
+			}
+
+			function getAnalyticsRangeDays() {
+				if (selectedRange === 'all') {
+					const days = analyticsEvents
+						.map((event) => String(event.day || '').slice(0, 10))
+						.filter(Boolean)
+						.sort();
+
+					if (!days.length) {
+						return Array.from({ length: 7 }, (_, index) => {
+							const date = new Date();
+							date.setDate(date.getDate() - (6 - index));
+							return localDayKey(date);
+						});
+					}
+
+					const start = new Date(`${days[0]}T00:00:00`);
+					const end = new Date(`${days[days.length - 1]}T00:00:00`);
+					const result = [];
+					const cursor = new Date(start);
+
+					while (cursor <= end) {
+						result.push(localDayKey(cursor));
+						cursor.setDate(cursor.getDate() + 1);
+					}
+
+					return result;
+				}
+
+				const amount = Number(selectedRange || 7);
+				const total = Number.isFinite(amount) && amount > 0 ? amount : 7;
+
+				return Array.from({ length: total }, (_, index) => {
+					const date = new Date();
+					date.setDate(date.getDate() - (total - 1 - index));
+					return localDayKey(date);
+				});
+			}
+
+			function computeTrafficAnalytics() {
+				const days = getAnalyticsRangeDays();
+				const daySet = new Set(days);
+				const grouped = new Map(days.map((day) => [day, {
+					day,
+					label: shortDayLabel(day),
+					visits: 0,
+					visitors: new Set(),
+				}]));
+
+				analyticsEvents.forEach((event) => {
+					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
+					if (!daySet.has(day)) return;
+
+					const bucket = grouped.get(day);
+					if (!bucket) return;
+
+					bucket.visits += 1;
+					const visitor = String(event.visitor_id || '').trim();
+					if (visitor) bucket.visitors.add(visitor);
+				});
+
+				const series = days.map((day) => {
+					const bucket = grouped.get(day);
+					return {
+						day,
+						label: shortDayLabel(day),
+						visits: bucket?.visits || 0,
+						activeVisitors: bucket?.visitors?.size || 0,
+					};
+				});
+
+				const totalVisits = series.reduce((sum, item) => sum + item.visits, 0);
+				const totalActiveVisitors = series.reduce((sum, item) => sum + item.activeVisitors, 0);
+				const divisor = Math.max(series.length, 1);
+
+				return {
+					series,
+					totalVisits,
+					totalActiveVisitors,
+					averageVisits: totalVisits / divisor,
+					averageActiveVisitors: totalActiveVisitors / divisor,
+				};
+			}
+
+			function createTrafficChartMarkup(points, field, strokeColor, fillColor, maxTicks = 4) {
+				if (!points.length || points.every((point) => Number(point[field] || 0) === 0)) {
+					return '<div class="traffic-empty-state">TodavÃ­a no hay datos suficientes para mostrar esta analÃ­tica.</div>';
+				}
+
+				const width = 900;
+				const height = 310;
+				const paddingX = 44;
+				const paddingTop = 18;
+				const paddingBottom = 46;
+				const innerWidth = width - paddingX * 2;
+				const innerHeight = height - paddingTop - paddingBottom;
+				const maxValue = Math.max(...points.map((point) => Number(point[field] || 0)), 1);
+				const roundedMax = Math.max(Math.ceil(maxValue / 10) * 10, 1);
+				const stepX = points.length > 1 ? innerWidth / (points.length - 1) : innerWidth;
+
+				const coords = points.map((point, index) => {
+					const x = paddingX + index * stepX;
+					const y = paddingTop + innerHeight - ((Number(point[field] || 0) / roundedMax) * innerHeight);
+					return { ...point, x, y, index };
+				});
+
+				function buildSmoothPath(items) {
+					if (items.length === 1) return `M ${items[0].x} ${items[0].y}`;
+
+					return items.map((point, index) => {
+						if (index === 0) return `M ${point.x} ${point.y}`;
+						const previous = items[index - 1];
+						const middleX = (previous.x + point.x) / 2;
+						return `C ${middleX} ${previous.y}, ${middleX} ${point.y}, ${point.x} ${point.y}`;
+					}).join(' ');
+				}
+
+				const linePath = buildSmoothPath(coords);
+				const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${height - paddingBottom} L ${coords[0].x} ${height - paddingBottom} Z`;
+				const gradientId = `traffic-${field}-${selectedRange}`;
+				const tickCount = maxTicks;
+				const grid = Array.from({ length: tickCount + 1 }, (_, index) => {
+					const value = Math.round((roundedMax / tickCount) * index);
+					const y = paddingTop + innerHeight - ((value / roundedMax) * innerHeight);
+					return { y, value };
+				});
+
+				const labelStep = points.length > 30 ? 7 : points.length > 15 ? 4 : points.length > 7 ? 2 : 1;
+				const visibleLabels = coords.filter((point) => point.index === 0 || point.index === coords.length - 1 || point.index % labelStep === 0);
+
+				return `
+					<svg class="traffic-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="GrÃ¡fico de analÃ­tica de tienda">
+						<defs>
+							<linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stop-color="${fillColor}" stop-opacity="0.34" />
+								<stop offset="100%" stop-color="${fillColor}" stop-opacity="0.02" />
+							</linearGradient>
+						</defs>
+						${grid.map((tick) => `
+							<line x1="${paddingX}" y1="${tick.y}" x2="${width - paddingX}" y2="${tick.y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
+							<text x="${width - paddingX + 10}" y="${tick.y + 4}" font-size="12" font-weight="700" fill="#64748b">${tick.value}</text>
+						`).join('')}
+						<path d="${areaPath}" fill="url(#${gradientId})"></path>
+						<path d="${linePath}" fill="none" stroke="${strokeColor}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
+						${coords.map((point) => `
+							<circle cx="${point.x}" cy="${point.y}" r="4.6" fill="${strokeColor}" stroke="#ffffff" stroke-width="2" />
+						`).join('')}
+						${visibleLabels.map((point) => `
+							<text x="${point.x}" y="${height - 13}" text-anchor="middle" font-size="12" font-weight="750" fill="#475569">${escapeHtml(point.label)}</text>
+						`).join('')}
+					</svg>
+				`;
+			}
+
+			function renderTrafficAnalytics() {
+				const traffic = computeTrafficAnalytics();
+
+				if (trafficVisitsTotal) trafficVisitsTotal.textContent = String(traffic.totalVisits);
+				if (trafficVisitorsTotal) trafficVisitorsTotal.textContent = String(traffic.totalActiveVisitors);
+				if (trafficVisitsAverage) trafficVisitsAverage.innerHTML = `Promedio diario: <strong>${traffic.averageVisits.toFixed(1)}</strong>`;
+				if (trafficVisitorsAverage) trafficVisitorsAverage.innerHTML = `Promedio diario: <strong>${traffic.averageActiveVisitors.toFixed(1)}</strong>`;
+				if (trafficVisitsChart) trafficVisitsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'visits', '#2563eb', '#60a5fa');
+				if (trafficVisitorsChart) trafficVisitorsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'activeVisitors', '#0f172a', '#64748b');
 			}
 
 			function renderKpis(metrics) {
@@ -3135,6 +3438,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const metrics = computeMetrics();
 				dashboardSubtitle.textContent = formatFullDate(new Date()) + '.';
 				rangeLabel.textContent = `Mostrando: ${rangeLabels[selectedRange]}.`;
+				renderTrafficAnalytics();
 				renderKpis(metrics);
 				renderCharts(metrics);
 				renderTopProducts(metrics);
@@ -3155,16 +3459,19 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando vencimientos...</div>';
 				expirationProductsMeta.textContent = 'Cargando productos...';
 
-				const [ordersResult, itemsResult, productsResult] = await Promise.all([
+				const [ordersResult, itemsResult, productsResult, analyticsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
 					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
 					loadAllRecords('products', 'sort=expiration_date&expand=category,subcategory'),
-					loadRatingSupportData(),
+					loadAllRecords('store_analytics_events', 'sort=created'),
 				]);
+
+				await loadRatingSupportData();
 
 				orders = ordersResult || [];
 				orderItems = itemsResult || [];
 				products = productsResult || [];
+				analyticsEvents = analyticsResult || [];
 				renderDashboard();
 			}
 
@@ -3208,6 +3515,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				orders = [];
 				orderItems = [];
 				products = [];
+				analyticsEvents = [];
 				closeSidebar();
 				document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
 				window.location.assign('/login');

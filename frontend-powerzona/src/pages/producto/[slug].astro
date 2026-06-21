@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
+import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummary, getProductReviews } from '../../lib/api';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
@@ -1333,5 +1334,6 @@ const variationItems = variations.map((variation) => {
 		})();
 	</script>
 
+	<StoreAnalyticsTracker storeId={currentStoreId} pageType="product" entityType="product" entityId={product.id} />
 	<PublicFooter settings={settings} />
 </Layout>

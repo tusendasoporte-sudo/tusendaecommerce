@@ -1,6 +1,7 @@
 ---
 // PZ-BUSCAR-PUBLICO-V3-LINKS-CATEGORIA-PAGINA-PROPIA-20260603
 import Layout from '../layouts/Layout.astro';
+import StoreAnalyticsTracker from '../components/StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
 import { isStoreTemporarilyClosed } from '../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
@@ -145,6 +146,8 @@ const searchItems = [
     <div id="empty-results" class="empty-card" hidden>No encontramos resultados con esa búsqueda. Prueba con otra palabra.</div>
     <div id="empty-recent" class="empty-card" hidden>Todavía no hay búsquedas recientes en este dispositivo.</div>
   </div>
+
+  <StoreAnalyticsTracker storeId={currentStore.id} pageType="search" />
 
   <script define:vars={{ searchItems, initialQuery }}>
     const STORAGE_KEY = 'powerzona_recent_searches_v1';
