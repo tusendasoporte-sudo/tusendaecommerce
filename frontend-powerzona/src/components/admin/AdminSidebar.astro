@@ -1199,23 +1199,6 @@ const marketingVisualSubClass = (subsection: string) => {
       display: block !important;
     }
 
-    .pz-admin-btn--full-mobile,
-    .pz-admin-content .pz-admin-btn--full-mobile {
-      width: 100% !important;
-    }
-
-    .pz-admin-btn,
-    .pz-admin-content .pz-admin-btn {
-      min-height: 46px !important;
-      border-radius: 16px !important;
-    }
-
-    .pz-admin-btn--icon,
-    .pz-admin-content .pz-admin-btn--icon {
-      width: 46px !important;
-      min-width: 46px !important;
-      height: 46px !important;
-    }
   }
 
   @media (min-width: 1024px) {
@@ -1224,19 +1207,34 @@ const marketingVisualSubClass = (subsection: string) => {
     }
   }
 
-  /* PZ-ADMIN-GLOBAL-BUTTONS-20260621
-     Sistema global de botones para el admin publico de tiendas.
-     No cambia logica, solo unifica estilo visual. */
+  /* PZ-ADMIN-BUTTON-SIZES-GLOBAL-20260621
+     Normaliza tamanos de botones en el admin publico.
+     Solo estilos visuales. No cambia logica ni eventos. */
+
+  :root {
+    --pz-admin-btn-height: 46px;
+    --pz-admin-btn-height-mobile: 48px;
+    --pz-admin-btn-height-compact: 38px;
+    --pz-admin-btn-height-chip: 38px;
+    --pz-admin-btn-height-pill: 30px;
+    --pz-admin-btn-radius: 16px;
+    --pz-admin-btn-radius-compact: 14px;
+    --pz-admin-btn-radius-pill: 999px;
+    --pz-admin-btn-padding-x: 16px;
+    --pz-admin-btn-padding-y: 11px;
+    --pz-admin-btn-padding-compact-x: 12px;
+    --pz-admin-btn-padding-compact-y: 8px;
+  }
 
   .pz-admin-btn,
   .pz-admin-content .pz-admin-btn {
-    min-height: 46px !important;
-    padding: 11px 16px !important;
+    min-height: var(--pz-admin-btn-height) !important;
+    padding: var(--pz-admin-btn-padding-y) var(--pz-admin-btn-padding-x) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 9px !important;
-    border-radius: 16px !important;
+    border-radius: var(--pz-admin-btn-radius) !important;
     border: 1px solid #e2e8f0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
@@ -1248,6 +1246,7 @@ const marketingVisualSubClass = (subsection: string) => {
     white-space: nowrap !important;
     cursor: pointer !important;
     -webkit-tap-highlight-color: transparent !important;
+    appearance: none !important;
     transition:
       transform .16s ease,
       box-shadow .16s ease,
@@ -1332,20 +1331,32 @@ const marketingVisualSubClass = (subsection: string) => {
 
   .pz-admin-btn--icon,
   .pz-admin-content .pz-admin-btn--icon {
-    width: 46px !important;
-    min-width: 46px !important;
-    height: 46px !important;
-    min-height: 46px !important;
+    width: var(--pz-admin-btn-height) !important;
+    min-width: var(--pz-admin-btn-height) !important;
+    height: var(--pz-admin-btn-height) !important;
+    min-height: var(--pz-admin-btn-height) !important;
     padding: 0 !important;
-    border-radius: 16px !important;
+    border-radius: var(--pz-admin-btn-radius) !important;
+    flex: 0 0 auto !important;
   }
 
   .pz-admin-btn--compact,
   .pz-admin-content .pz-admin-btn--compact {
-    min-height: 38px !important;
-    padding: 8px 12px !important;
-    border-radius: 14px !important;
+    min-height: var(--pz-admin-btn-height-compact) !important;
+    padding: var(--pz-admin-btn-padding-compact-y) var(--pz-admin-btn-padding-compact-x) !important;
+    border-radius: var(--pz-admin-btn-radius-compact) !important;
     font-size: 12px !important;
+    gap: 7px !important;
+  }
+
+  .pz-admin-btn--icon.pz-admin-btn--compact,
+  .pz-admin-content .pz-admin-btn--icon.pz-admin-btn--compact {
+    width: var(--pz-admin-btn-height-compact) !important;
+    min-width: var(--pz-admin-btn-height-compact) !important;
+    height: var(--pz-admin-btn-height-compact) !important;
+    min-height: var(--pz-admin-btn-height-compact) !important;
+    padding: 0 !important;
+    border-radius: var(--pz-admin-btn-radius-compact) !important;
   }
 
   .pz-admin-btn--wide,
@@ -1382,45 +1393,69 @@ const marketingVisualSubClass = (subsection: string) => {
     flex: 0 0 auto !important;
   }
 
+  .pz-admin-btn--compact .pz-admin-btn__icon,
+  .pz-admin-content .pz-admin-btn--compact .pz-admin-btn__icon {
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 15px !important;
+  }
+
+  .pz-admin-btn--compact svg,
+  .pz-admin-content .pz-admin-btn--compact svg {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
   .pz-admin-content .primary-blue-btn,
-  .pz-admin-content .submit-btn {
-    min-height: 46px !important;
-    padding: 11px 16px !important;
+  .pz-admin-content .submit-btn,
+  .pz-admin-content .action-btn.dark,
+  .pz-admin-content .mini-btn.primary {
+    min-height: var(--pz-admin-btn-height) !important;
+    padding: var(--pz-admin-btn-padding-y) var(--pz-admin-btn-padding-x) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 9px !important;
-    border-radius: 16px !important;
+    border-radius: var(--pz-admin-btn-radius) !important;
     border: 1px solid rgba(37, 99, 235, .88) !important;
     background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
     color: #ffffff !important;
     box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
+    font-size: 14px !important;
+    line-height: 1.1 !important;
     font-weight: 1000 !important;
     text-decoration: none !important;
     white-space: nowrap !important;
   }
 
   .pz-admin-content .action-btn:not(.dark):not(.danger),
-  .pz-admin-content .mini-btn:not(.primary):not(.danger) {
-    min-height: 42px !important;
+  .pz-admin-content .mini-btn:not(.primary):not(.danger),
+  .pz-admin-content .marketing-settings-icon-btn {
+    min-height: var(--pz-admin-btn-height) !important;
+    padding: var(--pz-admin-btn-padding-y) var(--pz-admin-btn-padding-x) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 8px !important;
-    border-radius: 15px !important;
+    gap: 9px !important;
+    border-radius: var(--pz-admin-btn-radius) !important;
     border: 1px solid #e2e8f0 !important;
     background: #ffffff !important;
     color: #0f172a !important;
-    box-shadow: 0 10px 22px rgba(15, 23, 42, .06) !important;
-    font-weight: 950 !important;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, .07) !important;
+    font-size: 14px !important;
+    line-height: 1.1 !important;
+    font-weight: 1000 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
   }
 
+  .pz-admin-content .mini-btn,
   .pz-admin-content .mini-btn.primary,
-  .pz-admin-content .action-btn.dark {
-    border-color: rgba(37, 99, 235, .88) !important;
-    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-    color: #ffffff !important;
-    box-shadow: 0 12px 24px rgba(37, 99, 235, .20) !important;
+  .pz-admin-content .mini-btn.danger {
+    min-height: var(--pz-admin-btn-height-compact) !important;
+    padding: var(--pz-admin-btn-padding-compact-y) var(--pz-admin-btn-padding-compact-x) !important;
+    border-radius: var(--pz-admin-btn-radius-compact) !important;
+    font-size: 12px !important;
   }
 
   .pz-admin-content .mini-btn.danger,
@@ -1445,6 +1480,99 @@ const marketingVisualSubClass = (subsection: string) => {
     background: #ffedd5 !important;
     color: #9a3412 !important;
     box-shadow: 0 10px 22px rgba(249, 115, 22, .08) !important;
+  }
+
+  .pz-admin-content .notification-btn {
+    width: var(--pz-admin-btn-height) !important;
+    min-width: var(--pz-admin-btn-height) !important;
+    height: var(--pz-admin-btn-height) !important;
+    min-height: var(--pz-admin-btn-height) !important;
+    padding: 0 !important;
+    border-radius: var(--pz-admin-btn-radius) !important;
+  }
+
+  .pz-admin-content .promotion-filter-btn,
+  .pz-admin-content .tab-btn,
+  .pz-admin-content .filter-btn,
+  .pz-admin-content .chip-btn {
+    min-height: var(--pz-admin-btn-height-chip) !important;
+    padding: 9px 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    border-radius: var(--pz-admin-btn-radius-pill) !important;
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+    font-weight: 1000 !important;
+    white-space: nowrap !important;
+  }
+
+  .pz-admin-content .pill-visible,
+  .pz-admin-content .pill-hidden,
+  .pz-admin-content .promotion-status-pill,
+  .pz-admin-content .status-pill,
+  .pz-admin-content .badge {
+    min-height: var(--pz-admin-btn-height-pill) !important;
+    padding: 6px 11px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: var(--pz-admin-btn-radius-pill) !important;
+    font-size: 12px !important;
+    line-height: 1.1 !important;
+    font-weight: 1000 !important;
+  }
+
+  @media (max-width: 640px) {
+    .pz-admin-btn,
+    .pz-admin-content .pz-admin-btn {
+      min-height: var(--pz-admin-btn-height-mobile) !important;
+      padding: 12px 16px !important;
+    }
+
+    .pz-admin-btn--icon,
+    .pz-admin-content .pz-admin-btn--icon {
+      width: var(--pz-admin-btn-height-mobile) !important;
+      min-width: var(--pz-admin-btn-height-mobile) !important;
+      height: var(--pz-admin-btn-height-mobile) !important;
+      min-height: var(--pz-admin-btn-height-mobile) !important;
+    }
+
+    .pz-admin-btn--icon.pz-admin-btn--compact,
+    .pz-admin-content .pz-admin-btn--icon.pz-admin-btn--compact {
+      width: var(--pz-admin-btn-height-compact) !important;
+      min-width: var(--pz-admin-btn-height-compact) !important;
+      height: var(--pz-admin-btn-height-compact) !important;
+      min-height: var(--pz-admin-btn-height-compact) !important;
+    }
+
+    .pz-admin-btn--full-mobile,
+    .pz-admin-content .pz-admin-btn--full-mobile {
+      width: 100% !important;
+    }
+
+    .pz-admin-content .primary-blue-btn,
+    .pz-admin-content .submit-btn,
+    .pz-admin-content .action-btn.dark,
+    .pz-admin-content .action-btn:not(.dark):not(.danger),
+    .pz-admin-content .marketing-settings-icon-btn {
+      min-height: var(--pz-admin-btn-height-mobile) !important;
+    }
+
+    .pz-admin-content .promotion-filter-btn,
+    .pz-admin-content .tab-btn,
+    .pz-admin-content .filter-btn,
+    .pz-admin-content .chip-btn {
+      min-height: var(--pz-admin-btn-height-chip) !important;
+    }
+
+    .pz-admin-content .form-actions,
+    .pz-admin-content .panel-actions,
+    .pz-admin-content .marketing-promos-panel-actions,
+    .pz-admin-content .marketing-featured-summary-actions {
+      gap: 10px !important;
+    }
   }
 
   @media (min-width: 1024px) {

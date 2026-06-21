@@ -733,6 +733,352 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         font-size: 13px;
         font-weight: 1000;
       }
+      #tab-cupones.marketing-coupons-screen {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+      .marketing-coupons-summary-grid { margin-bottom: 22px; }
+      .marketing-coupons-summary-card .marketing-summary-value { color: #2563eb; }
+      .marketing-coupons-summary-card .marketing-summary-value.green { color: #16a34a; }
+      .marketing-coupons-summary-card .marketing-summary-value.orange { color: #f97316; }
+      .marketing-coupons-panel { display: grid; gap: 18px; }
+      .marketing-coupons-panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .marketing-coupons-panel-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .marketing-coupons-form-accordion {
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, .96);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, .055);
+      }
+      .marketing-coupons-form-accordion.hidden { display: none !important; }
+      .marketing-coupons-form-summary {
+        min-height: 58px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        list-style: none;
+        cursor: pointer;
+        color: #0f172a;
+        font-weight: 1000;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+      }
+      .marketing-coupons-form-summary::-webkit-details-marker { display: none; }
+      .marketing-coupons-form-summary-main { display: inline-flex; align-items: center; gap: 10px; }
+      .marketing-coupons-form-summary-icon {
+        width: 28px;
+        height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+      .marketing-coupons-form-chevron {
+        color: #64748b;
+        font-size: 14px;
+        transition: transform .18s ease;
+      }
+      .marketing-coupons-form-accordion[open] .marketing-coupons-form-chevron { transform: rotate(180deg); }
+      .marketing-coupons-form {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+        border-top: 1px solid #e2e8f0;
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+      }
+      .marketing-coupons-form.hidden { display: none !important; }
+      .marketing-coupons-form-section {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, .96);
+      }
+      .marketing-coupons-form-section-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: #2563eb;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+      .marketing-coupons-form-icon {
+        width: 30px;
+        height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        background: #dbeafe;
+        color: #2563eb;
+        flex: 0 0 auto;
+      }
+      .marketing-coupons-form-icon svg {
+        width: 17px;
+        height: 17px;
+        fill: currentColor;
+      }
+      .marketing-coupons-form-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .marketing-coupons-form-grid .full { grid-column: 1 / -1; }
+      .marketing-coupons-switch-field { align-content: start; }
+      .marketing-coupons-switch {
+        min-height: 42px;
+        padding: 8px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #fff;
+        color: #0f172a;
+        font-weight: 1000;
+      }
+      .marketing-coupons-switch input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .marketing-coupons-switch span {
+        width: 46px;
+        height: 26px;
+        padding: 3px;
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        background: #cbd5e1;
+        transition: background .16s ease;
+      }
+      .marketing-coupons-switch span::before {
+        content: '';
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: #fff;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, .18);
+        transition: transform .16s ease;
+      }
+      .marketing-coupons-switch input:checked + span { background: #2563eb; }
+      .marketing-coupons-switch input:checked + span::before { transform: translateX(20px); }
+      .marketing-coupons-form-actions { justify-content: flex-end; }
+      .marketing-coupons-list-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 14px;
+        margin-top: 4px;
+      }
+      .marketing-coupons-list-head h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1.15;
+        font-weight: 1000;
+        letter-spacing: -.03em;
+      }
+      .marketing-coupons-list-head p {
+        margin: 5px 0 0;
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+      .marketing-coupons-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .marketing-coupons-filters { margin-top: 0; }
+      .marketing-coupons-filters .promotion-filter-btn { display: inline-flex; align-items: center; gap: 7px; }
+      .marketing-coupons-filters .promotion-filter-btn span {
+        min-width: 22px;
+        height: 22px;
+        padding: 0 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, .08);
+        color: currentColor;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+      .marketing-coupons-results-count {
+        margin: 0;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .marketing-coupons-list {
+        margin-top: 0 !important;
+        display: grid;
+        gap: 10px;
+      }
+      .coupon-list-scroll {
+        max-height: 620px;
+        overflow-y: auto;
+        padding-right: 4px;
+        scroll-behavior: smooth;
+      }
+      .coupon-list-scroll::-webkit-scrollbar { width: 8px; }
+      .coupon-list-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 999px; }
+      .coupon-list-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+      .coupon-list-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      .coupon-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(120px, .55fr) minmax(160px, .7fr) minmax(130px, .55fr) auto;
+        align-items: center;
+        gap: 16px;
+        padding: 14px 16px;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
+      }
+      .coupon-row-main {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+      .coupon-row-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #dbeafe;
+        color: #2563eb;
+        flex: 0 0 auto;
+      }
+      .coupon-row-icon.green { background: #dcfce7; color: #16a34a; }
+      .coupon-row-icon.orange { background: #ffedd5; color: #f97316; }
+      .coupon-row-icon svg {
+        width: 22px;
+        height: 22px;
+        fill: currentColor;
+      }
+      .coupon-row-copy { min-width: 0; }
+      .coupon-row-title {
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #0f172a;
+        font-size: 17px;
+        line-height: 1.2;
+        font-weight: 1000;
+        letter-spacing: -.02em;
+      }
+      .coupon-row-meta,
+      .coupon-row-message {
+        margin: 5px 0 0;
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.45;
+        font-weight: 850;
+      }
+      .coupon-row-message { color: #64748b; }
+      .coupon-status-pill {
+        min-height: 28px;
+        padding: 6px 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+      .coupon-status-pill.is-active { background: #dcfce7; color: #16a34a; }
+      .coupon-status-pill.is-inactive { background: #f1f5f9; color: #64748b; }
+      .coupon-status-pill.is-expired,
+      .coupon-status-pill.is-soldout { background: #ffedd5; color: #f97316; }
+      .coupon-row-block { min-width: 0; }
+      .coupon-row-label {
+        margin: 0 0 5px;
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+      .coupon-row-value {
+        margin: 0;
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.3;
+        font-weight: 1000;
+      }
+      .coupon-row-value.danger { color: #dc2626; }
+      .coupon-code-pill {
+        min-height: 38px;
+        padding: 8px 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 13px;
+        font-weight: 1000;
+        letter-spacing: .04em;
+      }
+      .coupon-code-copy {
+        width: 22px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        background: transparent;
+        color: #64748b;
+        cursor: pointer;
+      }
+      .coupon-code-copy svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+      }
+      .coupon-row-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      .coupon-row-actions-secondary {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
       .marketing-modal { position: fixed; inset: 0; z-index: 12000; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(15,23,42,.42); backdrop-filter: blur(4px); }
       .marketing-modal.hidden { display: none !important; }
       .marketing-modal-card { width: min(560px, 100%); max-height: calc(100vh - 36px); overflow: auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 28px; box-shadow: 0 32px 90px rgba(15,23,42,.28); padding: 22px; }
@@ -756,6 +1102,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .marketing-promos-form-grid,
         .marketing-promos-form-grid.two { grid-template-columns: 1fr; }
         .marketing-promos-list-head { align-items: flex-start; flex-direction: column; }
+        .marketing-coupons-panel-head { flex-direction: column; }
+        .marketing-coupons-panel-actions { width: 100%; justify-content: flex-start; }
+        .marketing-coupons-panel-actions > button { flex: 1 1 180px; }
+        .marketing-coupons-form-grid { grid-template-columns: 1fr; }
+        .marketing-coupons-list-head,
+        .marketing-coupons-toolbar { align-items: flex-start; flex-direction: column; }
+        .coupon-row { grid-template-columns: 1fr; align-items: stretch; }
+        .coupon-row-actions { justify-content: space-between; }
       }
       @media (max-width: 640px) {
         .app-shell { padding: 0; }
@@ -786,6 +1140,62 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .marketing-promos-form-section { padding: 12px; border-radius: 18px; }
         .promotion-filters { gap: 8px; }
         .promotion-filter-btn { min-height: 38px; padding: 9px 12px; }
+        .marketing-coupons-panel {
+          padding: 16px;
+          border-radius: 24px;
+          border: 1px solid #e2e8f0;
+          background: rgba(255,255,255,.96);
+          box-shadow: 0 18px 45px rgba(15,23,42,.08);
+        }
+        .marketing-coupons-panel-head { gap: 14px; padding-bottom: 14px; }
+        .marketing-coupons-panel-actions { display: grid; grid-template-columns: 1fr 1fr; }
+        .marketing-coupons-panel-actions > button { width: 100%; }
+        .marketing-coupons-form-summary {
+          min-height: 54px;
+          padding: 12px;
+        }
+        .marketing-coupons-form { padding: 12px; }
+        .marketing-coupons-form-section {
+          padding: 12px;
+          border-radius: 18px;
+        }
+        .marketing-coupons-form-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .coupon-list-scroll {
+          max-height: none;
+          overflow: visible;
+          padding-right: 0;
+        }
+        .coupon-row {
+          padding: 12px;
+          border-radius: 20px;
+        }
+        .coupon-row-main { align-items: flex-start; }
+        .coupon-row-icon {
+          width: 52px;
+          height: 52px;
+          border-radius: 17px;
+        }
+        .coupon-row-title {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 16px;
+        }
+        .coupon-row-actions {
+          align-items: stretch;
+          flex-direction: column;
+        }
+        .coupon-row-actions-secondary {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+        .coupon-code-pill {
+          width: 100%;
+          justify-content: space-between;
+        }
         .promotion-group-summary { padding: 12px; }
         .promotion-row { grid-template-columns: 1fr; align-items: stretch; gap: 10px; padding: 12px; }
         .promotion-row-main { align-items: flex-start; }
@@ -1946,61 +2356,253 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </div>
           </div>
 
-          <section id="tab-cupones" class="panel-card tab-panel hidden">
-            <div class="section-head">
-              <div>
-                <h2 class="section-title">Cupón manual</h2>
-                <p class="section-subtitle">Crea códigos para compartir por enlace o para que el cliente los escriba en checkout.</p>
-              </div>
-              <div class="hero-actions">
-                <button id="coupon-new-btn" class="mini-btn primary" type="button">Nuevo cupón</button>
-                <button id="coupon-readme-btn" class="promotion-readme-btn" type="button">Léeme</button>
-              </div>
+          <section id="tab-cupones" class="tab-panel hidden marketing-coupons-screen">
+            <div class="marketing-featured-summary-grid marketing-coupons-summary-grid">
+              <article class="marketing-featured-summary-card marketing-coupons-summary-card">
+                <span class="marketing-summary-icon blue" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Total cupones</p>
+                  <p id="coupon-summary-total" class="marketing-summary-value">0</p>
+                  <p class="marketing-summary-help">Códigos creados</p>
+                </div>
+              </article>
+
+              <article class="marketing-featured-summary-card marketing-coupons-summary-card">
+                <span class="marketing-summary-icon green" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m9 16.2-3.5-3.5L4 14.2l5 5L20 8.2 18.5 6.7 9 16.2Z"/></svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Activos</p>
+                  <p id="coupon-summary-active" class="marketing-summary-value green">0</p>
+                  <p class="marketing-summary-help">Disponibles</p>
+                </div>
+              </article>
+
+              <article class="marketing-featured-summary-card marketing-coupons-summary-card">
+                <span class="marketing-summary-icon orange" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Zm1 14h-2v2h2v-2Zm0-7h-2v5h2v-5Z"/></svg>
+                </span>
+                <div>
+                  <p class="marketing-summary-label">Revisión</p>
+                  <p id="coupon-summary-review" class="marketing-summary-value orange">0</p>
+                  <p class="marketing-summary-help">Vencidos, inactivos o agotados</p>
+                </div>
+              </article>
             </div>
 
-            <div id="coupon-alert" class="alert alert-info hidden"></div>
-            <form id="coupon-form" class="visual-form-grid hidden">
-              <input id="coupon-id" type="hidden" />
-              <div class="field"><label for="coupon-code">Código del cupón</label><input id="coupon-code" type="text" placeholder="POWER5" required /></div>
-              <div class="field"><label for="coupon-name">Nombre interno</label><input id="coupon-name" type="text" required /></div>
-              <div class="field full"><label for="coupon-message">Mensaje visible para el cliente</label><input id="coupon-message" type="text" placeholder="Ahorra 5 USD en tu próxima compra." /></div>
-              <div class="field"><label for="coupon-scope">Tipo de cupón</label><select id="coupon-scope">
-                <option value="cart">Carrito completo</option>
-                <option value="product">Producto</option>
-                <option value="category">Categoría</option>
-                <option value="subcategory">Subcategoría</option>
-                <option value="free_shipping">Envío gratis</option>
-              </select></div>
-              <div class="field" data-coupon-field="discountType"><label for="coupon-discount-type">Tipo de descuento</label><select id="coupon-discount-type">
-                <option value="percentage">Porcentaje</option>
-                <option value="fixed_usd">Valor fijo USD</option>
-              </select></div>
-              <div class="field" data-coupon-field="discountValue"><label for="coupon-discount-value">Valor</label><input id="coupon-discount-value" type="number" min="0" step="0.01" /></div>
-              <div class="field" data-coupon-field="minSubtotal"><label for="coupon-min-subtotal">Subtotal mínimo opcional USD</label><input id="coupon-min-subtotal" type="number" min="0" step="0.01" /></div>
-              <div class="field full" data-coupon-field="product">
-                <label for="coupon-product-search">Producto</label>
-                <input id="coupon-product-search" type="search" placeholder="Escribe el nombre del producto" autocomplete="off" />
-                <select id="coupon-product" class="hidden" aria-hidden="true"><option value="">Selecciona producto</option></select>
-                <div id="coupon-product-selected" class="promotion-product-selected"></div>
-                <div id="coupon-product-results" class="featured-search-results"><div class="empty-state">Escribe para buscar productos.</div></div>
-              </div>
-              <div class="field" data-coupon-field="category"><label for="coupon-category">Categoría</label><select id="coupon-category"><option value="">Selecciona categoría</option></select></div>
-              <div class="field" data-coupon-field="subcategory"><label for="coupon-subcategory">Subcategoría</label><select id="coupon-subcategory"><option value="">Selecciona subcategoría</option></select></div>
-              <div class="field"><label for="coupon-starts">Fecha inicio</label><input id="coupon-starts" type="date" /></div>
-              <div class="field"><label for="coupon-ends">Fecha fin</label><input id="coupon-ends" type="date" /></div>
-              <div class="field"><label for="coupon-uses-mode">Límite de uso</label><select id="coupon-uses-mode">
-                <option value="unlimited">Ilimitado</option>
-                <option value="limited">Máximo de usos</option>
-              </select></div>
-              <div class="field" data-coupon-field="maxUses"><label for="coupon-max-uses">Máximo de usos</label><input id="coupon-max-uses" type="number" min="1" step="1" /></div>
-              <div class="field full"><label class="mini-btn" style="justify-content:flex-start; box-shadow:none;"><input id="coupon-active" type="checkbox" checked /> Activo</label></div>
-              <div class="editor-actions full">
-                <button id="coupon-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                <button id="coupon-save-btn" class="submit-btn" type="submit">Guardar cupón</button>
-              </div>
-            </form>
+            <div class="marketing-featured-panel marketing-coupons-panel">
+              <div class="marketing-coupons-panel-head">
+                <div class="marketing-featured-summary-main">
+                  <span class="marketing-featured-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>
+                  </span>
+                  <div class="marketing-featured-copy">
+                    <h2>Cupones manuales</h2>
+                    <p>Crea y gestiona códigos para descuentos o envío gratis.</p>
+                  </div>
+                </div>
 
-            <div id="coupon-list" class="items-list" style="margin-top:16px;"><div class="empty-state">Cargando cupones...</div></div>
+                <div class="marketing-coupons-panel-actions">
+                  <button id="coupon-readme-btn" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--full-mobile" type="button">
+                    <span class="pz-admin-btn__icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3-3V4Zm2 2v9.2c.3-.1.7-.2 1-.2h8V7a1 1 0 0 0-1-1H7Zm12 0h1a1 1 0 0 1 1 1v13h-1V6Z"/></svg>
+                    </span>
+                    <span class="pz-admin-btn__label">Léeme</span>
+                  </button>
+
+                  <button id="coupon-new-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
+                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
+                    <span class="pz-admin-btn__label">Nuevo cupón</span>
+                  </button>
+                </div>
+              </div>
+
+              <div id="coupon-alert" class="alert alert-info hidden"></div>
+
+              <details id="coupon-form-panel" class="marketing-coupons-form-accordion hidden" open>
+                <summary class="marketing-coupons-form-summary">
+                  <span class="marketing-coupons-form-summary-main">
+                    <span class="marketing-coupons-form-summary-icon" aria-hidden="true">⌄</span>
+                    <strong>Formulario de cupón</strong>
+                  </span>
+                  <span class="marketing-coupons-form-chevron" aria-hidden="true">⌄</span>
+                </summary>
+
+                <form id="coupon-form" class="marketing-coupons-form hidden">
+                  <input id="coupon-id" type="hidden" />
+
+                  <div class="marketing-coupons-form-section">
+                    <div class="marketing-coupons-form-section-title">
+                      <span class="marketing-coupons-form-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M6 3h12v18H6V3Zm2 2v14h8V5H8Zm2 3h4v2h-4V8Zm0 4h4v2h-4v-2Z"/></svg>
+                      </span>
+                      <strong>Básico</strong>
+                    </div>
+
+                    <div class="marketing-coupons-form-grid">
+                      <div class="field">
+                        <label for="coupon-code">Código del cupón</label>
+                        <input id="coupon-code" type="text" placeholder="POWER5" required />
+                      </div>
+
+                      <div class="field">
+                        <label for="coupon-name">Nombre interno</label>
+                        <input id="coupon-name" type="text" placeholder="Descuento campaña junio" required />
+                      </div>
+
+                      <div class="field">
+                        <label for="coupon-message">Mensaje visible para el cliente</label>
+                        <input id="coupon-message" type="text" placeholder="Ahorra 5 USD en tu próxima compra." />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="marketing-coupons-form-section">
+                    <div class="marketing-coupons-form-section-title">
+                      <span class="marketing-coupons-form-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="m12 3 2.2 4.5 5 .7-3.6 3.5.8 5-4.4-2.3-4.4 2.3.8-5L4.8 8.2l5-.7L12 3Z"/></svg>
+                      </span>
+                      <strong>Descuento / alcance</strong>
+                    </div>
+
+                    <div class="marketing-coupons-form-grid">
+                      <div class="field">
+                        <label for="coupon-scope">Tipo de cupón</label>
+                        <select id="coupon-scope">
+                          <option value="cart">Carrito completo</option>
+                          <option value="product">Producto</option>
+                          <option value="category">Categoría</option>
+                          <option value="subcategory">Subcategoría</option>
+                          <option value="free_shipping">Envío gratis</option>
+                        </select>
+                      </div>
+
+                      <div class="field" data-coupon-field="discountType">
+                        <label for="coupon-discount-type">Tipo de descuento</label>
+                        <select id="coupon-discount-type">
+                          <option value="percentage">Porcentaje</option>
+                          <option value="fixed_usd">Valor fijo USD</option>
+                        </select>
+                      </div>
+
+                      <div class="field" data-coupon-field="discountValue">
+                        <label for="coupon-discount-value">Valor</label>
+                        <input id="coupon-discount-value" type="number" min="0" step="0.01" />
+                      </div>
+
+                      <div class="field" data-coupon-field="minSubtotal">
+                        <label for="coupon-min-subtotal">Subtotal mínimo opcional USD</label>
+                        <input id="coupon-min-subtotal" type="number" min="0" step="0.01" />
+                      </div>
+
+                      <div class="field full" data-coupon-field="product">
+                        <label for="coupon-product-search">Producto</label>
+                        <input id="coupon-product-search" type="search" placeholder="Escribe el nombre del producto" autocomplete="off" />
+                        <select id="coupon-product" class="hidden" aria-hidden="true">
+                          <option value="">Selecciona producto</option>
+                        </select>
+                        <div id="coupon-product-selected" class="promotion-product-selected"></div>
+                        <div id="coupon-product-results" class="featured-search-results">
+                          <div class="empty-state">Escribe para buscar productos.</div>
+                        </div>
+                      </div>
+
+                      <div class="field" data-coupon-field="category">
+                        <label for="coupon-category">Categoría</label>
+                        <select id="coupon-category">
+                          <option value="">Selecciona categoría</option>
+                        </select>
+                      </div>
+
+                      <div class="field" data-coupon-field="subcategory">
+                        <label for="coupon-subcategory">Subcategoría</label>
+                        <select id="coupon-subcategory">
+                          <option value="">Selecciona subcategoría</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="marketing-coupons-form-section">
+                    <div class="marketing-coupons-form-section-title">
+                      <span class="marketing-coupons-form-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M7 2h2v3h6V2h2v3h3v17H4V5h3V2Zm11 8H6v10h12V10Z"/></svg>
+                      </span>
+                      <strong>Vigencia y uso</strong>
+                    </div>
+
+                    <div class="marketing-coupons-form-grid">
+                      <div class="field">
+                        <label for="coupon-starts">Fecha inicio</label>
+                        <input id="coupon-starts" type="date" />
+                      </div>
+
+                      <div class="field">
+                        <label for="coupon-ends">Fecha fin</label>
+                        <input id="coupon-ends" type="date" />
+                      </div>
+
+                      <div class="field">
+                        <label for="coupon-uses-mode">Límite de uso</label>
+                        <select id="coupon-uses-mode">
+                          <option value="unlimited">Ilimitados</option>
+                          <option value="limited">Limitados</option>
+                        </select>
+                      </div>
+
+                      <div class="field" data-coupon-field="maxUses">
+                        <label for="coupon-max-uses">Máximo de usos</label>
+                        <input id="coupon-max-uses" type="number" min="1" step="1" />
+                      </div>
+
+                      <div class="field marketing-coupons-switch-field">
+                        <label>Estado</label>
+                        <label class="marketing-coupons-switch">
+                          <input id="coupon-active" type="checkbox" checked />
+                          <span></span>
+                          <strong>Activo</strong>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="editor-actions marketing-coupons-form-actions">
+                    <button id="coupon-cancel-btn" class="pz-admin-btn pz-admin-btn--secondary" type="button">
+                      <span class="pz-admin-btn__label">Cerrar</span>
+                    </button>
+
+                    <button id="coupon-save-btn" class="pz-admin-btn pz-admin-btn--primary" type="submit">
+                      <span class="pz-admin-btn__label">Guardar cupón</span>
+                    </button>
+                  </div>
+                </form>
+              </details>
+
+              <div class="marketing-coupons-list-head">
+                <div>
+                  <h3>Cupones actuales</h3>
+                  <p>Revisa el estado, usos y vigencia de tus cupones.</p>
+                </div>
+              </div>
+
+              <div class="marketing-coupons-toolbar">
+                <div id="coupon-filters" class="promotion-filters marketing-coupons-filters" aria-label="Filtrar cupones">
+                  <button class="promotion-filter-btn active" data-coupon-filter="all" type="button">Todos <span id="coupon-filter-all-count">0</span></button>
+                  <button class="promotion-filter-btn" data-coupon-filter="active" type="button">Activos <span id="coupon-filter-active-count">0</span></button>
+                  <button class="promotion-filter-btn" data-coupon-filter="inactive" type="button">Inactivos <span id="coupon-filter-inactive-count">0</span></button>
+                  <button class="promotion-filter-btn" data-coupon-filter="expired" type="button">Vencidos <span id="coupon-filter-expired-count">0</span></button>
+                  <button class="promotion-filter-btn" data-coupon-filter="soldout" type="button">Agotados <span id="coupon-filter-soldout-count">0</span></button>
+                </div>
+
+                <p id="coupon-results-count" class="marketing-coupons-results-count">0 cupones</p>
+              </div>
+
+              <div id="coupon-list" class="items-list marketing-coupons-list coupon-list-scroll">
+                <div class="empty-state">Cargando cupones...</div>
+              </div>
+            </div>
           </section>
 
           <div id="coupon-readme-modal" class="marketing-modal hidden" aria-hidden="true">
@@ -2134,6 +2736,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let manualCouponUsages = [];
       let activeTab = 'destacados';
       let promotionFilter = 'all';
+      let couponFilter = 'all';
       let pendingPromotionDeleteId = '';
       let pendingCouponDeleteId = '';
       let promotionInitialSnapshot = '';
@@ -2224,10 +2827,21 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const promotionStarts = document.getElementById('promotion-starts');
       const promotionEnds = document.getElementById('promotion-ends');
       const promotionActive = document.getElementById('promotion-active');
+      const couponFormPanel = document.getElementById('coupon-form-panel');
       const couponForm = document.getElementById('coupon-form');
       const couponList = document.getElementById('coupon-list');
       const couponAlert = document.getElementById('coupon-alert');
       const couponNewBtn = document.getElementById('coupon-new-btn');
+      const couponSummaryTotal = document.getElementById('coupon-summary-total');
+      const couponSummaryActive = document.getElementById('coupon-summary-active');
+      const couponSummaryReview = document.getElementById('coupon-summary-review');
+      const couponFilters = document.getElementById('coupon-filters');
+      const couponResultsCount = document.getElementById('coupon-results-count');
+      const couponFilterAllCount = document.getElementById('coupon-filter-all-count');
+      const couponFilterActiveCount = document.getElementById('coupon-filter-active-count');
+      const couponFilterInactiveCount = document.getElementById('coupon-filter-inactive-count');
+      const couponFilterExpiredCount = document.getElementById('coupon-filter-expired-count');
+      const couponFilterSoldoutCount = document.getElementById('coupon-filter-soldout-count');
       const couponReadmeBtn = document.getElementById('coupon-readme-btn');
       const couponReadmeModal = document.getElementById('coupon-readme-modal');
       const couponReadmeCloseBtn = document.getElementById('coupon-readme-close-btn');
@@ -3043,6 +3657,63 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         if (couponIsSoldOut(item)) return 'Agotado';
         return 'Activo';
       }
+      function couponIsActiveAndCurrent(item) {
+        return item?.active !== false && !couponIsExpired(item) && !couponIsSoldOut(item);
+      }
+      function couponMatchesFilter(item) {
+        if (couponFilter === 'active') return couponIsActiveAndCurrent(item);
+        if (couponFilter === 'inactive') return item?.active === false;
+        if (couponFilter === 'expired') return couponIsExpired(item);
+        if (couponFilter === 'soldout') return couponIsSoldOut(item);
+        return true;
+      }
+      function couponStatusClass(item) {
+        if (couponIsSoldOut(item)) return 'is-soldout';
+        if (couponIsExpired(item)) return 'is-expired';
+        if (item?.active === false) return 'is-inactive';
+        return 'is-active';
+      }
+      function couponVisualIconClass(item) {
+        if (couponIsSoldOut(item) || couponIsExpired(item)) return 'orange';
+        if (couponIsActiveAndCurrent(item)) return 'green';
+        return '';
+      }
+      function couponVisualIcon(item) {
+        if (item?.scope === 'free_shipping') {
+          return '<svg viewBox="0 0 24 24"><path d="M3 6h11v8h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V8a2 2 0 0 1 1-2Zm2 2v6.2A3 3 0 0 1 8.8 16H12V8H5Zm12 5h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>';
+        }
+        return '<svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>';
+      }
+      function couponDiscountLabel(item) {
+        if (item?.scope === 'free_shipping') return 'Envío gratis';
+        const value = Number(item?.discount_value || 0);
+        if (item?.discount_type === 'fixed_usd') return `${formatUsd(value)} de descuento`;
+        return `${value}% de descuento`;
+      }
+      function couponDateShortLabel(item) {
+        if (!item?.starts_at && !item?.ends_at) return 'Sin fecha límite';
+        const start = item?.starts_at ? localDateInputValue(item.starts_at).split('-').reverse().join('/') : '';
+        const end = item?.ends_at ? localDateInputValue(item.ends_at).split('-').reverse().join('/') : '';
+        if (start && end) return `${start} - ${end}`;
+        if (end) return `Hasta ${end}`;
+        if (start) return `Desde ${start}`;
+        return 'Sin fecha límite';
+      }
+      function renderCouponSummary() {
+        const total = manualCoupons.length;
+        const active = manualCoupons.filter(couponIsActiveAndCurrent).length;
+        const review = manualCoupons.filter((item) => item.active === false || couponIsExpired(item) || couponIsSoldOut(item)).length;
+
+        if (couponSummaryTotal) couponSummaryTotal.textContent = String(total);
+        if (couponSummaryActive) couponSummaryActive.textContent = String(active);
+        if (couponSummaryReview) couponSummaryReview.textContent = String(review);
+
+        if (couponFilterAllCount) couponFilterAllCount.textContent = String(total);
+        if (couponFilterActiveCount) couponFilterActiveCount.textContent = String(active);
+        if (couponFilterInactiveCount) couponFilterInactiveCount.textContent = String(manualCoupons.filter((item) => item.active === false).length);
+        if (couponFilterExpiredCount) couponFilterExpiredCount.textContent = String(manualCoupons.filter(couponIsExpired).length);
+        if (couponFilterSoldoutCount) couponFilterSoldoutCount.textContent = String(manualCoupons.filter(couponIsSoldOut).length);
+      }
       function couponUsageLabel(item) {
         const used = Number(item.used_count || 0);
         if (item.unlimited_uses !== false) return `Usado ${used} ${used === 1 ? 'vez' : 'veces'} · Ilimitado`;
@@ -3168,30 +3839,102 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const error = validateCouponPayload(payload, couponId?.value || '');
         const canSave = !error && couponFormHasChanges();
         couponSaveBtn.disabled = isSavingCoupon || !canSave;
-        couponSaveBtn.textContent = isSavingCoupon ? 'Guardando...' : 'Guardar cupón';
+        couponSaveBtn.innerHTML = `<span class="pz-admin-btn__label">${isSavingCoupon ? 'Guardando...' : 'Guardar cupón'}</span>`;
       }
       function renderCoupons() {
         if (!couponList) return;
+
+        renderCouponSummary();
+
+        couponFilters?.querySelectorAll('[data-coupon-filter]').forEach((button) => {
+          button.classList.toggle('active', button.dataset.couponFilter === couponFilter);
+        });
+
+        const filteredCoupons = [...manualCoupons]
+          .filter(couponMatchesFilter)
+          .sort((a, b) => {
+            const activeSort = Number(couponIsActiveAndCurrent(b)) - Number(couponIsActiveAndCurrent(a));
+            if (activeSort !== 0) return activeSort;
+            return String(a.code || '').localeCompare(String(b.code || ''));
+          });
+
+        if (couponResultsCount) {
+          couponResultsCount.textContent = `${filteredCoupons.length} ${filteredCoupons.length === 1 ? 'cupón' : 'cupones'}`;
+        }
+
         if (!manualCoupons.length) {
           couponList.innerHTML = '<div class="empty-state">Todavía no hay cupones manuales.</div>';
           return;
         }
-        couponList.innerHTML = [...manualCoupons]
-          .sort((a, b) => Number(b.active !== false) - Number(a.active !== false) || String(a.code || '').localeCompare(String(b.code || '')))
-          .map((item) => `
-            <article class="item-row" data-coupon-id="${item.id}">
-              <div class="item-main">
-                <span class="thumb placeholder">%</span>
-                <div>
-                  <p class="item-title">${escapeHtml(String(item.code || '').toUpperCase())}</p>
-                  <p class="item-meta">${escapeHtml(couponStatusLabel(item))} · ${escapeHtml(couponScopeLabel(item.scope))} · ${escapeHtml(couponUsageLabel(item))} · ${escapeHtml(couponDateLabel(item))}</p>
-                  <p class="item-meta">${escapeHtml(couponTargetLabel(item))}</p>
+
+        if (!filteredCoupons.length) {
+          couponList.innerHTML = '<div class="empty-state">No hay cupones en este filtro.</div>';
+          return;
+        }
+
+        couponList.innerHTML = filteredCoupons.map((item) => {
+          const code = String(item.code || '').toUpperCase();
+          const status = couponStatusLabel(item);
+          const statusClass = couponStatusClass(item);
+          const iconClass = couponVisualIconClass(item);
+          const scopeLabel = couponScopeLabel(item.scope);
+          const discountLabel = couponDiscountLabel(item);
+          const usageLabel = couponUsageLabel(item);
+          const dateLabel = couponDateShortLabel(item);
+          const targetLabel = couponTargetLabel(item);
+          const message = item.customer_message || '';
+
+          return `
+            <article class="coupon-row" data-coupon-id="${item.id}">
+              <div class="coupon-row-main">
+                <span class="coupon-row-icon ${iconClass}" aria-hidden="true">${couponVisualIcon(item)}</span>
+                <div class="coupon-row-copy">
+                  <p class="coupon-row-title">
+                    <span>${escapeHtml(code || 'SIN CÓDIGO')}</span>
+                    <span class="coupon-status-pill ${statusClass}">${escapeHtml(status)}</span>
+                  </p>
+                  <p class="coupon-row-meta">${escapeHtml(scopeLabel)} · ${escapeHtml(discountLabel)} · ${escapeHtml(targetLabel)}</p>
+                  ${message ? `<p class="coupon-row-message">${escapeHtml(message)}</p>` : ''}
+                  <div class="coupon-row-actions-secondary">
+                    <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-coupon-copy" type="button">
+                      <span class="pz-admin-btn__label">Copiar enlace</span>
+                    </button>
+                    <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-coupon-history" type="button">
+                      <span class="pz-admin-btn__label">Ver historial</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="item-actions">
-                <button class="mini-btn ${item.active !== false ? '' : 'success'} js-coupon-toggle" type="button">${item.active !== false ? 'Activo' : 'Inactivo'}</button>
+
+              <div class="coupon-row-block">
+                <p class="coupon-row-label">Usos</p>
+                <p class="coupon-row-value">${escapeHtml(usageLabel)}</p>
+              </div>
+
+              <div class="coupon-row-block">
+                <p class="coupon-row-label">Vigencia</p>
+                <p class="coupon-row-value ${couponIsExpired(item) ? 'danger' : ''}">${escapeHtml(dateLabel)}</p>
+              </div>
+
+              <div class="coupon-row-block">
+                <p class="coupon-row-label">Código</p>
+                <span class="coupon-code-pill">
+                  ${escapeHtml(code || 'SIN CÓDIGO')}
+                  <button class="coupon-code-copy js-coupon-copy" type="button" aria-label="Copiar enlace del cupón">
+                    <svg viewBox="0 0 24 24"><path d="M8 7a3 3 0 0 1 3-3h7a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3h-1v-2h1a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v1H8V7Zm-5 4a3 3 0 0 1 3-3h7a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-7Zm3-1a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1H6Z"/></svg>
+                  </button>
+                </span>
+              </div>
+
+              <div class="coupon-row-actions">
+                <button class="pz-admin-btn pz-admin-btn--compact ${item.active !== false ? 'pz-admin-btn--secondary' : 'pz-admin-btn--success'} js-coupon-toggle" type="button">
+                  <span class="pz-admin-btn__label">${item.active !== false ? 'Activo' : 'Inactivo'}</span>
+                </button>
+
                 <div class="promotion-menu-wrap">
-                  <button class="promotion-kebab-btn js-coupon-menu" type="button" aria-label="Abrir opciones" aria-expanded="false">&hellip;</button>
+                  <button class="promotion-kebab-btn js-coupon-menu pz-admin-btn pz-admin-btn--icon pz-admin-btn--compact" type="button" aria-label="Abrir opciones" aria-expanded="false">
+                    <span aria-hidden="true">⋮</span>
+                  </button>
                   <div class="promotion-floating-menu" role="menu">
                     <button class="js-coupon-edit" type="button">Editar</button>
                     <button class="js-coupon-history" type="button">Ver historial</button>
@@ -3201,7 +3944,8 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </div>
               </div>
             </article>
-          `).join('');
+          `;
+        }).join('');
       }
       function resetCouponForm() {
         couponForm?.reset();
@@ -3218,6 +3962,18 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         renderCouponProductSelected();
         renderCouponProductResults();
         setCouponSnapshotFromCurrent();
+      }
+      function setCouponFormButtonOpen(isOpen = false) {
+        if (!couponNewBtn) return;
+        if (isOpen) {
+          couponNewBtn.innerHTML = '<span class="pz-admin-btn__label">Cerrar formulario</span>';
+          couponNewBtn.classList.remove('pz-admin-btn--primary');
+          couponNewBtn.classList.add('pz-admin-btn--secondary');
+          return;
+        }
+        couponNewBtn.innerHTML = '<span class="pz-admin-btn__icon" aria-hidden="true">+</span><span class="pz-admin-btn__label">Nuevo cupón</span>';
+        couponNewBtn.classList.remove('pz-admin-btn--secondary');
+        couponNewBtn.classList.add('pz-admin-btn--primary');
       }
       function openCouponForm(item = null) {
         resetCouponForm();
@@ -3243,12 +3999,20 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         updateCouponFields();
         setCouponSnapshotFromCurrent();
+        if (couponFormPanel) {
+          couponFormPanel.open = true;
+          couponFormPanel.classList.remove('hidden');
+        }
         couponForm?.classList.remove('hidden');
+        setCouponFormButtonOpen(true);
         showTab('cupones');
+        couponFormPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         couponCode?.focus();
       }
       function closeCouponForm() {
         couponForm?.classList.add('hidden');
+        couponFormPanel?.classList.add('hidden');
+        setCouponFormButtonOpen(false);
         resetCouponForm();
       }
       function validateCouponPayload(payload, currentId = '') {
@@ -3836,8 +4600,8 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         cupones: {
           label: 'Cupones',
           eyebrow: 'Marketing y Visual / Cupones',
-          title: 'Cupones',
-          subtitle: 'Crea y administra cupones manuales para descuentos, beneficios o envío gratis.',
+          title: 'Cupones manuales',
+          subtitle: 'Crea códigos de descuento o envío gratis para compartirlos por enlace.',
         },
         cintillo: {
           label: 'Cintillo promocional',
@@ -3978,7 +4742,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         promotionProductSearch?.focus();
         updatePromotionFormState();
       });
-      couponNewBtn?.addEventListener('click', () => openCouponForm());
+      couponNewBtn?.addEventListener('click', () => {
+        const isOpen = couponFormPanel && !couponFormPanel.classList.contains('hidden');
+        if (isOpen) {
+          closeCouponForm();
+          return;
+        }
+        openCouponForm();
+      });
       couponCancelBtn?.addEventListener('click', closeCouponForm);
       couponReadmeBtn?.addEventListener('click', openCouponReadme);
       couponReadmeCloseBtn?.addEventListener('click', closeCouponReadme);
@@ -4018,6 +4789,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         selectCouponProduct('');
         couponProductSearch?.focus();
         updateCouponFormState();
+      });
+      couponFilters?.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-coupon-filter]');
+        if (!button) return;
+        couponFilter = button.dataset.couponFilter || 'all';
+        renderCoupons();
       });
       document.querySelectorAll('.js-admin-block-edit').forEach((button) => {
         button.addEventListener('click', () => {
