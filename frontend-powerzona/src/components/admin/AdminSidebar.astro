@@ -53,7 +53,7 @@ const defaultMobileTitleBySection: Record<string, string> = {
   gifts: 'Regalos',
   shipping: 'Envíos',
   settings: 'Ajustes',
-  marketing: 'Marketing',
+  marketing: 'Promociones',
 };
 
 const resolvedMobileTitle =
@@ -156,13 +156,13 @@ const marketingVisualSubClass = (subsection: string) => {
       </div>
     </nav>
 
-    <p class="pz-admin-sidebar__section-label">Divisiones</p>
+    <p class="pz-admin-sidebar__section-label">PROMOS</p>
     <nav class="pz-admin-sidebar__nav-list">
       <div class="pz-admin-sidebar__settings-group">
-        <button class={marketingVisualToggleClass} type="button" aria-expanded={isMarketingVisualActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-marketing-visual-subnav" data-marketing-visual-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Marketing y Visual</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
+        <button class={marketingVisualToggleClass} type="button" aria-expanded={isMarketingVisualActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-marketing-visual-subnav" data-marketing-visual-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Promociones</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
         <div id="pz-admin-sidebar-marketing-visual-subnav" class={marketingVisualSubnavClass} aria-label="Secciones de marketing y organización visual">
           <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={`${adminPromosPath}#destacados`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>
-          <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones</span></a>
+          <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones automáticas</span></a>
           <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>
           <a class={marketingVisualSubClass('cintillo')} data-marketing-visual-subitem="cintillo" href={`${adminPromosPath}#cintillo`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v5H3V6Zm2 7h14v5H5v-5Zm3-5v1h8V8H8Zm0 7v1h8v-1H8Z"/></svg></span><span>Cintillo promocional</span></a>
           <a class={marketingVisualSubClass('visuales')} data-marketing-visual-subitem="visuales" href={`${adminPromosPath}#visuales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></span><span>Accesos rápidos</span></a>
