@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-2-TU-SENDA-84-STORE-RELATIONS-20260610
-// Agrega relacion store a colecciones principales y asigna los datos existentes a PowerZona.
-// No toca product_variations, order_items ni manual_coupon_usages para evitar duplicar relaciones derivadas.
 
 const STORE_RELATION_TARGETS = [
   ["products", "relation1780469101", "idx_products_store"],

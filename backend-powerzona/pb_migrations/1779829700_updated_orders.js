@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_3527180448")
 
-  // update collection data
   unmarshal({
     "createRule": "@request.auth.id = \"\" || @request.auth.id != \"\""
   }, collection)
@@ -11,7 +10,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_3527180448")
 
-  // update collection data
   unmarshal({
     "createRule": ""
   }, collection)

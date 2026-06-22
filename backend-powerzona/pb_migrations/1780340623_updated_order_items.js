@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2456927940")
 
-  // add field
   collection.fields.addAt(14, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -19,7 +18,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // add field
   collection.fields.addAt(15, new Field({
     "help": "",
     "hidden": false,
@@ -38,10 +36,8 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_2456927940")
 
-  // remove field
   collection.fields.removeById("text4107484973")
 
-  // remove field
   collection.fields.removeById("number2734277259")
 
   return app.save(collection)

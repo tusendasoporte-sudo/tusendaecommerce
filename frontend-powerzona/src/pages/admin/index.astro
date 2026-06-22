@@ -1,6 +1,4 @@
 ---
-// PZ-ADMIN-RESUMEN-V25E-MENU-DESTRABADO-20260605: Corrige apertura/cierre del menú lateral y restaura botón premium en Resumen.
-// PZ-ADMIN-INDEX-V25D-20260605: Resumen conserva lógica V21/V25B y usa sidebar unificado igual al resto del admin.
 // PowerZona admin resumen vencimientos y pedidos V13 - 2026-06-03
 // V14 - Ajuste visual pedidos recientes: fila tipo botón y estado resaltado inline.
 // V15 - Top 10 productos: filas modernas tipo cápsula con cantidad y total resaltados.
@@ -3593,7 +3591,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				if (ratingSummaryNote) {
 					ratingSummaryNote.textContent = reviewsCollectionAvailable
 						? ''
-						: 'La colección reviews todavía no está disponible. Aplica la migración y reinicia PocketBase para ver estas métricas completas.';
+						: 'Las reseñas no están disponibles en este momento. Contacta a soporte para activar estas métricas.';
 					ratingSummaryNote.classList.toggle('hidden', reviewsCollectionAvailable);
 				}
 			}

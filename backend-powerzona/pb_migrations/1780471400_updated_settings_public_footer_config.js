@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-22A-FOOTER-CONFIGURABLE-20260617
-// Agrega configuracion publica de footer, redes, beneficios y envios en settings.
 
 function hasField(collection, name) {
   try {

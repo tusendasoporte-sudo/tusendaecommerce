@@ -3,7 +3,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const { hideFloatingSwitcher = false } = Astro.props;
 ---
 
-<!-- PZ-CURRENCY-SWITCHER-V4-MENU-MOBILE-SYNC-20260604 -->
 {!hideFloatingSwitcher && (
   <div id="pz-currency-switcher" class="pz-currency-switcher" hidden>
     <label for="pz-currency-select">Moneda</label>
@@ -231,7 +230,6 @@ const { hideFloatingSwitcher = false } = Astro.props;
           || fallbackCurrencies()[0];
         state.defaultCode = String(visibleDefault.code || 'USD').toUpperCase();
       } catch (error) {
-        console.warn('No se pudo cargar configuración de monedas. Usando USD.', error);
         state.currencies = fallbackCurrencies();
         state.defaultCode = 'USD';
       } finally {

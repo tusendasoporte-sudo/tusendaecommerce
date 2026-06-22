@@ -21,14 +21,6 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
-<!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
-  Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
--->
-<!-- PZ-AJUSTES-TIENDA-V3-AJUSTES-GENERALES-PUBLICOS-20260603
-  Bloque: Ajustes de la tienda
-  Incluye páginas separadas para ajustes generales, Crear Producto/Promo y Organización Visual.
-  Requiere migración: 1780459000_updated_settings_public_general_fields.js.
--->
 <!doctype html>
 <html lang="es">
   <head>
@@ -52,9 +44,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         --purple: #7c3aed;
         --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
       }
-      /* PZ-MARKETING-VISUAL-DESTACADOS-STYLE-20260620
-         Estilo visual alineado con Ajustes de tienda / Ajustes generales.
-         Solo afecta la sección Destacados visuales. */
+      
       .marketing-settings-hero {
         background: transparent;
         border: 0;
@@ -2152,8 +2142,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .featured-products-list .item-meta { font-size: 14px; }
         .featured-products-list .item-actions { justify-content: flex-start; }
       }
-      /* PZ-DESTACADOS-ADD-FLOW-20260620
-         Separación visual entre agregar destacados y destacados actuales. */
+      
       .featured-add-zone,
       .featured-current-zone { display: grid; gap: 12px; }
       .featured-add-zone { padding: 16px; border-radius: 20px; border: 1px solid #e2e8f0; background: rgba(248, 250, 252, .72); }
@@ -2179,8 +2168,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .featured-result-row .thumb { width: 58px; height: 58px; }
         .featured-result-add-btn { width: 100%; justify-content: center; }
       }
-      /* PZ-DESTACADOS-MOBILE-APPROVED-20260620
-         Vista móvil exacta aprobada para Destacados visuales. */
+      
 
       .marketing-mobile-topbar,
       .marketing-mobile-bottom-nav {
@@ -2481,9 +2469,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }</style>
       <style is:global>
-      /* PZ-MARKETING-MOBILE-TOPBAR-SAFE-OFFSET-20260620
-         Corrige que la barra superior fija global tape el breadcrumb/descripcion
-         en todas las secciones de Marketing y Visual. */
+      
 
       @media (max-width: 1023px) {
         body .app-shell.pz-admin-content {
@@ -2598,7 +2584,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 
         <section id="login-view" class="panel-card login-card hidden">
           <h2 class="page-title" style="font-size: 24px; margin: 0;">Entrar como admin</h2>
-          <p class="page-subtitle">Usa el mismo usuario administrador de PocketBase para modificar ajustes de tienda.</p>
+          <p class="page-subtitle">Usa tu usuario administrador para modificar ajustes de tienda.</p>
           <form id="login-form" class="form-grid" style="margin-top: 18px;">
             <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
             <div class="field"><label for="admin-password">Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
@@ -2946,7 +2932,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
               </div>
             </form>
           </section>
-
 
           <section id="tab-monedas" class="panel-card tab-panel hidden">
             <div class="section-head">
@@ -4023,7 +4008,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function normalizeSearchText(value) {
         return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
-      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con PocketBase.') {
+      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con la plataforma.') {
         const base = result?.message || fallback;
         const fieldErrors = result?.data && typeof result.data === 'object'
           ? Object.entries(result.data).map(([field, info]) => {
@@ -5226,13 +5211,13 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           automaticPromotions = await loadAllRecords('automatic_promotions', 'sort=priority,-updated');
         } catch (error) {
           automaticPromotions = [];
-          showAlert(promotionAlert, 'No existe todavía la colección automatic_promotions. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+          showAlert(promotionAlert, 'Las promociones automáticas no están disponibles. Contacta a soporte para activarlas.', 'error');
         }
         try {
           manualCoupons = await loadAllRecords('manual_coupons', 'sort=-updated');
         } catch (error) {
           manualCoupons = [];
-          showAlert(couponAlert, 'No existe todavía la colección manual_coupons. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+          showAlert(couponAlert, 'Los cupones manuales no están disponibles. Contacta a soporte para activarlos.', 'error');
         }
         try {
           manualCouponUsages = await loadAllRecords('manual_coupon_usages', 'sort=-created');
@@ -5243,7 +5228,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
         } catch (error) {
           visualItems = [];
-          showAlert(visualAlert, 'No existe todavía la colección store_visual_items. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+          showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
         }
         renderAll();
       }
@@ -6088,7 +6073,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       hydrateMarketingHashState();
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
-      // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -6454,7 +6438,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL_PUBLIC_SETTINGS + path, Object.assign({}, options, { headers }));
           const result = await response.json().catch(() => null);
-          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con la plataforma.');
           return result;
         }
         async function loadSettings() {
@@ -6695,9 +6679,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       })();
     </script>
 
-
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
-      // PZ-AJUSTES-MONEDAS-CLIENT-V1-20260604
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -6727,7 +6709,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL + path, Object.assign({}, options, { headers }));
           const result = await response.json().catch(() => null);
-          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con la plataforma.');
           return result;
         }
         function escapeHtml(value) {

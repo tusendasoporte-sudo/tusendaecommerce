@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-1-TU-SENDA-84-STORES-BASE-20260610
-// Base multitienda inicial: crea stores y registra PowerZona como primera tienda publica.
 
 migrate((app) => {
   const collection = new Collection({

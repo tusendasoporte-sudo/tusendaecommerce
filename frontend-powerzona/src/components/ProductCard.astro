@@ -1,5 +1,4 @@
 ---
-// PZ-PRODUCT-CARD-V24-OFERTA-PUBLICA-20260605
 const {
   title,
   price,
@@ -35,7 +34,6 @@ const ratingCountNumber = Number(ratingCount || 0);
 const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingAverageNumber > 0;
 ---
 
-<!-- PZ-PRODUCT-CARD-V24-OFERTA-PUBLICA-20260605 -->
 <div class={`product-card ${isCompact ? 'product-card-compact' : ''} ${isLarge ? 'product-card-large' : ''} bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${isOutOfStock && !canPreorder ? 'opacity-90' : ''}`}>
   <style>
     .product-card {

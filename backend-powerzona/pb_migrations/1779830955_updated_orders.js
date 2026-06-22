@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_3527180448")
 
-  // add field
   collection.fields.addAt(16, new Field({
     "help": "",
     "hidden": false,
@@ -17,7 +16,6 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // add field
   collection.fields.addAt(17, new Field({
     "help": "",
     "hidden": false,
@@ -32,7 +30,6 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // add field
   collection.fields.addAt(18, new Field({
     "help": "",
     "hidden": false,
@@ -47,7 +44,6 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // add field
   collection.fields.addAt(19, new Field({
     "help": "",
     "hidden": false,
@@ -66,16 +62,12 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_3527180448")
 
-  // remove field
   collection.fields.removeById("number587084009")
 
-  // remove field
   collection.fields.removeById("number3413590934")
 
-  // remove field
   collection.fields.removeById("number1869071786")
 
-  // remove field
   collection.fields.removeById("number3412805686")
 
   return app.save(collection)

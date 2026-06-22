@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V40-ORDER-ITEMS-REGALOS-20260604
-// Permite guardar regalos dentro de order_items sin producto normal.
-
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2456927940");
   const productField = collection.fields.getByName("product");

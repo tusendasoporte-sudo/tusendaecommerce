@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-19-COMPLETED-STORE-OPERATIONAL-ISOLATION-20260613
-// Refuerza reglas e indices por tienda para areas operativas multi-tienda.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 const STORE_ADMIN_RULE = '@request.auth.role = "store_admin" && store = @request.auth.store';

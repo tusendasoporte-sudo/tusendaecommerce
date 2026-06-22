@@ -15,7 +15,6 @@ const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
 ---
 
-<!-- PZ-LAYOUT-V21-CURRENCY-SWITCHER-20260604 -->
 <!doctype html>
 <html lang="es">
 	<head>

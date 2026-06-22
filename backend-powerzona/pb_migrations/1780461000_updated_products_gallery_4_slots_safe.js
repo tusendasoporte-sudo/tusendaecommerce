@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-PRODUCT-GALLERY-V2-4-ESPACIOS-SAFE-20260603
-// Agrega orden visual de fotos si no existe y limita galería a 4 imágenes.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")

@@ -755,7 +755,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return new File([blob], `${safeName}_regalo_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
         } catch (error) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
-          console.warn('No se pudo optimizar la imagen de regalos. Se usará la original.', error);
           return file;
         }
       }
@@ -765,7 +764,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (token()) headers.Authorization = `Bearer ${token()}`;
         const res = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
         const data = await res.json().catch(() => null);
-        if(!res.ok) throw new Error(data?.message || 'Error de comunicación con PocketBase.');
+        if(!res.ok) throw new Error(data?.message || 'Error de comunicación con la plataforma.');
         return data;
       }
 

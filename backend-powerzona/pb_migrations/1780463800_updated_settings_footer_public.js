@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-MIGRATION-V1-FOOTER-PUBLICO-20260603
-// Agrega campos editables al registro settings para el footer público reutilizable.
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2769025244")
 

@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-19A-AJUSTES-VISUALES-20260613
-// Agrega portada tipo carrusel, tipo de negocio estructurado y direccion estructurada en settings.
 
 function fieldExists(collection, name) {
   try {

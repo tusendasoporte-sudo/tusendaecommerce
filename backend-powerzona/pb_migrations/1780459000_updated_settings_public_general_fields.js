@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-MIGRATION-V1-AJUSTES-GENERALES-PUBLICOS-20260603
-// Agrega campos públicos a settings para portada, logo, dirección, horarios, bienvenida, servicios y reseña.
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2769025244")
 

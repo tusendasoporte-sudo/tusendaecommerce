@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-19C-COVER-SLOTS-20260613
-// Agrega campos por slot para el carrusel de portada sin eliminar cover_image ni cover_gallery.
 
 function fieldExists(collection, name) {
   try {

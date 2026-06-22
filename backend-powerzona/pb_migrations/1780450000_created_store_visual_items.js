@@ -1,9 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V37-AJUSTES-TIENDA-VISUAL-ITEMS-20260602
-// Crea la colección store_visual_items para promo_visual y acceso_rapido.
-// El destacado usa el campo existente products.featured.
-
 migrate((app) => {
   const collection = new Collection({
     "createRule": null,

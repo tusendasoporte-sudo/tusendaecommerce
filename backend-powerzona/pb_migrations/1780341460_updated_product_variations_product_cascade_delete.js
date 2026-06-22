@@ -2,8 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2734288031")
 
-  // La variación sigue necesitando producto padre al crearse,
-  // pero al borrar el producto PocketBase puede borrar también sus variaciones reales.
   collection.fields.addAt(1, new Field({
     "cascadeDelete": true,
     "collectionId": "pbc_4092854851",

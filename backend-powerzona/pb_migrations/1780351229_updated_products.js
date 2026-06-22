@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")
 
-  // update field
   collection.fields.addAt(5, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_3292755704",
@@ -22,7 +21,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")
 
-  // update field
   collection.fields.addAt(5, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_3292755704",

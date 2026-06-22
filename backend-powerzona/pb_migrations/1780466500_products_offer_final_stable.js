@@ -1,11 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-MIGRATION-V44-OFERTA-FINAL-ESTABLE-20260605
-// Logica final estable:
-// - base_price_usd = precio activo actual visible en PocketBase.
-// - regular_price_usd = precio original/normal para restaurar cuando se desactiva la oferta.
-// - offer_price_usd = precio de oferta cuando is_offer esta activo.
-// - is_offer = activa/desactiva la oferta.
-// Esta migracion evita cambios agresivos: agrega campos faltantes y normaliza solo casos claros.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("products")
@@ -69,9 +62,6 @@ migrate((app) => {
 
   if (changed) app.save(collection)
 
-  // Normalizacion segura de datos existentes.
-  // Caso oferta activa clara: si hay offer_price_usd y regular_price_usd mayor,
-  // base_price_usd debe quedar como precio activo/oferta.
   let records = []
   try {
     records = app.findRecordsByFilter("products", "", "", 1000, 0)
@@ -102,5 +92,4 @@ migrate((app) => {
     }
   })
 }, (app) => {
-  // No se revierten campos ni datos de precio para evitar perdida de informacion.
 })

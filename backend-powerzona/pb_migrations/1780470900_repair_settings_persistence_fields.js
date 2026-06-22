@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-19E-REPAIR-SETTINGS-PERSISTENCE-20260613
-// Repara campos de settings que pudieron no crearse por helpers fieldExists defectuosos
-// en migraciones anteriores ya marcadas como aplicadas.
 
 const DEFAULT_BUSINESS_HOURS = {
   monday: { enabled: false, open: "09:00", close: "18:00" },

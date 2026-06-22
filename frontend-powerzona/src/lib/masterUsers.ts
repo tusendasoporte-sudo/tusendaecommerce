@@ -92,15 +92,15 @@ export function getStoreUserCreateErrorMessage(error: any) {
   if (storeCode || message.includes('store')) return 'No se pudo asignar la tienda al usuario.';
   if (roleCode) return 'El rol seleccionado no es valido.';
   if (statusCode) return 'El estado seleccionado no es valido.';
-  if (verifiedCode) return 'PocketBase rechazó el campo: verified.';
-  if (emailVisibilityCode) return 'PocketBase rechazó el campo: emailVisibility.';
+  if (verifiedCode) return 'La plataforma rechazó el campo: verified.';
+  if (emailVisibilityCode) return 'La plataforma rechazó el campo: emailVisibility.';
   if (permissionCode || message.includes('permission')) return 'No tienes permisos para crear usuarios de tienda.';
 
   const rejectedField = Object.keys(data || {}).find((field) => {
     const value = data[field];
     return value && typeof value === 'object';
   });
-  if (rejectedField) return `PocketBase rechazó el campo: ${rejectedField}.`;
+  if (rejectedField) return `La plataforma rechazó el campo: ${rejectedField}.`;
 
   return 'No se pudo crear el usuario. Revisa los datos e intentalo otra vez.';
 }
@@ -130,15 +130,6 @@ export async function getStoreUsersForMaster(client = pb): Promise<MasterStoreUs
 export async function createStoreUserFromMaster(input: MasterStoreUserInput, client = pb) {
   requireMasterClient(client);
   const payload = getStoreUserPayload(input);
-  console.debug('Create store user payload', {
-    email: payload.email,
-    display_name: payload.display_name,
-    role: payload.role,
-    store: payload.store,
-    status: payload.status,
-    tienePassword: Boolean(payload.password),
-    tienePasswordConfirm: Boolean(payload.passwordConfirm),
-  });
 
   return client.collection('users').create(payload);
 }

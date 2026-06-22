@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_3527180448")
 
-  // add field
   collection.fields.addAt(22, new Field({
     "help": "Marca si esta orden ya descontó inventario para evitar dobles descuentos.",
     "hidden": false,
@@ -18,7 +17,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_3527180448")
 
-  // remove field
   collection.fields.removeById("bool1780060000")
 
   return app.save(collection)

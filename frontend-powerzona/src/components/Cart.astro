@@ -1,8 +1,6 @@
 ---
-// PZ-PATCH-V26.5-OFERTA-FINAL-ESTABLE-20260605
 ---
 
-<!-- PZ-CART-V20-OFERTA-AHORRO-20260605 -->
 
 <button id="cart-floating-btn" class="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:bg-blue-700 transition-transform hover:scale-105 z-40 hidden flex items-center gap-2">
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -110,7 +108,6 @@ if (isCheckoutPage) {
       localStorage.setItem(cartStorageKey(), payload);
       sessionStorage.setItem(checkoutCartStorageKey(), payload);
     } catch (error) {
-      console.warn('No se pudo crear respaldo del carrito para checkout.', error);
     }
 
     window.location.href = checkoutPath;

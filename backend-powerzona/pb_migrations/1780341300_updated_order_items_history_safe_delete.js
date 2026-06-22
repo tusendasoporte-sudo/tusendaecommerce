@@ -1,12 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-ORDER-ITEMS-HISTORIAL-SEGURO-V1-20260601
-// Permite borrar productos/variaciones reales sin perder el historial textual de las órdenes.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2456927940")
 
-  // La orden debe conservar una referencia histórica en texto, pero la relación real
-  // con products NO puede ser requerida porque bloquearía borrar productos viejos.
   collection.fields.addAt(2, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_4092854851",
@@ -22,7 +18,6 @@ migrate((app) => {
     "type": "relation"
   }))
 
-  // La variación también queda opcional para no bloquear borrado futuro.
   collection.fields.addAt(3, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_2734288031",
@@ -38,7 +33,6 @@ migrate((app) => {
     "type": "relation"
   }))
 
-  // Copia fija del ID/ref del producto vendido. No depende de que el producto real exista.
   collection.fields.addAt(16, new Field({
     "autogeneratePattern": "",
     "help": "Copia fija del ID/ref del producto al momento de crear la orden.",
@@ -61,7 +55,6 @@ migrate((app) => {
 
   collection.fields.removeById("text2059184301")
 
-  // Rollback: vuelve a la relación requerida original de product.
   collection.fields.addAt(2, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_4092854851",

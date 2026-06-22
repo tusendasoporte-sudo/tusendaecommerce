@@ -1,6 +1,4 @@
 @import "tailwindcss";
-/* PZ-GLOBAL-V11-MOBILE-VIEW-LOCK-20260603
-   Refuerzo para vista móvil: evita ancho extra, scroll horizontal y gestos raros. */
 html,
 body {
   width: 100%;
@@ -13,8 +11,6 @@ body {
   box-sizing: border-box;
 }
 
-/* PZ-GLOBAL-MEDIA-CONTAIN-V1-20260617
-   Utilidades para imagenes subidas por administracion: preservan la foto completa. */
 .pz-media-contain {
   width: 100%;
   height: 100%;

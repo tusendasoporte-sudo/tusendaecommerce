@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-13-USERS-MASTER-ADMIN-RULES-20260611
-// Permite que solo el Master Admin gestione usuarios de tienda desde la API.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 

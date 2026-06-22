@@ -119,7 +119,7 @@ export function getBusinessHoursStatus(settings: any, date = new Date()) {
       isClosed: true,
       title: 'Cerrado temporalmente',
       message: settings?.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
-      note: 'Nota: pedido realizado mientras la tienda estaba cerrada temporalmente.',
+      note: 'Aviso: pedido realizado mientras la tienda estaba cerrada temporalmente.',
       allowOrders: false,
     };
   }
@@ -147,7 +147,7 @@ export function getBusinessHoursStatus(settings: any, date = new Date()) {
     isClosed: !isAvailable,
     title: isAvailable ? 'Disponible ahora' : 'Fuera de horario',
     message: isAvailable ? '' : (settings?.closed_message || CLOSED_MESSAGE_DEFAULT),
-    note: isAvailable ? '' : 'Nota: pedido realizado fuera de horario laboral.',
+    note: isAvailable ? '' : 'Aviso: pedido realizado fuera de horario laboral.',
     allowOrders: settings?.allow_orders_when_closed !== false,
   };
 }

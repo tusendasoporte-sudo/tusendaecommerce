@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V39-SETTINGS-REGALOS-PUBLICOS-20260604
-// Agrega controles de categoría pública de regalos en settings.
-
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2769025244");
 

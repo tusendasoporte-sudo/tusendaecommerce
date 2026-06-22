@@ -220,9 +220,7 @@ const masterSupportHref = masterSupportWhatsapp
       .modal-subtitle { margin: 5px 0 0; color: #64748b; font-size: 13px; font-weight: 750; line-height: 1.45; }
       .modal-close { width: 40px; height: 40px; border-radius: 15px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; font-weight: 1000; }
       .collapsed-panel.hidden { display: none !important; }
-      /* PZ-SHIPPING-MAIN-FORM-VISIBLE-20260620
-         Tarjeta visible para crear nuevo municipio. */
-      .shipping-main-form-panel {
+            .shipping-main-form-panel {
         position: relative;
         scroll-margin-top: 118px;
         border: 1px solid #bfdbfe !important;
@@ -297,7 +295,7 @@ const masterSupportHref = masterSupportWhatsapp
         .zone-table-head { display: none; }
         .zone-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 16px 20px; }
         .zone-row > div:nth-child(1) { grid-column: 1 / -1; }
-        .zone-note::before { content: 'Nota interna: '; color: #64748b; }
+        .zone-note::before { content: 'Observacion privada: '; color: #64748b; }
         .price-pill::before { content: 'Precio (USD): '; color: #64748b; font-weight: 850; }
         .zone-menu-wrap { justify-content: flex-end; }
       }
@@ -375,7 +373,7 @@ const masterSupportHref = masterSupportWhatsapp
         </section>
         <section id="login-view" class="panel-card login-card hidden">
           <h2 class="section-title">Entrar como admin</h2>
-          <p class="section-subtitle">Usa el mismo usuario administrador de PocketBase para administrar env&iacute;os.</p>
+          <p class="section-subtitle">Usa tu usuario administrador para gestionar env&iacute;os.</p>
           <form id="login-form" class="form-grid" style="margin-top:18px;">
             <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
             <div class="field"><label for="admin-password">Contrase&ntilde;a</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
@@ -422,7 +420,7 @@ const masterSupportHref = masterSupportWhatsapp
               <div class="field"><label for="zone-input">Zona</label><input id="zone-input" type="text" placeholder="Nombre de la zona" /></div>
               <div class="field"><label for="price-input">Precio &uacute;nico USD</label><input id="price-input" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
               <div class="field"><label for="active-input">Estado</label><label class="check-row"><input id="active-input" type="checkbox" checked /> Activo en checkout</label></div>
-              <div class="field full"><label for="note-input">Nota interna opcional</label><textarea id="note-input" placeholder="Detalles internos para el administrador"></textarea></div>
+              <div class="field full"><label for="note-input">Observacion privada opcional</label><textarea id="note-input" placeholder="Detalles visibles solo para administracion"></textarea></div>
               <div class="form-actions full"><button id="save-zone-btn" class="mini-btn primary" type="submit">Guardar municipio</button></div>
             </form>
             <div id="form-alert" class="alert alert-info hidden"></div>
@@ -461,7 +459,7 @@ const masterSupportHref = masterSupportWhatsapp
                 <div class="field"><label for="zone-modal-zone">Zona</label><input id="zone-modal-zone" type="text" placeholder="Nombre de la zona" required /></div>
                 <div class="field"><label for="zone-modal-price">Precio &uacute;nico USD</label><input id="zone-modal-price" type="text" inputmode="decimal" placeholder="Ej: 3" required /></div>
                 <label class="check-row"><input id="zone-modal-active" type="checkbox" checked /> Activo en checkout</label>
-                <div class="field"><label for="zone-modal-note">Nota interna opcional</label><textarea id="zone-modal-note" placeholder="Detalles internos para el administrador"></textarea></div>
+                <div class="field"><label for="zone-modal-note">Observacion privada opcional</label><textarea id="zone-modal-note" placeholder="Detalles visibles solo para administracion"></textarea></div>
                 <div class="form-actions">
                   <button id="zone-modal-cancel" class="mini-btn" type="button">Cancelar</button>
                   <button id="zone-modal-save-btn" class="mini-btn primary" type="submit">Guardar zona</button>
@@ -565,7 +563,7 @@ const masterSupportHref = masterSupportWhatsapp
         if(token())headers.Authorization='Bearer '+token();
         const response=await fetch(POCKETBASE_URL+path,Object.assign({},options,{headers}));
         const result=await response.json().catch(()=>null);
-        if(!response.ok)throw new Error((result&&result.message)||'Error de comunicacion con PocketBase.');
+        if(!response.ok)throw new Error((result&&result.message)||'Error de comunicacion con la plataforma.');
         return result;
       }
       function showAdmin(){loginView.classList.add('hidden');adminView.classList.remove('hidden');loadZones().catch((error)=>showAlert(listAlert,error.message||'No se pudieron cargar los envios.','error'));}
@@ -725,7 +723,7 @@ const masterSupportHref = masterSupportWhatsapp
           const zones=groups[municipality];
           const activeCount=zones.filter((zone)=>zone.active!==false).length;
           const isExpanded=expandedMunicipalities.has(municipality);
-          return `<section class="municipality-group ${isExpanded?'expanded':''}" data-municipality="${escapeHtml(municipality)}"><div class="municipality-head"><button class="municipality-toggle js-toggle-municipality" type="button" aria-expanded="${isExpanded?'true':'false'}"><span class="municipality-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12h-6v-7h-4v7H4Zm3-3h2v-6h6v6h2V10.5l-5-3.8-5 3.8V18Z"/></svg></span><span><span class="municipality-name">${escapeHtml(municipality)}</span><span class="municipality-count">${zones.length} zona${zones.length===1?'':'s'} · ${activeCount} activa${activeCount===1?'':'s'}</span></span></button><button class="mini-btn js-add-same" data-municipality="${escapeHtml(municipality)}" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button><button class="municipality-chevron js-toggle-municipality" type="button" aria-label="Alternar municipio" aria-expanded="${isExpanded?'true':'false'}"><svg viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></button></div><div class="zone-list"><div class="zone-table-head"><span>Zona</span><span>Precio (USD)</span><span>Estado</span><span>Nota interna</span><span>Acciones</span></div>${zones.map(renderZoneRow).join('')}</div></section>`;
+          return `<section class="municipality-group ${isExpanded?'expanded':''}" data-municipality="${escapeHtml(municipality)}"><div class="municipality-head"><button class="municipality-toggle js-toggle-municipality" type="button" aria-expanded="${isExpanded?'true':'false'}"><span class="municipality-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 21V9l8-6 8 6v12h-6v-7h-4v7H4Zm3-3h2v-6h6v6h2V10.5l-5-3.8-5 3.8V18Z"/></svg></span><span><span class="municipality-name">${escapeHtml(municipality)}</span><span class="municipality-count">${zones.length} zona${zones.length===1?'':'s'} · ${activeCount} activa${activeCount===1?'':'s'}</span></span></button><button class="mini-btn js-add-same" data-municipality="${escapeHtml(municipality)}" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nueva zona</button><button class="municipality-chevron js-toggle-municipality" type="button" aria-label="Alternar municipio" aria-expanded="${isExpanded?'true':'false'}"><svg viewBox="0 0 24 24"><path d="m7.4 8.6 4.6 4.6 4.6-4.6L18 10l-6 6-6-6 1.4-1.4Z"/></svg></button></div><div class="zone-list"><div class="zone-table-head"><span>Zona</span><span>Precio (USD)</span><span>Estado</span><span>Observacion privada</span><span>Acciones</span></div>${zones.map(renderZoneRow).join('')}</div></section>`;
         }).join('');
       }
       function renderZoneRow(zone){

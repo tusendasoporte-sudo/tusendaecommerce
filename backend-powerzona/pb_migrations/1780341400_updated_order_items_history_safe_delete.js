@@ -3,10 +3,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2456927940")
 
-  // V5 FIX:
-  // En tu base actual el campo product_ref ya existe, por eso NO se vuelve a crear.
-  // Solo ajustamos la relación product para que no sea requerida y permita borrar
-  // productos reales sin romper order_items históricos.
   collection.fields.addAt(2, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_4092854851",

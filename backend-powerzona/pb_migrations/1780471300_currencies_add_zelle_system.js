@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-CURRENCIES-ZELLE-SYSTEM-20260616
-// Garantiza ZELLE como moneda fija editable por tienda.
 
 function normalizeCode(value) {
   return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
@@ -66,5 +64,4 @@ migrate((app) => {
     app.save(record);
   });
 }, (_) => {
-  // No se elimina ZELLE en rollback para no borrar configuraciones de tiendas existentes.
 });

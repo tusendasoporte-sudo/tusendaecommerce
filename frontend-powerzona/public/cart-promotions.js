@@ -103,7 +103,6 @@
       if (!response.ok) throw new Error(result?.message || 'No se pudieron cargar promociones automaticas.');
       return (result?.items || []).map(normalizePromotion).filter(todayInRange);
     } catch (error) {
-      console.warn('Promociones automaticas no disponibles todavia.', error);
       return [];
     }
   }
@@ -119,7 +118,6 @@
       if (!response.ok) throw new Error(result?.message || 'No se pudieron cargar cupones.');
       return (result?.items || []).map(normalizeCoupon);
     } catch (error) {
-      console.warn('Cupones manuales no disponibles todavia.', error);
       return [];
     }
   }

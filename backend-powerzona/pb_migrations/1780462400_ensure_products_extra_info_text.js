@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-PRODUCT-EXTRA-INFO-V3-ENSURE-FIELD-20260603
-// Garantiza que products.extra_info exista para guardar hasta 3 datos editables por producto.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")
@@ -31,6 +29,5 @@ migrate((app) => {
 
   return app.save(collection)
 }, (app) => {
-  // No removemos el campo en rollback para no perder información adicional ya guardada.
   return null
 })

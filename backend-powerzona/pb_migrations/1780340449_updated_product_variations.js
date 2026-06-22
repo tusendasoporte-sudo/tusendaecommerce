@@ -2,10 +2,8 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2734288031")
 
-  // remove field
   collection.fields.removeById("number810771065")
 
-  // add field
   collection.fields.addAt(4, new Field({
     "help": "",
     "hidden": false,
@@ -20,7 +18,6 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // add field
   collection.fields.addAt(5, new Field({
     "help": "",
     "hidden": false,
@@ -35,7 +32,6 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // add field
   collection.fields.addAt(7, new Field({
     "help": "",
     "hidden": false,
@@ -52,7 +48,6 @@ migrate((app) => {
     "type": "file"
   }))
 
-  // add field
   collection.fields.addAt(8, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -69,7 +64,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // add field
   collection.fields.addAt(9, new Field({
     "help": "",
     "hidden": false,
@@ -84,7 +78,6 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // add field
   collection.fields.addAt(10, new Field({
     "help": "",
     "hidden": false,
@@ -100,7 +93,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_2734288031")
 
-  // add field
   collection.fields.addAt(4, new Field({
     "help": "",
     "hidden": false,
@@ -115,22 +107,16 @@ migrate((app) => {
     "type": "number"
   }))
 
-  // remove field
   collection.fields.removeById("number3067803474")
 
-  // remove field
   collection.fields.removeById("number1220888422")
 
-  // remove field
   collection.fields.removeById("file3309110367")
 
-  // remove field
   collection.fields.removeById("text4144812898")
 
-  // remove field
   collection.fields.removeById("number1169138922")
 
-  // remove field
   collection.fields.removeById("bool3217001970")
 
   return app.save(collection)

@@ -1,9 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V30-CREATE-PRODUCT-SAFE-20260602
-// Refuerza el esquema para que un producto nuevo pueda crearse sin categoría
-// y con stock seguro desde el panel admin.
-
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")
 

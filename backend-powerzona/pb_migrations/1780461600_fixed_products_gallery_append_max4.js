@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-PRODUCT-GALLERY-V4-APPEND-SAFE-20260603
-// Asegura que products.images permita 4 fotos y mantiene image_order para portada/orden.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")

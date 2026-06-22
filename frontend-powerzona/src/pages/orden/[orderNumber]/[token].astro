@@ -269,12 +269,11 @@ const { orderNumber, token } = Astro.params;
           };
         }
       } catch (error) {
-        console.warn('No se pudo cargar el logo de la tienda:', error);
       }
     }
 
     async function loadReceipt() {
-      if (!POCKETBASE_URL) throw new Error('Falta configurar la conexión con PocketBase.');
+      if (!POCKETBASE_URL) throw new Error('Falta configurar la conexión con la plataforma.');
       if (!ORDER_NUMBER || !TOKEN) throw new Error('El enlace del resumen no está completo.');
 
       await loadStoreSettings();

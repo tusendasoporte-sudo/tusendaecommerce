@@ -80,8 +80,6 @@ function parseExtraInfoValue(value: any) {
 	if (!value) return [];
 	let current = value;
 
-	// PocketBase puede devolver el campo texto como string JSON. En algunos casos,
-	// si el dato se guardó doble-serializado, hay que parsearlo más de una vez.
 	for (let index = 0; index < 3 && typeof current === 'string'; index += 1) {
 		const cleaned = current.trim();
 		if (!cleaned) return [];
@@ -202,7 +200,6 @@ const variationItems = variations.map((variation) => {
 
 ---
 
-<!-- PZ-PRODUCTO-DETALLE-V33-RELACIONADOS-20260605 -->
 <Layout>
 	<style>
 		.product-public-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; position: relative; }

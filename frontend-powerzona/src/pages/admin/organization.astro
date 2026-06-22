@@ -22,14 +22,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
-<!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
-  Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
--->
-<!-- PZ-AJUSTES-TIENDA-V3-AJUSTES-GENERALES-PUBLICOS-20260603
-  Bloque: Ajustes de la tienda
-  Incluye páginas separadas para ajustes generales, Crear Producto/Promo y Organización Visual.
-  Requiere migración: 1780459000_updated_settings_public_general_fields.js.
--->
 <!doctype html>
 <html lang="es">
   <head>
@@ -208,7 +200,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 
         <section id="login-view" class="panel-card login-card hidden">
           <h2 class="page-title" style="font-size: 24px; margin: 0;">Entrar como admin</h2>
-          <p class="page-subtitle">Usa el mismo usuario administrador de PocketBase para modificar ajustes de tienda.</p>
+          <p class="page-subtitle">Usa tu usuario administrador para modificar ajustes de tienda.</p>
           <form id="login-form" class="form-grid" style="margin-top: 18px;">
             <div class="field"><label for="admin-email">Email</label><input id="admin-email" type="email" autocomplete="username" required /></div>
             <div class="field"><label for="admin-password">Contraseña</label><input id="admin-password" type="password" autocomplete="current-password" required /></div>
@@ -573,7 +565,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function normalizeSearchText(value) {
         return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
       }
-      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con PocketBase.') {
+      function pocketBaseErrorMessage(result, fallback = 'Error de comunicación con la plataforma.') {
         const base = result?.message || fallback;
         const fieldErrors = result?.data && typeof result.data === 'object'
           ? Object.entries(result.data).map(([field, info]) => {
@@ -989,7 +981,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
         } catch (error) {
           visualItems = [];
-          showAlert(visualAlert, 'No existe todavía la colección store_visual_items. Reinicia PocketBase para aplicar la migración nueva.', 'error');
+          showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
         }
         renderAll();
       }
@@ -1395,7 +1387,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       showTab('organizacion');
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
-      // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -1453,7 +1444,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL_PUBLIC_SETTINGS + path, Object.assign({}, options, { headers }));
           const result = await response.json().catch(() => null);
-          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con la plataforma.');
           return result;
         }
         async function loadSettings() {
@@ -1538,7 +1529,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
-      // PZ-AJUSTES-MONEDAS-CLIENT-V1-20260604
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -1568,7 +1558,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL + path, Object.assign({}, options, { headers }));
           const result = await response.json().catch(() => null);
-          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con PocketBase.');
+          if (!response.ok) throw new Error((result && result.message) || 'Error de comunicación con la plataforma.');
           return result;
         }
         function escapeHtml(value) {

@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-15-STORE-ISOLATION-20260611
-// Aisla colecciones base del admin por users.store sin duplicar campos existentes.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 const STORE_ADMIN_RULE = '@request.auth.role = "store_admin" && store = @request.auth.store';

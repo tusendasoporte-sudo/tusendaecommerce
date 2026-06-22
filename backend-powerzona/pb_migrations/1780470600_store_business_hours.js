@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-19-3-STORE-BUSINESS-HOURS-20260613
-// Agrega horario operativo simple por tienda en settings sin cambiar reglas multi-tienda.
 
 const DEFAULT_BUSINESS_HOURS = {
   monday: { enabled: false, open: "09:00", close: "18:00" },

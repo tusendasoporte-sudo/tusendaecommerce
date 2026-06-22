@@ -1,5 +1,4 @@
 ---
-// PZ-PATCH-V26.5-OFERTA-FINAL-ESTABLE-20260605
 import Layout from '../layouts/Layout.astro';
 import StoreAnalyticsTracker from '../components/StoreAnalyticsTracker.astro';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
@@ -11,7 +10,6 @@ const currentPathname = Astro.url.pathname;
 const homePath = getPublicPath('/', currentStore, currentPathname);
 ---
 
-<!-- PZ-CHECKOUT-V19-OFERTA-AHORRO-20260605 -->
 <Layout>
 	<section class="max-w-5xl mx-auto">
 		<div class="mb-6">
@@ -455,7 +453,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					isClosed: true,
 					title: 'Cerrado temporalmente',
 					message: settings?.temporarily_closed_message || TEMPORARILY_CLOSED_MESSAGE_DEFAULT,
-					note: 'Nota: pedido realizado mientras la tienda estaba cerrada temporalmente.',
+					note: 'Aviso: pedido realizado mientras la tienda estaba cerrada temporalmente.',
 					allowOrders: false,
 				};
 			}
@@ -469,7 +467,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				isClosed: !isAvailable,
 				title: isAvailable ? 'Disponible ahora' : 'Fuera de horario',
 				message: isAvailable ? '' : (settings?.closed_message || CLOSED_MESSAGE_DEFAULT),
-				note: isAvailable ? '' : 'Nota: pedido realizado fuera de horario laboral.',
+				note: isAvailable ? '' : 'Aviso: pedido realizado fuera de horario laboral.',
 				allowOrders: settings?.allow_orders_when_closed !== false,
 			};
 		}
@@ -479,7 +477,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					const parsed = JSON.parse(value || '[]');
 					return Array.isArray(parsed) ? parsed : [];
 				} catch (error) {
-					console.warn('Carrito guardado inválido.', error);
 					return [];
 				}
 			}
@@ -933,7 +930,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 			if (!response.ok) {
 				console.error('Error leyendo shipping_zones:', result);
-				throw new Error('No se pudieron cargar las zonas de envío desde PocketBase.');
+				throw new Error('No se pudieron cargar las zonas de envío desde la plataforma.');
 			}
 
 			shippingZones = result?.items || [];
@@ -1837,7 +1834,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const settings = result?.items?.[0];
 
 			if (!settings) {
-				throw new Error('No hay una configuración activa en PocketBase. Revisa la colección settings.');
+				throw new Error('No hay una configuración activa para la tienda.');
 			}
 
 			if (!settings.default_currency) {
@@ -2178,7 +2175,7 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			} catch (error) {
 				console.error(error);
 				isSubmittingOrder = false;
-				checkoutValidationAlert.textContent = error?.message || 'No se pudo guardar el pedido. Revisa PocketBase e intenta nuevamente.';
+				checkoutValidationAlert.textContent = error?.message || 'No se pudo guardar el pedido. Intenta nuevamente.';
 				checkoutValidationAlert.classList.remove('hidden');
 				continueWhatsappBtn.disabled = false;
 				continueWhatsappBtn.textContent = 'Realizar Pedido';
@@ -2191,7 +2188,6 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 		window.addEventListener('pz-coupons-updated', () => renderCheckout());
 
 		getActiveSettings().catch((error) => {
-			console.warn('No se pudo cargar el horario de la tienda en checkout.', error);
 		});
 
 		loadShippingZones()

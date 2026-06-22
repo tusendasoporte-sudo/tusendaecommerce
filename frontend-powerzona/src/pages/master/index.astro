@@ -307,7 +307,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
           <input id="user-email" name="email" type="email" maxlength="255" autocomplete="email" required />
         </div>
         <div class="field">
-          <label for="user-password">Contrasena temporal</label>
+          <label for="user-password">Contrasena inicial</label>
           <input id="user-password" name="password" type="password" minlength="8" autocomplete="new-password" required />
         </div>
         <div class="field">
@@ -589,8 +589,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
         await createStoreUserFromMaster(payload);
         window.location.reload();
       } catch (error: any) {
-        console.error('Create store user error', error);
-        console.error('PocketBase data', error?.data);
+        console.error('Error al crear usuario de tienda', error);
         showUserError(getStoreUserCreateErrorMessage(error));
         setUserSaving(false);
       }

@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V41-SETTINGS-FOTO-CATEGORIA-REGALOS-20260604
-// Agrega imagen para la categoría pública única de regalos.
-
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2769025244");
 

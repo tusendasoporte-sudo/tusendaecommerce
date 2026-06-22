@@ -54,14 +54,6 @@ try {
   };
 }
 ---
-<!-- PZ-AJUSTES-TIENDA-V7-MONEDAS-20260604
-  Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
--->
-<!-- PZ-AJUSTES-TIENDA-V3-AJUSTES-GENERALES-PUBLICOS-20260603
-  Bloque: Ajustes de la tienda
-  Incluye páginas separadas para ajustes generales, Crear Producto/Promo y Organización Visual.
-  Requiere migración: 1780459000_updated_settings_public_general_fields.js.
--->
 <!doctype html>
 <html lang="es">
   <head>
@@ -4137,7 +4129,7 @@ try {
           visualItems = await loadAllRecords('store_visual_items', withStoreFilter('sort=sort_order,title'));
         } catch (error) {
           visualItems = [];
-          showAlert(visualAlert, 'No existe todavía la colección store_visual_items. Reinicia la plataforma para aplicar la migración nueva.', 'error');
+          showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
         }
         renderAll();
       }
@@ -4443,7 +4435,6 @@ try {
       else showTab('generales');
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
-      // PZ-AJUSTES-GENERALES-PUBLICOS-CLIENT-V1-20260603
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
@@ -4992,7 +4983,6 @@ try {
             const safeName = (file.name || 'portada').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 42) || 'portada';
             return new File([blob], `${safeName}_portada_optimizada.webp`, { type: 'image/webp', lastModified: Date.now() });
           } catch (error) {
-            console.warn('No se pudo optimizar la portada. Se usará la imagen original.', error);
             return file;
           }
         }
@@ -5604,10 +5594,10 @@ try {
           const raw = String(error?.message || '').trim();
           const lower = raw.toLowerCase();
           if (lower.includes('failed to fetch') || lower.includes('networkerror')) {
-            return 'No se pudo conectar con la plataforma. Verifica que PocketBase este activo e intenta nuevamente.';
+            return 'No se pudo conectar con la plataforma. Verifica el servicio e intenta nuevamente.';
           }
           if (isReviewsCollectionMissing(error)) {
-            return 'La coleccion reviews todavia no esta disponible. Aplica la migracion y reinicia PocketBase.';
+            return 'Las reseñas no están disponibles en este momento. Contacta a soporte para activarlas.';
           }
           return raw || fallback;
         }
@@ -5805,7 +5795,7 @@ try {
             pendingReviews = [];
             reviewsCollectionAvailable = false;
             renderReviewAnalytics();
-            const message = 'La colecci\u00f3n reviews todav\u00eda no est\u00e1 disponible. Aplica la migraci\u00f3n y reinicia PocketBase.';
+            const message = 'Las rese\u00f1as no est\u00e1n disponibles en este momento. Contacta a soporte para activarlas.';
             showMessage(pendingAlertBox, message, 'info');
             showMessage(allAlertBox, message, 'info');
             if (pendingList) pendingList.innerHTML = '<div class="empty-state">No hay rese&ntilde;as pendientes.</div>';
@@ -5819,7 +5809,7 @@ try {
             readyReviewOrders = (result.items || []).filter(orderReadyForReview);
             renderReadyReviewOrders();
             if (!reviewsCollectionAvailable) {
-              showMessage(readyOrdersAlertBox, 'La colecci\u00f3n reviews todav\u00eda no est\u00e1 disponible. La detecci\u00f3n de rese\u00f1as completadas ser\u00e1 limitada hasta aplicar la migraci\u00f3n y reiniciar PocketBase.', 'info');
+              showMessage(readyOrdersAlertBox, 'Las rese\u00f1as no est\u00e1n disponibles en este momento. Contacta a soporte para activarlas.', 'info');
             } else {
               showMessage(readyOrdersAlertBox, '');
             }
@@ -6617,7 +6607,6 @@ try {
 
 
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
-      // PZ-CURRENCIES-STORE-UI-V2-20260616
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');

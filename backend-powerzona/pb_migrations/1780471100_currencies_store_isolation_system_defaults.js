@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-CURRENCIES-STORE-ISOLATION-SYSTEM-DEFAULTS-20260616
-// Aisla currencies por tienda, marca monedas fijas y permite administracion segura por store_admin.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 const STORE_ADMIN_RULE = '@request.auth.role = "store_admin" && store = @request.auth.store';
@@ -73,7 +71,6 @@ function addIndexIfNeeded(collection, indexName, unique, columns) {
     try {
       collection.addIndex(indexName, unique, columns, "");
     } catch (error) {
-      console.log(`No se pudo crear el indice ${indexName}: ${error && error.message ? error.message : error}`);
     }
   }
 }
@@ -157,7 +154,6 @@ migrate((app) => {
     addIndexIfNeeded(updatedCollection, "idx_currencies_store_code", true, "store, code");
     app.save(updatedCollection);
   } catch (error) {
-    console.log(`No se pudo guardar el indice unico idx_currencies_store_code. Revisa duplicados existentes: ${error && error.message ? error.message : error}`);
   }
 }, (app) => {
   const currenciesCollection = findCollectionSafe(app, "currencies");

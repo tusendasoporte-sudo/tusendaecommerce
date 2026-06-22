@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-MIGRATION-FEATURED-ORDER-V1-20260603
-// Agrega featured_order a products para ordenar Productos destacados desde Organización Visual.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")

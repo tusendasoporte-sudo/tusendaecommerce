@@ -29,17 +29,6 @@ const masterSupportHref = masterSupportWhatsapp
   : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Categorias Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
-<!-- PZ-AJUSTES-GENERALES-PUBLICOS-MENU-PUBLICO-V5-20260603
-  Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
--->
-<!-- PZ-CATALOG-ADMIN-CATEGORIA-PAGINA-DEDICADA-V1-20260603
-  Bloque: Categorías admin visual
-  Cambio: Nueva categoría queda encima del listado y la edición de categoría abre en página dedicada /admin/catalog/category/[id].
--->
-<!-- PZ-CATALOG-JERARQUIA-CATEGORIA-CONTENIDO-V17-20260531
-  Bloque: Gestión de catálogo - conexión con página de productos separada
-  Cambio: El módulo Productos del sidebar y los botones Nuevo producto/Editar producto ahora llevan a /admin/products.
--->
 <!doctype html>
 <html lang="es">
   <head>
@@ -698,7 +687,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       @media (max-width: 620px) {}
 
-      /* PZ-CATALOG-VISUAL-ADMIN-TUSENDA84-20260615 */
+      
       .admin-main { width: 100%; }
       .mobile-topbar { display: none !important; }
       .notifications-btn {
@@ -1221,8 +1210,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </div>
             </section>
 
-
-
             <section id="catalog-content-view" class="list-card catalog-content-view-card" aria-live="polite">
               <div class="content-view-hero">
                 <div id="content-view-heading" class="content-view-title-wrap"></div>
@@ -1374,9 +1361,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           .replace(/\s+/g, ' ');
       }
 
-
-      // PZ-CATALOG-IMAGE-OPTIMIZER-V28-20260605
-      // Optimiza fotos de categorías/subcategorías antes de enviarlas a la plataforma.
       async function optimizeCatalogImageFile(file) {
         if (!file || !file.type?.startsWith('image/')) return file;
         let objectUrl = '';
@@ -1419,7 +1403,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return new File([blob], `${safeName}_categoria_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
         } catch (error) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
-          console.warn('No se pudo optimizar la imagen de categoría. Se usará la original.', error);
           return file;
         }
       }
@@ -1685,7 +1668,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         });
       }
 
-
       function setCreatePanel(card, toggle, isOpen) {
         card?.classList.toggle('open', isOpen);
         toggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
@@ -1834,7 +1816,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <div class="category-product-actions">
                 <button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>
               </div>
-
 
               <div class="catalog-order-actions" aria-label="Ordenar subcategoría">
                 <button class="catalog-icon-btn js-inline-subcategory-up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
@@ -2416,8 +2397,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         await loadCatalog();
       }
 
-
-
       function closeCatalogMenus(exceptWrap = null) {
         document.querySelectorAll('.catalog-menu-wrap.open').forEach((wrap) => {
           if (wrap !== exceptWrap) {
@@ -2597,7 +2576,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               }
               if (inlineButton.classList.contains('js-inline-subcategory-delete-soon')) {
                 closeCatalogMenus();
-                alert('Siguiente paso: aquí pondremos el borrado seguro de subcategoría, moviendo sus productos a la categoría padre.');
+                alert('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta subcategoría.');
                 return;
               }
               if (inlineButton.classList.contains('js-inline-subcategory-toggle')) {
@@ -2681,7 +2660,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
           if (button.classList.contains('js-category-delete-soon')) {
             closeCatalogMenus();
-            alert('Siguiente paso: aquí pondremos el borrado seguro con confirmación fuerte. No lo activo todavía para evitar borrar contenido por error.');
+            alert('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta categoría.');
             return;
           }
           if (button.classList.contains('js-category-toggle')) {
@@ -2759,7 +2738,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
           if (button.classList.contains('js-subcategory-delete-soon')) {
             closeCatalogMenus();
-            alert('Siguiente paso: aquí pondremos el borrado seguro de subcategoría, moviendo sus productos a la categoría padre.');
+            alert('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta subcategoría.');
             return;
           }
           if (button.classList.contains('js-subcategory-toggle')) {

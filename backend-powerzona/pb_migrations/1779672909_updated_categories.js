@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_3292755704")
 
-  // update field
   collection.fields.addAt(1, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -19,7 +18,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(2, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -36,7 +34,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(3, new Field({
     "help": "",
     "hidden": false,
@@ -53,7 +50,6 @@ migrate((app) => {
     "type": "file"
   }))
 
-  // update field
   collection.fields.addAt(4, new Field({
     "help": "",
     "hidden": false,
@@ -69,7 +65,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_3292755704")
 
-  // update field
   collection.fields.addAt(1, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -86,7 +81,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(2, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -103,7 +97,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(3, new Field({
     "help": "",
     "hidden": false,
@@ -120,7 +113,6 @@ migrate((app) => {
     "type": "file"
   }))
 
-  // update field
   collection.fields.addAt(4, new Field({
     "help": "",
     "hidden": false,

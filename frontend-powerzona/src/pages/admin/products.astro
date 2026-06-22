@@ -4,8 +4,6 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 
-// PZ-ADMIN-PRODUCTS-V26-10-OFERTA-TARJETA-GRIS-20260605
-// PZ-PRODUCTOS-ADMIN-V45-FIX-OFERTA-REGULAR-BLOQUEADO-20260605
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 const adminContext = await requireCurrentStoreForAdmin(authPb);
@@ -31,39 +29,6 @@ const masterSupportHref = masterSupportWhatsapp
   : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Productos Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
-<!-- PZ-PRODUCTOS-INFO-ADICIONAL-V6-20260603
-  Cambio: guarda Información adicional con PATCH JSON y requiere migración final extra_info.
--->
-<!-- PZ-AJUSTES-GENERALES-PUBLICOS-MENU-PUBLICO-V5-20260603
-  Cambio: se eliminó de forma general la opción/texto "Tienda pública" del sidebar admin.
--->
-<!-- PZ-PRODUCTOS-V25-VISTA-VARIACIONES-20260601
-  Bloque: Gestión de catálogo - Crear y editar productos
-  Cambio base: formulario real para crear y editar productos en la plataforma desde /admin/products.
-  V3: Limpieza visual: al crear o editar se ocultan resumen, buscador y listado de productos existentes.
-  V4: Categoría y subcategoría se pueden crear rápido desde el formulario de producto, con foto opcional.
-  V5: Creación rápida movida a modal flotante sin salir del producto.
-  V6: Modal flotante con estilo de tarjeta premium.
-  V7: Corrección de cierre del modal: botón X funcional, clic fuera de la tarjeta cierra el modal y Escape mantiene cierre seguro.
-  V8: Placeholder del nombre cambiado a "Ej: Nombre del producto".
-  V9: En el listado, tocar miniatura o nombre del producto abre edición.
-  V10: Agrega botón Borrar en el listado con confirmación segura antes de eliminar el producto.
-  V11: Corrige Ocultar/Activar para no abrir edición y cierra el formulario al guardar correctamente.
-  V12: Stock 0 se muestra como Agotado sin ocultar el producto.
-  V13: Limpia acciones del listado con menú flotante, agrega Marcar agotado y permite preorder cuando stock está en 0.
-  V14: Corrige menú de 3 puntos para que no quede escondido al final del listado; se posiciona como flotante y abre hacia arriba si hace falta.
-  V15: Agrega gestión admin de variaciones por producto: crear, editar, ocultar/activar, borrar, foto, precio, costo, stock, ref interna, preorder y orden visual.
-  V16: Mantiene el menú de variaciones funcional y permite borrar productos con variaciones borrando primero sus variaciones reales. Las órdenes conservan historial fijo en order_items.
-  V17: Agrega control de stock descontable, valida Guardar según nombre/stock/variaciones, permite producto sin categoría visible en inicio y sincroniza stock padre con la suma de variaciones.
-  V19: Corrige validaciones de variaciones, categoría opcional visible, stock padre automático y limpia el panel de variaciones con edición bajo demanda y flechas de orden.
-  V20: Oculta “Usa variaciones” durante creación; después de guardar pregunta si desea agregar variaciones antes de cerrar el panel.
-  V21: Cambia confirmaciones por paneles flotantes dentro de la tarjeta: agregar variaciones post-guardado y borrar producto. Refuerza stock=0 seguro cuando no descuenta stock.
-  V36: Oculta “Usa variaciones” desde el HTML inicial al crear producto nuevo; solo se muestra al editar productos existentes.
-  V33: Corrige creación de producto nuevo con stock descontable: botón Guardar directo sin bloqueo HTML y creación segura en dos pasos.
-  V34: Evita productos repetidos, busca por ref interna y unifica Marcar agotado con estilo/confirmación tipo Borrar.
-  V35: Agrega alerta flotante premium “Producto repetido” al intentar crear/guardar duplicados.
-  V37: Agrega oferta con precio de oferta USD, visible en tienda pública, carrito y checkout.
--->
 <!doctype html>
 <html lang="es">
   <head>
@@ -500,8 +465,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       @media (max-width: 620px) {}
 
-      /* PZ-V26-PRODUCTOS-DASHBOARD-CORRECCION-VISUAL-20260614 */
-      body {
+            body {
         background: #f6f8fb !important;
         color: #111827;
       }
@@ -1696,7 +1660,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <span class="duplicate-toast-icon">!</span>
                   <span><strong>Producto repetido</strong><span id="duplicate-product-toast-detail">Ya existe un producto con ese nombre o ref interna.</span></span>
                 </div>
-                <div id="post-save-variation-prompt" class="inline-floating-card hidden">
+                <div id="post-save-variation-notice" class="inline-floating-card hidden">
                   <p class="inline-floating-title">Producto creado correctamente</p>
                   <p class="inline-floating-text">¿Deseas agregar variaciones a este producto ahora? Si eliges “Sí”, el producto se marcará como producto con variaciones y se abrirá el panel de variación. Si eliges “No”, se cerrará este panel y podrás agregarlas después desde Editar.</p>
                   <div class="inline-floating-actions">
@@ -1923,7 +1887,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const editorPreviewStock = document.getElementById('editor-preview-stock');
       const editorPreviewOffer = document.getElementById('editor-preview-offer');
       const editorPreviewVariations = document.getElementById('editor-preview-variations');
-      const postSaveVariationPrompt = document.getElementById('post-save-variation-prompt');
+      const postSaveVariationNotice = document.getElementById('post-save-variation-notice');
       const postSaveVariationYesBtn = document.getElementById('post-save-variation-yes');
       const postSaveVariationNoBtn = document.getElementById('post-save-variation-no');
       const quickCategoryPanel = document.getElementById('quick-category-panel');
@@ -2073,15 +2037,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }, 4200);
       }
 
-      function hidePostSaveVariationPrompt() {
+      function hidePostSaveVariationNotice() {
         pendingVariationProductId = '';
-        postSaveVariationPrompt?.classList.add('hidden');
+        postSaveVariationNotice?.classList.add('hidden');
       }
-      function showPostSaveVariationPrompt(productId) {
+      function showPostSaveVariationNotice(productId) {
         pendingVariationProductId = productId || '';
-        if (!pendingVariationProductId || !postSaveVariationPrompt) return;
-        postSaveVariationPrompt.classList.remove('hidden');
-        postSaveVariationPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (!pendingVariationProductId || !postSaveVariationNotice) return;
+        postSaveVariationNotice.classList.remove('hidden');
+        postSaveVariationNotice.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
       function setQuickAlert(element, message, type = 'info') {
         if (!element) return;
@@ -2389,7 +2353,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const safeName = file.name.replace(/\.[^.]+$/, '') || 'producto';
           return new File([blob], `${safeName}.webp`, { type: 'image/webp', lastModified: Date.now() });
         } catch (error) {
-          console.warn('No se pudo optimizar la imagen. Se usará la original.', error);
           return file;
         }
       }
@@ -2427,7 +2390,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         try {
           return await apiRequest(`/api/collections/products/records/${savedProduct.id}`, { method: 'PATCH', body: orderData });
         } catch (error) {
-          console.warn('No se pudo guardar el orden de imágenes. Revisa que la migración image_order esté aplicada.', error);
           return savedProduct;
         }
       }
@@ -2954,7 +2916,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetProductExtraInfo();
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
-        hidePostSaveVariationPrompt();
+        hidePostSaveVariationNotice();
         resetQuickCreatePanels();
         renderProductSelectOptions();
         resetVariationState();
@@ -2968,7 +2930,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setCatalogOverviewVisible(true);
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
-        hidePostSaveVariationPrompt();
+        hidePostSaveVariationNotice();
         resetQuickCreatePanels();
         resetVariationState();
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Productos';
@@ -3230,7 +3192,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             let created;
 
             if (requestedTrackStock) {
-              // PZ-PRODUCTS-V33-CREATE-TRACK-STOCK-SAFE-20260602
               // Evita el bloqueo al crear producto nuevo con stock descontable.
               // Creamos primero igual que el flujo que ya funciona manualmente: sin stock descontable.
               const createData = new FormData();
@@ -3269,7 +3230,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             }
             setProductSnapshotFromCurrent();
             setFormAlert('Producto creado correctamente.', 'success');
-            showPostSaveVariationPrompt(created.id);
+            showPostSaveVariationNotice(created.id);
           }
         } catch (error) {
           setFormAlert('No se pudo guardar el producto', 'error');
@@ -3292,7 +3253,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           variationData.set('variation_view', productVariationViewInput?.value || 'buttons');
           variationData.set('stock', '0');
           await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: variationData });
-          hidePostSaveVariationPrompt();
+          hidePostSaveVariationNotice();
           await loadProducts();
           openEditProductEditor(productId);
           productHasVariationsInput.checked = true;
@@ -3309,7 +3270,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function declinePostSaveVariationChoice() {
-        hidePostSaveVariationPrompt();
+        hidePostSaveVariationNotice();
         setFormAlert('Producto creado correctamente.', 'success');
         closeProductEditor();
         await loadProducts();
@@ -3694,7 +3655,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               ${pendingDeleteProductId === product.id ? `
                 <div class="inline-floating-card danger product-delete-confirm">
                   <p class="inline-floating-title">Borrar producto</p>
-                  <p class="inline-floating-text">¿Seguro que quieres borrar “${escapeHtml(product.name || 'Producto sin nombre')}”? Si tiene variaciones de prueba, se borrarán primero. Si solo quieres quitarlo de la tienda, usa Ocultar.</p>
+                  <p class="inline-floating-text">¿Seguro que quieres borrar “${escapeHtml(product.name || 'Producto sin nombre')}”? Si tiene variaciones asociadas, se borrarán primero. Si solo quieres quitarlo de la tienda, usa Ocultar.</p>
                   <div class="inline-floating-actions">
                     <button class="mini-btn js-product-delete-cancel" type="button">Cancelar</button>
                     <button class="mini-btn danger js-product-delete-confirm" type="button">Sí, borrar</button>
@@ -4033,7 +3994,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             if (productIdInput.value === productId) closeProductEditor();
             await loadProducts();
           } catch (error) {
-            alert(error.message || 'No se pudo borrar el producto. Revisa reglas delete de products/product_variations o si otra colección todavía tiene una relación requerida.');
+            alert(error.message || 'No se pudo borrar el producto. Contacta a soporte si el problema continúa.');
             deleteConfirmBtn.disabled = false;
           }
           return;

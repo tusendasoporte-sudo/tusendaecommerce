@@ -1,7 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-PRODUCT-EXTRA-INFO-FINAL-20260603
-// Garantiza que products.extra_info exista para guardar hasta 3 datos editables por producto.
-// Importante: esta migración final usa el nombre de colección "products" para evitar problemas si el ID interno cambia.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("products")
@@ -32,6 +29,5 @@ migrate((app) => {
 
   return app.save(collection)
 }, (app) => {
-  // No removemos el campo en rollback para no perder información adicional ya guardada.
   return null
 })

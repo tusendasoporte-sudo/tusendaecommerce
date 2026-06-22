@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-HOTFIX-21-30-18-ORDER-ADMIN-ACTIONS-20260613
-// Permite que store_admin gestione pedidos de su propia tienda sin superuser.
-// Mantiene el checkout publico y el comprobante publico por token.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 const STORE_ADMIN_ORDER_RULE = '@request.auth.role = "store_admin" && store = @request.auth.store';

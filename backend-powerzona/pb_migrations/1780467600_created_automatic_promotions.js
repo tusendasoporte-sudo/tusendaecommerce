@@ -1,6 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V41-AUTOMATIC-PROMOTIONS-20260608
 
 migrate((app) => {
   const collection = new Collection({

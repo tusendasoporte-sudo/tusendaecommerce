@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")
 
-  // add field
   collection.fields.addAt(17, new Field({
     "help": "",
     "hidden": false,
@@ -21,7 +20,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")
 
-  // remove field
   collection.fields.removeById("number1220888422")
 
   return app.save(collection)

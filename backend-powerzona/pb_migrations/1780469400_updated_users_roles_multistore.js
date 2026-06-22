@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-11-USERS-ROLES-MULTISTORE-20260611
-// Agrega base de roles multitienda sobre la coleccion auth users existente.
 
 const USER_ROLE_VALUES = ["master_admin", "store_admin", "store_staff"];
 const USER_STATUS_VALUES = ["active", "suspended"];

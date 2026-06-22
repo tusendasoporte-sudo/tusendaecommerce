@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-PRODUCT-GALLERY-V1-20260603
-// Limita galería de productos a 4 fotos y agrega image_order para definir portada/orden visual.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")

@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-CURRENCIES-BASE-FIELD-20260616
-// Agrega is_base para separar la moneda base interna de la moneda predeterminada publica.
 
 function hasField(collection, name) {
   try {

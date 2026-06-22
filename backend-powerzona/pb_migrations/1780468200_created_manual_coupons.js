@@ -1,6 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V42-MANUAL-COUPONS-20260610
 
 migrate((app) => {
   const coupons = new Collection({

@@ -1,8 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-V38-REGALOS-PROFESIONALES-20260604
-// Crea la colección gifts para regalos por reglas: sin precio, sin variaciones y con stock propio.
-
 migrate((app) => {
   const collection = new Collection({
     "id": "pbc_1780465200",

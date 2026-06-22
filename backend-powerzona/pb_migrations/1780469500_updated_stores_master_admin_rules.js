@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-12-STORES-MASTER-ADMIN-RULES-20260611
-// Restringe la gestion de tiendas al rol master_admin.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 

@@ -39,7 +39,6 @@ async function storeFilter(baseFilter: string, options?: StoreQueryInput) {
   return `${baseFilter} && store="${escapePocketBaseValue(storeId)}"`;
 }
 
-// PZ-API-SETTINGS-V6-REGALOS-FOTOS-THUMB-20260604
 export async function getSettings(options?: StoreQueryInput) {
   const records = await pb.collection('settings').getFullList({
     filter: await storeFilter('active = true', options),
@@ -82,7 +81,6 @@ export async function getCategories(options?: StoreQueryInput) {
   }));
 }
 
-// PZ-API-PUBLIC-SUBCATEGORIES-V1-20260603
 export async function getSubcategories(options?: StoreQueryInput) {
   const subcategories = await pb.collection('subcategories').getFullList({
     filter: await storeFilter('active = true', options),
@@ -111,13 +109,6 @@ export async function getCurrencies(options?: StoreQueryInput) {
   });
 }
 
-// PZ-API-PUBLIC-PRODUCTS-V26-GALERIA-PORTADA-20260603
-// Reglas públicas:
-// - Producto visible sin categoría => aparece en la página principal.
-// - Producto visible con categoría visible => aparece.
-// - Producto visible con categoría oculta => no aparece.
-// - Producto visible con subcategoría oculta => no aparece.
-// - Variaciones visibles => solo active=true y ordenadas por sort_order, tipo y valor.
 function isProductPublicVisible(product: any) {
   const hasCategory = Boolean(product.category);
   const hasSubcategory = Boolean(product.subcategory);
@@ -191,7 +182,6 @@ export async function getProducts(options?: StoreQueryInput) {
     .map(addProductImages);
 }
 
-// PZ-API-FEATURED-ORDER-V1-20260603
 export async function getFeaturedProducts(options?: StoreQueryInput) {
   const products = await pb.collection('products').getFullList({
     filter: await storeFilter('active = true && featured = true', options),
@@ -225,7 +215,6 @@ export async function getStoreVisualItems(options?: StoreQueryInput) {
 
     return items.map(addVisualItemFiles);
   } catch (error) {
-    console.warn('store_visual_items no disponible todavía. Reinicia PocketBase para aplicar la migración.', error);
     return [];
   }
 }
@@ -246,7 +235,6 @@ export async function getPublicGifts(options?: StoreQueryInput) {
     });
     return gifts.map(addGiftFiles);
   } catch (error) {
-    console.warn('gifts no disponible todavía. Reinicia PocketBase para aplicar la migración de regalos.', error);
     return [];
   }
 }
@@ -258,7 +246,6 @@ export async function getAutomaticPromotions(options?: StoreQueryInput) {
       sort: 'priority,-updated',
     });
   } catch (error) {
-    console.warn('automatic_promotions no disponible todavÃ­a. Reinicia PocketBase para aplicar la migraciÃ³n.', error);
     return [];
   }
 }
@@ -317,7 +304,6 @@ async function getApprovedReviews(baseFilter: string, options?: StoreQueryInput,
     });
   } catch (error) {
     if (isReviewsCollectionMissing(error)) return [];
-    console.warn('reviews no disponible todavia. Aplica la migracion de resenas para habilitar ratings.', error);
     return [];
   }
 }

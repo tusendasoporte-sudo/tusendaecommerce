@@ -2,7 +2,6 @@
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_2354486458")
 
-  // update field
   collection.fields.addAt(1, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -19,7 +18,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(2, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -36,7 +34,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(3, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_3292755704",
@@ -52,7 +49,6 @@ migrate((app) => {
     "type": "relation"
   }))
 
-  // update field
   collection.fields.addAt(4, new Field({
     "help": "",
     "hidden": false,
@@ -68,7 +64,6 @@ migrate((app) => {
 }, (app) => {
   const collection = app.findCollectionByNameOrId("pbc_2354486458")
 
-  // update field
   collection.fields.addAt(1, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -85,7 +80,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(2, new Field({
     "autogeneratePattern": "",
     "help": "",
@@ -102,7 +96,6 @@ migrate((app) => {
     "type": "text"
   }))
 
-  // update field
   collection.fields.addAt(3, new Field({
     "cascadeDelete": false,
     "collectionId": "pbc_3292755704",
@@ -118,7 +111,6 @@ migrate((app) => {
     "type": "relation"
   }))
 
-  // update field
   collection.fields.addAt(4, new Field({
     "help": "",
     "hidden": false,

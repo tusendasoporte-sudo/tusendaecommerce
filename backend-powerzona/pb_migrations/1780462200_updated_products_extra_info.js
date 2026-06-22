@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-PRODUCT-EXTRA-INFO-V1-20260603
-// Agrega products.extra_info para guardar hasta 3 datos editables por producto en formato JSON texto.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("pbc_4092854851")

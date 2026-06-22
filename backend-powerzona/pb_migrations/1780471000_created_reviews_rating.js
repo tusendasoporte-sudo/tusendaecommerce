@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-21-30-20-REVIEWS-RATING-BASE-20260614
-// Base backend para resenas publicas y verificadas por orden entregada.
 
 const MASTER_ADMIN_RULE = '@request.auth.role = "master_admin"';
 const STORE_ADMIN_RULE = '@request.auth.role = "store_admin" && store = @request.auth.store';

@@ -245,7 +245,7 @@ const storeLogoUrl = currentStore.logoUrl || currentStore.bannerUrl || '';
 
     async function loadReviewOrder() {
       if (!POCKETBASE_URL) {
-        showError('Falta configurar la conexión con PocketBase.');
+        showError('Falta configurar la conexión con la plataforma.');
         return;
       }
       if (!REVIEW_TOKEN) {

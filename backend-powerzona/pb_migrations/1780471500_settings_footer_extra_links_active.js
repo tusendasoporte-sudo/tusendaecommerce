@@ -1,7 +1,5 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// PZ-MIGRATION-FOOTER-EXTRA-LINKS-ACTIVE-20260619
-// Agrega switches para mostrar u ocultar los dos botones extra del footer publico.
 
 function hasField(collection, name) {
   try {

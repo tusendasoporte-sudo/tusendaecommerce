@@ -30,10 +30,6 @@ const masterSupportHref = masterSupportWhatsapp
   : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Editar Categoria Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
 ---
-<!-- PZ-CATALOG-ADMIN-CATEGORY-DETAIL-V1-20260603
-  Bloque: Categorías admin visual
-  Cambio: página dedicada para editar una categoría, cambiar foto, visibilidad y gestionar subcategorías/productos directos.
--->
 <!doctype html>
 <html lang="es">
   <head>
@@ -162,8 +158,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .delete-confirm-actions .mini-btn { width: 100%; }
         .hero-thumb { width: 68px; height: 68px; }
       }
-      /* PZ-EDIT-CATEGORY-VISUAL-V18 */
-      body { background: #eef3f9; overflow-x: hidden; }
+            body { background: #eef3f9; overflow-x: hidden; }
       .app-shell { width: auto; max-width: none; margin: 0; }
       .brand { display: flex; align-items: center; gap: 11px; padding: 8px 8px 18px; border-bottom: 1px solid #e2e8f0; margin-bottom: 14px; }
       .nav-list { display: grid; gap: 8px; }
@@ -246,8 +241,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         .summary-grid { grid-template-columns: 1fr 1fr; }
         .quick-actions-grid { grid-template-columns: 1fr; }
       }
-      /* PZ-EDIT-CATEGORY-VISUAL-FINAL-213020A */
-      .legacy-hero { display: none; }
+            .legacy-hero { display: none; }
       .app-shell { }
       .editor-topbar {
         display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -1241,8 +1235,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
 
-      // PZ-CATALOG-IMAGE-OPTIMIZER-V28-20260605
-      // Optimiza fotos de categorías/subcategorías antes de enviarlas a la plataforma.
       async function optimizeCatalogImageFile(file) {
         if (!file || !file.type?.startsWith('image/')) return file;
         let objectUrl = '';
@@ -1285,7 +1277,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return new File([blob], `${safeName}_categoria_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
         } catch (error) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
-          console.warn('No se pudo optimizar la imagen de categoría. Se usará la original.', error);
           return file;
         }
       }

@@ -1,6 +1,4 @@
 /// <reference path="../pb_data/types.d.ts" />
-// PZ-MIGRATION-V41-PRODUCTOS-RELACIONADOS-20260605
-// Agrega relación múltiple related_products en products. Máximo 4 productos.
 
 migrate((app) => {
   const collection = app.findCollectionByNameOrId("products")
