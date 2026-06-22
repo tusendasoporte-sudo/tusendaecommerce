@@ -21,6 +21,7 @@ const adminAuthToken = authPb.authStore.token;
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminProfitsPath = getStoreAdminPath(currentStoreSlug, 'profits');
 const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
@@ -2140,6 +2141,345 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				.dashboard-status-card {
 					padding: 14px !important;
 				}
+			}
+
+			.dashboard-hero-clean {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 18px;
+				margin-bottom: 22px;
+			}
+
+			.dashboard-eyebrow {
+				margin: 0 0 8px;
+				color: #2563eb;
+				font-size: 13px;
+				font-weight: 1000;
+			}
+
+			.dashboard-hero-date {
+				min-height: 46px;
+				padding: 10px 14px;
+				display: inline-flex;
+				align-items: center;
+				gap: 9px;
+				border-radius: 16px;
+				border: 1px solid #e2e8f0;
+				background: rgba(255,255,255,.95);
+				color: #0f172a;
+				box-shadow: 0 12px 26px rgba(15,23,42,.07);
+				font-size: 13px;
+				font-weight: 950;
+				white-space: nowrap;
+			}
+
+			.dashboard-block {
+				border: 1px solid rgba(226, 232, 240, .96);
+				border-radius: 28px;
+				background: rgba(255,255,255,.96);
+				box-shadow: 0 18px 45px rgba(15,23,42,.07);
+				padding: 20px;
+				backdrop-filter: blur(10px);
+			}
+
+			.dashboard-block + .dashboard-block {
+				margin-top: 18px !important;
+			}
+
+			.dashboard-block-head {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 16px;
+				margin-bottom: 16px;
+			}
+
+			.dashboard-block-title {
+				margin: 0;
+				color: #0f172a;
+				font-size: 22px;
+				line-height: 1.15;
+				font-weight: 1000;
+				letter-spacing: -0.035em;
+			}
+
+			.dashboard-block-subtitle {
+				margin: 5px 0 0;
+				color: #64748b;
+				font-size: 13px;
+				line-height: 1.45;
+				font-weight: 800;
+			}
+
+			.dashboard-traffic-head {
+				align-items: center;
+			}
+
+			.dashboard-range-note {
+				margin: -6px 0 16px;
+				color: #64748b;
+				font-size: 13px;
+				font-weight: 850;
+			}
+
+			.period-tabs {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				flex-wrap: wrap;
+				padding: 0;
+				border: 0;
+				box-shadow: none;
+				background: transparent;
+			}
+
+			.period-label {
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 900;
+			}
+
+			.period-btn {
+				min-height: 38px;
+				padding: 9px 13px;
+				border-radius: 13px;
+				border: 1px solid #e2e8f0;
+				background: #fff;
+				color: #334155;
+				font-size: 12px;
+				font-weight: 1000;
+				box-shadow: 0 8px 18px rgba(15,23,42,.04);
+			}
+
+			.period-btn.active {
+				border-color: rgba(37,99,235,.88);
+				background: linear-gradient(135deg,#2563eb,#1d4ed8);
+				color: #fff;
+				box-shadow: 0 14px 28px rgba(37,99,235,.22);
+			}
+
+			.traffic-analytics-grid,
+			.dashboard-activity-grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0,1fr));
+				gap: 18px;
+			}
+
+			.dashboard-activity-grid {
+				grid-template-columns: minmax(0,1.1fr) minmax(0,1fr) minmax(280px,.8fr);
+			}
+
+			.traffic-chart-card,
+			.dashboard-mini-panel {
+				padding: 22px;
+				border: 1px solid #e2e8f0;
+				border-radius: 24px;
+				background: #fff;
+				box-shadow: 0 14px 34px rgba(15,23,42,.055);
+			}
+
+			.traffic-chart-card {
+				min-height: 430px;
+				display: grid;
+				gap: 14px;
+			}
+
+			.traffic-card-head,
+			.dashboard-mini-panel-head {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 14px;
+			}
+
+			.dashboard-mini-panel-head {
+				margin-bottom: 14px;
+			}
+
+			.dashboard-mini-panel h3,
+			.traffic-card-footer h3 {
+				margin: 0;
+				color: #0f172a;
+				font-size: 15px;
+				font-weight: 1000;
+			}
+
+			.dashboard-mini-panel p,
+			.traffic-card-footer p,
+			.mini-panel-meta {
+				margin: 5px 0 0;
+				color: #64748b;
+				font-size: 12px;
+				line-height: 1.4;
+				font-weight: 850;
+			}
+
+			.traffic-card-title-row {
+				display: flex;
+				align-items: center;
+				gap: 14px;
+				min-width: 0;
+			}
+
+			.traffic-card-icon {
+				width: 62px;
+				height: 62px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 20px;
+				flex: 0 0 auto;
+			}
+
+			.traffic-card-icon svg {
+				width: 28px;
+				height: 28px;
+				fill: currentColor;
+			}
+
+			.traffic-card-icon.blue { background: #dbeafe; color: #2563eb; }
+			.traffic-card-icon.dark { background: #e2e8f0; color: #0f172a; }
+
+			.traffic-card-label {
+				margin: 0 0 5px;
+				color: #334155;
+				font-size: 15px;
+				line-height: 1.2;
+				font-weight: 900;
+			}
+
+			.traffic-card-title-row strong {
+				display: block;
+				color: #0f172a;
+				font-size: 34px;
+				line-height: 1;
+				font-weight: 1000;
+				letter-spacing: -0.045em;
+			}
+
+			.traffic-average-inline {
+				margin: 8px 0 0;
+				color: #334155;
+				font-size: 13px;
+				font-weight: 850;
+			}
+
+			.traffic-card-info,
+			.traffic-footer-icon {
+				width: 30px;
+				height: 30px;
+				display: inline-grid;
+				place-items: center;
+				border-radius: 12px;
+				background: #f8fafc;
+				color: #64748b;
+				border: 1px solid #e2e8f0;
+				font-size: 13px;
+				font-weight: 1000;
+				flex: 0 0 auto;
+			}
+
+			.traffic-footer-icon.blue { background: #dbeafe; color: #2563eb; border-color: #bfdbfe; }
+			.traffic-footer-icon.dark { background: #e2e8f0; color: #0f172a; }
+
+			.traffic-chart-box {
+				min-height: 250px;
+				display: grid;
+				align-items: stretch;
+			}
+
+			.traffic-chart-svg {
+				width: 100%;
+				height: 100%;
+				min-height: 250px;
+				display: block;
+			}
+
+			.traffic-card-footer {
+				padding: 13px 14px;
+				display: flex;
+				align-items: flex-start;
+				gap: 11px;
+				border-radius: 18px;
+				background: linear-gradient(180deg,#ffffff,#f8fafc);
+				border: 1px solid #e2e8f0;
+			}
+
+			.recent-orders-list,
+			.expiration-products-list {
+				display: grid;
+				gap: 10px;
+			}
+
+			.chart-grid-aligned {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
+
+			.pz-admin-btn {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-height: 42px;
+				padding: 10px 14px;
+				border-radius: 14px;
+				border: 1px solid #e2e8f0;
+				background: #fff;
+				color: #0f172a;
+				font-size: 13px;
+				font-weight: 1000;
+				white-space: nowrap;
+				box-shadow: 0 8px 18px rgba(15,23,42,.04);
+			}
+
+			.pz-admin-btn--secondary {
+				border-color: rgba(37,99,235,.22);
+				background: #eff6ff;
+				color: #1d4ed8;
+			}
+
+			.pz-admin-btn--ghost {
+				background: #fff;
+				color: #334155;
+			}
+
+			.pz-admin-btn--compact {
+				min-height: 36px;
+				padding: 8px 12px;
+				font-size: 12px;
+			}
+
+			@media (max-width: 1100px) {
+				.traffic-analytics-grid,
+				.dashboard-activity-grid,
+				.chart-grid-aligned {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			@media (max-width: 720px) {
+				.dashboard-hero-clean,
+				.dashboard-block-head,
+				.dashboard-traffic-head {
+					display: grid;
+				}
+
+				.dashboard-block {
+					padding: 16px;
+					border-radius: 24px;
+				}
+
+				.period-tabs,
+				.expiration-tabs {
+					overflow-x: auto;
+					flex-wrap: nowrap;
+					padding-bottom: 4px;
+				}
+
+				.period-btn,
+				.expiration-btn {
+					flex: 0 0 auto;
+				}
 			}</style>
 	</head>
 	<body>
@@ -2149,279 +2489,90 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="overview" />
 
 				<div class="main-wrap pz-admin-content-inner">
-					<header class="topbar">
+					<header class="dashboard-hero-clean">
 						<div>
+							<p class="dashboard-eyebrow">Resumen</p>
 							<h1 class="page-title">Panel de <span>{currentStoreName}</span></h1>
 							<p id="dashboard-subtitle" class="page-subtitle">Cargando resumen del negocio...</p>
 						</div>
+
+						<div class="dashboard-hero-date">
+							<span aria-hidden="true">Fecha</span>
+							<strong id="dashboard-date-pill">Hoy</strong>
+						</div>
 					</header>
 
-					<div class="section-row">
-						<div>
-							<h2 class="section-title">Analíticas</h2>
-							<p id="range-label" class="page-subtitle" style="margin-top: 4px;">Mostrando: Últimos 7 días.</p>
-						</div>
-
-						<div class="period-tabs" role="tablist" aria-label="Período de analíticas">
-							<button class="period-btn active" type="button" data-range="7">7 días</button>
-							<button class="period-btn" type="button" data-range="15">15 días</button>
-							<button class="period-btn" type="button" data-range="30">1 mes</button>
-							<button class="period-btn" type="button" data-range="90">3 meses</button>
-							<button class="period-btn" type="button" data-range="180">6 meses</button>
-							<button class="period-btn" type="button" data-range="365">1 año</button>
-							<button class="period-btn" type="button" data-range="all">De por vida</button>
-						</div>
-					</div>
-
 					<section class="dashboard-block dashboard-traffic-block" aria-labelledby="dashboard-traffic-title">
-						<div class="dashboard-block-head">
+						<div class="dashboard-block-head dashboard-traffic-head">
 							<div>
-								<h2 id="dashboard-traffic-title" class="dashboard-block-title">Resumen</h2>
-								<p class="dashboard-block-subtitle">AnalÃ­ticas de la tienda y comportamiento reciente.</p>
+								<h2 id="dashboard-traffic-title" class="dashboard-block-title">Analíticas de visitas</h2>
+								<p class="dashboard-block-subtitle">Visitas y visitantes activos de tu tienda pública.</p>
+							</div>
+
+							<div class="period-tabs" role="tablist" aria-label="Período de analíticas">
+								<span class="period-label">Período:</span>
+								<button class="period-btn active" type="button" data-range="7">7 días</button>
+								<button class="period-btn" type="button" data-range="15">15 días</button>
+								<button class="period-btn" type="button" data-range="30">1 mes</button>
+								<button class="period-btn" type="button" data-range="90">3 meses</button>
+								<button class="period-btn" type="button" data-range="180">6 meses</button>
+								<button class="period-btn" type="button" data-range="365">1 año</button>
+								<button class="period-btn" type="button" data-range="all">De por vida</button>
 							</div>
 						</div>
+
+						<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
 
 						<div class="traffic-analytics-grid">
 							<article class="traffic-chart-card traffic-chart-card-blue">
 								<div class="traffic-card-head">
 									<div class="traffic-card-title-row">
-										<span class="traffic-card-icon blue" aria-hidden="true">
-											<svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
-										</span>
-										<div>
-											<p class="traffic-card-label">Visitas totales</p>
-											<strong id="traffic-visits-total">0</strong>
-										</div>
+										<span class="traffic-card-icon blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg></span>
+										<div><p class="traffic-card-label">Visitas totales</p><strong id="traffic-visits-total">0</strong><p id="traffic-visits-average" class="traffic-average-inline">Promedio diario: 0</p></div>
 									</div>
-
-									<p id="traffic-visits-average" class="traffic-average-pill">Promedio diario: 0</p>
+									<span class="traffic-card-info" aria-label="Visitas totales">i</span>
 								</div>
-
 								<div id="traffic-visits-chart" class="traffic-chart-box"></div>
-
-								<div class="traffic-card-footer">
-									<h3>Resumen de visitas</h3>
-									<p>InformaciÃ³n sobre las visitas en el perÃ­odo seleccionado y su promedio diario.</p>
-								</div>
+								<div class="traffic-card-footer"><span class="traffic-footer-icon blue" aria-hidden="true">i</span><div><h3>Resumen de visitas</h3><p>Información sobre las visitas en el período seleccionado y su promedio diario.</p></div></div>
 							</article>
 
 							<article class="traffic-chart-card traffic-chart-card-dark">
 								<div class="traffic-card-head">
 									<div class="traffic-card-title-row">
-										<span class="traffic-card-icon dark" aria-hidden="true">
-											<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"/></svg>
-										</span>
-										<div>
-											<p class="traffic-card-label">Visitantes activos</p>
-											<strong id="traffic-visitors-total">0</strong>
-										</div>
+										<span class="traffic-card-icon dark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"/></svg></span>
+										<div><p class="traffic-card-label">Visitantes activos</p><strong id="traffic-visitors-total">0</strong><p id="traffic-visitors-average" class="traffic-average-inline">Promedio diario: 0</p></div>
 									</div>
-
-									<p id="traffic-visitors-average" class="traffic-average-pill">Promedio diario: 0</p>
+									<span class="traffic-card-info" aria-label="Visitantes activos">i</span>
 								</div>
-
 								<div id="traffic-visitors-chart" class="traffic-chart-box"></div>
-
-								<div class="traffic-card-footer">
-									<h3>Resumen de visitantes activos</h3>
-									<p>Visitantes Ãºnicos diarios detectados en el perÃ­odo seleccionado.</p>
-								</div>
+								<div class="traffic-card-footer"><span class="traffic-footer-icon dark" aria-hidden="true">i</span><div><h3>Resumen de visitantes activos</h3><p>Visitantes únicos diarios detectados en el período seleccionado.</p></div></div>
 							</article>
 						</div>
 					</section>
 
-					<section class="dashboard-block" aria-labelledby="dashboard-main-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-main-title" class="dashboard-block-title">📊 Resumen del negocio</h2>
-								<p class="dashboard-block-subtitle">Vista rápida de ventas, ganancia, pedidos y ticket promedio.</p>
-							</div>
-						</div>
-						<div class="analytics-card-grid analytics-card-grid-main" id="kpi-grid">
-							<div class="card empty-state">Cargando métricas...</div>
-						</div>
-					</section>
+					<section class="dashboard-block dashboard-business-block" aria-labelledby="dashboard-main-title"><div class="dashboard-block-head"><div><h2 id="dashboard-main-title" class="dashboard-block-title">Resumen del negocio</h2><p class="dashboard-block-subtitle">Información clave de tu tienda.</p></div></div><div class="analytics-card-grid analytics-card-grid-main" id="kpi-grid"><div class="card empty-state">Cargando métricas...</div></div></section>
 
-					<section class="dashboard-block" aria-labelledby="dashboard-profit-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-profit-title" class="dashboard-block-title">💰 Ganancia y control</h2>
-								<p class="dashboard-block-subtitle">Métricas de apoyo para revisar margen, domicilio y productos próximos a vencer.</p>
-							</div>
-						</div>
-						<div class="analytics-card-grid analytics-card-grid-secondary" id="profit-kpi-grid"></div>
-					</section>
+					<section class="dashboard-block dashboard-profit-control-block" aria-labelledby="dashboard-profit-title"><div class="dashboard-block-head"><div><h2 id="dashboard-profit-title" class="dashboard-block-title">Ganancia y control</h2><p class="dashboard-block-subtitle">Controla rentabilidad, envíos, vencimientos y stock.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminProfitsPath}><span class="pz-admin-btn__label">Ver detalle de ganancias</span></a></div><div class="analytics-card-grid analytics-card-grid-secondary" id="profit-kpi-grid"></div></section>
 
-					<section class="dashboard-block" aria-labelledby="dashboard-status-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-status-title" class="dashboard-block-title">📦 Estado de pedidos</h2>
-								<p class="dashboard-block-subtitle">Distribución de órdenes dentro del período seleccionado.</p>
-							</div>
-						</div>
-						<div class="card dashboard-status-card">
-							<div id="status-grid" class="status-grid"></div>
-						</div>
-					</section>
+					<section class="dashboard-block dashboard-activity-block" aria-labelledby="dashboard-activity-title"><div class="dashboard-block-head"><div><h2 id="dashboard-activity-title" class="dashboard-block-title">Actividad reciente</h2><p class="dashboard-block-subtitle">Últimos pedidos, productos destacados y estado general.</p></div></div><div class="dashboard-activity-grid"><article class="dashboard-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Pedidos recientes</h3><p>Últimos pedidos recibidos.</p></div><a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href={adminOrdersPath}><span class="pz-admin-btn__label">Ver todos</span></a></div><div id="recent-orders" class="recent-orders-list"></div></article><article class="dashboard-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Productos más vendidos</h3><p>Ranking del período seleccionado.</p></div><a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href={adminProductsPath}><span class="pz-admin-btn__label">Ver todos</span></a></div><p id="top-products-meta" class="mini-panel-meta">Cargando...</p><div id="top-products-list" class="top-products-list"></div></article><article class="dashboard-mini-panel dashboard-status-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Estado de pedidos</h3><p>Distribución del período.</p></div></div><div id="status-grid" class="status-grid dashboard-status-grid"></div></article></div></section>
 
-					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2>
-								<p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p>
-							</div>
-							<a class="action-btn" href={`${adminStoreSettingsPath}#rating`}>Gestionar rating y reseñas</a>
-						</div>
-						<div id="rating-summary-grid" class="status-grid">
-							<div class="empty-state">Cargando rating y reseñas...</div>
-						</div>
-						<p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p>
-					</section>
+					<section class="dashboard-block dashboard-advanced-block" aria-labelledby="dashboard-charts-title"><div class="dashboard-block-head"><div><h2 id="dashboard-charts-title" class="dashboard-block-title">Movimiento del período</h2><p class="dashboard-block-subtitle">Gráficas separadas para ventas, pedidos y ganancia estimada.</p></div></div><div class="grid two-grid chart-grid-aligned"><div class="card chart-card"><div class="card-head"><div><div class="card-title-row"><span class="card-title-icon green"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4V7Z" fill="currentColor" opacity="0.18"/><path d="M4 7h16v10H4V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10.5v3M10.5 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div><h3 class="card-title">Ventas</h3><p class="card-sub">Total vendido dentro del período seleccionado.</p></div></div></div><div id="sales-chart-meta" class="card-total">-</div></div><div id="sales-chart" class="chart-box"></div></div><div class="card chart-card"><div class="card-head"><div><div class="card-title-row"><span class="card-title-icon blue"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" fill="currentColor" opacity="0.18"/><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div><h3 class="card-title">Pedidos</h3><p class="card-sub">Cantidad de pedidos por día o mes.</p></div></div></div><div id="orders-chart-meta" class="card-total">-</div></div><div id="orders-chart" class="chart-box"></div></div><div class="card chart-card"><div class="card-head"><div><div class="card-title-row"><span class="card-title-icon purple"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14v10H5V7Z" fill="currentColor" opacity="0.18"/><path d="M5 7h14v10H5V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 14.5 11 11.5l2.2 2.2L16.8 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><h3 class="card-title">Ganancia</h3><p class="card-sub">Ganancia estimada solo de órdenes confirmadas o entregadas.</p></div></div></div><div id="profit-chart-meta" class="card-total">-</div></div><div id="profit-chart" class="chart-box"></div></div></div></section>
 
-					<section class="dashboard-block" aria-labelledby="dashboard-charts-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-charts-title" class="dashboard-block-title">📈 Movimiento del período</h2>
-								<p class="dashboard-block-subtitle">Gráficas separadas para ventas, pedidos y ganancia estimada.</p>
-							</div>
-						</div>
-						<div class="grid two-grid chart-grid-aligned">
-						<div class="card chart-card">
-							<div class="card-head">
-								<div>
-									<div class="card-title-row">
-										<span class="card-title-icon green"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4V7Z" fill="currentColor" opacity="0.18"/><path d="M4 7h16v10H4V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10.5v3M10.5 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-										<div>
-											<h3 class="card-title">Ventas</h3>
-											<p class="card-sub">Total vendido dentro del período seleccionado.</p>
-										</div>
-									</div>
-								</div>
-								<div id="sales-chart-meta" class="card-total">—</div>
-							</div>
-							<div id="sales-chart" class="chart-box"></div>
-						</div>
+					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>
 
-						<div class="card chart-card">
-							<div class="card-head">
-								<div>
-									<div class="card-title-row">
-										<span class="card-title-icon blue"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" fill="currentColor" opacity="0.18"/><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-										<div>
-											<h3 class="card-title">Pedidos</h3>
-											<p class="card-sub">Cantidad de pedidos por día o mes.</p>
-										</div>
-									</div>
-								</div>
-								<div id="orders-chart-meta" class="card-total">—</div>
-							</div>
-							<div id="orders-chart" class="chart-box"></div>
-						</div>
-
-							<div class="card chart-card">
-								<div class="card-head">
-									<div>
-										<div class="card-title-row">
-											<span class="card-title-icon purple"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14v10H5V7Z" fill="currentColor" opacity="0.18"/><path d="M5 7h14v10H5V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 14.5 11 11.5l2.2 2.2L16.8 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-											<div>
-												<h3 class="card-title">Ganancia</h3>
-												<p class="card-sub">Ganancia estimada según precio menos costo USD.</p>
-											</div>
-										</div>
-									</div>
-									<div id="profit-chart-meta" class="card-total">—</div>
-								</div>
-								<div id="profit-chart" class="chart-box"></div>
-							</div>
-						</div>
-					</section>
-
-					<section class="dashboard-block" aria-labelledby="dashboard-products-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-products-title" class="dashboard-block-title">🏆 Productos y pedidos recientes</h2>
-								<p class="dashboard-block-subtitle">Listas rápidas para revisar lo que más se mueve en la tienda.</p>
-							</div>
-						</div>
-						<div class="grid two-grid">
-						<div class="card list-card">
-							<div class="card-head">
-								<div>
-									<div class="card-title-row">
-										<span class="card-title-icon gold"><svg viewBox="0 0 24 24" fill="none"><path d="M8 4h8v4.5a4 4 0 0 1-8 0V4Z" fill="currentColor" opacity="0.20"/><path d="M8 4h8v4.5a4 4 0 0 1-8 0V4Z" stroke="currentColor" stroke-width="2"/><path d="M8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4M12 13v4M8.5 21h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-										<div>
-											<h3 class="card-title">Top 10 productos más vendidos</h3>
-											<p class="card-sub">Cantidad vendida según el período seleccionado.</p>
-										</div>
-									</div>
-								</div>
-								<div id="top-products-meta" class="card-total">—</div>
-							</div>
-							<div id="top-products-list" class="top-products-list"></div>
-						</div>
-
-							<div class="card list-card">
-								<div class="card-head">
-									<div>
-										<div class="card-title-row">
-											<span class="card-title-icon purple"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h14v12H5V6Z" fill="currentColor" opacity="0.18"/><path d="M5 6h14v12H5V6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 10h8M8 14h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
-											<div>
-												<h3 class="card-title">Pedidos recientes</h3>
-												<p class="card-sub">Últimas órdenes dentro del período seleccionado.</p>
-											</div>
-										</div>
-									</div>
-									<a class="action-btn" href={adminOrdersPath}>Abrir pedidos</a>
-								</div>
-								<div id="recent-orders" class="order-list"></div>
-							</div>
-						</div>
-					</section>
-
-
-					<section class="dashboard-block" aria-labelledby="dashboard-expiration-title">
-						<div class="dashboard-block-head">
-							<div>
-								<h2 id="dashboard-expiration-title" class="dashboard-block-title">⚠️ Control de vencimientos</h2>
-								<p class="dashboard-block-subtitle">Seguimiento rápido de productos que necesitan atención.</p>
-							</div>
-						</div>
-						<div id="productos-proximos-vencer" class="card list-card">
-						<div class="card-head expiration-toolbar">
-							<div>
-								<div class="card-title-row">
-									<span class="card-title-icon orange"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10v5l3 3v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3Z" fill="currentColor" opacity="0.16"/><path d="M7 3h10v5l3 3v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a3 3 0 0 1 3-3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 13h6M9 17h4M17 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-									<div>
-										<h3 class="card-title">Productos próximos a vencer</h3>
-										<p class="card-sub">Filtra productos con fecha de vencimiento en 1, 2 o 3 meses.</p>
-									</div>
-								</div>
-							</div>
-
-							<div class="expiration-tabs" role="tablist" aria-label="Rango de vencimiento">
-								<button class="expiration-btn active" type="button" data-expiration-range="30">1 mes</button>
-								<button class="expiration-btn" type="button" data-expiration-range="60">2 meses</button>
-								<button class="expiration-btn" type="button" data-expiration-range="90">3 meses</button>
-							</div>
-						</div>
-						<div class="card-head" style="padding-top: 0; margin-top: -4px;">
-							<p id="expiration-products-meta" class="card-sub">Cargando productos...</p>
-							<a class="action-btn" href={adminProductsPath}>Gestionar productos</a>
-						</div>
-							<div id="expiration-products-list" class="expiration-list"></div>
-						</div>
-					</section>
+					<section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title"><div class="dashboard-block-head"><div><h2 id="expiration-title" class="dashboard-block-title">Productos próximos a vencer</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">Cargando productos...</p></div><div class="expiration-tabs"><button class="expiration-btn active" type="button" data-expiration-range="30">1 mes</button><button class="expiration-btn" type="button" data-expiration-range="60">2 meses</button><button class="expiration-btn" type="button" data-expiration-range="90">3 meses</button></div></div><div id="expiration-products-list" class="expiration-products-list"></div></section>
 				</div>
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminProductsPath }}>
+		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminProductsPath, adminOrdersPath }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const SESSION_TOKEN = String(adminAuthToken || '');
 			const STORE_FILTER = String(currentStoreFilter || '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
 			const ORDER_ITEMS_STORE_FILTER = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22` : '';
 			const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
+			const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
 			const rangeLabel = document.getElementById('range-label');
@@ -2578,6 +2729,15 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				return `${ADMIN_PRODUCTS_PATH}?product=${encodeURIComponent(product.id)}`;
 			}
 
+			function orderDetailPath(order) {
+				if (!order?.id) return ADMIN_ORDERS_PATH;
+				return `${ADMIN_ORDERS_PATH.replace(/\/$/, '')}/${encodeURIComponent(order.id)}`;
+			}
+
+			function isProfitOrder(order) {
+				return ['confirmed', 'delivered'].includes(String(order?.status || '').toLowerCase());
+			}
+
 			function formatMonth(value) {
 				return new Intl.DateTimeFormat('es-ES', { month: 'short', year: '2-digit' }).format(new Date(value));
 			}
@@ -2591,7 +2751,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const result = await response.json().catch(() => null);
 
 				if (!response.ok) {
-					throw new Error(result?.message || 'Error de comunicacion con la plataforma.');
+					throw new Error(result?.message || 'Error de comunicación con la plataforma.');
 				}
 
 				return result;
@@ -2814,10 +2974,12 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			function computeMetrics() {
 				const filteredOrders = getFilteredOrders();
 				const filteredItems = getFilteredItems(filteredOrders);
+				const profitOrders = filteredOrders.filter(isProfitOrder);
+				const profitItems = getFilteredItems(profitOrders);
 				const totalSales = filteredOrders.reduce((sum, order) => sum + Number(order.total || 0), 0);
 				const totalShipping = filteredOrders.reduce((sum, order) => sum + Number(order.shipping || 0), 0);
-				const profitByOrder = getOrderProfitMap(filteredItems);
-				const totalProfit = filteredItems.reduce((sum, item) => sum + getItemEstimatedLineProfit(item), 0);
+				const profitByOrder = getOrderProfitMap(profitItems);
+				const totalProfit = profitItems.reduce((sum, item) => sum + getItemEstimatedLineProfit(item), 0);
 				const averageTicket = filteredOrders.length ? totalSales / filteredOrders.length : 0;
 				const openOrders = filteredOrders.filter((order) => ['pending', 'confirmed', 'preparing'].includes(order.status)).length;
 
@@ -2957,7 +3119,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 			function createTrafficChartMarkup(points, field, strokeColor, fillColor, maxTicks = 4) {
 				if (!points.length || points.every((point) => Number(point[field] || 0) === 0)) {
-					return '<div class="traffic-empty-state">TodavÃ­a no hay datos suficientes para mostrar esta analÃ­tica.</div>';
+					return '<div class="traffic-empty-state">Todavía no hay datos suficientes para mostrar esta analítica.</div>';
 				}
 
 				const width = 900;
@@ -3002,7 +3164,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const visibleLabels = coords.filter((point) => point.index === 0 || point.index === coords.length - 1 || point.index % labelStep === 0);
 
 				return `
-					<svg class="traffic-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="GrÃ¡fico de analÃ­tica de tienda">
+					<svg class="traffic-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de analítica de tienda">
 						<defs>
 							<linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
 								<stop offset="0%" stop-color="${fillColor}" stop-opacity="0.34" />
@@ -3277,16 +3439,18 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					const rowStyle = 'display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;min-width:0;padding:12px 14px;border-radius:999px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);border:1px solid rgba(226,232,240,0.95);box-shadow:0 12px 26px rgba(15,23,42,0.06),inset 0 1px 0 rgba(255,255,255,0.92);color:#0f172a;text-decoration:none;box-sizing:border-box;';
 					const orderStyle = 'font-weight:950;color:#020617;white-space:nowrap;';
 					const metaStyle = 'font-size:14px;font-weight:780;color:#334155;white-space:nowrap;';
+					const detailStyle = 'margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:6px 10px;border-radius:999px;background:#eff6ff;color:#1d4ed8;border:1px solid rgba(37,99,235,0.20);font-size:12px;font-weight:950;white-space:nowrap;';
 
 					return `
 						<div class="order-item recent-order-compact" style="padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important;width:100% !important;">
-							<div class="recent-order-line" style="${rowStyle}">
+							<a class="recent-order-line" style="${rowStyle}" href="${orderDetailPath(order)}">
 								<span style="${orderStyle}">${escapeHtml(order.order_number || 'Sin número')}</span>
 								<span style="${metaStyle}">·</span>
 								<span style="${metaStyle}">${escapeHtml(formatShortDate(order.created))}</span>
 								<span style="${metaStyle}">${escapeHtml(formatUSD(order.total))}</span>
 								<span style="${statusStyle}">${escapeHtml(statusText)}</span>
-							</div>
+								<span style="${detailStyle}">Ver detalle</span>
+							</a>
 						</div>
 					`;
 				}).join('');
@@ -3527,11 +3691,11 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				showAdmin();
 				loadDashboardData().catch((error) => {
 					console.error(error);
-					kpiGrid.innerHTML = '<div class="card empty-state">No se pudieron cargar las metricas de esta tienda.</div>';
+					kpiGrid.innerHTML = '<div class="card empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
 				});
 			} else {
 				showAdmin();
-				kpiGrid.innerHTML = '<div class="card empty-state">No se pudo validar la sesion administrativa.</div>';
+				kpiGrid.innerHTML = '<div class="card empty-state">No se pudo validar la sesión administrativa.</div>';
 			}
 		</script>
 	</body>

@@ -1,0 +1,372 @@
+---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminAuthToken = authPb.authStore.token;
+const currentStoreId = adminContext.storeId;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detalle de ganancias | PowerZona Admin</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --blue: #2563eb;
+        --green: #16a34a;
+        --orange: #f97316;
+        --purple: #7c3aed;
+        --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, 0.16), transparent 30%),
+          radial-gradient(circle at 85% 8%, rgba(22, 163, 74, 0.10), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+      button { cursor: pointer; font: inherit; }
+      a { color: inherit; text-decoration: none; }
+      .admin-view { min-height: 100vh; }
+      .main-wrap { width: min(1500px, 100%); margin: 0 auto; padding: 28px; }
+      .profits-main { display: grid; gap: 18px; }
+      .profits-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .profits-eyebrow { margin: 0 0 8px; color: var(--blue); font-size: 13px; font-weight: 1000; }
+      .profits-title { margin: 0; color: #0f172a; font-size: clamp(30px, 4vw, 44px); line-height: 1; font-weight: 1000; letter-spacing: -0.045em; }
+      .profits-subtitle { margin: 8px 0 0; color: var(--muted); font-size: 15px; line-height: 1.45; font-weight: 750; }
+      .profits-card {
+        border: 1px solid rgba(226, 232, 240, .96);
+        border-radius: 28px;
+        background: rgba(255,255,255,.96);
+        box-shadow: var(--shadow);
+        padding: 20px;
+        backdrop-filter: blur(10px);
+      }
+      .profits-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 16px;
+      }
+      .profits-head h2 { margin: 0; color: #0f172a; font-size: 22px; line-height: 1.15; font-weight: 1000; letter-spacing: -0.035em; }
+      .profits-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; font-weight: 800; }
+      .profits-period-tabs { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .profits-period-btn {
+        min-height: 38px;
+        padding: 9px 13px;
+        border-radius: 13px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 1000;
+        box-shadow: 0 8px 18px rgba(15,23,42,.04);
+      }
+      .profits-period-btn.active {
+        border-color: rgba(37,99,235,.88);
+        background: linear-gradient(135deg,#2563eb,#1d4ed8);
+        color: #fff;
+        box-shadow: 0 14px 28px rgba(37,99,235,.22);
+      }
+      .profits-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+      .profits-kpi {
+        min-height: 128px;
+        padding: 16px;
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(15,23,42,.045);
+      }
+      .profits-kpi-icon { width: 46px; height: 46px; display: inline-grid; place-items: center; border-radius: 17px; font-size: 20px; font-weight: 1000; }
+      .profits-kpi-icon.green { background: #dcfce7; color: var(--green); }
+      .profits-kpi-icon.blue { background: #dbeafe; color: var(--blue); }
+      .profits-kpi-icon.orange { background: #ffedd5; color: var(--orange); }
+      .profits-kpi-icon.purple { background: #ede9fe; color: var(--purple); }
+      .profits-kpi p { margin: 0; color: var(--muted); font-size: 12px; font-weight: 900; }
+      .profits-kpi strong { color: #0f172a; font-size: 25px; line-height: 1; font-weight: 1000; letter-spacing: -0.04em; }
+      .profits-order-list { display: grid; gap: 10px; }
+      .profits-order-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) repeat(4, minmax(110px, .55fr)) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04);
+      }
+      .profits-order-title { margin: 0; color: #0f172a; font-size: 15px; line-height: 1.25; font-weight: 1000; }
+      .profits-order-meta { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.35; font-weight: 850; }
+      .profits-order-block p { margin: 0 0 5px; color: var(--muted); font-size: 11px; font-weight: 1000; }
+      .profits-order-block strong { color: #0f172a; font-size: 14px; font-weight: 1000; }
+      .profits-order-block .profit-positive { color: var(--green); }
+      .profits-status-pill { min-height: 28px; padding: 6px 10px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #dcfce7; color: var(--green); font-size: 11px; font-weight: 1000; }
+      .profits-empty { min-height: 180px; display: grid; place-items: center; border: 1px dashed #cbd5e1; border-radius: 22px; color: var(--muted); font-size: 14px; font-weight: 850; background: #f8fafc; }
+      .pz-admin-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--border); background: #fff; color: #0f172a; font-size: 13px; font-weight: 1000; white-space: nowrap; box-shadow: 0 8px 18px rgba(15,23,42,.04); }
+      .pz-admin-btn--secondary { border-color: rgba(37,99,235,.22); background: #eff6ff; color: #1d4ed8; }
+      .pz-admin-btn--compact { min-height: 36px; padding: 8px 12px; font-size: 12px; }
+      @media (max-width: 1100px) {
+        .profits-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .profits-order-row { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 720px) {
+        .main-wrap { padding: 18px; }
+        .profits-hero, .profits-head { display: grid; }
+        .profits-card { padding: 16px; border-radius: 24px; }
+        .profits-kpi-grid { grid-template-columns: 1fr; }
+        .profits-period-tabs { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+        .profits-period-btn { flex: 0 0 auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="admin-view pz-admin-content">
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="overview" />
+
+      <main class="main-wrap pz-admin-content-inner profits-main">
+        <header class="profits-hero">
+          <div>
+            <p class="profits-eyebrow">Resumen / Ganancias</p>
+            <h1 class="profits-title">Detalle de ganancias</h1>
+            <p class="profits-subtitle">Ganancia estimada por pedido usando órdenes confirmadas y entregadas.</p>
+          </div>
+
+          <a class="pz-admin-btn pz-admin-btn--secondary" href={adminBasePath}>
+            <span class="pz-admin-btn__label">Volver al resumen</span>
+          </a>
+        </header>
+
+        <section class="profits-card">
+          <div class="profits-head">
+            <div>
+              <h2>Resumen de rentabilidad</h2>
+              <p>Ventas, costo estimado, ganancia y margen del período.</p>
+            </div>
+
+            <div class="profits-period-tabs">
+              <button class="profits-period-btn active" type="button" data-range="7">7 días</button>
+              <button class="profits-period-btn" type="button" data-range="15">15 días</button>
+              <button class="profits-period-btn" type="button" data-range="30">1 mes</button>
+              <button class="profits-period-btn" type="button" data-range="90">3 meses</button>
+              <button class="profits-period-btn" type="button" data-range="all">De por vida</button>
+            </div>
+          </div>
+
+          <div id="profits-kpi-grid" class="profits-kpi-grid">
+            <div class="profits-empty">Cargando ganancias...</div>
+          </div>
+        </section>
+
+        <section class="profits-card">
+          <div class="profits-head">
+            <div>
+              <h2>Ganancia por pedido</h2>
+              <p>Detalle por orden. Usa Ver pedido para abrir el detalle operativo real.</p>
+            </div>
+          </div>
+
+          <div id="profits-order-list" class="profits-order-list">
+            <div class="profits-empty">Cargando pedidos...</div>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminOrdersPath }}>
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const ADMIN_TOKEN = String(adminAuthToken || '');
+      const STORE_FILTER = String(currentStoreFilter || '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
+      const kpiGrid = document.getElementById('profits-kpi-grid');
+      const orderList = document.getElementById('profits-order-list');
+      const rangeButtons = Array.from(document.querySelectorAll('.profits-period-btn'));
+      let selectedRange = '7';
+      let orders = [];
+      let orderItems = [];
+
+      function escapeHtml(value) {
+        return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function formatUSD(value) { return '$' + Number(value || 0).toFixed(2) + ' USD'; }
+      function formatShortDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '');
+      }
+      function getAdminToken() { return ADMIN_TOKEN; }
+      async function apiRequest(path, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const token = getAdminToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
+        return result;
+      }
+      async function loadAllRecords(collection, params = '') {
+        let page = 1;
+        const perPage = 200;
+        let items = [];
+        let totalPages = 1;
+        const query = new URLSearchParams(params || '');
+        const collectionHasStore = collection !== 'order_items' && collection !== 'product_variations' && collection !== 'manual_coupon_usages';
+        if (collectionHasStore && STORE_FILTER && !query.has('filter')) query.set('filter', STORE_FILTER);
+        do {
+          query.set('page', String(page));
+          query.set('perPage', String(perPage));
+          const result = await apiRequest(`/api/collections/${collection}/records?${query.toString()}`);
+          items = items.concat(result.items || []);
+          totalPages = result.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+        return items;
+      }
+      function getRangeStart(range) {
+        if (range === 'all') return null;
+        const days = Number(range || 7);
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        start.setDate(start.getDate() - (days - 1));
+        return start;
+      }
+      function isProfitOrder(order) {
+        return ['confirmed', 'delivered'].includes(String(order?.status || '').toLowerCase());
+      }
+      function getItemEstimatedUnitProfit(item) {
+        const savedUnitProfit = item.unit_profit_usd;
+        if (savedUnitProfit !== undefined && savedUnitProfit !== null && savedUnitProfit !== '') {
+          const numericSaved = Number(savedUnitProfit);
+          if (Number.isFinite(numericSaved) && numericSaved !== 0) return numericSaved;
+        }
+        const unitPrice = Number(item.unit_price_usd || item.variation_price_usd || item.unit_price_selected_currency || 0);
+        const variationCost = item.expand?.variation ? Number(item.expand.variation.cost_usd || 0) : 0;
+        const productCost = item.expand?.product ? Number(item.expand.product.cost_usd || 0) : 0;
+        const unitCost = variationCost || productCost;
+        return unitPrice - unitCost;
+      }
+      function getItemEstimatedLineProfit(item) {
+        if (item.is_gift) return 0;
+        const savedLineProfit = item.line_profit_usd;
+        if (savedLineProfit !== undefined && savedLineProfit !== null && savedLineProfit !== '') {
+          const numericSaved = Number(savedLineProfit);
+          if (Number.isFinite(numericSaved) && numericSaved !== 0) return numericSaved;
+        }
+        return getItemEstimatedUnitProfit(item) * Number(item.quantity || 0);
+      }
+      function orderDetailPath(order) {
+        if (!order?.id) return ADMIN_ORDERS_PATH;
+        return `${ADMIN_ORDERS_PATH.replace(/\/$/, '')}/${encodeURIComponent(order.id)}`;
+      }
+      function computeProfits() {
+        const start = getRangeStart(selectedRange);
+        const filteredOrders = orders.filter(isProfitOrder).filter((order) => !start || new Date(order.created) >= start);
+        const orderIds = new Set(filteredOrders.map((order) => order.id));
+        const filteredItems = orderItems.filter((item) => orderIds.has(item.order));
+        const itemsByOrder = filteredItems.reduce((acc, item) => {
+          if (!acc[item.order]) acc[item.order] = [];
+          acc[item.order].push(item);
+          return acc;
+        }, {});
+        const rows = filteredOrders.map((order) => {
+          const items = itemsByOrder[order.id] || [];
+          const sale = Number(order.total || 0);
+          const shipping = Number(order.shipping || order.shipping_usd || 0);
+          const productSale = Math.max(0, sale - shipping);
+          const profit = items.reduce((sum, item) => sum + getItemEstimatedLineProfit(item), 0);
+          const cost = Math.max(0, productSale - profit);
+          const margin = productSale > 0 ? (profit / productSale) * 100 : 0;
+          return { order, sale, shipping, productSale, cost, profit, margin };
+        }).sort((a, b) => new Date(b.order.created) - new Date(a.order.created));
+        const totalSale = rows.reduce((sum, row) => sum + row.productSale, 0);
+        const totalCost = rows.reduce((sum, row) => sum + row.cost, 0);
+        const totalProfit = rows.reduce((sum, row) => sum + row.profit, 0);
+        const averageMargin = totalSale > 0 ? (totalProfit / totalSale) * 100 : 0;
+        return { rows, totalSale, totalCost, totalProfit, averageMargin };
+      }
+      function renderProfits() {
+        const data = computeProfits();
+        kpiGrid.innerHTML = `
+          <article class="profits-kpi"><span class="profits-kpi-icon green">$</span><p>Ganancia total</p><strong>${escapeHtml(formatUSD(data.totalProfit))}</strong></article>
+          <article class="profits-kpi"><span class="profits-kpi-icon blue">↗</span><p>Ventas confirmadas</p><strong>${escapeHtml(formatUSD(data.totalSale))}</strong></article>
+          <article class="profits-kpi"><span class="profits-kpi-icon orange">−</span><p>Costo estimado</p><strong>${escapeHtml(formatUSD(data.totalCost))}</strong></article>
+          <article class="profits-kpi"><span class="profits-kpi-icon purple">%</span><p>Margen promedio</p><strong>${data.averageMargin.toFixed(1)}%</strong></article>
+        `;
+        if (!data.rows.length) {
+          orderList.innerHTML = '<div class="profits-empty">No hay órdenes confirmadas o entregadas en este período.</div>';
+          return;
+        }
+        orderList.innerHTML = data.rows.map((row) => {
+          const order = row.order;
+          const statusLabel = order.status === 'delivered' ? 'Entregada' : 'Confirmada';
+          return `
+            <article class="profits-order-row">
+              <div><p class="profits-order-title">${escapeHtml(order.order_number || 'Sin número')}</p><p class="profits-order-meta">${escapeHtml(order.customer_name || 'Cliente')} · ${escapeHtml(formatShortDate(order.created))} · <span class="profits-status-pill">${escapeHtml(statusLabel)}</span></p></div>
+              <div class="profits-order-block"><p>Venta productos</p><strong>${escapeHtml(formatUSD(row.productSale))}</strong></div>
+              <div class="profits-order-block"><p>Costo</p><strong>${escapeHtml(formatUSD(row.cost))}</strong></div>
+              <div class="profits-order-block"><p>Ganancia</p><strong class="profit-positive">${escapeHtml(formatUSD(row.profit))}</strong></div>
+              <div class="profits-order-block"><p>Margen</p><strong>${row.margin.toFixed(1)}%</strong></div>
+              <a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href="${orderDetailPath(order)}"><span class="pz-admin-btn__label">Ver pedido</span></a>
+            </article>
+          `;
+        }).join('');
+      }
+      async function loadProfits() {
+        if (!POCKETBASE_URL) {
+          orderList.innerHTML = '<div class="profits-empty">Falta PUBLIC_POCKETBASE_URL.</div>';
+          return;
+        }
+        const orderItemsFilter = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22&` : '';
+        const [ordersResult, itemsResult] = await Promise.all([
+          loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
+          loadAllRecords('order_items', `${orderItemsFilter}sort=-created&expand=product,variation`),
+        ]);
+        orders = ordersResult || [];
+        orderItems = itemsResult || [];
+        renderProfits();
+      }
+      rangeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedRange = button.dataset.range || '7';
+          rangeButtons.forEach((item) => item.classList.toggle('active', item === button));
+          renderProfits();
+        });
+      });
+      loadProfits().catch((error) => {
+        console.error(error);
+        orderList.innerHTML = '<div class="profits-empty">No se pudieron cargar las ganancias.</div>';
+      });
+    </script>
+  </body>
+</html>
