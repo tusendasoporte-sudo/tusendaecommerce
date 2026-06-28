@@ -206,7 +206,7 @@ function getProductOfferView(product: any) {
       price,
       regularPrice: price,
       isOffer: false,
-      pricePrefix: product.variation_has_different_prices ? 'Desde' : '',
+      pricePrefix: 'Desde',
     };
   }
   const activePrice = Number(product?.base_price_usd || 0);

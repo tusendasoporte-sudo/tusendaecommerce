@@ -1591,6 +1591,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                         <input id="variation-price" type="number" min="0" step="0.01" placeholder="0.00" />
                       </div>
                       <div class="field">
+                        <label class="check-card switch-card"><input id="variation-is-offer" type="checkbox" /> Oferta</label>
+                        <label for="variation-offer-price" style="margin-top:10px;">Precio oferta USD</label>
+                        <input id="variation-offer-price" type="number" min="0" step="0.01" placeholder="0.00" disabled />
+                        <p id="variation-offer-help" class="form-help">Activa Oferta y escribe un precio menor al precio normal de la variación.</p>
+                      </div>
+                      <div class="field">
                         <label for="variation-cost">Costo USD</label>
                         <input id="variation-cost" type="number" min="0" step="0.01" placeholder="0.00" />
                       </div>
@@ -1917,6 +1923,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const variationTypeInput = document.getElementById('variation-type');
       const variationValueInput = document.getElementById('variation-value');
       const variationPriceInput = document.getElementById('variation-price');
+      const variationIsOfferInput = document.getElementById('variation-is-offer');
+      const variationOfferPriceInput = document.getElementById('variation-offer-price');
+      const variationOfferHelp = document.getElementById('variation-offer-help');
       const variationCostInput = document.getElementById('variation-cost');
       const variationStockInput = document.getElementById('variation-stock');
       const variationStockHelp = document.getElementById('variation-stock-help');
@@ -2459,11 +2468,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function createVariationSnapshot() {
         const file = variationImageInput?.files?.[0] || null;
+        const variationOfferState = getValidVariationOfferState();
         return JSON.stringify({
           id: variationIdInput?.value || '',
           variation_type: variationTypeInput?.value?.trim() || 'Sabor',
           value: variationValueInput?.value?.trim() || '',
           price_usd: Number(variationPriceInput?.value || 0),
+          is_offer: variationOfferState.enabled,
+          offer_price_usd: variationOfferState.enabled ? Number(variationOfferPriceInput?.value || 0) : 0,
           cost_usd: Number(variationCostInput?.value || 0),
           stock: Number(variationStockInput?.value || 0),
           internal_ref: variationRefInput?.value?.trim() || '',
@@ -2487,7 +2499,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function updateVariationFormState() {
         if (!variationSaveBtn) return;
         const isEditingVariation = Boolean(variationIdInput?.value);
-        const canSave = variationHasMinimumData() && (!isEditingVariation || hasVariationChanges());
+        const variationOfferState = getValidVariationOfferState();
+        const invalidVariationOffer = variationOfferState.enabled && !variationOfferState.valid;
+        const canSave = variationHasMinimumData() && !invalidVariationOffer && (!isEditingVariation || hasVariationChanges());
         variationSaveBtn.disabled = isSavingVariation || !canSave;
         variationSaveBtn.textContent = isSavingVariation ? 'Guardando...' : 'Guardar variacion';
       }
@@ -2642,9 +2656,43 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const valid = enabled && regularPrice > 0 && offerPrice > 0 && offerPrice < regularPrice;
         return { regularPrice, offerPrice, enabled, valid, savings: valid ? regularPrice - offerPrice : 0 };
       }
+      function getValidVariationOfferState() {
+        const enabled = Boolean(variationIsOfferInput?.checked);
+        const regularPrice = Math.max(0, Number(variationPriceInput?.value || 0));
+        const offerPrice = Math.max(0, Number(variationOfferPriceInput?.value || 0));
+        const valid = enabled && regularPrice > 0 && offerPrice > 0 && offerPrice < regularPrice;
+        return { regularPrice, offerPrice, enabled, valid, savings: valid ? regularPrice - offerPrice : 0 };
+      }
+      function updateVariationOfferFieldState() {
+        if (!variationIsOfferInput || !variationOfferPriceInput) return;
+        const state = getValidVariationOfferState();
+        variationOfferPriceInput.disabled = !state.enabled;
+        variationOfferPriceInput.required = state.enabled;
+        if (!state.enabled) {
+          variationOfferPriceInput.value = '';
+          if (variationOfferHelp) variationOfferHelp.textContent = 'Activa Oferta y escribe un precio menor al precio normal de la variacion.';
+        } else if (state.valid) {
+          if (variationOfferHelp) variationOfferHelp.textContent = `Oferta activa. El cliente ahorra ${formatUsd(state.savings)}.`;
+        } else if (variationOfferHelp) {
+          variationOfferHelp.textContent = 'El precio de oferta debe ser mayor que 0 y menor que el precio normal de la variacion.';
+        }
+      }
 
       function updateOfferFieldState() {
         if (!productIsOfferInput || !productOfferPriceInput) return;
+        const useVariations = Boolean(productHasVariationsInput?.checked);
+        if (useVariations) {
+          productIsOfferInput.checked = false;
+          productIsOfferInput.disabled = true;
+          productOfferPriceInput.disabled = true;
+          productOfferPriceInput.required = false;
+          productOfferPriceInput.value = '';
+          productPriceInput.disabled = true;
+          productPriceInput.classList.add('is-locked');
+          if (productOfferHelp) productOfferHelp.textContent = 'Este producto usa variaciones. Las ofertas se configuran dentro de cada variacion.';
+          return;
+        }
+        productIsOfferInput.disabled = false;
         const state = getValidOfferState();
         productPriceInput.disabled = state.enabled;
         productPriceInput.classList.toggle('is-locked', state.enabled);
@@ -2673,6 +2721,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationTypeInput.value = 'Sabor';
         variationValueInput.value = '';
         variationPriceInput.value = Number(productPriceInput.value || 0).toFixed(2);
+        if (variationIsOfferInput) variationIsOfferInput.checked = false;
+        if (variationOfferPriceInput) variationOfferPriceInput.value = '';
         variationCostInput.value = Number(productCostInput.value || 0).toFixed(2);
         variationStockInput.value = '0';
         variationRefInput.value = '';
@@ -2683,6 +2733,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         renderVariationImageSlot('');
         variationDeleteBtn?.classList.add('hidden');
         variationEditor.classList.add('hidden');
+        updateVariationOfferFieldState();
         updateProductFormState();
         setVariationAlert('');
       }
@@ -2731,12 +2782,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationTypeInput.value = variation.variation_type || 'Sabor';
         variationValueInput.value = variation.value || '';
         variationPriceInput.value = Number(variation.price_usd || 0).toFixed(2);
+        if (variationIsOfferInput) variationIsOfferInput.checked = Boolean(variation.is_offer);
+        if (variationOfferPriceInput) variationOfferPriceInput.value = variation.is_offer ? Number(variation.offer_price_usd || 0).toFixed(2) : '';
         variationCostInput.value = Number(variation.cost_usd || 0).toFixed(2);
         variationStockInput.value = Number(variation.stock || 0);
         variationRefInput.value = variation.internal_ref || '';
         variationOrderInput.value = Number(variation.sort_order || 0);
         variationActiveInput.checked = variation.active !== false;
         variationAllowPreorderInput.checked = Boolean(variation.allow_preorder);
+        updateVariationOfferFieldState();
         renderVariationCurrentImage(variation);
         variationInitialSnapshot = createVariationSnapshot();
         variationDeleteBtn?.classList.remove('hidden');
@@ -2758,22 +2812,26 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return;
         }
         const sorted = getSortedVariations();
-        variationsList.innerHTML = sorted.map((variation) => {
+        variationsList.innerHTML = sorted.map((variation, index) => {
           const active = variation.active !== false;
           const stockNumber = Number(variation.stock || 0);
           const preorder = Boolean(variation.allow_preorder);
+          const regularPrice = Number(variation.price_usd || 0);
+          const offerPrice = Number(variation.offer_price_usd || 0);
+          const hasOffer = Boolean(variation.is_offer) && offerPrice > 0 && offerPrice < regularPrice;
           const refText = variation.internal_ref ? `Ref: ${variation.internal_ref}` : 'Sin ref interna';
           return `
             <article class="variation-row" data-variation-id="${variation.id}">
               <div class="variation-main">
                 ${variationThumbMarkup(variation)}
                 <div>
+                  ${index === 0 ? '<span class="mini-pill variation">Predeterminada</span>' : ''}
                   <p class="variation-name">${escapeHtml(variation.variation_type || 'Variación')}: ${escapeHtml(variation.value || 'Sin valor')}</p>
                   <p class="variation-meta">${escapeHtml(refText)} · Orden ${Number(variation.sort_order || 0)}</p>
                 </div>
               </div>
               <span class="pill ${active ? 'pill-visible' : 'pill-hidden'}">${active ? 'Activa' : 'Oculta'}</span>
-              <span class="price">${escapeHtml(formatUsd(variation.price_usd))}</span>
+              <span class="price">${hasOffer ? `${escapeHtml(formatUsd(offerPrice))} <small style="display:block;color:#94a3b8;text-decoration:line-through;">${escapeHtml(formatUsd(regularPrice))}</small>` : escapeHtml(formatUsd(regularPrice))}</span>
               <span class="stock">Stock: ${stockNumber}${stockNumber <= 0 ? (preorder ? ' · Preorder' : ' · Agotada') : ''}</span>
               <div class="variation-mini-actions">
                 <span class="variation-order-actions" aria-label="Orden visual">
@@ -2841,7 +2899,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationManager.classList.remove('hidden');
         variationEditor?.classList.add('hidden');
         if (variationManagerHelp) {
-          variationManagerHelp.textContent = productTracksStock(product) ? `Variaciones de ${product.name || 'este producto'}. El stock del producto padre se calculará con la suma de las variaciones.` : `Variaciones de ${product.name || 'este producto'}. Este producto no descuenta stock, por eso las variaciones no exigen stock.`;
+          variationManagerHelp.textContent = productTracksStock(product)
+            ? `Variaciones de ${product.name || 'este producto'}. La primera variacion sera la opcion inicial para el cliente; usa las flechas para cambiarla. El stock del producto padre se calcula con la suma de variaciones.`
+            : `Variaciones de ${product.name || 'este producto'}. La primera variacion sera la opcion inicial para el cliente; usa las flechas para cambiarla.`;
         }
         resetVariationEditor();
         try {
@@ -2864,11 +2924,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!value) throw new Error('Escribe el valor de la variación. Ej: Chocolate.');
         if (Number(variationPriceInput.value || 0) <= 0) throw new Error('Escribe un precio de venta válido para la variación.');
         if (productTracksStock() && variationStockInput.value === '') throw new Error('Escribe el stock de la variación o desactiva Descontar stock en el producto padre.');
+        const variationOfferState = getValidVariationOfferState();
+        if (variationOfferState.enabled && !variationOfferState.valid) throw new Error('El precio de oferta de la variacion debe ser mayor que 0 y menor que el precio normal.');
         const formData = new FormData();
         formData.append('product', currentProductId);
         formData.append('variation_type', type);
         formData.append('value', value);
         formData.append('price_usd', String(Math.max(0, Number(variationPriceInput.value || 0))));
+        formData.append('is_offer', variationOfferState.valid ? 'true' : 'false');
+        formData.append('offer_price_usd', variationOfferState.valid ? String(variationOfferState.offerPrice) : '0');
         formData.append('cost_usd', String(Math.max(0, Number(variationCostInput.value || 0))));
         formData.append('stock', String(Math.max(0, Math.floor(Number(variationStockInput.value || 0)))));
         formData.append('internal_ref', variationRefInput.value.trim());
@@ -3074,8 +3138,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('store', CURRENT_STORE_ID);
         if (isEditing || category) formData.append('category', category);
         if (isEditing || subcategory) formData.append('subcategory', subcategory);
-        const offerState = getValidOfferState();
-        if (offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.');
+        const offerState = shouldUseVariations ? { regularPrice: readRegularPriceInput(), offerPrice: 0, enabled: false, valid: false, savings: 0 } : getValidOfferState();
+        if (!shouldUseVariations && offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.');
         const regularPriceUsd = offerState.enabled ? offerState.regularPrice : readRegularPriceInput();
         const activePriceUsd = offerState.valid ? offerState.offerPrice : regularPriceUsd;
         formData.append('base_price_usd', String(activePriceUsd));
@@ -3894,11 +3958,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       });
       variationSaveBtn?.addEventListener('click', saveVariation);
-      [variationTypeInput, variationValueInput, variationPriceInput, variationCostInput, variationStockInput, variationRefInput].forEach((input) => {
+      [variationTypeInput, variationValueInput, variationPriceInput, variationOfferPriceInput, variationCostInput, variationStockInput, variationRefInput].forEach((input) => {
         input?.addEventListener('input', updateVariationFormState);
       });
-      [variationActiveInput, variationAllowPreorderInput].forEach((input) => {
-        input?.addEventListener('change', updateVariationFormState);
+      variationPriceInput?.addEventListener('input', updateVariationOfferFieldState);
+      variationOfferPriceInput?.addEventListener('input', updateVariationOfferFieldState);
+      [variationActiveInput, variationAllowPreorderInput, variationIsOfferInput].forEach((input) => {
+        input?.addEventListener('change', () => {
+          updateVariationOfferFieldState();
+          updateVariationFormState();
+        });
       });
       variationImageInput?.addEventListener('change', () => {
         const file = variationImageInput.files?.[0] || null;

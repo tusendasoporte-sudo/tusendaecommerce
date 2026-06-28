@@ -48,7 +48,7 @@ const searchItems = [
     price: product.has_variations && Number(product.variation_price_min_usd || 0) > 0 ? product.variation_price_min_usd : (product.base_price_usd ?? ''),
     regularPrice: product.has_variations && Number(product.variation_price_min_usd || 0) > 0 ? Number(product.variation_price_min_usd || 0) : Number(product.regular_price_usd || product.base_price_usd || 0),
     isOffer: !product.has_variations && Boolean(product.is_offer) && Number(product.regular_price_usd || 0) > Number(product.base_price_usd || 0),
-    pricePrefix: product.has_variations && product.variation_has_different_prices ? 'Desde' : '',
+    pricePrefix: product.has_variations && Number(product.variation_price_min_usd || 0) > 0 ? 'Desde' : '',
     onlyUsd: Boolean(product.only_usd),
     searchText: normalizeText([product.name, product.slug, product.description, product.short_description, product.internal_ref, getCategoryNameById(product.category), getSubcategoryNameById(product.subcategory)].join(' ')),
   })),

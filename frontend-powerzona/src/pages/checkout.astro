@@ -1825,6 +1825,51 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return result;
 		}
 
+		async function pocketbaseGetRecord(collectionName, recordId) {
+			if (!POCKETBASE_URL) {
+				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+			}
+			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`);
+			const result = await response.json().catch(() => null);
+			if (!response.ok) {
+				console.error(`Error leyendo registro en ${collectionName}:`, result);
+				throw new Error(result?.message || `No se pudo leer el registro en ${collectionName}.`);
+			}
+			return result;
+		}
+
+		function getCartItemDisplayName(item) {
+			const variationLabel = item?.variation_label || item?.variation_name || '';
+			return variationLabel ? `${item.title} — ${variationLabel}` : item.title;
+		}
+
+		async function validateLiveStockForOrder(items) {
+			for (const item of items) {
+				if (item.is_gift || item.track_stock === false || item.preorder) continue;
+				const quantity = Number(item.quantity || 1);
+				const collectionName = item.variation_id ? 'product_variations' : 'products';
+				const recordId = item.variation_id || item.id;
+				if (!recordId) throw new Error(`No se pudo validar el stock de ${getCartItemDisplayName(item)}.`);
+				const record = await pocketbaseGetRecord(collectionName, recordId);
+				const stock = Number(record.stock || 0);
+				if (stock <= 0 || quantity > stock) {
+					throw new Error(`${getCartItemDisplayName(item)} no tiene stock suficiente. Disponible: ${Math.max(0, stock)}.`);
+				}
+			}
+		}
+
+		async function deductLiveStockForOrder(items) {
+			for (const item of items) {
+				if (item.is_gift || item.track_stock === false || item.preorder) continue;
+				const quantity = Number(item.quantity || 1);
+				const collectionName = item.variation_id ? 'product_variations' : 'products';
+				const recordId = item.variation_id || item.id;
+				const record = await pocketbaseGetRecord(collectionName, recordId);
+				const nextStock = Math.max(0, Number(record.stock || 0) - quantity);
+				await pocketbasePatch(collectionName, recordId, { stock: nextStock });
+			}
+		}
+
 		async function getActiveSettings() {
 			if (!POCKETBASE_URL) {
 				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
@@ -2004,6 +2049,8 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			const exchangeRateUsed = Number(expandedCurrency?.exchange_rate || 1);
 			const visualConvertibleTotal = selectedCode === 'USD' ? totals.localCurrencyTotal : convertFromUsd(totals.localCurrencyTotal, selectedCode);
 			const visualShippingTotal = selectedCode === 'USD' ? totals.shippingUSD : convertFromUsd(totals.shippingUSD, selectedCode);
+			const calculatedItems = totals.promotionItems || calculateCartPromotions(cart).items || cart;
+			await validateLiveStockForOrder(calculatedItems);
 
 			const shippingZoneName = selectedShippingZone
 				? `${selectedShippingZone.municipality} / ${selectedShippingZone.zone || selectedShippingZone.municipality}`
@@ -2058,7 +2105,6 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 
 			const createdOrder = await pocketbaseRequest('orders', orderPayload);
 
-			const calculatedItems = totals.promotionItems || calculateCartPromotions(cart).items || cart;
 			for (const item of calculatedItems) {
 				const isGift = Boolean(item.is_gift);
 				const quantity = isGift ? 1 : Number(item.quantity || 1);
@@ -2114,6 +2160,9 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 
 				await pocketbaseRequest('order_items', orderItemPayload);
 			}
+
+			await deductLiveStockForOrder(calculatedItems);
+			await pocketbasePatch('orders', createdOrder.id, { stock_deducted: true });
 
 			if (totals.couponWinner === 'manual_coupon' && totals.manualCoupon?.id) {
 				await pocketbaseRequest('manual_coupon_usages', {

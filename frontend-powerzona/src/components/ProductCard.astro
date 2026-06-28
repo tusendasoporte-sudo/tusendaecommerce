@@ -126,7 +126,7 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
     )}
 
     <p class={`product-status-text mt-2 text-[11px] sm:text-xs font-bold ${!tracksStock ? 'text-green-700' : canPreorder ? 'text-blue-700' : isOutOfStock ? 'text-red-600' : 'text-green-700'}`}>
-      {hasVariations ? 'Opciones disponibles' : !tracksStock ? 'Disponible' : canPreorder ? 'Disponible por preorder' : isOutOfStock ? 'Agotado' : `${stockNumber} disponibles`}
+      {hasVariations ? 'Varias opciones' : !tracksStock ? 'Disponible' : canPreorder ? 'Disponible por preorder' : isOutOfStock ? 'Agotado' : `${stockNumber} disponibles`}
     </p>
 
     <span class="product-buy-chip mt-3">

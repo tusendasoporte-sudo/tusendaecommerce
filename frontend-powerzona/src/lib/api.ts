@@ -172,26 +172,35 @@ function addVariationImages(variation: any) {
 
 function variationPublicPrice(variation: any) {
   const price = Number(variation?.price_usd ?? variation?.precio_usd ?? 0);
-  return Number.isFinite(price) ? Math.max(0, price) : 0;
+  const regularPrice = Number.isFinite(price) ? Math.max(0, price) : 0;
+  const offerPrice = Number(variation?.offer_price_usd ?? 0);
+  const validOffer = Boolean(variation?.is_offer) && offerPrice > 0 && offerPrice < regularPrice;
+  return validOffer ? offerPrice : regularPrice;
 }
 
 function addVariationPriceSummary(products: any[], variations: any[]) {
   const byProduct = new Map<string, number[]>();
+  const allByProduct = new Map<string, number[]>();
   const productsById = new Map(products.map((product) => [product.id, product]));
   variations.forEach((variation) => {
     if (!variation?.product || variation.active === false) return;
+    const price = variationPublicPrice(variation);
+    if (price <= 0) return;
+    const allCurrent = allByProduct.get(variation.product) || [];
+    allCurrent.push(price);
+    allByProduct.set(variation.product, allCurrent);
     const product = productsById.get(variation.product);
     const tracksStock = product?.track_stock !== false;
     if (tracksStock && Number(variation.stock || 0) <= 0 && !variation.allow_preorder) return;
-    const price = variationPublicPrice(variation);
-    if (price <= 0) return;
     const current = byProduct.get(variation.product) || [];
     current.push(price);
     byProduct.set(variation.product, current);
   });
 
   return products.map((product) => {
-    const prices = byProduct.get(product.id) || [];
+    const availablePrices = byProduct.get(product.id) || [];
+    const fallbackPrices = allByProduct.get(product.id) || [];
+    const prices = availablePrices.length ? availablePrices : fallbackPrices;
     if (!product?.has_variations || !prices.length) return product;
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
@@ -203,7 +212,7 @@ function addVariationPriceSummary(products: any[], variations: any[]) {
       variation_price_count: prices.length,
       variation_has_different_prices: hasDifferentPrices,
       public_price_usd: minPrice,
-      public_price_prefix: hasDifferentPrices ? 'Desde' : '',
+      public_price_prefix: 'Desde',
     };
   });
 }

@@ -138,31 +138,40 @@ const effectiveProductPrice = baseProductPrice;
 const productSavings = productHasOffer ? regularProductPrice - baseProductPrice : 0;
 const hasPublicVariations = variations.length > 0;
 const variationView = ['buttons', 'dropdown', 'checkbox'].includes(product.variation_view) ? product.variation_view : 'buttons';
-const publicVariationPrice = (variation: any) => Math.max(0, Number(variation?.price_usd ?? variation?.precio_usd ?? 0));
+const regularVariationPrice = (variation: any) => Math.max(0, Number(variation?.price_usd ?? variation?.precio_usd ?? 0));
+const publicVariationPrice = (variation: any) => {
+	const regularPrice = regularVariationPrice(variation);
+	const offerPrice = Math.max(0, Number(variation?.offer_price_usd || 0));
+	return Boolean(variation?.is_offer) && offerPrice > 0 && offerPrice < regularPrice ? offerPrice : regularPrice;
+};
+const variationHasOffer = (variation: any) => Boolean(variation?.is_offer) && publicVariationPrice(variation) < regularVariationPrice(variation);
 const sellableVariations = variations.filter((variation) => publicVariationPrice(variation) > 0);
 const firstVariation = sellableVariations.find((variation) => !tracksStock || Number(variation.stock || 0) > 0 || Boolean(variation.allow_preorder)) ?? sellableVariations[0] ?? null;
+const firstVariationPrice = firstVariation ? publicVariationPrice(firstVariation) : 0;
+const firstVariationRegularPrice = firstVariation ? regularVariationPrice(firstVariation) : 0;
+const firstVariationHasOffer = firstVariation ? variationHasOffer(firstVariation) : false;
 const initialPrice = hasPublicVariations
-	? 0
+	? firstVariationPrice
 	: Number(effectiveProductPrice || 0);
 const initialCost = hasPublicVariations
-	? 0
+	? Number(firstVariation?.cost_usd || 0)
 	: Number(product.cost_usd || 0);
 const initialStock = hasPublicVariations
-	? 0
+	? Number(firstVariation?.stock || 0)
 	: Number(product.stock || 0);
 const initialAllowPreorder = hasPublicVariations
-	? false
+	? Boolean(firstVariation?.allow_preorder)
 	: Boolean(product.allow_preorder);
 const initialIsOutOfStock = tracksStock && initialStock <= 0;
 const initialCanPreorder = tracksStock && initialIsOutOfStock && initialAllowPreorder;
-const initialButtonDisabled = hasPublicVariations || (initialIsOutOfStock && !initialCanPreorder);
+const initialButtonDisabled = (hasPublicVariations && !firstVariation) || (initialIsOutOfStock && !initialCanPreorder);
 const initialButtonText = initialIsOutOfStock && !initialCanPreorder
 	? 'Agotado'
 	: hasPublicVariations
-		? 'Selecciona una variacion'
+		? `Añadir 1 al pedido · ${initialPrice.toFixed(2)} USD`
 		: `${initialCanPreorder ? 'Preordenar' : 'Añadir'} 1 al pedido · ${initialPrice.toFixed(2)} USD`;
 const initialStockText = !tracksStock
-	? (hasPublicVariations ? 'Selecciona una variacion' : 'Disponible')
+	? (hasPublicVariations && !firstVariation ? 'Sin variaciones disponibles' : 'Disponible')
 	: initialCanPreorder
 		? 'Disponible por preorder'
 		: initialStock > 0
@@ -178,6 +187,8 @@ const initialStockClass = !tracksStock
 const variationItems = variations.map((variation) => {
 	const variationImage = variation.imageUrls?.[0] ?? mainImage;
 	const variationPrice = publicVariationPrice(variation);
+	const variationRegularPrice = regularVariationPrice(variation);
+	const variationIsOffer = variationHasOffer(variation);
 	const variationCost = Number(variation.cost_usd || 0);
 	const variationStock = Number(variation.stock || 0);
 	const variationPreorder = Boolean(variation.allow_preorder);
@@ -191,6 +202,9 @@ const variationItems = variations.map((variation) => {
 		...variation,
 		variationImage,
 		variationPrice,
+		variationRegularPrice,
+		variationIsOffer,
+		variationSavings: variationIsOffer ? variationRegularPrice - variationPrice : 0,
 		variationCost,
 		variationStock,
 		variationOutOfStock,
@@ -445,12 +459,22 @@ const variationItems = variations.map((variation) => {
 							{`$${regularProductPrice.toFixed(2)} USD`}
 						</span>
 					)}
+					{hasPublicVariations && (
+						<span id="product-regular-price" class={`product-regular-price ${firstVariationHasOffer ? '' : 'hidden'}`} data-pz-price-usd={firstVariationRegularPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>
+							{`$${firstVariationRegularPrice.toFixed(2)} USD`}
+						</span>
+					)}
 					<span id="product-price" class={`text-3xl font-black ${productHasOffer && !hasPublicVariations ? 'text-red-600' : 'text-gray-900'}`} data-pz-price-usd={initialPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>
-						{hasPublicVariations ? 'Selecciona una variacion' : `$${initialPrice.toFixed(2)} USD`}
+						{hasPublicVariations && !firstVariation ? 'Agotado' : `$${initialPrice.toFixed(2)} USD`}
 					</span>
 					{productHasOffer && !hasPublicVariations && (
 						<span id="product-save-text" class="product-save-text">
 							{`Ahorras $${productSavings.toFixed(2)} USD`}
+						</span>
+					)}
+					{hasPublicVariations && (
+						<span id="product-save-text" class={`product-save-text ${firstVariationHasOffer ? '' : 'hidden'}`}>
+							{`Ahorras $${Math.max(0, firstVariationRegularPrice - firstVariationPrice).toFixed(2)} USD`}
 						</span>
 					)}
 				</div>
@@ -498,9 +522,9 @@ const variationItems = variations.map((variation) => {
 								id="variation-dropdown"
 								class="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
 							>
-                                <option value="" selected>Selecciona una variacion</option>
+                                <option value="">Selecciona una variacion</option>
 								{variationItems.map((variation) => (
-										<option value={variation.id} disabled={variation.variationDisabled}>
+										<option value={variation.id} disabled={variation.variationDisabled} selected={firstVariation?.id === variation.id}>
 											{variation.variationLabel} · {`$${variation.variationPrice.toFixed(2)} USD`}{tracksStock ? ` · ${variation.stockLabel}` : ''}
 										</option>
 									))}
@@ -522,6 +546,7 @@ const variationItems = variations.map((variation) => {
 												name="variation_fixed_option"
 												value={variation.id}
 												disabled={variation.variationDisabled}
+												checked={firstVariation?.id === variation.id}
 												data-variation-radio
 												class="h-4 w-4 accent-blue-600"
 											/>
@@ -547,6 +572,9 @@ const variationItems = variations.map((variation) => {
 									data-id={variation.id}
 									data-label={variation.variationLabel}
 									data-price={variation.variationPrice}
+									data-regular-price={variation.variationRegularPrice}
+									data-is-offer={variation.variationIsOffer ? 'true' : 'false'}
+									data-savings-usd={variation.variationSavings}
 									data-cost={variation.variationCost}
 									data-stock={variation.variationStock}
 									data-image={variation.variationImage}
@@ -569,7 +597,7 @@ const variationItems = variations.map((variation) => {
 								</button>
 							))}
 					</div>
-                    <p id="selected-variation-summary" class="mt-3 text-sm font-black text-blue-700">Selecciona una variacion antes de agregar al carrito.</p>
+                    <p id="selected-variation-summary" class="mt-3 text-sm font-black text-blue-700">{firstVariation ? `${product.name} — ${[firstVariation.variation_type, firstVariation.value].filter(Boolean).join(': ') || 'variacion'}` : 'No hay variaciones disponibles para comprar.'}</p>
 				</div>
 			)}
 
@@ -649,10 +677,10 @@ const variationItems = variations.map((variation) => {
 				data-title={product.name}
 				data-price={initialPrice}
 				data-cost={initialCost}
-				data-regular-price={regularProductPrice}
-				data-is-offer={productHasOffer && !hasPublicVariations ? 'true' : 'false'}
-				data-savings-usd={productHasOffer && !hasPublicVariations ? productSavings : 0}
-				data-image={mainImage}
+				data-regular-price={hasPublicVariations ? firstVariationRegularPrice : regularProductPrice}
+				data-is-offer={(hasPublicVariations ? firstVariationHasOffer : productHasOffer) && (!hasPublicVariations || Boolean(firstVariation)) ? 'true' : 'false'}
+				data-savings-usd={hasPublicVariations && firstVariationHasOffer ? firstVariationRegularPrice - firstVariationPrice : productHasOffer && !hasPublicVariations ? productSavings : 0}
+				data-image={firstVariation?.imageUrls?.[0] ?? mainImage}
 				data-category={product.category || ''}
 				data-subcategory={product.subcategory || ''}
 				data-only-usd={product.only_usd}
@@ -662,9 +690,9 @@ const variationItems = variations.map((variation) => {
 				data-out-of-stock={initialIsOutOfStock ? 'true' : 'false'}
 				data-preorder={initialCanPreorder ? 'true' : 'false'}
 				data-requires-variation={hasPublicVariations ? 'true' : 'false'}
-				data-variation-id=""
-				data-variation-label=""
-				data-variation-ref=""
+				data-variation-id={firstVariation?.id || ''}
+				data-variation-label={firstVariation ? [firstVariation.variation_type, firstVariation.value].filter(Boolean).join(': ') || 'variacion' : ''}
+				data-variation-ref={firstVariation?.internal_ref || ''}
 				disabled={initialButtonDisabled}
 				class={`w-full font-black py-4 rounded-[2rem] shadow-xl transition ${initialButtonDisabled ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}
 			>
@@ -986,15 +1014,18 @@ const variationItems = variations.map((variation) => {
 
 					const stock = Number(option.dataset.stock || 0);
 					const price = Number(option.dataset.price || 0);
+					const regularPrice = Number(option.dataset.regularPrice || price);
 					const cost = Number(option.dataset.cost || 0);
+					const isOffer = option.dataset.isOffer === 'true' && regularPrice > price;
+					const savings = isOffer ? Math.max(0, regularPrice - price) : 0;
 					const isOutOfStock = tracksStock && option.dataset.outOfStock === 'true';
 					const canPreorder = tracksStock && option.dataset.preorder === 'true';
 
 					addToCartBtn.dataset.price = String(price);
 					addToCartBtn.dataset.cost = String(cost);
-					addToCartBtn.dataset.isOffer = 'false';
-					addToCartBtn.dataset.savingsUsd = '0';
-					addToCartBtn.dataset.regularPrice = String(price);
+					addToCartBtn.dataset.isOffer = isOffer ? 'true' : 'false';
+					addToCartBtn.dataset.savingsUsd = String(savings);
+					addToCartBtn.dataset.regularPrice = String(regularPrice);
 					addToCartBtn.dataset.image = option.dataset.image || addToCartBtn.dataset.image || '';
 					addToCartBtn.dataset.variationId = option.dataset.id || '';
 					addToCartBtn.dataset.variationLabel = option.dataset.label || '';
@@ -1004,6 +1035,15 @@ const variationItems = variations.map((variation) => {
 					if (selectedVariationSummary) selectedVariationSummary.textContent = `${addToCartBtn.dataset.title || ''} \u2014 ${option.dataset.label || ''}`;
 					if (productMainImage && option.dataset.image) productMainImage.setAttribute('src', option.dataset.image);
 					if (productPrice) { productPrice.setAttribute('data-pz-price-usd', String(price)); productPrice.textContent = formatVisualPrice(price); }
+					if (productRegularPrice) {
+						productRegularPrice.setAttribute('data-pz-price-usd', String(regularPrice));
+						productRegularPrice.textContent = formatVisualPrice(regularPrice);
+						productRegularPrice.classList.toggle('hidden', !isOffer);
+					}
+					if (productSaveText) {
+						productSaveText.textContent = formatSavingsText(savings);
+						productSaveText.classList.toggle('hidden', !isOffer);
+					}
 					if (productStockText) productStockText.textContent = stockText({ stock, isOutOfStock, canPreorder });
 					setStockClass({ isOutOfStock, canPreorder });
 					syncButtonState({ stock, isOutOfStock, canPreorder });
@@ -1050,7 +1090,9 @@ const variationItems = variations.map((variation) => {
 					updateQuantityUI();
 				});
 
-				updateQuantityUI();
+				const initiallySelectedVariation = addToCartBtn?.dataset.variationId ? findVariationOption(addToCartBtn.dataset.variationId) : null;
+				if (initiallySelectedVariation) applyVariation(initiallySelectedVariation);
+				else updateQuantityUI();
 
 				if (purchaseActions && 'IntersectionObserver' in window) {
 					const purchaseObserver = new IntersectionObserver((entries) => {
