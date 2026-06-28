@@ -2184,7 +2184,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
         } catch (error) {
           console.error(error);
-          alert(error.message || 'No se pudo actualizar la subcategoría.');
+          setAlert(subcategoryAlert, error.message || 'No se pudo actualizar la subcategoría.', 'error');
         } finally {
           button.disabled = false;
         }

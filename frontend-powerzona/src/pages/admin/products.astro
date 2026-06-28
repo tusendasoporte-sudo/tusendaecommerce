@@ -3859,7 +3859,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!variationId) return;
         const variation = productVariations.find((item) => item.id === variationId);
         const label = `${variation?.variation_type || 'Variación'}: ${variation?.value || 'Sin valor'}`;
-        const confirmed = window.confirm(`¿Seguro que quieres borrar la variación "${label}"?\n\nEsta acción no se puede deshacer.`);
+        const confirmed = await window.adminConfirm({
+          title: 'Eliminar variación',
+          message: `¿Seguro que deseas eliminar la variación "${label}"? Esta acción no se puede deshacer.`,
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          tone: 'danger',
+        });
         if (!confirmed) return;
         variationDeleteBtn.disabled = true;
         try {
@@ -3979,7 +3985,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             pendingSoldoutProductId = '';
             await loadProducts();
           } catch (error) {
-            alert(error.message || 'No se pudo marcar el producto como agotado.');
+            showProductNotice(error.message || 'No se pudo marcar el producto como agotado.', 'error');
             soldoutConfirmBtn.disabled = false;
           }
           return;
@@ -3994,7 +4000,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             if (productIdInput.value === productId) closeProductEditor();
             await loadProducts();
           } catch (error) {
-            alert(error.message || 'No se pudo borrar el producto. Contacta a soporte si el problema continúa.');
+            showProductNotice(error.message || 'No se pudo borrar el producto. Contacta a soporte si el problema continúa.', 'error');
             deleteConfirmBtn.disabled = false;
           }
           return;
@@ -4019,7 +4025,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: formData });
             await loadProducts();
           } catch (error) {
-            alert(error.message || 'No se pudo cambiar la visibilidad del producto.');
+            showProductNotice(error.message || 'No se pudo cambiar la visibilidad del producto.', 'error');
           } finally {
             toggleBtn.disabled = false;
           }
@@ -4029,7 +4035,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const product = products.find((item) => item.id === productId);
           if (!product || soldoutBtn.disabled) return;
           if (!productTracksStock(product)) {
-            alert('Este producto no descuenta stock. No necesita marcarse como agotado.');
+            showProductNotice('Este producto no descuenta stock. No necesita marcarse como agotado.', 'info');
             return;
           }
           closeProductActionMenus();

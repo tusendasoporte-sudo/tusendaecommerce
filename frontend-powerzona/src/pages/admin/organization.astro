@@ -1218,7 +1218,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function deleteVisualItem(id) {
         if (!id) return;
-        if (!confirm('¿Borrar este elemento visual?')) return;
+        const confirmed = await window.adminConfirm({
+          title: 'Eliminar elemento visual',
+          message: '¿Seguro que deseas eliminar este elemento visual? Esta acción no se puede deshacer.',
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          tone: 'danger',
+        });
+        if (!confirmed) return;
         await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'DELETE' });
         await loadData();
       }

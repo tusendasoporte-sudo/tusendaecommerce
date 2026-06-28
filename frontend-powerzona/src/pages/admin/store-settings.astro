@@ -4292,7 +4292,14 @@ try {
       }
       async function deleteVisualItem(id) {
         if (!id) return;
-        if (!confirm('¿Borrar este elemento visual?')) return;
+        const confirmed = await window.adminConfirm({
+          title: 'Eliminar elemento visual',
+          message: '¿Seguro que deseas eliminar este elemento visual? Esta acción no se puede deshacer.',
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          tone: 'danger',
+        });
+        if (!confirmed) return;
         await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'DELETE' });
         await loadData();
       }
@@ -5277,6 +5284,14 @@ try {
         }
         async function deleteSettingsFile(fieldName, filename) {
           if (!settingsRecord?.id || !filename) return;
+          const confirmed = await window.adminConfirm({
+            title: 'Eliminar imagen',
+            message: '¿Seguro que deseas eliminar esta imagen? Esta acción no se puede deshacer.',
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            tone: 'danger',
+          });
+          if (!confirmed) return;
           const data = new FormData();
           data.append(fieldName + '-', filename);
           await api('/api/collections/settings/records/' + settingsRecord.id, { method: 'PATCH', body: data });
@@ -6158,7 +6173,14 @@ try {
           await loadReviews();
         }
         async function deleteReview(reviewId) {
-          if (!confirm('\u00bfEliminar esta rese\u00f1a?')) return;
+          const confirmed = await window.adminConfirm({
+            title: 'Eliminar reseña',
+            message: '¿Seguro que deseas eliminar esta reseña? Esta acción no se puede deshacer.',
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            tone: 'danger',
+          });
+          if (!confirmed) return;
           await api('/api/collections/reviews/records/' + encodeURIComponent(reviewId), { method: 'DELETE' });
           showMessage(allAlertBox, 'Rese\u00f1a eliminada correctamente.', 'success');
           await loadReviews();
@@ -7048,7 +7070,14 @@ try {
           if (isSystemCurrency(currency)) return show('No puedes borrar una moneda fija del sistema.', 'error');
           if (currency.id === defaultId() || currency.is_default === true) return show('No puedes borrar la moneda predeterminada. Selecciona otra moneda visible como predeterminada primero.', 'error');
           if (currency.store && currency.store !== CURRENT_STORE_ID) return show('No puedes borrar monedas de otra tienda.', 'error');
-          if (!confirm('Deseas borrar esta moneda? Esta accion no afecta ordenes existentes.')) return;
+          const confirmed = await window.adminConfirm({
+            title: 'Eliminar moneda',
+            message: '¿Seguro que deseas eliminar esta moneda? Esta acción no afecta órdenes existentes.',
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            tone: 'danger',
+          });
+          if (!confirmed) return;
           await api('/api/collections/currencies/records/' + id, { method: 'DELETE' });
           show('Moneda borrada correctamente.', 'success');
           await loadCurrencies();

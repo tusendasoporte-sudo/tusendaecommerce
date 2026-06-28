@@ -1072,7 +1072,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       async function normalizeGiftOrder(){ await Promise.all(gifts.map((gift, index)=>api(`/api/collections/gifts/records/${gift.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:(index + 1) * 10 }) }))); await loadGifts(); }
       async function moveGift(id, direction){ const index = gifts.findIndex((gift)=>gift.id === id); if(index < 0) return; const targetIndex = direction === 'up' ? index - 1 : index + 1; if(targetIndex < 0 || targetIndex >= gifts.length) return; const current = gifts[index]; const target = gifts[targetIndex]; const currentOrder = Number(current.sort_order || 0); const targetOrder = Number(target.sort_order || 0); if(currentOrder === targetOrder){ await normalizeGiftOrder(); return moveGift(id, direction); } await Promise.all([ api(`/api/collections/gifts/records/${current.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:targetOrder }) }), api(`/api/collections/gifts/records/${target.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sort_order:currentOrder }) }), ]); await loadGifts(); }
       async function toggleGift(id){ const gift = gifts.find((item)=>item.id === id); if(!gift) return; await api(`/api/collections/gifts/records/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ active: gift.active === false }) }); await loadGifts(); showAlert(gift.active !== false ? 'Regalo ocultado.' : 'Regalo visible.', 'ok'); }
-      async function deleteGift(id){ if(!confirm('¿Seguro que deseas borrar este regalo?')) return; await api(`/api/collections/gifts/records/${id}`, { method:'DELETE' }); await loadGifts(); showAlert('Regalo borrado.', 'ok'); }
+      async function deleteGift(id){
+        const confirmed = await window.adminConfirm({
+          title:'Eliminar regalo',
+          message:'¿Seguro que deseas eliminar este regalo? Esta acción no se puede deshacer.',
+          confirmText:'Eliminar',
+          cancelText:'Cancelar',
+          tone:'danger'
+        });
+        if(!confirmed) return;
+        await api(`/api/collections/gifts/records/${id}`, { method:'DELETE' });
+        await loadGifts();
+        showAlert('Regalo borrado.', 'ok');
+      }
 
       async function saveSettings(){
         if(!settings?.id){ showAlert('No hay settings activo para guardar la categoría pública.', 'error'); return; }

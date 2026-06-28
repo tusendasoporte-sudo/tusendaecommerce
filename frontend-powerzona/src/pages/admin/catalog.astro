@@ -1722,7 +1722,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (token) headers.Authorization = `Bearer ${token}`;
         const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
         const result = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
+        if (!response.ok) {
+          const error = new Error(result?.message || 'Error de comunicacion con la plataforma.');
+          error.status = response.status;
+          error.data = result;
+          throw error;
+        }
         return result;
       }
 
@@ -1741,6 +1746,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return items;
       }
 
+      async function countRecords(collection, filter = '') {
+        const query = new URLSearchParams();
+        query.set('page', '1');
+        query.set('perPage', '1');
+        query.set('filter', withStoreFilterExpression(filter));
+        const result = await apiRequest(`/api/collections/${collection}/records?${query.toString()}`);
+        return Number(result?.totalItems || 0);
+      }
+
       function withStoreFilter(params = '') {
         const query = new URLSearchParams(params || '');
         const existing = query.get('filter');
@@ -1752,6 +1766,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function isCurrentStoreRecord(record) {
         const value = record?.store;
         return Array.isArray(value) ? value.includes(CURRENT_STORE_ID) : String(value || '') === CURRENT_STORE_ID;
+      }
+
+      function pbFilterValue(value) {
+        return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      }
+
+      function withStoreFilterExpression(filter = '') {
+        return filter ? `(${filter}) && ${STORE_FILTER}` : STORE_FILTER;
       }
 
       function getCategory(id) {
@@ -2223,6 +2245,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setAlert(categoryAlert, 'Creando categoría...', 'info');
         const formData = new FormData();
         formData.append('name', name);
+        formData.append('description', categoryDescription?.value?.trim() || '');
         formData.append('slug', slugify(name));
         formData.append('active', categoryActive.checked ? 'true' : 'false');
         formData.append('order', String(nextOrder(categories)));
@@ -2317,12 +2340,64 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         await loadCatalog();
       }
 
+      function isPermissionError(error) {
+        return error?.status === 401 || error?.status === 403;
+      }
+
+      function showAdminToast(message, type = 'info') {
+        if (window.adminToast) window.adminToast(message, type);
+        else setAlert(categoryAlert, message, type === 'error' ? 'error' : 'success');
+      }
+
+      async function deleteCategorySafely(category) {
+        if (!category?.id || !isCurrentStoreRecord(category)) {
+          showAdminToast('No tienes permisos para eliminar esta categoría.', 'error');
+          return;
+        }
+
+        try {
+          const categoryId = pbFilterValue(category.id);
+          const [productCount, subcategoryCount] = await Promise.all([
+            countRecords('products', `category="${categoryId}"`),
+            countRecords('subcategories', `category="${categoryId}"`),
+          ]);
+
+          if (productCount > 0 || subcategoryCount > 0) {
+            showAdminToast('Esta categoría tiene productos o subcategorías. Primero mueve o elimina su contenido.', 'error');
+            return;
+          }
+
+          const confirmed = await window.adminConfirm({
+            title: 'Eliminar categoría',
+            message: '¿Seguro que deseas eliminar esta categoría? Esta acción no se puede deshacer.',
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            tone: 'danger',
+          });
+          if (!confirmed) return;
+
+          await apiRequest(`/api/collections/categories/records/${category.id}`, { method: 'DELETE' });
+          categories = categories.filter((item) => item.id !== category.id);
+          renderAll();
+          if (contentNavigation?.categoryId === category.id) closeContentView();
+          adminSubtitle.textContent = 'Categoría eliminada correctamente.';
+          showAdminToast('Categoría eliminada correctamente.', 'success');
+        } catch (error) {
+          if (isPermissionError(error)) {
+            showAdminToast('No tienes permisos para eliminar esta categoría.', 'error');
+            return;
+          }
+          console.error(error);
+          showAdminToast('No se pudo eliminar la categoría. Inténtalo nuevamente.', 'error');
+        }
+      }
+
       async function toggleCategoryFeatured(category) {
         if (!category || !category.id) return;
         const nextFeatured = category.featured_on_home !== true;
         const featuredCategories = categories.filter((item) => item.featured_on_home === true && item.id !== category.id);
         if (nextFeatured && featuredCategories.length >= 2) {
-          alert('Solo puedes destacar hasta 2 categorias.');
+          showAdminToast('Solo puedes destacar hasta 2 categorias.', 'error');
           return;
         }
 
@@ -2576,7 +2651,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               }
               if (inlineButton.classList.contains('js-inline-subcategory-delete-soon')) {
                 closeCatalogMenus();
-                alert('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta subcategoría.');
+                showAdminToast('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta subcategoría.', 'error');
                 return;
               }
               if (inlineButton.classList.contains('js-inline-subcategory-toggle')) {
@@ -2588,11 +2663,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 const name = inlineRow.querySelector('.js-subcategory-name').value.trim();
                 const category = inlineRow.querySelector('.js-subcategory-category').value;
                 if (!name) {
-                  alert('El nombre de la subcategoría no puede estar vacío.');
+                  showAdminToast('El nombre de la subcategoría no puede estar vacío.', 'error');
                   return;
                 }
                 if (subcategoryNameExists(name, category, subcategory.id)) {
-                  alert(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`);
+                  showAdminToast(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
                   return;
                 }
                 await updateSubcategory(inlineRow, { category, name, slug: slugify(name) });
@@ -2601,7 +2676,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               }
             } catch (error) {
               console.error(error);
-              alert(error.message || 'No se pudo actualizar la subcategoría.');
+              showAdminToast(error.message || 'No se pudo actualizar la subcategoría.', 'error');
             } finally {
               inlineButton.disabled = false;
             }
@@ -2660,7 +2735,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
           if (button.classList.contains('js-category-delete-soon')) {
             closeCatalogMenus();
-            alert('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta categoría.');
+            await deleteCategorySafely(category);
             return;
           }
           if (button.classList.contains('js-category-toggle')) {
@@ -2670,18 +2745,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           if (button.classList.contains('js-category-save')) {
             const name = row.querySelector('.js-category-name').value.trim();
             if (!name) {
-              alert('El nombre de la categoría no puede estar vacío.');
+              showAdminToast('El nombre de la categoría no puede estar vacío.', 'error');
               return;
             }
             if (categoryNameExists(name, category.id)) {
-              alert(`Ya existe una categoría llamada "${name}".`);
+              showAdminToast(`Ya existe una categoría llamada "${name}".`, 'error');
               return;
             }
             await updateCategory(row, { name, slug: slugify(name) });
           }
         } catch (error) {
           console.error(error);
-          alert(error.message || 'No se pudo actualizar la categoría.');
+          showAdminToast(error.message || 'No se pudo actualizar la categoría.', 'error');
         } finally {
           button.disabled = false;
         }
@@ -2738,7 +2813,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
           if (button.classList.contains('js-subcategory-delete-soon')) {
             closeCatalogMenus();
-            alert('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta subcategoría.');
+            showAdminToast('Borrado seguro no disponible desde este panel. Contacta a soporte para gestionar esta subcategoría.', 'error');
             return;
           }
           if (button.classList.contains('js-subcategory-toggle')) {
@@ -2749,15 +2824,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             const name = row.querySelector('.js-subcategory-name').value.trim();
             const category = row.querySelector('.js-subcategory-category').value;
             if (!name) {
-              alert('El nombre de la subcategoría no puede estar vacío.');
+              showAdminToast('El nombre de la subcategoría no puede estar vacío.', 'error');
               return;
             }
             if (!category) {
-              alert('Selecciona una categoría padre.');
+              showAdminToast('Selecciona una categoría padre.', 'error');
               return;
             }
             if (subcategoryNameExists(name, category, subcategory.id)) {
-              alert(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`);
+              showAdminToast(`Ya existe una subcategoría llamada "${name}" dentro de esta categoría.`, 'error');
               return;
             }
             const siblings = subcategories.filter((item) => item.category === category && item.id !== subcategory.id);
@@ -2769,7 +2844,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
         } catch (error) {
           console.error(error);
-          alert(error.message || 'No se pudo actualizar la subcategoría.');
+          showAdminToast(error.message || 'No se pudo actualizar la subcategoría.', 'error');
         } finally {
           button.disabled = false;
         }

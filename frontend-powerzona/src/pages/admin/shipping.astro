@@ -766,7 +766,7 @@ const masterSupportHref = masterSupportWhatsapp
         menuWrap.querySelector('.js-menu')?.setAttribute('aria-expanded',willOpen?'true':'false');
         if(willOpen)positionZoneMenu(menuWrap);
       }
-      zonesList.addEventListener('click',(event)=>{
+      zonesList.addEventListener('click',async (event)=>{
         const municipalityToggle=event.target.closest('.js-toggle-municipality');
         if(municipalityToggle){
           const group=municipalityToggle.closest('.municipality-group');
@@ -795,7 +795,13 @@ const masterSupportHref = masterSupportWhatsapp
         }
         if(event.target.closest('.js-delete')){
           closeZoneMenus();
-          const ok=window.confirm('Borrar esta zona de envio?');
+          const ok=await window.adminConfirm({
+            title:'Eliminar zona de envío',
+            message:'¿Seguro que deseas eliminar esta zona de envío? Esta acción no se puede deshacer.',
+            confirmText:'Eliminar',
+            cancelText:'Cancelar',
+            tone:'danger'
+          });
           if(!ok)return;
           api('/api/collections/shipping_zones/records/'+zone.id,{method:'DELETE'})
             .then(()=>{if(editingId===zone.id)resetForm();return loadZones();})

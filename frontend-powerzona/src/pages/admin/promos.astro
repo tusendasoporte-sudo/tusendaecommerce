@@ -5456,7 +5456,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function deleteVisualItem(id) {
         if (!id) return;
-        if (!confirm('¿Borrar este elemento visual?')) return;
+        const confirmed = await window.adminConfirm({
+          title: 'Eliminar elemento visual',
+          message: '¿Seguro que deseas eliminar este elemento visual? Esta acción no se puede deshacer.',
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          tone: 'danger',
+        });
+        if (!confirmed) return;
         await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'DELETE' });
         await loadData();
       }
@@ -6579,7 +6586,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           }
           openMarketingOfferForm(-1);
         });
-        marketingOffersList && marketingOffersList.addEventListener('click', (event) => {
+        marketingOffersList && marketingOffersList.addEventListener('click', async (event) => {
           const target = event.target;
           const row = target.closest('[data-marketing-offer-index]');
           if (!row) return;
@@ -6607,7 +6614,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             closeMarketingMenus();
             const items = currentMarketingItems();
             if (!items[index]) return;
-            if (!confirm('¿Borrar esta oferta del cintillo?')) return;
+            const confirmed = await window.adminConfirm({
+              title: 'Eliminar oferta',
+              message: '¿Seguro que deseas eliminar esta oferta del cintillo? Esta acción no se puede deshacer.',
+              confirmText: 'Eliminar',
+              cancelText: 'Cancelar',
+              tone: 'danger',
+            });
+            if (!confirmed) return;
             items.splice(index, 1);
             setMarketingItems(items);
             saveMarketingBar({ preventDefault() {} }).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error'));

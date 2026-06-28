@@ -2955,7 +2955,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
           return;
         }
         const item = selectedItems.find((entry) => entry.id === itemId);
-        const confirmation = window.confirm(`¿Seguro que quieres borrar ${item?.product_name || 'este producto'} de la orden?`);
+        const confirmation = await window.adminConfirm({
+          title: 'Eliminar producto de la orden',
+          message: `¿Seguro que deseas eliminar ${item?.product_name || 'este producto'} de la orden? Esta acción no se puede deshacer.`,
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          tone: 'danger',
+        });
         if (!confirmation) return;
 
         setDetailAlert('Borrando producto de la orden...', 'info');
