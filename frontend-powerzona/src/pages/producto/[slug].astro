@@ -71,10 +71,21 @@ function getProductCardImage(item: any) {
 	return item?.imageUrls?.[0] || 'https://placehold.co/180x180?text=PowerZona';
 }
 function getProductOfferState(item: any) {
+	if (item?.has_variations) {
+		const activePrice = Number(item.variation_price_min_usd || item.public_price_usd || 0);
+		return {
+			activePrice,
+			regularPrice: activePrice,
+			hasOffer: false,
+			hasVariations: true,
+			pricePrefix: activePrice > 0 ? 'DESDE:' : '',
+			buyText: item.variation_public_available === false ? 'Agotado' : 'Ver opciones',
+		};
+	}
 	const activePrice = Number(item?.base_price_usd || 0);
 	const regularPrice = Number(item?.regular_price_usd || activePrice || 0);
 	const hasOffer = Boolean(item?.is_offer) && activePrice > 0 && regularPrice > activePrice;
-	return { activePrice, regularPrice, hasOffer, savings: hasOffer ? regularPrice - activePrice : 0 };
+	return { activePrice, regularPrice, hasOffer, hasVariations: false, pricePrefix: '', buyText: 'Comprar', savings: hasOffer ? regularPrice - activePrice : 0 };
 }
 function parseExtraInfoValue(value: any) {
 	if (!value) return [];
@@ -1272,13 +1283,14 @@ const variationItems = variations.map((variation) => {
 							<img class="related-image" src={getProductCardImage(item)} alt={item.name} loading="lazy" />
 							<div>
 								{offer.hasOffer && <span class="related-badge">Oferta</span>}
+								{offer.hasVariations && <span class="related-badge">Varias opciones</span>}
 								<h3 class="related-name">{item.name}</h3>
 								{item.description && <p class="related-description">{item.description}</p>}
 								<div class="related-price-row">
 									{offer.hasOffer && <span class="related-old-price" data-pz-price-usd={offer.regularPrice} data-pz-only-usd={item.only_usd ? 'true' : 'false'}>{`$${offer.regularPrice.toFixed(2)} USD`}</span>}
-									<span class={`related-price ${offer.hasOffer ? 'offer' : ''}`} data-pz-price-usd={offer.activePrice} data-pz-only-usd={item.only_usd ? 'true' : 'false'}>{`$${offer.activePrice.toFixed(2)} USD`}</span>
+									<span class={`related-price ${offer.hasOffer ? 'offer' : ''}`} data-pz-price-usd={offer.activePrice} data-pz-price-prefix={offer.pricePrefix} data-pz-only-usd={item.only_usd ? 'true' : 'false'}>{`${offer.pricePrefix ? `${offer.pricePrefix} ` : ''}$${offer.activePrice.toFixed(2)} USD`}</span>
 								</div>
-								<span class="related-buy">Comprar</span>
+								<span class="related-buy">{offer.buyText}</span>
 							</div>
 						</a>
 					);

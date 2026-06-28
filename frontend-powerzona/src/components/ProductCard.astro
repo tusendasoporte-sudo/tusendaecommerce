@@ -17,12 +17,17 @@ const {
   view = 'standard',
   buttonText = 'Comprar',
   pricePrefix = '',
+  variationAvailable = null,
 } = Astro.props;
 
 const stockNumber = Number(stock || 0);
 const tracksStock = trackStock !== false;
 const preorderEnabled = Boolean(allowPreorder);
-const isOutOfStock = tracksStock && stockNumber <= 0;
+const hasKnownVariationAvailability = variationAvailable !== null && variationAvailable !== undefined;
+const variationsAvailable = !hasVariations || !hasKnownVariationAvailability || Boolean(variationAvailable);
+const isOutOfStock = hasVariations && hasKnownVariationAvailability
+  ? tracksStock && !variationsAvailable
+  : tracksStock && stockNumber <= 0;
 const canPreorder = tracksStock && isOutOfStock && preorderEnabled;
 const isCompact = view === 'compact';
 const isLarge = view === 'large';
@@ -96,7 +101,7 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
           {`$${regularPriceNumber.toFixed(2)} USD`}
         </span>
       )}
-      <p class={`${isCompact ? 'text-sm' : 'text-sm sm:text-base'} ${hasValidOffer ? 'text-red-600' : 'text-blue-600'} font-extrabold m-0`} data-pz-price-usd={finalPriceNumber} data-pz-only-usd={onlyUsd ? 'true' : 'false'}>
+      <p class={`${isCompact ? 'text-sm' : 'text-sm sm:text-base'} ${hasValidOffer ? 'text-red-600' : 'text-blue-600'} font-extrabold m-0`} data-pz-price-usd={finalPriceNumber} data-pz-price-prefix={cleanPricePrefix} data-pz-only-usd={onlyUsd ? 'true' : 'false'}>
         {`${cleanPricePrefix ? `${cleanPricePrefix} ` : ''}$${finalPriceNumber.toFixed(2)} USD`}
       </p>
       {hasValidOffer && (
@@ -126,11 +131,11 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
     )}
 
     <p class={`product-status-text mt-2 text-[11px] sm:text-xs font-bold ${!tracksStock ? 'text-green-700' : canPreorder ? 'text-blue-700' : isOutOfStock ? 'text-red-600' : 'text-green-700'}`}>
-      {hasVariations ? 'Varias opciones' : !tracksStock ? 'Disponible' : canPreorder ? 'Disponible por preorder' : isOutOfStock ? 'Agotado' : `${stockNumber} disponibles`}
+      {hasVariations ? (isOutOfStock && !canPreorder ? 'Agotado' : 'Varias opciones') : !tracksStock ? 'Disponible' : canPreorder ? 'Disponible por preorder' : isOutOfStock ? 'Agotado' : `${stockNumber} disponibles`}
     </p>
 
     <span class="product-buy-chip mt-3">
-      {hasVariations ? 'Ver opciones' : buttonText}
+      {hasVariations ? (isOutOfStock && !canPreorder ? 'Agotado' : 'Ver opciones') : buttonText}
     </span>
   </div>
 </div>

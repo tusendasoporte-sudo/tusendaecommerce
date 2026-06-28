@@ -141,7 +141,8 @@ const { hideFloatingSwitcher = false } = Astro.props;
       document.querySelectorAll('[data-pz-price-usd]').forEach((node) => {
         const amount = Number(node.getAttribute('data-pz-price-usd') || 0);
         const onlyUsd = node.getAttribute('data-pz-only-usd') === 'true';
-        node.textContent = formatVisualFromUsd(amount, { onlyUsd });
+        const prefix = String(node.getAttribute('data-pz-price-prefix') || '').trim();
+        node.textContent = `${prefix ? `${prefix} ` : ''}${formatVisualFromUsd(amount, { onlyUsd })}`;
       });
       document.querySelectorAll('[data-pz-shipping-usd]').forEach((node) => {
         const amount = Number(node.getAttribute('data-pz-shipping-usd') || 0);

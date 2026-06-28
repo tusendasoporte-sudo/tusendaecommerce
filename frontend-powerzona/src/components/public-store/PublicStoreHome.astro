@@ -200,13 +200,13 @@ function visualButtonText(item: any) {
   return 'Contactar por WhatsApp';
 }
 function getProductOfferView(product: any) {
-  if (product?.has_variations && Number(product?.variation_price_min_usd || 0) > 0) {
-    const price = Number(product.variation_price_min_usd || 0);
+  if (product?.has_variations) {
+    const price = Number(product.variation_price_min_usd || product.public_price_usd || 0);
     return {
       price,
       regularPrice: price,
       isOffer: false,
-      pricePrefix: 'Desde',
+      pricePrefix: price > 0 ? 'DESDE:' : '',
     };
   }
   const activePrice = Number(product?.base_price_usd || 0);
@@ -2181,7 +2181,7 @@ function getProductOfferView(product: any) {
       <div class="featured-strip" aria-label="Carrusel de productos destacados">
         {featuredProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>
@@ -2253,7 +2253,7 @@ function getProductOfferView(product: any) {
       <div class="homepage-products-grid">
         {homepageProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.stock} allowPreorder={product.allow_preorder} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
+            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>

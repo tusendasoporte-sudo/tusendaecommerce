@@ -181,9 +181,14 @@ function variationPublicPrice(variation: any) {
 function addVariationPriceSummary(products: any[], variations: any[]) {
   const byProduct = new Map<string, number[]>();
   const allByProduct = new Map<string, number[]>();
+  const activeCountByProduct = new Map<string, number>();
+  const availableCountByProduct = new Map<string, number>();
+  const availableStockByProduct = new Map<string, number>();
+  const availablePreorderByProduct = new Map<string, boolean>();
   const productsById = new Map(products.map((product) => [product.id, product]));
   variations.forEach((variation) => {
     if (!variation?.product || variation.active === false) return;
+    activeCountByProduct.set(variation.product, (activeCountByProduct.get(variation.product) || 0) + 1);
     const price = variationPublicPrice(variation);
     if (price <= 0) return;
     const allCurrent = allByProduct.get(variation.product) || [];
@@ -192,6 +197,9 @@ function addVariationPriceSummary(products: any[], variations: any[]) {
     const product = productsById.get(variation.product);
     const tracksStock = product?.track_stock !== false;
     if (tracksStock && Number(variation.stock || 0) <= 0 && !variation.allow_preorder) return;
+    availableCountByProduct.set(variation.product, (availableCountByProduct.get(variation.product) || 0) + 1);
+    availableStockByProduct.set(variation.product, (availableStockByProduct.get(variation.product) || 0) + Math.max(0, Number(variation.stock || 0)));
+    if (variation.allow_preorder) availablePreorderByProduct.set(variation.product, true);
     const current = byProduct.get(variation.product) || [];
     current.push(price);
     byProduct.set(variation.product, current);
@@ -201,7 +209,22 @@ function addVariationPriceSummary(products: any[], variations: any[]) {
     const availablePrices = byProduct.get(product.id) || [];
     const fallbackPrices = allByProduct.get(product.id) || [];
     const prices = availablePrices.length ? availablePrices : fallbackPrices;
-    if (!product?.has_variations || !prices.length) return product;
+    if (!product?.has_variations) return product;
+    const activeVariationCount = activeCountByProduct.get(product.id) || 0;
+    const availableVariationCount = availableCountByProduct.get(product.id) || 0;
+    const variationPublicAvailable = activeVariationCount > 0 && availableVariationCount > 0;
+    const variationPublicStock = availableStockByProduct.get(product.id) || 0;
+    const variationPublicAllowPreorder = availablePreorderByProduct.get(product.id) === true;
+    if (!prices.length) {
+      return {
+        ...product,
+        variation_active_count: activeVariationCount,
+        variation_available_count: availableVariationCount,
+        variation_public_available: variationPublicAvailable,
+        variation_public_stock: variationPublicStock,
+        variation_public_allow_preorder: variationPublicAllowPreorder,
+      };
+    }
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const hasDifferentPrices = prices.some((price) => price !== minPrice);
@@ -210,9 +233,14 @@ function addVariationPriceSummary(products: any[], variations: any[]) {
       variation_price_min_usd: minPrice,
       variation_price_max_usd: maxPrice,
       variation_price_count: prices.length,
+      variation_active_count: activeVariationCount,
+      variation_available_count: availableVariationCount,
+      variation_public_available: variationPublicAvailable,
+      variation_public_stock: variationPublicStock,
+      variation_public_allow_preorder: variationPublicAllowPreorder,
       variation_has_different_prices: hasDifferentPrices,
       public_price_usd: minPrice,
-      public_price_prefix: 'Desde',
+      public_price_prefix: 'DESDE:',
     };
   });
 }
