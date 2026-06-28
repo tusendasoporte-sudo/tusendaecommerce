@@ -113,6 +113,8 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     .field input:focus, .field select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, .14); }
     .form-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
     .form-alert.is-visible { display: block; }
+    .master-notice { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 12px 14px; font-size: 13px; line-height: 1.45; font-weight: 850; }
+    .master-notice.is-visible { display: block; }
     .form-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
     .secondary-button { min-height: 42px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; padding: 11px 14px; font-size: 13px; line-height: 1; font-weight: 1000; cursor: pointer; }
     .save-button { min-height: 42px; border-radius: 8px; border: 1px solid #0f172a; background: #0f172a; color: #fff; padding: 11px 14px; font-size: 13px; line-height: 1; font-weight: 1000; cursor: pointer; }
@@ -148,6 +150,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
         <button id="master-logout" class="logout-button" type="button">Cerrar sesion</button>
       </div>
     </div>
+    <div id="master-notice" class="master-notice" role="alert"></div>
 
     {isUnauthorized ? (
       <section class="unauthorized-panel" aria-label="Acceso no autorizado">
@@ -374,8 +377,17 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     const userStatusInput = document.getElementById('user-status') as HTMLSelectElement | null;
     const saveUserButton = document.getElementById('save-user') as HTMLButtonElement | null;
     const userAlertBox = document.getElementById('user-alert');
+    const masterNotice = document.getElementById('master-notice');
 
     let slugWasManuallyEdited = false;
+
+    function showMasterNotice(message: string, detail = '') {
+      if (!masterNotice) return;
+      const normalizedDetail = String(detail || '').trim();
+      masterNotice.textContent = normalizedDetail && normalizedDetail !== message ? `${message} ${normalizedDetail}` : message;
+      masterNotice.classList.add('is-visible');
+      masterNotice.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 
     function showError(message: string) {
       if (!alertBox) return;
@@ -512,7 +524,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
           await setStoreStatusFromMaster(storeId, nextStatus);
           window.location.reload();
         } catch (error: any) {
-          alert(error?.message || 'No se pudo actualizar el estado de la tienda.');
+          showMasterNotice('No se pudo actualizar el estado de la tienda.', error?.message || '');
           button.disabled = false;
           button.textContent = nextStatus === 'active' ? 'Activar' : 'Suspender';
         }
@@ -533,7 +545,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
           await setStoreFeaturedFromMaster(storeId, nextFeatured, nextFeatured ? 10 : 0);
           window.location.reload();
         } catch (error: any) {
-          alert(error?.message || 'No se pudo actualizar la tienda destacada.');
+          showMasterNotice('No se pudo actualizar la tienda destacada.', error?.message || '');
           button.disabled = false;
           button.textContent = nextFeatured ? 'Destacar' : 'Quitar destacada';
         }

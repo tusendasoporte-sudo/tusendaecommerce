@@ -1,0 +1,225 @@
+<div id="public-confirm-overlay" class="public-confirm-overlay hidden" aria-hidden="true">
+  <section
+    class="public-confirm-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="public-confirm-title"
+    aria-describedby="public-confirm-message"
+  >
+    <button id="public-confirm-close" class="public-confirm-close" type="button" aria-label="Cerrar">&times;</button>
+    <p class="public-confirm-kicker">Confirmar cambio</p>
+    <h2 id="public-confirm-title" class="public-confirm-title">Reemplazar regalo</h2>
+    <p id="public-confirm-message" class="public-confirm-message">Ya tienes un regalo seleccionado. ¿Quieres reemplazarlo por este?</p>
+    <div class="public-confirm-actions">
+      <button id="public-confirm-cancel" class="public-confirm-btn public-confirm-btn-secondary" type="button">Mantener actual</button>
+      <button id="public-confirm-submit" class="public-confirm-btn public-confirm-btn-primary" type="button">Reemplazar</button>
+    </div>
+  </section>
+</div>
+
+<style is:global>
+  .public-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147482000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .42);
+    backdrop-filter: blur(8px);
+  }
+
+  .public-confirm-overlay.hidden {
+    display: none !important;
+  }
+
+  .public-confirm-card {
+    position: relative;
+    width: min(430px, 100%);
+    border-radius: 26px;
+    border: 1px solid rgba(226, 232, 240, .95);
+    background: #fff;
+    color: #111827;
+    padding: 24px;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, .24);
+  }
+
+  .public-confirm-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .public-confirm-kicker {
+    margin: 0 42px 8px 0;
+    color: #166534;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 1000;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .public-confirm-title {
+    margin: 0;
+    color: #111827;
+    font-size: 24px;
+    line-height: 1.05;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .public-confirm-message {
+    margin: 12px 0 0;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 800;
+  }
+
+  .public-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+  }
+
+  .public-confirm-btn {
+    min-height: 44px;
+    border-radius: 16px;
+    padding: 11px 16px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    line-height: 1.1;
+    font-weight: 1000;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .public-confirm-btn-secondary {
+    border-color: #e2e8f0;
+    background: #fff;
+    color: #0f172a;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .07);
+  }
+
+  .public-confirm-btn-primary {
+    border-color: #111827;
+    background: #111827;
+    color: #fff;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, .18);
+  }
+
+  body.public-confirm-open {
+    overflow: hidden;
+  }
+
+  @media (max-width: 540px) {
+    .public-confirm-overlay {
+      align-items: flex-end;
+      padding: 12px;
+    }
+
+    .public-confirm-card {
+      border-radius: 22px;
+      padding: 22px;
+    }
+
+    .public-confirm-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .public-confirm-btn {
+      width: 100%;
+      min-height: 48px;
+    }
+  }
+</style>
+
+<script is:inline>
+  (() => {
+    if (window.__publicConfirmReady) return;
+    window.__publicConfirmReady = true;
+
+    const overlay = document.getElementById('public-confirm-overlay');
+    const card = overlay?.querySelector('.public-confirm-card');
+    const title = document.getElementById('public-confirm-title');
+    const message = document.getElementById('public-confirm-message');
+    const closeBtn = document.getElementById('public-confirm-close');
+    const cancelBtn = document.getElementById('public-confirm-cancel');
+    const submitBtn = document.getElementById('public-confirm-submit');
+    let resolver = null;
+    let lastFocusedElement = null;
+
+    function closePublicConfirm(value) {
+      if (!overlay || !resolver) return;
+      const resolve = resolver;
+      resolver = null;
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('public-confirm-open');
+      if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') lastFocusedElement.focus();
+      lastFocusedElement = null;
+      resolve(Boolean(value));
+    }
+
+    window.publicConfirm = (options = {}) => {
+      if (!overlay) return Promise.resolve(false);
+      if (resolver) closePublicConfirm(false);
+      lastFocusedElement = document.activeElement;
+      if (title) title.textContent = options.title || 'Confirmar';
+      if (message) message.textContent = options.message || '¿Deseas continuar?';
+      if (cancelBtn) cancelBtn.textContent = options.cancelText || 'Cancelar';
+      if (submitBtn) submitBtn.textContent = options.confirmText || 'Confirmar';
+      overlay.classList.remove('hidden');
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('public-confirm-open');
+      window.setTimeout(() => submitBtn?.focus(), 0);
+      return new Promise((resolve) => {
+        resolver = resolve;
+      });
+    };
+
+    closeBtn?.addEventListener('click', () => closePublicConfirm(false));
+    cancelBtn?.addEventListener('click', () => closePublicConfirm(false));
+    submitBtn?.addEventListener('click', () => closePublicConfirm(true));
+    overlay?.addEventListener('click', (event) => {
+      if (event.target === overlay) closePublicConfirm(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && resolver) closePublicConfirm(false);
+      if (event.key !== 'Tab' || !resolver || !card) return;
+      const focusable = Array.from(card.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter((item) => !item.disabled && item.getAttribute('aria-hidden') !== 'true');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  })();
+</script>

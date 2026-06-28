@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../ProductCard.astro';
 import PublicFooter from '../PublicFooter.astro';
+import PublicConfirm from './PublicConfirm.astro';
 import PromoBar from '../PromoBar.astro';
 import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
@@ -2353,6 +2354,7 @@ function getProductOfferView(product: any) {
   )}
   <StoreAnalyticsTracker storeId={currentStoreId} pageType="store_home" />
   <PublicFooter settings={settings} />
+  <PublicConfirm />
 
   <script define:vars={{ pocketbaseUrl, currentStoreId }}>
     (() => {
@@ -2683,7 +2685,7 @@ function getProductOfferView(product: any) {
         btn.textContent = stock <= 0 ? 'Agotado' : canAdd ? 'Agregar regalo' : `Disponible desde $${min.toFixed(2)} USD`;
       });
     }
-    function addGiftFromCard(card) {
+    async function addGiftFromCard(card) {
       const cart = getGiftCart();
       const min = Number(card.dataset.giftMin || 0);
       const subtotal = getGiftCartSubtotal(cart);
@@ -2693,7 +2695,12 @@ function getProductOfferView(product: any) {
       }
       const existingGift = cart.find((item) => item.is_gift);
       if (existingGift && existingGift.gift_id !== card.dataset.giftId) {
-        const replace = window.confirm('Ya tienes un regalo seleccionado. ¿Quieres reemplazarlo por este?');
+        const replace = await window.publicConfirm({
+          title: 'Reemplazar regalo',
+          message: 'Ya tienes un regalo seleccionado. ¿Quieres reemplazarlo por este?',
+          confirmText: 'Reemplazar',
+          cancelText: 'Mantener actual',
+        });
         if (!replace) return;
       }
       const withoutGifts = cart.filter((item) => !item.is_gift);
@@ -2713,9 +2720,9 @@ function getProductOfferView(product: any) {
       showGiftInfo('Regalo agregado al carrito. Solo puedes llevar 1 regalo por orden.');
     }
     document.querySelectorAll('[data-gift-button]').forEach((button) => {
-      button.addEventListener('click', () => {
+      button.addEventListener('click', async () => {
         const card = button.closest('[data-gift-card]');
-        if (card) addGiftFromCard(card);
+        if (card) await addGiftFromCard(card);
       });
     });
     window.addEventListener('cart-updated', syncGiftButtons);
