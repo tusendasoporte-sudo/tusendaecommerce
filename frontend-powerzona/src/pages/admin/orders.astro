@@ -1762,7 +1762,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       function getVariationUnitPrice(product, variation) {
-        return Number(product?.base_price_usd || 0) + Number(variation?.extra_price || 0);
+        return Math.max(0, Number(variation?.price_usd ?? variation?.precio_usd ?? 0));
       }
 
       function getStockValue(record) {
@@ -2853,6 +2853,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
           setDetailAlert('Este producto tiene variaciones. Selecciona una variación antes de agregarlo.', 'error');
           return;
         }
+        if (variation && getVariationUnitPrice(product, variation) <= 0) {
+          setDetailAlert('Esta variación no tiene precio de venta válido.', 'error');
+          return;
+        }
+
 
         addProductBtn.disabled = true;
         setDetailAlert('Agregando producto a la orden...', 'info');

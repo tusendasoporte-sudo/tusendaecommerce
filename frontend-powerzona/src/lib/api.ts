@@ -170,6 +170,58 @@ function addVariationImages(variation: any) {
   };
 }
 
+function variationPublicPrice(variation: any) {
+  const price = Number(variation?.price_usd ?? variation?.precio_usd ?? 0);
+  return Number.isFinite(price) ? Math.max(0, price) : 0;
+}
+
+function addVariationPriceSummary(products: any[], variations: any[]) {
+  const byProduct = new Map<string, number[]>();
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  variations.forEach((variation) => {
+    if (!variation?.product || variation.active === false) return;
+    const product = productsById.get(variation.product);
+    const tracksStock = product?.track_stock !== false;
+    if (tracksStock && Number(variation.stock || 0) <= 0 && !variation.allow_preorder) return;
+    const price = variationPublicPrice(variation);
+    if (price <= 0) return;
+    const current = byProduct.get(variation.product) || [];
+    current.push(price);
+    byProduct.set(variation.product, current);
+  });
+
+  return products.map((product) => {
+    const prices = byProduct.get(product.id) || [];
+    if (!product?.has_variations || !prices.length) return product;
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const hasDifferentPrices = prices.some((price) => price !== minPrice);
+    return {
+      ...product,
+      variation_price_min_usd: minPrice,
+      variation_price_max_usd: maxPrice,
+      variation_price_count: prices.length,
+      variation_has_different_prices: hasDifferentPrices,
+      public_price_usd: minPrice,
+      public_price_prefix: hasDifferentPrices ? 'Desde' : '',
+    };
+  });
+}
+
+async function attachVariationPriceSummary(products: any[]) {
+  const productIds = products
+    .filter((product) => product?.has_variations && product?.id)
+    .map((product) => product.id);
+  if (!productIds.length) return products;
+
+  const variations = await pb.collection('product_variations').getFullList({
+    filter: productIds.map((id) => `product="${escapePocketBaseValue(id)}"`).join(' || '),
+    sort: 'sort_order,variation_type,value',
+  });
+
+  return addVariationPriceSummary(products, variations);
+}
+
 export async function getProducts(options?: StoreQueryInput) {
   const products = await pb.collection('products').getFullList({
     filter: await storeFilter('active = true', options),
@@ -177,9 +229,9 @@ export async function getProducts(options?: StoreQueryInput) {
     expand: 'category,subcategory',
   });
 
-  return products
+  return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map(addProductImages);
+    .map(addProductImages));
 }
 
 export async function getFeaturedProducts(options?: StoreQueryInput) {
@@ -189,9 +241,9 @@ export async function getFeaturedProducts(options?: StoreQueryInput) {
     expand: 'category,subcategory',
   });
 
-  return products
+  return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map(addProductImages);
+    .map(addProductImages));
 }
 
 function addVisualItemFiles(item: any) {

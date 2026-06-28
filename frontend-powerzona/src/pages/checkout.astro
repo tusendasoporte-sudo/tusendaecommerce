@@ -1176,15 +1176,21 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			});
 		}
 
+		function getVariationProblemItems(cart) {
+			return cart.filter((item) => !item.is_gift && Boolean(item.requires_variation) && !item.variation_id);
+		}
+
 		function validateCheckout(showErrors = false) {
 			const cart = getCart();
 			const data = getCheckoutData();
 			const requiresAddress = data.delivery_method === 'delivery';
 			const stockProblemItems = getStockProblemItems(cart);
+			const variationProblemItems = getVariationProblemItems(cart);
 
 			const errors = {
 				cart: cart.filter((item) => !item.is_gift).length === 0,
 				stock: stockProblemItems.length > 0,
+				variation: variationProblemItems.length > 0,
 				name: data.customer_name.length < 2,
 				phone: !isValidPhone(data.customer_phone),
 				delivery_method: !data.delivery_method,
@@ -1215,7 +1221,13 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				checkoutValidationAlert.classList.remove('hidden');
 			}
 
-			if (!errors.stock && errors.business_hours) {
+			if (!errors.stock && errors.variation) {
+				const names = variationProblemItems.map((item) => item.title).filter(Boolean).join(', ');
+				checkoutValidationAlert.textContent = `Selecciona una variación para continuar: ${names}.`;
+				checkoutValidationAlert.classList.remove('hidden');
+			}
+
+			if (!errors.stock && !errors.variation && errors.business_hours) {
 				checkoutValidationAlert.textContent = businessHoursStatus.mode === 'temporarily_closed'
 					? 'Negocio cerrado temporalmente. No se aceptan pedidos en este momento.'
 					: 'La tienda no acepta pedidos fuera de horario en este momento.';
@@ -1881,7 +1893,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const lineTotal = Number(item.line_subtotal_final_usd ?? (price * quantity));
 		const lineOriginal = Number(item.line_subtotal_original_usd ?? (price * quantity));
 		const lineDiscount = Number(item.line_discount_usd || 0);
-		const variationText = item.variation_label ? ` (${item.variation_label})` : '';
+		const itemDisplayName = item.variation_label ? `${item.title} \u2014 ${item.variation_label}` : item.title;
 		const preorderText = item.preorder ? '  ⚠️ *PREORDEN*' : '';
 		const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
 		const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
@@ -1894,7 +1906,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
    Subtotal antes de promo: ${formatVisualFromUsd(lineOriginal, { onlyUsd: Boolean(item.only_usd) })}
    Ahorro: ${formatVisualFromUsd(lineDiscount, { onlyUsd: Boolean(item.only_usd) })}` : '';
 		const visualPrice = formatVisualFromUsd(lineTotal, { onlyUsd: Boolean(item.only_usd) });
-		return `${index + 1}. *${item.title}${variationText}*${preorderText}
+		return `${index + 1}. *${itemDisplayName}*${preorderText}
    Cantidad: ${quantity}${savingsText}${promoText}
    Importe: ${visualPrice}`;
 	});
@@ -1958,9 +1970,13 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 		async function createOrderAndItems(validation) {
 			const cart = validateGiftRulesOnCheckout();
 			const stockProblemItems = getStockProblemItems(cart);
+			const variationProblemItems = getVariationProblemItems(cart);
 
 			if (stockProblemItems.length > 0) {
 				throw new Error('No se puede realizar el pedido porque hay productos agotados o con cantidad mayor al stock disponible.');
+			}
+			if (variationProblemItems.length > 0) {
+				throw new Error('No se puede realizar el pedido porque hay productos con variaciones sin seleccionar.');
 			}
 
 			const settings = await getActiveSettings();

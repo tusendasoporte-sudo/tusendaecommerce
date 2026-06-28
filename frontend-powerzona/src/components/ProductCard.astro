@@ -16,6 +16,7 @@ const {
   showRating = false,
   view = 'standard',
   buttonText = 'Comprar',
+  pricePrefix = '',
 } = Astro.props;
 
 const stockNumber = Number(stock || 0);
@@ -27,6 +28,7 @@ const isCompact = view === 'compact';
 const isLarge = view === 'large';
 const regularPriceNumber = Number(regularPrice || price || 0);
 const finalPriceNumber = Number(price || 0);
+const cleanPricePrefix = String(pricePrefix || '').trim();
 const hasValidOffer = Boolean(isOffer) && regularPriceNumber > 0 && finalPriceNumber > 0 && finalPriceNumber < regularPriceNumber;
 const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
 const ratingAverageNumber = Number(ratingAverage || 0);
@@ -95,7 +97,7 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
         </span>
       )}
       <p class={`${isCompact ? 'text-sm' : 'text-sm sm:text-base'} ${hasValidOffer ? 'text-red-600' : 'text-blue-600'} font-extrabold m-0`} data-pz-price-usd={finalPriceNumber} data-pz-only-usd={onlyUsd ? 'true' : 'false'}>
-        {`$${finalPriceNumber.toFixed(2)} USD`}
+        {`${cleanPricePrefix ? `${cleanPricePrefix} ` : ''}$${finalPriceNumber.toFixed(2)} USD`}
       </p>
       {hasValidOffer && (
         <span class="save-price">

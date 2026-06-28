@@ -45,9 +45,10 @@ const searchItems = [
     slug: product.slug || '',
     url: getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname),
     image: product.imageUrls?.[0] || '',
-    price: product.base_price_usd ?? '',
-    regularPrice: Number(product.regular_price_usd || product.base_price_usd || 0),
-    isOffer: Boolean(product.is_offer) && Number(product.regular_price_usd || 0) > Number(product.base_price_usd || 0),
+    price: product.has_variations && Number(product.variation_price_min_usd || 0) > 0 ? product.variation_price_min_usd : (product.base_price_usd ?? ''),
+    regularPrice: product.has_variations && Number(product.variation_price_min_usd || 0) > 0 ? Number(product.variation_price_min_usd || 0) : Number(product.regular_price_usd || product.base_price_usd || 0),
+    isOffer: !product.has_variations && Boolean(product.is_offer) && Number(product.regular_price_usd || 0) > Number(product.base_price_usd || 0),
+    pricePrefix: product.has_variations && product.variation_has_different_prices ? 'Desde' : '',
     onlyUsd: Boolean(product.only_usd),
     searchText: normalizeText([product.name, product.slug, product.description, product.short_description, product.internal_ref, getCategoryNameById(product.category), getSubcategoryNameById(product.subcategory)].join(' ')),
   })),
@@ -252,7 +253,7 @@ const searchItems = [
             <p class="result-subtitle">${item.subtitle || item.type}</p>
             ${item.price !== '' && item.price !== null && item.price !== undefined ? `
               ${item.isOffer ? `<p class="text-[11px] font-black text-red-600 mt-1">Oferta</p><p class="text-[11px] font-black text-gray-400 line-through mt-1" data-pz-price-usd="${Number(item.regularPrice || 0)}" data-pz-only-usd="${item.onlyUsd ? 'true' : 'false'}">${window.PZCurrency?.formatVisualFromUsd ? window.PZCurrency.formatVisualFromUsd(Number(item.regularPrice || 0), { onlyUsd: Boolean(item.onlyUsd) }) : '$' + Number(item.regularPrice || 0).toFixed(2) + ' USD'}</p>` : ''}
-              <p class="result-price ${item.isOffer ? 'text-red-600' : ''}" data-pz-price-usd="${Number(item.price)}" data-pz-only-usd="${item.onlyUsd ? 'true' : 'false'}">${window.PZCurrency?.formatVisualFromUsd ? window.PZCurrency.formatVisualFromUsd(Number(item.price), { onlyUsd: Boolean(item.onlyUsd) }) : '$' + Number(item.price).toFixed(2) + ' USD'}</p>
+              <p class="result-price ${item.isOffer ? 'text-red-600' : ''}" data-pz-price-usd="${Number(item.price)}" data-pz-only-usd="${item.onlyUsd ? 'true' : 'false'}">${item.pricePrefix ? `${item.pricePrefix} ` : ''}${window.PZCurrency?.formatVisualFromUsd ? window.PZCurrency.formatVisualFromUsd(Number(item.price), { onlyUsd: Boolean(item.onlyUsd) }) : '$' + Number(item.price).toFixed(2) + ' USD'}</p>
             ` : ''}
           </div>
           <span class="result-type">${item.type}</span>

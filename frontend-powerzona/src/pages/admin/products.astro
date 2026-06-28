@@ -1333,6 +1333,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <label for="product-name">Nombre del producto</label>
                     <input id="product-name" type="text" placeholder="Ej: Nombre del producto" required />
                     <p class="form-help">El slug se genera automáticamente desde este nombre.</p>
+                    <p class="form-help">Usa un nombre base general. Ej: "Creatina Creactor". Coloca tamaño, servicios, sabor o color dentro de cada variación.</p>
                   </div>
                   <div class="field">
                     <label for="product-internal-ref">SKU / Ref interna</label>
@@ -1432,6 +1433,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       <div class="field">
                         <label for="product-price">Precio USD</label>
                         <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required />
+                        <p id="product-price-help" class="form-help">Producto sin variaciones: este precio se usa para la compra.</p>
                       </div>
                       <div class="field offer-field">
                         <label class="check-card switch-card"><input id="product-is-offer" type="checkbox" /> Este producto tiene oferta</label>
@@ -1827,6 +1829,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productCategoryInput = document.getElementById('product-category');
       const productSubcategoryInput = document.getElementById('product-subcategory');
       const productPriceInput = document.getElementById('product-price');
+      const productPriceHelp = document.getElementById('product-price-help');
       const productIsOfferInput = document.getElementById('product-is-offer');
       const productOfferPriceInput = document.getElementById('product-offer-price');
       const productOfferHelp = document.getElementById('product-offer-help');
@@ -2474,6 +2477,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function variationHasMinimumData() {
         if (!productIdInput?.value) return false;
         if (!variationValueInput?.value?.trim()) return false;
+        if (Number(variationPriceInput?.value || 0) <= 0) return false;
         if (productTracksStock() && variationStockInput?.value === '') return false;
         return true;
       }
@@ -2530,6 +2534,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         if (productVariationViewField) productVariationViewField.classList.toggle('hidden', !useVariations);
         if (productVariationViewInput && !productVariationViewInput.value) productVariationViewInput.value = 'buttons';
+        productPriceInput.required = !useVariations;
+        productPriceInput.disabled = useVariations || Boolean(productIsOfferInput?.checked);
+        productPriceInput.classList.toggle('is-locked', productPriceInput.disabled);
+        if (productPriceHelp) {
+          productPriceHelp.textContent = useVariations
+            ? 'Este producto usa variaciones. El precio de compra se tomara de la variacion seleccionada.'
+            : 'Producto sin variaciones: este precio se usa para la compra.';
+        }
 
         const missingName = !name;
         const missingStock = trackStock && !useVariations && !hasValidStock;
@@ -2850,6 +2862,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           throw new Error('El producto padre no pertenece a esta tienda.');
         }
         if (!value) throw new Error('Escribe el valor de la variación. Ej: Chocolate.');
+        if (Number(variationPriceInput.value || 0) <= 0) throw new Error('Escribe un precio de venta válido para la variación.');
         if (productTracksStock() && variationStockInput.value === '') throw new Error('Escribe el stock de la variación o desactiva Descontar stock en el producto padre.');
         const formData = new FormData();
         formData.append('product', currentProductId);
