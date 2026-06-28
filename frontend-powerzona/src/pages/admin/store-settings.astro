@@ -192,9 +192,12 @@ try {
       .settings-gallery-actions .mini-btn { min-width: 0; min-height: 40px; padding: 9px 10px; box-shadow: none; }
       .settings-upload-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: end; max-width: 320px; }
       .settings-file-control input { min-height: 43px; padding: 9px 10px; font-size: 12px; }
-      .business-type-picker { position: relative; display: grid; gap: 10px; }
+      .general-settings-accordion.business-type-accordion { position: relative; overflow: visible; z-index: 5; }
+      .general-settings-accordion.business-type-accordion[open] { z-index: 95; }
+      .business-type-picker { position: relative; display: grid; gap: 10px; z-index: 1; }
       .business-type-trigger { width: 100%; min-height: 50px; justify-content: space-between; text-align: left; }
-      .business-type-panel { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 30; display: grid; gap: 12px; max-height: min(380px, 68vh); overflow: auto; padding: 12px; border-radius: 20px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.18); }
+      .business-type-panel { position: absolute; top: calc(100% + 8px); left: 0; right: 0; z-index: 90; display: grid; gap: 12px; max-height: min(380px, 68vh); overflow: auto; overscroll-behavior: contain; padding: 12px; border-radius: 20px; background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 24px 70px rgba(15,23,42,.18); }
+      .business-type-panel.drop-up { top: auto; bottom: calc(100% + 8px); }
       .business-type-panel.hidden { display: none; }
       .business-type-panel input { width: 100%; border: 1px solid var(--border); border-radius: 16px; background: #fff; color: var(--text); padding: 12px 13px; outline: none; font-weight: 800; }
       .business-type-group { display: grid; gap: 7px; }
@@ -202,6 +205,11 @@ try {
       .business-type-option { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 9px; padding: 9px 10px; border-radius: 14px; color: #334155; font-size: 13px; line-height: 1.25; font-weight: 850; cursor: pointer; }
       .business-type-option input { width: 16px; height: 16px; margin: 0; }
       .business-type-option:hover { background: #f8fafc; }
+      .business-type-option:has(input:checked) { background: #eff6ff; color: #1d4ed8; box-shadow: inset 0 0 0 1px #bfdbfe; }
+      @media (max-width: 720px) {
+        .business-type-panel { border-radius: 18px; padding: 10px; }
+        .business-type-option { min-height: 44px; padding: 11px 10px; }
+      }
       .chip-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px; }
       .chip { display: inline-flex; align-items: center; gap: 7px; border-radius: 999px; padding: 7px 10px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe; font-size: 12px; font-weight: 1000; }
       .chip button { width: 20px; height: 20px; border: 0; border-radius: 999px; background: rgba(55,48,163,.12); color: #3730a3; font-weight: 1000; line-height: 1; }
@@ -2985,7 +2993,7 @@ try {
                 <div class="general-settings-body"><div class="general-settings-grid"><div class="field full"><label for="settings-whatsapp-number">WhatsApp principal</label><div class="phone-row"><select id="settings-whatsapp-country" class="phone-prefix" aria-label="Pais"><option value="CU">CU +53</option><option value="US">US +1</option><option value="DO">DO +1</option><option value="MX">MX +52</option><option value="CO">CO +57</option><option value="VE">VE +58</option><option value="ES">ES +34</option><option value="PA">PA +507</option></select><input id="settings-whatsapp-number" type="text" placeholder="5 000 0000" required /></div><p class="form-help">N&uacute;mero principal para contacto con clientes</p></div></div></div>
               </details>
 
-              <details class="general-settings-accordion">
+              <details class="general-settings-accordion business-type-accordion">
                 <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h6v2H8v-2Z"/></svg></span><div><h3>Tipo de negocio</h3><p>Clasificaci&oacute;n p&uacute;blica de tu tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-business" class="general-settings-badge pending">Pendiente</span><button class="settings-help-btn" type="button" data-help-key="general-business">L&eacute;eme</button><span class="general-settings-chevron">&#8964;</span></div></summary>
                 <div class="general-settings-body"><div class="general-settings-grid"><div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div><div class="field full"><label>Tipo de negocio</label><div class="business-type-picker"><button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button><div id="business-type-chips" class="chip-list"></div><div id="business-type-panel" class="business-type-panel hidden"><input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." /><div id="business-type-options"></div></div></div><p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p></div></div></div>
               </details>
@@ -5021,6 +5029,23 @@ try {
               </label>
             `).join('')}</div>`;
           }).join('');
+          positionBusinessTypePanel();
+        }
+        function positionBusinessTypePanel() {
+          if (!businessTypePanel || !businessTypeTrigger || businessTypePanel.classList.contains('hidden')) return;
+          const triggerRect = businessTypeTrigger.getBoundingClientRect();
+          const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+          const isMobile = window.matchMedia('(max-width: 720px)').matches;
+          const bottomGuard = isMobile ? 108 : 24;
+          const topGuard = 18;
+          const gap = 8;
+          const spaceBelow = viewportHeight - triggerRect.bottom - bottomGuard - gap;
+          const spaceAbove = triggerRect.top - topGuard - gap;
+          const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
+          const availableSpace = openUp ? spaceAbove : spaceBelow;
+          const maxPanelHeight = Math.max(160, Math.min(380, availableSpace));
+          businessTypePanel.classList.toggle('drop-up', openUp);
+          businessTypePanel.style.maxHeight = `${maxPanelHeight}px`;
         }
         function renderBusinessTypeChips() {
           if (!businessTypeChips) return;
@@ -5365,8 +5390,17 @@ try {
         businessTypeTrigger?.addEventListener('click', () => {
           const open = businessTypePanel?.classList.toggle('hidden') === false;
           businessTypeTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-          if (open) businessTypeSearch?.focus();
+          if (open) {
+            positionBusinessTypePanel();
+            requestAnimationFrame(positionBusinessTypePanel);
+            businessTypeSearch?.focus();
+          } else if (businessTypePanel) {
+            businessTypePanel.classList.remove('drop-up');
+            businessTypePanel.style.maxHeight = '';
+          }
         });
+        window.addEventListener('resize', positionBusinessTypePanel);
+        window.addEventListener('scroll', positionBusinessTypePanel, true);
         businessTypeSearch?.addEventListener('input', renderBusinessTypeOptions);
         businessTypeOptions?.addEventListener('change', (event) => {
           const target = event.target instanceof Element ? event.target : null;
@@ -5402,6 +5436,8 @@ try {
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest('.business-type-picker')) return;
           businessTypePanel.classList.add('hidden');
+          businessTypePanel.classList.remove('drop-up');
+          businessTypePanel.style.maxHeight = '';
           businessTypeTrigger?.setAttribute('aria-expanded', 'false');
         });
         fields.logoPreview?.addEventListener('click', (event) => {
