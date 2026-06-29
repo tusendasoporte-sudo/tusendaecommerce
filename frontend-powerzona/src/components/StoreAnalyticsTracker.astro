@@ -1,7 +1,7 @@
 ---
 type Props = {
   storeId?: string;
-  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'search' | 'checkout' | 'other';
+  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'other';
   entityType?: string;
   entityId?: string;
 };
@@ -24,26 +24,34 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         if (path.includes('/admin') || path.includes('/master')) return;
         if (navigator.doNotTrack === '1') return;
 
-        const storageKey = 'tusenda84_visitor_id';
-        const sessionKey = 'tusenda84_session_id';
+        const storageKey = 'pz_visitor_id';
+        const legacyStorageKey = 'tusenda84_visitor_id';
+        const sessionKey = 'pz_session_id';
+        const lastActivityKey = 'pz_last_activity_at';
+        const sessionTimeoutMs = 30 * 60 * 1000;
 
         const makeId = (prefix) => {
+          if (window.crypto?.randomUUID) return `${prefix}_${window.crypto.randomUUID()}`;
           const randomPart = Math.random().toString(36).slice(2, 12);
           const timePart = Date.now().toString(36);
           return `${prefix}_${timePart}_${randomPart}`;
         };
 
-        let visitorId = localStorage.getItem(storageKey);
+        let visitorId = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
         if (!visitorId) {
           visitorId = makeId('v');
-          localStorage.setItem(storageKey, visitorId);
         }
+        localStorage.setItem(storageKey, visitorId);
 
-        let sessionId = sessionStorage.getItem(sessionKey);
-        if (!sessionId) {
+        const nowTime = Date.now();
+        const lastActivity = Number(localStorage.getItem(lastActivityKey) || 0);
+        const isExpiredSession = !Number.isFinite(lastActivity) || !lastActivity || nowTime - lastActivity > sessionTimeoutMs;
+        let sessionId = localStorage.getItem(sessionKey);
+        if (!sessionId || isExpiredSession) {
           sessionId = makeId('s');
-          sessionStorage.setItem(sessionKey, sessionId);
+          localStorage.setItem(sessionKey, sessionId);
         }
+        localStorage.setItem(lastActivityKey, String(nowTime));
 
         const now = new Date();
         const localDay = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
@@ -52,6 +60,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
         const payload = {
           store: storeId,
+          event_type: 'pageview',
           day: localDay,
           visitor_id: visitorId,
           session_id: sessionId,

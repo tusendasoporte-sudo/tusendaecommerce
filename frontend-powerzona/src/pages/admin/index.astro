@@ -2160,20 +2160,85 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				font-weight: 1000;
 			}
 
-			.dashboard-hero-date {
-				min-height: 46px;
-				padding: 10px 14px;
+			.bell-action-wrap {
+				position: relative;
+				flex: 0 0 auto;
+				z-index: 85;
+			}
+
+			.bell-action-btn {
+				width: 46px;
+				height: 46px;
+				border-radius: 999px;
+				border: 1px solid rgba(148, 163, 184, 0.28);
+				background: #ffffff;
+				color: #0f172a;
 				display: inline-flex;
 				align-items: center;
-				gap: 9px;
-				border-radius: 16px;
-				border: 1px solid #e2e8f0;
-				background: rgba(255,255,255,.95);
+				justify-content: center;
+				cursor: pointer;
+				box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+				position: relative;
+				transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+			}
+
+			.bell-action-btn:hover {
+				transform: translateY(-1px);
+				border-color: rgba(37, 99, 235, 0.34);
+				box-shadow: 0 14px 30px rgba(15, 23, 42, 0.11);
+			}
+
+			.bell-action-btn svg {
+				width: 20px;
+				height: 20px;
+				fill: none;
+				stroke: currentColor;
+				stroke-width: 2.1;
+				stroke-linecap: round;
+				stroke-linejoin: round;
+			}
+
+			.bell-action-dot {
+				position: absolute;
+				top: 9px;
+				right: 9px;
+				width: 9px;
+				height: 9px;
+				border-radius: 999px;
+				background: #2563eb;
+				border: 2px solid #ffffff;
+			}
+
+			.bell-dropdown {
+				position: absolute;
+				right: 0;
+				top: calc(100% + 10px);
+				width: min(320px, calc(100vw - 28px));
+				border-radius: 18px;
+				border: 1px solid rgba(148, 163, 184, 0.24);
+				background: #ffffff;
+				box-shadow: 0 22px 55px rgba(15, 23, 42, 0.16);
+				padding: 14px;
+				z-index: 90;
+			}
+
+			.bell-dropdown.hidden {
+				display: none;
+			}
+
+			.bell-dropdown h3 {
+				margin: 0;
 				color: #0f172a;
-				box-shadow: 0 12px 26px rgba(15,23,42,.07);
-				font-size: 13px;
+				font-size: 16px;
 				font-weight: 950;
-				white-space: nowrap;
+			}
+
+			.bell-dropdown p {
+				margin: 8px 0 0;
+				color: #64748b;
+				font-size: 14px;
+				font-weight: 650;
+				line-height: 1.4;
 			}
 
 			.dashboard-block {
@@ -2261,11 +2326,664 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				box-shadow: 0 14px 28px rgba(37,99,235,.22);
 			}
 
+			.summary-period-card {
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 24px;
+				background: #ffffff;
+				box-shadow: 0 16px 38px rgba(15, 23, 42, 0.06);
+				padding: 18px;
+				margin: 0 0 22px;
+			}
+
+			.summary-period-head {
+				display: flex;
+				justify-content: space-between;
+				gap: 14px;
+				align-items: center;
+				margin-bottom: 14px;
+			}
+
+			.summary-period-head h2 {
+				margin: 0;
+				color: #0f172a;
+				font-size: 18px;
+				font-weight: 950;
+				letter-spacing: -0.025em;
+			}
+
+			.summary-period-head p {
+				margin: 4px 0 0;
+				color: #64748b;
+				font-size: 13px;
+				font-weight: 650;
+			}
+
+			.summary-period-actions {
+				display: flex;
+				gap: 10px;
+				overflow-x: auto;
+				padding-bottom: 2px;
+				flex-wrap: nowrap;
+			}
+
+			.summary-period-actions .period-btn {
+				min-height: 40px;
+				border-radius: 999px;
+				padding: 0 16px;
+				flex: 0 0 auto;
+			}
+
+			.analytics-premium-card {
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 28px;
+				background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.96));
+				box-shadow: 0 22px 55px rgba(15, 23, 42, 0.07);
+				padding: 24px;
+				margin-top: 18px;
+			}
+
+			.analytics-premium-card + .dashboard-block {
+				margin-top: 18px !important;
+			}
+
+			.analytics-premium-header {
+				display: flex;
+				justify-content: space-between;
+				gap: 18px;
+				margin-bottom: 18px;
+			}
+
+			.analytics-premium-kicker {
+				margin: 0 0 6px;
+				color: #2563eb;
+				font-size: 12px;
+				font-weight: 950;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+
+			.analytics-premium-header h2 {
+				margin: 0;
+				color: #0f172a;
+				font-size: clamp(24px, 2vw, 32px);
+				font-weight: 950;
+				letter-spacing: -0.045em;
+			}
+
+			.analytics-premium-header p {
+				margin: 8px 0 0;
+				color: #64748b;
+				font-size: 15px;
+				line-height: 1.5;
+				font-weight: 650;
+			}
+
+			.analytics-tabs {
+				display: flex;
+				gap: 10px;
+				overflow-x: auto;
+				padding: 6px;
+				margin-bottom: 20px;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 18px;
+				background: rgba(248, 250, 252, 0.85);
+			}
+
+			.analytics-tab {
+				min-height: 42px;
+				border: 0;
+				border-radius: 14px;
+				padding: 0 18px;
+				background: transparent;
+				color: #475569;
+				font-size: 14px;
+				font-weight: 900;
+				white-space: nowrap;
+			}
+
+			.analytics-tab.is-active {
+				background: #0f172a;
+				color: #ffffff;
+				box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+			}
+
+			.analytics-tab.is-disabled {
+				opacity: 0.48;
+				cursor: not-allowed;
+			}
+
+			.analytics-tab-panel {
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 22px;
+				background: #ffffff;
+				padding: 20px;
+			}
+
+			.analytics-views-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				gap: 16px;
+				margin-bottom: 16px;
+			}
+
+			.analytics-views-head h3,
+			.analytics-top-products-head h3 {
+				margin: 0;
+				color: #0f172a;
+				font-size: 17px;
+				font-weight: 950;
+				letter-spacing: -0.025em;
+			}
+
+			.analytics-views-head p,
+			.analytics-top-products-head p {
+				margin: 5px 0 0;
+				color: #64748b;
+				font-size: 13px;
+				line-height: 1.4;
+				font-weight: 650;
+			}
+
+			.analytics-views-grid {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 14px;
+				margin-bottom: 16px;
+			}
+
+			.analytics-view-metric {
+				min-width: 0;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 18px;
+				background: linear-gradient(180deg, #ffffff, #f8fbff);
+				padding: 16px;
+			}
+
+			.analytics-view-label {
+				display: block;
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 900;
+				text-transform: uppercase;
+				letter-spacing: 0.045em;
+			}
+
+			.analytics-view-metric strong {
+				display: block;
+				margin-top: 10px;
+				color: #0f172a;
+				font-size: 34px;
+				line-height: 1;
+				font-weight: 950;
+				letter-spacing: -0.05em;
+			}
+
+			.analytics-view-metric small {
+				display: block;
+				margin-top: 8px;
+				color: #64748b;
+				font-size: 13px;
+				line-height: 1.35;
+				font-weight: 650;
+			}
+
+			.analytics-top-products-card {
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 18px;
+				background: rgba(248, 250, 252, 0.72);
+				padding: 16px;
+			}
+
+			.analytics-top-products-list {
+				display: grid;
+				gap: 8px;
+				margin-top: 14px;
+			}
+
+			.analytics-top-product-row {
+				display: grid;
+				grid-template-columns: 28px minmax(0, 1fr) auto;
+				align-items: center;
+				gap: 10px;
+				min-height: 38px;
+				border-radius: 12px;
+				background: #ffffff;
+				padding: 0 12px;
+				border: 1px solid rgba(148, 163, 184, 0.14);
+			}
+
+			.analytics-top-product-rank {
+				color: #2563eb;
+				font-size: 13px;
+				font-weight: 950;
+			}
+
+			.analytics-top-product-name {
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				color: #0f172a;
+				font-size: 14px;
+				font-weight: 850;
+			}
+
+			.analytics-top-product-count {
+				color: #475569;
+				font-size: 13px;
+				font-weight: 850;
+				white-space: nowrap;
+			}
+
+			.analytics-empty-state {
+				margin: 14px 0 0;
+				border: 1px dashed rgba(148, 163, 184, 0.32);
+				border-radius: 14px;
+				padding: 16px;
+				color: #64748b;
+				text-align: center;
+				font-size: 14px;
+				font-weight: 700;
+				background: #ffffff;
+			}
+
+			.analytics-tab-panel .dashboard-range-note {
+				margin: -4px 0 16px;
+			}
+
+			.visit-analytics-card {
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 28px;
+				background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.96));
+				box-shadow: 0 22px 55px rgba(15, 23, 42, 0.07);
+				padding: 24px;
+				margin-top: 18px;
+			}
+
+			.visit-analytics-card + .dashboard-block {
+				margin-top: 18px !important;
+			}
+
+			.visit-analytics-header {
+				margin-bottom: 18px;
+			}
+
+			.visit-analytics-kicker {
+				margin: 0 0 6px;
+				color: #2563eb;
+				font-size: 12px;
+				font-weight: 950;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+
+			.visit-analytics-header h2 {
+				margin: 0;
+				color: #0f172a;
+				font-size: clamp(24px, 2vw, 32px);
+				font-weight: 950;
+				letter-spacing: -0.045em;
+			}
+
+			.visit-analytics-header p {
+				margin: 8px 0 0;
+				color: #64748b;
+				font-size: 15px;
+				line-height: 1.5;
+				font-weight: 650;
+			}
+
+			.visit-analytics-toolbar {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 16px;
+				margin-bottom: 20px;
+				flex-wrap: wrap;
+			}
+
+			.visit-analytics-tabs {
+				display: flex;
+				gap: 10px;
+				overflow-x: auto;
+				max-width: 100%;
+				padding: 6px;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 18px;
+				background: rgba(248, 250, 252, 0.85);
+			}
+
+			.visit-analytics-tab {
+				min-height: 42px;
+				border: 0;
+				border-radius: 14px;
+				padding: 0 18px;
+				background: transparent;
+				color: #475569;
+				font-size: 14px;
+				font-weight: 900;
+				white-space: nowrap;
+			}
+
+			.visit-analytics-tab.is-active {
+				background: #0f172a;
+				color: #ffffff;
+				box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+			}
+
+			.visit-analytics-panel {
+				display: none;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 22px;
+				background: #ffffff;
+				padding: 22px;
+			}
+
+			.visit-analytics-panel.is-active {
+				display: block;
+			}
+
+			.visit-analytics-panel-title {
+				margin: 0;
+				color: #0f172a;
+				font-size: 18px;
+				font-weight: 950;
+				letter-spacing: -0.025em;
+			}
+
+			.visit-analytics-panel-help {
+				margin: 6px 0 0;
+				color: #64748b;
+				font-size: 14px;
+				line-height: 1.45;
+				font-weight: 650;
+			}
+
+			.visit-analytics-average-note {
+				margin-top: 10px;
+				color: #475569;
+				font-size: 13px;
+				font-weight: 850;
+			}
+
+			.visit-analytics-big-number {
+				display: block;
+				margin-top: 22px;
+				color: #0f172a;
+				font-size: clamp(42px, 8vw, 64px);
+				line-height: 1;
+				font-weight: 950;
+				letter-spacing: -0.06em;
+			}
+
+			.analytics-line-chart {
+				margin-top: 22px;
+				width: 100%;
+				min-height: 210px;
+				border: 1px solid rgba(148, 163, 184, 0.16);
+				border-radius: 18px;
+				background: linear-gradient(180deg, #ffffff, #f8fbff);
+				padding: 14px;
+				overflow: hidden;
+			}
+
+			.analytics-line-chart .traffic-chart-svg {
+				width: 100%;
+				height: 180px;
+				min-height: 180px;
+				display: block;
+			}
+
+			.analytics-line-chart .traffic-empty-state {
+				min-height: 180px;
+				border-radius: 14px;
+			}
+
+			.visit-analytics-top-list {
+				display: grid;
+				gap: 10px;
+				margin-top: 18px;
+			}
+
+			.visit-analytics-top-row {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) minmax(90px, 42%) auto;
+				align-items: center;
+				gap: 12px;
+				min-height: 46px;
+				border-radius: 14px;
+				background: rgba(248, 250, 252, 0.9);
+				padding: 0 14px;
+				border: 1px solid rgba(148, 163, 184, 0.14);
+			}
+
+			.visit-analytics-rank {
+				color: #2563eb;
+				font-size: 14px;
+				font-weight: 950;
+			}
+
+			.visit-analytics-product-name {
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+				color: #0f172a;
+				font-size: 15px;
+				font-weight: 850;
+			}
+
+			.visit-analytics-product-count {
+				color: #475569;
+				font-size: 14px;
+				font-weight: 850;
+				white-space: nowrap;
+			}
+
+			.visit-analytics-product-bar {
+				height: 9px;
+				border-radius: 999px;
+				background: rgba(37, 99, 235, 0.12);
+				overflow: hidden;
+			}
+
+			.visit-analytics-product-bar span {
+				display: block;
+				height: 100%;
+				border-radius: inherit;
+				background: #2563eb;
+			}
+
+			.visit-analytics-empty {
+				margin-top: 18px;
+				border: 1px dashed rgba(148, 163, 184, 0.32);
+				border-radius: 14px;
+				padding: 18px;
+				color: #64748b;
+				text-align: center;
+				font-size: 14px;
+				font-weight: 700;
+				background: #ffffff;
+			}
+
+			.business-summary-card {
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 28px;
+				background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,251,255,0.96));
+				box-shadow: 0 22px 55px rgba(15, 23, 42, 0.07);
+				padding: 24px;
+				margin-top: 18px;
+			}
+
+			.business-summary-header {
+				margin-bottom: 18px;
+			}
+
+			.business-summary-kicker {
+				margin: 0 0 6px;
+				color: #2563eb;
+				font-size: 12px;
+				font-weight: 950;
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+			}
+
+			.business-summary-header h2 {
+				margin: 0;
+				color: #0f172a;
+				font-size: clamp(24px, 2vw, 32px);
+				font-weight: 950;
+				letter-spacing: -0.045em;
+			}
+
+			.business-summary-header p {
+				margin: 8px 0 0;
+				color: #64748b;
+				font-size: 15px;
+				line-height: 1.5;
+				font-weight: 650;
+			}
+
+			.business-summary-tabs {
+				display: flex;
+				gap: 10px;
+				overflow-x: auto;
+				max-width: 100%;
+				padding: 6px;
+				margin-bottom: 20px;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 18px;
+				background: rgba(248, 250, 252, 0.85);
+			}
+
+			.business-summary-tab {
+				min-height: 42px;
+				border: 0;
+				border-radius: 14px;
+				padding: 0 18px;
+				background: transparent;
+				color: #475569;
+				font-size: 14px;
+				font-weight: 900;
+				white-space: nowrap;
+				cursor: pointer;
+			}
+
+			.business-summary-tab.is-active {
+				background: #0f172a;
+				color: #ffffff;
+				box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+			}
+
+			.business-summary-panel {
+				display: none;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 22px;
+				background: #ffffff;
+				padding: 22px;
+			}
+
+			.business-summary-panel.is-active {
+				display: block;
+			}
+
+			.business-summary-panel-title {
+				margin: 0;
+				color: #0f172a;
+				font-size: 18px;
+				font-weight: 950;
+				letter-spacing: -0.025em;
+			}
+
+			.business-summary-panel-help {
+				margin: 6px 0 0;
+				color: #64748b;
+				font-size: 14px;
+				line-height: 1.45;
+				font-weight: 650;
+			}
+
+			.business-summary-big-number {
+				display: block;
+				margin-top: 22px;
+				color: #0f172a;
+				font-size: clamp(42px, 8vw, 64px);
+				line-height: 1;
+				font-weight: 950;
+				letter-spacing: -0.06em;
+			}
+
+			.business-line-chart {
+				margin-top: 22px;
+				width: 100%;
+				min-height: 210px;
+				border: 1px solid rgba(148, 163, 184, 0.16);
+				border-radius: 18px;
+				background: linear-gradient(180deg, #ffffff, #f8fbff);
+				padding: 14px;
+				overflow: hidden;
+			}
+
+			.business-line-chart .chart-svg {
+				width: 100%;
+				height: 180px;
+				min-height: 180px;
+				display: block;
+			}
+
+			.business-detail-list {
+				display: grid;
+				gap: 10px;
+				margin-top: 18px;
+			}
+
+			.business-detail-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				gap: 12px;
+				min-height: 42px;
+				border-radius: 14px;
+				background: rgba(248, 250, 252, 0.9);
+				padding: 0 14px;
+				border: 1px solid rgba(148, 163, 184, 0.14);
+			}
+
+			.business-detail-label {
+				color: #475569;
+				font-size: 14px;
+				font-weight: 800;
+			}
+
+			.business-detail-value {
+				color: #0f172a;
+				font-size: 14px;
+				font-weight: 950;
+				white-space: nowrap;
+			}
+
+			.business-empty-state {
+				margin-top: 18px;
+				border: 1px dashed rgba(148, 163, 184, 0.32);
+				border-radius: 14px;
+				padding: 18px;
+				color: #64748b;
+				text-align: center;
+				font-size: 14px;
+				font-weight: 700;
+				background: #ffffff;
+			}
+
 			.traffic-analytics-grid,
 			.dashboard-activity-grid {
 				display: grid;
-				grid-template-columns: repeat(2, minmax(0,1fr));
 				gap: 18px;
+			}
+
+			.traffic-analytics-grid {
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+				align-items: stretch;
 			}
 
 			.dashboard-activity-grid {
@@ -2287,6 +3005,21 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				gap: 14px;
 			}
 
+			.traffic-products-card {
+				min-height: 430px;
+				align-content: start;
+			}
+
+			.traffic-products-card .dashboard-mini-panel-head {
+				margin-bottom: 0;
+			}
+
+			.traffic-products-card .most-viewed-products-list {
+				margin-top: 8px;
+				grid-template-columns: 1fr;
+				gap: 8px;
+			}
+
 			.traffic-card-head,
 			.dashboard-mini-panel-head {
 				display: flex;
@@ -2300,6 +3033,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			.dashboard-mini-panel h3,
+			.traffic-products-card h3,
 			.traffic-card-footer h3 {
 				margin: 0;
 				color: #0f172a;
@@ -2308,6 +3042,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			.dashboard-mini-panel p,
+			.traffic-products-card p,
 			.traffic-card-footer p,
 			.mini-panel-meta {
 				margin: 5px 0 0;
@@ -2409,6 +3144,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			.recent-orders-list,
+			.most-viewed-products-list,
 			.expiration-products-list {
 				display: grid;
 				gap: 10px;
@@ -2452,14 +3188,50 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			@media (max-width: 1100px) {
-				.traffic-analytics-grid,
 				.dashboard-activity-grid,
 				.chart-grid-aligned {
 					grid-template-columns: 1fr;
 				}
+
+				.traffic-analytics-grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
 			}
 
 			@media (max-width: 720px) {
+				.traffic-analytics-grid {
+					grid-template-columns: 1fr;
+				}
+
+				.summary-period-head {
+					align-items: flex-start;
+					flex-direction: column;
+				}
+
+				.summary-period-card,
+				.visit-analytics-card,
+				.business-summary-card {
+					padding: 18px;
+					border-radius: 22px;
+				}
+
+				.visit-analytics-panel,
+				.business-summary-panel {
+					padding: 18px;
+				}
+
+				.business-detail-row {
+					align-items: flex-start;
+					flex-direction: column;
+					padding: 12px;
+				}
+
+				.visit-analytics-top-row {
+					grid-template-columns: 1fr;
+					gap: 8px;
+					padding: 12px;
+				}
+
 				.dashboard-hero-clean,
 				.dashboard-block-head,
 				.dashboard-traffic-head {
@@ -2498,67 +3270,138 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 							<p id="dashboard-subtitle" class="page-subtitle">Cargando resumen del negocio...</p>
 						</div>
 
-						<div class="dashboard-hero-date">
-							<span aria-hidden="true">Fecha</span>
-							<strong id="dashboard-date-pill">Hoy</strong>
+						<div class="bell-action-wrap">
+							<button type="button" class="bell-action-btn" id="admin-bell-btn" aria-label="Notificaciones" aria-expanded="false" aria-controls="admin-bell-dropdown">
+								<svg viewBox="0 0 24 24" aria-hidden="true">
+									<path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4.7-5.9V4a1.3 1.3 0 1 0-2.6 0v1.1A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+									<path d="M9 17a3 3 0 0 0 6 0" />
+								</svg>
+							</button>
+							<div class="bell-dropdown hidden" id="admin-bell-dropdown" role="dialog" aria-labelledby="admin-bell-title">
+								<h3 id="admin-bell-title">Notificaciones</h3>
+								<p>Aún no tienes notificaciones.</p>
+							</div>
 						</div>
 					</header>
 
-					<section class="dashboard-block dashboard-traffic-block" aria-labelledby="dashboard-traffic-title">
-						<div class="dashboard-block-head dashboard-traffic-head">
+					<section class="summary-period-card" aria-label="Periodo del resumen">
+						<div class="summary-period-head">
 							<div>
-								<h2 id="dashboard-traffic-title" class="dashboard-block-title">Analíticas de visitas</h2>
-								<p class="dashboard-block-subtitle">Visitas y visitantes activos de tu tienda pública.</p>
+								<h2>Periodo del resumen</h2>
+								<p>Este rango se aplica a todas las analíticas y métricas del panel.</p>
 							</div>
-
-							<div class="period-tabs" role="tablist" aria-label="Período de analíticas">
-								<span class="period-label">Período:</span>
-								<button class="period-btn active" type="button" data-range="7">7 días</button>
-								<button class="period-btn" type="button" data-range="15">15 días</button>
-								<button class="period-btn" type="button" data-range="30">1 mes</button>
-								<button class="period-btn" type="button" data-range="90">3 meses</button>
-								<button class="period-btn" type="button" data-range="180">6 meses</button>
-								<button class="period-btn" type="button" data-range="365">1 año</button>
-								<button class="period-btn" type="button" data-range="all">De por vida</button>
-							</div>
+							<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
 						</div>
 
-						<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
-
-						<div class="traffic-analytics-grid">
-							<article class="traffic-chart-card traffic-chart-card-blue">
-								<div class="traffic-card-head">
-									<div class="traffic-card-title-row">
-										<span class="traffic-card-icon blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg></span>
-										<div><p class="traffic-card-label">Visitas totales</p><strong id="traffic-visits-total">0</strong><p id="traffic-visits-average" class="traffic-average-inline">Promedio diario: 0</p></div>
-									</div>
-									<span class="traffic-card-info" aria-label="Visitas totales">i</span>
-								</div>
-								<div id="traffic-visits-chart" class="traffic-chart-box"></div>
-								<div class="traffic-card-footer"><span class="traffic-footer-icon blue" aria-hidden="true">i</span><div><h3>Resumen de visitas</h3><p>Información sobre las visitas en el período seleccionado y su promedio diario.</p></div></div>
-							</article>
-
-							<article class="traffic-chart-card traffic-chart-card-dark">
-								<div class="traffic-card-head">
-									<div class="traffic-card-title-row">
-										<span class="traffic-card-icon dark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5Z"/></svg></span>
-										<div><p class="traffic-card-label">Visitantes activos</p><strong id="traffic-visitors-total">0</strong><p id="traffic-visitors-average" class="traffic-average-inline">Promedio diario: 0</p></div>
-									</div>
-									<span class="traffic-card-info" aria-label="Visitantes activos">i</span>
-								</div>
-								<div id="traffic-visitors-chart" class="traffic-chart-box"></div>
-								<div class="traffic-card-footer"><span class="traffic-footer-icon dark" aria-hidden="true">i</span><div><h3>Resumen de visitantes activos</h3><p>Visitantes únicos diarios detectados en el período seleccionado.</p></div></div>
-							</article>
+						<div class="summary-period-actions period-tabs" role="tablist" aria-label="Período del resumen">
+							<button class="period-btn" type="button" data-range="1">Hoy</button>
+							<button class="period-btn active" type="button" data-range="7">7 días</button>
+							<button class="period-btn" type="button" data-range="15">15 días</button>
+							<button class="period-btn" type="button" data-range="30">1 mes</button>
+							<button class="period-btn" type="button" data-range="90">3 meses</button>
+							<button class="period-btn" type="button" data-range="180">6 meses</button>
+							<button class="period-btn" type="button" data-range="365">1 año</button>
+							<button class="period-btn" type="button" data-range="all">De por vida</button>
 						</div>
 					</section>
 
-					<section class="dashboard-block dashboard-business-block" aria-labelledby="dashboard-main-title"><div class="dashboard-block-head"><div><h2 id="dashboard-main-title" class="dashboard-block-title">Resumen del negocio</h2><p class="dashboard-block-subtitle">Información clave de tu tienda.</p></div></div><div class="analytics-card-grid analytics-card-grid-main" id="kpi-grid"><div class="card empty-state">Cargando métricas...</div></div></section>
+					<section class="visit-analytics-card dashboard-traffic-block" aria-labelledby="dashboard-traffic-title">
+						<div class="visit-analytics-header">
+							<p class="visit-analytics-kicker">Analíticas</p>
+							<h2 id="dashboard-traffic-title">Analíticas de visitas</h2>
+							<p>Revisa una métrica de navegación pública a la vez, según el periodo seleccionado.</p>
+						</div>
+
+						<div class="visit-analytics-toolbar">
+							<div class="visit-analytics-tabs" role="tablist" aria-label="Analíticas de visitas">
+								<button class="visit-analytics-tab is-active" type="button" data-analytics-tab="visitors" aria-selected="true">Visitantes del periodo</button>
+								<button class="visit-analytics-tab" type="button" data-analytics-tab="recurrent" aria-selected="false">Recurrentes</button>
+								<button class="visit-analytics-tab" type="button" data-analytics-tab="pageviews" aria-selected="false">Páginas vistas</button>
+								<button class="visit-analytics-tab" type="button" data-analytics-tab="products" aria-selected="false">Productos más vistos</button>
+							</div>
+						</div>
+
+						<div class="visit-analytics-panel is-active" data-analytics-panel="visitors">
+							<h3 class="visit-analytics-panel-title">Visitantes del periodo</h3>
+							<strong id="traffic-visits-total" class="visit-analytics-big-number">0</strong>
+							<p class="visit-analytics-panel-help">Clientes únicos que visitaron la tienda durante el periodo seleccionado.</p>
+							<p id="traffic-visits-average" class="visit-analytics-average-note">Promedio diario: 0</p>
+							<div id="traffic-visits-chart" class="analytics-line-chart"></div>
+						</div>
+
+						<div class="visit-analytics-panel" data-analytics-panel="recurrent">
+							<h3 class="visit-analytics-panel-title">Visitantes recurrentes</h3>
+							<strong id="traffic-visitors-total" class="visit-analytics-big-number">0</strong>
+							<p class="visit-analytics-panel-help">Clientes que volvieron a navegar más de una vez durante el periodo.</p>
+							<p id="traffic-visitors-average" class="visit-analytics-average-note">Promedio diario: 0</p>
+							<div id="traffic-visitors-chart" class="analytics-line-chart"></div>
+						</div>
+
+						<div class="visit-analytics-panel" data-analytics-panel="pageviews">
+							<h3 class="visit-analytics-panel-title">Páginas vistas</h3>
+							<strong id="traffic-pageviews-total" class="visit-analytics-big-number">0</strong>
+							<p class="visit-analytics-panel-help">Total de páginas públicas abiertas durante el periodo.</p>
+							<p id="traffic-pageviews-average" class="visit-analytics-average-note">Promedio diario: 0</p>
+							<div id="traffic-pageviews-chart" class="analytics-line-chart"></div>
+						</div>
+
+						<div class="visit-analytics-panel" data-analytics-panel="products">
+							<h3 class="visit-analytics-panel-title">Productos más vistos</h3>
+							<p class="visit-analytics-panel-help">Top de productos públicos visitados en el periodo.</p>
+							<div id="most-viewed-products-list" class="visit-analytics-top-list"></div>
+							<p id="most-viewed-products-meta" class="mini-panel-meta">Cargando...</p>
+						</div>
+					</section>
+
+					<section class="business-summary-card dashboard-business-block" aria-labelledby="dashboard-main-title">
+						<div class="business-summary-header">
+							<p class="business-summary-kicker">Resumen</p>
+							<h2 id="dashboard-main-title">Resumen del negocio</h2>
+							<p>Productos, ventas, ganancia estimada y pedidos del periodo seleccionado.</p>
+						</div>
+
+						<div class="business-summary-tabs" role="tablist" aria-label="Resumen del negocio">
+							<button class="business-summary-tab is-active" type="button" data-business-summary-tab="products" aria-selected="true">Productos</button>
+							<button class="business-summary-tab" type="button" data-business-summary-tab="sales" aria-selected="false">Ventas</button>
+							<button class="business-summary-tab" type="button" data-business-summary-tab="profit" aria-selected="false">Ganancia estimada</button>
+							<button class="business-summary-tab" type="button" data-business-summary-tab="orders" aria-selected="false">Pedidos</button>
+						</div>
+
+						<div class="business-summary-panel is-active" data-business-summary-panel="products">
+							<h3 class="business-summary-panel-title">Productos</h3>
+							<strong id="business-products-total" class="business-summary-big-number">0</strong>
+							<p class="business-summary-panel-help">Productos registrados en la tienda.</p>
+							<div id="business-products-details" class="business-detail-list">
+								<div class="business-empty-state">Cargando productos...</div>
+							</div>
+						</div>
+
+						<div class="business-summary-panel" data-business-summary-panel="sales">
+							<h3 class="business-summary-panel-title">Ventas</h3>
+							<strong id="business-sales-total" class="business-summary-big-number">0.00 USD</strong>
+							<p class="business-summary-panel-help">Total vendido durante el periodo seleccionado.</p>
+							<div id="business-sales-chart" class="business-line-chart"></div>
+						</div>
+
+						<div class="business-summary-panel" data-business-summary-panel="profit">
+							<h3 class="business-summary-panel-title">Ganancia estimada</h3>
+							<strong id="business-profit-total" class="business-summary-big-number">0.00 USD</strong>
+							<p class="business-summary-panel-help">Ganancia calculada según costos y ventas del periodo.</p>
+							<div id="business-profit-chart" class="business-line-chart"></div>
+						</div>
+
+						<div class="business-summary-panel" data-business-summary-panel="orders">
+							<h3 class="business-summary-panel-title">Pedidos</h3>
+							<strong id="business-orders-total" class="business-summary-big-number">0</strong>
+							<p class="business-summary-panel-help">Cantidad de pedidos recibidos durante el periodo.</p>
+							<div id="business-orders-chart" class="business-line-chart"></div>
+							<div id="business-orders-details" class="business-detail-list"></div>
+						</div>
+					</section>
 
 					<section class="dashboard-block dashboard-profit-control-block" aria-labelledby="dashboard-profit-title"><div class="dashboard-block-head"><div><h2 id="dashboard-profit-title" class="dashboard-block-title">Ganancia y control</h2><p class="dashboard-block-subtitle">Controla rentabilidad, envíos, vencimientos y stock.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminProfitsPath}><span class="pz-admin-btn__label">Ver detalle de ganancias</span></a></div><div class="analytics-card-grid analytics-card-grid-secondary" id="profit-kpi-grid"></div></section>
 
 					<section class="dashboard-block dashboard-activity-block" aria-labelledby="dashboard-activity-title"><div class="dashboard-block-head"><div><h2 id="dashboard-activity-title" class="dashboard-block-title">Actividad reciente</h2><p class="dashboard-block-subtitle">Últimos pedidos, productos destacados y estado general.</p></div></div><div class="dashboard-activity-grid"><article class="dashboard-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Pedidos recientes</h3><p>Últimos pedidos recibidos.</p></div><a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href={adminOrdersPath}><span class="pz-admin-btn__label">Ver todos</span></a></div><div id="recent-orders" class="recent-orders-list"></div></article><article class="dashboard-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Productos más vendidos</h3><p>Ranking del período seleccionado.</p></div><a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href={adminProductsPath}><span class="pz-admin-btn__label">Ver todos</span></a></div><p id="top-products-meta" class="mini-panel-meta">Cargando...</p><div id="top-products-list" class="top-products-list"></div></article><article class="dashboard-mini-panel dashboard-status-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Estado de pedidos</h3><p>Distribución del período.</p></div></div><div id="status-grid" class="status-grid dashboard-status-grid"></div></article></div></section>
-
-					<section class="dashboard-block dashboard-advanced-block" aria-labelledby="dashboard-charts-title"><div class="dashboard-block-head"><div><h2 id="dashboard-charts-title" class="dashboard-block-title">Movimiento del período</h2><p class="dashboard-block-subtitle">Gráficas separadas para ventas, pedidos y ganancia estimada.</p></div></div><div class="grid two-grid chart-grid-aligned"><div class="card chart-card"><div class="card-head"><div><div class="card-title-row"><span class="card-title-icon green"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v10H4V7Z" fill="currentColor" opacity="0.18"/><path d="M4 7h16v10H4V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10.5v3M10.5 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div><h3 class="card-title">Ventas</h3><p class="card-sub">Total vendido dentro del período seleccionado.</p></div></div></div><div id="sales-chart-meta" class="card-total">-</div></div><div id="sales-chart" class="chart-box"></div></div><div class="card chart-card"><div class="card-head"><div><div class="card-title-row"><span class="card-title-icon blue"><svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" fill="currentColor" opacity="0.18"/><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><div><h3 class="card-title">Pedidos</h3><p class="card-sub">Cantidad de pedidos por día o mes.</p></div></div></div><div id="orders-chart-meta" class="card-total">-</div></div><div id="orders-chart" class="chart-box"></div></div><div class="card chart-card"><div class="card-head"><div><div class="card-title-row"><span class="card-title-icon purple"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14v10H5V7Z" fill="currentColor" opacity="0.18"/><path d="M5 7h14v10H5V7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 14.5 11 11.5l2.2 2.2L16.8 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><h3 class="card-title">Ganancia</h3><p class="card-sub">Ganancia estimada solo de órdenes confirmadas o entregadas.</p></div></div></div><div id="profit-chart-meta" class="card-total">-</div></div><div id="profit-chart" class="chart-box"></div></div></div></section>
 
 					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>
 
@@ -2578,11 +3421,15 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
 			const rangeLabel = document.getElementById('range-label');
+			const adminBellBtn = document.getElementById('admin-bell-btn');
+			const adminBellDropdown = document.getElementById('admin-bell-dropdown');
 			const kpiGrid = document.getElementById('kpi-grid');
 			const profitKpiGrid = document.getElementById('profit-kpi-grid');
 			const recentOrders = document.getElementById('recent-orders');
 			const topProductsList = document.getElementById('top-products-list');
 			const topProductsMeta = document.getElementById('top-products-meta');
+			const mostViewedProductsList = document.getElementById('most-viewed-products-list');
+			const mostViewedProductsMeta = document.getElementById('most-viewed-products-meta');
 			const statusGrid = document.getElementById('status-grid');
 			const expirationProductsList = document.getElementById('expiration-products-list');
 			const expirationProductsMeta = document.getElementById('expiration-products-meta');
@@ -2594,17 +3441,33 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const salesChartMeta = document.getElementById('sales-chart-meta');
 			const ordersChartMeta = document.getElementById('orders-chart-meta');
 			const profitChartMeta = document.getElementById('profit-chart-meta');
+			const businessProductsTotal = document.getElementById('business-products-total');
+			const businessProductsDetails = document.getElementById('business-products-details');
+			const businessSalesTotal = document.getElementById('business-sales-total');
+			const businessProfitTotal = document.getElementById('business-profit-total');
+			const businessOrdersTotal = document.getElementById('business-orders-total');
+			const businessSalesChart = document.getElementById('business-sales-chart');
+			const businessProfitChart = document.getElementById('business-profit-chart');
+			const businessOrdersChart = document.getElementById('business-orders-chart');
+			const businessOrdersDetails = document.getElementById('business-orders-details');
 			const trafficVisitsTotal = document.getElementById('traffic-visits-total');
 			const trafficVisitorsTotal = document.getElementById('traffic-visitors-total');
+			const trafficPageviewsTotal = document.getElementById('traffic-pageviews-total');
 			const trafficVisitsAverage = document.getElementById('traffic-visits-average');
 			const trafficVisitorsAverage = document.getElementById('traffic-visitors-average');
+			const trafficPageviewsAverage = document.getElementById('traffic-pageviews-average');
 			const trafficVisitsChart = document.getElementById('traffic-visits-chart');
 			const trafficVisitorsChart = document.getElementById('traffic-visitors-chart');
+			const trafficPageviewsChart = document.getElementById('traffic-pageviews-chart');
 			const sidebar = document.querySelector('[data-admin-sidebar-root]');
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
 			const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
 			const periodButtons = Array.from(document.querySelectorAll('.period-btn'));
 			const expirationButtons = Array.from(document.querySelectorAll('.expiration-btn'));
+			const visitAnalyticsTabs = Array.from(document.querySelectorAll('.visit-analytics-tab'));
+			const visitAnalyticsPanels = Array.from(document.querySelectorAll('.visit-analytics-panel'));
+			const businessSummaryTabs = Array.from(document.querySelectorAll('[data-business-summary-tab]'));
+			const businessSummaryPanels = Array.from(document.querySelectorAll('[data-business-summary-panel]'));
 
 			let orders = [];
 			let orderItems = [];
@@ -2644,6 +3507,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			const rangeLabels = {
+				1: 'Hoy',
 				7: 'Últimos 7 días',
 				15: 'Últimos 15 días',
 				30: 'Último mes',
@@ -3080,9 +3944,12 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const grouped = new Map(days.map((day) => [day, {
 					day,
 					label: shortDayLabel(day),
-					visits: 0,
+					pageViews: 0,
 					visitors: new Set(),
+					visitorSessions: new Map(),
 				}]));
+				const periodVisitors = new Set();
+				const periodVisitorSessions = new Map();
 
 				analyticsEvents.forEach((event) => {
 					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
@@ -3091,31 +3958,48 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					const bucket = grouped.get(day);
 					if (!bucket) return;
 
-					bucket.visits += 1;
+					bucket.pageViews += 1;
 					const visitor = String(event.visitor_id || '').trim();
-					if (visitor) bucket.visitors.add(visitor);
+					const session = String(event.session_id || '').trim();
+					if (visitor) {
+						bucket.visitors.add(visitor);
+						periodVisitors.add(visitor);
+						if (!bucket.visitorSessions.has(visitor)) bucket.visitorSessions.set(visitor, new Set());
+						if (!periodVisitorSessions.has(visitor)) periodVisitorSessions.set(visitor, new Set());
+						bucket.visitorSessions.get(visitor).add(session || `legacy-${day}`);
+						periodVisitorSessions.get(visitor).add(session || `legacy-${day}`);
+					}
 				});
 
 				const series = days.map((day) => {
 					const bucket = grouped.get(day);
+					const recurrentVisitors = Array.from(bucket?.visitorSessions?.values() || [])
+						.filter((sessions) => sessions.size >= 2)
+						.length;
 					return {
 						day,
 						label: shortDayLabel(day),
-						visits: bucket?.visits || 0,
-						activeVisitors: bucket?.visitors?.size || 0,
+						pageViews: bucket?.pageViews || 0,
+						uniqueVisitors: bucket?.visitors?.size || 0,
+						recurrentVisitors,
 					};
 				});
 
-				const totalVisits = series.reduce((sum, item) => sum + item.visits, 0);
-				const totalActiveVisitors = series.reduce((sum, item) => sum + item.activeVisitors, 0);
+				const totalPageViews = series.reduce((sum, item) => sum + item.pageViews, 0);
+				const totalUniqueVisitors = periodVisitors.size;
+				const totalRecurrentVisitors = Array.from(periodVisitorSessions.values())
+					.filter((sessions) => sessions.size >= 2)
+					.length;
 				const divisor = Math.max(series.length, 1);
 
 				return {
 					series,
-					totalVisits,
-					totalActiveVisitors,
-					averageVisits: totalVisits / divisor,
-					averageActiveVisitors: totalActiveVisitors / divisor,
+					totalPageViews,
+					totalUniqueVisitors,
+					totalRecurrentVisitors,
+					averagePageViews: totalPageViews / divisor,
+					averageUniqueVisitors: series.reduce((sum, item) => sum + item.uniqueVisitors, 0) / divisor,
+					averageRecurrentVisitors: series.reduce((sum, item) => sum + item.recurrentVisitors, 0) / divisor,
 				};
 			}
 
@@ -3192,15 +4076,138 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			function renderTrafficAnalytics() {
 				const traffic = computeTrafficAnalytics();
 
-				if (trafficVisitsTotal) trafficVisitsTotal.textContent = String(traffic.totalVisits);
-				if (trafficVisitorsTotal) trafficVisitorsTotal.textContent = String(traffic.totalActiveVisitors);
-				if (trafficVisitsAverage) trafficVisitsAverage.innerHTML = `Promedio diario: <strong>${traffic.averageVisits.toFixed(1)}</strong>`;
-				if (trafficVisitorsAverage) trafficVisitorsAverage.innerHTML = `Promedio diario: <strong>${traffic.averageActiveVisitors.toFixed(1)}</strong>`;
-				if (trafficVisitsChart) trafficVisitsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'visits', '#2563eb', '#60a5fa');
-				if (trafficVisitorsChart) trafficVisitorsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'activeVisitors', '#0f172a', '#64748b');
+				if (trafficVisitsTotal) trafficVisitsTotal.textContent = String(traffic.totalUniqueVisitors);
+				if (trafficVisitorsTotal) trafficVisitorsTotal.textContent = String(traffic.totalRecurrentVisitors);
+				if (trafficPageviewsTotal) trafficPageviewsTotal.textContent = String(traffic.totalPageViews);
+				if (trafficVisitsAverage) trafficVisitsAverage.innerHTML = `Promedio diario: <strong>${traffic.averageUniqueVisitors.toFixed(1)}</strong>`;
+				if (trafficVisitorsAverage) trafficVisitorsAverage.innerHTML = `Promedio diario: <strong>${traffic.averageRecurrentVisitors.toFixed(1)}</strong>`;
+				if (trafficPageviewsAverage) trafficPageviewsAverage.innerHTML = `Promedio diario: <strong>${traffic.averagePageViews.toFixed(1)}</strong>`;
+				if (trafficVisitsChart) trafficVisitsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'uniqueVisitors', '#2563eb', '#60a5fa');
+				if (trafficVisitorsChart) trafficVisitorsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'recurrentVisitors', '#0f172a', '#64748b');
+				if (trafficPageviewsChart) trafficPageviewsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'pageViews', '#2563eb', '#60a5fa');
+			}
+
+			function getAnalyticsEventsForSelectedRange() {
+				const days = getAnalyticsRangeDays();
+				const daySet = new Set(days);
+
+				return analyticsEvents.filter((event) => {
+					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
+					return daySet.has(day);
+				});
+			}
+
+			function getProductNameById(productId) {
+				const product = products.find((item) => String(item.id || '') === String(productId || ''));
+				return product?.name || product?.title || 'Producto sin nombre';
+			}
+
+			function getMostViewedProducts() {
+				const counts = new Map();
+
+				getAnalyticsEventsForSelectedRange().forEach((event) => {
+					const pageType = String(event.page_type || '').trim().toLowerCase();
+					const eventType = String(event.event_type || 'pageview').trim().toLowerCase();
+					if (pageType !== 'product' || eventType !== 'pageview') return;
+
+					const productId = String(event.entity_id || event.page_id || '').trim();
+					if (!productId) return;
+
+					const current = counts.get(productId) || { productId, name: getProductNameById(productId), views: 0 };
+					current.views += 1;
+					counts.set(productId, current);
+				});
+
+				return Array.from(counts.values())
+					.sort((a, b) => b.views - a.views || a.name.localeCompare(b.name))
+					.slice(0, 5);
+			}
+
+			function renderMostViewedProducts() {
+				if (!mostViewedProductsList || !mostViewedProductsMeta) return;
+				const mostViewed = getMostViewedProducts();
+				const totalViews = mostViewed.reduce((sum, item) => sum + Number(item.views || 0), 0);
+				mostViewedProductsMeta.textContent = totalViews ? `${totalViews} vista${totalViews === 1 ? '' : 's'} registradas en productos.` : '';
+
+				if (!mostViewed.length) {
+					mostViewedProductsList.innerHTML = '<div class="visit-analytics-empty">Todavía no hay productos vistos en este periodo.</div>';
+					return;
+				}
+
+				const maxViews = Math.max(...mostViewed.map((product) => Number(product.views || 0)), 1);
+				mostViewedProductsList.innerHTML = mostViewed.map((product, index) => {
+					const viewsText = `${product.views} vista${product.views === 1 ? '' : 's'}`;
+					const width = Math.max(6, Math.round((Number(product.views || 0) / maxViews) * 100));
+					return `
+						<div class="visit-analytics-top-row">
+							<span class="visit-analytics-product-name">${index + 1}. ${escapeHtml(product.name)}</span>
+							<span class="visit-analytics-product-bar" aria-hidden="true"><span style="width: ${width}%"></span></span>
+							<span class="visit-analytics-product-count">${escapeHtml(viewsText)}</span>
+						</div>
+					`;
+				}).join('');
+			}
+
+			function renderBusinessDetailRows(container, rows, emptyText = 'Sin datos suficientes') {
+				if (!container) return;
+				const validRows = rows.filter((row) => row && row.label);
+				if (!validRows.length) {
+					container.innerHTML = `<div class="business-empty-state">${escapeHtml(emptyText)}</div>`;
+					return;
+				}
+
+				container.innerHTML = validRows.map((row) => `
+					<div class="business-detail-row">
+						<span class="business-detail-label">${escapeHtml(row.label)}</span>
+						<span class="business-detail-value">${escapeHtml(row.value)}</span>
+					</div>
+				`).join('');
+			}
+
+			function renderBusinessSummary(metrics) {
+				if (businessProductsTotal) businessProductsTotal.textContent = String(products.length);
+				if (businessSalesTotal) businessSalesTotal.textContent = formatUSD(metrics.totalSales);
+				if (businessProfitTotal) businessProfitTotal.textContent = formatUSD(metrics.totalProfit);
+				if (businessOrdersTotal) businessOrdersTotal.textContent = String(metrics.filteredOrders.length);
+
+				const hasVariationField = products.some((product) => Object.prototype.hasOwnProperty.call(product, 'has_variations'));
+				const productsWithStockField = products.filter((product) => Object.prototype.hasOwnProperty.call(product, 'stock'));
+				const productRows = [
+					{ label: 'Registrados', value: products.length },
+				];
+
+				if (hasVariationField) {
+					productRows.push({
+						label: 'Con variaciones',
+						value: products.filter((product) => Boolean(product.has_variations)).length,
+					});
+				}
+
+				if (productsWithStockField.length) {
+					productRows.push({
+						label: 'Sin stock',
+						value: productsWithStockField.filter((product) => Number(product.stock || 0) <= 0).length,
+					});
+				}
+
+				renderBusinessDetailRows(businessProductsDetails, productRows, 'Todavía no hay productos registrados.');
+
+				const series = getChartSeries(metrics.filteredOrders, metrics.profitByOrder);
+				if (businessSalesChart) businessSalesChart.innerHTML = createChartMarkup(series, 'sales', '#2563eb', '#3b82f6', 'business-chart');
+				if (businessProfitChart) businessProfitChart.innerHTML = createChartMarkup(series, 'profit', '#2563eb', '#3b82f6', 'business-chart');
+				if (businessOrdersChart) businessOrdersChart.innerHTML = createChartMarkup(series, 'count', '#2563eb', '#3b82f6', 'business-chart');
+
+				const orderRows = ['pending', 'confirmed', 'preparing', 'delivered', 'cancelled']
+					.filter((status) => Number(metrics.statusCounts[status] || 0) > 0)
+					.map((status) => ({
+						label: statusLabels[status] || status,
+						value: metrics.statusCounts[status] || 0,
+					}));
+				renderBusinessDetailRows(businessOrdersDetails, orderRows, 'Sin pedidos en este periodo.');
 			}
 
 			function renderKpis(metrics) {
+				renderBusinessSummary(metrics);
 				const expirationSummary = getOneMonthExpirationSummary();
 				const expirationMeta = expirationSummary.validCount
 					? 'Productos con vencimiento en 30 días o menos.'
@@ -3220,7 +4227,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const metaStyle = 'position:relative;z-index:1;margin-top:6px;font-size:13px;line-height:1.42;color:#64748b;font-weight:520;';
 				const kpiActionStyle = 'position:relative;z-index:3;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;width:max-content;max-width:100%;margin-top:14px;margin-left:auto;padding:0 16px 0 17px;border-radius:999px;background:linear-gradient(135deg,#ef4444 0%,#dc2626 54%,#991b1b 100%);color:#fff!important;font-size:12px;font-weight:950;letter-spacing:-.01em;text-decoration:none!important;box-shadow:0 18px 34px rgba(220,38,38,.30),0 0 0 4px rgba(254,226,226,.86),inset 0 1px 0 rgba(255,255,255,.28);white-space:nowrap;overflow:hidden;';
 
-				kpiGrid.innerHTML = `
+				if (kpiGrid) {
+					kpiGrid.innerHTML = `
 					<div class="metric-card metric-green" style="${cardStyle}">
 						<div style="${topStyle}">
 							<div class="metric-icon" style="${iconStyle}">${icons.money}</div>
@@ -3250,17 +4258,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<div style="${valueStyle}"><strong style="font-weight:700;">${metrics.filteredOrders.length}</strong></div>
 						<div style="${metaStyle}">Órdenes creadas en el período seleccionado.</div>
 					</div>
-
-					<div class="metric-card metric-purple" style="${cardStyle}">
-						<div style="${topStyle}">
-							<div class="metric-icon" style="${iconStyle}">${icons.target}</div>
-							<span class="metric-badge" style="${badgeStyle}">AVG</span>
-						</div>
-						<div style="${labelStyle}">Ticket promedio</div>
-						<div style="${valueStyle}"><strong style="font-weight:700;">${escapeHtml(formatUSD(metrics.averageTicket))}</strong></div>
-						<div style="${metaStyle}">Promedio calculado por pedido.</div>
-					</div>
 				`;
+				}
 
 				profitKpiGrid.innerHTML = `
 					<div class="metric-card metric-dark" style="${cardStyle}">
@@ -3297,7 +4296,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 			}
 
-			function createChartMarkup(points, field, strokeColor, fillColor) {
+			function createChartMarkup(points, field, strokeColor, fillColor, chartIdPrefix = 'chart') {
 				if (!points.length || points.every((point) => Number(point[field] || 0) === 0)) {
 					return '<div class="empty-chart">Todavía no hay suficientes datos para mostrar esta gráfica.</div>';
 				}
@@ -3333,7 +4332,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 				const linePath = buildSmoothPath(coords);
 				const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${height - paddingBottom} L ${coords[0].x} ${height - paddingBottom} Z`;
-				const gradientId = `chart-${field}-${selectedRange}`;
+				const gradientId = `${chartIdPrefix}-${field}-${selectedRange}`;
 				const grid = field === 'count'
 					? Array.from({ length: Math.min(Math.ceil(maxValue), 4) + 1 }, (_, index) => {
 						const topValue = Math.max(Math.ceil(maxValue), 1);
@@ -3378,6 +4377,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function renderCharts(metrics) {
+				if (!salesChart || !ordersChart || !profitChart || !salesChartMeta || !ordersChartMeta || !profitChartMeta) return;
 				const series = getChartSeries(metrics.filteredOrders, metrics.profitByOrder);
 				const totalSales = series.reduce((sum, item) => sum + Number(item.sales || 0), 0);
 				const totalOrders = series.reduce((sum, item) => sum + Number(item.count || 0), 0);
@@ -3608,6 +4608,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				renderKpis(metrics);
 				renderCharts(metrics);
 				renderTopProducts(metrics);
+				renderMostViewedProducts();
 				renderRecentOrders(metrics);
 				renderExpirationProducts();
 				renderStatusGrid(metrics);
@@ -3615,9 +4616,15 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			async function loadDashboardData() {
-				kpiGrid.innerHTML = '<div class="card empty-state">Cargando métricas...</div>';
-				profitKpiGrid.innerHTML = '<div class="card empty-state">Cargando control...</div>';
+				if (businessProductsDetails) businessProductsDetails.innerHTML = '<div class="business-empty-state">Cargando productos...</div>';
+				if (businessSalesChart) businessSalesChart.innerHTML = '<div class="business-empty-state">Cargando ventas...</div>';
+				if (businessProfitChart) businessProfitChart.innerHTML = '<div class="business-empty-state">Cargando ganancia estimada...</div>';
+				if (businessOrdersChart) businessOrdersChart.innerHTML = '<div class="business-empty-state">Cargando pedidos...</div>';
+				if (kpiGrid) kpiGrid.innerHTML = '<div class="card empty-state">Cargando métricas...</div>';
+				if (profitKpiGrid) profitKpiGrid.innerHTML = '<div class="card empty-state">Cargando control...</div>';
 				topProductsList.innerHTML = '<div class="empty-state">Cargando productos más vendidos...</div>';
+				if (mostViewedProductsList) mostViewedProductsList.innerHTML = '<div class="empty-state">Cargando productos más vistos...</div>';
+				if (mostViewedProductsMeta) mostViewedProductsMeta.textContent = 'Cargando...';
 				recentOrders.innerHTML = '<div class="empty-state">Cargando pedidos recientes...</div>';
 				statusGrid.innerHTML = '<div class="empty-state">Cargando estados...</div>';
 				if (ratingSummaryGrid) ratingSummaryGrid.innerHTML = '<div class="empty-state">Cargando rating y reseñas...</div>';
@@ -3655,6 +4662,54 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}
 			}
 
+			function closeBellDropdown() {
+				adminBellDropdown?.classList.add('hidden');
+				adminBellBtn?.setAttribute('aria-expanded', 'false');
+			}
+
+			adminBellBtn?.addEventListener('click', (event) => {
+				event.stopPropagation();
+				const isHidden = adminBellDropdown?.classList.contains('hidden') ?? true;
+				adminBellDropdown?.classList.toggle('hidden', !isHidden);
+				adminBellBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+			});
+
+			document.addEventListener('click', (event) => {
+				if (!adminBellDropdown || !adminBellBtn) return;
+				const target = event.target;
+				if (!(target instanceof Node)) return;
+				if (adminBellDropdown.contains(target) || adminBellBtn.contains(target)) return;
+				closeBellDropdown();
+			});
+
+			visitAnalyticsTabs.forEach((button) => {
+				button.addEventListener('click', () => {
+					const target = button.dataset.analyticsTab || '';
+					visitAnalyticsTabs.forEach((item) => {
+						const isActive = item === button;
+						item.classList.toggle('is-active', isActive);
+						item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+					});
+					visitAnalyticsPanels.forEach((panel) => {
+						panel.classList.toggle('is-active', panel.dataset.analyticsPanel === target);
+					});
+				});
+			});
+
+			businessSummaryTabs.forEach((button) => {
+				button.addEventListener('click', () => {
+					const target = button.dataset.businessSummaryTab || '';
+					businessSummaryTabs.forEach((item) => {
+						const isActive = item === button;
+						item.classList.toggle('is-active', isActive);
+						item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+					});
+					businessSummaryPanels.forEach((panel) => {
+						panel.classList.toggle('is-active', panel.dataset.businessSummaryPanel === target);
+					});
+				});
+			});
+
 			periodButtons.forEach((button) => {
 				button.addEventListener('click', () => {
 					selectedRange = button.dataset.range || '7';
@@ -3672,7 +4727,10 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			});
 			sidebarOverlay?.addEventListener('click', closeSidebar);
 			document.addEventListener('keydown', (event) => {
-				if (event.key === 'Escape') closeSidebar();
+				if (event.key === 'Escape') {
+					closeSidebar();
+					closeBellDropdown();
+				}
 			});
 			sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', closeSidebar));
 
@@ -3688,16 +4746,19 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			});
 			if (!POCKETBASE_URL) {
 				showAdmin();
-				kpiGrid.innerHTML = '<div class="card empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
+				if (businessProductsDetails) businessProductsDetails.innerHTML = '<div class="business-empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
+				if (kpiGrid) kpiGrid.innerHTML = '<div class="card empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
 			} else if (getAdminToken()) {
 				showAdmin();
 				loadDashboardData().catch((error) => {
 					console.error(error);
-					kpiGrid.innerHTML = '<div class="card empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
+					if (businessProductsDetails) businessProductsDetails.innerHTML = '<div class="business-empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
+					if (kpiGrid) kpiGrid.innerHTML = '<div class="card empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
 				});
 			} else {
 				showAdmin();
-				kpiGrid.innerHTML = '<div class="card empty-state">No se pudo validar la sesión administrativa.</div>';
+				if (businessProductsDetails) businessProductsDetails.innerHTML = '<div class="business-empty-state">No se pudo validar la sesión administrativa.</div>';
+				if (kpiGrid) kpiGrid.innerHTML = '<div class="card empty-state">No se pudo validar la sesión administrativa.</div>';
 			}
 		</script>
 	</body>
