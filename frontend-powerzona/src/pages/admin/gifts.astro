@@ -4,6 +4,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -274,7 +275,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .mini-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
       .gift-menu-wrap { position: relative; }
       .gift-menu {
-        position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 160px; padding: 7px; border-radius: 16px;
+        position: absolute; right: 0; top: calc(100% + 8px); z-index: 10040; min-width: 190px; padding: 7px; border-radius: 16px;
         background: #fff; border: 1px solid #e2e8f0; box-shadow: 0 20px 44px rgba(15,23,42,.16); display: none;
       }
       .gift-menu.open { display: grid; gap: 4px; }

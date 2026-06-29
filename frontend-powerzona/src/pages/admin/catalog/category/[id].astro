@@ -6,6 +6,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../../../lib/adminRout
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
+import '../../../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const categoryId = Astro.params.id;

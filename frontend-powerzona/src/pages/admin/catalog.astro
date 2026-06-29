@@ -4,6 +4,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
