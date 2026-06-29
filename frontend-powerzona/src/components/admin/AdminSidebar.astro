@@ -343,9 +343,11 @@ const marketingVisualSubClass = (subsection: string) => {
     loadNotifications,
     loadUnreadNotificationCount,
     markNotificationRead,
+    archiveNotification,
     markAllNotificationsRead,
     ensureStoreNotification,
     ensureStoreNotificationAnyStatus,
+    findStoreNotificationAnyStatus,
   } from '../../lib/adminNotifications.js';
 
   (() => {
@@ -418,6 +420,17 @@ const marketingVisualSubClass = (subsection: string) => {
       return 'i';
     }
 
+    function getOrderNotificationUrl(item) {
+      const entityCollection = String(item?.entityCollection || item?.raw?.entity_collection || '');
+      const entityId = String(item?.entityId || item?.raw?.entity_id || '');
+
+      if (entityCollection === 'orders' && entityId) {
+        return `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(entityId)}`;
+      }
+
+      return String(item?.targetUrl || '');
+    }
+
     function render(items) {
       if (!items.length) {
         list.innerHTML = '<p class="pz-admin-notifications-empty">No hay notificaciones nuevas.</p>';
@@ -425,12 +438,14 @@ const marketingVisualSubClass = (subsection: string) => {
       }
       list.innerHTML = items.map((item) => {
         const unreadClass = item.status === 'unread' ? ' is-unread' : '';
-        const openAction = item.targetUrl
-          ? `<a href="${escapeHtml(item.targetUrl)}" data-pz-notification-open="${escapeHtml(item.id)}">Abrir</a>`
+        const openUrl = getOrderNotificationUrl(item);
+        const openAction = openUrl
+          ? `<a href="${escapeHtml(openUrl)}" data-pz-notification-open="${escapeHtml(item.id)}">Abrir</a>`
           : '';
         const readAction = item.status === 'unread'
           ? `<button type="button" data-pz-notification-read="${escapeHtml(item.id)}">Marcar leida</button>`
           : '';
+        const archiveAction = `<button type="button" class="pz-admin-notification-delete" data-pz-notification-archive="${escapeHtml(item.id)}" aria-label="Eliminar notificacion">Eliminar</button>`;
         return `
           <article class="pz-admin-notification-item${unreadClass}" data-pz-notification-id="${escapeHtml(item.id)}">
             <span class="pz-admin-notification-icon" aria-hidden="true">${escapeHtml(iconFor(item.type))}</span>
@@ -438,19 +453,21 @@ const marketingVisualSubClass = (subsection: string) => {
               <h3 class="pz-admin-notification-title">${escapeHtml(item.title)}</h3>
               <p class="pz-admin-notification-message">${escapeHtml(item.message)}</p>
               <p class="pz-admin-notification-time">${escapeHtml(timeAgo(item.created))}</p>
-              <div class="pz-admin-notification-actions">${openAction}${readAction}</div>
+              <div class="pz-admin-notification-actions">${openAction}${readAction}${archiveAction}</div>
             </div>
           </article>
         `;
       }).join('');
     }
 
-    async function loadAll({ detectPending = false } = {}) {
+    async function loadAll({ detectNewOrders = false, detectPending = false } = {}) {
       if (isLoading) return;
       isLoading = true;
       try {
-        if (detectPending) {
+        if (detectNewOrders || detectPending) {
           await detectMissingNewOrderNotifications();
+        }
+        if (detectPending) {
           await detectPendingOrders();
         }
         const [items, unreadCount] = await Promise.all([
@@ -482,8 +499,19 @@ const marketingVisualSubClass = (subsection: string) => {
         const filter = encodeURIComponent(`store="${escapeFilterValue(storeId)}" && status="pending" && created <= "${cutoff}"`);
         const result = await api(`/api/collections/orders/records?filter=${filter}&sort=created&perPage=50`);
         const orders = result.items || [];
-        await Promise.all(orders.map((order) => {
+        await Promise.all(orders.map(async (order) => {
+          const existingNewOrderNotification = await findStoreNotificationAnyStatus({
+            pb,
+            storeId,
+            type: 'new_order',
+            entityCollection: 'orders',
+            entityId: order.id,
+          });
+
+          if (existingNewOrderNotification) return null;
+
           const orderNumber = order.order_number || order.id;
+
           return ensureStoreNotification({
             pb,
             storeId,
@@ -493,7 +521,7 @@ const marketingVisualSubClass = (subsection: string) => {
             title: 'Pedido pendiente sin atender',
             message: `Pedido #${orderNumber} lleva mas de ${hours} horas pendiente.`,
             priority: 'important',
-            targetUrl: `${ordersPath}?order=${encodeURIComponent(order.id)}`,
+            targetUrl: `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(order.id)}`,
             metadata: { order_number: order.order_number || '', hours },
           });
         }));
@@ -526,7 +554,7 @@ const marketingVisualSubClass = (subsection: string) => {
             title: 'Nuevo pedido recibido',
             message: `Pedido #${orderNumber} por ${customerName}`,
             priority: 'important',
-            targetUrl: `${ordersPath}?order=${encodeURIComponent(order.id)}`,
+            targetUrl: `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(order.id)}`,
             metadata: {
               order_number: order.order_number || '',
               customer_name: customerName,
@@ -560,7 +588,9 @@ const marketingVisualSubClass = (subsection: string) => {
       panel.classList.remove('hidden');
       panel.setAttribute('aria-hidden', 'false');
       setButtonsExpanded(true);
-      loadAll({ detectPending: true });
+      loadAll({ detectNewOrders: true, detectPending: true }).catch((error) => {
+        console.warn('PZ notifications open refresh failed.', error);
+      });
     }
 
     function closePanel() {
@@ -586,10 +616,15 @@ const marketingVisualSubClass = (subsection: string) => {
     list.addEventListener('click', async (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const readButton = target?.closest('[data-pz-notification-read]');
+      const archiveButton = target?.closest('[data-pz-notification-archive]');
       const openLink = target?.closest('[data-pz-notification-open]');
       if (readButton) {
         event.preventDefault();
         await markNotificationRead({ pb, notificationId: readButton.getAttribute('data-pz-notification-read') || '' });
+        await loadAll();
+      } else if (archiveButton) {
+        event.preventDefault();
+        await archiveNotification({ pb, notificationId: archiveButton.getAttribute('data-pz-notification-archive') || '' });
         await loadAll();
       } else if (openLink) {
         await markNotificationRead({ pb, notificationId: openLink.getAttribute('data-pz-notification-open') || '' });
@@ -607,9 +642,20 @@ const marketingVisualSubClass = (subsection: string) => {
     window.addEventListener('resize', () => {
       if (isOpen) positionPanel(document.querySelector('[data-pz-admin-notification-trigger][aria-expanded="true"]'));
     });
+    window.addEventListener('focus', () => {
+      loadAll({ detectNewOrders: true, detectPending: true }).catch((error) => {
+        console.warn('PZ notifications focus refresh failed.', error);
+      });
+    });
 
-    loadAll({ detectPending: true });
-    window.setInterval(() => loadAll(), 60000);
+    loadAll({ detectNewOrders: true, detectPending: true }).catch((error) => {
+      console.warn('PZ notifications initial refresh failed.', error);
+    });
+    window.setInterval(() => {
+      loadAll({ detectNewOrders: true, detectPending: false }).catch((error) => {
+        console.warn('PZ notifications refresh failed.', error);
+      });
+    }, 30000);
   })();
 </script>
 
@@ -1918,6 +1964,12 @@ const marketingVisualSubClass = (subsection: string) => {
     font-size: 11px !important;
     font-weight: 1000 !important;
     text-decoration: none !important;
+  }
+
+  .pz-admin-notification-actions .pz-admin-notification-delete {
+    border-color: #fee2e2 !important;
+    color: #dc2626 !important;
+    background: #fff7f7 !important;
   }
 
   .admin-header-actions .primary-blue-btn,

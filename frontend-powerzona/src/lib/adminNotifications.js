@@ -98,7 +98,7 @@ export function normalizeNotification(record) {
 export async function loadNotifications({ pb, storeId, limit = 12 }) {
   try {
     const store = escapeFilterValue(storeId);
-    const result = await collectionList(pb, `store="${store}"`, {
+    const result = await collectionList(pb, `store="${store}" && status!="archived"`, {
       page: 1,
       perPage: limit,
       sort: '-created',
@@ -133,6 +133,19 @@ export async function markNotificationRead({ pb, notificationId }) {
     }));
   } catch (error) {
     console.warn('Could not mark notification as read.', error);
+    return null;
+  }
+}
+
+export async function archiveNotification({ pb, notificationId }) {
+  try {
+    if (!notificationId) return null;
+    return normalizeNotification(await collectionUpdate(pb, notificationId, {
+      status: 'archived',
+      read_at: new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.warn('Could not archive notification.', error);
     return null;
   }
 }
@@ -216,14 +229,20 @@ export async function ensureStoreNotification({
       metadata,
     });
 
-    const filter = [
+    const baseFilterParts = [
       `store="${escapeFilterValue(storeId)}"`,
       `type="${escapeFilterValue(type)}"`,
       `entity_collection="${escapeFilterValue(entityCollection)}"`,
       `entity_id="${escapeFilterValue(entityId)}"`,
-      'status="unread"',
-    ].join(' && ');
-    const existing = await collectionList(pb, filter, { page: 1, perPage: 1, sort: '-created' });
+    ];
+
+    const archivedFilter = baseFilterParts.concat('status="archived"').join(' && ');
+    const archived = await collectionList(pb, archivedFilter, { page: 1, perPage: 1, sort: '-updated' });
+    const archivedCurrent = (archived.items || [])[0];
+    if (archivedCurrent) return normalizeNotification(archivedCurrent);
+
+    const unreadFilter = baseFilterParts.concat('status="unread"').join(' && ');
+    const existing = await collectionList(pb, unreadFilter, { page: 1, perPage: 1, sort: '-created' });
     const current = (existing.items || [])[0];
     if (current) return normalizeNotification(current);
     return createStoreNotification({
@@ -302,6 +321,37 @@ export async function ensureStoreNotificationAnyStatus({
     });
   } catch (error) {
     console.warn('Could not ensure store notification by any status.', error);
+    return null;
+  }
+}
+
+export async function findStoreNotificationAnyStatus({
+  pb,
+  storeId,
+  type,
+  entityCollection = '',
+  entityId = '',
+}) {
+  try {
+    if (!storeId || !type || !entityCollection || !entityId) return null;
+
+    const filter = [
+      `store="${escapeFilterValue(storeId)}"`,
+      `type="${escapeFilterValue(type)}"`,
+      `entity_collection="${escapeFilterValue(entityCollection)}"`,
+      `entity_id="${escapeFilterValue(entityId)}"`,
+    ].join(' && ');
+
+    const existing = await collectionList(pb, filter, {
+      page: 1,
+      perPage: 1,
+      sort: '-created',
+    });
+
+    const current = (existing.items || [])[0];
+    return current ? normalizeNotification(current) : null;
+  } catch (error) {
+    console.warn('Could not find store notification by any status.', error);
     return null;
   }
 }

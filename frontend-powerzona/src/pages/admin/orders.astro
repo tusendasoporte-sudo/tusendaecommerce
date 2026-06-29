@@ -30,7 +30,8 @@ const masterSupportHref = masterSupportWhatsapp
   ? `https://wa.me/${masterSupportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
   : (masterSupportEmail ? `mailto:${masterSupportEmail}?subject=${encodeURIComponent('Soporte Pedidos Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte Tu Senda 84';
-const initialOrderId = String(Astro.params.id || '').trim();
+const orderQueryId = String(Astro.url.searchParams.get('order') || '').trim();
+const initialOrderId = String(Astro.params.id || orderQueryId || '').trim();
 const isOrderDetailPage = Boolean(initialOrderId);
 ---
 

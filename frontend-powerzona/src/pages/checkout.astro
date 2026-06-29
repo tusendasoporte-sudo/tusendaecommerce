@@ -1839,32 +1839,86 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		async function createNewOrderNotification({ order, checkoutData, settings }) {
 			try {
-				if (!order?.id || !CURRENT_STORE_ID) return;
-				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
+				if (!order?.id || !CURRENT_STORE_ID) {
+					console.warn('PZ new_order notification skipped: missing order or store.', {
+						orderId: order?.id || '',
+						storeId: CURRENT_STORE_ID || '',
+					});
+					return;
+				}
+
+				if (!POCKETBASE_URL) {
+					console.warn('PZ new_order notification skipped: missing PocketBase URL.', {
+						orderId: order.id,
+						storeId: CURRENT_STORE_ID,
+					});
+					return;
+				}
+
+				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) {
+					console.info('PZ new_order notification skipped by settings.', {
+						notifications_enabled: settings?.notifications_enabled,
+						notify_new_order: settings?.notify_new_order,
+					});
+					return;
+				}
 
 				const orderNumber = order.order_number || order.id;
-				const customerName = checkoutData?.customer_name || 'cliente';
-				await pocketbaseRequest('store_notifications', {
+				const customerName =
+					checkoutData?.customer_name
+					|| checkoutData?.name
+					|| order.customer_name
+					|| order.name
+					|| 'cliente';
+				const payload = {
 					store: CURRENT_STORE_ID,
 					type: 'new_order',
 					title: 'Nuevo pedido recibido',
 					message: `Pedido #${orderNumber} por ${customerName}`,
 					status: 'unread',
 					priority: 'important',
-					target_url: `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/admin/orders?order=${encodeURIComponent(order.id)}`,
+					target_url: `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/admin/orders/${encodeURIComponent(order.id)}`,
 					entity_collection: 'orders',
 					entity_id: order.id,
 					metadata_json: {
 						order_number: order.order_number || '',
 						customer_name: customerName,
 					},
+				};
+
+				console.info('PZ creating new_order notification.', payload);
+
+				const response = await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(payload),
+				});
+
+				const result = await response.json().catch(() => null);
+
+				if (!response.ok) {
+					console.warn('PZ new_order notification POST failed.', {
+						status: response.status,
+						result,
+						payload,
+					});
+					return;
+				}
+
+				console.info('PZ new_order notification created.', {
+					orderId: order.id,
+					orderNumber,
 				});
 			} catch (error) {
-				console.warn('No se pudo crear la notificacion de pedido nuevo.', {
+				console.warn('PZ failed to create new_order notification.', {
 					orderId: order?.id || '',
 					storeId: CURRENT_STORE_ID || '',
 					error,
 				});
+
+				if (error?.response) {
+					console.warn('PZ new_order PocketBase response.', error.response);
+				}
 			}
 		}
 
