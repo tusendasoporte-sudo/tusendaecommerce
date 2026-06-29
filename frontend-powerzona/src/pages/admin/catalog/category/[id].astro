@@ -5,6 +5,7 @@ import { refreshAuthFromCookie } from '../../../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const categoryId = Astro.params.id;
@@ -881,22 +882,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             mobileBackLabel="Volver a Categorías"
           />
     <div class="app-shell pz-admin-content">
-      <header class="topbar editor-topbar">
-        <div class="topbar-left editor-heading">
-          <a class="square-back" href={adminCatalogPath} aria-label="Volver a categorías">←</a>
-          <div>
-            <h1 class="page-title">Editar categoría</h1>
-            <p class="breadcrumb">Categorías &gt; Editar categoría &gt; <span id="breadcrumb-category-name">Cargando...</span></p>
-          </div>
-        </div>
-        <div class="topbar-actions">
-          <button id="admin-notifications-btn" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
-            <span class="notifications-dot" aria-hidden="true"></span>
-          </button>
-          <button class="primary-blue-btn" type="submit" form="category-form">Guardar cambios</button>
-        </div>
-      </header>
+      <div class="editor-section-nav">
+        <a class="square-back" href={adminCatalogPath} aria-label="Volver a categorias">←</a>
+      </div>
+      <AdminSectionHeader
+        kicker="Catalogo"
+        title="Editar categoria"
+        description="Administra la informacion, subcategorias y productos de esta categoria."
+        titleId="category-editor-page-title"
+        bellId="admin-category-editor-bell"
+      >
+        <button class="admin-primary-action admin-header-primary-action" type="submit" form="category-form" slot="action">
+          <span>Guardar cambios</span>
+        </button>
+      </AdminSectionHeader>
       <section id="admin-view">
         <main class="category-premium-main pz-admin-content-inner">
           <div class="hidden" aria-hidden="true">

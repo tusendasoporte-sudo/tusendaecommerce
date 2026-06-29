@@ -6,6 +6,7 @@ import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { CUBA_LOCATIONS } from '../../lib/cubaLocations';
 import PublicFooter from '../../components/PublicFooter.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -2910,26 +2911,16 @@ try {
 
       <main class="main-wrap pz-admin-content-inner">
 
-        <section class="hero-card">
-          <div>
-            <span class="badge">⚙️ Ajustes de la tienda</span>
-            <h1 class="page-title">Ajustes generales <span>de la tienda</span></h1>
-            <p id="admin-subtitle-legacy" class="page-subtitle">Configura los datos generales de la tienda, el footer p&uacute;blico y las monedas visibles.</p>
-          </div>
-          <div class="hero-actions">
-
-          </div>
-        </section>
-        <section class="settings-hero">
-          <div>
-            <p class="settings-eyebrow">Ajustes de tienda / <span id="settings-current-section">Ajustes generales</span></p>
-            <h1 id="settings-page-title" class="settings-title">Horarios</h1>
-            <p id="admin-subtitle" class="settings-subtitle">Define los horarios de atenci&oacute;n de tu tienda. Estos horarios se muestran en el cat&aacute;logo p&uacute;blico y en la informaci&oacute;n de la tienda.</p>
-          </div>
-          <div class="settings-actions">
-            <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
-          </div>
-        </section>
+        <AdminSectionHeader
+          kicker="Ajustes de tienda / "
+          kickerValueId="settings-current-section"
+          kickerValue="Ajustes generales"
+          title="Horarios"
+          description="Define los horarios de atencion de tu tienda. Estos horarios se muestran en el catalogo publico y en la informacion de la tienda."
+          titleId="settings-page-title"
+          descriptionId="admin-subtitle"
+          bellId="admin-settings-bell"
+        />
         <section id="admin-view">
           <div class="tabs">
             <button class="tab-btn active" data-tab="generales" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg><span>Generales</span></button>

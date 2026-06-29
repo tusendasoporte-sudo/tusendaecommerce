@@ -6,6 +6,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -3263,26 +3264,14 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
       <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="overview" />
 
 				<div class="main-wrap pz-admin-content-inner">
-					<header class="dashboard-hero-clean">
-						<div>
-							<p class="dashboard-eyebrow">Resumen</p>
-							<h1 class="page-title">Panel de <span>{currentStoreName}</span></h1>
-							<p id="dashboard-subtitle" class="page-subtitle">Cargando resumen del negocio...</p>
-						</div>
-
-						<div class="bell-action-wrap">
-							<button type="button" class="bell-action-btn" id="admin-bell-btn" aria-label="Notificaciones" aria-expanded="false" aria-controls="admin-bell-dropdown">
-								<svg viewBox="0 0 24 24" aria-hidden="true">
-									<path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 0 0-4.7-5.9V4a1.3 1.3 0 1 0-2.6 0v1.1A6 6 0 0 0 6 11v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
-									<path d="M9 17a3 3 0 0 0 6 0" />
-								</svg>
-							</button>
-							<div class="bell-dropdown hidden" id="admin-bell-dropdown" role="dialog" aria-labelledby="admin-bell-title">
-								<h3 id="admin-bell-title">Notificaciones</h3>
-								<p>Aún no tienes notificaciones.</p>
-							</div>
-						</div>
-					</header>
+					<AdminSectionHeader
+            kicker="Resumen"
+            title={`Panel de ${currentStoreName}`}
+            description="Cargando resumen del negocio..."
+            titleId="dashboard-page-title"
+            descriptionId="dashboard-subtitle"
+            bellId="admin-overview-bell"
+          />
 
 					<section class="summary-period-card" aria-label="Periodo del resumen">
 						<div class="summary-period-head">

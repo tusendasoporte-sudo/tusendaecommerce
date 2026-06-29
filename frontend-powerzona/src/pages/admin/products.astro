@@ -3,6 +3,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -2565,7 +2566,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="products" />
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="products" mobileTitle="Productos" mobileActionLabel="Nuevo producto" mobileActionTarget="#new-product-btn" />
 
       <main class="admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
@@ -2574,23 +2575,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
 
-        <section class="hero-card products-page-header">
-          <div>
-            <span class="badge">Catálogo</span>
-            <h1 class="page-title">Productos</h1>
-            <p id="admin-subtitle" class="page-subtitle">Gestiona y organiza todos los productos de tu tienda.</p>
-          </div>
-          <div class="hero-actions">
-            <button id="admin-notifications-btn" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path>
-                <path d="M10 21a2 2 0 0 0 4 0"></path>
-              </svg>
-              <span class="notifications-badge" aria-hidden="true"></span>
-            </button>
-            <button id="new-product-btn" class="action-btn dark" type="button">+ Nuevo producto</button>
-          </div>
-        </section>
+        <AdminSectionHeader
+          kicker="Catalogo"
+          title="Productos"
+          description="Gestiona y organiza todos los productos de tu tienda."
+          titleId="products-page-title"
+          bellId="admin-products-bell"
+          actionId="new-product-btn"
+          actionLabel="Nuevo producto"
+        />
         <section id="admin-view">
 
           <section id="product-editor" class="panel-card editor-card hidden">

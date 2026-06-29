@@ -1,8 +1,9 @@
-﻿---
+---
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -48,7 +49,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         --purple: #7c3aed;
         --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
       }
-      
+
       .marketing-settings-hero {
         background: transparent;
         border: 0;
@@ -2146,7 +2147,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .featured-products-list .item-meta { font-size: 14px; }
         .featured-products-list .item-actions { justify-content: flex-start; }
       }
-      
+
       .featured-add-zone,
       .featured-current-zone { display: grid; gap: 12px; }
       .featured-add-zone { padding: 16px; border-radius: 20px; border: 1px solid #e2e8f0; background: rgba(248, 250, 252, .72); }
@@ -2172,7 +2173,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         .featured-result-row .thumb { width: 58px; height: 58px; }
         .featured-result-add-btn { width: 100%; justify-content: center; }
       }
-      
+
 
       .marketing-mobile-topbar,
       .marketing-mobile-bottom-nav {
@@ -2473,7 +2474,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }</style>
       <style is:global>
-      
+
 
       @media (max-width: 1023px) {
         body .app-shell.pz-admin-content {
@@ -2549,25 +2550,23 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
         activeSection="marketing"
         mobileTitle="Marketing"
+        mobileActionLabel="Nueva promocion"
+        mobileActionTarget="#promotion-new-btn"
       />
 
       <main class="main-wrap pz-admin-content-inner">
-        <section class="marketing-settings-hero" aria-labelledby="marketing-featured-title">
-          <div>
-            <p id="marketing-mobile-eyebrow" class="marketing-settings-eyebrow">Marketing y Visual / Destacados visuales</p>
-            <h1 id="marketing-featured-title" class="marketing-settings-title">Destacados visuales</h1>
-            <p id="admin-subtitle" class="marketing-settings-subtitle">
-              Configura qué productos aparecen destacados en la portada pública de tu tienda.
-            </p>
-          </div>
-          <div class="marketing-settings-actions">
-            <button class="notification-btn desktop-notification-btn" type="button" aria-label="Notificaciones">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/>
-              </svg>
-            </button>
-          </div>
-        </section>
+        <AdminSectionHeader
+          kicker="Marketing"
+          title="Promociones"
+          description="Configura destacados visuales, promociones, cupones y accesos rapidos de tu tienda."
+          titleId="marketing-featured-title"
+          bellId="admin-marketing-bell"
+        >
+          <button id="promotion-new-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
+            <span aria-hidden="true">+</span>
+            <span>Nueva promocion</span>
+          </button>
+        </AdminSectionHeader>
 
         <section id="marketing-summary-card" class="marketing-summary-card hidden" aria-label="Resumen de marketing" aria-hidden="true">
           <div class="marketing-summary-grid">
@@ -3267,7 +3266,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <button id="visual-cancel-btn" class="pz-admin-btn pz-admin-btn--secondary" type="button">
                     <span class="pz-admin-btn__label">Cerrar</span>
                   </button>
-
                   <button id="visual-save-btn" class="pz-admin-btn pz-admin-btn--primary" type="submit">
                     <span class="pz-admin-btn__label">Guardar</span>
                   </button>
@@ -3353,10 +3351,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                     </span>
                     <span class="pz-admin-btn__label">Léeme</span>
                   </button>
-                  <button id="promotion-new-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--full-mobile" type="button">
-                    <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
-                    <span class="pz-admin-btn__label">Nueva promoción</span>
-                  </button>
+
                 </div>
               </div>
 

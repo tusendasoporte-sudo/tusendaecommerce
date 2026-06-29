@@ -3,6 +3,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -180,7 +181,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="organization" />
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="organization" mobileTitle="Organizacion" mobileActionLabel="Nuevo elemento" mobileActionTarget="#open-visual-form-btn" />
 
       <main class="main-wrap pz-admin-content-inner">
         <header class="topbar">
@@ -191,16 +192,18 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           </div>
         </header>
 
-        <section class="hero-card">
-          <div>
-            <span class="badge">⚙️ Ajustes de la tienda</span>
-            <h1 class="page-title">Organización <span>Visual</span></h1>
-            <p id="admin-subtitle" class="page-subtitle">Ordena lo que ve el cliente en la tienda pública: destacados, promos visuales y accesos rápidos.</p>
-          </div>
-          <div class="hero-actions">
-
-          </div>
-        </section>
+        <AdminSectionHeader
+          kicker="Organizacion visual"
+          title="Organizacion visual"
+          description="Ordena lo que ve el cliente en la tienda publica: destacados, promos visuales y accesos rapidos."
+          titleId="organization-page-title"
+          bellId="admin-organization-bell"
+        >
+          <button id="open-visual-form-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
+            <span aria-hidden="true">+</span>
+            <span>Nuevo elemento</span>
+          </button>
+        </AdminSectionHeader>
 
         <section id="login-view" class="panel-card login-card hidden">
           <h2 class="page-title" style="font-size: 24px; margin: 0;">Entrar como admin</h2>
@@ -347,7 +350,6 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                   <p class="section-subtitle">Crea tarjetas visuales para ofertas o accesos a WhatsApp, enlaces, categorías o archivos.</p>
                 </div>
                 <div class="hero-actions">
-                  <button id="open-visual-form-btn" class="mini-btn primary" type="button">+ Crear</button>
                   <button class="mini-btn js-admin-block-close" data-admin-block="visual" type="button">Cerrar</button>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -327,33 +328,27 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="gifts" />
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="gifts" mobileTitle="Regalos" mobileActionLabel="Nuevo regalo" mobileActionTarget="#new-gift-btn" />
 
       <main class="admin-main pz-admin-content-inner">
         <div class="mobile-topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir menú">☰</button>
           <strong>Regalos</strong>
-          <button class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
-            <span class="notifications-dot" aria-hidden="true"></span>
-          </button>
+          <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </div>
 
-        <button class="btn btn-primary full mobile-new-btn js-new-gift" type="button">+ Nuevo regalo</button>
-
-        <header class="page-header">
-          <div>
-            <h1 class="page-title">Regalos</h1>
-            <p class="page-subtitle">Gestiona los regalos promocionales de tu tienda.</p>
-          </div>
-          <div class="header-actions">
-            <button class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
-              <span class="notifications-dot" aria-hidden="true"></span>
-            </button>
-            <button class="btn btn-primary js-new-gift" type="button">+ Nuevo regalo</button>
-          </div>
-        </header>
+        <AdminSectionHeader
+          kicker="Tienda"
+          title="Regalos"
+          description="Gestiona los regalos promocionales de tu tienda."
+          titleId="gifts-page-title"
+          bellId="admin-gifts-bell"
+        >
+          <button id="new-gift-btn" class="admin-primary-action admin-header-primary-action js-new-gift" type="button" slot="action">
+            <span aria-hidden="true">+</span>
+            <span>Nuevo regalo</span>
+          </button>
+        </AdminSectionHeader>
 
         <div id="alert" class="alert alert-info hidden"></div>
 

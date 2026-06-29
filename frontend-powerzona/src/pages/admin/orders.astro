@@ -3,6 +3,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -864,29 +865,28 @@ const isOrderDetailPage = Boolean(initialOrderId);
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
 
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="orders" />
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="orders" mobileTitle="Pedidos" mobileActionLabel="Actualizar" mobileActionTarget="#refresh-btn" />
 
       <main id="admin-view" class="orders-main pz-admin-content-inner">
         <header class="mobile-topbar">
           <button id="sidebar-open" class="icon-btn menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
           <h1 class="mobile-topbar-title">Pedidos</h1>
-          <button id="refresh-mobile-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h8V3l-3.3 3.3Z"/></svg>Actualizar</button>
-          <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
+          <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
 
-          <header class="topbar">
-            <div class="topbar-left">
-              <div>
-                <p class="hero-eyebrow">Pedidos</p>
-                <h1 class="page-title">Pedidos</h1>
-                <p id="admin-subtitle" class="page-subtitle">Administra y da seguimiento a los pedidos de tu tienda.</p>
-              </div>
-            </div>
-            <div class="topbar-right">
-              <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
-              <button id="refresh-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h8V3l-3.3 3.3Z"/></svg>Actualizar</button>
-            </div>
-          </header>
+          <AdminSectionHeader
+            kicker="Pedidos"
+            title="Pedidos"
+            description="Administra y da seguimiento a los pedidos de tu tienda."
+            titleId="orders-page-title"
+            descriptionId="admin-subtitle"
+            bellId="admin-orders-bell"
+          >
+            <button id="refresh-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h8V3l-3.3 3.3Z"/></svg>
+              <span>Actualizar</span>
+            </button>
+          </AdminSectionHeader>
 
           {isOrderDetailPage && <a class="action-btn detail-back-link" href={adminOrdersPath}>← Volver a pedidos</a>}
 

@@ -3,6 +3,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -1065,32 +1066,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="catalog" />
+      <AdminSidebar storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} activeSection="catalog" mobileTitle="Categorias" mobileActionLabel="Nueva categoria" mobileActionTarget="#category-create-main-btn" />
 
       <main class="main-wrap admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
           <button id="sidebar-open" class="menu-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false">☰</button>
           <strong>Categorías</strong>
-          <button id="admin-notifications-btn-mobile" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
-            <span class="notifications-dot" aria-hidden="true"></span>
-          </button>
+          <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
 
-        <section class="hero-card catalog-page-header">
-          <div>
-            <p class="catalog-kicker">Catalogo</p>
-            <h1 class="page-title">Categorías</h1>
-            <p id="admin-subtitle" class="page-subtitle">Gestiona y organiza las categorías de tus productos.</p>
-          </div>
-          <div class="catalog-hero-actions">
-            <button id="admin-notifications-btn" class="notifications-btn" type="button" aria-label="Notificaciones del admin">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg>
-              <span class="notifications-dot" aria-hidden="true"></span>
-            </button>
-            <button id="category-create-main-btn" class="primary-blue-btn" type="button">+ Nueva categoría</button>
-          </div>
-        </section>
+        <AdminSectionHeader
+          kicker="Catalogo"
+          title="Categorias"
+          description="Gestiona y organiza las categorias de tus productos."
+          titleId="catalog-page-title"
+          bellId="admin-catalog-bell"
+          actionId="category-create-main-btn"
+          actionLabel="Nueva categoria"
+        />
       <section id="admin-view">
         <div id="catalog-grid" class="grid">
           <div id="catalog-tools-panel" class="section-stack">
@@ -1266,7 +1259,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
-      const adminSubtitle = document.getElementById('admin-subtitle');
+      const adminSubtitle = document.getElementById('admin-subtitle') || { textContent: '' };
       const catalogSearch = document.getElementById('catalog-search');
       const catalogStatusFilter = document.getElementById('catalog-status-filter');
       const categoryCreateMainBtn = document.getElementById('category-create-main-btn');

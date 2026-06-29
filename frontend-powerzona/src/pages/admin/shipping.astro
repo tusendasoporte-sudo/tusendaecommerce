@@ -3,6 +3,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -361,20 +362,20 @@ const masterSupportHref = masterSupportWhatsapp
         <header class="mobile-topbar">
           <button id="sidebar-open" class="icon-btn" type="button" aria-controls="pz-admin-sidebar" aria-expanded="false" aria-label="Abrir men&uacute;"><svg viewBox="0 0 24 24"><path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg></button>
           <h1 class="mobile-topbar-title">Env&iacute;os</h1>
-          <button id="new-zone-mobile-btn" class="primary-blue-btn" type="button"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nuevo Municipio</button>
-          <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
+          <span class="mobile-topbar-slot" aria-hidden="true"></span>
         </header>
-        <section class="hero-card">
-          <div>
-            <p class="hero-eyebrow">Env&iacute;os</p>
-            <h1 class="page-title">Env&iacute;os</h1>
-            <p class="page-subtitle">Configura municipios y zonas de entrega para el checkout de tu tienda.</p>
-          </div>
-          <div class="hero-actions">
-            <button class="notification-btn" type="button" aria-label="Notificaciones"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></button>
-            <button id="new-zone-top-btn" class="primary-blue-btn" type="button" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z"/></svg>Nuevo Municipio</button>
-          </div>
-        </section>
+        <AdminSectionHeader
+          kicker="Tienda"
+          title="Envios"
+          description="Configura municipios y zonas de entrega para el checkout de tu tienda."
+          titleId="shipping-page-title"
+          bellId="admin-shipping-bell"
+        >
+          <button id="new-zone-top-btn" class="admin-primary-action admin-header-primary-action" type="button" aria-expanded="false" slot="action">
+            <span aria-hidden="true">+</span>
+            <span>Nuevo Municipio</span>
+          </button>
+        </AdminSectionHeader>
         <section id="login-view" class="panel-card login-card hidden">
           <h2 class="section-title">Entrar como admin</h2>
           <p class="section-subtitle">Usa tu usuario administrador para gestionar env&iacute;os.</p>
@@ -832,8 +833,8 @@ const masterSupportHref = masterSupportWhatsapp
           hideMainForm();
         }
       }
-      newZoneTopBtn.addEventListener('click',toggleMainForm);
-      newZoneMobileBtn.addEventListener('click',toggleMainForm);
+      newZoneTopBtn?.addEventListener('click',toggleMainForm);
+      newZoneMobileBtn?.addEventListener('click',toggleMainForm);
       zoneModalForm.addEventListener('input',syncModalState);
       zoneModalForm.addEventListener('change',syncModalState);
       zoneModalForm.addEventListener('submit',(event)=>saveZoneFromModal(event).catch((error)=>{isSavingModalZone=false;syncModalState();showTimedAlert(zoneModalAlert,error.message||'No se pudieron guardar los cambios','error','modal');}));
