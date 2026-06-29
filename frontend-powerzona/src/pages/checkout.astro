@@ -1953,93 +1953,94 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function getStorePublicName(settings) {
-			return String(settings?.store_name || settings?.stored_name || 'PowerZona').trim() || 'PowerZona';
+			return String(settings?.store_name || settings?.stored_name || settings?.business_name || settings?.name || 'la tienda').trim() || 'la tienda';
 		}
 
 		function buildWhatsAppMessage({ order, cart, checkoutData, totals, receiptUrl, settings }) {
-	const selectedCode = selectedCurrencyCode();
-	const storePublicName = getStorePublicName(settings);
-	const calculatedItems = totals.promotionItems || calculateCartPromotions(cart).items || cart;
-	const productItems = calculatedItems.filter((item) => !item.is_gift);
-	const giftItems = calculatedItems.filter((item) => item.is_gift);
-	const productLines = productItems.map((item, index) => {
-		const quantity = Number(item.quantity || 1);
-		const price = Number(item.price || 0);
-		const lineTotal = Number(item.line_subtotal_final_usd ?? (price * quantity));
-		const lineOriginal = Number(item.line_subtotal_original_usd ?? (price * quantity));
-		const lineDiscount = Number(item.line_discount_usd || 0);
-		const itemDisplayName = item.variation_label ? `${item.title} \u2014 ${item.variation_label}` : item.title;
-		const preorderText = item.preorder ? '  ⚠️ *PREORDEN*' : '';
-		const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
-		const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
-		const hasAutomaticPromo = lineDiscount > 0 && Boolean(item.promotion_label || item.coupon_label);
-		const savingsText = hasOffer ? `
-   Oferta: antes ${formatVisualFromUsd(regularPrice * quantity, { onlyUsd: Boolean(item.only_usd) })}
-   Ahorra: ${formatVisualFromUsd((regularPrice - price) * quantity, { onlyUsd: Boolean(item.only_usd) })}` : '';
-		const promoText = hasAutomaticPromo ? `
-   ${item.coupon_label ? 'Cupón aplicado' : 'Promo aplicada'}: ${item.coupon_label || item.promotion_label}
-   Subtotal antes de promo: ${formatVisualFromUsd(lineOriginal, { onlyUsd: Boolean(item.only_usd) })}
-   Ahorro: ${formatVisualFromUsd(lineDiscount, { onlyUsd: Boolean(item.only_usd) })}` : '';
-		const visualPrice = formatVisualFromUsd(lineTotal, { onlyUsd: Boolean(item.only_usd) });
-		return `${index + 1}. *${itemDisplayName}*${preorderText}
-   Cantidad: ${quantity}${savingsText}${promoText}
-   Importe: ${visualPrice}`;
-	});
-	const giftLines = giftItems.map((item, index) => `${index + 1}. *${item.title}*
+			{
+				const selectedCode = selectedCurrencyCode();
+				const storePublicName = getStorePublicName(settings);
+				const calculatedItems = totals.promotionItems || calculateCartPromotions(cart).items || cart;
+				const productItems = calculatedItems.filter((item) => !item.is_gift);
+				const giftItems = calculatedItems.filter((item) => item.is_gift);
+				const productLines = productItems.map((item, index) => {
+					const quantity = Number(item.quantity || 1);
+					const price = Number(item.price || 0);
+					const lineTotal = Number(item.line_subtotal_final_usd ?? (price * quantity));
+					const variationLabel = item.variation_label || item.variation_name || '';
+					const lines = [`${index + 1}. *${item.title}*`];
+
+					if (variationLabel) lines.push(`   Variación: ${variationLabel}`);
+					if (item.preorder) lines.push('   PREORDEN');
+
+					lines.push(`   Cantidad: ${quantity}`);
+					lines.push(`   Importe: ${formatUSD(lineTotal)}`);
+					return lines.join('\n');
+				});
+				const giftLines = giftItems.map((item, index) => `${index + 1}. *${item.title}*
    Cantidad: 1
    Importe: Gratis`);
+				const promotionReasonText = getPromotionReasonText(totals);
+				const discountLines = totals.discountTotalUSD > 0
+					? [formatWhatsAppDiscount(totals), promotionReasonText ? `*Promo aplicada*: ${promotionReasonText}` : ''].filter(Boolean)
+					: [];
+				const serviceText = checkoutData.delivery_method === 'delivery'
+					? 'Envío'
+					: checkoutData.delivery_method === 'pickup'
+						? 'Recogida'
+						: 'Coordinar';
+				const shippingText = checkoutData.delivery_method === 'delivery'
+					? formatShipping(totals.shippingUSD)
+					: checkoutData.delivery_method === 'pickup'
+						? 'Recogida en tienda'
+						: 'A coordinar';
+				const messageLines = [
+					`*Orden: ${order.order_number}*`,
+					'',
+					'*Productos:*',
+					productLines.join('\n') || 'Sin productos',
+				];
 
-	const addressText = checkoutData.delivery_method === 'delivery'
-		? `
-*Municipio*: ${checkoutData.customer_municipality}
-*Zona*: ${checkoutData.shipping_zone_name || 'No seleccionada'}
-*Dirección*: ${checkoutData.customer_address}`
-		: '';
+				if (giftLines.length) {
+					messageLines.push('', '*Regalo incluido:*', giftLines.join('\n'));
+				}
 
-	const noteText = checkoutData.customer_note
-		? `
-*Nota*: ${checkoutData.customer_note}`
-		: '';
-	const businessNoteText = businessHoursStatus?.note
-		? `
-${businessHoursStatus.note}`
-		: '';
+				messageLines.push(
+					'',
+					`*Total de envío*: ${shippingText}`,
+					'-------------------------------------------------------------------------------------------',
+					`*Total productos USD*: *${formatUSD(totals.subtotalUSD)}*`,
+				);
 
-	let totalText = '';
-	if (selectedCode !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal > 0) {
-		totalText = `*Total productos ${selectedCode}*: ${formatVisualFromUsd(totals.localCurrencyTotal, { onlyUsd: false })}
-*Total productos USD*: ${formatUSD(totals.usdOnlyTotal)}`;
-	} else if (selectedCode !== 'USD' && totals.usdOnlyTotal > 0 && totals.localCurrencyTotal <= 0) {
-		totalText = `*Total productos USD*: ${formatUSD(totals.usdOnlyTotal)}`;
-	} else {
-		totalText = `*Total productos ${selectedCode}*: ${formatVisualFromUsd(totals.localCurrencyTotal || totals.subtotalUSD, { onlyUsd: false })}`;
-	}
-	const promotionReasonText = getPromotionReasonText(totals);
-	const discountText = totals.discountTotalUSD > 0 ? `
-${formatWhatsAppDiscount(totals)}${promotionReasonText ? `
-*Promo aplicada*: ${promotionReasonText}` : ''}` : '';
+				if (discountLines.length) messageLines.push(...discountLines);
 
-	return `${storePublicName}
+				messageLines.push(
+					'',
+					`*Cliente*: ${checkoutData.customer_name}`,
+					`*Teléfono*: ${checkoutData.customer_phone}`,
+					`*Tipo servicio*: ${serviceText}`,
+					`*Moneda elegida*: ${selectedCode}`,
+				);
 
-*Orden: ${order.order_number}*
+				if (checkoutData.delivery_method === 'delivery') {
+					messageLines.push(
+						`*Municipio*: ${checkoutData.customer_municipality}`,
+						`*Zona*: ${checkoutData.shipping_zone_name || 'No seleccionada'}`,
+						`*Dirección*: ${checkoutData.customer_address}`,
+					);
+				}
 
-*Cliente*: ${checkoutData.customer_name}
-*Teléfono*: ${checkoutData.customer_phone}
-*Tipo servicio*: ${getDeliveryMethodText(checkoutData.delivery_method)}
-*Moneda elegida*: ${selectedCode}${addressText}${noteText}${businessNoteText}
+				messageLines.push(
+					'',
+					'*Resumen de su orden:*',
+					receiptUrl || 'Se enviará al confirmar la orden.',
+					'',
+					`Gracias, esperamos verlo pronto en ${storePublicName}.`,
+				);
 
-*Productos:*
-${productLines.join('\n')}${giftLines.length ? `\n\n*Regalo incluido:*\n${giftLines.join('\n')}` : ''}
-
-${getWhatsAppDeliveryLine(checkoutData, totals)}
--------------------------------------------------------------------------------------------
-${totalText}${discountText}
-
-Gracias.
-
-*Resumen de su orden:*
-${receiptUrl || 'Se enviará al confirmar la orden.'}`;
-}
+				return messageLines.join('\n');
+			}
+		}
 
 
 		async function createOrderAndItems(validation) {
