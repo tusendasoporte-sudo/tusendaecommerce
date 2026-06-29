@@ -574,11 +574,11 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 			setCheckoutLocked(true);
 			continueWhatsappBtn.disabled = false;
-			continueWhatsappBtn.textContent = 'Abrir WhatsApp del pedido';
+			continueWhatsappBtn.textContent = 'Enviar el pedido por WhatsApp';
 			checkoutValidationAlert.classList.add('hidden');
 			checkoutSuccessAlert.innerHTML = `
 				<div class="font-black mb-2">Pedido ${escapeHtml(savedOrderNumber || '')} guardado correctamente.</div>
-				<div class="mb-3">La orden ya quedó registrada. Ahora abre WhatsApp para enviar el resumen al negocio.</div>
+				<div class="mb-3">La orden ya quedo registrada. Ahora envia el resumen por WhatsApp para coordinar con la tienda.</div>
 			`;
 			checkoutSuccessAlert.classList.remove('hidden');
 		}
@@ -1237,7 +1237,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 			if (orderWasCreated) {
 				continueWhatsappBtn.disabled = false;
-				continueWhatsappBtn.textContent = 'Abrir WhatsApp del pedido';
+				continueWhatsappBtn.textContent = 'Enviar el pedido por WhatsApp';
 			} else if (isSubmittingOrder) {
 				continueWhatsappBtn.disabled = true;
 			} else {
@@ -2235,22 +2235,16 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			};
 		}
 
-		function openWhatsappUrl(whatsappUrl) {
-			try {
-				const openedWindow = window.open(whatsappUrl, '_blank', 'noopener');
-				return Boolean(openedWindow);
-			} catch (_) {
-				return false;
-			}
-		}
-
 		function openWhatsappAndComplete(whatsappUrl) {
-			const opened = openWhatsappUrl(whatsappUrl);
-			completeCheckoutAfterWhatsApp();
-
-			if (!opened) {
-				window.location.href = whatsappUrl;
+			try {
+				window.open(whatsappUrl, '_blank');
+			} catch (error) {
+				console.warn('No se pudo abrir WhatsApp en una pestana nueva.', error);
 			}
+
+			window.setTimeout(() => {
+				completeCheckoutAfterWhatsApp();
+			}, 250);
 		}
 
 		continueWhatsappBtn.addEventListener('click', async () => {
@@ -2280,18 +2274,18 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 				const { createdOrder, whatsappNumber, message, cartFingerprint } = await createOrderAndItems(validation);
 				const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
-				const whatsappOpened = openWhatsappUrl(whatsappUrl);
-
-				if (whatsappOpened) {
-					completeCheckoutAfterWhatsApp();
-					return;
-				}
-
 				markOrderCreated({
 					orderNumber: createdOrder.order_number,
 					whatsappUrl,
 					cartFingerprint,
 				});
+
+				checkoutSuccessAlert.textContent = 'Pedido creado correctamente. Ahora envialo por WhatsApp para coordinar con la tienda.';
+				checkoutSuccessAlert.classList.remove('hidden');
+				checkoutValidationAlert.classList.add('hidden');
+
+				continueWhatsappBtn.disabled = false;
+				continueWhatsappBtn.textContent = 'Enviar el pedido por WhatsApp';
 			} catch (error) {
 				console.error(error);
 				isSubmittingOrder = false;
