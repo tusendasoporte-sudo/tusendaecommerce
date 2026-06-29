@@ -134,13 +134,9 @@ function reviewStars(rating: number) {
 	const rounded = Math.max(0, Math.min(5, Math.round(Number(rating || 0))));
 	return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
 }
-function stripHtml(value: any) {
-	return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
 const extraInfoItems = parseExtraInfoValue(
 	product.extra_info ?? product.extraInfo ?? product.additional_info ?? product.product_extra_info ?? []
 );
-const productShareText = stripHtml(product.short_description || product.description || product.name).slice(0, 180) || product.name;
 const tracksStock = product.track_stock !== false;
 const baseProductPrice = Number(product.base_price_usd || 0);
 const regularProductPrice = Number(product.regular_price_usd || baseProductPrice);
@@ -193,6 +189,9 @@ const productSeoTitle = seoHasValidPrice
 	: product.name;
 const productSeoImage = mainImage || logoImageUrl || '/brand/tusenda84-bazzar-logo.webp';
 const productSeoUrl = getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
+const productShareTitle = productSeoTitle || product.name;
+const productShareText = productShareTitle;
+const productShareUrl = productSeoUrl || getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
 const initialCost = hasPublicVariations
 	? Number(firstVariation?.cost_usd || 0)
 	: Number(product.cost_usd || 0);
@@ -425,8 +424,9 @@ const variationItems = variations.map((variation) => {
 				class="product-top-icon-btn"
 				aria-label="Compartir producto"
 				title="Compartir producto"
-				data-share-title={product.name}
+				data-share-title={productShareTitle}
 				data-share-text={productShareText}
+				data-share-url={productShareUrl}
 			>
 				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
 					<path d="M8.5 12.5 15.5 16.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -829,16 +829,17 @@ const variationItems = variations.map((variation) => {
 				}
 
 				productShareBtn?.addEventListener('click', async () => {
-					const shareUrl = window.location.href;
-					const shareData = {
-						title: productShareBtn.dataset.shareTitle || document.title,
-						text: productShareBtn.dataset.shareText || productShareBtn.dataset.shareTitle || '',
-						url: shareUrl,
-					};
+					const shareTitle = String(productShareBtn.dataset.shareTitle || document.title || '').trim();
+					const shareText = String(productShareBtn.dataset.shareText || shareTitle || '').trim();
+					const shareUrl = String(productShareBtn.dataset.shareUrl || window.location.href).trim();
 
 					if (navigator.share) {
 						try {
-							await navigator.share(shareData);
+							await navigator.share({
+								title: shareTitle,
+								text: shareText,
+								url: shareUrl,
+							});
 						} catch (error) {
 							if (error?.name !== 'AbortError') {
 								try {

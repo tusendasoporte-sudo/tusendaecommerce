@@ -165,10 +165,13 @@ const currentPathname = Astro.url.pathname;
       }
 
       shareButton?.addEventListener('click', async () => {
+        const shareTitle = String(root.getAttribute('data-share-title') || document.title || '').trim();
+        const shareText = String(root.getAttribute('data-share-text') || shareTitle || '').trim();
+        const shareUrl = String(window.location.href || '').trim();
         const payload = {
-          title: root.getAttribute('data-share-title') || document.title,
-          text: root.getAttribute('data-share-text') || document.title,
-          url: window.location.href,
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
         };
         try {
           if (navigator.share) {
