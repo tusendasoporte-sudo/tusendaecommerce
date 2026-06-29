@@ -5,6 +5,7 @@ import { getCurrentStore, getPublicPath } from '../lib/stores';
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
+const currentStoreSlug = currentStore.slug || 'powerzona';
 const currentPathname = Astro.url.pathname;
 const homePath = getPublicPath('/', currentStore, currentPathname);
 ---
@@ -318,7 +319,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		</div>
 	</section>
 
-	<script define:vars={{ pocketbaseUrl, currentStoreId, homePath }}>
+	<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug, homePath }}>
 		const checkoutEmpty = document.getElementById('checkout-empty');
 		const checkoutContent = document.getElementById('checkout-content');
 		const checkoutItems = document.getElementById('checkout-items');
@@ -367,6 +368,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		let activeSettingsCache = null;
 		let businessHoursStatus = { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
 		const CURRENT_STORE_ID = currentStoreId || '';
+		const CURRENT_STORE_SLUG = currentStoreSlug || 'powerzona';
 		const COUPON_STORE_KEY = CURRENT_STORE_ID || 'powerzona';
 		const SAVED_COUPONS_KEY = `powerzona_saved_coupons_${COUPON_STORE_KEY}`;
 		const SELECTED_COUPON_KEY = `powerzona_selected_coupon_${COUPON_STORE_KEY}`;
@@ -1835,6 +1837,48 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return result;
 		}
 
+		function escapePocketBaseFilterValue(value) {
+			return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+		}
+
+		async function createNewOrderNotification({ order, checkoutData, settings }) {
+			try {
+				if (!order?.id || !CURRENT_STORE_ID) return;
+				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
+
+				const filter = encodeURIComponent([
+					`store="${escapePocketBaseFilterValue(CURRENT_STORE_ID)}"`,
+					'type="new_order"',
+					'entity_collection="orders"',
+					`entity_id="${escapePocketBaseFilterValue(order.id)}"`,
+					'status="unread"',
+				].join(' && '));
+				const existingResponse = await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records?filter=${filter}&perPage=1`);
+				const existing = await existingResponse.json().catch(() => null);
+				if (existingResponse.ok && existing?.items?.length) return;
+
+				const orderNumber = order.order_number || order.id;
+				const customerName = checkoutData?.customer_name || 'cliente';
+				await pocketbaseRequest('store_notifications', {
+					store: CURRENT_STORE_ID,
+					type: 'new_order',
+					title: 'Nuevo pedido recibido',
+					message: `Pedido #${orderNumber} por ${customerName}`,
+					status: 'unread',
+					priority: 'important',
+					target_url: `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/admin/orders?order=${encodeURIComponent(order.id)}`,
+					entity_collection: 'orders',
+					entity_id: order.id,
+					metadata_json: {
+						order_number: order.order_number || '',
+						customer_name: customerName,
+					},
+				});
+			} catch (error) {
+				console.warn('No se pudo crear la notificacion de pedido nuevo.', error);
+			}
+		}
+
 		function getCartItemDisplayName(item) {
 			const variationLabel = item?.variation_label || item?.variation_name || '';
 			return variationLabel ? `${item.title} — ${variationLabel}` : item.title;
@@ -2180,6 +2224,12 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 					removeSavedCouponCode(totals.manualCoupon.code || '');
 				}
 			}
+
+			await createNewOrderNotification({
+				order: createdOrder,
+				checkoutData: validation.data,
+				settings,
+			});
 
 			const message = buildWhatsAppMessage({
 				order: createdOrder,

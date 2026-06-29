@@ -3289,6 +3289,9 @@ try {
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar
+        storeId={currentStoreId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={adminAuthToken}
         storeSlug={currentStoreSlug}
         storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
         activeSection="settings"
@@ -3413,6 +3416,16 @@ try {
               <details class="general-settings-accordion business-type-accordion">
                 <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h6v2H8v-2Z"/></svg></span><div><h3>Tipo de negocio</h3><p>Clasificaci&oacute;n p&uacute;blica de tu tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-business" class="general-settings-badge pending">Pendiente</span><button class="settings-help-btn" type="button" data-help-key="general-business">L&eacute;eme</button><span class="general-settings-chevron">&#8964;</span></div></summary>
                 <div class="general-settings-body"><div class="general-settings-grid"><div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div><div class="field full"><label>Tipo de negocio</label><div class="business-type-picker"><button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button><div id="business-type-chips" class="chip-list"></div><div id="business-type-panel" class="business-type-panel hidden"><input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." /><div id="business-type-options"></div></div></div><p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p></div></div></div>
+              </details>
+
+              <details class="general-settings-accordion">
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2H9.3A2.8 2.8 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span><div><h3>Notificaciones del admin</h3><p>Recibe avisos dentro del panel cuando ocurra algo importante en la tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-notifications" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <div class="general-settings-body"><div class="general-settings-grid">
+                  <label class="rating-setting-row full" for="settings-notifications-enabled"><span><strong>Activar notificaciones</strong><small>Mostrar avisos dentro del admin.</small></span><span class="switch-control"><input id="settings-notifications-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                  <label class="rating-setting-row full" for="settings-notify-new-order"><span><strong>Nuevo pedido recibido</strong><small>Crear una alerta cuando entre un pedido nuevo.</small></span><span class="switch-control"><input id="settings-notify-new-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                  <label class="rating-setting-row full" for="settings-notify-pending-order"><span><strong>Pedido pendiente sin atender</strong><small>Avisar si un pedido sigue pendiente demasiado tiempo.</small></span><span class="switch-control"><input id="settings-notify-pending-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                  <div class="field"><label for="settings-pending-order-hours">Avisar despu&eacute;s de X horas</label><input id="settings-pending-order-hours" type="number" min="1" step="1" value="2" /></div>
+                </div></div>
               </details>
 
               <details class="general-settings-accordion">
@@ -4923,6 +4936,10 @@ try {
         const fields = {
           storeName: document.getElementById('settings-store-name'),
           orderPrefix: document.getElementById('settings-order-prefix'),
+          notificationsEnabled: document.getElementById('settings-notifications-enabled'),
+          notifyNewOrder: document.getElementById('settings-notify-new-order'),
+          notifyPendingOrder: document.getElementById('settings-notify-pending-order'),
+          pendingOrderHours: document.getElementById('settings-pending-order-hours'),
           whatsappCountry: document.getElementById('settings-whatsapp-country'),
           whatsapp: document.getElementById('settings-whatsapp-number'),
           coverMode: document.getElementById('settings-cover-mode'),
@@ -5003,6 +5020,7 @@ try {
           location: document.getElementById('general-status-location'),
           contact: document.getElementById('general-status-contact'),
           business: document.getElementById('general-status-business'),
+          notifications: document.getElementById('general-status-notifications'),
           trust: document.getElementById('general-status-trust'),
         };
         function token() { return ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS; }
@@ -5355,6 +5373,10 @@ try {
             storeDescription: fields.storeDescription?.value?.trim() || '',
             welcome: fields.welcome?.value?.trim() || '',
             categoryColumns: fields.categoryColumns?.value || '2',
+            notificationsEnabled: fields.notificationsEnabled?.checked !== false,
+            notifyNewOrder: fields.notifyNewOrder?.checked !== false,
+            notifyPendingOrder: fields.notifyPendingOrder?.checked !== false,
+            pendingOrderHours: Math.max(1, Number(fields.pendingOrderHours?.value || 2)),
             province: fields.province?.value || '',
             municipality: fields.municipality?.value || '',
             addressDetail: fields.addressDetail?.value?.trim() || '',
@@ -5386,6 +5408,7 @@ try {
           const hasLocation = Boolean(fields.province?.value || fields.municipality?.value || fields.addressDetail?.value?.trim());
           const hasContact = Boolean(cleanWhatsappNumber(fields.whatsapp?.value || '').replace(/^\+/, ''));
           const hasBusinessType = selectedBusinessTypes.length > 0;
+          const notificationsReady = fields.notificationsEnabled?.checked !== false;
           const hasTrustText = Boolean(fields.storeDescription?.value?.trim() || fields.reviews?.value?.trim());
           const hasVisualIdentity = hasLogo && hasCover && hasSelectedCoverMode;
           const hasPartialVisualIdentity = !hasVisualIdentity && (hasLogo || hasCover);
@@ -5394,6 +5417,7 @@ try {
           setGeneralStatusBadge('location', hasLocation, 'Configurada');
           setGeneralStatusBadge('contact', hasContact, 'Configurado');
           setGeneralStatusBadge('business', hasBusinessType, 'Seleccionado');
+          setGeneralStatusBadge('notifications', notificationsReady, notificationsReady ? 'Activas' : 'Pausadas');
           setGeneralStatusBadge('trust', hasTrustText, 'Configurada');
         }
 
@@ -5649,6 +5673,10 @@ try {
             store_description: fields.storeDescription.value.trim(),
             welcome_text: fields.welcome.value.trim(),
             public_category_columns: fields.categoryColumns.value || '2',
+            notifications_enabled: fields.notificationsEnabled?.checked !== false,
+            notify_new_order: fields.notifyNewOrder?.checked !== false,
+            notify_pending_order: fields.notifyPendingOrder?.checked !== false,
+            pending_order_hours: Math.max(1, Number(fields.pendingOrderHours?.value || 2)),
             cover_mode: fields.coverMode.value || 'single',
             business_types: JSON.stringify(selectedBusinessTypes),
             province: fields.province?.value || '',
@@ -5735,6 +5763,10 @@ try {
           fields.storeDescription.value = record.store_description || '';
           fields.welcome.value = record.welcome_text || '';
           fields.categoryColumns.value = String(record.public_category_columns || '2') === '1' ? '1' : '2';
+          if (fields.notificationsEnabled) fields.notificationsEnabled.checked = record.notifications_enabled !== false;
+          if (fields.notifyNewOrder) fields.notifyNewOrder.checked = record.notify_new_order !== false;
+          if (fields.notifyPendingOrder) fields.notifyPendingOrder.checked = record.notify_pending_order !== false;
+          if (fields.pendingOrderHours) fields.pendingOrderHours.value = String(Math.max(1, Number(record.pending_order_hours || 2)));
           fields.coverMode.value = record.cover_mode === 'carousel' ? 'carousel' : 'single';
           setBusinessTypes(parseJsonList(record.business_types));
           fields.province.value = record.province || '';
@@ -5801,6 +5833,10 @@ try {
             data.append('store_description', fields.storeDescription.value.trim());
             data.append('welcome_text', fields.welcome.value.trim());
             data.append('public_category_columns', fields.categoryColumns.value || '2');
+            data.append('notifications_enabled', fields.notificationsEnabled?.checked !== false);
+            data.append('notify_new_order', fields.notifyNewOrder?.checked !== false);
+            data.append('notify_pending_order', fields.notifyPendingOrder?.checked !== false);
+            data.append('pending_order_hours', Math.max(1, Number(fields.pendingOrderHours?.value || 2)));
             data.append('cover_mode', fields.coverMode.value || 'single');
             data.append('business_types', JSON.stringify(selectedBusinessTypes));
             data.append('province', fields.province?.value || '');

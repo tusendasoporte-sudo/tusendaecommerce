@@ -53,13 +53,14 @@ const actionClasses = ['admin-primary-action', 'admin-header-primary-action', ac
       type="button"
       aria-label="Notificaciones del admin"
       aria-expanded="false"
-      aria-controls={dropdownId}
-      data-admin-bell={dropdownId}
+      aria-controls="pz-admin-notifications-panel"
+      data-pz-admin-notification-trigger
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path>
         <path d="M10 21a2 2 0 0 0 4 0"></path>
       </svg>
+      <span class="admin-bell-count hidden" data-pz-admin-notification-count></span>
     </button>
     <div
       id={dropdownId}

@@ -157,7 +157,7 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
   </head>
   <body>
     <section class="admin-view pz-admin-content">
-      <AdminSidebar storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="overview" />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="overview" />
 
       <main class="main-wrap pz-admin-content-inner profits-main">
         <header class="profits-hero">

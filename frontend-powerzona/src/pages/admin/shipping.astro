@@ -356,6 +356,9 @@ const masterSupportHref = masterSupportWhatsapp
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar
+        storeId={currentStoreId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={adminAuthToken}
         storeSlug={currentStoreSlug}
         storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
         activeSection="shipping"

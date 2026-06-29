@@ -16,6 +16,9 @@ interface Props {
   mobileActionAriaLabel?: string;
   mobileBackHref?: string;
   mobileBackLabel?: string;
+  storeId?: string;
+  pocketbaseUrl?: string;
+  authToken?: string;
 }
 
 const {
@@ -33,6 +36,9 @@ const {
   mobileActionAriaLabel = '',
   mobileBackHref = '',
   mobileBackLabel = '',
+  storeId = '',
+  pocketbaseUrl = '',
+  authToken = '',
 } = Astro.props;
 
 const adminBasePath = getStoreAdminPath(storeSlug);
@@ -44,6 +50,7 @@ const adminGiftsPath = getStoreAdminPath(storeSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
 const publicStorePath = getPublicStorePath(storeSlug);
+const notificationsAdminOrdersPath = adminOrdersPath;
 
 const defaultMobileTitleBySection: Record<string, string> = {
   overview: 'Resumen',
@@ -223,12 +230,33 @@ const marketingVisualSubClass = (subsection: string) => {
     </button>
   ) : null}
 
-  <button class="pz-admin-mobile-topbar__notification" type="button" aria-label="Notificaciones">
+  <button class="pz-admin-mobile-topbar__notification" type="button" aria-label="Notificaciones" aria-expanded="false" data-pz-admin-notification-trigger>
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"></path>
     </svg>
+    <span class="pz-admin-notification-count hidden" data-pz-admin-notification-count></span>
   </button>
 </header>
+
+<section
+  id="pz-admin-notifications-panel"
+  class="pz-admin-notifications-panel hidden"
+  role="dialog"
+  aria-label="Notificaciones"
+  aria-hidden="true"
+  data-pz-admin-notifications-panel
+>
+  <header class="pz-admin-notifications-panel__head">
+    <div>
+      <h2>Notificaciones</h2>
+      <p>Avisos importantes de tu tienda</p>
+    </div>
+    <button type="button" class="pz-admin-notifications-panel__mark-all" data-pz-admin-mark-all>Marcar todas como leidas</button>
+  </header>
+  <div class="pz-admin-notifications-panel__body" data-pz-admin-notifications-list>
+    <p class="pz-admin-notifications-empty">Cargando notificaciones...</p>
+  </div>
+</section>
 
 {hasMobileBack && (
   <a
@@ -300,6 +328,250 @@ const marketingVisualSubClass = (subsection: string) => {
     </div>
   </section>
 </div>
+
+<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath }}>
+  window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
+    storeId: String(storeId || ''),
+    pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
+    authToken: String(authToken || ''),
+    ordersPath: String(notificationsAdminOrdersPath || ''),
+  };
+</script>
+
+<script>
+  import {
+    loadNotifications,
+    loadUnreadNotificationCount,
+    markNotificationRead,
+    markAllNotificationsRead,
+    ensureStoreNotification,
+  } from '../../lib/adminNotifications.js';
+
+  (() => {
+    if (window.__pzAdminNotificationsReady) return;
+    window.__pzAdminNotificationsReady = true;
+
+    const config = window.PZ_ADMIN_NOTIFICATIONS_CONFIG || {};
+    const storeId = String(config.storeId || '');
+    const baseUrl = String(config.pocketbaseUrl || '').replace(/\/$/, '');
+    const token = String(config.authToken || '');
+    const ordersPath = String(config.ordersPath || '');
+    const pb = { baseUrl, token };
+    const panel = document.querySelector('[data-pz-admin-notifications-panel]');
+    const list = document.querySelector('[data-pz-admin-notifications-list]');
+    const markAllButton = document.querySelector('[data-pz-admin-mark-all]');
+    let isOpen = false;
+    let isLoading = false;
+
+    if (!panel || !list || !storeId || !baseUrl) return;
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function escapeFilterValue(value) {
+      return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    async function api(path, options = {}) {
+      const headers = Object.assign({}, options.headers || {});
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const response = await fetch(`${baseUrl}${path}`, Object.assign({}, options, { headers }));
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || 'PocketBase request failed.');
+      return result;
+    }
+
+    function setButtonsExpanded(value) {
+      document.querySelectorAll('[data-pz-admin-notification-trigger]').forEach((button) => {
+        button.setAttribute('aria-expanded', value ? 'true' : 'false');
+      });
+    }
+
+    function setUnreadCount(count) {
+      const value = Number(count || 0);
+      document.querySelectorAll('[data-pz-admin-notification-trigger]').forEach((button) => {
+        button.classList.toggle('has-unread', value > 0);
+      });
+      document.querySelectorAll('[data-pz-admin-notification-count]').forEach((badge) => {
+        badge.textContent = value > 99 ? '99+' : String(value);
+        badge.classList.toggle('hidden', value <= 0);
+      });
+    }
+
+    function timeAgo(value) {
+      const date = value ? new Date(value) : null;
+      const diff = date && !Number.isNaN(date.getTime()) ? Date.now() - date.getTime() : 0;
+      const minutes = Math.max(0, Math.floor(diff / 60000));
+      if (minutes < 1) return 'Ahora';
+      if (minutes < 60) return `Hace ${minutes} min`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `Hace ${hours} h`;
+      const days = Math.floor(hours / 24);
+      return `Hace ${days} d`;
+    }
+
+    function iconFor(type) {
+      if (type === 'new_order') return '$';
+      if (type === 'pending_order') return '!';
+      return 'i';
+    }
+
+    function render(items) {
+      if (!items.length) {
+        list.innerHTML = '<p class="pz-admin-notifications-empty">No hay notificaciones nuevas.</p>';
+        return;
+      }
+      list.innerHTML = items.map((item) => {
+        const unreadClass = item.status === 'unread' ? ' is-unread' : '';
+        const openAction = item.targetUrl
+          ? `<a href="${escapeHtml(item.targetUrl)}" data-pz-notification-open="${escapeHtml(item.id)}">Abrir</a>`
+          : '';
+        const readAction = item.status === 'unread'
+          ? `<button type="button" data-pz-notification-read="${escapeHtml(item.id)}">Marcar leida</button>`
+          : '';
+        return `
+          <article class="pz-admin-notification-item${unreadClass}" data-pz-notification-id="${escapeHtml(item.id)}">
+            <span class="pz-admin-notification-icon" aria-hidden="true">${escapeHtml(iconFor(item.type))}</span>
+            <div class="pz-admin-notification-content">
+              <h3 class="pz-admin-notification-title">${escapeHtml(item.title)}</h3>
+              <p class="pz-admin-notification-message">${escapeHtml(item.message)}</p>
+              <p class="pz-admin-notification-time">${escapeHtml(timeAgo(item.created))}</p>
+              <div class="pz-admin-notification-actions">${openAction}${readAction}</div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadAll({ detectPending = false } = {}) {
+      if (isLoading) return;
+      isLoading = true;
+      try {
+        if (detectPending) await detectPendingOrders();
+        const [items, unreadCount] = await Promise.all([
+          loadNotifications({ pb, storeId, limit: 12 }),
+          loadUnreadNotificationCount({ pb, storeId }),
+        ]);
+        render(items);
+        setUnreadCount(unreadCount);
+      } catch (error) {
+        console.warn('Could not refresh admin notifications.', error);
+        list.innerHTML = '<p class="pz-admin-notifications-empty">No se pudieron cargar las notificaciones.</p>';
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    async function loadSettings() {
+      const filter = encodeURIComponent(`active = true && store="${escapeFilterValue(storeId)}"`);
+      const result = await api(`/api/collections/settings/records?filter=${filter}&sort=-updated&perPage=1`);
+      return (result.items || [])[0] || null;
+    }
+
+    async function detectPendingOrders() {
+      try {
+        const settings = await loadSettings();
+        if (!settings || settings.notifications_enabled === false || settings.notify_pending_order === false) return;
+        const hours = Math.max(1, Number(settings.pending_order_hours || 2));
+        const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+        const filter = encodeURIComponent(`store="${escapeFilterValue(storeId)}" && status="pending" && created <= "${cutoff}"`);
+        const result = await api(`/api/collections/orders/records?filter=${filter}&sort=created&perPage=50`);
+        const orders = result.items || [];
+        await Promise.all(orders.map((order) => {
+          const orderNumber = order.order_number || order.id;
+          return ensureStoreNotification({
+            pb,
+            storeId,
+            type: 'pending_order',
+            entityCollection: 'orders',
+            entityId: order.id,
+            title: 'Pedido pendiente sin atender',
+            message: `Pedido #${orderNumber} lleva mas de ${hours} horas pendiente.`,
+            priority: 'important',
+            targetUrl: `${ordersPath}?order=${encodeURIComponent(order.id)}`,
+            metadata: { order_number: order.order_number || '', hours },
+          });
+        }));
+      } catch (error) {
+        console.warn('Could not detect pending orders.', error);
+      }
+    }
+
+    function positionPanel(button) {
+      const isMobile = window.matchMedia('(max-width: 1023px)').matches;
+      if (isMobile || !button) {
+        panel.style.top = '';
+        panel.style.left = '';
+        panel.style.right = '';
+        return;
+      }
+      const rect = button.getBoundingClientRect();
+      const width = Math.min(360, window.innerWidth - 24);
+      const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.right - width));
+      panel.style.top = `${Math.round(rect.bottom + 10)}px`;
+      panel.style.left = `${Math.round(left)}px`;
+      panel.style.right = 'auto';
+    }
+
+    function openPanel(button) {
+      isOpen = true;
+      positionPanel(button);
+      panel.classList.remove('hidden');
+      panel.setAttribute('aria-hidden', 'false');
+      setButtonsExpanded(true);
+      loadAll({ detectPending: true });
+    }
+
+    function closePanel() {
+      isOpen = false;
+      panel.classList.add('hidden');
+      panel.setAttribute('aria-hidden', 'true');
+      setButtonsExpanded(false);
+    }
+
+    document.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const trigger = target?.closest('[data-pz-admin-notification-trigger]');
+      if (trigger) {
+        event.preventDefault();
+        event.stopPropagation();
+        isOpen ? closePanel() : openPanel(trigger);
+        return;
+      }
+      if (target?.closest('[data-pz-admin-notifications-panel]')) return;
+      if (isOpen) closePanel();
+    });
+
+    list.addEventListener('click', async (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const readButton = target?.closest('[data-pz-notification-read]');
+      const openLink = target?.closest('[data-pz-notification-open]');
+      if (readButton) {
+        event.preventDefault();
+        await markNotificationRead({ pb, notificationId: readButton.getAttribute('data-pz-notification-read') || '' });
+        await loadAll();
+      } else if (openLink) {
+        await markNotificationRead({ pb, notificationId: openLink.getAttribute('data-pz-notification-open') || '' });
+      }
+    });
+
+    markAllButton?.addEventListener('click', async () => {
+      await markAllNotificationsRead({ pb, storeId });
+      await loadAll();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && isOpen) closePanel();
+    });
+    window.addEventListener('resize', () => {
+      if (isOpen) positionPanel(document.querySelector('[data-pz-admin-notification-trigger][aria-expanded="true"]'));
+    });
+
+    loadAll({ detectPending: true });
+    window.setInterval(() => loadAll(), 60000);
+  })();
+</script>
 
 <script is:inline>
   (() => {
@@ -1428,6 +1700,186 @@ const marketingVisualSubClass = (subsection: string) => {
     fill: currentColor !important;
   }
 
+  .pz-admin-notification-count,
+  .admin-bell-count {
+    position: absolute !important;
+    top: 7px !important;
+    right: 7px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    padding: 0 5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 999px !important;
+    background: #2563eb !important;
+    color: #fff !important;
+    border: 2px solid #fff !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    font-weight: 1000 !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .25) !important;
+  }
+
+  .pz-admin-notification-count.hidden,
+  .admin-bell-count.hidden {
+    display: none !important;
+  }
+
+  .admin-header-bell.has-unread::after,
+  .admin-bell-button.has-unread::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 999px !important;
+    background: #2563eb !important;
+    box-shadow: 0 0 0 3px #fff !important;
+  }
+
+  .pz-admin-notifications-panel {
+    position: fixed !important;
+    top: 82px !important;
+    right: 22px !important;
+    z-index: 260 !important;
+    width: min(360px, calc(100vw - 24px)) !important;
+    max-height: min(540px, calc(100vh - 128px)) !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    border: 1px solid rgba(148, 163, 184, .26) !important;
+    border-radius: 22px !important;
+    background: #fff !important;
+    box-shadow: 0 26px 70px rgba(15, 23, 42, .20) !important;
+    overflow: hidden !important;
+  }
+
+  .pz-admin-notifications-panel.hidden {
+    display: none !important;
+  }
+
+  .pz-admin-notifications-panel__head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: linear-gradient(180deg, #f8fbff, #fff) !important;
+  }
+
+  .pz-admin-notifications-panel__head h2 {
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-size: 16px !important;
+    line-height: 1.15 !important;
+    font-weight: 1000 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .pz-admin-notifications-panel__head p,
+  .pz-admin-notifications-empty {
+    margin: 5px 0 0 !important;
+    color: #64748b !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    font-weight: 750 !important;
+  }
+
+  .pz-admin-notifications-panel__mark-all {
+    flex: 0 0 auto !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: #2563eb !important;
+    padding: 2px 0 !important;
+    font-size: 12px !important;
+    font-weight: 1000 !important;
+  }
+
+  .pz-admin-notifications-panel__body {
+    min-height: 110px !important;
+    max-height: 430px !important;
+    overflow: auto !important;
+    padding: 10px !important;
+  }
+
+  .pz-admin-notification-item {
+    display: grid !important;
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    width: 100% !important;
+    border: 1px solid transparent !important;
+    border-radius: 16px !important;
+    background: #fff !important;
+    color: #0f172a !important;
+    padding: 10px !important;
+    text-align: left !important;
+  }
+
+  .pz-admin-notification-item + .pz-admin-notification-item {
+    margin-top: 8px !important;
+  }
+
+  .pz-admin-notification-item.is-unread {
+    background: #eff6ff !important;
+    border-color: #bfdbfe !important;
+  }
+
+  .pz-admin-notification-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+    font-size: 16px !important;
+    font-weight: 1000 !important;
+  }
+
+  .pz-admin-notification-content {
+    min-width: 0 !important;
+  }
+
+  .pz-admin-notification-title {
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    font-weight: 1000 !important;
+  }
+
+  .pz-admin-notification-message,
+  .pz-admin-notification-time {
+    margin: 4px 0 0 !important;
+    color: #64748b !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+    font-weight: 750 !important;
+  }
+
+  .pz-admin-notification-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+
+  .pz-admin-notification-actions a,
+  .pz-admin-notification-actions button {
+    min-height: 30px !important;
+    border-radius: 999px !important;
+    border: 1px solid #dbeafe !important;
+    background: #fff !important;
+    color: #1d4ed8 !important;
+    padding: 0 10px !important;
+    font-size: 11px !important;
+    font-weight: 1000 !important;
+    text-decoration: none !important;
+  }
+
   .admin-header-actions .primary-blue-btn,
   .admin-header-actions .action-btn.dark,
   .admin-header-actions .mini-btn.primary,
@@ -1553,7 +2005,7 @@ const marketingVisualSubClass = (subsection: string) => {
       position: relative !important;
     }
 
-    .pz-admin-mobile-topbar__notification::after {
+    .pz-admin-mobile-topbar__notification.has-unread::after {
       content: '' !important;
       position: absolute !important;
       top: 12px !important;
@@ -1563,6 +2015,14 @@ const marketingVisualSubClass = (subsection: string) => {
       border-radius: 999px !important;
       background: #2563eb !important;
       box-shadow: 0 0 0 3px #fff !important;
+    }
+
+    .pz-admin-notifications-panel {
+      top: 92px !important;
+      left: 12px !important;
+      right: 12px !important;
+      width: calc(100vw - 24px) !important;
+      max-height: calc(100vh - 184px) !important;
     }
 
     .pz-admin-mobile-topbar__title {
