@@ -3013,28 +3013,45 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           </section>
 
           <div id="catalog-overview">
-            <div class="stats-grid">
-              <article class="stat-card stat-total-card">
-                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8.5 12 4 3 8.5l9 4.5 9-4.5Z"></path><path d="M3 8.5V16l9 4 9-4V8.5"></path><path d="M12 13v7"></path></svg></span>
-                <p class="stat-label">Total productos</p>
-                <p id="stat-total" class="stat-value">0</p>
-              </article>
-              <article class="stat-card ok stat-active-card">
-                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path><path d="m8.5 12.5 2.2 2.2 4.8-5.4"></path></svg></span>
-                <p class="stat-label">Activos</p>
-                <p id="stat-visible" class="stat-value">0</p>
-              </article>
-              <article class="stat-card warn stat-stock-card">
-                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8.5 12 4 3 8.5l9 4.5 9-4.5Z"></path><path d="M3 8.5V16l9 4 9-4V8.5"></path><path d="M12 13v3"></path><path d="M12 18h.01"></path></svg></span>
-                <p class="stat-label">Sin stock</p>
-                <p id="stat-stockout" class="stat-value">0</p>
-              </article>
-              <article class="stat-card muted stat-hidden-card">
-                <span class="stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h13A2.5 2.5 0 0 1 21 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Z"></path><path d="M7 8h10"></path><path d="M7 12h7"></path><path d="M7 16h5"></path></svg></span>
-                <p class="stat-label">Ocultos</p>
-                <p id="stat-hidden" class="stat-value">0</p>
-              </article>
-            </div>
+            <section class="admin-compact-summary admin-compact-summary--products" aria-label="Resumen de productos">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M21 8.5 12 4 3 8.5l9 4.5 9-4.5Z"></path>
+                    <path d="M3 8.5V16l9 4 9-4V8.5"></path>
+                    <path d="M12 13v7"></path>
+                  </svg>
+                </span>
+                <div>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Productos</h2>
+                  <p class="admin-compact-summary__subtitle">Estado general del cat&aacute;logo de productos.</p>
+                </div>
+              </div>
+
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Total productos</p>
+                  <p id="stat-total" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Activos</p>
+                  <p id="stat-visible" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-warn">
+                  <p class="admin-compact-summary__label">Sin stock</p>
+                  <p id="stat-stockout" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-muted">
+                  <p class="admin-compact-summary__label">Ocultos</p>
+                  <p id="stat-hidden" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-purple">
+                  <p class="admin-compact-summary__label">Con oferta</p>
+                  <p id="stat-offers" class="admin-compact-summary__value">0</p>
+                </article>
+              </div>
+            </section>
 
             <section class="panel-card toolbar products-toolbar">
               <div class="field">
@@ -4446,7 +4463,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             await apiRequest('/api/collections/product_variations/records', { method: 'POST', body: formData });
             setVariationAlert('Variación creada correctamente.', 'success');
           }
-          setVariationAlert('VariaciÃ³n guardada correctamente.', 'success');
+          setVariationAlert('Variaci\u00f3n guardada correctamente.', 'success');
           await loadProductVariations(currentProductId);
           await syncProductVariationFlag();
           resetVariationEditor();
@@ -5088,10 +5105,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return Boolean(product.is_offer) && regularPriceUsd > activePriceUsd && activePriceUsd > 0;
       }
       function renderStats(sourceProducts = products) {
-        document.getElementById('stat-total').textContent = String(sourceProducts.length);
-        document.getElementById('stat-visible').textContent = String(sourceProducts.filter(productIsPublicVisible).length);
-        document.getElementById('stat-hidden').textContent = String(sourceProducts.filter((item) => !productIsPublicVisible(item)).length);
-        document.getElementById('stat-stockout').textContent = String(sourceProducts.filter((item) => productTracksStock(item) && Number(item.stock || 0) <= 0).length);
+        const setText = (id, value) => {
+          const node = document.getElementById(id);
+          if (node) node.textContent = String(value);
+        };
+
+        setText('stat-total', sourceProducts.length);
+        setText('stat-visible', sourceProducts.filter(productIsPublicVisible).length);
+        setText('stat-hidden', sourceProducts.filter((item) => !productIsPublicVisible(item)).length);
+        setText('stat-stockout', sourceProducts.filter((item) => productTracksStock(item) && Number(item.stock || 0) <= 0).length);
+        setText('stat-offers', sourceProducts.filter(productHasActiveOffer).length);
       }
       function getFilteredProducts() {
         const term = searchInput.value.trim().toLowerCase();

@@ -2612,40 +2612,39 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           </div>
 
           <section id="marketing-bar-panel" class="marketing-bar-screen hidden">
-            <div class="marketing-featured-summary-grid marketing-bar-summary-grid" data-marketing-bar-active-only>
-              <article class="marketing-featured-summary-card marketing-bar-summary-card">
-                <span class="marketing-summary-icon green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm5 7.4-6.2 6.2L7 11.8l1.4-1.4 2.4 2.4 4.8-4.8L17 9.4Z"/></svg>
+            <section class="admin-compact-summary admin-compact-summary--marketing marketing-bar-summary-grid" data-marketing-bar-active-only aria-label="Resumen del cintillo promocional">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M3 10v4h4l9 5V5l-9 5H3Z"></path>
+                    <path d="M19.5 12a5.5 5.5 0 0 0-2.5-4.6v9.2a5.5 5.5 0 0 0 2.5-4.6Z"></path>
+                  </svg>
                 </span>
                 <div>
-                  <p class="marketing-summary-label">Estado</p>
-                  <p id="marketing-bar-summary-status" class="marketing-summary-value is-inactive">Inactivo</p>
-                  <p id="marketing-bar-summary-status-help" class="marketing-summary-help">El cintillo no está visible</p>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Cintillo promocional</h2>
+                  <p class="admin-compact-summary__subtitle">Estado y presentaci&oacute;n del cintillo p&uacute;blico.</p>
                 </div>
-              </article>
+              </div>
 
-              <article class="marketing-featured-summary-card marketing-bar-summary-card">
-                <span class="marketing-summary-icon blue" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Ofertas activas</p>
-                  <p id="marketing-bar-summary-offers" class="marketing-summary-value">0 de 3</p>
-                  <p id="marketing-bar-summary-offers-help" class="marketing-summary-help">Puedes agregar 3 ofertas</p>
-                </div>
-              </article>
-
-              <article class="marketing-featured-summary-card marketing-bar-summary-card">
-                <span class="marketing-summary-icon purple" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M4 5h16v11H4V5Zm2 2v7h12V7H6Zm4 11h4v2h4v2H6v-2h4v-2Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Presentación</p>
-                  <p id="marketing-bar-summary-presentation" class="marketing-summary-value purple">Carrusel</p>
-                  <p id="marketing-bar-summary-theme" class="marketing-summary-help">Estilo: Azul</p>
-                </div>
-              </article>
-            </div>
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Estado</p>
+                  <p id="marketing-bar-summary-status" class="admin-compact-summary__value marketing-summary-value is-inactive">Inactivo</p>
+                  <p id="marketing-bar-summary-status-help" class="admin-compact-summary__hint marketing-summary-help">El cintillo no est&aacute; visible</p>
+                </article>
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Ofertas activas</p>
+                  <p id="marketing-bar-summary-offers" class="admin-compact-summary__value marketing-summary-value">0 de 3</p>
+                  <p id="marketing-bar-summary-offers-help" class="admin-compact-summary__hint marketing-summary-help">Puedes agregar 3 ofertas</p>
+                </article>
+                <article class="admin-compact-summary__item is-purple">
+                  <p class="admin-compact-summary__label">Presentaci&oacute;n</p>
+                  <p id="marketing-bar-summary-presentation" class="admin-compact-summary__value marketing-summary-value purple">Carrusel</p>
+                  <p id="marketing-bar-summary-theme" class="admin-compact-summary__hint marketing-summary-help">Estilo: Azul</p>
+                </article>
+              </div>
+            </section>
 
             <form id="marketing-bar-form" class="marketing-featured-panel marketing-bar-panel">
               <div class="marketing-bar-panel-head">
@@ -2957,46 +2956,38 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           </section>
 
           <section id="tab-destacados" class="tab-panel">
-            <div class="marketing-featured-summary-grid" aria-label="Resumen de destacados visuales">
-              <article class="marketing-featured-summary-card">
-                <span class="marketing-summary-icon blue" aria-hidden="true">
+            <section class="admin-compact-summary admin-compact-summary--marketing" aria-label="Resumen de destacados visuales">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
                   <svg viewBox="0 0 24 24">
-                    <path d="m12 2 2.9 6 6.6.9-4.8 4.6 1.1 6.5L12 16.9 6.2 20l1.1-6.5-4.8-4.6 6.6-.9L12 2Zm0 4.6-1.7 3.5-3.8.5 2.8 2.7-.7 3.8 3.4-1.8 3.4 1.8-.7-3.8 2.8-2.7-3.8-.5L12 6.6Z"></path>
+                    <path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"></path>
                   </svg>
                 </span>
                 <div>
-                  <p class="marketing-summary-label">Destacados</p>
-                  <p id="featured-summary-total" class="marketing-summary-value">0</p>
-                  <p class="marketing-summary-help">Productos seleccionados</p>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Destacados visuales</h2>
+                  <p class="admin-compact-summary__subtitle">Productos seleccionados para portada.</p>
                 </div>
-              </article>
+              </div>
 
-              <article class="marketing-featured-summary-card">
-                <span class="marketing-summary-icon green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M12 5c5.5 0 9.5 5.1 10 7-.5 1.9-4.5 7-10 7S2.5 13.9 2 12c.5-1.9 4.5-7 10-7Zm0 2C8.2 7 5.1 10.1 4.2 12c.9 1.9 4 5 7.8 5s6.9-3.1 7.8-5C18.9 10.1 15.8 7 12 7Zm0 2.5A2.5 2.5 0 1 1 12 14.5 2.5 2.5 0 0 1 12 9.5Z"></path>
-                  </svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Visibles</p>
-                  <p id="featured-summary-visible" class="marketing-summary-value">0</p>
-                  <p class="marketing-summary-help">Activos en portada</p>
-                </div>
-              </article>
-
-              <article class="marketing-featured-summary-card marketing-featured-summary-card-wide">
-                <span class="marketing-summary-icon purple" aria-hidden="true">
-                  <svg viewBox="0 0 24 24">
-                    <path d="M2.8 3.4 4.2 2l17 17-1.4 1.4-3-3A10.6 10.6 0 0 1 12 19c-5.5 0-9.5-5.1-10-7 .3-1.1 1.8-3.4 4.1-5.1L2.8 3.4Zm5 5C5.9 9.6 4.7 11.1 4.2 12c.9 1.9 4 5 7.8 5 1.2 0 2.3-.3 3.3-.8l-2-2A2.5 2.5 0 0 1 9.8 10.7l-2-2.3ZM12 5c5.5 0 9.5 5.1 10 7-.2.8-1.1 2.2-2.4 3.6l-1.4-1.4c.8-.8 1.4-1.6 1.7-2.2-.9-1.9-4-5-7.8-5-.8 0-1.6.1-2.3.4L8.1 5.7C9.3 5.2 10.6 5 12 5Z"></path>
-                  </svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Ocultos</p>
-                  <p id="featured-summary-hidden" class="marketing-summary-value">0</p>
-                  <p class="marketing-summary-help">No visibles</p>
-                </div>
-              </article>
-            </div>
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Destacados</p>
+                  <p id="featured-summary-total" class="admin-compact-summary__value marketing-summary-value">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Productos seleccionados</p>
+                </article>
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Visibles</p>
+                  <p id="featured-summary-visible" class="admin-compact-summary__value marketing-summary-value">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Activos en portada</p>
+                </article>
+                <article class="admin-compact-summary__item is-muted">
+                  <p class="admin-compact-summary__label">Ocultos</p>
+                  <p id="featured-summary-hidden" class="admin-compact-summary__value marketing-summary-value">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">No visibles</p>
+                </article>
+              </div>
+            </section>
 
             <section class="marketing-featured-panel" aria-label="Productos destacados">
               <article id="featured-accordion" class="marketing-featured-accordion is-open" data-featured-accordion>
@@ -3084,40 +3075,41 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </section>
           </section>
           <section id="tab-visuales" class="tab-panel hidden marketing-quick-screen">
-            <div class="marketing-featured-summary-grid marketing-quick-summary-grid">
-              <article class="marketing-featured-summary-card marketing-quick-summary-card">
-                <span class="marketing-summary-icon blue" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 3 3 7.5 12 12l9-4.5L12 3Zm-7 8.2 7 3.5 7-3.5v2.3L12 17l-7-3.5v-2.3Zm0 5 7 3.5 7-3.5v2.3L12 22l-7-3.5v-2.3Z"/></svg>
+            <section class="admin-compact-summary admin-compact-summary--marketing marketing-quick-summary-grid" aria-label="Resumen de accesos r&aacute;pidos">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M4 4h7v7H4V4Z"></path>
+                    <path d="M13 4h7v7h-7V4Z"></path>
+                    <path d="M4 13h7v7H4v-7Z"></path>
+                    <path d="M13 13h7v7h-7v-7Z"></path>
+                  </svg>
                 </span>
                 <div>
-                  <p class="marketing-summary-label">Total tarjetas</p>
-                  <p id="visual-summary-total" class="marketing-summary-value">0</p>
-                  <p class="marketing-summary-help">Elementos creados</p>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Accesos r&aacute;pidos</h2>
+                  <p class="admin-compact-summary__subtitle">Tarjetas visuales, enlaces y accesos p&uacute;blicos.</p>
                 </div>
-              </article>
+              </div>
 
-              <article class="marketing-featured-summary-card marketing-quick-summary-card">
-                <span class="marketing-summary-icon green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 5c5.5 0 9.5 5 10 7-.5 2-4.5 7-10 7S2.5 14 2 12c.5-2 4.5-7 10-7Zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Visibles</p>
-                  <p id="visual-summary-visible" class="marketing-summary-value green">0</p>
-                  <p class="marketing-summary-help">Se muestran en tienda</p>
-                </div>
-              </article>
-
-              <article class="marketing-featured-summary-card marketing-quick-summary-card">
-                <span class="marketing-summary-icon orange" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5h-2v6l5 3 .9-1.7-3.9-2.3V7Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Revisión</p>
-                  <p id="visual-summary-review" class="marketing-summary-value orange">0</p>
-                  <p class="marketing-summary-help">Ocultas</p>
-                </div>
-              </article>
-            </div>
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Total tarjetas</p>
+                  <p id="visual-summary-total" class="admin-compact-summary__value marketing-summary-value">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Elementos creados</p>
+                </article>
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Visibles</p>
+                  <p id="visual-summary-visible" class="admin-compact-summary__value marketing-summary-value green">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Se muestran en tienda</p>
+                </article>
+                <article class="admin-compact-summary__item is-warn">
+                  <p class="admin-compact-summary__label">Revisi&oacute;n</p>
+                  <p id="visual-summary-review" class="admin-compact-summary__value marketing-summary-value orange">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Ocultas</p>
+                </article>
+              </div>
+            </section>
 
             <div class="marketing-featured-panel marketing-quick-panel">
               <div class="marketing-quick-panel-head">
@@ -3301,38 +3293,39 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           </section>
 
           <section id="tab-promociones" class="panel-card tab-panel hidden marketing-promos-screen">
-            <div class="marketing-featured-summary-grid marketing-promos-summary-grid">
-              <article class="marketing-featured-summary-card marketing-promos-summary-card">
-                <span class="marketing-summary-icon blue" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Zm10 0v4h4l-4-4ZM8 13h8v-2H8v2Zm0 4h8v-2H8v2Z"/></svg>
+            <section class="admin-compact-summary admin-compact-summary--marketing marketing-promos-summary-grid" aria-label="Resumen de promociones autom&aacute;ticas">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4Z"></path>
+                    <path d="M16.5 8.5h.01"></path>
+                  </svg>
                 </span>
                 <div>
-                  <p class="marketing-summary-label">Total promociones</p>
-                  <p id="promotion-summary-total" class="marketing-summary-value">0</p>
-                  <p class="marketing-summary-help">Reglas creadas</p>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Promociones autom&aacute;ticas</h2>
+                  <p class="admin-compact-summary__subtitle">Reglas activas, vencidas o inactivas.</p>
                 </div>
-              </article>
-              <article class="marketing-featured-summary-card marketing-promos-summary-card">
-                <span class="marketing-summary-icon green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="m9.2 16.6-4.1-4.1L3.7 14l5.5 5.5L21 7.7 19.6 6.3 9.2 16.6Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Activas</p>
-                  <p id="promotion-summary-active" class="marketing-summary-value green">0</p>
-                  <p class="marketing-summary-help">En funcionamiento</p>
-                </div>
-              </article>
-              <article class="marketing-featured-summary-card marketing-promos-summary-card">
-                <span class="marketing-summary-icon orange" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 2 1 21h22L12 2Zm1 15h-2v-2h2v2Zm0-4h-2V8h2v5Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Revisión</p>
-                  <p id="promotion-summary-review" class="marketing-summary-value orange">0</p>
-                  <p class="marketing-summary-help">Vencidas o inactivas</p>
-                </div>
-              </article>
-            </div>
+              </div>
+
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Total promociones</p>
+                  <p id="promotion-summary-total" class="admin-compact-summary__value marketing-summary-value">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Reglas creadas</p>
+                </article>
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Activas</p>
+                  <p id="promotion-summary-active" class="admin-compact-summary__value marketing-summary-value green">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">En funcionamiento</p>
+                </article>
+                <article class="admin-compact-summary__item is-warn">
+                  <p class="admin-compact-summary__label">Revisi&oacute;n</p>
+                  <p id="promotion-summary-review" class="admin-compact-summary__value marketing-summary-value orange">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Vencidas o inactivas</p>
+                </article>
+              </div>
+            </section>
 
             <div class="marketing-featured-panel marketing-promos-panel">
               <div class="marketing-promos-panel-head">
@@ -3495,40 +3488,40 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           </div>
 
           <section id="tab-cupones" class="tab-panel hidden marketing-coupons-screen">
-            <div class="marketing-featured-summary-grid marketing-coupons-summary-grid">
-              <article class="marketing-featured-summary-card marketing-coupons-summary-card">
-                <span class="marketing-summary-icon blue" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M20 10.5V6a2 2 0 0 0-2-2h-4.5a2 2 0 0 0-1.4.6L4.6 12.1a2 2 0 0 0 0 2.8l4.5 4.5a2 2 0 0 0 2.8 0l7.5-7.5a2 2 0 0 0 .6-1.4ZM16.5 8.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/></svg>
+            <section class="admin-compact-summary admin-compact-summary--marketing marketing-coupons-summary-grid" aria-label="Resumen de cupones manuales">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Z"></path>
+                    <path d="M9 8h2v2H9V8Z"></path>
+                    <path d="M9 14h2v2H9v-2Z"></path>
+                  </svg>
                 </span>
                 <div>
-                  <p class="marketing-summary-label">Total cupones</p>
-                  <p id="coupon-summary-total" class="marketing-summary-value">0</p>
-                  <p class="marketing-summary-help">Códigos creados</p>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Cupones manuales</h2>
+                  <p class="admin-compact-summary__subtitle">C&oacute;digos creados, disponibles o en revisi&oacute;n.</p>
                 </div>
-              </article>
+              </div>
 
-              <article class="marketing-featured-summary-card marketing-coupons-summary-card">
-                <span class="marketing-summary-icon green" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="m9 16.2-3.5-3.5L4 14.2l5 5L20 8.2 18.5 6.7 9 16.2Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Activos</p>
-                  <p id="coupon-summary-active" class="marketing-summary-value green">0</p>
-                  <p class="marketing-summary-help">Disponibles</p>
-                </div>
-              </article>
-
-              <article class="marketing-featured-summary-card marketing-coupons-summary-card">
-                <span class="marketing-summary-icon orange" aria-hidden="true">
-                  <svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Zm1 14h-2v2h2v-2Zm0-7h-2v5h2v-5Z"/></svg>
-                </span>
-                <div>
-                  <p class="marketing-summary-label">Revisión</p>
-                  <p id="coupon-summary-review" class="marketing-summary-value orange">0</p>
-                  <p class="marketing-summary-help">Vencidos, inactivos o agotados</p>
-                </div>
-              </article>
-            </div>
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Total cupones</p>
+                  <p id="coupon-summary-total" class="admin-compact-summary__value marketing-summary-value">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">C&oacute;digos creados</p>
+                </article>
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Activos</p>
+                  <p id="coupon-summary-active" class="admin-compact-summary__value marketing-summary-value green">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Disponibles</p>
+                </article>
+                <article class="admin-compact-summary__item is-warn">
+                  <p class="admin-compact-summary__label">Revisi&oacute;n</p>
+                  <p id="coupon-summary-review" class="admin-compact-summary__value marketing-summary-value orange">0</p>
+                  <p class="admin-compact-summary__hint marketing-summary-help">Vencidos, inactivos o agotados</p>
+                </article>
+              </div>
+            </section>
 
             <div class="marketing-featured-panel marketing-coupons-panel">
               <div class="marketing-coupons-panel-head">

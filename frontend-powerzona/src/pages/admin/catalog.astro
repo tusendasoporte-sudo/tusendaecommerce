@@ -1127,27 +1127,40 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           </div>
 
           <div id="catalog-main-panel" class="section-stack">
-            <section class="catalog-stats-grid" aria-label="Resumen de categorias">
-              <article class="catalog-stat-card">
-                <span class="catalog-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg></span>
-                <p class="catalog-stat-label">Total categorias</p>
-                <p id="stat-categories-total" class="catalog-stat-value">0</p>
-              </article>
-              <article class="catalog-stat-card">
-                <span class="catalog-stat-icon ok" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg></span>
-                <p class="catalog-stat-label">Categorias activas</p>
-                <p id="stat-categories-active" class="catalog-stat-value">0</p>
-              </article>
-              <article class="catalog-stat-card">
-                <span class="catalog-stat-icon ok" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 4v6"></path><path d="M6 10h12"></path><path d="M18 10v10"></path><path d="M6 20h12"></path></svg></span>
-                <p class="catalog-stat-label">Con subcategorias</p>
-                <p id="stat-categories-children" class="catalog-stat-value">0</p>
-              </article>
-              <article class="catalog-stat-card">
-                <span class="catalog-stat-icon warn" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 10 14 4H5v9l6 6 9-9Z"></path><path d="M8 8h.01"></path></svg></span>
-                <p class="catalog-stat-label">Productos asignados</p>
-                <p id="stat-products-assigned" class="catalog-stat-value">0</p>
-              </article>
+            <section class="admin-compact-summary admin-compact-summary--catalog" aria-label="Resumen de categor&iacute;as">
+              <div class="admin-compact-summary__head">
+                <span class="admin-compact-summary__icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M4 6h16"></path>
+                    <path d="M4 12h16"></path>
+                    <path d="M4 18h16"></path>
+                  </svg>
+                </span>
+                <div>
+                  <p class="admin-compact-summary__eyebrow">Resumen</p>
+                  <h2 class="admin-compact-summary__title">Categor&iacute;as</h2>
+                  <p class="admin-compact-summary__subtitle">Organizaci&oacute;n principal del cat&aacute;logo p&uacute;blico.</p>
+                </div>
+              </div>
+
+              <div class="admin-compact-summary__list">
+                <article class="admin-compact-summary__item">
+                  <p class="admin-compact-summary__label">Total categor&iacute;as</p>
+                  <p id="stat-categories-total" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-ok">
+                  <p class="admin-compact-summary__label">Categor&iacute;as activas</p>
+                  <p id="stat-categories-active" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-purple">
+                  <p class="admin-compact-summary__label">Con subcategor&iacute;as</p>
+                  <p id="stat-categories-children" class="admin-compact-summary__value">0</p>
+                </article>
+                <article class="admin-compact-summary__item is-warn">
+                  <p class="admin-compact-summary__label">Productos asignados</p>
+                  <p id="stat-products-assigned" class="admin-compact-summary__value">0</p>
+                </article>
+              </div>
             </section>
 
             <section class="panel-card catalog-toolbar" aria-label="Filtros de categorias">

@@ -891,12 +891,45 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
           {isOrderDetailPage && <a class="action-btn detail-back-link" href={adminOrdersPath}>← Volver a pedidos</a>}
 
-          <section class:list={['stats-grid', isOrderDetailPage && 'hidden']}>
-            <div class="card stat-card"><div class="stat-label">Total</div><div id="stat-total" class="stat-value">0</div></div>
-            <div class="card stat-card"><div class="stat-label">Pendientes</div><div id="stat-pending" class="stat-value">0</div></div>
-            <div class="card stat-card"><div class="stat-label">Confirmadas</div><div id="stat-confirmed" class="stat-value">0</div></div>
-            <div class="card stat-card"><div class="stat-label">Canceladas</div><div id="stat-cancelled" class="stat-value">0</div></div>
-            <div class="card stat-card"><div class="stat-label">Entregadas</div><div id="stat-delivered" class="stat-value">0</div></div>
+          <section class:list={['admin-compact-summary', 'admin-compact-summary--orders', isOrderDetailPage && 'hidden']} aria-label="Resumen de pedidos">
+            <div class="admin-compact-summary__head">
+              <span class="admin-compact-summary__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Z"></path>
+                  <path d="M9 8h6"></path>
+                  <path d="M9 12h6"></path>
+                  <path d="M9 16h4"></path>
+                </svg>
+              </span>
+              <div>
+                <p class="admin-compact-summary__eyebrow">Resumen</p>
+                <h2 class="admin-compact-summary__title">Pedidos</h2>
+                <p class="admin-compact-summary__subtitle">Estado actual de las &oacute;rdenes de la tienda.</p>
+              </div>
+            </div>
+
+            <div class="admin-compact-summary__list">
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">Total</p>
+                <p id="stat-total" class="admin-compact-summary__value">0</p>
+              </article>
+              <article class="admin-compact-summary__item is-warn">
+                <p class="admin-compact-summary__label">Pendientes</p>
+                <p id="stat-pending" class="admin-compact-summary__value">0</p>
+              </article>
+              <article class="admin-compact-summary__item is-ok">
+                <p class="admin-compact-summary__label">Confirmadas</p>
+                <p id="stat-confirmed" class="admin-compact-summary__value">0</p>
+              </article>
+              <article class="admin-compact-summary__item is-muted">
+                <p class="admin-compact-summary__label">Canceladas</p>
+                <p id="stat-cancelled" class="admin-compact-summary__value">0</p>
+              </article>
+              <article class="admin-compact-summary__item is-purple">
+                <p class="admin-compact-summary__label">Entregadas</p>
+                <p id="stat-delivered" class="admin-compact-summary__value">0</p>
+              </article>
+            </div>
           </section>
 
           <div class:list={['card toolbar', isOrderDetailPage && 'hidden']}>

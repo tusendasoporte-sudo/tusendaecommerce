@@ -310,3 +310,557 @@ body {
     white-space: normal;
   }
 }
+
+/* =========================================================
+   PZ-PROD-MEJORA-006B
+   Resumen admin como UNA SOLA tarjeta tipo lista
+   ========================================================= */
+
+.pz-admin-content .admin-compact-summary {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  display: block;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.07);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pz-admin-content .admin-compact-summary__head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 14px;
+  margin: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pz-admin-content .admin-compact-summary__icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  background: #dbeafe;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.12);
+}
+
+.pz-admin-content .admin-compact-summary__icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pz-admin-content .admin-compact-summary__eyebrow {
+  margin: 0 0 3px;
+  color: #2563eb;
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.pz-admin-content .admin-compact-summary__title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.08;
+  font-weight: 1000;
+  letter-spacing: -0.035em;
+}
+
+.pz-admin-content .admin-compact-summary__subtitle {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.pz-admin-content .admin-compact-summary__list {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 4px;
+}
+
+.pz-admin-content .admin-compact-summary__item {
+  min-width: 0;
+  min-height: 0;
+  padding: 13px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.82);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.pz-admin-content .admin-compact-summary__item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.pz-admin-content .admin-compact-summary__label {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.25;
+  font-weight: 900;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pz-admin-content .admin-compact-summary__value {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  color: #0f172a;
+  font-size: 20px;
+  line-height: 1;
+  font-weight: 1000;
+  letter-spacing: -0.035em;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pz-admin-content .admin-compact-summary__hint {
+  grid-column: 1 / -1;
+  margin: -5px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.pz-admin-content .admin-compact-summary__item.is-ok .admin-compact-summary__value {
+  color: #16a34a;
+}
+
+.pz-admin-content .admin-compact-summary__item.is-warn .admin-compact-summary__value {
+  color: #f97316;
+}
+
+.pz-admin-content .admin-compact-summary__item.is-muted .admin-compact-summary__value {
+  color: #64748b;
+}
+
+.pz-admin-content .admin-compact-summary__item.is-purple .admin-compact-summary__value {
+  color: #4f46e5;
+}
+
+@media (min-width: 1024px) {
+  .pz-admin-content .admin-compact-summary {
+    max-width: 520px;
+  }
+
+  .pz-admin-content .admin-compact-summary--marketing {
+    max-width: 620px;
+  }
+}
+
+@media (max-width: 760px) {
+  .pz-admin-content .admin-compact-summary {
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .pz-admin-content .admin-compact-summary__head {
+    align-items: flex-start;
+    padding-bottom: 13px;
+  }
+
+  .pz-admin-content .admin-compact-summary__title {
+    font-size: 17px;
+  }
+
+  .pz-admin-content .admin-compact-summary__subtitle {
+    font-size: 12px;
+  }
+
+  .pz-admin-content .admin-compact-summary__item {
+    padding: 12px 0;
+  }
+
+  .pz-admin-content .admin-compact-summary__label {
+    font-size: 12px;
+  }
+
+  .pz-admin-content .admin-compact-summary__value {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 390px) {
+  .pz-admin-content .admin-compact-summary {
+    padding: 14px;
+  }
+
+  .pz-admin-content .admin-compact-summary__item {
+    gap: 10px;
+  }
+
+  .pz-admin-content .admin-compact-summary__value {
+    font-size: 18px;
+  }
+}
+
+/* =========================================================
+   PZ-MOBILE-SAFE-001B
+   Seguridad responsive movil sin romper layouts existentes
+   ========================================================= */
+
+.pz-admin-content,
+.pz-admin-content *,
+.pz-admin-content *::before,
+.pz-admin-content *::after {
+  box-sizing: border-box;
+}
+
+.pz-admin-content {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.pz-admin-content :where(section, article, div, form, header, footer, nav, ul, ol, li) {
+  max-width: 100%;
+}
+
+.pz-admin-content :where(h1, h2, h3, h4, p, span, strong, small, label, a, button) {
+  min-width: 0;
+}
+
+.pz-admin-content :where(img, svg, video, canvas) {
+  max-width: 100%;
+}
+
+.pz-admin-content :where(input, select, textarea) {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Evita textos montados en filas/cards sin forzar layouts globales */
+.pz-admin-content :where(
+  .product-title,
+  .product-meta,
+  .category-name,
+  .category-sub,
+  .catalog-card-title,
+  .catalog-card-meta,
+  .gift-name,
+  .gift-desc,
+  .zone-title,
+  .zone-note,
+  .visual-title,
+  .visual-meta,
+  .order-number,
+  .order-customer,
+  .order-subtext,
+  .section-title,
+  .section-subtitle,
+  .page-title,
+  .page-subtitle
+) {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Tabs horizontales: deben hacer scroll, no encogerse ni montar texto */
+@media (max-width: 760px) {
+  .pz-admin-content :where(
+    .visit-analytics-tabs,
+    .business-summary-tabs,
+    .analytics-tabs,
+    .period-tabs,
+    .expiration-tabs,
+    .settings-tabs,
+    .marketing-tabs
+  ) {
+    width: 100%;
+    max-width: 100%;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .pz-admin-content :where(
+    .visit-analytics-tabs,
+    .business-summary-tabs,
+    .analytics-tabs,
+    .period-tabs,
+    .expiration-tabs,
+    .settings-tabs,
+    .marketing-tabs
+  )::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pz-admin-content :where(
+    .visit-analytics-tab,
+    .business-summary-tab,
+    .analytics-tab,
+    .period-btn,
+    .expiration-btn,
+    .settings-tab,
+    .marketing-tab
+  ) {
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+  }
+
+  .pz-admin-content :where(
+    .admin-card-actions,
+    .admin-row-actions,
+    .row-actions,
+    .item-actions,
+    .catalog-order-actions,
+    .premium-actions-group,
+    .category-product-actions,
+    .variation-mini-actions,
+    .pz-variation-row-actions,
+    .coupon-row-actions,
+    .form-actions,
+    .panel-actions,
+    .editor-actions
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .pz-admin-content :where(.action-btn, .submit-btn, .mini-btn, .primary-blue-btn, .pz-admin-btn) {
+    max-width: 100%;
+    text-align: center;
+    line-height: 1.15;
+  }
+}
+
+/* Correccion especifica Resumen / Analiticas */
+@media (max-width: 760px) {
+  .pz-admin-content .visit-analytics-card,
+  .pz-admin-content .business-summary-card {
+    padding: 18px;
+    border-radius: 22px;
+    overflow: hidden;
+  }
+
+  .pz-admin-content .visit-analytics-toolbar {
+    display: block;
+    width: 100%;
+  }
+
+  .pz-admin-content .visit-analytics-tabs,
+  .pz-admin-content .business-summary-tabs {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .pz-admin-content .visit-analytics-tab,
+  .pz-admin-content .business-summary-tab {
+    min-height: 40px;
+    padding: 0 15px;
+    font-size: 13px;
+  }
+
+  .pz-admin-content .visit-analytics-panel,
+  .pz-admin-content .business-summary-panel {
+    padding: 18px;
+    border-radius: 20px;
+  }
+}
+
+@media (max-width: 430px) {
+  .pz-admin-content .visit-analytics-card,
+  .pz-admin-content .business-summary-card {
+    padding: 16px;
+  }
+
+  .pz-admin-content .visit-analytics-header h2,
+  .pz-admin-content .business-summary-header h2 {
+    font-size: 22px;
+    line-height: 1.08;
+  }
+
+  .pz-admin-content .visit-analytics-header p,
+  .pz-admin-content .business-summary-header p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .pz-admin-content .visit-analytics-tab,
+  .pz-admin-content .business-summary-tab {
+    min-height: 38px;
+    padding: 0 14px;
+    font-size: 12px;
+  }
+}
+
+/* Correccion especifica Ajustes generales */
+@media (max-width: 760px) {
+  .pz-admin-content .settings-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .pz-admin-content .settings-summary-card {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .pz-admin-content .settings-summary-card > div {
+    min-width: 0;
+  }
+
+  .pz-admin-content .summary-label,
+  .pz-admin-content .summary-value,
+  .pz-admin-content .summary-help {
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
+
+  .pz-admin-content .general-settings-summary {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  .pz-admin-content .general-settings-summary-main {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .pz-admin-content .general-settings-summary-main > div {
+    min-width: 0 !important;
+  }
+
+  .pz-admin-content .general-settings-summary h3,
+  .pz-admin-content .general-settings-summary p {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .pz-admin-content .general-settings-summary-meta {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .pz-admin-content .general-settings-badge,
+  .pz-admin-content .settings-help-btn,
+  .pz-admin-content .general-settings-chevron {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .pz-admin-content .settings-summary-card {
+    min-height: 112px !important;
+    padding: 14px !important;
+    gap: 10px !important;
+    border-radius: 18px !important;
+  }
+
+  .pz-admin-content .settings-summary-card .summary-icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 16px !important;
+  }
+
+  .pz-admin-content .settings-summary-card .summary-label {
+    font-size: 11px !important;
+  }
+
+  .pz-admin-content .settings-summary-card .summary-value {
+    font-size: 15px !important;
+  }
+
+  .pz-admin-content .settings-summary-card .summary-help {
+    font-size: 11px !important;
+  }
+
+  .pz-admin-content .general-settings-summary {
+    padding: 14px !important;
+  }
+
+  .pz-admin-content .general-settings-summary h3 {
+    font-size: 16px !important;
+    line-height: 1.12 !important;
+  }
+
+  .pz-admin-content .general-settings-summary p {
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+
+  .pz-admin-content .settings-help-btn {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    font-size: 12px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .pz-admin-content {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .pz-admin-content .settings-summary-grid {
+    gap: 10px !important;
+  }
+
+  .pz-admin-content .settings-summary-card {
+    padding: 12px !important;
+  }
+
+  .pz-admin-content .settings-summary-card .summary-icon {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 15px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .pz-admin-content .settings-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

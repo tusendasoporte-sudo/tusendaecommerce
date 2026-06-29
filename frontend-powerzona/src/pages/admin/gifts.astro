@@ -353,11 +353,40 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         <div id="alert" class="alert alert-info hidden"></div>
 
-        <section class="stats-grid" aria-label="Resumen de regalos">
-          <article class="stat-card"><span class="stat-icon blue">#</span><div><p class="stat-label">Total regalos</p><p id="stat-total" class="stat-value">0</p></div></article>
-          <article class="stat-card"><span class="stat-icon green">✓</span><div><p class="stat-label">Activos</p><p id="stat-active" class="stat-value">0</p></div></article>
-          <article class="stat-card"><span class="stat-icon orange">!</span><div><p class="stat-label">Sin stock</p><p id="stat-stockout" class="stat-value">0</p></div></article>
-          <article class="stat-card"><span class="stat-icon purple">$</span><div><p class="stat-label">Reglas por monto</p><p id="stat-rules" class="stat-value">0</p></div></article>
+        <section class="admin-compact-summary admin-compact-summary--gifts" aria-label="Resumen de regalos">
+          <div class="admin-compact-summary__head">
+            <span class="admin-compact-summary__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1Z"></path>
+                <path d="M5 10h14"></path>
+                <path d="M12 8v13"></path>
+              </svg>
+            </span>
+            <div>
+              <p class="admin-compact-summary__eyebrow">Resumen</p>
+              <h2 class="admin-compact-summary__title">Regalos</h2>
+              <p class="admin-compact-summary__subtitle">Regalos disponibles y reglas por monto.</p>
+            </div>
+          </div>
+
+          <div class="admin-compact-summary__list">
+            <article class="admin-compact-summary__item">
+              <p class="admin-compact-summary__label">Total regalos</p>
+              <p id="stat-total" class="admin-compact-summary__value">0</p>
+            </article>
+            <article class="admin-compact-summary__item is-ok">
+              <p class="admin-compact-summary__label">Activos</p>
+              <p id="stat-active" class="admin-compact-summary__value">0</p>
+            </article>
+            <article class="admin-compact-summary__item is-warn">
+              <p class="admin-compact-summary__label">Sin stock</p>
+              <p id="stat-stockout" class="admin-compact-summary__value">0</p>
+            </article>
+            <article class="admin-compact-summary__item is-purple">
+              <p class="admin-compact-summary__label">Reglas por monto</p>
+              <p id="stat-rules" class="admin-compact-summary__value">0</p>
+            </article>
+          </div>
         </section>
 
         <section class="filter-card" aria-label="Filtros de regalos">
