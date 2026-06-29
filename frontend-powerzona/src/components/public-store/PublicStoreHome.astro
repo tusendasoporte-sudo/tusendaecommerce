@@ -71,6 +71,15 @@ const coverGalleryUrls = Array.isArray(settings?.coverGalleryUrls) ? settings.co
 const heroCarouselEnabled = settings?.cover_mode === 'carousel' && coverGalleryUrls.length > 0;
 const heroCarouselImages = heroCarouselEnabled && coverGalleryUrls.length >= 2 ? coverGalleryUrls : [];
 const heroImages = heroCarouselEnabled ? coverGalleryUrls : (coverImageUrl ? [coverImageUrl] : []);
+const storeSeoImage =
+  heroImages[0]
+  || coverImageUrl
+  || logoImageUrl
+  || currentStore?.bazaarImageUrl
+  || '/brand/tusenda84-bazzar-logo.webp';
+const storeSeoTitle = storeName;
+const storeSeoDescription = storeName;
+const storeSeoUrl = getPublicPath('/', currentStore, currentPathname);
 const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
@@ -222,7 +231,17 @@ function getProductOfferView(product: any) {
 
 ---
 
-<Layout hideStoreFloatingUi={isTemporarilyClosed}>
+<Layout
+  hideStoreFloatingUi={isTemporarilyClosed}
+  seo={{
+    title: storeSeoTitle,
+    description: storeSeoDescription,
+    image: storeSeoImage,
+    canonical: storeSeoUrl,
+    type: 'website',
+    siteName: storeName,
+  }}
+>
   <style>
     .public-store-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
     .public-store-brand { min-width: 0; display: flex; align-items: center; gap: 12px; }

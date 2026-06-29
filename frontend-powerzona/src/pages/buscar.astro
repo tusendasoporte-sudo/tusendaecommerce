@@ -16,6 +16,9 @@ const products = await getProducts(storeQuery);
 const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
 const logoImageUrl = settings?.logoImageUrl || '';
 const homePath = getPublicPath('/', currentStore, currentPathname);
+const searchSeoTitle = `Buscar en ${storeName}`;
+const searchSeoImage = settings?.coverImageUrl || logoImageUrl || '/brand/tusenda84-bazzar-logo.webp';
+const searchSeoUrl = getPublicPath('/buscar', currentStore, currentPathname);
 const rawQuery = Astro.url.searchParams.get('q') || '';
 const initialQuery = rawQuery.trim();
 
@@ -78,7 +81,16 @@ const searchItems = [
 ];
 ---
 
-<Layout>
+<Layout
+  seo={{
+    title: searchSeoTitle,
+    description: searchSeoTitle,
+    image: searchSeoImage,
+    canonical: searchSeoUrl,
+    type: 'website',
+    siteName: storeName,
+  }}
+>
   <style>
     .search-shell { max-width: 1120px; margin: 0 auto; }
     .search-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }

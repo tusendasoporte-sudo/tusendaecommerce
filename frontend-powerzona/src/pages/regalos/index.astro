@@ -20,9 +20,25 @@ const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
 const homePath = getPublicPath('/', currentStore, currentPathname);
 const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPathname);
+const giftsSeoImage =
+  giftsPublicImageUrl
+  || settings?.coverImageUrl
+  || logoImageUrl
+  || '/brand/tusenda84-bazzar-logo.webp';
+const giftsSeoTitle = giftsPublicTitle || 'Regalos';
+const giftsSeoUrl = getPublicPath('/regalos', currentStore, currentPathname);
 ---
 
-<Layout>
+<Layout
+  seo={{
+    title: giftsSeoTitle,
+    description: giftsSeoTitle,
+    image: giftsSeoImage,
+    canonical: giftsSeoUrl,
+    type: 'website',
+    siteName: storeName,
+  }}
+>
   <style>
     .gift-page-head { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px; }
     .gift-brand { min-width:0;display:flex;align-items:center;gap:10px;color:#111827;text-decoration:none; }

@@ -1,0 +1,85 @@
+---
+type SeoType = 'website' | 'product';
+
+type Props = {
+  title?: string;
+  description?: string;
+  image?: string;
+  canonical?: string;
+  type?: SeoType;
+  siteName?: string;
+  productPriceAmount?: number | string | null;
+  productPriceCurrency?: string;
+};
+
+const {
+  title = 'Tu Senda 84',
+  description = '',
+  image = '',
+  canonical = '',
+  type = 'website',
+  siteName = 'Tu Senda 84',
+  productPriceAmount = null,
+  productPriceCurrency = 'USD',
+} = Astro.props as Props;
+
+const PUBLIC_SITE_URL = String(import.meta.env.PUBLIC_SITE_URL || '').replace(/\/$/, '');
+const requestOrigin = Astro.url.origin.replace(/\/$/, '');
+const baseUrl = PUBLIC_SITE_URL || requestOrigin;
+
+function cleanText(value: unknown, fallback = '') {
+  return String(value ?? fallback)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function limitText(value: unknown, max = 90) {
+  const text = cleanText(value);
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3).trim()}...`;
+}
+
+function absoluteUrl(value: unknown) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('//')) return `https:${raw}`;
+  if (raw.startsWith('/')) return `${baseUrl}${raw}`;
+  return `${baseUrl}/${raw.replace(/^\/+/, '')}`;
+}
+
+const fallbackImage = absoluteUrl('/brand/tusenda84-bazzar-logo.webp');
+const pageTitle = limitText(title, 95) || 'Tu Senda 84';
+const pageDescription = limitText(description || title, 120) || pageTitle;
+const pageImage = absoluteUrl(image) || fallbackImage;
+const pageUrl = absoluteUrl(canonical || `${Astro.url.pathname}${Astro.url.search}`);
+const safeSiteName = cleanText(siteName, 'Tu Senda 84') || 'Tu Senda 84';
+const safeType: SeoType = type === 'product' ? 'product' : 'website';
+const numericPrice = Number(productPriceAmount || 0);
+const hasProductPrice = safeType === 'product' && Number.isFinite(numericPrice) && numericPrice > 0;
+const safeCurrency = cleanText(productPriceCurrency || 'USD', 'USD').toUpperCase() || 'USD';
+---
+
+<title>{pageTitle}</title>
+<meta name="description" content={pageDescription} />
+<link rel="canonical" href={pageUrl} />
+
+<meta property="og:title" content={pageTitle} />
+<meta property="og:description" content={pageDescription} />
+<meta property="og:image" content={pageImage} />
+<meta property="og:url" content={pageUrl} />
+<meta property="og:type" content={safeType} />
+<meta property="og:site_name" content={safeSiteName} />
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={pageTitle} />
+<meta name="twitter:description" content={pageDescription} />
+<meta name="twitter:image" content={pageImage} />
+
+{hasProductPrice && (
+  <>
+    <meta property="product:price:amount" content={numericPrice.toFixed(2)} />
+    <meta property="product:price:currency" content={safeCurrency} />
+  </>
+)}

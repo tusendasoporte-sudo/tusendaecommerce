@@ -27,7 +27,17 @@ function storeHref(store: any) {
 }
 ---
 
-<Layout isBazar={true}>
+<Layout
+  isBazar={true}
+  seo={{
+    title: 'Tu Senda 84',
+    description: 'Tu Senda 84',
+    image: '/brand/tusenda84-bazzar-logo.webp',
+    canonical: '/',
+    type: 'website',
+    siteName: 'Tu Senda 84',
+  }}
+>
   <style>
     .bazar-shell { display: grid; gap: 28px; color: #111827; }
     .bazar-hero { position: relative; overflow: hidden; border-radius: 30px; border: 1px solid rgba(226,232,240,.95); background: #0f172a; box-shadow: 0 24px 70px rgba(15,23,42,.14); }

@@ -36,6 +36,13 @@ const directProducts = products.filter((product) => product.category === categor
 const categorySubcategoryIds = new Set(categorySubcategories.map((subcategory) => subcategory.id));
 const allCategoryProducts = products.filter((product) => product.category === category.id || categorySubcategoryIds.has(product.subcategory));
 const categoryProductCountLabel = `${allCategoryProducts.length} ${allCategoryProducts.length === 1 ? 'producto' : 'productos'}`;
+const categorySeoImage =
+  category.imageUrl
+  || settings?.coverImageUrl
+  || settings?.logoImageUrl
+  || '/brand/tusenda84-bazzar-logo.webp';
+const categorySeoTitle = category.name;
+const categorySeoUrl = getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname);
 const showProductRating = settings?.reviews_enabled !== false && settings?.show_product_rating !== false;
 const productReviewSummaries = showProductRating
   ? await getProductReviewSummaries(directProducts.map((product) => product.id).filter(Boolean), storeQuery)
@@ -72,7 +79,16 @@ function getProductOfferView(product: any) {
 
 ---
 
-<Layout>
+<Layout
+  seo={{
+    title: categorySeoTitle,
+    description: categorySeoTitle,
+    image: categorySeoImage,
+    canonical: categorySeoUrl,
+    type: 'website',
+    siteName: storeName,
+  }}
+>
   <style>
     .category-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
     .brand-link { display: flex; align-items: center; gap: 10px; min-width: 0; color: #111827; }

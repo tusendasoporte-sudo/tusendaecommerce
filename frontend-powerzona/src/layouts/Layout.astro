@@ -2,9 +2,15 @@
 import '../styles/global.css';
 import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
+import SocialMeta from '../components/SocialMeta.astro';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 
-const { isBazar = false, isMaster = false, hideStoreFloatingUi: hideStoreFloatingUiProp = false } = Astro.props;
+const {
+	isBazar = false,
+	isMaster = false,
+	hideStoreFloatingUi: hideStoreFloatingUiProp = false,
+	seo = {},
+} = Astro.props;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const hideStoreFloatingUi = Boolean(isBazar || isMaster || hideStoreFloatingUiProp);
 const currentStore = hideStoreFloatingUi ? { id: '', slug: '' } : await getCurrentStore(Astro);
@@ -25,7 +31,7 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2" />
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
-		<title>Power Zona E-commerce</title>
+		<SocialMeta {...seo} />
 	</head>
 	<body class="bg-gray-50 text-slate-800 font-sans antialiased min-h-screen w-full overflow-x-hidden">
 		{!hideStoreFloatingUi && <script define:vars={{ currentStoreId, currentStoreSlug, publicPathPrefix }}>

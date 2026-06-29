@@ -164,6 +164,35 @@ const firstVariationHasOffer = firstVariation ? variationHasOffer(firstVariation
 const initialPrice = hasPublicVariations
 	? firstVariationPrice
 	: Number(effectiveProductPrice || 0);
+const seoVariationPrices = hasPublicVariations
+	? variations
+		.filter((variation) => {
+			const price = publicVariationPrice(variation);
+			if (price <= 0) return false;
+			if (!tracksStock) return true;
+			return Number(variation.stock || 0) > 0 || Boolean(variation.allow_preorder);
+		})
+		.map((variation) => publicVariationPrice(variation))
+	: [];
+const seoFallbackVariationPrices = hasPublicVariations
+	? variations
+		.map((variation) => publicVariationPrice(variation))
+		.filter((price) => price > 0)
+	: [];
+const seoProductPrice = hasPublicVariations
+	? Math.min(...(seoVariationPrices.length ? seoVariationPrices : seoFallbackVariationPrices))
+	: Number(effectiveProductPrice || 0);
+const seoHasValidPrice = Number.isFinite(seoProductPrice) && seoProductPrice > 0;
+function formatSeoPrice(value: number) {
+	const number = Number(value || 0);
+	if (!Number.isFinite(number) || number <= 0) return '';
+	return number.toFixed(2);
+}
+const productSeoTitle = seoHasValidPrice
+	? `${product.name} - $${formatSeoPrice(seoProductPrice)}`
+	: product.name;
+const productSeoImage = mainImage || logoImageUrl || '/brand/tusenda84-bazzar-logo.webp';
+const productSeoUrl = getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
 const initialCost = hasPublicVariations
 	? Number(firstVariation?.cost_usd || 0)
 	: Number(product.cost_usd || 0);
@@ -229,7 +258,18 @@ const variationItems = variations.map((variation) => {
 
 ---
 
-<Layout>
+<Layout
+	seo={{
+		title: productSeoTitle,
+		description: productSeoTitle,
+		image: productSeoImage,
+		canonical: productSeoUrl,
+		type: 'product',
+		siteName: storeName,
+		productPriceAmount: seoHasValidPrice ? seoProductPrice : null,
+		productPriceCurrency: 'USD',
+	}}
+>
 	<style>
 		.product-public-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; position: relative; }
 		.product-public-brand { min-width: 0; display: flex; align-items: center; gap: 10px; color: #111827; text-decoration: none; }
