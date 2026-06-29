@@ -1155,6 +1155,144 @@ const marketingVisualSubClass = (subsection: string) => {
     display: none !important;
   }
 
+  /* PZ - Header actions global PC */
+  .admin-header-actions,
+  .hero-actions,
+  .admin-section-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    flex-wrap: wrap !important;
+    position: relative !important;
+    z-index: 2 !important;
+  }
+
+  .admin-header-primary-action,
+  #new-product-btn.admin-header-primary-action,
+  #category-create-main-btn.admin-header-primary-action,
+  #new-zone-top-btn.admin-header-primary-action,
+  #new-gift-btn.admin-header-primary-action,
+  #promotion-new-btn.admin-header-primary-action,
+  #open-visual-form-btn.admin-header-primary-action,
+  #refresh-btn.admin-header-primary-action {
+    min-height: 48px !important;
+    height: 48px !important;
+    border: 0 !important;
+    border-radius: 15px !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    padding: 0 20px !important;
+    font-size: 0.95rem !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.01em !important;
+    font-family: inherit !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.24) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease !important;
+  }
+
+  .admin-header-primary-action:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 20px 40px rgba(37, 99, 235, 0.28) !important;
+    filter: brightness(1.02) !important;
+  }
+
+  .admin-header-primary-action:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.22) !important;
+  }
+
+  .admin-header-primary-action svg,
+  .admin-header-primary-action .icon {
+    width: 18px !important;
+    height: 18px !important;
+    flex: 0 0 auto !important;
+    fill: currentColor !important;
+  }
+
+  .admin-header-bell {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(148, 163, 184, 0.28) !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+    position: relative !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important;
+  }
+
+  .admin-header-bell:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(37, 99, 235, 0.34) !important;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.11) !important;
+  }
+
+  .admin-header-bell svg {
+    width: 20px !important;
+    height: 20px !important;
+    fill: currentColor !important;
+  }
+
+  .admin-header-actions .primary-blue-btn,
+  .admin-header-actions .action-btn.dark,
+  .admin-header-actions .mini-btn.primary,
+  .hero-actions .primary-blue-btn,
+  .hero-actions .action-btn.dark,
+  .hero-actions .mini-btn.primary,
+  .admin-section-actions .primary-blue-btn,
+  .admin-section-actions .action-btn.dark,
+  .admin-section-actions .mini-btn.primary {
+    min-height: 48px !important;
+    height: 48px !important;
+    border: 0 !important;
+    border-radius: 15px !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    padding: 0 20px !important;
+    font-size: 0.95rem !important;
+    line-height: 1 !important;
+    font-weight: 950 !important;
+    letter-spacing: -0.01em !important;
+    font-family: inherit !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 9px !important;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.24) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+  }
+
+  @media (max-width: 760px) {
+    .admin-header-actions,
+    .hero-actions,
+    .admin-section-actions {
+      justify-content: flex-start !important;
+    }
+
+    .admin-header-primary-action {
+      min-height: 46px !important;
+      height: 46px !important;
+      padding: 0 16px !important;
+      font-size: 0.9rem !important;
+    }
+  }
+
   .pz-admin-mobile-topbar,
   .pz-admin-mobile-topbar *,
   .pz-admin-mobile-topbar::before,
