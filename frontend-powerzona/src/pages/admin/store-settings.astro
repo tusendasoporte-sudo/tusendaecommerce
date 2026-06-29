@@ -4734,8 +4734,8 @@ try {
         formData.append('store', CURRENT_STORE_ID);
         const imageFile = visualImage.files?.[0];
         const attachmentFile = visualAttachment.files?.[0];
-        if (imageFile) formData.append('image', imageFile);
-        if (attachmentFile) formData.append('attachment', attachmentFile);
+        if (imageFile) formData.append('image', await optimizeVisualImageFile(imageFile));
+        if (attachmentFile) formData.append('attachment', await optimizeAttachmentFileIfImage(attachmentFile));
         const id = visualId.value;
         if (id) {
           await apiRequest(`/api/collections/store_visual_items/records/${id}`, { method: 'PATCH', body: formData });
@@ -5450,6 +5450,87 @@ try {
             return file;
           }
         }
+        async function optimizeLogoImageFile(file) {
+          if (!file || !file.type || !file.type.startsWith('image/')) return file;
+          if (file.type === 'image/svg+xml') return file;
+          if (file.type === 'image/gif') return file;
+
+          try {
+            const bitmap = await createImageBitmap(file);
+            const maxSide = 700;
+            const ratio = Math.min(maxSide / bitmap.width, maxSide / bitmap.height, 1);
+            const width = Math.max(1, Math.round(bitmap.width * ratio));
+            const height = Math.max(1, Math.round(bitmap.height * ratio));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(bitmap, 0, 0, width, height);
+
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.86));
+            if (typeof bitmap.close === 'function') bitmap.close();
+            if (!blob) return file;
+
+            const safeName = (file.name || 'logo')
+              .replace(/\.[^.]+$/, '')
+              .replace(/[^a-zA-Z0-9_-]+/g, '_')
+              .slice(0, 42) || 'logo';
+
+            return new File([blob], `${safeName}_logo.webp`, {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            });
+          } catch (error) {
+            return file;
+          }
+        }
+        async function optimizeVisualImageFile(file) {
+          if (!file || !file.type || !file.type.startsWith('image/')) return file;
+          if (file.type === 'image/svg+xml') return file;
+          if (file.type === 'image/gif') return file;
+
+          try {
+            const bitmap = await createImageBitmap(file);
+            const maxWidth = 1200;
+            const maxHeight = 675;
+            const ratio = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
+            const width = Math.max(1, Math.round(bitmap.width * ratio));
+            const height = Math.max(1, Math.round(bitmap.height * ratio));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(bitmap, 0, 0, width, height);
+
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+            if (typeof bitmap.close === 'function') bitmap.close();
+            if (!blob) return file;
+
+            const safeName = (file.name || 'visual')
+              .replace(/\.[^.]+$/, '')
+              .replace(/[^a-zA-Z0-9_-]+/g, '_')
+              .slice(0, 42) || 'visual';
+
+            return new File([blob], `${safeName}_visual.webp`, {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            });
+          } catch (error) {
+            return file;
+          }
+        }
+        async function optimizeAttachmentFileIfImage(file) {
+          if (!file || !file.type || !file.type.startsWith('image/')) return file;
+          return optimizeVisualImageFile(file);
+        }
         async function api(path, options = {}) {
           const headers = Object.assign({}, options.headers || {});
           if (token()) headers.Authorization = 'Bearer ' + token();
@@ -5729,7 +5810,9 @@ try {
             data.append('public_services_text', selectedBusinessTypes.map(businessTypeLabel).join(', '));
             data.append('reviews_text', fields.reviews.value.trim());
             data.append('store', CURRENT_STORE_ID_PUBLIC_SETTINGS);
-            if (fields.logo.files && fields.logo.files[0]) data.append('logo_image', fields.logo.files[0]);
+            if (fields.logo.files && fields.logo.files[0]) {
+              data.append('logo_image', await optimizeLogoImageFile(fields.logo.files[0]));
+            }
             if (fields.cover.files && fields.cover.files[0]) data.append('cover_image', await optimizeCoverImageFile(fields.cover.files[0]));
             const galleryInputs = Array.from(document.querySelectorAll('.js-cover-gallery-file'));
             const selectedGalleryInputs = galleryInputs.filter((input) => input.files && input.files[0]);

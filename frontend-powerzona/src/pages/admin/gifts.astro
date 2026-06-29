@@ -261,7 +261,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .gift-row { min-height: 92px; padding: 16px 22px; border-bottom: 1px solid #eef2f7; background: #fff; position: relative; }
       .gift-row:last-child { border-bottom: 0; border-radius: 0 0 24px 24px; }
       .gift-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
-      .gift-thumb { width: 58px; height: 58px; min-width: 58px; border-radius: 15px; object-fit: contain; background: #f8fafc; border: 1px solid #e2e8f0; display: block; }
+      .gift-thumb { width: 58px; height: 58px; min-width: 58px; border-radius: 16px; object-fit: contain; object-position: center; background: #fff; border: 1px solid #e2e8f0; display: block; box-shadow: 0 8px 18px rgba(15,23,42,.08); }
       .gift-name { margin: 0; font-size: 15px; font-weight: 1000; color: #0f172a; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .gift-desc { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
       .gift-cell { color: #334155; font-size: 13px; font-weight: 950; }
@@ -744,7 +744,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if(categoryPreviewImg) categoryPreviewImg.src = url || '';
       }
 
-      async function optimizeGiftImageFile(file) {
+      async function optimizeGiftCoverImageFile(file) {
         if (!file || !file.type?.startsWith('image/')) return file;
         if (file.type === 'image/gif') return file;
         let objectUrl = '';
@@ -784,6 +784,45 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return new File([blob], `${safeName}_regalo_1200x675.webp`, { type: 'image/webp', lastModified: Date.now() });
         } catch (error) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
+          return file;
+        }
+      }
+      async function optimizeGiftImageFile(file) {
+        if (!file || !file.type || !file.type.startsWith('image/')) return file;
+        if (file.type === 'image/svg+xml') return file;
+        if (file.type === 'image/gif') return file;
+
+        try {
+          const bitmap = await createImageBitmap(file);
+          const maxWidth = 1200;
+          const maxHeight = 1200;
+          const ratio = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
+          const width = Math.max(1, Math.round(bitmap.width * ratio));
+          const height = Math.max(1, Math.round(bitmap.height * ratio));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(bitmap, 0, 0, width, height);
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.84));
+          if (typeof bitmap.close === 'function') bitmap.close();
+          if (!blob) return file;
+
+          const safeName = (file.name || 'gift')
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_')
+            .slice(0, 42) || 'gift';
+
+          return new File([blob], `${safeName}_product_style.webp`, {
+            type: 'image/webp',
+            lastModified: Date.now(),
+          });
+        } catch (error) {
           return file;
         }
       }
@@ -1123,7 +1162,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           fd.set('gifts_public_active', document.getElementById('gifts-public-active').checked ? 'true' : 'false');
           fd.set('gifts_public_title', document.getElementById('gifts-public-title').value.trim() || 'Regalos');
           const image = document.getElementById('gifts-public-image').files?.[0];
-          if(image) fd.append('gifts_public_image', await optimizeGiftImageFile(image));
+          if(image) fd.append('gifts_public_image', await optimizeGiftCoverImageFile(image));
           await api(`/api/collections/settings/records/${settings.id}`, { method:'PATCH', body:fd });
           document.getElementById('gifts-public-image').value = '';
           await loadSettings();
@@ -1151,7 +1190,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           fd.set('gifts_public_active', giftsPublicActiveInput.checked ? 'true' : 'false');
           fd.set('gifts_public_title', giftsPublicTitleInput.value.trim() || 'Regalos');
           const image = giftsPublicImageInput?.files?.[0];
-          if(image) fd.append('gifts_public_image', await optimizeGiftImageFile(image));
+          if(image) fd.append('gifts_public_image', await optimizeGiftCoverImageFile(image));
           await api(`/api/collections/settings/records/${settings.id}`, { method:'PATCH', body:fd });
           if(giftsPublicImageInput) giftsPublicImageInput.value = '';
           clearLocalGiftsCategoryImageUrl();

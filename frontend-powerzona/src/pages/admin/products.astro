@@ -3715,9 +3715,49 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           ctx.drawImage(bitmap, 0, 0, width, height);
           const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.78));
           if (!blob) return file;
-          if (blob.size >= file.size && file.size <= 450000) return file;
+          const isAlreadyWebp = file.type === 'image/webp' || /\.webp$/i.test(file.name || '');
+          if (isAlreadyWebp && blob.size >= file.size && file.size <= 450000) return file;
           const safeName = file.name.replace(/\.[^.]+$/, '') || 'producto';
           return new File([blob], `${safeName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+        } catch (error) {
+          return file;
+        }
+      }
+      async function optimizeCatalogLikeImageFile(file) {
+        if (!file || !file.type || !file.type.startsWith('image/')) return file;
+        if (file.type === 'image/svg+xml') return file;
+        if (file.type === 'image/gif') return file;
+
+        try {
+          const bitmap = await createImageBitmap(file);
+          const maxWidth = 1200;
+          const maxHeight = 675;
+          const ratio = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
+          const width = Math.max(1, Math.round(bitmap.width * ratio));
+          const height = Math.max(1, Math.round(bitmap.height * ratio));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(bitmap, 0, 0, width, height);
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+          if (typeof bitmap.close === 'function') bitmap.close();
+          if (!blob) return file;
+
+          const safeName = (file.name || 'categoria')
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_')
+            .slice(0, 42) || 'categoria';
+
+          return new File([blob], `${safeName}_categoria_1200x675.webp`, {
+            type: 'image/webp',
+            lastModified: Date.now(),
+          });
         } catch (error) {
           return file;
         }
@@ -4418,7 +4458,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setVariationAlert(error.message || 'No se pudieron cargar las variaciones de este producto.', 'error');
         }
       }
-      function buildVariationFormData() {
+      async function buildVariationFormData() {
         const currentProductId = productIdInput.value;
         const type = variationTypeInput.value.trim() || 'Sabor';
         const value = variationValueInput.value.trim();
@@ -4444,7 +4484,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('sort_order', String(Math.max(0, Math.floor(Number(variationOrderInput.value || 0)))));
         formData.append('active', variationActiveInput.checked ? 'true' : 'false');
         formData.append('allow_preorder', variationAllowPreorderInput.checked ? 'true' : 'false');
-        if (variationImageInput.files?.[0]) formData.append('image', variationImageInput.files[0]);
+        if (variationImageInput.files?.[0]) {
+          formData.append('image', await optimizeProductImageFile(variationImageInput.files[0]));
+        }
         return formData;
       }
       async function saveVariation() {
@@ -4455,7 +4497,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateVariationFormState();
         setVariationAlert(editingVariationId ? 'Guardando variación...' : 'Creando variación...', 'info');
         try {
-          const formData = buildVariationFormData();
+          const formData = await buildVariationFormData();
           if (editingVariationId) {
             await apiRequest(`/api/collections/product_variations/records/${editingVariationId}`, { method: 'PATCH', body: formData });
             setVariationAlert('Variación actualizada correctamente.', 'success');
@@ -4690,7 +4732,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           formData.append('active', 'true');
           formData.append('order', String(nextOrder(categories)));
           formData.append('store', CURRENT_STORE_ID);
-          if (quickCategoryImage.files?.[0]) formData.append('image', quickCategoryImage.files[0]);
+          if (quickCategoryImage.files?.[0]) {
+            formData.append('image', await optimizeCatalogLikeImageFile(quickCategoryImage.files[0]));
+          }
           const created = await apiRequest('/api/collections/categories/records', { method: 'POST', body: formData });
           categories = sortByOrderAndName([...categories, created]);
           renderProductSelectOptions();
@@ -4731,7 +4775,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           formData.append('active', 'true');
           formData.append('order', String(nextOrder(sameCategoryItems)));
           formData.append('store', CURRENT_STORE_ID);
-          if (quickSubcategoryImage.files?.[0]) formData.append('image', quickSubcategoryImage.files[0]);
+          if (quickSubcategoryImage.files?.[0]) {
+            formData.append('image', await optimizeCatalogLikeImageFile(quickSubcategoryImage.files[0]));
+          }
           const created = await apiRequest('/api/collections/subcategories/records', { method: 'POST', body: formData });
           subcategories = sortByOrderAndName([...subcategories, created]);
           renderProductSubcategoryOptions(created.id);
