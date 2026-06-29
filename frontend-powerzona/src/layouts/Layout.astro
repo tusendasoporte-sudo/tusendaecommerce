@@ -333,6 +333,181 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 				});
 			})();
 		</script>}
+		<script is:inline>
+		  (() => {
+		    if (window.__pzScrollHintReady) return;
+		    window.__pzScrollHintReady = true;
+
+		    const SELECTORS = [
+		      '[data-pz-scroll-hint]',
+		      '.summary-period-actions',
+		      '.analytics-tabs',
+		      '.visit-analytics-tabs',
+		      '.business-summary-tabs',
+		      '.expiration-tabs',
+		      '.profits-period-tabs',
+		      '.settings-tabs',
+		      '.rating-reviews-table-wrap',
+		      '.hours-table-wrap',
+		      '.quick-categories-strip',
+		      '.featured-strip'
+		    ];
+
+		    const enhanced = new WeakSet();
+		    const updaters = new WeakMap();
+
+		    const shouldEnhance = (track) => {
+		      if (!(track instanceof HTMLElement)) return false;
+		      if (track.closest('.pz-scroll-hint-shell')) return false;
+		      if (track.closest('#pz-admin-sidebar')) return false;
+		      if (track.matches('.tabs')) return false;
+		      return true;
+		    };
+
+		    const scrollTrackByArrow = (track, side, update) => {
+		      if (!(track instanceof HTMLElement)) return;
+
+		      const distance = Math.max(140, Math.floor(track.clientWidth * 0.72));
+		      const left = side === 'right' ? distance : -distance;
+
+		      track.scrollBy({
+		        left,
+		        behavior: 'smooth'
+		      });
+
+		      window.setTimeout(update, 80);
+		      window.setTimeout(update, 240);
+		      window.setTimeout(update, 520);
+		    };
+
+		    const createArrow = (side, track, update) => {
+		      const arrow = document.createElement('button');
+		      arrow.type = 'button';
+		      arrow.className = `pz-scroll-hint-arrow pz-scroll-hint-arrow--${side}`;
+		      arrow.setAttribute('aria-label', side === 'right' ? 'Desplazar a la derecha' : 'Desplazar a la izquierda');
+		      arrow.setAttribute('tabindex', '-1');
+
+		      arrow.addEventListener('click', (event) => {
+		        event.preventDefault();
+		        event.stopPropagation();
+		        scrollTrackByArrow(track, side, update);
+		      });
+
+		      arrow.addEventListener('touchend', (event) => {
+		        event.preventDefault();
+		        event.stopPropagation();
+		        scrollTrackByArrow(track, side, update);
+		      }, { passive: false });
+
+		      return arrow;
+		    };
+
+		    const updateShellState = (shell, track) => {
+		      if (!shell || !track) return;
+
+		      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+		      const hasOverflow = maxScroll > 8;
+		      const canLeft = hasOverflow && track.scrollLeft > 4;
+		      const canRight = hasOverflow && track.scrollLeft < maxScroll - 4;
+
+		      shell.dataset.hasOverflow = hasOverflow ? 'true' : 'false';
+		      shell.dataset.canLeft = canLeft ? 'true' : 'false';
+		      shell.dataset.canRight = canRight ? 'true' : 'false';
+		    };
+
+		    const enhanceTrack = (track) => {
+		      if (!shouldEnhance(track) || enhanced.has(track)) return;
+
+		      const parent = track.parentNode;
+		      if (!parent) return;
+
+		      const shell = document.createElement('div');
+		      shell.className = 'pz-scroll-hint-shell';
+		      shell.dataset.hasOverflow = 'false';
+		      shell.dataset.canLeft = 'false';
+		      shell.dataset.canRight = 'false';
+
+		      parent.insertBefore(shell, track);
+		      shell.appendChild(track);
+
+		      track.classList.add('pz-scroll-hint-track');
+		      enhanced.add(track);
+
+		      const update = () => updateShellState(shell, track);
+		      updaters.set(track, update);
+
+		      shell.appendChild(createArrow('left', track, update));
+		      shell.appendChild(createArrow('right', track, update));
+
+		      track.addEventListener('scroll', update, { passive: true });
+		      window.requestAnimationFrame(update);
+		      window.setTimeout(update, 250);
+		      window.setTimeout(update, 900);
+
+		      if ('ResizeObserver' in window) {
+		        const observer = new ResizeObserver(update);
+		        observer.observe(track);
+		        observer.observe(shell);
+		      }
+		    };
+
+		    const initScrollHints = () => {
+		      const tracks = new Set();
+
+		      SELECTORS.forEach((selector) => {
+		        document.querySelectorAll(selector).forEach((track) => tracks.add(track));
+		      });
+
+		      tracks.forEach((track) => enhanceTrack(track));
+
+		      window.requestAnimationFrame(() => {
+		        document.querySelectorAll('.pz-scroll-hint-track').forEach((track) => {
+		          const update = updaters.get(track);
+		          if (typeof update === 'function') update();
+		        });
+		      });
+		    };
+
+		    const refreshScrollHints = () => {
+		      window.requestAnimationFrame(() => {
+		        document.querySelectorAll('.pz-scroll-hint-track').forEach((track) => {
+		          const update = updaters.get(track);
+		          if (typeof update === 'function') update();
+		        });
+		      });
+		    };
+
+		    const boot = () => {
+		      initScrollHints();
+
+		      window.addEventListener('resize', refreshScrollHints, { passive: true });
+		      window.addEventListener('orientationchange', () => window.setTimeout(refreshScrollHints, 250), { passive: true });
+		      window.addEventListener('hashchange', () => window.setTimeout(refreshScrollHints, 120), { passive: true });
+
+		      document.addEventListener('click', () => {
+		        window.setTimeout(initScrollHints, 80);
+		        window.setTimeout(refreshScrollHints, 220);
+		      }, true);
+
+		      if ('MutationObserver' in window) {
+		        const observer = new MutationObserver(() => {
+		          window.requestAnimationFrame(initScrollHints);
+		        });
+
+		        observer.observe(document.body, {
+		          childList: true,
+		          subtree: true
+		        });
+		      }
+		    };
+
+		    if (document.readyState === 'loading') {
+		      document.addEventListener('DOMContentLoaded', boot, { once: true });
+		    } else {
+		      boot();
+		    }
+		  })();
+		</script>
 		{!hideStoreFloatingUi && <CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />}
 		{!hideStoreFloatingUi && <Cart />}
 

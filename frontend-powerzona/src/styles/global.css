@@ -864,3 +864,263 @@ body {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* =========================================================
+   PZ-SCROLL-HINT-001
+   Visual hint for horizontal scroll areas
+   ========================================================= */
+
+.pz-scroll-hint-shell {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  isolation: isolate;
+}
+
+.pz-scroll-hint-track {
+  max-width: 100%;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.pz-scroll-hint-shell::before,
+.pz-scroll-hint-shell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.pz-scroll-hint-shell::before {
+  left: 0;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0.98), rgba(248, 250, 252, 0));
+}
+
+.pz-scroll-hint-shell::after {
+  right: 0;
+  background: linear-gradient(270deg, rgba(248, 250, 252, 0.98), rgba(248, 250, 252, 0));
+}
+
+.pz-scroll-hint-shell[data-can-left='true']::before,
+.pz-scroll-hint-shell[data-can-right='true']::after {
+  opacity: 1;
+}
+
+.pz-scroll-hint-arrow {
+  position: absolute;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin-top: -14px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.13);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(0) scale(0.94);
+  transition: opacity 180ms ease, transform 180ms ease;
+  backdrop-filter: blur(10px);
+}
+
+.pz-scroll-hint-arrow::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #2563eb;
+  border-right: 2px solid #2563eb;
+}
+
+.pz-scroll-hint-arrow--left {
+  left: 8px;
+}
+
+.pz-scroll-hint-arrow--left::before {
+  transform: rotate(225deg);
+  margin-left: 3px;
+}
+
+.pz-scroll-hint-arrow--right {
+  right: 8px;
+}
+
+.pz-scroll-hint-arrow--right::before {
+  transform: rotate(45deg);
+  margin-right: 3px;
+}
+
+.pz-scroll-hint-shell[data-can-left='true'] .pz-scroll-hint-arrow--left,
+.pz-scroll-hint-shell[data-can-right='true'] .pz-scroll-hint-arrow--right {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.pz-scroll-hint-shell[data-has-overflow='false']::before,
+.pz-scroll-hint-shell[data-has-overflow='false']::after,
+.pz-scroll-hint-shell[data-has-overflow='false'] .pz-scroll-hint-arrow {
+  opacity: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .pz-scroll-hint-shell::before,
+  .pz-scroll-hint-shell::after {
+    width: 38px;
+  }
+
+  .pz-scroll-hint-arrow {
+    width: 26px;
+    height: 26px;
+    margin-top: -13px;
+  }
+
+  .pz-scroll-hint-arrow--left {
+    left: 6px;
+  }
+
+  .pz-scroll-hint-arrow--right {
+    right: 6px;
+  }
+}
+
+@media (max-width: 390px) {
+  .pz-scroll-hint-shell::before,
+  .pz-scroll-hint-shell::after {
+    width: 32px;
+  }
+
+  .pz-scroll-hint-arrow {
+    width: 24px;
+    height: 24px;
+    margin-top: -12px;
+  }
+
+  .pz-scroll-hint-arrow::before {
+    width: 7px;
+    height: 7px;
+  }
+
+  .pz-scroll-hint-arrow--left {
+    left: 5px;
+  }
+
+  .pz-scroll-hint-arrow--right {
+    right: 5px;
+  }
+}
+
+/* =========================================================
+   PZ-SCROLL-HINT-001B
+   Admin mobile visibility fix
+   ========================================================= */
+
+.pz-admin-content .pz-scroll-hint-shell {
+  overflow: visible;
+}
+
+.pz-admin-content .pz-scroll-hint-track {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+}
+
+.pz-admin-content .pz-scroll-hint-track::-webkit-scrollbar {
+  display: none;
+}
+
+.pz-admin-content .pz-scroll-hint-shell::before {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0));
+}
+
+.pz-admin-content .pz-scroll-hint-shell::after {
+  background: linear-gradient(270deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0));
+}
+
+.pz-admin-content .pz-scroll-hint-arrow {
+  border-color: rgba(191, 219, 254, 0.95);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.22);
+}
+
+.pz-admin-content .pz-scroll-hint-arrow::before {
+  border-top-color: #2563eb;
+  border-right-color: #2563eb;
+}
+
+.pz-admin-content .pz-scroll-hint-shell[data-can-left='true'] .pz-scroll-hint-arrow--left,
+.pz-admin-content .pz-scroll-hint-shell[data-can-right='true'] .pz-scroll-hint-arrow--right {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+@media (max-width: 760px) {
+  .pz-admin-content .summary-period-card .pz-scroll-hint-shell,
+  .pz-admin-content .visit-analytics-card .pz-scroll-hint-shell,
+  .pz-admin-content .business-summary-card .pz-scroll-hint-shell {
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+
+  .pz-admin-content .summary-period-card .pz-scroll-hint-track,
+  .pz-admin-content .visit-analytics-card .pz-scroll-hint-track,
+  .pz-admin-content .business-summary-card .pz-scroll-hint-track {
+    padding-right: 38px !important;
+  }
+
+  .pz-admin-content .summary-period-card .pz-scroll-hint-arrow--right,
+  .pz-admin-content .visit-analytics-card .pz-scroll-hint-arrow--right,
+  .pz-admin-content .business-summary-card .pz-scroll-hint-arrow--right {
+    right: 4px;
+  }
+
+  .pz-admin-content .summary-period-card .pz-scroll-hint-arrow--left,
+  .pz-admin-content .visit-analytics-card .pz-scroll-hint-arrow--left,
+  .pz-admin-content .business-summary-card .pz-scroll-hint-arrow--left {
+    left: 4px;
+  }
+}
+
+/* =========================================================
+   PZ-SCROLL-HINT-002
+   Clickable scroll arrows
+   ========================================================= */
+
+.pz-scroll-hint-arrow {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  padding: 0;
+  cursor: pointer;
+  pointer-events: none;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.pz-scroll-hint-shell[data-can-left='true'] .pz-scroll-hint-arrow--left,
+.pz-scroll-hint-shell[data-can-right='true'] .pz-scroll-hint-arrow--right {
+  pointer-events: auto;
+}
+
+.pz-scroll-hint-arrow:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 2px;
+}
+
+.pz-scroll-hint-arrow:active {
+  transform: translateY(0) scale(0.96) !important;
+}
+
+.pz-scroll-hint-shell::before,
+.pz-scroll-hint-shell::after {
+  pointer-events: none;
+}

@@ -3283,7 +3283,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 							<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
 						</div>
 
-						<div class="summary-period-actions period-tabs" role="tablist" aria-label="Período del resumen">
+						<div class="summary-period-actions period-tabs" role="tablist" aria-label="Período del resumen" data-pz-scroll-hint>
 							<button class="period-btn" type="button" data-range="1">Hoy</button>
 							<button class="period-btn active" type="button" data-range="7">7 días</button>
 							<button class="period-btn" type="button" data-range="15">15 días</button>
@@ -3303,7 +3303,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						</div>
 
 						<div class="visit-analytics-toolbar">
-							<div class="visit-analytics-tabs" role="tablist" aria-label="Analíticas de visitas">
+							<div class="visit-analytics-tabs" role="tablist" aria-label="Analíticas de visitas" data-pz-scroll-hint>
 								<button class="visit-analytics-tab is-active" type="button" data-analytics-tab="visitors" aria-selected="true">Visitantes del periodo</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="recurrent" aria-selected="false">Recurrentes</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="pageviews" aria-selected="false">Páginas vistas</button>
@@ -3350,7 +3350,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 							<p>Productos, ventas, ganancia estimada y pedidos del periodo seleccionado.</p>
 						</div>
 
-						<div class="business-summary-tabs" role="tablist" aria-label="Resumen del negocio">
+						<div class="business-summary-tabs" role="tablist" aria-label="Resumen del negocio" data-pz-scroll-hint>
 							<button class="business-summary-tab is-active" type="button" data-business-summary-tab="products" aria-selected="true">Productos</button>
 							<button class="business-summary-tab" type="button" data-business-summary-tab="sales" aria-selected="false">Ventas</button>
 							<button class="business-summary-tab" type="button" data-business-summary-tab="profit" aria-selected="false">Ganancia estimada</button>
@@ -3395,7 +3395,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>
 
-					<section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title"><div class="dashboard-block-head"><div><h2 id="expiration-title" class="dashboard-block-title">Productos próximos a vencer</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">Cargando productos...</p></div><div class="expiration-tabs"><button class="expiration-btn active" type="button" data-expiration-range="30">1 mes</button><button class="expiration-btn" type="button" data-expiration-range="60">2 meses</button><button class="expiration-btn" type="button" data-expiration-range="90">3 meses</button></div></div><div id="expiration-products-list" class="expiration-products-list"></div></section>
+					<section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title"><div class="dashboard-block-head"><div><h2 id="expiration-title" class="dashboard-block-title">Productos próximos a vencer</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">Cargando productos...</p></div><div class="expiration-tabs" data-pz-scroll-hint><button class="expiration-btn active" type="button" data-expiration-range="30">1 mes</button><button class="expiration-btn" type="button" data-expiration-range="60">2 meses</button><button class="expiration-btn" type="button" data-expiration-range="90">3 meses</button></div></div><div id="expiration-products-list" class="expiration-products-list"></div></section>
 				</div>
 			</section>
 		</main>
