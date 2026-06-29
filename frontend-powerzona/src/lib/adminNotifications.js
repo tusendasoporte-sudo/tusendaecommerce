@@ -243,3 +243,65 @@ export async function ensureStoreNotification({
     return null;
   }
 }
+
+export async function ensureStoreNotificationAnyStatus({
+  pb,
+  storeId,
+  type,
+  entityCollection = '',
+  entityId = '',
+  title,
+  message,
+  priority = 'normal',
+  targetUrl = '',
+  metadata = {},
+}) {
+  try {
+    if (!storeId || !type || !entityCollection || !entityId) {
+      return createStoreNotification({
+        pb,
+        storeId,
+        type,
+        title,
+        message,
+        priority,
+        targetUrl,
+        entityCollection,
+        entityId,
+        metadata,
+      });
+    }
+
+    const filter = [
+      `store="${escapeFilterValue(storeId)}"`,
+      `type="${escapeFilterValue(type)}"`,
+      `entity_collection="${escapeFilterValue(entityCollection)}"`,
+      `entity_id="${escapeFilterValue(entityId)}"`,
+    ].join(' && ');
+
+    const existing = await collectionList(pb, filter, {
+      page: 1,
+      perPage: 1,
+      sort: '-created',
+    });
+
+    const current = (existing.items || [])[0];
+    if (current) return normalizeNotification(current);
+
+    return createStoreNotification({
+      pb,
+      storeId,
+      type,
+      title,
+      message,
+      priority,
+      targetUrl,
+      entityCollection,
+      entityId,
+      metadata,
+    });
+  } catch (error) {
+    console.warn('Could not ensure store notification by any status.', error);
+    return null;
+  }
+}

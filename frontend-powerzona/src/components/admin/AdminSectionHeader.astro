@@ -303,6 +303,7 @@ const actionClasses = ['admin-primary-action', 'admin-header-primary-action', ac
     document.addEventListener('click', (event) => {
       const button = event.target.closest('[data-admin-bell]');
       if (button) {
+        if (button?.hasAttribute('data-pz-admin-notification-trigger')) return;
         event.stopPropagation();
         const dropdown = document.getElementById(button.getAttribute('data-admin-bell'));
         const willOpen = dropdown?.classList.contains('hidden');

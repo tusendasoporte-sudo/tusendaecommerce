@@ -345,6 +345,7 @@ const marketingVisualSubClass = (subsection: string) => {
     markNotificationRead,
     markAllNotificationsRead,
     ensureStoreNotification,
+    ensureStoreNotificationAnyStatus,
   } from '../../lib/adminNotifications.js';
 
   (() => {
@@ -448,7 +449,10 @@ const marketingVisualSubClass = (subsection: string) => {
       if (isLoading) return;
       isLoading = true;
       try {
-        if (detectPending) await detectPendingOrders();
+        if (detectPending) {
+          await detectMissingNewOrderNotifications();
+          await detectPendingOrders();
+        }
         const [items, unreadCount] = await Promise.all([
           loadNotifications({ pb, storeId, limit: 12 }),
           loadUnreadNotificationCount({ pb, storeId }),
@@ -495,6 +499,42 @@ const marketingVisualSubClass = (subsection: string) => {
         }));
       } catch (error) {
         console.warn('Could not detect pending orders.', error);
+      }
+    }
+
+    async function detectMissingNewOrderNotifications() {
+      try {
+        const settings = await loadSettings();
+
+        if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
+
+        const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+        const filter = encodeURIComponent(`store="${escapeFilterValue(storeId)}" && created >= "${since}"`);
+        const result = await api(`/api/collections/orders/records?filter=${filter}&sort=-created&perPage=50`);
+        const orders = result.items || [];
+
+        await Promise.all(orders.map((order) => {
+          const orderNumber = order.order_number || order.id;
+          const customerName = order.customer_name || order.name || 'cliente';
+
+          return ensureStoreNotificationAnyStatus({
+            pb,
+            storeId,
+            type: 'new_order',
+            entityCollection: 'orders',
+            entityId: order.id,
+            title: 'Nuevo pedido recibido',
+            message: `Pedido #${orderNumber} por ${customerName}`,
+            priority: 'important',
+            targetUrl: `${ordersPath}?order=${encodeURIComponent(order.id)}`,
+            metadata: {
+              order_number: order.order_number || '',
+              customer_name: customerName,
+            },
+          });
+        }));
+      } catch (error) {
+        console.warn('Could not detect missing new order notifications.', error);
       }
     }
 

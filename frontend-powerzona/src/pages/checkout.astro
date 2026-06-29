@@ -1837,25 +1837,10 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return result;
 		}
 
-		function escapePocketBaseFilterValue(value) {
-			return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-		}
-
 		async function createNewOrderNotification({ order, checkoutData, settings }) {
 			try {
 				if (!order?.id || !CURRENT_STORE_ID) return;
 				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
-
-				const filter = encodeURIComponent([
-					`store="${escapePocketBaseFilterValue(CURRENT_STORE_ID)}"`,
-					'type="new_order"',
-					'entity_collection="orders"',
-					`entity_id="${escapePocketBaseFilterValue(order.id)}"`,
-					'status="unread"',
-				].join(' && '));
-				const existingResponse = await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records?filter=${filter}&perPage=1`);
-				const existing = await existingResponse.json().catch(() => null);
-				if (existingResponse.ok && existing?.items?.length) return;
 
 				const orderNumber = order.order_number || order.id;
 				const customerName = checkoutData?.customer_name || 'cliente';
@@ -1875,7 +1860,11 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					},
 				});
 			} catch (error) {
-				console.warn('No se pudo crear la notificacion de pedido nuevo.', error);
+				console.warn('No se pudo crear la notificacion de pedido nuevo.', {
+					orderId: order?.id || '',
+					storeId: CURRENT_STORE_ID || '',
+					error,
+				});
 			}
 		}
 
@@ -2127,6 +2116,7 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 				delivery_method: validation.data.delivery_method,
 				status: 'pending',
 				whatsapp_sent: false,
+				stock_deducted: false,
 				notes: [
 					validation.data.customer_municipality ? `Municipio: ${validation.data.customer_municipality}` : '',
 					validation.data.customer_note ? `Nota cliente: ${validation.data.customer_note}` : '',
@@ -2202,9 +2192,6 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 				await pocketbaseRequest('order_items', orderItemPayload);
 			}
 
-			await deductLiveStockForOrder(calculatedItems);
-			await pocketbasePatch('orders', createdOrder.id, { stock_deducted: true });
-
 			if (totals.couponWinner === 'manual_coupon' && totals.manualCoupon?.id) {
 				await pocketbaseRequest('manual_coupon_usages', {
 					coupon: totals.manualCoupon.id,
@@ -2248,13 +2235,27 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			};
 		}
 
+		function openWhatsappUrl(whatsappUrl) {
+			try {
+				const openedWindow = window.open(whatsappUrl, '_blank', 'noopener');
+				return Boolean(openedWindow);
+			} catch (_) {
+				return false;
+			}
+		}
+
+		function openWhatsappAndComplete(whatsappUrl) {
+			const opened = openWhatsappUrl(whatsappUrl);
+			completeCheckoutAfterWhatsApp();
+
+			if (!opened) {
+				window.location.href = whatsappUrl;
+			}
+		}
+
 		continueWhatsappBtn.addEventListener('click', async () => {
 			if (orderWasCreated && savedWhatsappUrl) {
-				const openedWindow = window.open(savedWhatsappUrl, '_blank', 'noopener');
-				completeCheckoutAfterWhatsApp();
-				if (!openedWindow) {
-					window.location.href = savedWhatsappUrl;
-				}
+				openWhatsappAndComplete(savedWhatsappUrl);
 				return;
 			}
 
@@ -2278,6 +2279,13 @@ ${receiptUrl || 'Se enviará al confirmar la orden.'}`;
 			try {
 				const { createdOrder, whatsappNumber, message, cartFingerprint } = await createOrderAndItems(validation);
 				const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+
+				const whatsappOpened = openWhatsappUrl(whatsappUrl);
+
+				if (whatsappOpened) {
+					completeCheckoutAfterWhatsApp();
+					return;
+				}
 
 				markOrderCreated({
 					orderNumber: createdOrder.order_number,
