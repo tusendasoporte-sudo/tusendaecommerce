@@ -634,12 +634,19 @@ const marketingVisualSubClass = (subsection: string) => {
         ? normalizePriority(summary?.highestPriority || 'normal')
         : 'normal';
 
+      const paintedPriority = highestPriority === 'important' || highestPriority === 'critical'
+        ? highestPriority
+        : '';
+
       document.querySelectorAll('[data-pz-admin-notification-trigger]').forEach((button) => {
         button.classList.remove('priority-normal', 'priority-important', 'priority-critical');
         button.classList.toggle('has-unread', count > 0);
 
-        if (count > 0 && config.bellPriorityColors) {
-          button.classList.add(`priority-${highestPriority}`);
+        if (paintedPriority) {
+          button.classList.add(`priority-${paintedPriority}`);
+          button.setAttribute('data-pz-notification-priority', paintedPriority);
+        } else {
+          button.removeAttribute('data-pz-notification-priority');
         }
       });
 
@@ -648,8 +655,11 @@ const marketingVisualSubClass = (subsection: string) => {
         badge.textContent = count > 99 ? '99+' : String(count);
         badge.classList.toggle('hidden', count <= 0);
 
-        if (count > 0 && config.bellPriorityColors) {
-          badge.classList.add(`priority-${highestPriority}`);
+        if (paintedPriority) {
+          badge.classList.add(`priority-${paintedPriority}`);
+          badge.setAttribute('data-pz-notification-priority', paintedPriority);
+        } else {
+          badge.removeAttribute('data-pz-notification-priority');
         }
       });
     }
@@ -2480,15 +2490,6 @@ const marketingVisualSubClass = (subsection: string) => {
     display: none !important;
   }
 
-  .admin-header-bell.priority-normal,
-  .admin-bell-button.priority-normal,
-  .pz-admin-mobile-topbar__notification.priority-normal {
-    border-color: #bfdbfe !important;
-    background: #eff6ff !important;
-    color: #1d4ed8 !important;
-    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.18) !important;
-  }
-
   [data-pz-admin-notification-trigger][data-pz-notification-priority="important"],
   [data-pz-admin-notification-trigger].priority-important,
   .admin-header-bell.priority-important,
@@ -2507,12 +2508,6 @@ const marketingVisualSubClass = (subsection: string) => {
     background: #fef2f2 !important;
     color: #dc2626 !important;
     box-shadow: 0 14px 30px rgba(220, 38, 38, 0.20) !important;
-  }
-
-  .pz-admin-notification-count.priority-normal,
-  .admin-bell-count.priority-normal {
-    background: #2563eb !important;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, .25) !important;
   }
 
   [data-pz-admin-notification-count][data-pz-notification-priority="important"],

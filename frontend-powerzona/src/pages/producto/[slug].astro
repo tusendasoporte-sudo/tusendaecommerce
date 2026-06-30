@@ -39,6 +39,7 @@ const productReviewsEnabled = reviewsEnabled && settings?.product_reviews_enable
 const showVerifiedBadge = settings?.show_verified_badge !== false;
 const productReviewSummary = reviewsEnabled ? await getProductReviewSummary(product.id, storeQuery) : { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
 const productReviews = reviewsEnabled ? await getProductReviews(product.id, storeQuery, 8) : [];
+const productReviewsPageSize = 5;
 
 const productGalleryImages = product.imageUrls?.length ? product.imageUrls : ['https://placehold.co/800x800?text=PowerZona'];
 const mainImage = productGalleryImages[0];
@@ -133,6 +134,16 @@ function reviewCountLabel(count: number) {
 function reviewStars(rating: number) {
 	const rounded = Math.max(0, Math.min(5, Math.round(Number(rating || 0))));
 	return '★'.repeat(rounded) + '☆'.repeat(5 - rounded);
+}
+function reviewInitials(name: string) {
+	const parts = String(name || 'Cliente').trim().split(/\s+/).filter(Boolean);
+	return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'C';
+}
+function formatReviewDate(value: string | undefined) {
+	if (!value) return '';
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) return '';
+	return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 }
 const extraInfoItems = parseExtraInfoValue(
 	product.extra_info ?? product.extraInfo ?? product.additional_info ?? product.product_extra_info ?? []
@@ -296,6 +307,15 @@ const variationItems = variations.map((variation) => {
 		.product-detail-extra { order: 6; }
 		.product-detail-description { order: 7; }
 		.product-detail-purchase { order: 8; }
+		.product-description-text {
+			margin: 0;
+			color: #4b5563;
+			font-size: 15px;
+			line-height: 1.75;
+			font-weight: 750;
+			white-space: pre-wrap;
+			overflow-wrap: anywhere;
+		}
 		.related-section { margin-top: 34px; border-top: 1px solid #e5e7eb; padding-top: 24px; }
 		.related-section-title { margin: 0; color: #111827; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; }
 		.related-section-subtitle { margin: 4px 0 18px; color: #4b5563; font-size: 17px; font-weight: 700; }
@@ -313,30 +333,448 @@ const variationItems = variations.map((variation) => {
 		.related-buy { display: inline-flex; align-items: center; justify-content: center; width: fit-content; border-radius: 999px; background: #111827; color: #fff; padding: 8px 12px; font-size: 12px; font-weight: 1000; margin-top: 10px; }
 		.product-rating-link { display: inline-flex; align-items: center; gap: 8px; width: max-content; max-width: 100%; margin: -8px 0 18px; border-radius: 8px; border: 1px solid #fde68a; background: #fffbeb; color: #92400e; padding: 10px 12px; text-decoration: none; font-size: 13px; line-height: 1.2; font-weight: 1000; box-shadow: 0 10px 24px rgba(245,158,11,.09); }
 		.product-rating-stars { color: #f59e0b; letter-spacing: 1px; white-space: nowrap; }
-		.product-reviews-section { margin-top: 28px; border-top: 1px solid #e5e7eb; padding-top: 24px; scroll-margin-top: 90px; }
-		.product-reviews-title { margin: 0; color: #111827; font-size: 24px; font-weight: 1000; letter-spacing: -.04em; }
-		.product-reviews-subtitle { margin: 4px 0 18px; color: #4b5563; font-size: 15px; font-weight: 750; }
-		.product-reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-		.product-review-card { border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; padding: 14px; box-shadow: 0 12px 30px rgba(15,23,42,.06); display: grid; gap: 9px; }
-		.product-review-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-		.product-review-stars { color: #f59e0b; font-size: 14px; letter-spacing: 1px; white-space: nowrap; }
-		.verified-badge { display: inline-flex; width: max-content; max-width: 100%; border-radius: 999px; background: #ecfdf5; border: 1px solid #bbf7d0; color: #166534; padding: 5px 8px; font-size: 10px; line-height: 1; font-weight: 1000; }
-		.product-review-comment { margin: 0; color: #334155; font-size: 14px; line-height: 1.45; font-weight: 750; white-space: pre-line; }
-		.product-review-name { margin: 0; color: #0f172a; font-size: 13px; font-weight: 1000; }
-		.product-review-form { margin-top: 14px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f8fafc; padding: 16px; display: grid; gap: 12px; }
-		.product-review-form-title { margin: 0; color: #111827; font-size: 18px; line-height: 1.1; font-weight: 1000; letter-spacing: -.02em; }
-		.product-review-field { display: grid; gap: 7px; }
-		.product-review-field span { color: #64748b; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
-		.product-review-field input, .product-review-field textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; padding: 11px 12px; font-size: 14px; font-weight: 800; outline: none; resize: vertical; }
-		.product-review-field input:focus, .product-review-field textarea:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,.1); }
-		.product-review-rating { display: flex; align-items: center; gap: 7px; }
-		.product-review-rating button { width: 40px; height: 40px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #cbd5e1; font-size: 23px; line-height: 1; cursor: pointer; }
-		.product-review-rating button.active { color: #f59e0b; background: #fffbeb; border-color: #fde68a; }
-		.product-review-alert { border-radius: 8px; padding: 11px 12px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 13px; font-weight: 900; }
-		.product-review-alert.success { background: #ecfdf5; border-color: #bbf7d0; color: #166534; }
-		.product-review-submit { border: 0; border-radius: 8px; padding: 13px 15px; background: #16a34a; color: #fff; font-size: 14px; font-weight: 1000; cursor: pointer; }
-		.product-review-submit:disabled { opacity: .68; cursor: wait; }
-		.product-review-honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+		.product-reviews-section {
+			margin: 28px 0 28px;
+			scroll-margin-top: 90px;
+			padding: clamp(20px, 4vw, 34px);
+			border-radius: 26px;
+			border: 1px solid #dbe7f6;
+			background:
+				radial-gradient(circle at 100% 0%, rgba(219,234,254,.68), rgba(219,234,254,0) 34%),
+				linear-gradient(180deg, rgba(248,251,255,.94), rgba(239,246,255,.72));
+			box-shadow: 0 22px 58px rgba(37,99,235,.08);
+		}
+
+		.product-reviews-head {
+			display: grid;
+			grid-template-columns: 58px minmax(0, 1fr);
+			align-items: center;
+			gap: 18px;
+			margin-bottom: 22px;
+		}
+
+		.product-reviews-head > div {
+			min-width: 0;
+		}
+
+		.product-reviews-icon {
+			width: 58px;
+			height: 58px;
+			display: grid;
+			place-items: center;
+			border-radius: 18px;
+			background: linear-gradient(135deg, #eaf4ff, #dbeafe);
+			color: #0b63f6;
+			box-shadow: 0 12px 26px rgba(37,99,235,.10);
+		}
+
+		.product-reviews-icon svg {
+			width: 30px;
+			height: 30px;
+		}
+
+		.product-reviews-title {
+			margin: 0;
+			color: #111827;
+			font-size: 22px;
+			font-weight: 1000;
+			letter-spacing: -.04em;
+			overflow-wrap: anywhere;
+		}
+
+		.product-reviews-subtitle {
+			margin: 3px 0 0;
+			color: #64748b;
+			font-size: 13px;
+			font-weight: 800;
+			overflow-wrap: anywhere;
+		}
+
+		.product-reviews-toggle {
+			width: 100%;
+			min-height: 72px;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 14px;
+			margin-bottom: 18px;
+			border: 1px solid #cfe0f6;
+			border-radius: 18px;
+			background: rgba(255,255,255,.94);
+			color: #08133f;
+			padding: 14px 18px;
+			font: inherit;
+			cursor: pointer;
+			box-shadow: 0 16px 38px rgba(37,99,235,.08);
+		}
+
+		.product-reviews-toggle-main {
+			display: inline-flex;
+			align-items: center;
+			gap: 14px;
+			min-width: 0;
+		}
+
+		.product-reviews-toggle-icon {
+			width: 44px;
+			height: 44px;
+			display: grid;
+			place-items: center;
+			flex: 0 0 auto;
+			border-radius: 999px;
+			background: #0b63f6;
+			color: #fff;
+			box-shadow: 0 12px 26px rgba(11,99,246,.20);
+		}
+
+		.product-reviews-toggle-icon svg {
+			width: 21px;
+			height: 21px;
+		}
+
+		.product-reviews-toggle-title {
+			min-width: 0;
+			color: #08133f;
+			font-size: 18px;
+			line-height: 1.1;
+			font-weight: 1000;
+			text-align: left;
+			overflow-wrap: anywhere;
+		}
+
+		.product-reviews-toggle-chevron {
+			width: 24px;
+			height: 24px;
+			flex: 0 0 auto;
+			color: #071345;
+			transition: transform .2s ease;
+		}
+
+		.product-reviews-toggle[aria-expanded="true"] .product-reviews-toggle-chevron {
+			transform: rotate(180deg);
+		}
+
+		.product-review-form-shell {
+			display: none;
+			margin: -2px 0 20px;
+		}
+
+		.product-review-form-shell.is-open {
+			display: block;
+		}
+
+		.product-review-form {
+			margin: 0;
+			border: 1px solid #dbe7f6;
+			border-radius: 20px;
+			background: rgba(255,255,255,.96);
+			padding: clamp(16px, 3vw, 24px);
+			display: grid;
+			gap: 14px;
+			box-shadow: 0 18px 42px rgba(37,99,235,.08);
+		}
+
+		.product-review-form-title {
+			display: none;
+		}
+
+		.product-review-form-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 12px;
+		}
+
+		.product-review-field {
+			display: grid;
+			gap: 8px;
+		}
+
+		.product-review-field.product-review-field-full {
+			grid-column: 1 / -1;
+		}
+
+		.product-review-field span {
+			color: #52648f;
+			font-size: 12px;
+			font-weight: 1000;
+			text-transform: uppercase;
+			letter-spacing: .04em;
+		}
+
+		.product-review-field input,
+		.product-review-field textarea {
+			width: 100%;
+			border: 1px solid #cbd8ea;
+			border-radius: 12px;
+			background: #fff;
+			color: #08133f;
+			padding: 12px 13px;
+			font-size: 14px;
+			font-weight: 800;
+			outline: none;
+			resize: vertical;
+			box-shadow: 0 10px 24px rgba(15,23,42,.035);
+		}
+
+		.product-review-field input:focus,
+		.product-review-field textarea:focus {
+			border-color: #0b63f6;
+			box-shadow: 0 0 0 3px rgba(11,99,246,.12);
+		}
+
+		.product-review-rating {
+			display: flex;
+			align-items: center;
+			gap: 7px;
+		}
+
+		.product-review-rating button {
+			width: 44px;
+			height: 44px;
+			border-radius: 12px;
+			border: 1px solid #dbe7f6;
+			background: #f8fbff;
+			color: #b9c8dc;
+			font-size: 26px;
+			line-height: 1;
+			cursor: pointer;
+			box-shadow: 0 8px 18px rgba(37,99,235,.04);
+		}
+
+		.product-review-rating button.active {
+			color: #f5a400;
+			background: #fff8e6;
+			border-color: #fde68a;
+		}
+
+		.product-review-form-note {
+			margin: 0;
+			color: #52648f;
+			font-size: 13px;
+			line-height: 1.45;
+			font-weight: 800;
+		}
+
+		.product-review-alert {
+			border-radius: 14px;
+			padding: 12px 14px;
+			background: #fff7ed;
+			border: 1px solid #fed7aa;
+			color: #9a3412;
+			font-size: 13px;
+			font-weight: 900;
+		}
+
+		.product-review-alert.success {
+			background: #eff6ff;
+			border-color: #bfdbfe;
+			color: #1d4ed8;
+		}
+
+		.product-review-submit {
+			width: max-content;
+			min-height: 46px;
+			border: 0;
+			border-radius: 12px;
+			padding: 0 18px;
+			background: #0b63f6;
+			color: #fff;
+			font-size: 14px;
+			font-weight: 1000;
+			cursor: pointer;
+			box-shadow: 0 14px 30px rgba(11,99,246,.22);
+		}
+
+		.product-review-submit:disabled {
+			opacity: .68;
+			cursor: wait;
+		}
+
+		.product-review-honeypot {
+			position: absolute;
+			left: -9999px;
+			width: 1px;
+			height: 1px;
+			opacity: 0;
+			pointer-events: none;
+		}
+
+		.product-reviews-list {
+			display: grid;
+			gap: 14px;
+		}
+
+		.product-review-card {
+			display: grid;
+			grid-template-columns: 290px minmax(0, 1fr) auto;
+			gap: 26px;
+			align-items: center;
+			border: 1px solid #dbe7f6;
+			border-radius: 18px;
+			background: rgba(255,255,255,.96);
+			padding: 22px 24px;
+			box-shadow: 0 16px 38px rgba(37,99,235,.07);
+		}
+
+		.product-review-person {
+			min-width: 0;
+			display: grid;
+			grid-template-columns: 58px minmax(0, 1fr);
+			align-items: center;
+			gap: 14px;
+			padding-right: 24px;
+			border-right: 1px solid #e6eef8;
+		}
+
+		.product-review-avatar {
+			width: 58px;
+			height: 58px;
+			display: grid;
+			place-items: center;
+			border-radius: 999px;
+			background: linear-gradient(135deg, #eaf4ff, #dbeafe);
+			color: #0b63f6;
+			font-size: 18px;
+			font-weight: 1000;
+		}
+
+		.product-review-name {
+			margin: 0;
+			color: #08133f;
+			font-size: 16px;
+			line-height: 1.15;
+			font-weight: 1000;
+			overflow-wrap: anywhere;
+		}
+
+		.product-review-date {
+			margin: 6px 0 0;
+			color: #52648f;
+			font-size: 13px;
+			font-weight: 800;
+		}
+
+		.product-review-body {
+			min-width: 0;
+			display: grid;
+			gap: 10px;
+		}
+
+		.product-review-stars {
+			color: #f5a400;
+			font-size: 22px;
+			letter-spacing: 2px;
+			line-height: 1;
+		}
+
+		.product-review-comment {
+			margin: 0;
+			color: #33446f;
+			font-size: 15px;
+			line-height: 1.55;
+			font-weight: 800;
+			white-space: pre-line;
+			overflow-wrap: anywhere;
+		}
+
+		.product-review-badge {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 38px;
+			height: 38px;
+			border-radius: 999px;
+			border: 1px solid #bbf7d0;
+			background: #f0fdf4;
+			color: #16a34a;
+			box-shadow: 0 10px 24px rgba(22,163,74,.08);
+		}
+
+		.product-review-badge svg {
+			width: 19px;
+			height: 19px;
+		}
+
+		.product-reviews-pagination {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 14px;
+			margin-top: 18px;
+			color: #52648f;
+			font-size: 13px;
+			font-weight: 850;
+		}
+
+		.product-reviews-pages {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: center;
+			gap: 8px;
+		}
+
+		.product-reviews-page-btn {
+			min-width: 42px;
+			height: 42px;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 10px;
+			border: 1px solid #bfd3ef;
+			background: rgba(255,255,255,.92);
+			color: #0b63f6;
+			font-size: 14px;
+			font-weight: 1000;
+			cursor: pointer;
+		}
+
+		.product-reviews-page-btn.active {
+			background: #0b63f6;
+			border-color: #0b63f6;
+			color: #fff;
+			box-shadow: 0 12px 26px rgba(11,99,246,.22);
+		}
+
+		.product-reviews-page-btn:disabled {
+			opacity: .45;
+			cursor: not-allowed;
+		}
+
+		@media (max-width: 860px) {
+			.product-reviews-head {
+				grid-template-columns: 52px minmax(0, 1fr);
+				gap: 14px;
+			}
+
+			.product-reviews-icon {
+				width: 52px;
+				height: 52px;
+				border-radius: 17px;
+			}
+
+			.product-review-form-grid {
+				grid-template-columns: 1fr;
+			}
+
+			.product-review-card {
+				grid-template-columns: 1fr;
+				gap: 14px;
+			}
+
+			.product-review-person {
+				border-right: 0;
+				padding-right: 0;
+			}
+
+			.product-review-badge {
+				justify-self: start;
+			}
+
+			.product-reviews-pagination {
+				align-items: flex-start;
+				flex-direction: column;
+			}
+		}
 		.product-mobile-cta {
 			position: fixed;
 			left: 50%;
@@ -693,7 +1131,7 @@ const variationItems = variations.map((variation) => {
 					Descripción
 				</h2>
 
-				<div class="text-gray-600 leading-relaxed" set:html={product.description}></div>
+				<div class="product-description-text">{product.description || 'Sin descripción disponible.'}</div>
 			</div>
 
 			<div id="product-purchase-actions" class="product-detail-purchase">
@@ -1261,53 +1699,120 @@ const variationItems = variations.map((variation) => {
 
 	{reviewsEnabled && (productReviews.length > 0 || productReviewsEnabled) && (
 		<section id="opiniones-producto" class="product-reviews-section">
-			<h2 class="product-reviews-title">Opiniones sobre este producto</h2>
-			<p class="product-reviews-subtitle">Reseñas aprobadas de clientes sobre {product.name}.</p>
+			<div class="product-reviews-head">
+				<div class="product-reviews-icon" aria-hidden="true">
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M12 21a9 9 0 1 0-8.5-6"></path>
+						<path d="M8 13.5 10.2 16 16 9"></path>
+						<path d="M3 21l2.8-1"></path>
+					</svg>
+				</div>
+				<div>
+					<h2 class="product-reviews-title">Reseñas del producto</h2>
+					<p class="product-reviews-subtitle">Opiniones aprobadas de clientes sobre {product.name}.</p>
+				</div>
+			</div>
 
-			{productReviews.length > 0 && (
-				<div class="product-reviews-grid">
-					{productReviews.map((review) => (
-						<article class="product-review-card">
-							<div class="product-review-top">
-								<span class="product-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
-								{showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge">Compra verificada</span>}
+			{productReviewsEnabled && (
+				<div class="product-review-form-shell-wrap">
+					<button id="product-review-toggle" class="product-reviews-toggle" type="button" aria-expanded="false" aria-controls="product-review-form-shell">
+						<span class="product-reviews-toggle-main">
+							<span class="product-reviews-toggle-icon" aria-hidden="true">
+								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+									<path d="M12 20h9"></path>
+									<path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+								</svg>
+							</span>
+							<span class="product-reviews-toggle-title">Dejar reseña</span>
+						</span>
+						<svg class="product-reviews-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="m6 9 6 6 6-6"></path>
+						</svg>
+					</button>
+
+					<div id="product-review-form-shell" class="product-review-form-shell" hidden>
+						<form id="public-product-review-form" class="product-review-form">
+							<h3 class="product-review-form-title">Dejar reseña</h3>
+							<div class="product-review-form-grid">
+								<label class="product-review-field">
+									<span>Nombre</span>
+									<input id="product-review-name" name="customer_name" type="text" maxlength="120" required />
+								</label>
+
+								<div class="product-review-field">
+									<span>Rating</span>
+									<div class="product-review-rating" data-product-public-rating>
+										<input id="product-review-rating" type="hidden" value="0" />
+										<button type="button" data-value="1" aria-label="1 estrella">&#9733;</button>
+										<button type="button" data-value="2" aria-label="2 estrellas">&#9733;</button>
+										<button type="button" data-value="3" aria-label="3 estrellas">&#9733;</button>
+										<button type="button" data-value="4" aria-label="4 estrellas">&#9733;</button>
+										<button type="button" data-value="5" aria-label="5 estrellas">&#9733;</button>
+									</div>
+								</div>
+
+								<label class="product-review-field product-review-field-full">
+									<span>Comentario</span>
+									<textarea id="product-review-comment" name="comment" rows="4" maxlength="1200" required></textarea>
+								</label>
 							</div>
-							{review.comment && <p class="product-review-comment">{review.comment}</p>}
-							<p class="product-review-name">{review.customer_name || 'Cliente'}</p>
-						</article>
-					))}
+
+							<label class="product-review-honeypot" aria-hidden="true">
+								Sitio web
+								<input id="product-review-website" name="website" type="text" tabindex="-1" autocomplete="off" />
+							</label>
+
+							<p class="product-review-form-note">Tu reseña será revisada antes de publicarse.</p>
+							<div id="product-review-alert" class="product-review-alert hidden"></div>
+							<button id="product-review-submit" class="product-review-submit" type="submit">Enviar reseña</button>
+						</form>
+					</div>
 				</div>
 			)}
 
-			{productReviewsEnabled && (
-				<form id="public-product-review-form" class="product-review-form">
-					<h3 class="product-review-form-title">Dejar reseña</h3>
-					<label class="product-review-field">
-						<span>Nombre</span>
-						<input id="product-review-name" name="customer_name" type="text" maxlength="120" required />
-					</label>
-					<div class="product-review-field">
-						<span>Rating</span>
-						<div class="product-review-rating" data-product-public-rating>
-							<input id="product-review-rating" type="hidden" value="0" />
-							<button type="button" data-value="1" aria-label="1 estrella">★</button>
-							<button type="button" data-value="2" aria-label="2 estrellas">★</button>
-							<button type="button" data-value="3" aria-label="3 estrellas">★</button>
-							<button type="button" data-value="4" aria-label="4 estrellas">★</button>
-							<button type="button" data-value="5" aria-label="5 estrellas">★</button>
-						</div>
+			{productReviews.length > 0 && (
+				<>
+					<div class="product-reviews-list" data-product-reviews-list data-page-size={productReviewsPageSize}>
+						{productReviews.map((review, index) => (
+							<article class="product-review-card" data-product-review-card data-product-review-index={index} hidden={index >= productReviewsPageSize}>
+								<div class="product-review-person">
+									<div class="product-review-avatar" aria-hidden="true">{reviewInitials(review.customer_name || 'Cliente')}</div>
+									<div>
+										<p class="product-review-name">{review.customer_name || 'Cliente'}</p>
+										{formatReviewDate(review.created) && <p class="product-review-date">{formatReviewDate(review.created)}</p>}
+									</div>
+								</div>
+
+								<div class="product-review-body">
+									<span class="product-review-stars" aria-label={`${Number(review.rating || 0)} de 5`}>{reviewStars(Number(review.rating || 0))}</span>
+									{review.comment && <p class="product-review-comment">{review.comment}</p>}
+								</div>
+
+								<span class="product-review-badge" aria-label="Reseña aprobada" title="Reseña aprobada">
+									<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+										<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path>
+										<path d="m9 12 2 2 4-5"></path>
+									</svg>
+								</span>
+
+								{showVerifiedBadge && review.verified_purchase === true && <span class="verified-badge" hidden>Compra verificada</span>}
+							</article>
+						))}
 					</div>
-					<label class="product-review-field">
-						<span>Comentario</span>
-						<textarea id="product-review-comment" name="comment" rows="4" maxlength="1200" required></textarea>
-					</label>
-					<label class="product-review-honeypot" aria-hidden="true">
-						Sitio web
-						<input id="product-review-website" name="website" type="text" tabindex="-1" autocomplete="off" />
-					</label>
-					<div id="product-review-alert" class="product-review-alert hidden"></div>
-					<button id="product-review-submit" class="product-review-submit" type="submit">Enviar reseña</button>
-				</form>
+
+					{productReviews.length > productReviewsPageSize && (
+						<div class="product-reviews-pagination" data-product-reviews-pagination>
+							<span data-product-reviews-range>Mostrando 1-5 de {reviewCountLabel(productReviews.length)}</span>
+							<div class="product-reviews-pages" aria-label="Paginación de reseñas del producto">
+								<button class="product-reviews-page-btn" type="button" data-product-review-prev aria-label="Página anterior">‹</button>
+								{Array.from({ length: Math.ceil(productReviews.length / productReviewsPageSize) }).map((_, index) => (
+									<button class={`product-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-product-review-page={index + 1} aria-label={`Página ${index + 1}`}>{index + 1}</button>
+								))}
+								<button class="product-reviews-page-btn" type="button" data-product-review-next aria-label="Página siguiente">›</button>
+							</div>
+						</div>
+					)}
+				</>
 			)}
 		</section>
 	)}
@@ -1345,6 +1850,64 @@ const variationItems = variations.map((variation) => {
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
 			const PRODUCT_ID = String(productId || '');
+
+			const productReviewToggle = document.getElementById('product-review-toggle');
+			const productReviewFormShell = document.getElementById('product-review-form-shell');
+
+			function setProductReviewFormOpen(open) {
+				if (!productReviewToggle || !productReviewFormShell) return;
+				productReviewToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+				productReviewFormShell.classList.toggle('is-open', open);
+				productReviewFormShell.hidden = !open;
+			}
+
+			productReviewToggle?.addEventListener('click', () => {
+				setProductReviewFormOpen(productReviewToggle.getAttribute('aria-expanded') !== 'true');
+			});
+
+			const productReviewCards = Array.from(document.querySelectorAll('[data-product-review-card]'));
+			const productReviewPagination = document.querySelector('[data-product-reviews-pagination]');
+			const productReviewRange = document.querySelector('[data-product-reviews-range]');
+			const productReviewPageButtons = Array.from(document.querySelectorAll('[data-product-review-page]'));
+			const productReviewPrev = document.querySelector('[data-product-review-prev]');
+			const productReviewNext = document.querySelector('[data-product-review-next]');
+			const productReviewPageSize = Math.max(1, Number(document.querySelector('[data-product-reviews-list]')?.getAttribute('data-page-size') || 5));
+			const totalProductReviewPages = Math.max(1, Math.ceil(productReviewCards.length / productReviewPageSize));
+			let currentProductReviewPage = 1;
+
+			function renderProductReviewPage(page) {
+				currentProductReviewPage = Math.max(1, Math.min(totalProductReviewPages, Number(page || 1)));
+				const start = (currentProductReviewPage - 1) * productReviewPageSize;
+				const end = Math.min(start + productReviewPageSize, productReviewCards.length);
+
+				productReviewCards.forEach((card, index) => {
+					card.hidden = index < start || index >= end;
+				});
+
+				if (productReviewRange) {
+					productReviewRange.textContent = `Mostrando ${start + 1}-${end} de ${productReviewCards.length} ${productReviewCards.length === 1 ? 'reseña' : 'reseñas'}`;
+				}
+
+				productReviewPageButtons.forEach((button) => {
+					const isActive = Number(button.getAttribute('data-product-review-page') || 0) === currentProductReviewPage;
+					button.classList.toggle('active', isActive);
+					button.setAttribute('aria-current', isActive ? 'page' : 'false');
+				});
+
+				if (productReviewPrev) productReviewPrev.disabled = currentProductReviewPage === 1;
+				if (productReviewNext) productReviewNext.disabled = currentProductReviewPage === totalProductReviewPages;
+				if (productReviewPagination) productReviewPagination.hidden = productReviewCards.length <= productReviewPageSize;
+			}
+
+			productReviewPageButtons.forEach((button) => {
+				button.addEventListener('click', () => renderProductReviewPage(button.getAttribute('data-product-review-page')));
+			});
+
+			productReviewPrev?.addEventListener('click', () => renderProductReviewPage(currentProductReviewPage - 1));
+			productReviewNext?.addEventListener('click', () => renderProductReviewPage(currentProductReviewPage + 1));
+
+			if (productReviewCards.length) renderProductReviewPage(1);
+
 			const form = document.getElementById('public-product-review-form');
 			if (!form) return;
 
