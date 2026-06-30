@@ -3604,8 +3604,8 @@ try {
 
                       <div class="field">
                         <label for="settings-notification-cleanup-days">Borrar archivadas despues de</label>
-                        <input id="settings-notification-cleanup-days" type="number" min="1" max="365" step="1" value="60" />
-                        <p class="form-help">Recomendado: 60 dias. Solo aplica a notificaciones archivadas.</p>
+                        <input id="settings-notification-cleanup-days" type="number" min="1" max="365" step="1" value="15" />
+                        <p class="form-help">Recomendado: 15 dias. Solo aplica a notificaciones archivadas.</p>
                       </div>
                     </div>
                   </div>
@@ -5590,7 +5590,7 @@ try {
             lowStockThreshold: Math.max(1, Number(fields.lowStockThreshold?.value || 3)),
             notifyOutOfStock: fields.notifyOutOfStock?.checked !== false,
             notificationCleanupEnabled: fields.notificationCleanupEnabled?.checked !== false,
-            notificationCleanupDays: Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 60))),
+            notificationCleanupDays: Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 15))),
             province: fields.province?.value || '',
             municipality: fields.municipality?.value || '',
             addressDetail: fields.addressDetail?.value?.trim() || '',
@@ -5905,7 +5905,7 @@ try {
             low_stock_threshold: Math.max(1, Number(fields.lowStockThreshold?.value || 3)),
             notify_out_of_stock: fields.notifyOutOfStock?.checked !== false,
             notification_cleanup_enabled: fields.notificationCleanupEnabled?.checked !== false,
-            notification_cleanup_days: Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 60))),
+            notification_cleanup_days: Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 15))),
             cover_mode: fields.coverMode.value || 'single',
             business_types: JSON.stringify(selectedBusinessTypes),
             province: fields.province?.value || '',
@@ -6010,7 +6010,7 @@ try {
           if (fields.lowStockThreshold) fields.lowStockThreshold.value = String(Math.max(1, Number(record.low_stock_threshold ?? 3)));
           if (fields.notifyOutOfStock) fields.notifyOutOfStock.checked = record.notify_out_of_stock !== false;
           if (fields.notificationCleanupEnabled) fields.notificationCleanupEnabled.checked = record.notification_cleanup_enabled !== false;
-          if (fields.notificationCleanupDays) fields.notificationCleanupDays.value = String(Math.max(1, Math.min(365, Number(record.notification_cleanup_days ?? 60))));
+          if (fields.notificationCleanupDays) fields.notificationCleanupDays.value = String(Math.max(1, Math.min(365, Number(record.notification_cleanup_days ?? 15))));
           fields.coverMode.value = record.cover_mode === 'carousel' ? 'carousel' : 'single';
           setBusinessTypes(parseJsonList(record.business_types));
           fields.province.value = record.province || '';
@@ -6095,7 +6095,7 @@ try {
             data.append('low_stock_threshold', Math.max(1, Number(fields.lowStockThreshold?.value || 3)));
             data.append('notify_out_of_stock', fields.notifyOutOfStock?.checked !== false);
             data.append('notification_cleanup_enabled', fields.notificationCleanupEnabled?.checked !== false);
-            data.append('notification_cleanup_days', Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 60))));
+            data.append('notification_cleanup_days', Math.max(1, Math.min(365, Number(fields.notificationCleanupDays?.value || 15))));
             data.append('cover_mode', fields.coverMode.value || 'single');
             data.append('business_types', JSON.stringify(selectedBusinessTypes));
             data.append('province', fields.province?.value || '');

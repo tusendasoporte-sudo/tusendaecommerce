@@ -88,7 +88,7 @@ function backfillExistingSettings(app) {
       }
 
       if (!Number(record.get("notification_cleanup_days"))) {
-        record.set("notification_cleanup_days", 60);
+        record.set("notification_cleanup_days", 15);
         changed = true;
       }
 
@@ -105,7 +105,7 @@ migrate((app) => {
   if (!settings) return;
 
   addBoolField(settings, "bool1780472711", "notification_cleanup_enabled", true);
-  addNumberField(settings, "number1780472712", "notification_cleanup_days", 60);
+  addNumberField(settings, "number1780472712", "notification_cleanup_days", 15);
   addDateField(settings, "date1780472713", "notification_cleanup_last_run_at");
 
   app.save(settings);

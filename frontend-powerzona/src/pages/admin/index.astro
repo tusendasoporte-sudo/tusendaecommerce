@@ -3278,20 +3278,16 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<div class="summary-period-head">
 							<div>
 								<h2>Periodo del resumen</h2>
-								<p>Este rango se aplica a todas las analíticas y métricas del panel.</p>
+								<p>Este resumen muestra actividad reciente con un máximo de 30 días.</p>
 							</div>
 							<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
 						</div>
 
 						<div class="summary-period-actions period-tabs" role="tablist" aria-label="Período del resumen" data-pz-scroll-hint>
-							<button class="period-btn" type="button" data-range="1">Hoy</button>
+							<button class="period-btn" type="button" data-range="today">Hoy</button>
 							<button class="period-btn active" type="button" data-range="7">7 días</button>
 							<button class="period-btn" type="button" data-range="15">15 días</button>
 							<button class="period-btn" type="button" data-range="30">1 mes</button>
-							<button class="period-btn" type="button" data-range="90">3 meses</button>
-							<button class="period-btn" type="button" data-range="180">6 meses</button>
-							<button class="period-btn" type="button" data-range="365">1 año</button>
-							<button class="period-btn" type="button" data-range="all">De por vida</button>
 						</div>
 					</section>
 
@@ -3299,7 +3295,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<div class="visit-analytics-header">
 							<p class="visit-analytics-kicker">Analíticas</p>
 							<h2 id="dashboard-traffic-title">Analíticas de visitas</h2>
-							<p>Revisa una métrica de navegación pública a la vez, según el periodo seleccionado.</p>
+							<p>Revisa navegación pública reciente. Las analíticas conservan un máximo de 30 días.</p>
 						</div>
 
 						<div class="visit-analytics-toolbar">
@@ -3408,6 +3404,9 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const ORDER_ITEMS_STORE_FILTER = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22` : '';
 			const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
 			const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
+			const ANALYTICS_MAX_RETENTION_DAYS = 30;
+			const ANALYTICS_CLEANUP_INTERVAL_MS = 23 * 60 * 60 * 1000;
+			const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
 			const rangeLabel = document.getElementById('range-label');
@@ -3466,7 +3465,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			let reviews = [];
 			let settingsRecord = null;
 			let reviewsCollectionAvailable = true;
-			let selectedRange = '7';
+			let selectedRange = normalizeSummaryRange(readInitialSummaryRange());
 			let selectedExpirationRange = 30;
 
 			const statusLabels = {
@@ -3496,17 +3495,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				return base + 'background:#fef3c7;color:#92400e;border:1px solid #fde68a;';
 			}
 
-			const rangeLabels = {
-				1: 'Hoy',
-				7: 'Últimos 7 días',
-				15: 'Últimos 15 días',
-				30: 'Último mes',
-				90: 'Últimos 3 meses',
-				180: 'Últimos 6 meses',
-				365: 'Último año',
-				all: 'De por vida',
-			};
-
 			const icons = {
 				money: '<svg width="26" height="26" viewBox="0 0 28 28" fill="none"><rect x="3" y="6" width="22" height="16" rx="4" fill="#DCFCE7"/><rect x="3" y="6" width="22" height="16" rx="4" stroke="#16A34A" stroke-width="1.8"/><circle cx="14" cy="14" r="4.2" fill="#22C55E"/><path d="M14 11.3v5.4M11.7 14h4.6" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/></svg>',
 				orders: '<svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M8 3.5h12a2.5 2.5 0 0 1 2.5 2.5v18l-3.5-2.2-2.5 2.2-2.5-2.2-2.5 2.2L8 21.8 4.5 24V6A2.5 2.5 0 0 1 7 3.5Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.8"/><path d="M9 9h10M9 14h10M9 19h6" stroke="#1D4ED8" stroke-width="2" stroke-linecap="round"/></svg>',
@@ -3529,6 +3517,71 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					.replace(/>/g, '&gt;')
 					.replace(/"/g, '&quot;')
 					.replace(/'/g, '&#039;');
+			}
+
+			function escapePbFilterValue(value) {
+				return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+			}
+
+			function normalizeSummaryRange(value) {
+				const raw = String(value || '').trim().toLowerCase();
+
+				if (raw === 'today' || raw === '1') return 'today';
+				if (raw === '7') return '7';
+				if (raw === '15') return '15';
+				if (raw === '30') return '30';
+
+				return '7';
+			}
+
+			function readInitialSummaryRange() {
+				try {
+					const params = new URLSearchParams(window.location.search || '');
+					const urlRange = params.get('summary_range') || params.get('range') || '';
+					if (urlRange) return urlRange;
+				} catch (_) {}
+
+				try {
+					return localStorage.getItem(SUMMARY_RANGE_STORAGE_KEY) || '';
+				} catch (_) {
+					return '';
+				}
+			}
+
+			function persistSummaryRange(value) {
+				try {
+					localStorage.setItem(SUMMARY_RANGE_STORAGE_KEY, normalizeSummaryRange(value));
+				} catch (_) {}
+			}
+
+			function getSummaryRangeDays() {
+				const range = normalizeSummaryRange(selectedRange);
+
+				if (range === 'today') return 1;
+
+				const days = Number(range || 7);
+				if (!Number.isFinite(days)) return 7;
+
+				return Math.max(1, Math.min(30, Math.floor(days)));
+			}
+
+			function getSummaryRangeLabel() {
+				const range = normalizeSummaryRange(selectedRange);
+
+				if (range === 'today') return 'Hoy';
+				if (range === '7') return 'Últimos 7 días';
+				if (range === '15') return 'Últimos 15 días';
+				if (range === '30') return 'Últimos 30 días';
+
+				return 'Últimos 7 días';
+			}
+
+			function syncSummaryRangeButtons() {
+				const normalized = normalizeSummaryRange(selectedRange);
+				periodButtons.forEach((button) => {
+					const isActive = normalizeSummaryRange(button.dataset.range || '') === normalized;
+					button.classList.toggle('active', isActive);
+				});
 			}
 
 			function formatUSD(value) {
@@ -3633,6 +3686,113 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				return items;
 			}
 
+			function getAnalyticsRetentionDays() {
+				const configured = Number(settingsRecord?.analytics_retention_days ?? ANALYTICS_MAX_RETENTION_DAYS);
+				if (!Number.isFinite(configured) || configured <= 0) return ANALYTICS_MAX_RETENTION_DAYS;
+				return Math.max(1, Math.min(ANALYTICS_MAX_RETENTION_DAYS, Math.floor(configured)));
+			}
+
+			function getAnalyticsCutoffDate() {
+				const date = new Date();
+				date.setDate(date.getDate() - getAnalyticsRetentionDays());
+				return date;
+			}
+
+			function getAnalyticsCutoffIso() {
+				return getAnalyticsCutoffDate().toISOString();
+			}
+
+			function buildAnalyticsEventsQuery() {
+				if (!CURRENT_STORE_ID) return 'sort=created';
+
+				const filter = [
+					`store="${escapePbFilterValue(CURRENT_STORE_ID)}"`,
+					`created >= "${escapePbFilterValue(getAnalyticsCutoffIso())}"`,
+				].join(' && ');
+
+				const query = new URLSearchParams();
+				query.set('filter', filter);
+				query.set('sort', 'created');
+
+				return query.toString();
+			}
+
+			function shouldRunAnalyticsCleanup() {
+				if (settingsRecord?.analytics_cleanup_enabled === false) return false;
+
+				const lastRunValue = String(settingsRecord?.analytics_cleanup_last_run_at || '').trim();
+				if (!lastRunValue) return true;
+
+				const lastRun = new Date(lastRunValue);
+				if (Number.isNaN(lastRun.getTime())) return true;
+
+				return Date.now() - lastRun.getTime() >= ANALYTICS_CLEANUP_INTERVAL_MS;
+			}
+
+			async function updateAnalyticsCleanupLastRun(dateIso) {
+				if (!settingsRecord?.id) return;
+
+				await apiRequest(`/api/collections/settings/records/${encodeURIComponent(settingsRecord.id)}`, {
+					method: 'PATCH',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						analytics_cleanup_last_run_at: dateIso,
+					}),
+				});
+
+				settingsRecord.analytics_cleanup_last_run_at = dateIso;
+			}
+
+			async function deleteOldAnalyticsEvents(cutoffIso) {
+				if (!CURRENT_STORE_ID || !cutoffIso) return 0;
+
+				let deleted = 0;
+
+				const filter = [
+					`store="${escapePbFilterValue(CURRENT_STORE_ID)}"`,
+					`created < "${escapePbFilterValue(cutoffIso)}"`,
+				].join(' && ');
+
+				for (let index = 0; index < 50; index += 1) {
+					const query = new URLSearchParams();
+					query.set('filter', filter);
+					query.set('fields', 'id');
+					query.set('sort', 'created');
+					query.set('page', '1');
+					query.set('perPage', '100');
+
+					const result = await apiRequest(`/api/collections/store_analytics_events/records?${query.toString()}`);
+					const ids = (result.items || []).map((item) => item.id).filter(Boolean);
+
+					if (!ids.length) break;
+
+					await Promise.all(ids.map((id) => (
+						apiRequest(`/api/collections/store_analytics_events/records/${encodeURIComponent(id)}`, {
+							method: 'DELETE',
+						})
+					)));
+
+					deleted += ids.length;
+
+					if (ids.length < 100) break;
+				}
+
+				return deleted;
+			}
+
+			async function runAnalyticsCleanupIfNeeded() {
+				try {
+					if (!settingsRecord) return;
+					if (!shouldRunAnalyticsCleanup()) return;
+
+					const cutoffIso = getAnalyticsCutoffIso();
+					await deleteOldAnalyticsEvents(cutoffIso);
+					await updateAnalyticsCleanupLastRun(new Date().toISOString());
+				} catch (error) {
+					console.warn('No se pudo ejecutar limpieza automática de analíticas.', error);
+				}
+			}
+
 			function isReviewsCollectionMissing(error) {
 				const text = String(error?.message || error?.data?.message || error || '').toLowerCase();
 				return text.includes('reviews') || text.includes('collection') || text.includes('not found') || error?.status === 404;
@@ -3668,13 +3828,21 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				return !orderHasCompletedReview(order.id);
 			}
 
-			async function loadRatingSupportData() {
+			async function loadSettingsRecord() {
 				try {
 					const settingsRecords = await loadAllRecords('settings');
 					settingsRecord = (settingsRecords || []).find((record) => record.active === true) || settingsRecords?.[0] || null;
 				} catch (error) {
-					console.error('No se pudieron cargar ajustes para rating.', error);
+					console.error('No se pudieron cargar ajustes de tienda.', error);
 					settingsRecord = null;
+				}
+
+				return settingsRecord;
+			}
+
+			async function loadRatingSupportData() {
+				if (!settingsRecord) {
+					await loadSettingsRecord();
 				}
 
 				try {
@@ -3688,8 +3856,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function getRangeStart(range) {
-				if (range === 'all') return null;
-				const days = Number(range || 7);
+				selectedRange = normalizeSummaryRange(range);
+				const days = getSummaryRangeDays();
 				const start = new Date();
 				start.setHours(0, 0, 0, 0);
 				start.setDate(start.getDate() - (days - 1));
@@ -3820,11 +3988,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function getChartSeries(filteredOrders, profitByOrder = {}) {
-				if (selectedRange === '90') return getMonthSeries(filteredOrders, 3, profitByOrder);
-				if (selectedRange === '180') return getMonthSeries(filteredOrders, 6, profitByOrder);
-				if (selectedRange === '365') return getMonthSeries(filteredOrders, 12, profitByOrder);
-				if (selectedRange === 'all') return getMonthSeries(filteredOrders, null, profitByOrder);
-				return getDaySeries(filteredOrders, Number(selectedRange), profitByOrder);
+				return getDaySeries(filteredOrders, getSummaryRangeDays(), profitByOrder);
 			}
 
 			function computeMetrics() {
@@ -3891,35 +4055,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function getAnalyticsRangeDays() {
-				if (selectedRange === 'all') {
-					const days = analyticsEvents
-						.map((event) => String(event.day || '').slice(0, 10))
-						.filter(Boolean)
-						.sort();
-
-					if (!days.length) {
-						return Array.from({ length: 7 }, (_, index) => {
-							const date = new Date();
-							date.setDate(date.getDate() - (6 - index));
-							return localDayKey(date);
-						});
-					}
-
-					const start = new Date(`${days[0]}T00:00:00`);
-					const end = new Date(`${days[days.length - 1]}T00:00:00`);
-					const result = [];
-					const cursor = new Date(start);
-
-					while (cursor <= end) {
-						result.push(localDayKey(cursor));
-						cursor.setDate(cursor.getDate() + 1);
-					}
-
-					return result;
-				}
-
-				const amount = Number(selectedRange || 7);
-				const total = Number.isFinite(amount) && amount > 0 ? amount : 7;
+				const maxDays = Math.min(getAnalyticsRetentionDays(), ANALYTICS_MAX_RETENTION_DAYS);
+				const total = Math.max(1, Math.min(maxDays, getSummaryRangeDays()));
 
 				return Array.from({ length: total }, (_, index) => {
 					const date = new Date();
@@ -4204,6 +4341,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 			function renderKpis(metrics) {
 				renderBusinessSummary(metrics);
+				const summaryRangeLabel = getSummaryRangeLabel();
 				const expirationSummary = getOneMonthExpirationSummary();
 				const expirationMeta = expirationSummary.validCount
 					? 'Productos con vencimiento en 30 días o menos.'
@@ -4228,7 +4366,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					<div class="metric-card metric-green" style="${cardStyle}">
 						<div style="${topStyle}">
 							<div class="metric-icon" style="${iconStyle}">${icons.money}</div>
-							<span class="metric-badge" style="${badgeStyle}">${rangeLabels[selectedRange]}</span>
+							<span class="metric-badge" style="${badgeStyle}">${summaryRangeLabel}</span>
 						</div>
 						<div style="${labelStyle}">Ventas</div>
 						<div style="${valueStyle}"><strong style="font-weight:700;">${escapeHtml(formatUSD(metrics.totalSales))}</strong></div>
@@ -4597,9 +4735,12 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function renderDashboard() {
+				selectedRange = normalizeSummaryRange(selectedRange);
+				persistSummaryRange(selectedRange);
+				syncSummaryRangeButtons();
 				const metrics = computeMetrics();
 				dashboardSubtitle.textContent = formatFullDate(new Date()) + '.';
-				rangeLabel.textContent = `Mostrando: ${rangeLabels[selectedRange]}.`;
+				rangeLabel.textContent = `Mostrando: ${getSummaryRangeLabel()}.`;
 				renderTrafficAnalytics();
 				renderKpis(metrics);
 				renderCharts(metrics);
@@ -4628,11 +4769,14 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando vencimientos...</div>';
 				expirationProductsMeta.textContent = 'Cargando productos...';
 
+				await loadSettingsRecord();
+				await runAnalyticsCleanupIfNeeded();
+
 				const [ordersResult, itemsResult, productsResult, analyticsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
 					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
 					loadAllRecords('products', 'sort=expiration_date&expand=category,subcategory'),
-					loadAllRecords('store_analytics_events', 'sort=created'),
+					loadAllRecords('store_analytics_events', buildAnalyticsEventsQuery()),
 				]);
 
 				await loadRatingSupportData();
@@ -4708,8 +4852,9 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 			periodButtons.forEach((button) => {
 				button.addEventListener('click', () => {
-					selectedRange = button.dataset.range || '7';
-					periodButtons.forEach((item) => item.classList.toggle('active', item === button));
+					selectedRange = normalizeSummaryRange(button.dataset.range || '7');
+					persistSummaryRange(selectedRange);
+					syncSummaryRangeButtons();
 					renderDashboard();
 				});
 			});

@@ -776,7 +776,7 @@ const marketingVisualSubClass = (subsection: string) => {
         if (!settings?.id) return;
         if (!shouldRunNotificationCleanup(settings)) return;
 
-        const days = Math.max(1, Math.min(365, Number(settings.notification_cleanup_days || 60)));
+        const days = Math.max(1, Math.min(365, Number(settings.notification_cleanup_days || 15)));
         const cutoffIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
         await deleteArchivedNotificationsBefore({

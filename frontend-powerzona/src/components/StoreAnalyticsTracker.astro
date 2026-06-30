@@ -4,6 +4,7 @@ type Props = {
   pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'search' | 'checkout' | 'other';
   entityType?: string;
   entityId?: string;
+  heartbeatEnabled?: boolean;
 };
 
 const {
@@ -11,15 +12,17 @@ const {
   pageType = 'other',
   entityType = '',
   entityId = '',
+  heartbeatEnabled = false,
 } = Astro.props;
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 ---
 
 {storeId && pocketbaseUrl && (
-  <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId }}>
+  <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId, heartbeatEnabled }}>
     (() => {
       const DEBUG_ANALYTICS = new URLSearchParams(window.location.search).has('analytics_debug');
+      const HEARTBEAT_ENABLED = heartbeatEnabled === true;
 
       function logDebug(...args) {
         if (DEBUG_ANALYTICS) console.info('[PZ Analytics]', ...args);
@@ -136,30 +139,32 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
         sendAnalyticsEvent('pageview');
 
-        let heartbeatTimer = null;
+        if (HEARTBEAT_ENABLED) {
+          let heartbeatTimer = null;
 
-        function startHeartbeat() {
-          if (heartbeatTimer) return;
+          function startHeartbeat() {
+            if (heartbeatTimer) return;
 
-          heartbeatTimer = window.setInterval(() => {
-            if (document.hidden) return;
-            localStorage.setItem(lastActivityKey, String(Date.now()));
-            sendAnalyticsEvent('heartbeat');
-          }, 60000);
+            heartbeatTimer = window.setInterval(() => {
+              if (document.hidden) return;
+              localStorage.setItem(lastActivityKey, String(Date.now()));
+              sendAnalyticsEvent('heartbeat');
+            }, 60000);
+          }
+
+          function stopHeartbeat() {
+            if (!heartbeatTimer) return;
+            window.clearInterval(heartbeatTimer);
+            heartbeatTimer = null;
+          }
+
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stopHeartbeat();
+            else startHeartbeat();
+          });
+
+          startHeartbeat();
         }
-
-        function stopHeartbeat() {
-          if (!heartbeatTimer) return;
-          window.clearInterval(heartbeatTimer);
-          heartbeatTimer = null;
-        }
-
-        document.addEventListener('visibilitychange', () => {
-          if (document.hidden) stopHeartbeat();
-          else startHeartbeat();
-        });
-
-        startHeartbeat();
       } catch (error) {
         if (DEBUG_ANALYTICS) console.warn('[PZ Analytics] Error general.', error);
       }
