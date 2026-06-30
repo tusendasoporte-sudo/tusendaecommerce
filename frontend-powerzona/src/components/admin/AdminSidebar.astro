@@ -49,6 +49,7 @@ const adminStoreSettingsPath = getStoreAdminPath(storeSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(storeSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
+const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
 
@@ -246,13 +247,30 @@ const marketingVisualSubClass = (subsection: string) => {
   aria-hidden="true"
   data-pz-admin-notifications-panel
 >
-  <header class="pz-admin-notifications-panel__head">
+  <div class="pz-admin-notifications-panel__head">
     <div>
       <h2>Notificaciones</h2>
-      <p>Avisos importantes de tu tienda</p>
+      <p data-pz-admin-notifications-summary>Avisos importantes de tu tienda</p>
     </div>
-    <button type="button" class="pz-admin-notifications-panel__mark-all" data-pz-admin-mark-all>Marcar todas como leidas</button>
-  </header>
+
+    <div class="pz-admin-notifications-panel__actions">
+      <a
+        href={adminNotificationsPath}
+        class="pz-admin-notifications-panel__view-all hidden"
+        data-pz-admin-notifications-view-all
+      >
+        Ver todas
+      </a>
+
+      <button type="button" class="pz-admin-notifications-panel__mark-all" data-pz-admin-mark-all>
+        Marcar leidas
+      </button>
+
+      <button type="button" class="pz-admin-notifications-panel__delete-all" data-pz-admin-archive-all>
+        Eliminar todas
+      </button>
+    </div>
+  </div>
   <div class="pz-admin-notifications-panel__body" data-pz-admin-notifications-list>
     <p class="pz-admin-notifications-empty">Cargando notificaciones...</p>
   </div>
@@ -329,23 +347,25 @@ const marketingVisualSubClass = (subsection: string) => {
   </section>
 </div>
 
-<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath }}>
+<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, adminNotificationsPath }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
     authToken: String(authToken || ''),
     ordersPath: String(notificationsAdminOrdersPath || ''),
+    notificationsPath: String(adminNotificationsPath || ''),
   };
 </script>
 
 <script>
   import {
     loadNotifications,
-    loadUnreadNotificationCount,
+    loadVisibleNotificationCount,
+    loadUnreadNotificationPrioritySummary,
     markNotificationRead,
     archiveNotification,
+    archiveAllNotifications,
     markAllNotificationsRead,
-    ensureStoreNotification,
     ensureStoreNotificationAnyStatus,
     findStoreNotificationAnyStatus,
   } from '../../lib/adminNotifications.js';
@@ -359,10 +379,14 @@ const marketingVisualSubClass = (subsection: string) => {
     const baseUrl = String(config.pocketbaseUrl || '').replace(/\/$/, '');
     const token = String(config.authToken || '');
     const ordersPath = String(config.ordersPath || '');
+    const notificationsPath = String(config.notificationsPath || '');
     const pb = { baseUrl, token };
     const panel = document.querySelector('[data-pz-admin-notifications-panel]');
     const list = document.querySelector('[data-pz-admin-notifications-list]');
     const markAllButton = document.querySelector('[data-pz-admin-mark-all]');
+    const viewAllLink = document.querySelector('[data-pz-admin-notifications-view-all]');
+    const archiveAllButton = document.querySelector('[data-pz-admin-archive-all]');
+    const panelSummary = document.querySelector('[data-pz-admin-notifications-summary]');
     let isOpen = false;
     let isLoading = false;
 
@@ -391,17 +415,6 @@ const marketingVisualSubClass = (subsection: string) => {
       });
     }
 
-    function setUnreadCount(count) {
-      const value = Number(count || 0);
-      document.querySelectorAll('[data-pz-admin-notification-trigger]').forEach((button) => {
-        button.classList.toggle('has-unread', value > 0);
-      });
-      document.querySelectorAll('[data-pz-admin-notification-count]').forEach((badge) => {
-        badge.textContent = value > 99 ? '99+' : String(value);
-        badge.classList.toggle('hidden', value <= 0);
-      });
-    }
-
     function timeAgo(value) {
       const date = value ? new Date(value) : null;
       const diff = date && !Number.isNaN(date.getTime()) ? Date.now() - date.getTime() : 0;
@@ -420,15 +433,130 @@ const marketingVisualSubClass = (subsection: string) => {
       return 'i';
     }
 
+    function normalizePriority(priority) {
+      return ['normal', 'important', 'critical'].includes(priority) ? priority : 'normal';
+    }
+
+    function priorityLabel(priority) {
+      const value = normalizePriority(priority);
+      if (value === 'critical') return 'Alta prioridad';
+      if (value === 'important') return 'Importante';
+      return 'Normal';
+    }
+
+    function formatNotificationUsd(value) {
+      const amount = Math.max(0, Number(value || 0));
+      return `$${amount.toFixed(2)} USD`;
+    }
+
+    function getOrderProductsSubtotalUSD(order) {
+      const candidates = [
+        order?.subtotal_after_discount_usd,
+        order?.subtotal,
+        order?.subtotal_original_usd,
+      ];
+
+      for (const candidate of candidates) {
+        const value = Number(candidate || 0);
+        if (value > 0) return value;
+      }
+
+      const total = Number(order?.usd_total || order?.total || 0);
+      const shipping = Number(order?.shipping || order?.shipping_usd || order?.shipping_original_usd || 0);
+      return Math.max(0, total - shipping);
+    }
+
+    function getNotificationPrioritySettings(settings = {}) {
+      const importantMin = Math.max(0, Number(settings?.notification_priority_important_min_usd ?? 50));
+      const criticalRaw = Math.max(0, Number(settings?.notification_priority_critical_min_usd ?? 100));
+      const criticalMin = Math.max(importantMin, criticalRaw);
+
+      return {
+        enabled: settings?.notification_priority_enabled !== false,
+        importantMin,
+        criticalMin,
+        showOrderSubtotal: settings?.notification_show_order_subtotal !== false,
+        bellPriorityColors: settings?.notification_bell_priority_colors !== false,
+      };
+    }
+
+    function getOrderNotificationPriority(order, settings, fallback = 'important') {
+      const config = getNotificationPrioritySettings(settings);
+      if (!config.enabled) return normalizePriority(fallback);
+
+      const subtotal = getOrderProductsSubtotalUSD(order);
+      if (subtotal >= config.criticalMin) return 'critical';
+      if (subtotal >= config.importantMin) return 'important';
+      return 'normal';
+    }
+
+    function buildOrderProductsText(order, settings) {
+      const config = getNotificationPrioritySettings(settings);
+      if (!config.showOrderSubtotal) return '';
+
+      const subtotal = getOrderProductsSubtotalUSD(order);
+      if (subtotal <= 0) return '';
+
+      return ` - Productos: ${formatNotificationUsd(subtotal)} sin envio`;
+    }
+
+    function buildOrderUrl(orderId) {
+      if (!orderId) return ordersPath || '';
+      return `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(orderId)}`;
+    }
+
     function getOrderNotificationUrl(item) {
       const entityCollection = String(item?.entityCollection || item?.raw?.entity_collection || '');
       const entityId = String(item?.entityId || item?.raw?.entity_id || '');
 
       if (entityCollection === 'orders' && entityId) {
-        return `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(entityId)}`;
+        return buildOrderUrl(entityId);
       }
 
       return String(item?.targetUrl || '');
+    }
+
+    function setUnreadState(summary, settings = {}) {
+      const count = Number(summary?.count || 0);
+      const config = getNotificationPrioritySettings(settings);
+      const highestPriority = count > 0 && config.bellPriorityColors
+        ? normalizePriority(summary?.highestPriority || 'normal')
+        : 'normal';
+
+      document.querySelectorAll('[data-pz-admin-notification-trigger]').forEach((button) => {
+        button.classList.remove('priority-normal', 'priority-important', 'priority-critical');
+        button.classList.toggle('has-unread', count > 0);
+
+        if (count > 0 && config.bellPriorityColors) {
+          button.classList.add(`priority-${highestPriority}`);
+        }
+      });
+
+      document.querySelectorAll('[data-pz-admin-notification-count]').forEach((badge) => {
+        badge.classList.remove('priority-normal', 'priority-important', 'priority-critical');
+        badge.textContent = count > 99 ? '99+' : String(count);
+        badge.classList.toggle('hidden', count <= 0);
+
+        if (count > 0 && config.bellPriorityColors) {
+          badge.classList.add(`priority-${highestPriority}`);
+        }
+      });
+    }
+
+    function setPanelSummary({ total = 0, shown = 0 } = {}) {
+      const totalValue = Number(total || 0);
+      const shownValue = Number(shown || 0);
+
+      if (panelSummary) {
+        panelSummary.textContent = totalValue > 12
+          ? `Mostrando ${shownValue} de ${totalValue}`
+          : 'Avisos importantes de tu tienda';
+      }
+
+      if (viewAllLink) {
+        viewAllLink.classList.toggle('hidden', totalValue <= 12);
+        if (notificationsPath) viewAllLink.setAttribute('href', notificationsPath);
+      }
     }
 
     function render(items) {
@@ -437,7 +565,9 @@ const marketingVisualSubClass = (subsection: string) => {
         return;
       }
       list.innerHTML = items.map((item) => {
+        const priority = normalizePriority(item.priority);
         const unreadClass = item.status === 'unread' ? ' is-unread' : '';
+        const priorityClass = ` priority-${priority}`;
         const openUrl = getOrderNotificationUrl(item);
         const openAction = openUrl
           ? `<a href="${escapeHtml(openUrl)}" data-pz-notification-open="${escapeHtml(item.id)}">Abrir</a>`
@@ -446,13 +576,17 @@ const marketingVisualSubClass = (subsection: string) => {
           ? `<button type="button" data-pz-notification-read="${escapeHtml(item.id)}">Marcar leida</button>`
           : '';
         const archiveAction = `<button type="button" class="pz-admin-notification-delete" data-pz-notification-archive="${escapeHtml(item.id)}" aria-label="Eliminar notificacion">Eliminar</button>`;
+        const priorityBadge = `<span class="pz-admin-notification-priority is-${escapeHtml(priority)}">${escapeHtml(priorityLabel(priority))}</span>`;
         return `
-          <article class="pz-admin-notification-item${unreadClass}" data-pz-notification-id="${escapeHtml(item.id)}">
+          <article class="pz-admin-notification-item${unreadClass}${priorityClass}" data-pz-notification-id="${escapeHtml(item.id)}">
             <span class="pz-admin-notification-icon" aria-hidden="true">${escapeHtml(iconFor(item.type))}</span>
             <div class="pz-admin-notification-content">
               <h3 class="pz-admin-notification-title">${escapeHtml(item.title)}</h3>
               <p class="pz-admin-notification-message">${escapeHtml(item.message)}</p>
-              <p class="pz-admin-notification-time">${escapeHtml(timeAgo(item.created))}</p>
+              <div class="pz-admin-notification-meta">
+                ${priorityBadge}
+                <span class="pz-admin-notification-time">${escapeHtml(timeAgo(item.created))}</span>
+              </div>
               <div class="pz-admin-notification-actions">${openAction}${readAction}${archiveAction}</div>
             </div>
           </article>
@@ -464,18 +598,24 @@ const marketingVisualSubClass = (subsection: string) => {
       if (isLoading) return;
       isLoading = true;
       try {
+        const settings = await loadSettings();
+
         if (detectNewOrders || detectPending) {
-          await detectMissingNewOrderNotifications();
+          await detectMissingNewOrderNotifications(settings);
         }
         if (detectPending) {
-          await detectPendingOrders();
+          await detectPendingOrders(settings);
         }
-        const [items, unreadCount] = await Promise.all([
+
+        const [items, unreadSummary, visibleCount] = await Promise.all([
           loadNotifications({ pb, storeId, limit: 12 }),
-          loadUnreadNotificationCount({ pb, storeId }),
+          loadUnreadNotificationPrioritySummary({ pb, storeId }),
+          loadVisibleNotificationCount({ pb, storeId }),
         ]);
+
         render(items);
-        setUnreadCount(unreadCount);
+        setUnreadState(unreadSummary, settings);
+        setPanelSummary({ total: visibleCount, shown: items.length });
       } catch (error) {
         console.warn('Could not refresh admin notifications.', error);
         list.innerHTML = '<p class="pz-admin-notifications-empty">No se pudieron cargar las notificaciones.</p>';
@@ -490,15 +630,17 @@ const marketingVisualSubClass = (subsection: string) => {
       return (result.items || [])[0] || null;
     }
 
-    async function detectPendingOrders() {
+    async function detectPendingOrders(settingsRecord = null) {
       try {
-        const settings = await loadSettings();
+        const settings = settingsRecord || await loadSettings();
         if (!settings || settings.notifications_enabled === false || settings.notify_pending_order === false) return;
+
         const hours = Math.max(1, Number(settings.pending_order_hours || 2));
         const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
         const filter = encodeURIComponent(`store="${escapeFilterValue(storeId)}" && status="pending" && created <= "${cutoff}"`);
         const result = await api(`/api/collections/orders/records?filter=${filter}&sort=created&perPage=50`);
         const orders = result.items || [];
+
         await Promise.all(orders.map(async (order) => {
           const existingNewOrderNotification = await findStoreNotificationAnyStatus({
             pb,
@@ -511,18 +653,27 @@ const marketingVisualSubClass = (subsection: string) => {
           if (existingNewOrderNotification) return null;
 
           const orderNumber = order.order_number || order.id;
+          const productsSubtotalUSD = getOrderProductsSubtotalUSD(order);
+          const priority = getOrderNotificationPriority(order, settings, 'important');
+          const productsText = buildOrderProductsText(order, settings);
 
-          return ensureStoreNotification({
+          return ensureStoreNotificationAnyStatus({
             pb,
             storeId,
             type: 'pending_order',
             entityCollection: 'orders',
             entityId: order.id,
             title: 'Pedido pendiente sin atender',
-            message: `Pedido #${orderNumber} lleva mas de ${hours} horas pendiente.`,
-            priority: 'important',
-            targetUrl: `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(order.id)}`,
-            metadata: { order_number: order.order_number || '', hours },
+            message: `Pedido #${orderNumber} lleva mas de ${hours} horas pendiente${productsText}.`,
+            priority,
+            targetUrl: buildOrderUrl(order.id),
+            metadata: {
+              order_number: order.order_number || '',
+              hours,
+              products_subtotal_usd: productsSubtotalUSD,
+              shipping_excluded: true,
+              priority_rule: priority,
+            },
           });
         }));
       } catch (error) {
@@ -530,9 +681,9 @@ const marketingVisualSubClass = (subsection: string) => {
       }
     }
 
-    async function detectMissingNewOrderNotifications() {
+    async function detectMissingNewOrderNotifications(settingsRecord = null) {
       try {
-        const settings = await loadSettings();
+        const settings = settingsRecord || await loadSettings();
 
         if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
 
@@ -544,6 +695,9 @@ const marketingVisualSubClass = (subsection: string) => {
         await Promise.all(orders.map((order) => {
           const orderNumber = order.order_number || order.id;
           const customerName = order.customer_name || order.name || 'cliente';
+          const productsSubtotalUSD = getOrderProductsSubtotalUSD(order);
+          const priority = getOrderNotificationPriority(order, settings, 'important');
+          const productsText = buildOrderProductsText(order, settings);
 
           return ensureStoreNotificationAnyStatus({
             pb,
@@ -552,12 +706,15 @@ const marketingVisualSubClass = (subsection: string) => {
             entityCollection: 'orders',
             entityId: order.id,
             title: 'Nuevo pedido recibido',
-            message: `Pedido #${orderNumber} por ${customerName}`,
-            priority: 'important',
-            targetUrl: `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(order.id)}`,
+            message: `Pedido #${orderNumber} por ${customerName}${productsText}`,
+            priority,
+            targetUrl: buildOrderUrl(order.id),
             metadata: {
               order_number: order.order_number || '',
               customer_name: customerName,
+              products_subtotal_usd: productsSubtotalUSD,
+              shipping_excluded: true,
+              priority_rule: priority,
             },
           });
         }));
@@ -634,6 +791,22 @@ const marketingVisualSubClass = (subsection: string) => {
     markAllButton?.addEventListener('click', async () => {
       await markAllNotificationsRead({ pb, storeId });
       await loadAll();
+    });
+
+    archiveAllButton?.addEventListener('click', async () => {
+      const confirmed = window.confirm('Eliminar todas las notificaciones? Se archivaran y dejaran de mostrarse en la campana.');
+      if (!confirmed) return;
+
+      archiveAllButton.disabled = true;
+      archiveAllButton.textContent = 'Eliminando...';
+
+      try {
+        await archiveAllNotifications({ pb, storeId });
+        await loadAll();
+      } finally {
+        archiveAllButton.disabled = false;
+        archiveAllButton.textContent = 'Eliminar todas';
+      }
     });
 
     document.addEventListener('keydown', (event) => {
@@ -1825,6 +1998,57 @@ const marketingVisualSubClass = (subsection: string) => {
     box-shadow: 0 0 0 3px #fff !important;
   }
 
+  .admin-header-bell.has-unread::after,
+  .admin-bell-button.has-unread::after,
+  .pz-admin-mobile-topbar__notification.has-unread::after {
+    display: none !important;
+  }
+
+  .admin-header-bell.priority-normal,
+  .admin-bell-button.priority-normal,
+  .pz-admin-mobile-topbar__notification.priority-normal {
+    border-color: #bfdbfe !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.18) !important;
+  }
+
+  .admin-header-bell.priority-important,
+  .admin-bell-button.priority-important,
+  .pz-admin-mobile-topbar__notification.priority-important {
+    border-color: #fed7aa !important;
+    background: #fff7ed !important;
+    color: #c2410c !important;
+    box-shadow: 0 14px 30px rgba(234, 88, 12, 0.18) !important;
+  }
+
+  .admin-header-bell.priority-critical,
+  .admin-bell-button.priority-critical,
+  .pz-admin-mobile-topbar__notification.priority-critical {
+    border-color: #fecaca !important;
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    box-shadow: 0 14px 30px rgba(220, 38, 38, 0.20) !important;
+  }
+
+  .pz-admin-notification-count.priority-normal,
+  .admin-bell-count.priority-normal {
+    background: #2563eb !important;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, .25) !important;
+  }
+
+  .pz-admin-notification-count.priority-important,
+  .admin-bell-count.priority-important {
+    background: #ea580c !important;
+    box-shadow: 0 8px 18px rgba(234, 88, 12, .25) !important;
+  }
+
+  .pz-admin-notification-count.priority-critical,
+  .admin-bell-count.priority-critical {
+    background: #dc2626 !important;
+    box-shadow: 0 8px 18px rgba(220, 38, 38, .28) !important;
+  }
+
   .pz-admin-notifications-panel {
     position: fixed !important;
     top: 82px !important;
@@ -1873,14 +2097,42 @@ const marketingVisualSubClass = (subsection: string) => {
     font-weight: 750 !important;
   }
 
-  .pz-admin-notifications-panel__mark-all {
+  .pz-admin-notifications-panel__actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .pz-admin-notifications-panel__view-all,
+  .pz-admin-notifications-panel__mark-all,
+  .pz-admin-notifications-panel__delete-all {
     flex: 0 0 auto !important;
     border: 0 !important;
     background: transparent !important;
-    color: #2563eb !important;
     padding: 2px 0 !important;
     font-size: 12px !important;
     font-weight: 1000 !important;
+    text-decoration: none !important;
+  }
+
+  .pz-admin-notifications-panel__view-all,
+  .pz-admin-notifications-panel__mark-all {
+    color: #2563eb !important;
+  }
+
+  .pz-admin-notifications-panel__delete-all {
+    color: #dc2626 !important;
+  }
+
+  .pz-admin-notifications-panel__view-all.hidden {
+    display: none !important;
+  }
+
+  .pz-admin-notifications-panel__delete-all:disabled {
+    opacity: .6 !important;
+    cursor: not-allowed !important;
   }
 
   .pz-admin-notifications-panel__body {
@@ -1912,6 +2164,21 @@ const marketingVisualSubClass = (subsection: string) => {
     border-color: #bfdbfe !important;
   }
 
+  .pz-admin-notification-item.priority-normal.is-unread {
+    background: #eff6ff !important;
+    border-color: #bfdbfe !important;
+  }
+
+  .pz-admin-notification-item.priority-important.is-unread {
+    background: #fff7ed !important;
+    border-color: #fed7aa !important;
+  }
+
+  .pz-admin-notification-item.priority-critical.is-unread {
+    background: #fef2f2 !important;
+    border-color: #fecaca !important;
+  }
+
   .pz-admin-notification-icon {
     width: 34px !important;
     height: 34px !important;
@@ -1923,6 +2190,16 @@ const marketingVisualSubClass = (subsection: string) => {
     color: #1d4ed8 !important;
     font-size: 16px !important;
     font-weight: 1000 !important;
+  }
+
+  .pz-admin-notification-item.priority-important .pz-admin-notification-icon {
+    background: #ffedd5 !important;
+    color: #c2410c !important;
+  }
+
+  .pz-admin-notification-item.priority-critical .pz-admin-notification-icon {
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
   }
 
   .pz-admin-notification-content {
@@ -1944,6 +2221,40 @@ const marketingVisualSubClass = (subsection: string) => {
     font-size: 12px !important;
     line-height: 1.35 !important;
     font-weight: 750 !important;
+  }
+
+  .pz-admin-notification-meta {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    margin-top: 6px !important;
+  }
+
+  .pz-admin-notification-priority {
+    min-height: 22px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    border-radius: 999px !important;
+    padding: 0 8px !important;
+    font-size: 10.5px !important;
+    line-height: 1 !important;
+    font-weight: 1000 !important;
+  }
+
+  .pz-admin-notification-priority.is-normal {
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+  }
+
+  .pz-admin-notification-priority.is-important {
+    background: #ffedd5 !important;
+    color: #c2410c !important;
+  }
+
+  .pz-admin-notification-priority.is-critical {
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
   }
 
   .pz-admin-notification-actions {

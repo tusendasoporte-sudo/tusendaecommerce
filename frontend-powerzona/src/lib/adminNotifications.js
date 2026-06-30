@@ -125,6 +125,59 @@ export async function loadUnreadNotificationCount({ pb, storeId }) {
   }
 }
 
+export async function loadVisibleNotificationCount({ pb, storeId }) {
+  try {
+    const store = escapeFilterValue(storeId);
+    const result = await collectionList(pb, `store="${store}" && status!="archived"`, {
+      page: 1,
+      perPage: 1,
+      fields: 'id',
+    });
+    return Number(result.totalItems || 0);
+  } catch (error) {
+    console.warn('Could not load visible notification count.', error);
+    return 0;
+  }
+}
+
+export async function loadUnreadNotificationPrioritySummary({ pb, storeId }) {
+  try {
+    const store = escapeFilterValue(storeId);
+
+    const [critical, important, unread] = await Promise.all([
+      collectionList(pb, `store="${store}" && status="unread" && priority="critical"`, {
+        page: 1,
+        perPage: 1,
+        fields: 'id',
+      }),
+      collectionList(pb, `store="${store}" && status="unread" && priority="important"`, {
+        page: 1,
+        perPage: 1,
+        fields: 'id',
+      }),
+      collectionList(pb, `store="${store}" && status="unread"`, {
+        page: 1,
+        perPage: 1,
+        fields: 'id',
+      }),
+    ]);
+
+    const count = Number(unread.totalItems || 0);
+    let highestPriority = 'normal';
+
+    if (Number(critical.totalItems || 0) > 0) {
+      highestPriority = 'critical';
+    } else if (Number(important.totalItems || 0) > 0) {
+      highestPriority = 'important';
+    }
+
+    return { count, highestPriority };
+  } catch (error) {
+    console.warn('Could not load unread notification priority summary.', error);
+    return { count: 0, highestPriority: 'normal' };
+  }
+}
+
 export async function markNotificationRead({ pb, notificationId }) {
   try {
     return normalizeNotification(await collectionUpdate(pb, notificationId, {
@@ -166,6 +219,68 @@ export async function markAllNotificationsRead({ pb, storeId }) {
     return ids.length;
   } catch (error) {
     console.warn('Could not mark all notifications as read.', error);
+    return 0;
+  }
+}
+
+export async function loadNotificationsPage({ pb, storeId, page = 1, perPage = 24 }) {
+  try {
+    const store = escapeFilterValue(storeId);
+    const result = await collectionList(pb, `store="${store}" && status!="archived"`, {
+      page,
+      perPage,
+      sort: '-created',
+    });
+
+    return {
+      items: (result.items || []).map(normalizeNotification),
+      page: Number(result.page || page || 1),
+      perPage: Number(result.perPage || perPage || 24),
+      totalItems: Number(result.totalItems || 0),
+      totalPages: Number(result.totalPages || 1),
+    };
+  } catch (error) {
+    console.warn('Could not load notifications page.', error);
+    return {
+      items: [],
+      page: 1,
+      perPage,
+      totalItems: 0,
+      totalPages: 1,
+    };
+  }
+}
+
+export async function archiveAllNotifications({ pb, storeId }) {
+  try {
+    const store = escapeFilterValue(storeId);
+    let archived = 0;
+
+    for (let index = 0; index < 50; index += 1) {
+      const result = await collectionList(pb, `store="${store}" && status!="archived"`, {
+        page: 1,
+        perPage: 100,
+        fields: 'id',
+        sort: '-created',
+      });
+
+      const ids = (result.items || []).map((item) => item.id).filter(Boolean);
+      if (!ids.length) break;
+
+      const now = new Date().toISOString();
+
+      await Promise.all(ids.map((id) => collectionUpdate(pb, id, {
+        status: 'archived',
+        read_at: now,
+      })));
+
+      archived += ids.length;
+      if (ids.length < 100) break;
+    }
+
+    return archived;
+  } catch (error) {
+    console.warn('Could not archive all notifications.', error);
     return 0;
   }
 }

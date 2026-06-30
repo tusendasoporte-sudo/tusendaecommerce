@@ -3283,6 +3283,29 @@ try {
             min-width: 32px !important;
           }
         }
+      .notification-priority-config {
+        display: grid;
+        gap: 14px;
+        padding: 14px;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+      }
+
+      .notification-priority-config__head strong {
+        display: block;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+
+      .notification-priority-config__head p {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 750;
+        line-height: 1.35;
+      }
       }</style>
   </head>
   <body>
@@ -3425,6 +3448,45 @@ try {
                   <label class="rating-setting-row full" for="settings-notify-new-order"><span><strong>Nuevo pedido recibido</strong><small>Crear una alerta cuando entre un pedido nuevo.</small></span><span class="switch-control"><input id="settings-notify-new-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                   <label class="rating-setting-row full" for="settings-notify-pending-order"><span><strong>Pedido pendiente sin atender</strong><small>Avisar si un pedido sigue pendiente demasiado tiempo.</small></span><span class="switch-control"><input id="settings-notify-pending-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                   <div class="field"><label for="settings-pending-order-hours">Avisar despu&eacute;s de X horas</label><input id="settings-pending-order-hours" type="number" min="1" step="1" value="2" /></div>
+                  <div class="field full">
+                    <div class="notification-priority-config">
+                      <div class="notification-priority-config__head">
+                        <div>
+                          <strong>Prioridad por valor del pedido</strong>
+                          <p>Calcula la prioridad usando productos en USD, sin incluir envio.</p>
+                        </div>
+                      </div>
+
+                      <label class="rating-setting-row full" for="settings-notification-priority-enabled">
+                        <span><strong>Activar prioridad automatica</strong><small>Los pedidos grandes se mostraran como importantes o alta prioridad.</small></span>
+                        <span class="switch-control"><input id="settings-notification-priority-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+
+                      <div class="general-settings-grid">
+                        <div class="field">
+                          <label for="settings-notification-priority-important-min">Importante desde USD</label>
+                          <input id="settings-notification-priority-important-min" type="number" min="0" step="1" value="50" />
+                          <p class="form-help">Ejemplo: desde $50 se marca como importante.</p>
+                        </div>
+
+                        <div class="field">
+                          <label for="settings-notification-priority-critical-min">Alta prioridad desde USD</label>
+                          <input id="settings-notification-priority-critical-min" type="number" min="0" step="1" value="100" />
+                          <p class="form-help">Ejemplo: desde $100 se marca en rojo.</p>
+                        </div>
+                      </div>
+
+                      <label class="rating-setting-row full" for="settings-notification-show-order-subtotal">
+                        <span><strong>Mostrar subtotal sin envio</strong><small>La campana mostrara Productos: $X USD sin envio.</small></span>
+                        <span class="switch-control"><input id="settings-notification-show-order-subtotal" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+
+                      <label class="rating-setting-row full" for="settings-notification-bell-priority-colors">
+                        <span><strong>Color de campana por prioridad</strong><small>La campana toma el color de la prioridad mas alta sin leer.</small></span>
+                        <span class="switch-control"><input id="settings-notification-bell-priority-colors" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+                    </div>
+                  </div>
                 </div></div>
               </details>
 
@@ -4940,6 +5002,11 @@ try {
           notifyNewOrder: document.getElementById('settings-notify-new-order'),
           notifyPendingOrder: document.getElementById('settings-notify-pending-order'),
           pendingOrderHours: document.getElementById('settings-pending-order-hours'),
+          notificationPriorityEnabled: document.getElementById('settings-notification-priority-enabled'),
+          notificationPriorityImportantMin: document.getElementById('settings-notification-priority-important-min'),
+          notificationPriorityCriticalMin: document.getElementById('settings-notification-priority-critical-min'),
+          notificationShowOrderSubtotal: document.getElementById('settings-notification-show-order-subtotal'),
+          notificationBellPriorityColors: document.getElementById('settings-notification-bell-priority-colors'),
           whatsappCountry: document.getElementById('settings-whatsapp-country'),
           whatsapp: document.getElementById('settings-whatsapp-number'),
           coverMode: document.getElementById('settings-cover-mode'),
@@ -5377,6 +5444,11 @@ try {
             notifyNewOrder: fields.notifyNewOrder?.checked !== false,
             notifyPendingOrder: fields.notifyPendingOrder?.checked !== false,
             pendingOrderHours: Math.max(1, Number(fields.pendingOrderHours?.value || 2)),
+            notificationPriorityEnabled: fields.notificationPriorityEnabled?.checked !== false,
+            notificationPriorityImportantMin: Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50)),
+            notificationPriorityCriticalMin: Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)),
+            notificationShowOrderSubtotal: fields.notificationShowOrderSubtotal?.checked !== false,
+            notificationBellPriorityColors: fields.notificationBellPriorityColors?.checked !== false,
             province: fields.province?.value || '',
             municipality: fields.municipality?.value || '',
             addressDetail: fields.addressDetail?.value?.trim() || '',
@@ -5677,6 +5749,11 @@ try {
             notify_new_order: fields.notifyNewOrder?.checked !== false,
             notify_pending_order: fields.notifyPendingOrder?.checked !== false,
             pending_order_hours: Math.max(1, Number(fields.pendingOrderHours?.value || 2)),
+            notification_priority_enabled: fields.notificationPriorityEnabled?.checked !== false,
+            notification_priority_important_min_usd: Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50)),
+            notification_priority_critical_min_usd: Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)),
+            notification_show_order_subtotal: fields.notificationShowOrderSubtotal?.checked !== false,
+            notification_bell_priority_colors: fields.notificationBellPriorityColors?.checked !== false,
             cover_mode: fields.coverMode.value || 'single',
             business_types: JSON.stringify(selectedBusinessTypes),
             province: fields.province?.value || '',
@@ -5767,6 +5844,11 @@ try {
           if (fields.notifyNewOrder) fields.notifyNewOrder.checked = record.notify_new_order !== false;
           if (fields.notifyPendingOrder) fields.notifyPendingOrder.checked = record.notify_pending_order !== false;
           if (fields.pendingOrderHours) fields.pendingOrderHours.value = String(Math.max(1, Number(record.pending_order_hours || 2)));
+          if (fields.notificationPriorityEnabled) fields.notificationPriorityEnabled.checked = record.notification_priority_enabled !== false;
+          if (fields.notificationPriorityImportantMin) fields.notificationPriorityImportantMin.value = String(Math.max(0, Number(record.notification_priority_important_min_usd ?? 50)));
+          if (fields.notificationPriorityCriticalMin) fields.notificationPriorityCriticalMin.value = String(Math.max(0, Number(record.notification_priority_critical_min_usd ?? 100)));
+          if (fields.notificationShowOrderSubtotal) fields.notificationShowOrderSubtotal.checked = record.notification_show_order_subtotal !== false;
+          if (fields.notificationBellPriorityColors) fields.notificationBellPriorityColors.checked = record.notification_bell_priority_colors !== false;
           fields.coverMode.value = record.cover_mode === 'carousel' ? 'carousel' : 'single';
           setBusinessTypes(parseJsonList(record.business_types));
           fields.province.value = record.province || '';
@@ -5837,6 +5919,11 @@ try {
             data.append('notify_new_order', fields.notifyNewOrder?.checked !== false);
             data.append('notify_pending_order', fields.notifyPendingOrder?.checked !== false);
             data.append('pending_order_hours', Math.max(1, Number(fields.pendingOrderHours?.value || 2)));
+            data.append('notification_priority_enabled', fields.notificationPriorityEnabled?.checked !== false);
+            data.append('notification_priority_important_min_usd', Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50)));
+            data.append('notification_priority_critical_min_usd', Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)));
+            data.append('notification_show_order_subtotal', fields.notificationShowOrderSubtotal?.checked !== false);
+            data.append('notification_bell_priority_colors', fields.notificationBellPriorityColors?.checked !== false);
             data.append('cover_mode', fields.coverMode.value || 'single');
             data.append('business_types', JSON.stringify(selectedBusinessTypes));
             data.append('province', fields.province?.value || '');

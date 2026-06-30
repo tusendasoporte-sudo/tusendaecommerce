@@ -1,0 +1,374 @@
+---
+import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import '../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminAuthToken = authPb.authStore.token;
+const currentStoreId = adminContext.storeId;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
+const adminNotificationsPath = getStoreAdminPath(currentStoreSlug, 'notifications');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
+const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1));
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notificaciones | PowerZona Admin</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --soft: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --blue: #2563eb;
+        --red: #dc2626;
+        --shadow: 0 18px 45px rgba(15, 23, 42, .08);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, .15), transparent 30%),
+          radial-gradient(circle at 85% 8%, rgba(22, 163, 74, .10), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+
+      a { color: inherit; text-decoration: none; }
+      button { font: inherit; cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .62; }
+      .hidden { display: none !important; }
+
+      .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .main-wrap { min-width: 0; padding: 2px 0 96px; }
+      .notifications-shell { display: grid; gap: 16px; }
+      .notifications-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        background: rgba(255,255,255,.92);
+        box-shadow: var(--shadow);
+      }
+      .notifications-summary p { margin: 0; color: var(--muted); font-size: 13px; font-weight: 850; }
+      .notifications-summary strong { display: block; color: var(--text); font-size: 22px; font-weight: 1000; letter-spacing: -.03em; }
+      .notifications-delete-all {
+        min-height: 42px;
+        border: 1px solid #fecaca;
+        border-radius: 14px;
+        background: #fff7f7;
+        color: var(--red);
+        padding: 0 14px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .notifications-list { display: grid; gap: 12px; }
+      .notification-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(15,23,42,.06);
+      }
+      .notification-card.is-unread.priority-normal { border-color: #bfdbfe; background: #eff6ff; }
+      .notification-card.is-unread.priority-important { border-color: #fed7aa; background: #fff7ed; }
+      .notification-card.is-unread.priority-critical { border-color: #fecaca; background: #fef2f2; }
+      .notification-title { margin: 0; font-size: 15px; line-height: 1.25; font-weight: 1000; }
+      .notification-message { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; font-weight: 750; }
+      .notification-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; color: var(--muted); font-size: 12px; font-weight: 850; }
+      .notification-priority { display: inline-flex; align-items: center; min-height: 23px; border-radius: 999px; padding: 0 9px; font-size: 11px; font-weight: 1000; }
+      .notification-priority.is-normal { background: #dbeafe; color: #1d4ed8; }
+      .notification-priority.is-important { background: #ffedd5; color: #c2410c; }
+      .notification-priority.is-critical { background: #fee2e2; color: #dc2626; }
+      .notification-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+      .notification-actions a,
+      .notification-actions button {
+        min-height: 32px;
+        border-radius: 999px;
+        border: 1px solid #dbeafe;
+        background: #fff;
+        color: #1d4ed8;
+        padding: 0 11px;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+      .notification-actions .danger { border-color: #fee2e2; color: var(--red); background: #fff7f7; }
+      .notifications-empty {
+        padding: 26px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 20px;
+        background: rgba(255,255,255,.72);
+        color: var(--muted);
+        text-align: center;
+        font-weight: 850;
+      }
+      .notifications-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+      .notifications-page-btn {
+        min-height: 38px;
+        border-radius: 13px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: #0f172a;
+        padding: 0 14px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+
+      @media (min-width: 1024px) {
+        body { padding-left: calc(var(--pz-admin-sidebar-width, 278px) + var(--pz-admin-content-gap, 30px)); }
+        .app-shell { padding: var(--pz-admin-content-top, 28px) var(--pz-admin-content-right, 32px) var(--pz-admin-content-bottom, 48px) 0; }
+      }
+
+      @media (max-width: 720px) {
+        .app-shell { padding: 14px 14px 110px; }
+        .notification-card { grid-template-columns: 1fr; }
+        .notification-actions { justify-content: flex-start; }
+      }
+    </style>
+  </head>
+  <body>
+    <AdminSidebar
+      storeSlug={currentStoreSlug}
+      storeName={currentStoreName}
+      activeSection="notifications"
+      mobileTitle="Notificaciones"
+      storeId={currentStoreId}
+      pocketbaseUrl={pocketbaseUrl}
+      authToken={adminAuthToken}
+    />
+
+    <div class="app-shell admin-view">
+      <main class="main-wrap">
+        <AdminSectionHeader
+          kicker="Centro de alertas"
+          title="Notificaciones"
+          description="Revisa todos los avisos activos de tu tienda."
+          bellId="notifications-bell"
+        />
+
+        <section class="notifications-shell" data-notifications-page-root>
+          <div class="notifications-summary">
+            <div>
+              <strong data-notifications-total>0 notificaciones activas</strong>
+              <p data-notifications-page-label>Pagina 1 de 1</p>
+            </div>
+            <button class="notifications-delete-all" type="button" data-notifications-archive-all>Eliminar todas</button>
+          </div>
+
+          <div class="notifications-list" data-notifications-list>
+            <p class="notifications-empty">Cargando notificaciones...</p>
+          </div>
+
+          <div class="notifications-pagination">
+            <a class="notifications-page-btn hidden" href={adminNotificationsPath} data-notifications-prev>Anterior</a>
+            <a class="notifications-page-btn hidden" href={adminNotificationsPath} data-notifications-next>Siguiente</a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, adminOrdersPath, adminNotificationsPath, initialPage }}>
+      window.PZ_NOTIFICATIONS_PAGE_CONFIG = {
+        pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
+        authToken: String(adminAuthToken || ''),
+        storeId: String(currentStoreId || ''),
+        ordersPath: String(adminOrdersPath || ''),
+        notificationsPath: String(adminNotificationsPath || ''),
+        initialPage: Number(initialPage || 1),
+      };
+    </script>
+
+    <script>
+      import {
+        loadNotificationsPage,
+        markNotificationRead,
+        archiveNotification,
+        archiveAllNotifications,
+      } from '../../lib/adminNotifications.js';
+
+      (() => {
+        const config = window.PZ_NOTIFICATIONS_PAGE_CONFIG || {};
+        const pb = { baseUrl: config.pocketbaseUrl, token: config.authToken };
+        const storeId = String(config.storeId || '');
+        const ordersPath = String(config.ordersPath || '');
+        const notificationsPath = String(config.notificationsPath || '');
+        const list = document.querySelector('[data-notifications-list]');
+        const totalLabel = document.querySelector('[data-notifications-total]');
+        const pageLabel = document.querySelector('[data-notifications-page-label]');
+        const prevLink = document.querySelector('[data-notifications-prev]');
+        const nextLink = document.querySelector('[data-notifications-next]');
+        const archiveAllButton = document.querySelector('[data-notifications-archive-all]');
+        let currentPage = Math.max(1, Number(config.initialPage || 1));
+
+        if (!list || !storeId || !config.pocketbaseUrl) return;
+
+        function escapeHtml(value) {
+          return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function normalizePriority(priority) {
+          return ['normal', 'important', 'critical'].includes(priority) ? priority : 'normal';
+        }
+
+        function priorityLabel(priority) {
+          const value = normalizePriority(priority);
+          if (value === 'critical') return 'Alta prioridad';
+          if (value === 'important') return 'Importante';
+          return 'Normal';
+        }
+
+        function timeAgo(value) {
+          const date = value ? new Date(value) : null;
+          const diff = date && !Number.isNaN(date.getTime()) ? Date.now() - date.getTime() : 0;
+          const minutes = Math.max(0, Math.floor(diff / 60000));
+          if (minutes < 1) return 'Ahora';
+          if (minutes < 60) return `Hace ${minutes} min`;
+          const hours = Math.floor(minutes / 60);
+          if (hours < 24) return `Hace ${hours} h`;
+          const days = Math.floor(hours / 24);
+          return `Hace ${days} d`;
+        }
+
+        function buildOrderUrl(orderId) {
+          if (!orderId) return ordersPath || '';
+          return `${ordersPath.replace(/\/$/, '')}/${encodeURIComponent(orderId)}`;
+        }
+
+        function getOpenUrl(item) {
+          if (item.entityCollection === 'orders' && item.entityId) return buildOrderUrl(item.entityId);
+          return item.targetUrl || '';
+        }
+
+        function pageHref(page) {
+          return `${notificationsPath}?page=${encodeURIComponent(page)}`;
+        }
+
+        function render(result) {
+          const items = result.items || [];
+          const total = Number(result.totalItems || 0);
+          const page = Number(result.page || currentPage || 1);
+          const totalPages = Math.max(1, Number(result.totalPages || 1));
+          currentPage = page;
+
+          if (totalLabel) totalLabel.textContent = `${total} notificacion${total === 1 ? '' : 'es'} activas`;
+          if (pageLabel) pageLabel.textContent = `Pagina ${page} de ${totalPages}`;
+
+          prevLink?.classList.toggle('hidden', page <= 1);
+          nextLink?.classList.toggle('hidden', page >= totalPages);
+          if (prevLink) prevLink.setAttribute('href', pageHref(Math.max(1, page - 1)));
+          if (nextLink) nextLink.setAttribute('href', pageHref(Math.min(totalPages, page + 1)));
+
+          if (!items.length) {
+            list.innerHTML = '<p class="notifications-empty">No hay notificaciones activas.</p>';
+            return;
+          }
+
+          list.innerHTML = items.map((item) => {
+            const priority = normalizePriority(item.priority);
+            const openUrl = getOpenUrl(item);
+            const openAction = openUrl ? `<a href="${escapeHtml(openUrl)}" data-notification-open="${escapeHtml(item.id)}">Abrir</a>` : '';
+            const readAction = item.status === 'unread'
+              ? `<button type="button" data-notification-read="${escapeHtml(item.id)}">Marcar leida</button>`
+              : '';
+
+            return `
+              <article class="notification-card ${item.status === 'unread' ? 'is-unread' : ''} priority-${escapeHtml(priority)}">
+                <div>
+                  <h2 class="notification-title">${escapeHtml(item.title)}</h2>
+                  <p class="notification-message">${escapeHtml(item.message)}</p>
+                  <div class="notification-meta">
+                    <span class="notification-priority is-${escapeHtml(priority)}">${escapeHtml(priorityLabel(priority))}</span>
+                    <span>${escapeHtml(timeAgo(item.created))}</span>
+                  </div>
+                </div>
+                <div class="notification-actions">
+                  ${openAction}
+                  ${readAction}
+                  <button class="danger" type="button" data-notification-archive="${escapeHtml(item.id)}">Eliminar</button>
+                </div>
+              </article>
+            `;
+          }).join('');
+        }
+
+        async function load(page = currentPage) {
+          const result = await loadNotificationsPage({ pb, storeId, page, perPage: 24 });
+          render(result);
+        }
+
+        list.addEventListener('click', async (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const readButton = target?.closest('[data-notification-read]');
+          const archiveButton = target?.closest('[data-notification-archive]');
+          const openLink = target?.closest('[data-notification-open]');
+
+          if (readButton) {
+            event.preventDefault();
+            await markNotificationRead({ pb, notificationId: readButton.getAttribute('data-notification-read') || '' });
+            await load();
+          } else if (archiveButton) {
+            event.preventDefault();
+            await archiveNotification({ pb, notificationId: archiveButton.getAttribute('data-notification-archive') || '' });
+            await load();
+          } else if (openLink) {
+            await markNotificationRead({ pb, notificationId: openLink.getAttribute('data-notification-open') || '' });
+          }
+        });
+
+        archiveAllButton?.addEventListener('click', async () => {
+          const confirmed = window.confirm('Eliminar todas las notificaciones? Se archivaran y dejaran de mostrarse.');
+          if (!confirmed) return;
+          archiveAllButton.disabled = true;
+          archiveAllButton.textContent = 'Eliminando...';
+          try {
+            await archiveAllNotifications({ pb, storeId });
+            await load(1);
+          } finally {
+            archiveAllButton.disabled = false;
+            archiveAllButton.textContent = 'Eliminar todas';
+          }
+        });
+
+        prevLink?.addEventListener('click', (event) => {
+          event.preventDefault();
+          load(Math.max(1, currentPage - 1));
+        });
+
+        nextLink?.addEventListener('click', (event) => {
+          event.preventDefault();
+          load(currentPage + 1);
+        });
+
+        load(currentPage).catch((error) => {
+          console.warn('Could not load notifications page.', error);
+          list.innerHTML = '<p class="notifications-empty">No se pudieron cargar las notificaciones.</p>';
+        });
+      })();
+    </script>
+  </body>
+</html>

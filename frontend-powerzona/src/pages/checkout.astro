@@ -1837,6 +1837,65 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return result;
 		}
 
+		function formatNotificationUsd(value) {
+			const amount = Math.max(0, Number(value || 0));
+			return `$${amount.toFixed(2)} USD`;
+		}
+
+		function getOrderProductsSubtotalUSD(order) {
+			const candidates = [
+				order?.subtotal_after_discount_usd,
+				order?.subtotal,
+				order?.subtotal_original_usd,
+			];
+
+			for (const candidate of candidates) {
+				const value = Number(candidate || 0);
+				if (value > 0) return value;
+			}
+
+			const total = Number(order?.usd_total || order?.total || 0);
+			const shipping = Number(order?.shipping || order?.shipping_usd || order?.shipping_original_usd || 0);
+			return Math.max(0, total - shipping);
+		}
+
+		function normalizeNotificationPriority(priority) {
+			return ['normal', 'important', 'critical'].includes(priority) ? priority : 'normal';
+		}
+
+		function getNotificationPrioritySettings(settings = {}) {
+			const importantMin = Math.max(0, Number(settings?.notification_priority_important_min_usd ?? 50));
+			const criticalRaw = Math.max(0, Number(settings?.notification_priority_critical_min_usd ?? 100));
+			const criticalMin = Math.max(importantMin, criticalRaw);
+
+			return {
+				enabled: settings?.notification_priority_enabled !== false,
+				importantMin,
+				criticalMin,
+				showOrderSubtotal: settings?.notification_show_order_subtotal !== false,
+			};
+		}
+
+		function getOrderNotificationPriority(order, settings, fallback = 'important') {
+			const config = getNotificationPrioritySettings(settings);
+			if (!config.enabled) return normalizeNotificationPriority(fallback);
+
+			const subtotal = getOrderProductsSubtotalUSD(order);
+			if (subtotal >= config.criticalMin) return 'critical';
+			if (subtotal >= config.importantMin) return 'important';
+			return 'normal';
+		}
+
+		function buildOrderProductsText(order, settings) {
+			const config = getNotificationPrioritySettings(settings);
+			if (!config.showOrderSubtotal) return '';
+
+			const subtotal = getOrderProductsSubtotalUSD(order);
+			if (subtotal <= 0) return '';
+
+			return ` - Productos: ${formatNotificationUsd(subtotal)} sin envio`;
+		}
+
 		async function createNewOrderNotification({ order, checkoutData, settings }) {
 			try {
 				if (!order?.id || !CURRENT_STORE_ID) {
@@ -1870,19 +1929,25 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					|| order.customer_name
 					|| order.name
 					|| 'cliente';
+				const productsSubtotalUSD = getOrderProductsSubtotalUSD(order);
+				const priority = getOrderNotificationPriority(order, settings, 'important');
+				const productsText = buildOrderProductsText(order, settings);
 				const payload = {
 					store: CURRENT_STORE_ID,
 					type: 'new_order',
 					title: 'Nuevo pedido recibido',
-					message: `Pedido #${orderNumber} por ${customerName}`,
+					message: `Pedido #${orderNumber} por ${customerName}${productsText}`,
 					status: 'unread',
-					priority: 'important',
+					priority,
 					target_url: `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/admin/orders/${encodeURIComponent(order.id)}`,
 					entity_collection: 'orders',
 					entity_id: order.id,
 					metadata_json: {
 						order_number: order.order_number || '',
 						customer_name: customerName,
+						products_subtotal_usd: productsSubtotalUSD,
+						shipping_excluded: true,
+						priority_rule: priority,
 					},
 				};
 
