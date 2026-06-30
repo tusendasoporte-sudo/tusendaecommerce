@@ -365,7 +365,6 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
         });
 
         load(currentPage).catch((error) => {
-          console.warn('Could not load notifications page.', error);
           list.innerHTML = '<p class="notifications-empty">No se pudieron cargar las notificaciones.</p>';
         });
       })();

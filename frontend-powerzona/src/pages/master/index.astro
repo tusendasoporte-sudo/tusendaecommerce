@@ -601,7 +601,6 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
         await createStoreUserFromMaster(payload);
         window.location.reload();
       } catch (error: any) {
-        console.error('Error al crear usuario de tienda', error);
         showUserError(getStoreUserCreateErrorMessage(error));
         setUserSaving(false);
       }

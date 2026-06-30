@@ -2528,7 +2528,6 @@ function getProductOfferView(product: any) {
           setPublicReviewAlert('Gracias por dejar tu reseña. Tu opinión será revisada antes de publicarse.', 'success');
           window.setTimeout(() => setReviewFormOpen(false), 1400);
         } catch (error) {
-          console.error(error);
           setPublicReviewAlert(error?.message || 'No se pudo enviar la reseña.');
         } finally {
           if (submitBtn) {

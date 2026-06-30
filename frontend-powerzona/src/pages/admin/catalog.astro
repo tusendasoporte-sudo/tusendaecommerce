@@ -2233,7 +2233,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           renderAll();
           closeContentView();
         } catch (error) {
-          console.error(error);
           categoriesList.innerHTML = '<div class="empty-state">No se pudieron cargar las categorías. Revisa tu sesión admin.</div>';
           subcategoriesList.innerHTML = '<div class="empty-state">No se pudieron cargar las subcategorías. Revisa tu sesión admin.</div>';
         }
@@ -2273,7 +2272,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setAlert(categoryAlert, 'Categoría creada correctamente. Abriendo su página...', 'success');
           window.location.href = `${ADMIN_CATALOG_PATH}/category/${createdCategory.id}`;
         } catch (error) {
-          console.error(error);
           setAlert(categoryAlert, error.message || 'No se pudo crear la categoría.', 'error');
         } finally {
           categoryCreateSubmitting = false;
@@ -2325,7 +2323,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setAlert(subcategoryAlert, 'Subcategoría creada correctamente.', 'success');
           await loadCatalog();
         } catch (error) {
-          console.error(error);
           setAlert(subcategoryAlert, error.message || 'No se pudo crear la subcategoría.', 'error');
         }
       }
@@ -2398,7 +2395,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             showAdminToast('No tienes permisos para eliminar esta categoría.', 'error');
             return;
           }
-          console.error(error);
           showAdminToast('No se pudo eliminar la categoría. Inténtalo nuevamente.', 'error');
         }
       }
@@ -2686,7 +2682,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 return;
               }
             } catch (error) {
-              console.error(error);
               showAdminToast(error.message || 'No se pudo actualizar la subcategoría.', 'error');
             } finally {
               inlineButton.disabled = false;
@@ -2766,7 +2761,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             await updateCategory(row, { name, slug: slugify(name) });
           }
         } catch (error) {
-          console.error(error);
           showAdminToast(error.message || 'No se pudo actualizar la categoría.', 'error');
         } finally {
           button.disabled = false;
@@ -2854,7 +2848,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             await updateSubcategory(row, changes);
           }
         } catch (error) {
-          console.error(error);
           showAdminToast(error.message || 'No se pudo actualizar la subcategoría.', 'error');
         } finally {
           button.disabled = false;

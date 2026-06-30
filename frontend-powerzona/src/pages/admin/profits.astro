@@ -369,7 +369,6 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
         });
       });
       loadProfits().catch((error) => {
-        console.error(error);
         orderList.innerHTML = '<div class="profits-empty">No se pudieron cargar las ganancias.</div>';
       });
     </script>

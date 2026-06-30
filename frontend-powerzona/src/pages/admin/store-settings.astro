@@ -6127,7 +6127,6 @@ try {
             show('Cambios guardados correctamente', 'success');
             await loadSettings();
           } catch (error) {
-            console.error(error);
             show(error.message || 'No se pudieron guardar los cambios', 'error');
           } finally {
             settingsSaving = false;
@@ -6199,7 +6198,6 @@ try {
             showFooter('Footer actualizado correctamente', 'success');
             await loadSettings();
           } catch (error) {
-            console.error(error);
             showFooter('No se pudieron guardar los cambios', 'error');
           } finally {
             footerSaving = false;
@@ -7460,7 +7458,6 @@ try {
             show('Horarios guardados correctamente', 'success');
             await loadSettings();
           } catch (error) {
-            console.error(error);
             show('No se pudieron guardar los cambios', 'error');
           } finally {
             hoursSaving = false;

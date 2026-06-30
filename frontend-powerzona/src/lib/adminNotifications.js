@@ -113,7 +113,6 @@ export async function loadNotifications({ pb, storeId, limit = 12 }) {
     });
     return (result.items || []).map(normalizeNotification);
   } catch (error) {
-    console.warn('Could not load store notifications.', error);
     return [];
   }
 }
@@ -128,7 +127,6 @@ export async function loadUnreadNotificationCount({ pb, storeId }) {
     });
     return Number(result.totalItems || 0);
   } catch (error) {
-    console.warn('Could not load unread notification count.', error);
     return 0;
   }
 }
@@ -143,7 +141,6 @@ export async function loadVisibleNotificationCount({ pb, storeId }) {
     });
     return Number(result.totalItems || 0);
   } catch (error) {
-    console.warn('Could not load visible notification count.', error);
     return 0;
   }
 }
@@ -181,7 +178,6 @@ export async function loadUnreadNotificationPrioritySummary({ pb, storeId }) {
 
     return { count, highestPriority };
   } catch (error) {
-    console.warn('Could not load unread notification priority summary.', error);
     return { count: 0, highestPriority: 'normal' };
   }
 }
@@ -193,7 +189,6 @@ export async function markNotificationRead({ pb, notificationId }) {
       read_at: new Date().toISOString(),
     }));
   } catch (error) {
-    console.warn('Could not mark notification as read.', error);
     return null;
   }
 }
@@ -210,7 +205,6 @@ export async function archiveNotification({ pb, notificationId }) {
       archived_at: now,
     }));
   } catch (error) {
-    console.warn('Could not archive notification.', error);
     return null;
   }
 }
@@ -230,7 +224,6 @@ export async function markAllNotificationsRead({ pb, storeId }) {
     })));
     return ids.length;
   } catch (error) {
-    console.warn('Could not mark all notifications as read.', error);
     return 0;
   }
 }
@@ -252,7 +245,6 @@ export async function loadNotificationsPage({ pb, storeId, page = 1, perPage = 2
       totalPages: Number(result.totalPages || 1),
     };
   } catch (error) {
-    console.warn('Could not load notifications page.', error);
     return {
       items: [],
       page: 1,
@@ -293,7 +285,6 @@ export async function archiveAllNotifications({ pb, storeId }) {
 
     return archived;
   } catch (error) {
-    console.warn('Could not archive all notifications.', error);
     return 0;
   }
 }
@@ -331,7 +322,6 @@ export async function deleteArchivedNotificationsBefore({ pb, storeId, cutoffIso
 
     return deleted;
   } catch (error) {
-    console.warn('Could not delete old archived notifications.', error);
     return 0;
   }
 }
@@ -364,7 +354,6 @@ export async function createStoreNotification({
     };
     return normalizeNotification(await collectionCreate(pb, payload));
   } catch (error) {
-    console.warn('Could not create store notification.', error);
     return null;
   }
 }
@@ -424,7 +413,6 @@ export async function ensureStoreNotification({
       metadata,
     });
   } catch (error) {
-    console.warn('Could not ensure store notification.', error);
     return null;
   }
 }
@@ -486,7 +474,6 @@ export async function ensureStoreNotificationAnyStatus({
       metadata,
     });
   } catch (error) {
-    console.warn('Could not ensure store notification by any status.', error);
     return null;
   }
 }
@@ -577,7 +564,6 @@ export async function ensureStoreNotificationAfterSourceChange({
       metadata,
     });
   } catch (error) {
-    console.warn('Could not ensure inventory notification after source change.', error);
     return null;
   }
 }
@@ -608,7 +594,6 @@ export async function findStoreNotificationAnyStatus({
     const current = (existing.items || [])[0];
     return current ? normalizeNotification(current) : null;
   } catch (error) {
-    console.warn('Could not find store notification by any status.', error);
     return null;
   }
 }

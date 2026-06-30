@@ -4412,8 +4412,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					await deleteOldAnalyticsEvents(cutoffIso);
 					await updateAnalyticsCleanupLastRun(new Date().toISOString());
 				} catch (error) {
-					console.warn('No se pudo ejecutar limpieza automática de analíticas.', error);
-				}
+					}
 			}
 
 			function isReviewsCollectionMissing(error) {
@@ -4456,7 +4455,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					const settingsRecords = await loadAllRecords('settings');
 					settingsRecord = (settingsRecords || []).find((record) => record.active === true) || settingsRecords?.[0] || null;
 				} catch (error) {
-					console.error('No se pudieron cargar ajustes de tienda.', error);
 					settingsRecord = null;
 				}
 
@@ -4472,7 +4470,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					reviews = await loadAllRecords('reviews', 'sort=-created');
 					reviewsCollectionAvailable = true;
 				} catch (error) {
-					if (!isReviewsCollectionMissing(error)) console.error('No se pudieron cargar reseñas.', error);
 					reviews = [];
 					reviewsCollectionAvailable = false;
 				}
@@ -5616,7 +5613,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			} else if (getAdminToken()) {
 				showAdmin();
 				loadDashboardData().catch((error) => {
-					console.error(error);
 					if (businessProductsDetails) businessProductsDetails.innerHTML = '<div class="business-empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
 					if (kpiGrid) kpiGrid.innerHTML = '<div class="card empty-state">No se pudieron cargar las métricas de esta tienda.</div>';
 				});

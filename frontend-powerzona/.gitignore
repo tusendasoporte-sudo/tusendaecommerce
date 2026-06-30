@@ -15,10 +15,20 @@ pnpm-debug.log*
 
 # environment variables
 .env
+.env.local
 .env.production
+.env.*.local
 
 # macOS-specific files
 .DS_Store
+Thumbs.db
+
+# archives and backups
+*.zip
+*.rar
+*.7z
+*.bak
+*.backup
 
 # jetbrains setting folder
 .idea/

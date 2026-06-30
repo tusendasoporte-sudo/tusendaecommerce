@@ -2619,7 +2619,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <input id="product-internal-ref" type="text" placeholder="Ej: BF-WHEY-5LB" />
                   </div>
                   <div class="field">
-                    <label for="product-delivery-mode">Método disponible</label>
+                    <label for="product-delivery-mode">Entrega disponible</label>
                     <select id="product-delivery-mode" required>
                       <option value="both">Envío o recogida</option>
                       <option value="delivery">Solo envío</option>
@@ -4475,7 +4475,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             }, 80);
           }
         } catch (error) {
-          console.error(error);
           productVariations = [];
           renderVariations();
           setVariationAlert(error.message || 'No se pudieron cargar las variaciones de este producto.', 'error');
@@ -5355,7 +5354,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           renderProducts();
           if (openFromUrl) openEditorFromUrl();
         } catch (error) {
-          console.error(error);
           productsList.innerHTML = '<div class="empty-state">No se pudieron cargar los productos. Revisa tu sesión admin.</div>';
         } finally {
           if (refreshBtn) refreshBtn.disabled = false;

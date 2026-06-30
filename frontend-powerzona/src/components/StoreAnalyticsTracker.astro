@@ -21,16 +21,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 {storeId && pocketbaseUrl && (
   <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId, heartbeatEnabled }}>
     (() => {
-      const DEBUG_ANALYTICS = new URLSearchParams(window.location.search).has('analytics_debug');
       const HEARTBEAT_ENABLED = heartbeatEnabled === true;
-
-      function logDebug(...args) {
-        if (DEBUG_ANALYTICS) console.info('[PZ Analytics]', ...args);
-      }
-
-      function warnDebug(...args) {
-        if (DEBUG_ANALYTICS) console.warn('[PZ Analytics]', ...args);
-      }
 
       try {
         const path = window.location.pathname || '';
@@ -41,12 +32,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           path.includes('/login') ||
           path.includes('/master-login')
         ) {
-          logDebug('Ruta interna omitida.', path);
           return;
         }
 
         if (navigator.doNotTrack === '1') {
-          logDebug('Do Not Track activo. Evento omitido.');
           return;
         }
 
@@ -54,7 +43,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const STORE_ID = String(storeId || '').trim();
 
         if (!POCKETBASE_URL || !STORE_ID) {
-          warnDebug('Falta PocketBase URL o storeId.', { POCKETBASE_URL, STORE_ID });
           return;
         }
 
@@ -123,16 +111,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
               keepalive: true,
             });
 
-            if (!response.ok) {
-              const errorText = await response.text().catch(() => '');
-              warnDebug('PocketBase rechazo el evento.', response.status, errorText, payload);
-              return false;
-            }
+            if (!response.ok) return false;
 
-            logDebug('Evento creado.', payload);
             return true;
-          } catch (error) {
-            warnDebug('Error creando evento.', error, payload);
+          } catch (_) {
             return false;
           }
         }
@@ -165,8 +147,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
           startHeartbeat();
         }
-      } catch (error) {
-        if (DEBUG_ANALYTICS) console.warn('[PZ Analytics] Error general.', error);
+      } catch (_) {
       }
     })();
   </script>

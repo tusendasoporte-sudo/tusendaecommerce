@@ -102,7 +102,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				<form id="checkout-form" class="space-y-6" novalidate>
 					<div class="bg-white rounded-3xl border border-gray-100 shadow-sm p-5">
 						<h2 class="text-xl font-bold text-gray-900 mb-4">
-							Método de entrega
+							Forma de entrega
 						</h2>
 
 						<div id="delivery-methods" class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -132,7 +132,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 						</div>
 
 						<p id="delivery-method-error" class="hidden text-xs text-red-500 font-semibold mt-3">
-							Selecciona un método de entrega.
+							Selecciona una forma de entrega.
 						</p>
 
 						<div id="delivery-helper" class="mt-4 bg-blue-50 border border-blue-100 text-blue-800 rounded-2xl p-3 text-xs font-semibold">
@@ -929,7 +929,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const result = await response.json().catch(() => null);
 
 			if (!response.ok) {
-				console.error('Error leyendo shipping_zones:', result);
 				throw new Error('No se pudieron cargar las zonas de envío desde la plataforma.');
 			}
 
@@ -1809,7 +1808,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const result = await response.json().catch(() => null);
 
 			if (!response.ok) {
-				console.error(`Error creando registro en ${collectionName}:`, result);
 				throw new Error(result?.message || `No se pudo crear el registro en ${collectionName}.`);
 			}
 
@@ -1828,7 +1826,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			});
 			const result = await response.json().catch(() => null);
 			if (!response.ok) {
-				console.error(`Error actualizando registro en ${collectionName}:`, result);
 				throw new Error(result?.message || `No se pudo actualizar el registro en ${collectionName}.`);
 			}
 			return result;
@@ -1841,7 +1838,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`);
 			const result = await response.json().catch(() => null);
 			if (!response.ok) {
-				console.error(`Error leyendo registro en ${collectionName}:`, result);
 				throw new Error(result?.message || `No se pudo leer el registro en ${collectionName}.`);
 			}
 			return result;
@@ -1908,29 +1904,9 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		async function createNewOrderNotification({ order, checkoutData, settings }) {
 			try {
-				if (!order?.id || !CURRENT_STORE_ID) {
-					console.warn('PZ new_order notification skipped: missing order or store.', {
-						orderId: order?.id || '',
-						storeId: CURRENT_STORE_ID || '',
-					});
-					return;
-				}
-
-				if (!POCKETBASE_URL) {
-					console.warn('PZ new_order notification skipped: missing PocketBase URL.', {
-						orderId: order.id,
-						storeId: CURRENT_STORE_ID,
-					});
-					return;
-				}
-
-				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) {
-					console.info('PZ new_order notification skipped by settings.', {
-						notifications_enabled: settings?.notifications_enabled,
-						notify_new_order: settings?.notify_new_order,
-					});
-					return;
-				}
+				if (!order?.id || !CURRENT_STORE_ID) return;
+				if (!POCKETBASE_URL) return;
+				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
 
 				const orderNumber = order.order_number || order.id;
 				const customerName =
@@ -1961,39 +1937,15 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					},
 				};
 
-				console.info('PZ creating new_order notification.', payload);
-
 				const response = await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify(payload),
 				});
 
-				const result = await response.json().catch(() => null);
-
-				if (!response.ok) {
-					console.warn('PZ new_order notification POST failed.', {
-						status: response.status,
-						result,
-						payload,
-					});
-					return;
-				}
-
-				console.info('PZ new_order notification created.', {
-					orderId: order.id,
-					orderNumber,
-				});
-			} catch (error) {
-				console.warn('PZ failed to create new_order notification.', {
-					orderId: order?.id || '',
-					storeId: CURRENT_STORE_ID || '',
-					error,
-				});
-
-				if (error?.response) {
-					console.warn('PZ new_order PocketBase response.', error.response);
-				}
+				if (!response.ok) return;
+			} catch {
+				return;
 			}
 		}
 
@@ -2043,7 +1995,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const result = await response.json().catch(() => null);
 
 			if (!response.ok) {
-				console.error('Error leyendo settings:', result);
 				throw new Error('No se pudo leer la configuración activa de la tienda.');
 			}
 
@@ -2372,7 +2323,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			try {
 				window.open(whatsappUrl, '_blank');
 			} catch (error) {
-				console.warn('No se pudo abrir WhatsApp en una pestana nueva.', error);
 			}
 
 			window.setTimeout(() => {
@@ -2420,7 +2370,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				continueWhatsappBtn.disabled = false;
 				continueWhatsappBtn.textContent = 'Enviar el pedido por WhatsApp';
 			} catch (error) {
-				console.error(error);
 				isSubmittingOrder = false;
 				checkoutValidationAlert.textContent = error?.message || 'No se pudo guardar el pedido. Intenta nuevamente.';
 				checkoutValidationAlert.classList.remove('hidden');
@@ -2439,7 +2388,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		loadShippingZones()
 			.catch((error) => {
-				console.error(error);
 				checkoutValidationAlert.textContent = error?.message || 'No se pudieron cargar las zonas de envío.';
 				checkoutValidationAlert.classList.remove('hidden');
 			})

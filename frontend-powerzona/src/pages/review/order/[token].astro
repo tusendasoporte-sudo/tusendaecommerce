@@ -32,8 +32,7 @@ if (pocketbaseUrl && token) {
       return Astro.redirect(`/t/${encodeURIComponent(storeSlug)}/review/order/${encodeURIComponent(token)}`);
     }
   } catch (error) {
-    console.error('No se pudo resolver la tienda para el link de reseña.', error);
-  }
+    }
 } else if (!pocketbaseUrl) {
   errorMessage = 'Falta configurar la conexión con la plataforma.';
 }

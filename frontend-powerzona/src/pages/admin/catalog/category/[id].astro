@@ -1899,7 +1899,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           products = productRecords;
           renderAll();
         } catch (error) {
-          console.error(error);
           categoryTitle.textContent = 'No se pudo cargar la categoría';
           categorySubtitle.textContent = error.message || 'Revisa tu sesión admin o si la categoría existe.';
         }
@@ -1985,7 +1984,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           await loadPage();
           showCategoryNotice('Cambios guardados correctamente', 'success');
         } catch (error) {
-          console.error(error);
           showCategoryNotice(error?.message || 'No se pudieron guardar los cambios', 'error');
         } finally {
           categorySaving = false;
@@ -2030,7 +2028,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           closeSubcategoryModal();
           await loadPage();
         } catch (error) {
-          console.error(error);
           setAlert(subcategoryAlert, error.message || 'No se pudo guardar la subcategoría.', 'error');
         }
       }
@@ -2190,7 +2187,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             return;
           }
         } catch (error) {
-          console.error(error);
           setAlert(subcategoryAlert, error.message || 'No se pudo actualizar la subcategoría.', 'error');
         } finally {
           button.disabled = false;
@@ -2225,7 +2221,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             showSubcategoryDeleteConfirm(subcategoryId);
           }
         } catch (error) {
-          console.error(error);
           setAlert(subcategoryAlert, error.message || 'No se pudo actualizar la subcategoría.', 'error');
         } finally {
           button.disabled = false;
@@ -2246,7 +2241,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           await deleteSubcategorySafely(pendingDeleteSubcategoryId);
           closeSubcategoryModal();
         } catch (error) {
-          console.error(error);
           setAlert(subcategoryAlert, error.message || 'No se pudo eliminar la subcategoría.', 'error');
           await loadPage();
         } finally {

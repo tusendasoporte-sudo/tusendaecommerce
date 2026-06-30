@@ -1,16 +1,23 @@
-// @ts-check
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
-
 import tailwindcss from '@tailwindcss/vite';
 
-// https://astro.build/config
+const isProductionBuild = process.env.NODE_ENV === 'production' || process.argv.includes('build');
+
 export default defineConfig({
   output: 'server',
   adapter: node({
-    mode: 'standalone'
+    mode: 'standalone',
   }),
   vite: {
-    plugins: [tailwindcss()]
-  }
+    plugins: [tailwindcss()],
+    build: {
+      sourcemap: false,
+      minify: 'esbuild',
+    },
+    esbuild: {
+      legalComments: 'none',
+      drop: isProductionBuild ? ['console', 'debugger'] : [],
+    },
+  },
 });

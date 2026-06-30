@@ -2003,7 +2003,6 @@ const variationItems = variations.map((variation) => {
 					setRating(0);
 					setProductReviewAlert('Gracias por dejar tu reseña. Será publicada cuando la tienda la apruebe.', 'success');
 				} catch (error) {
-					console.error(error);
 					setProductReviewAlert(error?.message || 'No se pudo enviar la reseña.');
 				} finally {
 					if (submitBtn) {

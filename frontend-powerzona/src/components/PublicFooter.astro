@@ -55,7 +55,7 @@ const paymentCurrencies = normalizeCurrencies(activeCurrencies, defaultCurrency)
 const infoLinks = [
   aboutStoreText ? { id: 'about', label: 'Sobre la tienda' } : null,
   shippingDeliveryInfo ? { id: 'shipping', label: 'Envíos y entregas' } : null,
-  paymentCurrencies.length ? { id: 'payments', label: 'Métodos de pago' } : null,
+  paymentCurrencies.length ? { id: 'payments', label: 'Formas de pago' } : null,
   whatsappStoreHref ? { id: 'contact', label: 'Contáctanos' } : null,
 ].filter(Boolean);
 
@@ -304,7 +304,6 @@ function iconSvg(name: string) {
       </div>
     </section>}
 
-    {showPlatformCta && <p class="pz-footer-platform-note">Tienda pública de Tu Senda 84.</p>}
   </div>
 </footer>
 
@@ -332,7 +331,7 @@ function iconSvg(name: string) {
   <div class="pz-footer-modal-overlay" data-pz-footer-modal="payments" hidden>
     <section class="pz-footer-modal" role="dialog" aria-modal="true" aria-labelledby="pz-footer-payments-title">
       <button class="pz-footer-modal-close" type="button" data-pz-footer-modal-close aria-label="Cerrar">×</button>
-      <h2 id="pz-footer-payments-title">Métodos de pago</h2>
+      <h2 id="pz-footer-payments-title">Formas de pago</h2>
       <p>Monedas aceptadas por esta tienda</p>
       <ul>
         {paymentCurrencies.map((currency) => <li>{currency.label}</li>)}
@@ -427,7 +426,6 @@ function iconSvg(name: string) {
   .pz-platform-brand-lockup { display: flex; align-items: center; gap: 12px; }
   .pz-tusenda-mark { width: 46px; height: 46px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 14px; overflow: hidden; background: rgba(255,255,255,.96); border: 1px solid rgba(191,219,254,.55); box-shadow: 0 12px 26px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.35); }
   .pz-tusenda-mark img { width: 100%; height: 100%; object-fit: contain; padding: 4px; display: block; }
-  .pz-footer-platform-note { grid-column: 1 / -1; margin: 0; padding-top: 22px; border-top: 1px solid rgba(219,234,254,.16); color: rgba(239,246,255,.80); text-align: center; font-size: 15px; line-height: 1.4; font-weight: 800; }
   .pz-footer-modal-overlay { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 18px; background: rgba(15,23,42,.54); opacity: 0; pointer-events: none; transition: opacity .16s ease; }
   .pz-footer-modal-overlay.open { opacity: 1; pointer-events: auto; }
   .pz-footer-modal { position: relative; width: min(560px, 100%); max-height: min(82vh, 680px); overflow: auto; border-radius: 8px; background: #fff; color: #111827; padding: 24px; box-shadow: 0 28px 90px rgba(15,23,42,.28); }

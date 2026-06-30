@@ -293,7 +293,6 @@ const storeLogoUrl = currentStore.logoUrl || currentStore.bannerUrl || '';
         errorBox.classList.add('hidden');
         form.classList.remove('hidden');
       } catch (error) {
-        console.error(error);
         showError('Link inválido o expirado.');
       }
     }
@@ -395,7 +394,6 @@ const storeLogoUrl = currentStore.logoUrl || currentStore.bannerUrl || '';
         }
         showThanks();
       } catch (error) {
-        console.error(error);
         showSubmitAlert(error?.message || 'No se pudo enviar la reseña. Inténtalo nuevamente.');
       } finally {
         submitBtn.disabled = false;

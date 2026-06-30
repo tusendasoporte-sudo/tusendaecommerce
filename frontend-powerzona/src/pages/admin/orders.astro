@@ -41,7 +41,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pedidos | PowerZona Admin</title>
-    <!-- PowerZona Orders V29 muestra variaciones en tarjetas y productos de orden - 20260602 -->
     <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
@@ -861,7 +860,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         .pagination-actions { justify-content: center; }
       }
     </style>
-    <!-- PowerZona Orders V10 -->
 </head>
   <body class="orders-admin-page">
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -1052,7 +1050,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
                   <div class="form-grid two">
                     <div><label for="edit-customer-name">Cliente</label><input id="edit-customer-name" type="text" /></div>
                     <div><label for="edit-customer-phone">Teléfono</label><input id="edit-customer-phone" type="text" /></div>
-                    <div><label for="edit-delivery-method">Método de entrega</label><select id="edit-delivery-method"><option value="delivery">Envío</option><option value="pickup">Recogida</option><option value="coordinate">Coordinar</option></select></div>
+                    <div><label for="edit-delivery-method">Forma de entrega</label><select id="edit-delivery-method"><option value="delivery">Envío</option><option value="pickup">Recogida</option><option value="coordinate">Coordinar</option></select></div>
                     <div id="edit-customer-address-wrap"><label for="edit-customer-address">Dirección / referencia</label><textarea id="edit-customer-address" placeholder="Dirección del cliente, referencia o instrucciones de entrega..."></textarea></div>
                     <div id="edit-shipping-municipality-wrap"><label for="edit-shipping-municipality">Municipio</label><select id="edit-shipping-municipality"><option value="">Selecciona municipio</option></select></div>
                     <div id="edit-shipping-zone-wrap"><label for="edit-shipping-zone">Zona de entrega</label><select id="edit-shipping-zone"><option value="">Selecciona zona</option></select></div>
@@ -1486,7 +1484,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           await action();
           closeOrderDeleteConfirm();
         } catch (error) {
-          console.error(error);
           setOrderConfirmAlert(error?.message || 'No se pudo completar el borrado.', 'error');
           if (orderDeleteConfirmSubmit) {
             orderDeleteConfirmSubmit.disabled = false;
@@ -1524,7 +1521,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           const result = await apiRequest(`/api/collections/settings/records?${withStoreFilter('filter=active=true&sort=-updated&perPage=1')}`);
           storeSettingsRecord = result.items?.[0] || null;
         } catch (error) {
-          console.error('No se pudieron cargar los ajustes de reseñas.', error);
           storeSettingsRecord = null;
         } finally {
           updateReviewRequestButtonState();
@@ -1552,7 +1548,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           }
           if (selectedOrder && !orders.some((order) => order.id === selectedOrder.id)) clearDetail();
         } catch (error) {
-          console.error(error);
           ordersList.innerHTML = '<div class="empty-state">No se pudieron cargar las órdenes. Revisa tu sesion admin o las reglas administrativas.</div>';
         } finally {
           refreshBtn.disabled = false;
@@ -1575,7 +1570,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
             orderItemsByOrder[orderId].push(item);
           });
         } catch (error) {
-          console.error('No se pudieron cargar los productos para el resumen de órdenes.', error);
           orderItemsByOrder = {};
         }
       }
@@ -1614,7 +1608,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           productVariations = variationsResult.items || [];
           resetAddProductForm();
         } catch (error) {
-          console.error(error);
           productCatalog = [];
           productVariations = [];
           resetAddProductForm('No se pudieron cargar los productos. Revisa las reglas de products y product_variations.');
@@ -1627,7 +1620,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           shippingZones = result.items || [];
           renderShippingMunicipalities();
         } catch (error) {
-          console.error(error);
           shippingZones = [];
           renderShippingMunicipalities();
         }
@@ -1682,7 +1674,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         const isDelivery = method === 'delivery';
         const zone = getSelectedShippingZoneForEditor();
         const zoneLabel = isDelivery && zone ? `${[zone.municipality, zone.zone].filter(Boolean).join(' / ')} - ${formatUSD(zone.price_usd || 0)}` : '';
-        const deliveryText = [deliveryLabels[method] || method || 'Sin método', zoneLabel].filter(Boolean).join(' · ');
+        const deliveryText = [deliveryLabels[method] || method || 'Sin forma', zoneLabel].filter(Boolean).join(' · ');
         if (detailDelivery) detailDelivery.textContent = deliveryText;
         if (detailAddressBox) detailAddressBox.classList.toggle('hidden', !isDelivery);
         if (detailAddress) detailAddress.textContent = isDelivery ? (editCustomerAddress?.value || selectedOrder.customer_address || 'Sin dirección / no aplica') : 'No aplica';
@@ -1781,7 +1773,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           renderOrders();
           setDetailAlert('Cambios guardados automáticamente.', 'success');
         } catch (error) {
-          console.error(error);
           setDetailAlert('No se pudieron guardar automáticamente los datos de la orden. Revisa tu sesion admin o las reglas administrativas.', 'error');
         } finally {
           orderAutoSaveRunning = false;
@@ -2282,7 +2273,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           if (selectedOrder) detailTotal.innerHTML = renderOrderAdminSummary(selectedOrder, selectedItems);
           setDetailAlert('', 'info');
         } catch (error) {
-          console.error(error);
           detailItems.innerHTML = '<div class="item-row"><div class="item-sub">No se pudieron cargar los productos.</div></div>';
           setDetailAlert('No se pudieron cargar los productos de la orden.', 'error');
         }
@@ -2290,7 +2280,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function fillDetail(order) {
         const isDeliveryOrder = order.delivery_method === 'delivery';
-        const deliveryText = [deliveryLabels[order.delivery_method] || order.delivery_method || 'Sin método', isDeliveryOrder ? getShippingZoneLabel(order) : ''].filter(Boolean).join(' · ');
+        const deliveryText = [deliveryLabels[order.delivery_method] || order.delivery_method || 'Sin forma', isDeliveryOrder ? getShippingZoneLabel(order) : ''].filter(Boolean).join(' · ');
         detailOrderNumber.textContent = order.order_number;
         detailCreated.textContent = formatDate(order.created);
         detailStatusBadge.className = getStatusClass(order.status);
@@ -2580,7 +2570,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           }
         } catch (error) {
           for (const snapshot of changed.reverse()) {
-            try { await patchInventoryStock(snapshot.group, snapshot.currentStock); } catch (rollbackError) { console.error(rollbackError); }
+            try { await patchInventoryStock(snapshot.group, snapshot.currentStock); } catch (rollbackError) { }
           }
           throw new Error('No se pudo descontar inventario completo. Se intentó revertir cualquier cambio parcial.');
         }
@@ -2608,8 +2598,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           try {
             await patchInventoryStock(snapshot.group, snapshot.currentStock);
           } catch (error) {
-            console.error(error);
-          }
+            }
         }
       }
 
@@ -2861,7 +2850,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           renderOrders();
           if (status) status.textContent = 'Guardado automático';
         } catch (error) {
-          console.error(error);
           if (status) status.textContent = 'No se pudo guardar';
           setDetailAlert('No se pudo guardar el producto automáticamente. Revisa reglas update en order_items.', 'error');
         }
@@ -2985,7 +2973,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           await updateOrderTotal();
           setDetailAlert('Producto agregado y total de la orden actualizado.', 'success');
         } catch (error) {
-          console.error(error);
           setDetailAlert('No se pudo agregar el producto. Revisa reglas create/update en order_items y que product_variations tenga acceso de lectura.', 'error');
         } finally {
           addProductBtn.disabled = false;
@@ -3015,7 +3002,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           await updateOrderTotal();
           setDetailAlert('Producto borrado y total de la orden actualizado.', 'success');
         } catch (error) {
-          console.error(error);
           setDetailAlert('No se pudo borrar el producto. Revisa las reglas de delete en order_items.', 'error');
         }
       }
@@ -3100,7 +3086,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
             setDetailAlert('Orden actualizada correctamente.', 'success');
           }
         } catch (error) {
-          console.error(error);
           if (shouldDeductInventory || shouldRestoreInventory) {
             detailStatus.value = previousStatus;
             setDetailAlert(error?.message || 'No se pudo completar el movimiento de inventario. La orden no fue actualizada.', 'error');
@@ -3152,7 +3137,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           await navigator.clipboard.writeText(summary);
           setDetailAlert('Resumen copiado correctamente.', 'success');
         } catch (error) {
-          console.error(error);
           setDetailAlert('No se pudo copiar automáticamente. Puedes seleccionar el texto desde WhatsApp o imprimir.', 'error');
         }
       }
@@ -3347,7 +3331,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           renderOrders();
           setDetailAlert(hasValue(orderWithToken.review_requested_at) ? 'Solicitud de reseña reenviada por WhatsApp.' : 'Solicitud de reseña preparada por WhatsApp.', 'success');
         } catch (error) {
-          console.error(error);
           setDetailAlert(error?.message || 'No se pudo preparar la solicitud de reseña.', 'error');
           if (requestReviewBtn) requestReviewBtn.textContent = originalLabel;
         } finally {
@@ -3363,7 +3346,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
           if (!receiptUrl) throw new Error('No se pudo generar el enlace del resumen de la orden.');
           window.open(receiptUrl, '_blank', 'noopener,noreferrer');
         } catch (error) {
-          console.error(error);
           setDetailAlert(error?.message || 'No se pudo abrir el resumen de la orden.', 'error');
         }
       }
@@ -3404,7 +3386,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           renderStats();
           renderOrders();
           if (restoreStock) {
-            try { await refreshInventoryAfterMovement(); } catch (refreshError) { console.error(refreshError); }
+            try { await refreshInventoryAfterMovement(); } catch (refreshError) { }
           }
           setOrdersAdminAlert(restoreStock ? 'Orden borrada correctamente. Inventario devuelto.' : 'Orden borrada correctamente.', 'success');
         } catch (error) {
