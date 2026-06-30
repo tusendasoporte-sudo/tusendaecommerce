@@ -2695,7 +2695,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			.visit-analytics-panel-help {
-				margin: 6px 0 0;
+				max-width: 720px;
+				margin: 8px 0 0;
 				color: #64748b;
 				font-size: 14px;
 				line-height: 1.45;
@@ -2703,43 +2704,81 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			.visit-analytics-average-note {
-				margin-top: 10px;
+				width: max-content;
+				max-width: 100%;
+				margin: 14px 0 0;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 999px;
+				background: #f8fafc;
+				padding: 7px 11px;
 				color: #475569;
 				font-size: 13px;
 				font-weight: 850;
+				line-height: 1.2;
+			}
+
+			.visit-analytics-average-note strong {
+				color: #2563eb;
+				font-weight: 1000;
 			}
 
 			.visit-analytics-big-number {
 				display: block;
-				margin-top: 22px;
+				margin-top: 20px;
 				color: #0f172a;
 				font-size: clamp(42px, 8vw, 64px);
 				line-height: 1;
 				font-weight: 950;
-				letter-spacing: -0.06em;
+				letter-spacing: -0.035em;
 			}
 
 			.analytics-line-chart {
-				margin-top: 22px;
+				margin-top: 24px;
 				width: 100%;
-				min-height: 210px;
+				min-height: 304px;
 				border: 1px solid rgba(148, 163, 184, 0.16);
-				border-radius: 18px;
+				border-radius: 20px;
 				background: linear-gradient(180deg, #ffffff, #f8fbff);
-				padding: 14px;
+				padding: 18px 16px 12px;
 				overflow: hidden;
+				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 			}
 
 			.analytics-line-chart .traffic-chart-svg {
 				width: 100%;
-				height: 180px;
-				min-height: 180px;
+				height: 274px;
+				min-height: 274px;
 				display: block;
+				overflow: visible;
 			}
 
 			.analytics-line-chart .traffic-empty-state {
-				min-height: 180px;
-				border-radius: 14px;
+				min-height: 272px;
+				align-content: center;
+				gap: 7px;
+				border-color: rgba(148, 163, 184, 0.24);
+				border-radius: 16px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 250, 252, 0.94)),
+					repeating-linear-gradient(0deg, rgba(226, 232, 240, 0.5) 0 1px, transparent 1px 48px);
+				color: #64748b;
+			}
+
+			.analytics-line-chart .traffic-empty-state strong {
+				color: #0f172a;
+				font-size: 14px;
+				font-weight: 950;
+			}
+
+			.analytics-line-chart .traffic-empty-state small {
+				max-width: 320px;
+				color: #64748b;
+				font-size: 12px;
+				line-height: 1.45;
+				font-weight: 750;
 			}
 
 			.visit-analytics-top-list {
@@ -3152,6 +3191,357 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				gap: 10px;
 			}
 
+			.admin-recent-activity-card {
+				display: grid;
+				gap: 18px;
+			}
+
+			.recent-activity-head,
+			.order-status-summary-head {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 16px;
+			}
+
+			.recent-activity-head h2,
+			.order-status-summary-head h2 {
+				margin: 0;
+				color: #0f172a;
+				font-size: 22px;
+				font-weight: 1000;
+				letter-spacing: -0.03em;
+			}
+
+			.recent-activity-head p,
+			.order-status-summary-head p {
+				margin: 4px 0 0;
+				color: #64748b;
+				font-size: 13px;
+				font-weight: 800;
+			}
+
+			.recent-activity-tabs {
+				width: fit-content;
+				max-width: 100%;
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				overflow-x: auto;
+				border: 1px solid #e2e8f0;
+				border-radius: 999px;
+				background: #f1f5f9;
+				padding: 6px;
+			}
+
+			.recent-activity-tab {
+				min-height: 36px;
+				border: 0;
+				border-radius: 999px;
+				background: transparent;
+				padding: 0 16px;
+				color: #475569;
+				font-size: 13px;
+				font-weight: 1000;
+				white-space: nowrap;
+				cursor: pointer;
+			}
+
+			.recent-activity-tab.is-active {
+				background: #0f172a;
+				color: #ffffff;
+				box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+			}
+
+			.recent-activity-panel {
+				display: none;
+			}
+
+			.recent-activity-panel.is-active {
+				display: grid;
+				gap: 12px;
+			}
+
+			.recent-panel-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 14px;
+			}
+
+			.recent-panel-head > div {
+				min-width: 0;
+			}
+
+			.recent-panel-head strong {
+				display: block;
+				color: #0f172a;
+				font-size: 15px;
+				font-weight: 1000;
+			}
+
+			.recent-panel-head span {
+				display: block;
+				margin-top: 3px;
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 800;
+			}
+
+			.recent-panel-link {
+				min-height: 34px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border: 1px solid #e2e8f0;
+				border-radius: 999px;
+				background: #ffffff;
+				padding: 0 14px;
+				color: #0f172a;
+				font-size: 12px;
+				font-weight: 1000;
+				text-decoration: none;
+				white-space: nowrap;
+				box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+			}
+
+			.admin-recent-activity-card .recent-list {
+				min-width: 0;
+				display: grid !important;
+				gap: 0 !important;
+				border: 1px solid #e5e7eb;
+				border-radius: 22px;
+				background: #ffffff;
+				overflow: hidden;
+			}
+
+			.admin-recent-activity-card .recent-list.is-empty {
+				border: 0;
+				background: transparent;
+				overflow: visible;
+			}
+
+			.admin-recent-activity-card .recent-list-row {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto auto;
+				align-items: center;
+				gap: 12px;
+				padding: 12px 14px;
+				border-bottom: 1px solid #eef2f7;
+			}
+
+			.admin-recent-activity-card .recent-list-row:last-child {
+				border-bottom: 0;
+			}
+
+			.admin-recent-activity-card .recent-product-row {
+				grid-template-columns: 38px minmax(0, 1fr) auto;
+			}
+
+			.admin-recent-activity-card .recent-list-main {
+				min-width: 0;
+				display: grid;
+				gap: 3px;
+			}
+
+			.admin-recent-activity-card .recent-list-title {
+				min-width: 0;
+				color: #0f172a;
+				font-size: 13.5px;
+				font-weight: 1000;
+				line-height: 1.25;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.admin-recent-activity-card .recent-list-subtitle {
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 800;
+				line-height: 1.2;
+			}
+
+			.admin-recent-activity-card .recent-rank-badge {
+				width: 32px;
+				height: 32px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border-radius: 999px;
+				background: #0f172a;
+				color: #ffffff;
+				font-size: 12px;
+				font-weight: 1000;
+			}
+
+			.admin-recent-activity-card .recent-status-badge {
+				min-height: 24px !important;
+				display: inline-flex !important;
+				align-items: center !important;
+				justify-content: center !important;
+				border-radius: 999px !important;
+				padding: 0 10px !important;
+				font-size: 11px !important;
+				font-weight: 1000 !important;
+				line-height: 1 !important;
+				white-space: nowrap !important;
+				box-shadow: none !important;
+			}
+
+			.admin-recent-activity-card .recent-status-badge.status-pending { background: #fef3c7 !important; color: #92400e !important; border: 1px solid #fde68a !important; }
+			.admin-recent-activity-card .recent-status-badge.status-confirmed { background: #dcfce7 !important; color: #166534 !important; border: 1px solid #bbf7d0 !important; }
+			.admin-recent-activity-card .recent-status-badge.status-preparing { background: #ede9fe !important; color: #5b21b6 !important; border: 1px solid #ddd6fe !important; }
+			.admin-recent-activity-card .recent-status-badge.status-delivered { background: #dcfce7 !important; color: #166534 !important; border: 1px solid #bbf7d0 !important; }
+			.admin-recent-activity-card .recent-status-badge.status-cancelled { background: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fecaca !important; }
+
+			.admin-recent-activity-card .recent-money-badge {
+				min-height: 24px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border: 1px solid #bbf7d0;
+				border-radius: 999px;
+				background: #dcfce7;
+				padding: 0 10px;
+				color: #047857;
+				font-size: 11px;
+				font-weight: 1000;
+				white-space: nowrap;
+			}
+
+			.admin-recent-activity-card .recent-list-action {
+				min-height: 28px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				border: 1px solid #bfdbfe;
+				border-radius: 999px;
+				background: #eff6ff;
+				padding: 0 12px;
+				color: #2563eb;
+				font-size: 11.5px;
+				font-weight: 1000;
+				text-decoration: none;
+				white-space: nowrap;
+			}
+
+			.admin-recent-activity-card .recent-list-action:hover {
+				background: #dbeafe;
+			}
+
+			.admin-recent-activity-card .recent-empty-state {
+				border: 1px dashed #cbd5e1;
+				border-radius: 22px;
+				background: #f8fafc;
+				color: #64748b;
+				font-size: 13px;
+				font-weight: 850;
+				padding: 18px;
+				text-align: center;
+			}
+
+			.admin-recent-activity-card .recent-mobile-money {
+				display: none;
+			}
+
+			.order-status-summary-card {
+				display: grid;
+				gap: 16px;
+			}
+
+			.order-status-list {
+				display: grid;
+				grid-template-columns: repeat(5, minmax(0, 1fr));
+				gap: 10px;
+			}
+
+			.order-status-row {
+				min-width: 0;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				border: 1px solid #e2e8f0;
+				border-radius: 18px;
+				background: #f8fafc;
+				padding: 12px 14px;
+			}
+
+			.order-status-row span {
+				min-width: 0;
+				color: #334155;
+				font-size: 13px;
+				font-weight: 850;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.order-status-row strong {
+				color: #0f172a;
+				font-size: 20px;
+				font-weight: 1000;
+				line-height: 1;
+			}
+
+			@media (max-width: 900px) {
+				.order-status-list {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+			}
+
+			@media (max-width: 720px) {
+				.admin-recent-activity-card {
+					gap: 14px;
+				}
+
+				.recent-activity-tabs {
+					width: 100%;
+					justify-content: flex-start;
+				}
+
+				.recent-panel-head {
+					align-items: flex-start;
+					flex-wrap: wrap;
+				}
+
+				.admin-recent-activity-card .recent-list-row {
+					grid-template-columns: minmax(0, 1fr) auto;
+					gap: 8px 10px;
+					padding: 12px;
+				}
+
+				.admin-recent-activity-card .recent-product-row {
+					grid-template-columns: 34px minmax(0, 1fr);
+				}
+
+				.admin-recent-activity-card .recent-product-row .recent-money-badge {
+					display: none;
+				}
+
+				.admin-recent-activity-card .recent-mobile-money {
+					display: inline;
+				}
+
+				.admin-recent-activity-card .recent-order-row .recent-list-action {
+					grid-column: 1 / -1;
+					justify-self: start;
+				}
+
+				.admin-recent-activity-card .recent-rank-badge {
+					width: 30px;
+					height: 30px;
+					font-size: 11px;
+				}
+			}
+
+			@media (max-width: 560px) {
+				.order-status-list {
+					grid-template-columns: 1fr;
+				}
+			}
+
 			.chart-grid-aligned {
 				grid-template-columns: repeat(3, minmax(0, 1fr));
 			}
@@ -3222,6 +3612,30 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					padding: 18px;
 				}
 
+				.visit-analytics-big-number {
+					font-size: clamp(38px, 15vw, 54px);
+				}
+
+				.visit-analytics-average-note {
+					width: 100%;
+					justify-content: center;
+				}
+
+				.analytics-line-chart {
+					min-height: 250px;
+					padding: 12px 10px 8px;
+					border-radius: 16px;
+				}
+
+				.analytics-line-chart .traffic-chart-svg {
+					height: 230px;
+					min-height: 230px;
+				}
+
+				.analytics-line-chart .traffic-empty-state {
+					min-height: 228px;
+				}
+
 				.business-detail-row {
 					align-items: flex-start;
 					flex-direction: column;
@@ -3257,6 +3671,172 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					flex: 0 0 auto;
 				}
 			}</style>
+		<style is:global>
+			/* PZ-ADMIN-ACTIVITY-TEXT-LIST-FIX-003 */
+			.activity-text-list,
+			.recent-list {
+				display: grid !important;
+				gap: 0 !important;
+				border: 0 !important;
+				background: transparent !important;
+				border-radius: 0 !important;
+				overflow: visible !important;
+				box-shadow: none !important;
+			}
+
+			.activity-text-row,
+			.recent-list-row {
+				min-height: auto !important;
+				display: grid !important;
+				grid-template-columns: minmax(0, 1fr) auto !important;
+				align-items: center !important;
+				gap: 12px !important;
+				padding: 10px 0 !important;
+				border: 0 !important;
+				border-bottom: 1px solid #eef2f7 !important;
+				border-radius: 0 !important;
+				background: transparent !important;
+				box-shadow: none !important;
+				color: inherit !important;
+				text-decoration: none !important;
+			}
+
+			.activity-text-row:last-child,
+			.recent-list-row:last-child {
+				border-bottom: 0 !important;
+			}
+
+			.activity-order-row {
+				cursor: pointer !important;
+			}
+
+			.activity-order-row:hover {
+				background: rgba(37, 99, 235, 0.035) !important;
+			}
+
+			.activity-product-row,
+			.recent-product-row {
+				grid-template-columns: 34px minmax(0, 1fr) !important;
+				cursor: default !important;
+			}
+
+			.activity-text-main,
+			.recent-list-main {
+				min-width: 0 !important;
+				display: flex !important;
+				align-items: baseline !important;
+				gap: 7px !important;
+				flex-wrap: wrap !important;
+			}
+
+			.activity-text-title,
+			.recent-list-title {
+				max-width: 100% !important;
+				color: #0f172a !important;
+				font-size: 13.5px !important;
+				font-weight: 1000 !important;
+				line-height: 1.25 !important;
+				overflow: hidden !important;
+				text-overflow: ellipsis !important;
+				white-space: nowrap !important;
+			}
+
+			.activity-text-meta,
+			.recent-list-subtitle {
+				color: #475569 !important;
+				font-size: 12.5px !important;
+				font-weight: 750 !important;
+				line-height: 1.25 !important;
+				white-space: nowrap !important;
+			}
+
+			.activity-rank-text,
+			.recent-rank-badge {
+				width: auto !important;
+				height: auto !important;
+				min-width: 0 !important;
+				display: inline-flex !important;
+				align-items: center !important;
+				justify-content: flex-start !important;
+				border-radius: 0 !important;
+				background: transparent !important;
+				color: #0f172a !important;
+				font-size: 12.5px !important;
+				font-weight: 1000 !important;
+				box-shadow: none !important;
+			}
+
+			.activity-status-badge,
+			.recent-status-badge {
+				min-height: 22px !important;
+				display: inline-flex !important;
+				align-items: center !important;
+				justify-content: center !important;
+				border-radius: 999px !important;
+				padding: 0 9px !important;
+				font-size: 10.5px !important;
+				font-weight: 1000 !important;
+				line-height: 1 !important;
+				white-space: nowrap !important;
+				box-shadow: none !important;
+			}
+
+			.activity-status-badge.status-pending,
+			.recent-status-badge.status-pending { background: #fef3c7 !important; color: #92400e !important; border: 1px solid #fde68a !important; }
+			.activity-status-badge.status-confirmed,
+			.recent-status-badge.status-confirmed { background: #dcfce7 !important; color: #166534 !important; border: 1px solid #bbf7d0 !important; }
+			.activity-status-badge.status-preparing,
+			.recent-status-badge.status-preparing { background: #ede9fe !important; color: #5b21b6 !important; border: 1px solid #ddd6fe !important; }
+			.activity-status-badge.status-delivered,
+			.recent-status-badge.status-delivered { background: #dcfce7 !important; color: #166534 !important; border: 1px solid #bbf7d0 !important; }
+			.activity-status-badge.status-cancelled,
+			.recent-status-badge.status-cancelled { background: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fecaca !important; }
+
+			.activity-empty-text,
+			.recent-empty-state {
+				border: 0 !important;
+				border-radius: 0 !important;
+				background: transparent !important;
+				color: #64748b !important;
+				font-size: 13px !important;
+				font-weight: 850 !important;
+				padding: 12px 0 !important;
+				text-align: left !important;
+				box-shadow: none !important;
+			}
+
+			.activity-product-row .recent-money-badge,
+			.activity-product-row .activity-money-badge,
+			.activity-product-row .money-badge,
+			.activity-product-row .revenue-badge {
+				display: none !important;
+			}
+
+			@media (max-width: 720px) {
+				.activity-text-row,
+				.recent-list-row {
+					grid-template-columns: minmax(0, 1fr) auto !important;
+					gap: 6px 10px !important;
+					padding: 11px 0 !important;
+				}
+
+				.activity-product-row,
+				.recent-product-row {
+					grid-template-columns: 28px minmax(0, 1fr) !important;
+				}
+
+				.activity-text-main,
+				.recent-list-main {
+					display: grid !important;
+					gap: 3px !important;
+				}
+
+				.activity-text-meta,
+				.recent-list-subtitle {
+					white-space: normal !important;
+				}
+			}
+		</style>
 	</head>
 	<body>
 		<main>
@@ -3387,7 +3967,50 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 					<section class="dashboard-block dashboard-profit-control-block" aria-labelledby="dashboard-profit-title"><div class="dashboard-block-head"><div><h2 id="dashboard-profit-title" class="dashboard-block-title">Ganancia y control</h2><p class="dashboard-block-subtitle">Controla rentabilidad, envíos, vencimientos y stock.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminProfitsPath}><span class="pz-admin-btn__label">Ver detalle de ganancias</span></a></div><div class="analytics-card-grid analytics-card-grid-secondary" id="profit-kpi-grid"></div></section>
 
-					<section class="dashboard-block dashboard-activity-block" aria-labelledby="dashboard-activity-title"><div class="dashboard-block-head"><div><h2 id="dashboard-activity-title" class="dashboard-block-title">Actividad reciente</h2><p class="dashboard-block-subtitle">Últimos pedidos, productos destacados y estado general.</p></div></div><div class="dashboard-activity-grid"><article class="dashboard-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Pedidos recientes</h3><p>Últimos pedidos recibidos.</p></div><a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href={adminOrdersPath}><span class="pz-admin-btn__label">Ver todos</span></a></div><div id="recent-orders" class="recent-orders-list"></div></article><article class="dashboard-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Productos más vendidos</h3><p>Ranking del período seleccionado.</p></div><a class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact" href={adminProductsPath}><span class="pz-admin-btn__label">Ver todos</span></a></div><p id="top-products-meta" class="mini-panel-meta">Cargando...</p><div id="top-products-list" class="top-products-list"></div></article><article class="dashboard-mini-panel dashboard-status-mini-panel"><div class="dashboard-mini-panel-head"><div><h3>Estado de pedidos</h3><p>Distribución del período.</p></div></div><div id="status-grid" class="status-grid dashboard-status-grid"></div></article></div></section>
+					<section class="dashboard-block dashboard-activity-block admin-recent-activity-card" aria-labelledby="dashboard-activity-title">
+						<div class="recent-activity-head">
+							<div>
+								<h2 id="dashboard-activity-title">Actividad reciente</h2>
+								<p>Últimos movimientos del período seleccionado.</p>
+							</div>
+						</div>
+
+						<div class="recent-activity-tabs" role="tablist" aria-label="Actividad reciente" data-pz-scroll-hint>
+							<button class="recent-activity-tab is-active" type="button" role="tab" data-recent-tab="orders" aria-selected="true">Pedidos recientes</button>
+							<button class="recent-activity-tab" type="button" role="tab" data-recent-tab="products" aria-selected="false">Productos más vendidos</button>
+						</div>
+
+						<div class="recent-activity-panel is-active" role="tabpanel" data-recent-panel="orders">
+							<div class="recent-panel-head">
+								<div>
+									<strong>Pedidos recientes</strong>
+									<span>Últimos pedidos recibidos.</span>
+								</div>
+								<a class="recent-panel-link" href={adminOrdersPath}>Ver todos</a>
+							</div>
+							<div id="recent-orders" class="activity-text-list recent-list recent-orders-list is-empty"></div>
+						</div>
+
+						<div class="recent-activity-panel" role="tabpanel" data-recent-panel="products" hidden>
+							<div class="recent-panel-head">
+								<div>
+									<strong>Productos más vendidos</strong>
+									<span id="top-products-meta">Ranking del período seleccionado.</span>
+								</div>
+							</div>
+							<div id="top-products-list" class="activity-text-list recent-list top-products-list is-empty"></div>
+						</div>
+					</section>
+
+					<section class="dashboard-block order-status-summary-card" aria-labelledby="dashboard-order-status-title">
+						<div class="order-status-summary-head">
+							<div>
+								<h2 id="dashboard-order-status-title">Estado de pedidos</h2>
+								<p>Distribución del período seleccionado.</p>
+							</div>
+						</div>
+						<div id="status-grid" class="order-status-list"></div>
+					</section>
 
 					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>
 
@@ -4054,6 +4677,57 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				return date.toLocaleDateString('es', { day: '2-digit', month: 'short' }).replace('.', '');
 			}
 
+			function shouldShowAnalyticsTickLabel(index, total) {
+				if (total <= 1) return true;
+				if (total <= 7) return true;
+				if (total <= 15) return index === 0 || index === total - 1 || index % 3 === 0;
+				if (total <= 30) return index === 0 || index === total - 1 || index % 5 === 0;
+				return index === 0 || index === total - 1 || index % 7 === 0;
+			}
+
+			function getNiceAnalyticsMax(value) {
+				const numeric = Number(value || 0);
+				if (numeric <= 0) return 4;
+				if (numeric <= 2) return 4;
+				if (numeric <= 5) return 6;
+				if (numeric <= 10) return 10;
+				if (numeric <= 20) return 20;
+				if (numeric <= 50) return 50;
+				const magnitude = Math.pow(10, Math.floor(Math.log10(numeric)));
+				return Math.ceil(numeric / magnitude) * magnitude;
+			}
+
+			function getNiceAnalyticsStep(value) {
+				const numeric = Number(value || 0);
+				if (numeric <= 4) return 1;
+				if (numeric <= 10) return 2;
+				if (numeric <= 20) return 5;
+				if (numeric <= 50) return 10;
+
+				const rawStep = numeric / 4;
+				const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+				const normalized = rawStep / magnitude;
+				if (normalized <= 1) return magnitude;
+				if (normalized <= 2) return 2 * magnitude;
+				if (normalized <= 2.5) return 2.5 * magnitude;
+				if (normalized <= 5) return 5 * magnitude;
+				return 10 * magnitude;
+			}
+
+			function getAnalyticsGridScale(value) {
+				const baseMax = getNiceAnalyticsMax(value);
+				const step = getNiceAnalyticsStep(baseMax);
+				const max = Math.max(step, Math.ceil(baseMax / step) * step);
+				const ticks = [];
+
+				for (let tick = 0; tick <= max; tick += step) {
+					ticks.push(Math.round(tick * 100) / 100);
+				}
+
+				if (ticks[ticks.length - 1] !== max) ticks.push(max);
+				return { max, ticks };
+			}
+
 			function getAnalyticsRangeDays() {
 				const maxDays = Math.min(getAnalyticsRetentionDays(), ANALYTICS_MAX_RETENTION_DAYS);
 				const total = Math.max(1, Math.min(maxDays, getSummaryRangeDays()));
@@ -4136,30 +4810,37 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				};
 			}
 
-			function createTrafficChartMarkup(points, field, strokeColor, fillColor, maxTicks = 4) {
+			function createTrafficChartMarkup(points, field, strokeColor, fillColor) {
 				if (!points.length || points.every((point) => Number(point[field] || 0) === 0)) {
-					return '<div class="traffic-empty-state">Todavía no hay datos suficientes para mostrar esta analítica.</div>';
+					return `
+						<div class="traffic-empty-state">
+							<strong>Sin actividad visible todavía</strong>
+							<small>Cuando haya visitas en este periodo, la tendencia aparecerá aquí.</small>
+						</div>
+					`;
 				}
 
 				const width = 900;
-				const height = 310;
-				const paddingX = 44;
-				const paddingTop = 18;
-				const paddingBottom = 46;
+				const height = 300;
+				const paddingX = 58;
+				const paddingTop = 26;
+				const paddingBottom = 56;
 				const innerWidth = width - paddingX * 2;
 				const innerHeight = height - paddingTop - paddingBottom;
-				const maxValue = Math.max(...points.map((point) => Number(point[field] || 0)), 1);
-				const roundedMax = Math.max(Math.ceil(maxValue / 10) * 10, 1);
-				const stepX = points.length > 1 ? innerWidth / (points.length - 1) : innerWidth;
+				const values = points.map((point) => Number(point[field] || 0));
+				const maxValue = Math.max(...values, 0);
+				const scale = getAnalyticsGridScale(maxValue);
+				const stepX = points.length > 1 ? innerWidth / (points.length - 1) : 0;
 
 				const coords = points.map((point, index) => {
-					const x = paddingX + index * stepX;
-					const y = paddingTop + innerHeight - ((Number(point[field] || 0) / roundedMax) * innerHeight);
-					return { ...point, x, y, index };
+					const value = Number(point[field] || 0);
+					const x = points.length > 1 ? paddingX + index * stepX : paddingX + innerWidth / 2;
+					const y = paddingTop + innerHeight - ((value / scale.max) * innerHeight);
+					return { ...point, value, x, y, index };
 				});
 
 				function buildSmoothPath(items) {
-					if (items.length === 1) return `M ${items[0].x} ${items[0].y}`;
+					if (items.length === 1) return `M ${paddingX} ${items[0].y} L ${width - paddingX} ${items[0].y}`;
 
 					return items.map((point, index) => {
 						if (index === 0) return `M ${point.x} ${point.y}`;
@@ -4170,37 +4851,55 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}
 
 				const linePath = buildSmoothPath(coords);
-				const areaPath = `${linePath} L ${coords[coords.length - 1].x} ${height - paddingBottom} L ${coords[0].x} ${height - paddingBottom} Z`;
-				const gradientId = `traffic-${field}-${selectedRange}`;
-				const tickCount = maxTicks;
-				const grid = Array.from({ length: tickCount + 1 }, (_, index) => {
-					const value = Math.round((roundedMax / tickCount) * index);
-					const y = paddingTop + innerHeight - ((value / roundedMax) * innerHeight);
+				const baselineY = height - paddingBottom;
+				const areaPath = coords.length === 1
+					? `${linePath} L ${width - paddingX} ${baselineY} L ${paddingX} ${baselineY} Z`
+					: `${linePath} L ${coords[coords.length - 1].x} ${baselineY} L ${coords[0].x} ${baselineY} Z`;
+				const gradientId = `traffic-${field}-${selectedRange}-${coords.length}`;
+				const grid = scale.ticks.map((value) => {
+					const y = paddingTop + innerHeight - ((value / scale.max) * innerHeight);
 					return { y, value };
 				});
 
-				const labelStep = points.length > 30 ? 7 : points.length > 15 ? 4 : points.length > 7 ? 2 : 1;
-				const visibleLabels = coords.filter((point) => point.index === 0 || point.index === coords.length - 1 || point.index % labelStep === 0);
+				const visibleLabels = coords.filter((point) => shouldShowAnalyticsTickLabel(point.index, coords.length));
+				const visiblePoints = coords.filter((point) => {
+					if (coords.length <= 15) return true;
+					if (point.index === 0 || point.index === coords.length - 1) return true;
+					if (point.index % 5 === 0) return true;
+					if (point.value <= 0) return false;
+					const previousValue = coords[point.index - 1]?.value || 0;
+					const nextValue = coords[point.index + 1]?.value || 0;
+					if (point.value > previousValue && point.value >= nextValue) return true;
+					return false;
+				});
 
 				return `
 					<svg class="traffic-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de analítica de tienda">
 						<defs>
 							<linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
-								<stop offset="0%" stop-color="${fillColor}" stop-opacity="0.34" />
-								<stop offset="100%" stop-color="${fillColor}" stop-opacity="0.02" />
+								<stop offset="0%" stop-color="${fillColor}" stop-opacity="0.26" />
+								<stop offset="100%" stop-color="${fillColor}" stop-opacity="0.03" />
 							</linearGradient>
 						</defs>
 						${grid.map((tick) => `
-							<line x1="${paddingX}" y1="${tick.y}" x2="${width - paddingX}" y2="${tick.y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4 4" />
-							<text x="${width - paddingX + 10}" y="${tick.y + 4}" font-size="12" font-weight="700" fill="#64748b">${tick.value}</text>
+							<line x1="${paddingX}" y1="${tick.y}" x2="${width - paddingX}" y2="${tick.y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="5 7" stroke-linecap="round" />
+							<text x="${width - paddingX + 12}" y="${tick.y + 4}" font-size="11" font-weight="750" fill="#64748b">${tick.value}</text>
 						`).join('')}
 						<path d="${areaPath}" fill="url(#${gradientId})"></path>
-						<path d="${linePath}" fill="none" stroke="${strokeColor}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"></path>
-						${coords.map((point) => `
-							<circle cx="${point.x}" cy="${point.y}" r="4.6" fill="${strokeColor}" stroke="#ffffff" stroke-width="2" />
-						`).join('')}
+						<path d="${linePath}" fill="none" stroke="${strokeColor}" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"></path>
+						${coords.length ? `
+							<circle cx="${coords[coords.length - 1].x}" cy="${coords[coords.length - 1].y}" r="10" fill="${strokeColor}" fill-opacity="0.12" />
+						` : ''}
+						${visiblePoints.map((point) => {
+							const isLast = point.index === coords.length - 1;
+							const radius = isLast ? 6.4 : point.value > 0 ? 4.4 : 3.2;
+							const opacity = isLast || point.value > 0 ? 1 : 0.52;
+							return `
+								<circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${strokeColor}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="${isLast ? 3 : 2}" />
+							`;
+						}).join('')}
 						${visibleLabels.map((point) => `
-							<text x="${point.x}" y="${height - 13}" text-anchor="middle" font-size="12" font-weight="750" fill="#475569">${escapeHtml(point.label)}</text>
+							<text x="${point.x}" y="${height - 16}" text-anchor="middle" font-size="11" font-weight="800" fill="#475569">${escapeHtml(point.label)}</text>
 						`).join('')}
 					</svg>
 				`;
@@ -4525,69 +5224,59 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				profitChartMeta.textContent = 'Total: ' + formatUSD(totalProfit);
 			}
 
-	function renderTopProducts(metrics) {
-	const topProducts = metrics.topProducts || [];
-	const totalUnits = topProducts.reduce((sum, product) => sum + Number(product.quantity || 0), 0);
-	topProductsMeta.textContent = totalUnits ? `${totalUnits} unidades` : 'Sin ventas';
+			function renderTopProducts(metrics) {
+				const products = metrics.topProducts || [];
+				const visibleProducts = products.slice(0, 5);
+				topProductsMeta.textContent = 'Ranking del período seleccionado.';
+				topProductsList.classList.toggle('is-empty', !visibleProducts.length);
 
-	if (!topProducts.length) {
-		topProductsList.innerHTML = '<div class="empty-state">Todavía no hay productos vendidos en este período.</div>';
-		return;
-	}
+				if (!visibleProducts.length) {
+					topProductsList.innerHTML = '<div class="activity-empty-text">Todavía no hay productos vendidos en este período.</div>';
+					return;
+				}
 
-	topProductsList.innerHTML = topProducts.map((product, index) => {
-		const quantity = Number(product.quantity || 0);
-		const soldText = quantity === 1 ? '1 vendido' : `${quantity} vendidos`;
-		const rowStyle = 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%;min-width:0;padding:12px 14px;border-radius:999px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);border:1px solid rgba(226,232,240,0.95);box-shadow:0 12px 26px rgba(15,23,42,0.06),inset 0 1px 0 rgba(255,255,255,0.92);color:#0f172a;text-decoration:none;box-sizing:border-box;';
-		const leftStyle = 'display:flex;align-items:center;gap:10px;min-width:0;flex:1 1 260px;';
-		const rankStyle = 'width:34px;height:34px;min-width:34px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:#0f172a;color:#ffffff;font-size:13px;font-weight:950;box-shadow:0 10px 22px rgba(15,23,42,0.18);';
-		const nameStyle = 'font-weight:950;color:#020617;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;';
-		const rightStyle = 'display:flex;align-items:center;gap:8px;flex:0 0 auto;min-width:0;';
-		const qtyStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid rgba(245,158,11,0.22);font-size:12px;font-weight:950;white-space:nowrap;';
-		const totalStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:7px 11px;border-radius:999px;background:#ecfdf5;color:#166534;border:1px solid rgba(22,163,74,0.18);font-size:12px;font-weight:950;white-space:nowrap;';
+				topProductsList.innerHTML = visibleProducts.map((product, index) => {
+					const quantity = Number(product.quantity || 0);
+					const soldText = quantity === 1 ? '1 vendido' : `${quantity} vendidos`;
+					const total = formatUSD(product.total || 0);
 
-		return `
-			<div class="top-product-item top-product-modern-row" style="${rowStyle}">
-				<div style="${leftStyle}">
-					<span style="${rankStyle}">${index + 1}#</span>
-					<span style="${nameStyle}">${escapeHtml(product.name)}</span>
-				</div>
-				<div style="${rightStyle}">
-					<span style="${qtyStyle}">${escapeHtml(soldText)}</span>
-					<span style="${totalStyle}">${escapeHtml(formatUSD(product.total || 0))}</span>
-				</div>
-			</div>
-		`;
-	}).join('');
-}
+					return `
+						<div class="activity-text-row activity-product-row">
+							<span class="activity-rank-text">#${index + 1}</span>
+							<div class="activity-text-main">
+								<strong class="activity-text-title">${escapeHtml(product.name || 'Producto sin nombre')}</strong>
+								<span class="activity-text-meta">${escapeHtml(soldText)} · ${escapeHtml(total)}</span>
+							</div>
+						</div>
+					`;
+				}).join('');
+			}
 
 			function renderRecentOrders(metrics) {
 				const recent = [...metrics.filteredOrders].sort((a, b) => new Date(b.created) - new Date(a.created)).slice(0, 5);
+				recentOrders.classList.toggle('is-empty', !recent.length);
 
 				if (!recent.length) {
-					recentOrders.innerHTML = '<div class="empty-state">Aún no hay pedidos guardados en este período.</div>';
+					recentOrders.innerHTML = '<div class="activity-empty-text">Aún no hay pedidos guardados en este período.</div>';
 					return;
 				}
 
 				recentOrders.innerHTML = recent.map((order) => {
-					const statusText = statusLabels[order.status] || order.status || 'Pendiente';
-					const statusStyle = getRecentStatusStyle(order.status);
-					const rowStyle = 'display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;min-width:0;padding:12px 14px;border-radius:999px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);border:1px solid rgba(226,232,240,0.95);box-shadow:0 12px 26px rgba(15,23,42,0.06),inset 0 1px 0 rgba(255,255,255,0.92);color:#0f172a;text-decoration:none;box-sizing:border-box;';
-					const orderStyle = 'font-weight:950;color:#020617;white-space:nowrap;';
-					const metaStyle = 'font-size:14px;font-weight:780;color:#334155;white-space:nowrap;';
-					const detailStyle = 'margin-left:auto;display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:6px 10px;border-radius:999px;background:#eff6ff;color:#1d4ed8;border:1px solid rgba(37,99,235,0.20);font-size:12px;font-weight:950;white-space:nowrap;';
+					const normalizedStatus = String(order.status || 'pending').toLowerCase();
+					const statusKey = normalizedStatus === 'canceled' ? 'cancelled' : normalizedStatus;
+					const statusText = statusLabels[statusKey] || order.status || 'Pendiente';
+					const statusClass = statusClassMap[statusKey] || statusClassMap.pending;
+					const total = formatUSD(order.total);
+					const date = formatShortDate(order.created);
 
 					return `
-						<div class="order-item recent-order-compact" style="padding:0 !important;background:transparent !important;border:0 !important;box-shadow:none !important;width:100% !important;">
-							<a class="recent-order-line" style="${rowStyle}" href="${orderDetailPath(order)}">
-								<span style="${orderStyle}">${escapeHtml(order.order_number || 'Sin número')}</span>
-								<span style="${metaStyle}">·</span>
-								<span style="${metaStyle}">${escapeHtml(formatShortDate(order.created))}</span>
-								<span style="${metaStyle}">${escapeHtml(formatUSD(order.total))}</span>
-								<span style="${statusStyle}">${escapeHtml(statusText)}</span>
-								<span style="${detailStyle}">Ver detalle</span>
-							</a>
-						</div>
+						<a class="activity-text-row activity-order-row" href="${escapeHtml(orderDetailPath(order))}">
+							<div class="activity-text-main">
+								<strong class="activity-text-title">${escapeHtml(order.order_number || 'Sin número')}</strong>
+								<span class="activity-text-meta">${escapeHtml(date)} · ${escapeHtml(total)}</span>
+							</div>
+							<span class="activity-status-badge ${escapeHtml(statusClass)}">${escapeHtml(statusText)}</span>
+						</a>
 					`;
 				}).join('');
 			}
@@ -4687,15 +5376,16 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function renderStatusGrid(metrics) {
-	const statuses = ['confirmed', 'pending', 'preparing', 'delivered', 'cancelled'];
+				const statuses = ['confirmed', 'pending', 'preparing', 'delivered', 'cancelled'];
+				statusGrid.classList.add('order-status-list');
 
-	statusGrid.innerHTML = statuses.map((status) => `
-		<div class="status-box" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-			<span>${escapeHtml(statusLabels[status])}</span>
-			<strong style="margin-top:0; font-size:20px;">${metrics.statusCounts[status] || 0}</strong>
-		</div>
-	`).join('');
-}
+				statusGrid.innerHTML = statuses.map((status) => `
+					<div class="order-status-row">
+						<span>${escapeHtml(statusLabels[status])}</span>
+						<strong>${metrics.statusCounts[status] || 0}</strong>
+					</div>
+				`).join('');
+			}
 
 			function renderRatingSummary() {
 				if (!ratingSummaryGrid) return;
@@ -4759,10 +5449,13 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				if (businessOrdersChart) businessOrdersChart.innerHTML = '<div class="business-empty-state">Cargando pedidos...</div>';
 				if (kpiGrid) kpiGrid.innerHTML = '<div class="card empty-state">Cargando métricas...</div>';
 				if (profitKpiGrid) profitKpiGrid.innerHTML = '<div class="card empty-state">Cargando control...</div>';
-				topProductsList.innerHTML = '<div class="empty-state">Cargando productos más vendidos...</div>';
+				topProductsList.classList.add('is-empty');
+				recentOrders.classList.add('is-empty');
+				statusGrid.classList.remove('order-status-list');
+				topProductsList.innerHTML = '<div class="activity-empty-text">Cargando productos más vendidos...</div>';
 				if (mostViewedProductsList) mostViewedProductsList.innerHTML = '<div class="empty-state">Cargando productos más vistos...</div>';
 				if (mostViewedProductsMeta) mostViewedProductsMeta.textContent = 'Cargando...';
-				recentOrders.innerHTML = '<div class="empty-state">Cargando pedidos recientes...</div>';
+				recentOrders.innerHTML = '<div class="activity-empty-text">Cargando pedidos recientes...</div>';
 				statusGrid.innerHTML = '<div class="empty-state">Cargando estados...</div>';
 				if (ratingSummaryGrid) ratingSummaryGrid.innerHTML = '<div class="empty-state">Cargando rating y reseñas...</div>';
 				if (ratingSummaryNote) ratingSummaryNote.classList.add('hidden');
@@ -4806,6 +5499,37 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				adminBellDropdown?.classList.add('hidden');
 				adminBellBtn?.setAttribute('aria-expanded', 'false');
 			}
+
+			function setupRecentActivityTabs() {
+				const tabs = Array.from(document.querySelectorAll('[data-recent-tab]'));
+				const panels = Array.from(document.querySelectorAll('[data-recent-panel]'));
+
+				if (!tabs.length || !panels.length) return;
+
+				function activateRecentTab(tabName) {
+					tabs.forEach((tab) => {
+						const isActive = tab.getAttribute('data-recent-tab') === tabName;
+						tab.classList.toggle('is-active', isActive);
+						tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+					});
+
+					panels.forEach((panel) => {
+						const isActive = panel.getAttribute('data-recent-panel') === tabName;
+						panel.classList.toggle('is-active', isActive);
+						panel.hidden = !isActive;
+					});
+				}
+
+				tabs.forEach((tab) => {
+					tab.addEventListener('click', () => {
+						activateRecentTab(tab.getAttribute('data-recent-tab') || 'orders');
+					});
+				});
+
+				activateRecentTab('orders');
+			}
+
+			setupRecentActivityTabs();
 
 			adminBellBtn?.addEventListener('click', (event) => {
 				event.stopPropagation();
