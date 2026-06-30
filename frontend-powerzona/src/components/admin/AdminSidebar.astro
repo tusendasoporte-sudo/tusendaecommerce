@@ -371,6 +371,7 @@ const marketingVisualSubClass = (subsection: string) => {
     ensureStoreNotificationAnyStatus,
     findStoreNotificationAnyStatus,
     ensureStoreNotificationAfterSourceChange,
+    deleteArchivedNotificationsBefore,
   } from '../../lib/adminNotifications.js';
 
   (() => {
@@ -710,6 +711,10 @@ const marketingVisualSubClass = (subsection: string) => {
       try {
         const settings = await loadSettings();
 
+        if (detectPending) {
+          await runNotificationCleanup(settings);
+        }
+
         if (detectNewOrders || detectPending) {
           await detectMissingNewOrderNotifications(settings);
         }
@@ -739,6 +744,51 @@ const marketingVisualSubClass = (subsection: string) => {
       const filter = encodeURIComponent(`active = true && store="${escapeFilterValue(storeId)}"`);
       const result = await api(`/api/collections/settings/records?filter=${filter}&sort=-updated&perPage=1`);
       return (result.items || [])[0] || null;
+    }
+
+    function shouldRunNotificationCleanup(settings = {}) {
+      if (!settings || settings.notification_cleanup_enabled === false) return false;
+
+      const lastRun = settings.notification_cleanup_last_run_at
+        ? new Date(settings.notification_cleanup_last_run_at)
+        : null;
+
+      if (!lastRun || Number.isNaN(lastRun.getTime())) return true;
+
+      const elapsed = Date.now() - lastRun.getTime();
+      return elapsed >= 23 * 60 * 60 * 1000;
+    }
+
+    async function updateNotificationCleanupLastRun(settingsId, dateIso) {
+      if (!settingsId) return;
+
+      await api(`/api/collections/settings/records/${encodeURIComponent(settingsId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notification_cleanup_last_run_at: dateIso,
+        }),
+      });
+    }
+
+    async function runNotificationCleanup(settings = {}) {
+      try {
+        if (!settings?.id) return;
+        if (!shouldRunNotificationCleanup(settings)) return;
+
+        const days = Math.max(1, Math.min(365, Number(settings.notification_cleanup_days || 60)));
+        const cutoffIso = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+        await deleteArchivedNotificationsBefore({
+          pb,
+          storeId,
+          cutoffIso,
+        });
+
+        await updateNotificationCleanupLastRun(settings.id, new Date().toISOString());
+      } catch (error) {
+        console.warn('Could not run notification cleanup.', error);
+      }
     }
 
     async function detectPendingOrders(settingsRecord = null) {

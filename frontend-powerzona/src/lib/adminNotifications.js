@@ -74,6 +74,13 @@ async function collectionUpdate(pb, id, payload) {
   });
 }
 
+async function collectionDelete(pb, id) {
+  return request(pb, `/api/collections/${COLLECTION}/records/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    sdk: (collection) => collection.delete(id),
+  });
+}
+
 export function normalizeNotification(record) {
   const item = record || {};
   return {
@@ -89,6 +96,7 @@ export function normalizeNotification(record) {
     entityId: item.entity_id || '',
     metadata: item.metadata_json || {},
     readAt: item.read_at || '',
+    archivedAt: item.archived_at || '',
     created: item.created || '',
     updated: item.updated || '',
     raw: item,
@@ -193,9 +201,13 @@ export async function markNotificationRead({ pb, notificationId }) {
 export async function archiveNotification({ pb, notificationId }) {
   try {
     if (!notificationId) return null;
+
+    const now = new Date().toISOString();
+
     return normalizeNotification(await collectionUpdate(pb, notificationId, {
       status: 'archived',
-      read_at: new Date().toISOString(),
+      read_at: now,
+      archived_at: now,
     }));
   } catch (error) {
     console.warn('Could not archive notification.', error);
@@ -272,6 +284,7 @@ export async function archiveAllNotifications({ pb, storeId }) {
       await Promise.all(ids.map((id) => collectionUpdate(pb, id, {
         status: 'archived',
         read_at: now,
+        archived_at: now,
       })));
 
       archived += ids.length;
@@ -281,6 +294,44 @@ export async function archiveAllNotifications({ pb, storeId }) {
     return archived;
   } catch (error) {
     console.warn('Could not archive all notifications.', error);
+    return 0;
+  }
+}
+
+export async function deleteArchivedNotificationsBefore({ pb, storeId, cutoffIso }) {
+  try {
+    if (!storeId || !cutoffIso) return 0;
+
+    const store = escapeFilterValue(storeId);
+    let deleted = 0;
+
+    const filters = [
+      `store="${store}" && status="archived" && archived_at <= "${escapeFilterValue(cutoffIso)}"`,
+      `store="${store}" && status="archived" && archived_at = "" && updated <= "${escapeFilterValue(cutoffIso)}"`,
+    ];
+
+    for (const filter of filters) {
+      for (let index = 0; index < 50; index += 1) {
+        const result = await collectionList(pb, filter, {
+          page: 1,
+          perPage: 100,
+          fields: 'id',
+          sort: 'created',
+        });
+
+        const ids = (result.items || []).map((item) => item.id).filter(Boolean);
+        if (!ids.length) break;
+
+        await Promise.all(ids.map((id) => collectionDelete(pb, id)));
+        deleted += ids.length;
+
+        if (ids.length < 100) break;
+      }
+    }
+
+    return deleted;
+  } catch (error) {
+    console.warn('Could not delete old archived notifications.', error);
     return 0;
   }
 }
