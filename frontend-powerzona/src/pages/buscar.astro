@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import StoreAnalyticsTracker from '../components/StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
 import { isStoreTemporarilyClosed } from '../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
@@ -321,4 +322,6 @@ const searchItems = [
     if (initialQuery) runSearch(initialQuery, true);
     else renderRecentSearches();
   </script>
+
+  <StoreAnalyticsTracker storeId={currentStore.id} pageType="search" />
 </Layout>

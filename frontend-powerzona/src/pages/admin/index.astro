@@ -3948,9 +3948,15 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					const bucket = grouped.get(day);
 					if (!bucket) return;
 
-					bucket.pageViews += 1;
+					const eventType = String(event.event_type || 'pageview').trim().toLowerCase();
+
+					if (eventType === 'pageview') {
+						bucket.pageViews += 1;
+					}
+
 					const visitor = String(event.visitor_id || '').trim();
 					const session = String(event.session_id || '').trim();
+
 					if (visitor) {
 						bucket.visitors.add(visitor);
 						periodVisitors.add(visitor);

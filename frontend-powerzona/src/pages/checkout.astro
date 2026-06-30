@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import StoreAnalyticsTracker from '../components/StoreAnalyticsTracker.astro';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -2446,4 +2447,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				renderCheckout();
 			});
 	</script>
+
+	<StoreAnalyticsTracker storeId={currentStoreId} pageType="checkout" />
 </Layout>

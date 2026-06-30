@@ -1,7 +1,7 @@
 ---
 type Props = {
   storeId?: string;
-  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'other';
+  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'search' | 'checkout' | 'other';
   entityType?: string;
   entityId?: string;
 };
@@ -19,10 +19,41 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 {storeId && pocketbaseUrl && (
   <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId }}>
     (() => {
+      const DEBUG_ANALYTICS = new URLSearchParams(window.location.search).has('analytics_debug');
+
+      function logDebug(...args) {
+        if (DEBUG_ANALYTICS) console.info('[PZ Analytics]', ...args);
+      }
+
+      function warnDebug(...args) {
+        if (DEBUG_ANALYTICS) console.warn('[PZ Analytics]', ...args);
+      }
+
       try {
         const path = window.location.pathname || '';
-        if (path.includes('/admin') || path.includes('/master')) return;
-        if (navigator.doNotTrack === '1') return;
+
+        if (
+          path.includes('/admin') ||
+          path.includes('/master') ||
+          path.includes('/login') ||
+          path.includes('/master-login')
+        ) {
+          logDebug('Ruta interna omitida.', path);
+          return;
+        }
+
+        if (navigator.doNotTrack === '1') {
+          logDebug('Do Not Track activo. Evento omitido.');
+          return;
+        }
+
+        const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const STORE_ID = String(storeId || '').trim();
+
+        if (!POCKETBASE_URL || !STORE_ID) {
+          warnDebug('Falta PocketBase URL o storeId.', { POCKETBASE_URL, STORE_ID });
+          return;
+        }
 
         const storageKey = 'pz_visitor_id';
         const legacyStorageKey = 'tusenda84_visitor_id';
@@ -38,14 +69,16 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         };
 
         let visitorId = localStorage.getItem(storageKey) || localStorage.getItem(legacyStorageKey);
-        if (!visitorId) {
-          visitorId = makeId('v');
-        }
+        if (!visitorId) visitorId = makeId('v');
         localStorage.setItem(storageKey, visitorId);
 
         const nowTime = Date.now();
         const lastActivity = Number(localStorage.getItem(lastActivityKey) || 0);
-        const isExpiredSession = !Number.isFinite(lastActivity) || !lastActivity || nowTime - lastActivity > sessionTimeoutMs;
+        const isExpiredSession =
+          !Number.isFinite(lastActivity) ||
+          !lastActivity ||
+          nowTime - lastActivity > sessionTimeoutMs;
+
         let sessionId = localStorage.getItem(sessionKey);
         if (!sessionId || isExpiredSession) {
           sessionId = makeId('s');
@@ -58,35 +91,78 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           .toISOString()
           .slice(0, 10);
 
-        const payload = {
-          store: storeId,
-          event_type: 'pageview',
-          day: localDay,
-          visitor_id: visitorId,
-          session_id: sessionId,
-          page_type: pageType || 'other',
-          entity_type: entityType || '',
-          entity_id: entityId || '',
-          path: window.location.pathname.slice(0, 240),
-          referrer: document.referrer ? document.referrer.slice(0, 240) : '',
-          user_agent: navigator.userAgent ? navigator.userAgent.slice(0, 260) : '',
-        };
+        const endpoint = `${POCKETBASE_URL}/api/collections/store_analytics_events/records`;
 
-        const endpoint = `${String(pocketbaseUrl).replace(/\/$/, '')}/api/collections/store_analytics_events/records`;
-
-        if ('sendBeacon' in navigator) {
-          const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-          const sent = navigator.sendBeacon(endpoint, blob);
-          if (sent) return;
+        function buildPayload(eventType = 'pageview') {
+          return {
+            store: STORE_ID,
+            event_type: eventType,
+            day: localDay,
+            visitor_id: visitorId,
+            session_id: sessionId,
+            page_type: pageType || 'other',
+            entity_type: entityType || '',
+            entity_id: entityId || '',
+            path: window.location.pathname.slice(0, 240),
+            referrer: document.referrer ? document.referrer.slice(0, 240) : '',
+            user_agent: navigator.userAgent ? navigator.userAgent.slice(0, 260) : '',
+          };
         }
 
-        fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          keepalive: true,
-        }).catch(() => {});
-      } catch (_) {}
+        async function sendAnalyticsEvent(eventType = 'pageview') {
+          const payload = buildPayload(eventType);
+
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              keepalive: true,
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text().catch(() => '');
+              warnDebug('PocketBase rechazo el evento.', response.status, errorText, payload);
+              return false;
+            }
+
+            logDebug('Evento creado.', payload);
+            return true;
+          } catch (error) {
+            warnDebug('Error creando evento.', error, payload);
+            return false;
+          }
+        }
+
+        sendAnalyticsEvent('pageview');
+
+        let heartbeatTimer = null;
+
+        function startHeartbeat() {
+          if (heartbeatTimer) return;
+
+          heartbeatTimer = window.setInterval(() => {
+            if (document.hidden) return;
+            localStorage.setItem(lastActivityKey, String(Date.now()));
+            sendAnalyticsEvent('heartbeat');
+          }, 60000);
+        }
+
+        function stopHeartbeat() {
+          if (!heartbeatTimer) return;
+          window.clearInterval(heartbeatTimer);
+          heartbeatTimer = null;
+        }
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) stopHeartbeat();
+          else startHeartbeat();
+        });
+
+        startHeartbeat();
+      } catch (error) {
+        if (DEBUG_ANALYTICS) console.warn('[PZ Analytics] Error general.', error);
+      }
     })();
   </script>
 )}
