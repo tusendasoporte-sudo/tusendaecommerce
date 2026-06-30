@@ -1745,6 +1745,15 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return String(phone || '').replace(/\D/g, '');
 		}
 
+		function normalizeReceiptImageUrl(value) {
+			const raw = String(value || '').trim();
+			if (!raw) return '';
+			if (/^https?:\/\//i.test(raw)) return raw;
+			if (raw.startsWith('//')) return `https:${raw}`;
+			if (raw.startsWith('/')) return `${window.location.origin}${raw}`;
+			return raw;
+		}
+
 		function calculateTotals(cart, shippingZone = null, deliveryMethod = '') {
 			const promotionTotals = calculateTotalsWithCoupon(cart, shippingZone, deliveryMethod);
 			const subtotalUSD = promotionTotals.subtotalFinalUSD;
@@ -2269,6 +2278,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				const lineProfitUSD = unitProfitUSD * quantity;
 				const variationLabel = isGift ? '' : (item.variation_label || item.variation_name || '');
 				const variationRef = isGift ? '' : (item.variation_ref || item.variation_internal_ref || '');
+				const itemImageUrl = normalizeReceiptImageUrl(item.image || item.image_url || item.thumbnail || '');
 				const visualUnitPrice = item.only_usd || selectedCode === 'USD' ? unitFinalPriceUSD : convertFromUsd(unitFinalPriceUSD, selectedCode);
 				const visualLineTotal = item.only_usd || selectedCode === 'USD' ? lineTotalUSD : convertFromUsd(lineTotalUSD, selectedCode);
 				const orderItemPayload = {
@@ -2276,6 +2286,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					product_name: item.title,
 					variation_name: variationLabel,
 					variation_label: variationLabel,
+					item_image_url: itemImageUrl,
+					item_image_alt: item.title || 'Producto',
 					variation_ref: variationRef,
 					quantity,
 					unit_price_selected_currency: visualUnitPrice,
