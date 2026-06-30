@@ -3306,6 +3306,30 @@ try {
         font-weight: 750;
         line-height: 1.35;
       }
+
+      .notification-inventory-config {
+        display: grid;
+        gap: 14px;
+        padding: 14px;
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+      }
+
+      .notification-inventory-config__head strong {
+        display: block;
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+
+      .notification-inventory-config__head p {
+        margin: 4px 0 0;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 750;
+        line-height: 1.35;
+      }
       }</style>
   </head>
   <body>
@@ -3484,6 +3508,59 @@ try {
                       <label class="rating-setting-row full" for="settings-notification-bell-priority-colors">
                         <span><strong>Color de campana por prioridad</strong><small>La campana toma el color de la prioridad mas alta sin leer.</small></span>
                         <span class="switch-control"><input id="settings-notification-bell-priority-colors" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="field full">
+                    <div class="notification-inventory-config">
+                      <div class="notification-inventory-config__head">
+                        <div>
+                          <strong>Inventario y vencimientos</strong>
+                          <p>Recibe alertas por productos proximos a vencer, vencidos, stock bajo y agotados.</p>
+                        </div>
+                      </div>
+
+                      <label class="rating-setting-row full" for="settings-notify-product-expiring">
+                        <span><strong>Productos proximos a vencer</strong><small>Avisa cuando un producto este dentro del rango configurado.</small></span>
+                        <span class="switch-control"><input id="settings-notify-product-expiring" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+
+                      <div class="general-settings-grid">
+                        <div class="field">
+                          <label for="settings-product-expiring-days-before">Avisar desde X dias antes</label>
+                          <input id="settings-product-expiring-days-before" type="number" min="1" step="1" value="30" />
+                        </div>
+
+                        <div class="field">
+                          <label for="settings-product-expiring-critical-days">Alta prioridad desde X dias antes</label>
+                          <input id="settings-product-expiring-critical-days" type="number" min="0" step="1" value="7" />
+                        </div>
+                      </div>
+
+                      <label class="rating-setting-row full" for="settings-notify-product-expired">
+                        <span><strong>Productos vencidos</strong><small>Avisa si un producto ya llego o paso su fecha de vencimiento.</small></span>
+                        <span class="switch-control"><input id="settings-notify-product-expired" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+
+                      <label class="rating-setting-row full" for="settings-notify-variation-expiration">
+                        <span><strong>Revisar variaciones tambien</strong><small>Usa la fecha de vencimiento propia de cada variacion cuando exista.</small></span>
+                        <span class="switch-control"><input id="settings-notify-variation-expiration" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+
+                      <label class="rating-setting-row full" for="settings-notify-low-stock">
+                        <span><strong>Stock bajo</strong><small>Avisa cuando un producto o variacion tenga pocas unidades.</small></span>
+                        <span class="switch-control"><input id="settings-notify-low-stock" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                      </label>
+
+                      <div class="field">
+                        <label for="settings-low-stock-threshold">Umbral de stock bajo</label>
+                        <input id="settings-low-stock-threshold" type="number" min="1" step="1" value="3" />
+                        <p class="form-help">Ejemplo: con 3, se avisa cuando queden 1, 2 o 3 unidades.</p>
+                      </div>
+
+                      <label class="rating-setting-row full" for="settings-notify-out-of-stock">
+                        <span><strong>Productos o variaciones agotadas</strong><small>Avisa cuando el stock llegue a 0.</small></span>
+                        <span class="switch-control"><input id="settings-notify-out-of-stock" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
                       </label>
                     </div>
                   </div>
@@ -5007,6 +5084,14 @@ try {
           notificationPriorityCriticalMin: document.getElementById('settings-notification-priority-critical-min'),
           notificationShowOrderSubtotal: document.getElementById('settings-notification-show-order-subtotal'),
           notificationBellPriorityColors: document.getElementById('settings-notification-bell-priority-colors'),
+          notifyProductExpiring: document.getElementById('settings-notify-product-expiring'),
+          productExpiringDaysBefore: document.getElementById('settings-product-expiring-days-before'),
+          productExpiringCriticalDays: document.getElementById('settings-product-expiring-critical-days'),
+          notifyProductExpired: document.getElementById('settings-notify-product-expired'),
+          notifyVariationExpiration: document.getElementById('settings-notify-variation-expiration'),
+          notifyLowStock: document.getElementById('settings-notify-low-stock'),
+          lowStockThreshold: document.getElementById('settings-low-stock-threshold'),
+          notifyOutOfStock: document.getElementById('settings-notify-out-of-stock'),
           whatsappCountry: document.getElementById('settings-whatsapp-country'),
           whatsapp: document.getElementById('settings-whatsapp-number'),
           coverMode: document.getElementById('settings-cover-mode'),
@@ -5449,6 +5534,14 @@ try {
             notificationPriorityCriticalMin: Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)),
             notificationShowOrderSubtotal: fields.notificationShowOrderSubtotal?.checked !== false,
             notificationBellPriorityColors: fields.notificationBellPriorityColors?.checked !== false,
+            notifyProductExpiring: fields.notifyProductExpiring?.checked !== false,
+            productExpiringDaysBefore: Math.max(1, Number(fields.productExpiringDaysBefore?.value || 30)),
+            productExpiringCriticalDays: Math.max(0, Number(fields.productExpiringCriticalDays?.value || 7)),
+            notifyProductExpired: fields.notifyProductExpired?.checked !== false,
+            notifyVariationExpiration: fields.notifyVariationExpiration?.checked !== false,
+            notifyLowStock: fields.notifyLowStock?.checked !== false,
+            lowStockThreshold: Math.max(1, Number(fields.lowStockThreshold?.value || 3)),
+            notifyOutOfStock: fields.notifyOutOfStock?.checked !== false,
             province: fields.province?.value || '',
             municipality: fields.municipality?.value || '',
             addressDetail: fields.addressDetail?.value?.trim() || '',
@@ -5754,6 +5847,14 @@ try {
             notification_priority_critical_min_usd: Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)),
             notification_show_order_subtotal: fields.notificationShowOrderSubtotal?.checked !== false,
             notification_bell_priority_colors: fields.notificationBellPriorityColors?.checked !== false,
+            notify_product_expiring: fields.notifyProductExpiring?.checked !== false,
+            product_expiring_days_before: Math.max(1, Number(fields.productExpiringDaysBefore?.value || 30)),
+            product_expiring_critical_days: Math.max(0, Number(fields.productExpiringCriticalDays?.value || 7)),
+            notify_product_expired: fields.notifyProductExpired?.checked !== false,
+            notify_variation_expiration: fields.notifyVariationExpiration?.checked !== false,
+            notify_low_stock: fields.notifyLowStock?.checked !== false,
+            low_stock_threshold: Math.max(1, Number(fields.lowStockThreshold?.value || 3)),
+            notify_out_of_stock: fields.notifyOutOfStock?.checked !== false,
             cover_mode: fields.coverMode.value || 'single',
             business_types: JSON.stringify(selectedBusinessTypes),
             province: fields.province?.value || '',
@@ -5849,6 +5950,14 @@ try {
           if (fields.notificationPriorityCriticalMin) fields.notificationPriorityCriticalMin.value = String(Math.max(0, Number(record.notification_priority_critical_min_usd ?? 100)));
           if (fields.notificationShowOrderSubtotal) fields.notificationShowOrderSubtotal.checked = record.notification_show_order_subtotal !== false;
           if (fields.notificationBellPriorityColors) fields.notificationBellPriorityColors.checked = record.notification_bell_priority_colors !== false;
+          if (fields.notifyProductExpiring) fields.notifyProductExpiring.checked = record.notify_product_expiring !== false;
+          if (fields.productExpiringDaysBefore) fields.productExpiringDaysBefore.value = String(Math.max(1, Number(record.product_expiring_days_before ?? 30)));
+          if (fields.productExpiringCriticalDays) fields.productExpiringCriticalDays.value = String(Math.max(0, Number(record.product_expiring_critical_days ?? 7)));
+          if (fields.notifyProductExpired) fields.notifyProductExpired.checked = record.notify_product_expired !== false;
+          if (fields.notifyVariationExpiration) fields.notifyVariationExpiration.checked = record.notify_variation_expiration !== false;
+          if (fields.notifyLowStock) fields.notifyLowStock.checked = record.notify_low_stock !== false;
+          if (fields.lowStockThreshold) fields.lowStockThreshold.value = String(Math.max(1, Number(record.low_stock_threshold ?? 3)));
+          if (fields.notifyOutOfStock) fields.notifyOutOfStock.checked = record.notify_out_of_stock !== false;
           fields.coverMode.value = record.cover_mode === 'carousel' ? 'carousel' : 'single';
           setBusinessTypes(parseJsonList(record.business_types));
           fields.province.value = record.province || '';
@@ -5924,6 +6033,14 @@ try {
             data.append('notification_priority_critical_min_usd', Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)));
             data.append('notification_show_order_subtotal', fields.notificationShowOrderSubtotal?.checked !== false);
             data.append('notification_bell_priority_colors', fields.notificationBellPriorityColors?.checked !== false);
+            data.append('notify_product_expiring', fields.notifyProductExpiring?.checked !== false);
+            data.append('product_expiring_days_before', Math.max(1, Number(fields.productExpiringDaysBefore?.value || 30)));
+            data.append('product_expiring_critical_days', Math.max(0, Number(fields.productExpiringCriticalDays?.value || 7)));
+            data.append('notify_product_expired', fields.notifyProductExpired?.checked !== false);
+            data.append('notify_variation_expiration', fields.notifyVariationExpiration?.checked !== false);
+            data.append('notify_low_stock', fields.notifyLowStock?.checked !== false);
+            data.append('low_stock_threshold', Math.max(1, Number(fields.lowStockThreshold?.value || 3)));
+            data.append('notify_out_of_stock', fields.notifyOutOfStock?.checked !== false);
             data.append('cover_mode', fields.coverMode.value || 'single');
             data.append('business_types', JSON.stringify(selectedBusinessTypes));
             data.append('province', fields.province?.value || '');

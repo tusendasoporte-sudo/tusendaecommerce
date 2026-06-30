@@ -508,6 +508,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .variation-name { margin: 4px 0 4px; color: #0f172a; font-size: 1rem; font-weight: 900; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .pz-variation-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #64748b; font-size: 0.82rem; line-height: 1.25; font-weight: 650; }
       .variation-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #64748b; font-size: 0.82rem; line-height: 1.25; font-weight: 650; }
+      .variation-expiration-chip { display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 900; }
       .pz-variation-badge { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 24px; border-radius: 999px; padding: 0 10px; font-size: 0.72rem; font-weight: 900; letter-spacing: 0.02em; white-space: nowrap; }
       .pz-variation-badge-default { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; }
       .pz-variation-badge-active { background: rgba(34, 197, 94, 0.15); color: #15803d; }
@@ -2928,6 +2929,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                         <input id="variation-stock" type="number" min="0" step="1" placeholder="0" />
                         <p id="variation-stock-help" class="form-help">Se exige solo si el producto padre descuenta stock.</p>
                       </div>
+                      <div class="field variation-field-expiration">
+                        <label for="variation-expiration-date">Fecha de vencimiento</label>
+                        <input id="variation-expiration-date" type="date" />
+                        <p class="form-help">Opcional. Util cuando esta variacion/lote vence en una fecha diferente al producto padre.</p>
+                      </div>
                       <div class="field variation-field-ref">
                         <label for="variation-ref">Ref interna</label>
                         <input id="variation-ref" type="text" placeholder="Ej: BF-WHEY-CHOC" />
@@ -3139,6 +3145,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let subcategories = [];
       let products = [];
       let productVariations = [];
+      let pendingUrlVariationId = '';
       let selectedRelatedProductIds = [];
       let modalRelatedProductIds = [];
       let lockedRegularPriceUsd = 0;
@@ -3283,6 +3290,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const variationCostInput = document.getElementById('variation-cost');
       const variationStockInput = document.getElementById('variation-stock');
       const variationStockHelp = document.getElementById('variation-stock-help');
+      const variationExpirationDateInput = document.getElementById('variation-expiration-date');
       const variationRefInput = document.getElementById('variation-ref');
       const variationOrderInput = document.getElementById('variation-order');
       const variationImageInput = document.getElementById('variation-image');
@@ -3873,6 +3881,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           offer_price_usd: variationOfferState.enabled ? Number(variationOfferPriceInput?.value || 0) : 0,
           cost_usd: Number(variationCostInput?.value || 0),
           stock: Number(variationStockInput?.value || 0),
+          expiration_date: variationExpirationDateInput?.value || '',
           internal_ref: variationRefInput?.value?.trim() || '',
           sort_order: Number(variationOrderInput?.value || 0),
           active: variationActiveInput?.checked !== false,
@@ -4172,6 +4181,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setVariationOfferAccordion(false);
         variationCostInput.value = Number(productCostInput.value || 0).toFixed(2);
         variationStockInput.value = '0';
+        if (variationExpirationDateInput) variationExpirationDateInput.value = '';
         variationRefInput.value = '';
         variationOrderInput.value = String(nextVariationOrder());
         variationImageInput.value = '';
@@ -4234,6 +4244,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (variationOfferPriceInput) variationOfferPriceInput.value = variation.is_offer ? Number(variation.offer_price_usd || 0).toFixed(2) : '';
         variationCostInput.value = Number(variation.cost_usd || 0).toFixed(2);
         variationStockInput.value = Number(variation.stock || 0);
+        if (variationExpirationDateInput) variationExpirationDateInput.value = dateForInput(variation.expiration_date);
         variationRefInput.value = variation.internal_ref || '';
         variationOrderInput.value = Number(variation.sort_order || 0);
         variationActiveInput.checked = variation.active !== false;
@@ -4287,7 +4298,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     ${index === 0 ? '<span class="default-badge">Predeterminada</span>' : ''}
                   </div>
                   <p class="variation-name">${escapeHtml(variation.variation_type || 'Variación')}: ${escapeHtml(variation.value || 'Sin valor')}</p>
-                  <p class="variation-meta">${escapeHtml(refText)}</p>
+                  <p class="variation-meta">
+                    <span>${escapeHtml(refText)}</span>
+                    ${variation.expiration_date ? `<span class="variation-expiration-chip">Vence: ${escapeHtml(dateForInput(variation.expiration_date))}</span>` : ''}
+                  </p>
                 </div>
               </div>
               <div class="variation-stat">
@@ -4451,6 +4465,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetVariationEditor();
         try {
           await loadProductVariations(product.id);
+          if (pendingUrlVariationId) {
+            const variationIdToOpen = pendingUrlVariationId;
+            pendingUrlVariationId = '';
+
+            window.setTimeout(() => {
+              if (productVariations.some((variation) => variation.id === variationIdToOpen)) {
+                openVariationEditor(variationIdToOpen);
+              }
+            }, 80);
+          }
         } catch (error) {
           console.error(error);
           productVariations = [];
@@ -4480,6 +4504,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('offer_price_usd', variationOfferState.valid ? String(variationOfferState.offerPrice) : '0');
         formData.append('cost_usd', String(Math.max(0, Number(variationCostInput.value || 0))));
         formData.append('stock', String(Math.max(0, Math.floor(Number(variationStockInput.value || 0)))));
+        formData.append('expiration_date', variationExpirationDateInput?.value || '');
         formData.append('internal_ref', variationRefInput.value.trim());
         formData.append('sort_order', String(Math.max(0, Math.floor(Number(variationOrderInput.value || 0)))));
         formData.append('active', variationActiveInput.checked ? 'true' : 'false');
@@ -5118,6 +5143,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function openEditorFromUrl() {
         const params = new URLSearchParams(window.location.search);
         const editProductId = params.get('product') || '';
+        pendingUrlVariationId = params.get('variation') || '';
         const shouldCreate = params.get('new') === '1';
         const categoryId = params.get('category') || '';
         const subcategoryId = params.get('subcategory') || '';

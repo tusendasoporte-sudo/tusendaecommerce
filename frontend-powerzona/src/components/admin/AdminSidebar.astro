@@ -52,6 +52,7 @@ const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
+const notificationsAdminProductsPath = adminProductsPath;
 
 const defaultMobileTitleBySection: Record<string, string> = {
   overview: 'Resumen',
@@ -347,12 +348,13 @@ const marketingVisualSubClass = (subsection: string) => {
   </section>
 </div>
 
-<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, adminNotificationsPath }}>
+<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
     authToken: String(authToken || ''),
     ordersPath: String(notificationsAdminOrdersPath || ''),
+    productsPath: String(notificationsAdminProductsPath || ''),
     notificationsPath: String(adminNotificationsPath || ''),
   };
 </script>
@@ -368,6 +370,7 @@ const marketingVisualSubClass = (subsection: string) => {
     markAllNotificationsRead,
     ensureStoreNotificationAnyStatus,
     findStoreNotificationAnyStatus,
+    ensureStoreNotificationAfterSourceChange,
   } from '../../lib/adminNotifications.js';
 
   (() => {
@@ -379,6 +382,7 @@ const marketingVisualSubClass = (subsection: string) => {
     const baseUrl = String(config.pocketbaseUrl || '').replace(/\/$/, '');
     const token = String(config.authToken || '');
     const ordersPath = String(config.ordersPath || '');
+    const productsPath = String(config.productsPath || '');
     const notificationsPath = String(config.notificationsPath || '');
     const pb = { baseUrl, token };
     const panel = document.querySelector('[data-pz-admin-notifications-panel]');
@@ -430,6 +434,10 @@ const marketingVisualSubClass = (subsection: string) => {
     function iconFor(type) {
       if (type === 'new_order') return '$';
       if (type === 'pending_order') return '!';
+      if (type === 'low_stock') return '📦';
+      if (type === 'out_of_stock') return '⛔';
+      if (String(type || '').includes('expired')) return '⚠️';
+      if (String(type || '').includes('expiring')) return '⏳';
       return 'i';
     }
 
@@ -514,6 +522,108 @@ const marketingVisualSubClass = (subsection: string) => {
       }
 
       return String(item?.targetUrl || '');
+    }
+
+    function getInventoryNotificationSettings(settings = {}) {
+      const daysBefore = Math.max(1, Number(settings?.product_expiring_days_before ?? 30));
+      const criticalRaw = Math.max(0, Number(settings?.product_expiring_critical_days ?? 7));
+      const criticalDays = Math.min(daysBefore, criticalRaw);
+      const lowStockThreshold = Math.max(1, Number(settings?.low_stock_threshold ?? 3));
+
+      return {
+        productExpiring: settings?.notify_product_expiring !== false,
+        productExpired: settings?.notify_product_expired !== false,
+        variationExpiration: settings?.notify_variation_expiration !== false,
+        lowStock: settings?.notify_low_stock !== false,
+        outOfStock: settings?.notify_out_of_stock !== false,
+        daysBefore,
+        criticalDays,
+        lowStockThreshold,
+      };
+    }
+
+    function normalizeDateOnly(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return null;
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    function daysUntilDate(value) {
+      const target = normalizeDateOnly(value);
+      if (!target) return null;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      return Math.ceil((target.getTime() - today.getTime()) / 86400000);
+    }
+
+    function formatDateOnly(value) {
+      const date = normalizeDateOnly(value);
+      if (!date) return 'Sin fecha';
+      return date.toLocaleDateString('es-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+    }
+
+    function expirationDaysText(daysLeft) {
+      if (daysLeft === null || daysLeft === undefined) return '';
+      if (daysLeft < 0) return `venció hace ${Math.abs(daysLeft)} día${Math.abs(daysLeft) === 1 ? '' : 's'}`;
+      if (daysLeft === 0) return 'vence hoy';
+      if (daysLeft === 1) return 'vence mañana';
+      return `vence en ${daysLeft} días`;
+    }
+
+    function productTracksStockRecord(product = {}) {
+      if (Object.prototype.hasOwnProperty.call(product, 'track_stock')) return product.track_stock !== false;
+      return true;
+    }
+
+    function stockNumber(value) {
+      return Math.max(0, Math.floor(Number(value || 0)));
+    }
+
+    function buildProductAdminUrl(productId) {
+      if (!productId || !productsPath) return productsPath || '';
+      return `${productsPath}?product=${encodeURIComponent(productId)}`;
+    }
+
+    function buildVariationAdminUrl(productId, variationId) {
+      if (!productId || !productsPath) return productsPath || '';
+      const url = new URL(productsPath, window.location.origin);
+      url.searchParams.set('product', productId);
+      if (variationId) url.searchParams.set('variation', variationId);
+      return `${url.pathname}${url.search}`;
+    }
+
+    async function loadAllCollectionRecords(collectionName, query = {}) {
+      const params = new URLSearchParams();
+      Object.entries(query || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value) !== '') {
+          params.set(key, String(value));
+        }
+      });
+
+      params.set('page', '1');
+      params.set('perPage', String(query.perPage || 200));
+
+      let page = 1;
+      let totalPages = 1;
+      const items = [];
+
+      do {
+        params.set('page', String(page));
+        const result = await api(`/api/collections/${collectionName}/records?${params.toString()}`);
+        items.push(...(result.items || []));
+        totalPages = Number(result.totalPages || 1);
+        page += 1;
+      } while (page <= totalPages && page <= 20);
+
+      return items;
     }
 
     function setUnreadState(summary, settings = {}) {
@@ -605,6 +715,7 @@ const marketingVisualSubClass = (subsection: string) => {
         }
         if (detectPending) {
           await detectPendingOrders(settings);
+          await detectInventoryNotifications(settings);
         }
 
         const [items, unreadSummary, visibleCount] = await Promise.all([
@@ -720,6 +831,322 @@ const marketingVisualSubClass = (subsection: string) => {
         }));
       } catch (error) {
         console.warn('Could not detect missing new order notifications.', error);
+      }
+    }
+
+    async function detectProductExpirationNotifications(settingsRecord = null, products = []) {
+      const settings = settingsRecord || await loadSettings();
+      if (!settings || settings.notifications_enabled === false) return;
+
+      const config = getInventoryNotificationSettings(settings);
+      if (!config.productExpiring && !config.productExpired) return;
+
+      await Promise.all(products.map((product) => {
+        const daysLeft = daysUntilDate(product.expiration_date);
+        if (daysLeft === null) return null;
+
+        const name = product.name || 'Producto sin nombre';
+        const formattedDate = formatDateOnly(product.expiration_date);
+        const visibleText = product.active !== false ? ' · Visible en tienda' : ' · Oculto';
+        const stockText = productTracksStockRecord(product) ? ` · Stock: ${stockNumber(product.stock)}` : '';
+
+        let type = '';
+        let title = '';
+        let message = '';
+        let priority = 'important';
+
+        if (daysLeft < 0) {
+          if (!config.productExpired) return null;
+          type = 'product_expired';
+          title = 'Producto vencido';
+          message = `${name} está vencido desde ${formattedDate}${stockText}${visibleText}.`;
+          priority = 'critical';
+        } else if (daysLeft <= config.criticalDays) {
+          if (!config.productExpiring) return null;
+          type = 'product_expiring_critical';
+          title = 'Producto por vencer urgente';
+          message = `${name} ${expirationDaysText(daysLeft)} · Vence: ${formattedDate}${stockText}${visibleText}.`;
+          priority = 'critical';
+        } else if (daysLeft <= config.daysBefore) {
+          if (!config.productExpiring) return null;
+          type = 'product_expiring_soon';
+          title = 'Producto próximo a vencer';
+          message = `${name} ${expirationDaysText(daysLeft)} · Vence: ${formattedDate}${stockText}${visibleText}.`;
+          priority = 'important';
+        } else {
+          return null;
+        }
+
+        return ensureStoreNotificationAfterSourceChange({
+          pb,
+          storeId,
+          type,
+          entityCollection: 'products',
+          entityId: product.id,
+          title,
+          message,
+          priority,
+          targetUrl: buildProductAdminUrl(product.id),
+          sourceUpdated: product.updated || product.created || '',
+          metadata: {
+            product_id: product.id,
+            product_name: name,
+            expiration_date: product.expiration_date || '',
+            days_left: daysLeft,
+            stock: stockNumber(product.stock),
+            visible: product.active !== false,
+          },
+        });
+      }));
+    }
+
+    async function detectVariationExpirationNotifications(settingsRecord = null, products = [], variations = []) {
+      const settings = settingsRecord || await loadSettings();
+      if (!settings || settings.notifications_enabled === false) return;
+
+      const config = getInventoryNotificationSettings(settings);
+      if (!config.variationExpiration) return;
+
+      const productById = new Map(products.map((product) => [product.id, product]));
+
+      await Promise.all(variations.map((variation) => {
+        const daysLeft = daysUntilDate(variation.expiration_date);
+        if (daysLeft === null) return null;
+
+        const product = productById.get(variation.product) || variation.expand?.product || null;
+        if (!product) return null;
+
+        const productName = product.name || 'Producto';
+        const variationName = `${variation.variation_type || 'Variación'}: ${variation.value || 'Sin valor'}`;
+        const formattedDate = formatDateOnly(variation.expiration_date);
+        const visibleText = product.active !== false && variation.active !== false ? ' · Visible en tienda' : ' · Oculta';
+        const stockText = ` · Stock: ${stockNumber(variation.stock)}`;
+
+        let type = '';
+        let title = '';
+        let message = '';
+        let priority = 'important';
+
+        if (daysLeft < 0) {
+          if (!config.productExpired) return null;
+          type = 'variation_expired';
+          title = 'Variación vencida';
+          message = `${productName} · ${variationName} está vencida desde ${formattedDate}${stockText}${visibleText}.`;
+          priority = 'critical';
+        } else if (daysLeft <= config.criticalDays) {
+          type = 'variation_expiring_critical';
+          title = 'Variación por vencer urgente';
+          message = `${productName} · ${variationName} ${expirationDaysText(daysLeft)} · Vence: ${formattedDate}${stockText}${visibleText}.`;
+          priority = 'critical';
+        } else if (daysLeft <= config.daysBefore) {
+          type = 'variation_expiring_soon';
+          title = 'Variación próxima a vencer';
+          message = `${productName} · ${variationName} ${expirationDaysText(daysLeft)} · Vence: ${formattedDate}${stockText}${visibleText}.`;
+          priority = 'important';
+        } else {
+          return null;
+        }
+
+        return ensureStoreNotificationAfterSourceChange({
+          pb,
+          storeId,
+          type,
+          entityCollection: 'product_variations',
+          entityId: variation.id,
+          title,
+          message,
+          priority,
+          targetUrl: buildVariationAdminUrl(product.id, variation.id),
+          sourceUpdated: variation.updated || variation.created || '',
+          metadata: {
+            product_id: product.id,
+            product_name: productName,
+            variation_id: variation.id,
+            variation_name: variationName,
+            expiration_date: variation.expiration_date || '',
+            days_left: daysLeft,
+            stock: stockNumber(variation.stock),
+            visible: product.active !== false && variation.active !== false,
+          },
+        });
+      }));
+    }
+
+    async function detectProductStockNotifications(settingsRecord = null, products = []) {
+      const settings = settingsRecord || await loadSettings();
+      if (!settings || settings.notifications_enabled === false) return;
+
+      const config = getInventoryNotificationSettings(settings);
+      if (!config.lowStock && !config.outOfStock) return;
+
+      await Promise.all(products.map((product) => {
+        if (!productTracksStockRecord(product)) return null;
+        if (product.has_variations === true) return null;
+
+        const stock = stockNumber(product.stock);
+        const name = product.name || 'Producto sin nombre';
+        const visible = product.active !== false;
+        const preorder = Boolean(product.allow_preorder);
+
+        if (stock <= 0) {
+          if (!config.outOfStock) return null;
+
+          return ensureStoreNotificationAfterSourceChange({
+            pb,
+            storeId,
+            type: 'out_of_stock',
+            entityCollection: 'products',
+            entityId: product.id,
+            title: 'Producto agotado',
+            message: `${name} está agotado${preorder ? ' y permite preorder' : ''}${visible ? ' · Visible en tienda.' : ' · Oculto.'}`,
+            priority: visible && !preorder ? 'critical' : 'important',
+            targetUrl: buildProductAdminUrl(product.id),
+            sourceUpdated: product.updated || product.created || '',
+            metadata: {
+              product_id: product.id,
+              product_name: name,
+              stock,
+              visible,
+              preorder,
+            },
+          });
+        }
+
+        if (stock <= config.lowStockThreshold) {
+          if (!config.lowStock) return null;
+
+          return ensureStoreNotificationAfterSourceChange({
+            pb,
+            storeId,
+            type: 'low_stock',
+            entityCollection: 'products',
+            entityId: product.id,
+            title: 'Stock bajo',
+            message: `${name} tiene ${stock} unidad${stock === 1 ? '' : 'es'} disponible${stock === 1 ? '' : 's'}.`,
+            priority: 'important',
+            targetUrl: buildProductAdminUrl(product.id),
+            sourceUpdated: product.updated || product.created || '',
+            metadata: {
+              product_id: product.id,
+              product_name: name,
+              stock,
+              threshold: config.lowStockThreshold,
+              visible,
+            },
+          });
+        }
+
+        return null;
+      }));
+    }
+
+    async function detectVariationStockNotifications(settingsRecord = null, products = [], variations = []) {
+      const settings = settingsRecord || await loadSettings();
+      if (!settings || settings.notifications_enabled === false) return;
+
+      const config = getInventoryNotificationSettings(settings);
+      if (!config.lowStock && !config.outOfStock) return;
+
+      const productById = new Map(products.map((product) => [product.id, product]));
+
+      await Promise.all(variations.map((variation) => {
+        const product = productById.get(variation.product) || variation.expand?.product || null;
+        if (!product) return null;
+        if (product.has_variations !== true) return null;
+        if (!productTracksStockRecord(product)) return null;
+
+        const stock = stockNumber(variation.stock);
+        const productName = product.name || 'Producto';
+        const variationName = `${variation.variation_type || 'Variación'}: ${variation.value || 'Sin valor'}`;
+        const visible = product.active !== false && variation.active !== false;
+        const preorder = Boolean(variation.allow_preorder);
+
+        if (stock <= 0) {
+          if (!config.outOfStock) return null;
+
+          return ensureStoreNotificationAfterSourceChange({
+            pb,
+            storeId,
+            type: 'out_of_stock',
+            entityCollection: 'product_variations',
+            entityId: variation.id,
+            title: 'Variación agotada',
+            message: `${productName} · ${variationName} está agotada${preorder ? ' y permite preorder' : ''}${visible ? ' · Visible en tienda.' : ' · Oculta.'}`,
+            priority: visible && !preorder ? 'critical' : 'important',
+            targetUrl: buildVariationAdminUrl(product.id, variation.id),
+            sourceUpdated: variation.updated || variation.created || '',
+            metadata: {
+              product_id: product.id,
+              product_name: productName,
+              variation_id: variation.id,
+              variation_name: variationName,
+              stock,
+              visible,
+              preorder,
+            },
+          });
+        }
+
+        if (stock <= config.lowStockThreshold) {
+          if (!config.lowStock) return null;
+
+          return ensureStoreNotificationAfterSourceChange({
+            pb,
+            storeId,
+            type: 'low_stock',
+            entityCollection: 'product_variations',
+            entityId: variation.id,
+            title: 'Stock bajo de variación',
+            message: `${productName} · ${variationName} tiene ${stock} unidad${stock === 1 ? '' : 'es'} disponible${stock === 1 ? '' : 's'}.`,
+            priority: 'important',
+            targetUrl: buildVariationAdminUrl(product.id, variation.id),
+            sourceUpdated: variation.updated || variation.created || '',
+            metadata: {
+              product_id: product.id,
+              product_name: productName,
+              variation_id: variation.id,
+              variation_name: variationName,
+              stock,
+              threshold: config.lowStockThreshold,
+              visible,
+            },
+          });
+        }
+
+        return null;
+      }));
+    }
+
+    async function detectInventoryNotifications(settingsRecord = null) {
+      try {
+        const settings = settingsRecord || await loadSettings();
+        if (!settings || settings.notifications_enabled === false) return;
+
+        const products = await loadAllCollectionRecords('products', {
+          filter: `store="${escapeFilterValue(storeId)}"`,
+          sort: 'expiration_date',
+          perPage: 200,
+        });
+
+        const productIds = new Set(products.map((product) => product.id).filter(Boolean));
+
+        const variationsRaw = await loadAllCollectionRecords('product_variations', {
+          sort: 'expiration_date',
+          expand: 'product',
+          perPage: 200,
+        });
+
+        const variations = variationsRaw.filter((variation) => {
+          if (productIds.has(variation.product)) return true;
+          return variation.expand?.product?.store === storeId;
+        });
+
+        await detectProductExpirationNotifications(settings, products);
+        await detectVariationExpirationNotifications(settings, products, variations);
+        await detectProductStockNotifications(settings, products);
+        await detectVariationStockNotifications(settings, products, variations);
+      } catch (error) {
+        console.warn('Could not detect inventory notifications.', error);
       }
     }
 

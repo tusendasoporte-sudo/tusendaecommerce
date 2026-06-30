@@ -440,6 +440,97 @@ export async function ensureStoreNotificationAnyStatus({
   }
 }
 
+export async function ensureStoreNotificationAfterSourceChange({
+  pb,
+  storeId,
+  type,
+  entityCollection = '',
+  entityId = '',
+  title,
+  message,
+  priority = 'normal',
+  targetUrl = '',
+  metadata = {},
+  sourceUpdated = '',
+}) {
+  try {
+    if (!storeId || !type || !entityCollection || !entityId) {
+      return createStoreNotification({
+        pb,
+        storeId,
+        type,
+        title,
+        message,
+        priority,
+        targetUrl,
+        entityCollection,
+        entityId,
+        metadata,
+      });
+    }
+
+    const filter = [
+      `store="${escapeFilterValue(storeId)}"`,
+      `type="${escapeFilterValue(type)}"`,
+      `entity_collection="${escapeFilterValue(entityCollection)}"`,
+      `entity_id="${escapeFilterValue(entityId)}"`,
+    ].join(' && ');
+
+    const existing = await collectionList(pb, filter, {
+      page: 1,
+      perPage: 1,
+      sort: '-created',
+    });
+
+    const current = (existing.items || [])[0];
+
+    if (!current) {
+      return createStoreNotification({
+        pb,
+        storeId,
+        type,
+        title,
+        message,
+        priority,
+        targetUrl,
+        entityCollection,
+        entityId,
+        metadata,
+      });
+    }
+
+    if (current.status === 'unread') return normalizeNotification(current);
+
+    const sourceDate = sourceUpdated ? new Date(sourceUpdated) : null;
+    const currentDate = current.updated || current.created ? new Date(current.updated || current.created) : null;
+
+    const sourceChangedAfterNotification =
+      sourceDate &&
+      currentDate &&
+      !Number.isNaN(sourceDate.getTime()) &&
+      !Number.isNaN(currentDate.getTime()) &&
+      sourceDate.getTime() > currentDate.getTime() + 60000;
+
+    if (!sourceChangedAfterNotification) return normalizeNotification(current);
+
+    return createStoreNotification({
+      pb,
+      storeId,
+      type,
+      title,
+      message,
+      priority,
+      targetUrl,
+      entityCollection,
+      entityId,
+      metadata,
+    });
+  } catch (error) {
+    console.warn('Could not ensure inventory notification after source change.', error);
+    return null;
+  }
+}
+
 export async function findStoreNotificationAnyStatus({
   pb,
   storeId,
