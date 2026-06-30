@@ -34,7 +34,10 @@ function buildPbFileUrl(collection, record, field, thumb = '') {
 }
 
 async function fetchReceiptJson(path) {
-  const response = await fetch(`${String(pocketbaseUrl || '').replace(/\/$/, '')}${path}`);
+  const baseUrl = String(pocketbaseUrl || '').replace(/\/$/, '');
+  if (!baseUrl) return null;
+
+  const response = await fetch(`${baseUrl}${path}`);
   const result = await response.json().catch(() => null);
   if (!response.ok) return null;
   return result;
@@ -70,10 +73,10 @@ const receiptStoreName =
   'Tu Senda 84';
 
 const receiptStoreLogo =
-  buildPbFileUrl('stores', receiptStore, 'logo', '300x300') ||
-  buildPbFileUrl('settings', receiptSettings, 'logo_image', '300x300') ||
-  buildPbFileUrl('stores', receiptStore, 'banner', '700x300') ||
-  buildPbFileUrl('settings', receiptSettings, 'cover_image', '700x300') ||
+  buildPbFileUrl('stores', receiptStore, 'logo', '512x512') ||
+  buildPbFileUrl('settings', receiptSettings, 'logo_image', '512x512') ||
+  buildPbFileUrl('stores', receiptStore, 'banner', '1200x630') ||
+  buildPbFileUrl('settings', receiptSettings, 'cover_image', '1200x630') ||
   '/brand/tusenda84-bazzar-logo.webp';
 
 const receiptSeo = {
@@ -84,7 +87,7 @@ const receiptSeo = {
     ? `Recibo de pedido ${receiptOrder.order_number}`
     : 'Recibo de pedido',
   image: absoluteUrl(receiptStoreLogo),
-  canonical: Astro.url.pathname,
+  canonical: absoluteUrl(Astro.url.pathname),
   type: 'website',
   siteName: receiptStoreName,
 };
@@ -499,14 +502,18 @@ const receiptSeo = {
       }
 
       document.getElementById('receipt-items-count').textContent = `${items.length} articulo${items.length === 1 ? '' : 's'}`;
-      document.getElementById('receipt-items').innerHTML = items.length ? items.map((item) => {
+      const receiptItemsElement = document.getElementById('receipt-items');
+      receiptItemsElement.innerHTML = items.length ? items.map((item) => {
         const imageUrl = getReceiptItemImage(item);
         const alt = getReceiptItemAlt(item);
-        const itemInitial = String(getItemName(item) || 'P').trim().slice(0, 1).toUpperCase();
+        const itemName = getItemName(item);
+        const itemInitial = String(itemName || 'P').trim().slice(0, 1).toUpperCase();
+        const quantity = item.is_gift ? 1 : Number(item.quantity || 0);
+        const total = getItemTotal(item, currencyCode);
 
         return `
-          <div class="receipt-item-card rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div class="receipt-item-layout">
+          <div class="receipt-item-card">
+            <div class="receipt-item-row">
               <div class="receipt-item-thumb" aria-hidden="${imageUrl ? 'false' : 'true'}">
                 ${imageUrl
                   ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async" />`
@@ -514,17 +521,17 @@ const receiptSeo = {
                 }
               </div>
 
-              <div class="receipt-item-main">
-                <h3 class="font-black text-slate-950 leading-tight">${escapeHtml(getItemName(item))}</h3>
-                <p class="text-sm text-slate-500 font-bold mt-1">Cantidad: ${escapeHtml(item.is_gift ? 1 : Number(item.quantity || 0))}</p>
-                ${item.is_gift ? '<p class="text-xs text-green-700 bg-green-50 border border-green-100 rounded-full px-3 py-1 inline-flex mt-2 font-black">Regalo incluido</p>' : ''}
+              <div class="receipt-item-info">
+                <h3>${escapeHtml(itemName)}</h3>
+                <p>Cantidad: ${escapeHtml(quantity)}</p>
+                ${item.is_gift ? '<span class="receipt-item-gift">Regalo incluido</span>' : ''}
               </div>
 
-              <strong class="receipt-item-total text-right text-slate-950 whitespace-nowrap">${escapeHtml(getItemTotal(item, currencyCode))}</strong>
+              <strong class="receipt-item-price">${escapeHtml(total)}</strong>
             </div>
           </div>
         `;
-      }).join('') : '<div class="rounded-3xl border border-slate-100 bg-slate-50 p-5 text-center text-slate-500 font-bold">Sin productos cargados.</div>';
+      }).join('') : '<div class="receipt-empty">Sin productos cargados.</div>';
 
       renderTotals(order, items, currencyCode);
 
@@ -548,65 +555,141 @@ const receiptSeo = {
   </script>
 
   <style>
-    .receipt-item-layout {
-      display: grid;
-      grid-template-columns: 68px minmax(0, 1fr) auto;
-      gap: 14px;
-      align-items: center;
+    .receipt-item-card {
+      border: 1px solid #e5e7eb !important;
+      background: #ffffff !important;
+      border-radius: 24px !important;
+      padding: 14px !important;
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.05) !important;
+    }
+
+    .receipt-item-row {
+      display: grid !important;
+      grid-template-columns: 68px minmax(0, 1fr) auto !important;
+      gap: 14px !important;
+      align-items: center !important;
     }
 
     .receipt-item-thumb {
-      width: 68px;
-      height: 68px;
-      min-width: 68px;
-      max-width: 68px;
-      border-radius: 18px;
-      overflow: hidden;
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #0f172a;
-      font-weight: 1000;
-      line-height: 1;
+      width: 68px !important;
+      height: 68px !important;
+      min-width: 68px !important;
+      max-width: 68px !important;
+      min-height: 68px !important;
+      max-height: 68px !important;
+      border-radius: 18px !important;
+      overflow: hidden !important;
+      background: #f1f5f9 !important;
+      border: 1px solid #e2e8f0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      color: #0f172a !important;
+      font-weight: 1000 !important;
+      line-height: 1 !important;
+      flex: 0 0 68px !important;
     }
 
     .receipt-item-thumb img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
+      width: 68px !important;
+      height: 68px !important;
+      min-width: 68px !important;
+      max-width: 68px !important;
+      min-height: 68px !important;
+      max-height: 68px !important;
+      display: block !important;
+      object-fit: cover !important;
     }
 
-    .receipt-item-main {
-      min-width: 0;
+    .receipt-item-info {
+      min-width: 0 !important;
     }
 
-    .receipt-item-total {
-      align-self: start;
-      padding-top: 2px;
-      white-space: nowrap;
+    .receipt-item-info h3 {
+      margin: 0 !important;
+      color: #020617 !important;
+      font-size: 15px !important;
+      line-height: 1.25 !important;
+      font-weight: 1000 !important;
+    }
+
+    .receipt-item-info p {
+      margin: 4px 0 0 !important;
+      color: #64748b !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+    }
+
+    .receipt-item-price {
+      color: #020617 !important;
+      font-size: 14px !important;
+      font-weight: 1000 !important;
+      white-space: nowrap !important;
+      align-self: center !important;
+      text-align: right !important;
+    }
+
+    .receipt-item-gift {
+      display: inline-flex !important;
+      margin-top: 7px !important;
+      min-height: 24px !important;
+      align-items: center !important;
+      border-radius: 999px !important;
+      border: 1px solid #bbf7d0 !important;
+      background: #f0fdf4 !important;
+      color: #15803d !important;
+      padding: 0 9px !important;
+      font-size: 11px !important;
+      font-weight: 1000 !important;
+    }
+
+    .receipt-empty {
+      border: 1px solid #e5e7eb !important;
+      background: #f8fafc !important;
+      border-radius: 24px !important;
+      padding: 18px !important;
+      text-align: center !important;
+      color: #64748b !important;
+      font-weight: 900 !important;
     }
 
     @media (max-width: 640px) {
-      .receipt-item-layout {
-        grid-template-columns: 58px minmax(0, 1fr);
-        gap: 12px;
+      .receipt-item-card {
+        padding: 12px !important;
+        border-radius: 22px !important;
+      }
+
+      .receipt-item-row {
+        grid-template-columns: 58px minmax(0, 1fr) !important;
+        gap: 12px !important;
+        align-items: center !important;
       }
 
       .receipt-item-thumb {
-        width: 58px;
-        height: 58px;
-        min-width: 58px;
-        max-width: 58px;
-        border-radius: 16px;
+        width: 58px !important;
+        height: 58px !important;
+        min-width: 58px !important;
+        max-width: 58px !important;
+        min-height: 58px !important;
+        max-height: 58px !important;
+        border-radius: 16px !important;
+        flex-basis: 58px !important;
       }
 
-      .receipt-item-total {
-        grid-column: 2;
-        justify-self: start;
-        margin-top: -4px;
+      .receipt-item-thumb img {
+        width: 58px !important;
+        height: 58px !important;
+        min-width: 58px !important;
+        max-width: 58px !important;
+        min-height: 58px !important;
+        max-height: 58px !important;
+      }
+
+      .receipt-item-price {
+        grid-column: 2 !important;
+        justify-self: start !important;
+        margin-top: -3px !important;
+        text-align: left !important;
       }
     }
 
