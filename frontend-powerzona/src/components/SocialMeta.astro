@@ -5,6 +5,9 @@ type Props = {
   title?: string;
   description?: string;
   image?: string;
+  imageAlt?: string;
+  imageWidth?: number | string;
+  imageHeight?: number | string;
   canonical?: string;
   type?: SeoType;
   siteName?: string;
@@ -16,6 +19,9 @@ const {
   title = 'Tu Senda 84',
   description = '',
   image = '',
+  imageAlt = '',
+  imageWidth = 1200,
+  imageHeight = 630,
   canonical = '',
   type = 'website',
   siteName = 'Tu Senda 84',
@@ -53,12 +59,15 @@ const fallbackImage = absoluteUrl('/brand/tusenda84-bazzar-logo.webp');
 const pageTitle = limitText(title, 95) || 'Tu Senda 84';
 const pageDescription = limitText(description || title, 120) || pageTitle;
 const pageImage = absoluteUrl(image) || fallbackImage;
+const pageImageAlt = limitText(imageAlt || title, 125) || pageTitle;
 const pageUrl = absoluteUrl(canonical || `${Astro.url.pathname}${Astro.url.search}`);
 const safeSiteName = cleanText(siteName, 'Tu Senda 84') || 'Tu Senda 84';
 const safeType: SeoType = type === 'product' ? 'product' : 'website';
 const numericPrice = Number(productPriceAmount || 0);
 const hasProductPrice = safeType === 'product' && Number.isFinite(numericPrice) && numericPrice > 0;
 const safeCurrency = cleanText(productPriceCurrency || 'USD', 'USD').toUpperCase() || 'USD';
+const safeImageWidth = Number(imageWidth || 1200);
+const safeImageHeight = Number(imageHeight || 630);
 ---
 
 <title>{pageTitle}</title>
@@ -68,6 +77,9 @@ const safeCurrency = cleanText(productPriceCurrency || 'USD', 'USD').toUpperCase
 <meta property="og:title" content={pageTitle} />
 <meta property="og:description" content={pageDescription} />
 <meta property="og:image" content={pageImage} />
+{Number.isFinite(safeImageWidth) && safeImageWidth > 0 && <meta property="og:image:width" content={String(Math.round(safeImageWidth))} />}
+{Number.isFinite(safeImageHeight) && safeImageHeight > 0 && <meta property="og:image:height" content={String(Math.round(safeImageHeight))} />}
+<meta property="og:image:alt" content={pageImageAlt} />
 <meta property="og:url" content={pageUrl} />
 <meta property="og:type" content={safeType} />
 <meta property="og:site_name" content={safeSiteName} />
@@ -76,6 +88,7 @@ const safeCurrency = cleanText(productPriceCurrency || 'USD', 'USD').toUpperCase
 <meta name="twitter:title" content={pageTitle} />
 <meta name="twitter:description" content={pageDescription} />
 <meta name="twitter:image" content={pageImage} />
+<meta name="twitter:image:alt" content={pageImageAlt} />
 
 {hasProductPrice && (
   <>

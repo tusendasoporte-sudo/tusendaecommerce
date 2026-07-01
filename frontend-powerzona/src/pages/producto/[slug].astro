@@ -3,6 +3,18 @@ import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummary, getProductReviews } from '../../lib/api';
+import {
+	PRODUCT_OG_HEIGHT,
+	PRODUCT_OG_WIDTH,
+	buildProductSeoDescription,
+	buildProductSeoTitle,
+	buildProductSocialImageAlt,
+	buildProductSocialImagePath,
+	getProductPublicSeoPrice,
+	getProductSeoVersion,
+	parseProductExtraInfo,
+	pickProductSeoExtraInfo,
+} from '../../lib/productSeo';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
@@ -44,7 +56,7 @@ const productReviewsPageSize = 5;
 const productGalleryImages = product.imageUrls?.length ? product.imageUrls : ['https://placehold.co/800x800?text=PowerZona'];
 const mainImage = productGalleryImages[0];
 const categoryName = product.expand?.category?.name ?? 'Sin categoría';
-const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
+const storeName = settings?.store_name || settings?.stored_name || currentStore.name || 'Tienda';
 const logoImageUrl = settings?.logoImageUrl || '';
 const homePath = getPublicPath('/', currentStore, currentPathname);
 const searchPath = getPublicPath('/buscar', currentStore, currentPathname);
@@ -145,8 +157,9 @@ function formatReviewDate(value: string | undefined) {
 	if (Number.isNaN(date.getTime())) return '';
 	return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 }
-const extraInfoItems = parseExtraInfoValue(
-	product.extra_info ?? product.extraInfo ?? product.additional_info ?? product.product_extra_info ?? []
+const extraInfoItems = parseProductExtraInfo(
+	product.extra_info ?? product.extraInfo ?? product.additional_info ?? product.product_extra_info ?? [],
+	3
 );
 const tracksStock = product.track_stock !== false;
 const baseProductPrice = Number(product.base_price_usd || 0);
@@ -171,37 +184,30 @@ const firstVariationHasOffer = firstVariation ? variationHasOffer(firstVariation
 const initialPrice = hasPublicVariations
 	? firstVariationPrice
 	: Number(effectiveProductPrice || 0);
-const seoVariationPrices = hasPublicVariations
-	? variations
-		.filter((variation) => {
-			const price = publicVariationPrice(variation);
-			if (price <= 0) return false;
-			if (!tracksStock) return true;
-			return Number(variation.stock || 0) > 0 || Boolean(variation.allow_preorder);
-		})
-		.map((variation) => publicVariationPrice(variation))
-	: [];
-const seoFallbackVariationPrices = hasPublicVariations
-	? variations
-		.map((variation) => publicVariationPrice(variation))
-		.filter((price) => price > 0)
-	: [];
-const seoProductPrice = hasPublicVariations
-	? Math.min(...(seoVariationPrices.length ? seoVariationPrices : seoFallbackVariationPrices))
-	: Number(effectiveProductPrice || 0);
+const seoProductPrice = getProductPublicSeoPrice(product, variations);
 const seoHasValidPrice = Number.isFinite(seoProductPrice) && seoProductPrice > 0;
-function formatSeoPrice(value: number) {
-	const number = Number(value || 0);
-	if (!Number.isFinite(number) || number <= 0) return '';
-	return number.toFixed(2);
-}
-const productSeoTitle = seoHasValidPrice
-	? `${product.name} - $${formatSeoPrice(seoProductPrice)}`
-	: product.name;
-const productSeoImage = mainImage || logoImageUrl || '/brand/tusenda84-bazzar-logo.webp';
+const seoExtraInfoItems = pickProductSeoExtraInfo(extraInfoItems, 3);
+const productSeoTitle = buildProductSeoTitle(product.name, seoProductPrice);
+const productSeoDescription = buildProductSeoDescription({
+	productName: product.name,
+	extraInfoItems: seoExtraInfoItems,
+	storeName,
+});
+const productSeoVersion = getProductSeoVersion({
+	product,
+	settings,
+	price: seoProductPrice,
+	extraInfoItems: seoExtraInfoItems,
+});
+const productSeoImage = buildProductSocialImagePath({
+	storeSlug: currentStore.slug,
+	productSlug: product.slug,
+	version: productSeoVersion,
+}) || logoImageUrl || currentStore.logoUrl || mainImage;
+const productSeoImageAlt = buildProductSocialImageAlt(product.name, storeName);
 const productSeoUrl = getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
 const productShareTitle = productSeoTitle || product.name;
-const productShareText = productShareTitle;
+const productShareText = productSeoDescription || productShareTitle;
 const productShareUrl = productSeoUrl || getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
 const initialCost = hasPublicVariations
 	? Number(firstVariation?.cost_usd || 0)
@@ -271,8 +277,11 @@ const variationItems = variations.map((variation) => {
 <Layout
 	seo={{
 		title: productSeoTitle,
-		description: productSeoTitle,
+		description: productSeoDescription,
 		image: productSeoImage,
+		imageAlt: productSeoImageAlt,
+		imageWidth: PRODUCT_OG_WIDTH,
+		imageHeight: PRODUCT_OG_HEIGHT,
 		canonical: productSeoUrl,
 		type: 'product',
 		siteName: storeName,
