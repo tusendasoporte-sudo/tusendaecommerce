@@ -13,7 +13,7 @@ import { getStoreBySlug } from '../../../../../lib/stores';
 const CARD_WIDTH = PRODUCT_OG_WIDTH;
 const CARD_HEIGHT = PRODUCT_OG_HEIGHT;
 const PRODUCT_IMAGE_MAX_WIDTH = 1120;
-const PRODUCT_IMAGE_MAX_HEIGHT = 600;
+const PRODUCT_IMAGE_MAX_HEIGHT = 620;
 
 export const GET: APIRoute = async ({ params }) => {
   const storeSlug = cleanSeoText(params.storeSlug).toLowerCase();
@@ -113,7 +113,6 @@ async function getContainedProductImage(value: unknown) {
       .resize(PRODUCT_IMAGE_MAX_WIDTH, PRODUCT_IMAGE_MAX_HEIGHT, {
         fit: 'contain',
         background: { r: 255, g: 255, b: 255, alpha: 0 },
-        withoutEnlargement: true,
       })
       .png()
       .toBuffer();
