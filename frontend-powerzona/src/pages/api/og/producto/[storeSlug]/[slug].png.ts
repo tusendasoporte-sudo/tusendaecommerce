@@ -12,8 +12,8 @@ import { getStoreBySlug } from '../../../../../lib/stores';
 
 const CARD_WIDTH = PRODUCT_OG_WIDTH;
 const CARD_HEIGHT = PRODUCT_OG_HEIGHT;
-const PRODUCT_IMAGE_MAX_WIDTH = 1040;
-const PRODUCT_IMAGE_MAX_HEIGHT = 560;
+const PRODUCT_IMAGE_MAX_WIDTH = 1120;
+const PRODUCT_IMAGE_MAX_HEIGHT = 600;
 
 export const GET: APIRoute = async ({ params }) => {
   const storeSlug = cleanSeoText(params.storeSlug).toLowerCase();
@@ -108,9 +108,8 @@ async function getContainedProductImage(value: unknown) {
     const contentType = response.headers.get('content-type') || '';
     if (contentType && !contentType.toLowerCase().startsWith('image/')) return '';
 
-    const source = Buffer.from(await response.arrayBuffer());
+    const source = await trimImageSafely(Buffer.from(await response.arrayBuffer()));
     return await sharp(source, { failOn: 'none' })
-      .rotate()
       .resize(PRODUCT_IMAGE_MAX_WIDTH, PRODUCT_IMAGE_MAX_HEIGHT, {
         fit: 'contain',
         background: { r: 255, g: 255, b: 255, alpha: 0 },
@@ -122,6 +121,27 @@ async function getContainedProductImage(value: unknown) {
     return '';
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function trimImageSafely(source: Buffer) {
+  try {
+    const trimmed = await sharp(source, { failOn: 'none' })
+      .rotate()
+      .trim({
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+        threshold: 18,
+      })
+      .png()
+      .toBuffer();
+
+    return trimmed.length ? trimmed : source;
+  } catch (_) {
+    try {
+      return await sharp(source, { failOn: 'none' }).rotate().png().toBuffer();
+    } catch (_) {
+      return source;
+    }
   }
 }
 

@@ -170,20 +170,7 @@ export function buildProductSeoDescription(input: {
   price?: unknown;
 }) {
   const storeName = cleanSeoText(input.storeName, 'la tienda') || 'la tienda';
-  const formattedInputPrice = cleanSeoText(input.formattedPrice);
-  const numericPrice = formatProductSeoPrice(input.price);
-  const priceText = formattedInputPrice || (numericPrice ? `$${numericPrice}` : '');
-  const details = pickProductSeoExtraInfo(input.extraInfoItems || [], 3)
-    .filter((item) => !/\b(precio|price)\b/.test(normalizeForMatch(item.label)))
-    .map((item) => `${item.label}: ${item.value}`)
-    .slice(0, 3);
-  const parts = priceText ? [`Precio: ${priceText}`, ...details] : details;
-  const shouldAddWhatsAppHint = details.length === 0;
-  const description = parts.length
-    ? `${parts.join(' · ')}. Disponible en ${storeName}.${shouldAddWhatsAppHint ? ' Compra fácil por WhatsApp.' : ''}`
-    : `Disponible en ${storeName}. Compra fácil por WhatsApp.`;
-
-  return limitSeoText(description, 155);
+  return limitSeoText(`Disponible en ${storeName}.`, 90);
 }
 
 function cleanWhatsAppBoldText(value: unknown, fallback = '') {
