@@ -93,7 +93,7 @@ export function pickProductSeoExtraInfo(items: ProductSeoExtraInfoItem[], max = 
   };
 
   addFirstMatch([/\b(marca|brand|fabricante|laboratorio)\b/]);
-  addFirstMatch([/\b(cantidad|contenido|presentacion|capsulas|tabletas|servicios|servicio|porciones|unidades)\b/]);
+  addFirstMatch([/\b(cantidad|contenido|presentacion|capsulas|tabletas|servicios|servicio|servcios|porciones|unidades)\b/]);
   addFirstMatch([/\b(gramaje|tamano|sabor|medida|peso|volumen|talla|color|formato)\b/]);
 
   for (const item of safeItems) {
@@ -102,9 +102,16 @@ export function pickProductSeoExtraInfo(items: ProductSeoExtraInfoItem[], max = 
   }
 
   return selected.slice(0, max).map((item) => ({
-    label: limitSeoText(item.label, 30),
+    label: formatProductSeoInfoLabel(item.label),
     value: limitSeoText(item.value, 56),
   }));
+}
+
+function formatProductSeoInfoLabel(label: unknown) {
+  const text = cleanSeoText(label);
+  const normalized = normalizeForMatch(text);
+  if (normalized === 'servcios') return 'Servicios';
+  return limitSeoText(text, 30);
 }
 
 export function formatProductSeoPrice(value: unknown) {
@@ -159,17 +166,56 @@ export function buildProductSeoDescription(input: {
   productName?: unknown;
   extraInfoItems?: ProductSeoExtraInfoItem[];
   storeName?: unknown;
+  formattedPrice?: unknown;
+  price?: unknown;
 }) {
-  const productName = cleanSeoText(input.productName);
   const storeName = cleanSeoText(input.storeName, 'la tienda') || 'la tienda';
+  const formattedInputPrice = cleanSeoText(input.formattedPrice);
+  const numericPrice = formatProductSeoPrice(input.price);
+  const priceText = formattedInputPrice || (numericPrice ? `$${numericPrice}` : '');
   const details = pickProductSeoExtraInfo(input.extraInfoItems || [], 3)
+    .filter((item) => !/\b(precio|price)\b/.test(normalizeForMatch(item.label)))
     .map((item) => `${item.label}: ${item.value}`)
-    .join(' - ');
-  const description = details
-    ? `${details}. Disponible en ${storeName}.`
-    : `${productName || 'Producto'} disponible en ${storeName}. Compra facil por WhatsApp.`;
+    .slice(0, 3);
+  const parts = priceText ? [`Precio: ${priceText}`, ...details] : details;
+  const shouldAddWhatsAppHint = details.length === 0;
+  const description = parts.length
+    ? `${parts.join(' · ')}. Disponible en ${storeName}.${shouldAddWhatsAppHint ? ' Compra fácil por WhatsApp.' : ''}`
+    : `Disponible en ${storeName}. Compra fácil por WhatsApp.`;
 
   return limitSeoText(description, 155);
+}
+
+function cleanWhatsAppBoldText(value: unknown, fallback = '') {
+  return cleanSeoText(value, fallback).replace(/\*/g, '').trim();
+}
+
+export function buildProductShareMessage(input: {
+  productName?: unknown;
+  extraInfoItems?: ProductSeoExtraInfoItem[];
+  storeName?: unknown;
+  formattedPrice?: unknown;
+  price?: unknown;
+}) {
+  const productName = cleanWhatsAppBoldText(input.productName, 'Producto') || 'Producto';
+  const storeName = cleanSeoText(input.storeName, 'la tienda') || 'la tienda';
+  const formattedInputPrice = cleanSeoText(input.formattedPrice);
+  const numericPrice = formatProductSeoPrice(input.price);
+  const priceText = formattedInputPrice || (numericPrice ? `$${numericPrice}` : '');
+  const details = pickProductSeoExtraInfo(input.extraInfoItems || [], 3)
+    .filter((item) => !/\b(precio|price)\b/.test(normalizeForMatch(item.label)))
+    .map((item) => `${item.label}: ${item.value}`)
+    .slice(0, 3);
+  const heading = priceText
+    ? `*${productName}* | *${cleanWhatsAppBoldText(priceText)}*`
+    : `*${productName}*`;
+
+  if (!details.length) {
+    return `${heading}\n\nDisponible en ${storeName}. Compra fácil por WhatsApp.`;
+  }
+
+  const detailLines = details.map((detail, index) => (index === 0 ? detail : `· ${detail}`));
+  return `${heading}\n\n${detailLines.join('\n')}\n\nDisponible en ${storeName}.`;
 }
 
 export function buildProductSocialImageAlt(productName: unknown, storeName: unknown) {

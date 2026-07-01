@@ -7,6 +7,7 @@ import {
 	PRODUCT_OG_HEIGHT,
 	PRODUCT_OG_WIDTH,
 	buildProductSeoDescription,
+	buildProductShareMessage,
 	buildProductSeoTitle,
 	buildProductSocialImageAlt,
 	buildProductSocialImagePath,
@@ -192,6 +193,7 @@ const productSeoDescription = buildProductSeoDescription({
 	productName: product.name,
 	extraInfoItems: seoExtraInfoItems,
 	storeName,
+	price: seoProductPrice,
 });
 const productSeoVersion = getProductSeoVersion({
 	product,
@@ -207,7 +209,13 @@ const productSeoImage = buildProductSocialImagePath({
 const productSeoImageAlt = buildProductSocialImageAlt(product.name, storeName);
 const productSeoUrl = getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
 const productShareTitle = productSeoTitle || product.name;
-const productShareText = productSeoDescription || productShareTitle;
+const productShareText = buildProductShareMessage({
+	productName: product.name,
+	extraInfoItems: seoExtraInfoItems,
+	storeName,
+	price: seoProductPrice,
+});
+const productShareTextEncoded = encodeURIComponent(productShareText);
 const productShareUrl = productSeoUrl || getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
 const initialCost = hasPublicVariations
 	? Number(firstVariation?.cost_usd || 0)
@@ -872,7 +880,7 @@ const variationItems = variations.map((variation) => {
 				aria-label="Compartir producto"
 				title="Compartir producto"
 				data-share-title={productShareTitle}
-				data-share-text={productShareText}
+				data-share-text={productShareTextEncoded}
 				data-share-url={productShareUrl}
 			>
 				<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1256,14 +1264,40 @@ const variationItems = variations.map((variation) => {
 					}, 1800);
 				}
 
-				async function copyProductUrl(url) {
+				function decodeShareText(value, fallback = '') {
+					const raw = String(value || '').trim();
+					if (!raw) return fallback;
+					try {
+						return decodeURIComponent(raw).trim() || fallback;
+					} catch (_) {
+						return raw || fallback;
+					}
+				}
+
+				function getAbsoluteShareUrl(url) {
+					try {
+						return new URL(String(url || window.location.href), window.location.href).href;
+					} catch (_) {
+						return window.location.href;
+					}
+				}
+
+				function buildFullShareMessage(text, url) {
+					const safeText = String(text || '').trim();
+					const safeUrl = String(url || '').trim();
+					if (!safeText) return safeUrl;
+					if (!safeUrl || safeText.includes(safeUrl)) return safeText;
+					return `${safeText}\n${safeUrl}`;
+				}
+
+				async function copyProductShareMessage(message) {
 					if (navigator.clipboard?.writeText) {
-						await navigator.clipboard.writeText(url);
+						await navigator.clipboard.writeText(message);
 						return true;
 					}
 
 					const copyField = document.createElement('textarea');
-					copyField.value = url;
+					copyField.value = message;
 					copyField.setAttribute('readonly', '');
 					copyField.style.position = 'fixed';
 					copyField.style.left = '-9999px';
@@ -1277,8 +1311,9 @@ const variationItems = variations.map((variation) => {
 
 				productShareBtn?.addEventListener('click', async () => {
 					const shareTitle = String(productShareBtn.dataset.shareTitle || document.title || '').trim();
-					const shareText = String(productShareBtn.dataset.shareText || shareTitle || '').trim();
-					const shareUrl = String(productShareBtn.dataset.shareUrl || window.location.href).trim();
+					const shareText = decodeShareText(productShareBtn.dataset.shareText, shareTitle);
+					const shareUrl = getAbsoluteShareUrl(productShareBtn.dataset.shareUrl || window.location.href);
+					const fullShareMessage = buildFullShareMessage(shareText, shareUrl);
 
 					if (navigator.share) {
 						try {
@@ -1290,7 +1325,7 @@ const variationItems = variations.map((variation) => {
 						} catch (error) {
 							if (error?.name !== 'AbortError') {
 								try {
-									if (await copyProductUrl(shareUrl)) showShareStatus();
+									if (await copyProductShareMessage(fullShareMessage)) showShareStatus('Producto copiado');
 								} catch (_) {}
 							}
 						}
@@ -1298,7 +1333,7 @@ const variationItems = variations.map((variation) => {
 					}
 
 					try {
-						if (await copyProductUrl(shareUrl)) showShareStatus();
+						if (await copyProductShareMessage(fullShareMessage)) showShareStatus('Producto copiado');
 					} catch (_) {}
 				});
 
