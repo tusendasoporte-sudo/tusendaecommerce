@@ -2743,6 +2743,7 @@ function getProductOfferView(product: any) {
         min_order_usd: min,
         is_gift: true,
         track_stock: true,
+        store_id: window.PZ_CURRENT_STORE_ID || '',
       });
       saveGiftCart(withoutGifts);
       showGiftInfo('Regalo agregado al carrito. Solo puedes llevar 1 regalo por orden.');

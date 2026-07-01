@@ -511,10 +511,62 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				renderCheckout();
 			}
 
+		function normalizeGiftId(item) {
+			const rawValue = Array.isArray(item?.gift_id)
+				? item.gift_id[0]
+				: Array.isArray(item?.gift)
+					? item.gift[0]
+					: (item?.gift_id || item?.gift || item?.id || '');
+			const raw = String(rawValue || '').trim();
+			if (!raw) return '';
+			return raw.startsWith('gift-') ? raw.slice(5) : raw;
+		}
+
+		function isGiftCartItem(item) {
+			return Boolean(item?.is_gift || item?.gift_id || item?.gift || String(item?.id || '').startsWith('gift-'));
+		}
+
+		function persistCheckoutCartSnapshot(cart) {
+			const nextCart = Array.isArray(cart)
+				? cart.map((item) => ({ ...item, store_id: item?.store_id || CURRENT_STORE_ID }))
+				: [];
+			const payload = JSON.stringify(nextCart);
+
+			try {
+				if (cartStorage?.writeCart) cartStorage.writeCart(nextCart);
+			} catch (_) {}
+
+			try {
+				localStorage.setItem(CART_STORAGE_KEY, payload);
+				if (nextCart.length) sessionStorage.setItem(CHECKOUT_CART_STORAGE_KEY, payload);
+				else sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
+			} catch (_) {}
+
+			return nextCart;
+		}
+
+		function normalizeGiftCartSnapshot(item) {
+			const giftId = normalizeGiftId(item);
+			return {
+				...item,
+				id: giftId ? `gift-${giftId}` : (item?.id || 'gift-'),
+				gift_id: giftId,
+				title: item?.title || item?.name || 'Regalo',
+				image: item?.image || item?.image_url || 'https://placehold.co/500x500?text=Regalo',
+				price: 0,
+				quantity: 1,
+				stock: Number(item?.stock || 0),
+				min_order_usd: Number(item?.min_order_usd || 0),
+				is_gift: true,
+				track_stock: true,
+				store_id: item?.store_id || CURRENT_STORE_ID,
+			};
+		}
+
 
 		function buildCartFingerprint(cart) {
 			return (cart || [])
-				.map((item) => `${item?.is_gift ? 'gift' : 'product'}:${item?.id || item?.gift_id || item?.title}:${item?.variation_id || ''}:${Number(item?.quantity || 1)}`)
+				.map((item) => `${isGiftCartItem(item) ? 'gift' : 'product'}:${isGiftCartItem(item) ? normalizeGiftId(item) : (item?.id || item?.title)}:${item?.variation_id || ''}:${Number(item?.quantity || 1)}`)
 				.sort()
 				.join('|');
 		}
@@ -608,7 +660,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function getItemKey(item) {
-			if (item?.is_gift) return `gift::${item.gift_id || item.id}`;
+			if (isGiftCartItem(item)) return `gift::${normalizeGiftId(item) || item.id}`;
 			return item?.variation_id ? `${item.id}::${item.variation_id}` : (item.id || item.title);
 		}
 
@@ -1130,43 +1182,46 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		function getProductsSubtotalUSD(cart = getCart()) {
 			return cart
-				.filter((item) => !item.is_gift)
+				.filter((item) => !isGiftCartItem(item))
 				.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0);
+		}
+
+		function getGiftRuleProblemMessage(cart = getCart()) {
+			const gifts = cart.filter((item) => isGiftCartItem(item));
+			if (!gifts.length) return '';
+			if (gifts.length > 1) return 'Solo puedes llevar 1 regalo por orden. Elimina los regalos extra o vuelve a seleccionar uno.';
+
+			const gift = gifts[0];
+			const giftId = normalizeGiftId(gift);
+			if (!giftId) return 'El regalo seleccionado no se pudo validar. Eliminalo del carrito y vuelve a seleccionarlo.';
+
+			const giftStoreId = String(gift.store_id || '').trim();
+			if (CURRENT_STORE_ID && giftStoreId && giftStoreId !== CURRENT_STORE_ID) {
+				return 'El regalo seleccionado pertenece a otra tienda. Eliminalo del carrito y vuelve a seleccionarlo.';
+			}
+
+			const stock = Number(gift.stock || 0);
+			if (stock <= 0) return 'El regalo seleccionado no tiene stock disponible. Eliminalo del carrito o elige otro regalo.';
+
+			const min = Number(gift.min_order_usd || 0);
+			const subtotal = getProductsSubtotalUSD(cart);
+			if (subtotal < min) {
+				return `Tu carrito debe llegar a ${formatUSD(min)} en productos para usar este regalo. Agrega productos o elimina el regalo.`;
+			}
+
+			return '';
 		}
 
 		function validateGiftRulesOnCheckout() {
 			const cart = getCart();
-			const subtotal = getProductsSubtotalUSD(cart);
-			const gifts = cart.filter((item) => item.is_gift);
-			if (!gifts.length) return cart;
-
-			let removed = false;
-			const validGifts = [];
-			for (const gift of gifts) {
-				const min = Number(gift.min_order_usd || 0);
-				const stock = Number(gift.stock || 0);
-				if (!validGifts.length && subtotal >= min && stock > 0) validGifts.push({ ...gift, quantity: 1, price: 0 });
-				else removed = true;
-			}
-
-			if (!removed && validGifts.length === gifts.length) return cart;
-
-			const nextCart = cart.filter((item) => !item.is_gift).concat(validGifts.slice(0, 1));
-			const nextStoreCart = nextCart.map((item) => ({ ...item, store_id: item?.store_id || CURRENT_STORE_ID }));
-			if (cartStorage?.writeCart) {
-				cartStorage.writeCart(nextStoreCart);
-			} else {
-				const payload = JSON.stringify(nextStoreCart);
-				localStorage.setItem(CART_STORAGE_KEY, payload);
-				if (nextStoreCart.length) sessionStorage.setItem(CHECKOUT_CART_STORAGE_KEY, payload);
-				else sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
-			}
-			sessionStorage.setItem('powerzona_gift_notice', 'Tu compra no cumplía con las reglas del regalo. Por favor, vuelve a agregarlo después de agregar algo más a tu carrito.');
-			return nextStoreCart;
+			const normalizedCart = cart.map((item) => isGiftCartItem(item) ? normalizeGiftCartSnapshot(item) : item);
+			const changed = JSON.stringify(cart) !== JSON.stringify(normalizedCart);
+			return changed ? persistCheckoutCartSnapshot(normalizedCart) : normalizedCart;
 		}
 
 		function getStockProblemItems(cart) {
 			return cart.filter((item) => {
+				if (isGiftCartItem(item)) return false;
 				const stock = Number(item.stock || 0);
 				const quantity = Number(item.quantity || 1);
 				const isPreorder = Boolean(item.preorder);
@@ -1176,18 +1231,20 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function getVariationProblemItems(cart) {
-			return cart.filter((item) => !item.is_gift && Boolean(item.requires_variation) && !item.variation_id);
+			return cart.filter((item) => !isGiftCartItem(item) && Boolean(item.requires_variation) && !item.variation_id);
 		}
 
 		function validateCheckout(showErrors = false) {
-			const cart = getCart();
+			const cart = validateGiftRulesOnCheckout();
 			const data = getCheckoutData();
 			const requiresAddress = data.delivery_method === 'delivery';
+			const giftProblemMessage = getGiftRuleProblemMessage(cart);
 			const stockProblemItems = getStockProblemItems(cart);
 			const variationProblemItems = getVariationProblemItems(cart);
 
 			const errors = {
-				cart: cart.filter((item) => !item.is_gift).length === 0,
+				cart: cart.filter((item) => !isGiftCartItem(item)).length === 0,
+				gift: Boolean(giftProblemMessage),
 				stock: stockProblemItems.length > 0,
 				variation: variationProblemItems.length > 0,
 				name: data.customer_name.length < 2,
@@ -1214,19 +1271,24 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				setFieldInvalid(customerAddress, errors.address);
 			}
 
-			if (errors.stock) {
+			if (errors.gift) {
+				checkoutValidationAlert.textContent = giftProblemMessage;
+				checkoutValidationAlert.classList.remove('hidden');
+			}
+
+			if (!errors.gift && errors.stock) {
 				const names = stockProblemItems.map((item) => item.title).filter(Boolean).join(', ');
 				checkoutValidationAlert.textContent = `Hay productos agotados o con cantidad mayor al stock disponible: ${names}. Elimínalos o ajusta la cantidad para continuar.`;
 				checkoutValidationAlert.classList.remove('hidden');
 			}
 
-			if (!errors.stock && errors.variation) {
+			if (!errors.gift && !errors.stock && errors.variation) {
 				const names = variationProblemItems.map((item) => item.title).filter(Boolean).join(', ');
 				checkoutValidationAlert.textContent = `Selecciona una variación para continuar: ${names}.`;
 				checkoutValidationAlert.classList.remove('hidden');
 			}
 
-			if (!errors.stock && !errors.variation && errors.business_hours) {
+			if (!errors.gift && !errors.stock && !errors.variation && errors.business_hours) {
 				checkoutValidationAlert.textContent = businessHoursStatus.mode === 'temporarily_closed'
 					? 'Negocio cerrado temporalmente. No se aceptan pedidos en este momento.'
 					: 'La tienda no acepta pedidos fuera de horario en este momento.';
@@ -1792,6 +1854,22 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			};
 		}
 
+		function formatPocketBaseError(result, fallback = 'No se pudo completar la acción.') {
+			const parts = [];
+
+			if (result?.message) parts.push(result.message);
+
+			if (result?.data && typeof result.data === 'object') {
+				for (const [field, info] of Object.entries(result.data)) {
+					const message = info?.message || info?.code || '';
+					if (message) parts.push(`${field}: ${message}`);
+					else parts.push(field);
+				}
+			}
+
+			return parts.length ? parts.join(' | ') : fallback;
+		}
+
 		async function pocketbaseRequest(collectionName, data) {
 			if (!POCKETBASE_URL) {
 				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
@@ -1808,7 +1886,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const result = await response.json().catch(() => null);
 
 			if (!response.ok) {
-				throw new Error(result?.message || `No se pudo crear el registro en ${collectionName}.`);
+				throw new Error(formatPocketBaseError(result, `No se pudo crear el registro en ${collectionName}.`));
 			}
 
 			return result;
@@ -1826,9 +1904,23 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			});
 			const result = await response.json().catch(() => null);
 			if (!response.ok) {
-				throw new Error(result?.message || `No se pudo actualizar el registro en ${collectionName}.`);
+				throw new Error(formatPocketBaseError(result, `No se pudo actualizar el registro en ${collectionName}.`));
 			}
 			return result;
+		}
+
+		async function pocketbaseDelete(collectionName, recordId) {
+			if (!POCKETBASE_URL) {
+				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
+			}
+			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`, {
+				method: 'DELETE',
+			});
+			if (!response.ok) {
+				const result = await response.json().catch(() => null);
+				throw new Error(formatPocketBaseError(result, `No se pudo eliminar el registro en ${collectionName}.`));
+			}
+			return true;
 		}
 
 		async function pocketbaseGetRecord(collectionName, recordId) {
@@ -1838,9 +1930,82 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`);
 			const result = await response.json().catch(() => null);
 			if (!response.ok) {
-				throw new Error(result?.message || `No se pudo leer el registro en ${collectionName}.`);
+				throw new Error(formatPocketBaseError(result, `No se pudo leer el registro en ${collectionName}.`));
 			}
 			return result;
+		}
+
+		function getGiftRecordImageUrl(giftRecord) {
+			const imageValue = Array.isArray(giftRecord?.image) ? giftRecord.image[0] : giftRecord?.image;
+			const filename = String(imageValue || '').trim();
+			if (!POCKETBASE_URL || !giftRecord?.id || !filename) return '';
+			return `${POCKETBASE_URL}/api/files/gifts/${encodeURIComponent(giftRecord.id)}/${encodeURIComponent(filename)}`;
+		}
+
+		function getGiftRecordStoreId(giftRecord) {
+			const storeValue = Array.isArray(giftRecord?.store) ? giftRecord.store[0] : giftRecord?.store;
+			return String(storeValue || '').trim();
+		}
+
+		async function validateAndNormalizeLiveGiftForOrder(cart) {
+			const sourceCart = Array.isArray(cart) ? cart : [];
+			const giftItems = sourceCart.filter((item) => isGiftCartItem(item));
+			if (!giftItems.length) return sourceCart;
+			if (giftItems.length > 1) {
+				throw new Error('Solo puedes llevar 1 regalo por orden. Elimina los regalos extra o vuelve a seleccionar uno.');
+			}
+
+			const giftSnapshot = giftItems[0];
+			const giftId = normalizeGiftId(giftSnapshot);
+			if (!giftId) {
+				throw new Error('El regalo seleccionado no se pudo validar. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+
+			let giftRecord = null;
+			try {
+				giftRecord = await pocketbaseGetRecord('gifts', giftId);
+			} catch (_) {
+				throw new Error('El regalo seleccionado ya no esta disponible. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+
+			if (giftRecord?.active === false) {
+				throw new Error('El regalo seleccionado ya no esta activo. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+
+			const giftStoreId = getGiftRecordStoreId(giftRecord);
+			if (CURRENT_STORE_ID && giftStoreId && giftStoreId !== CURRENT_STORE_ID) {
+				throw new Error('El regalo seleccionado pertenece a otra tienda. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+
+			const stock = Number(giftRecord?.stock || 0);
+			if (stock <= 0) {
+				throw new Error('El regalo seleccionado no tiene stock disponible. Eliminalo del carrito o elige otro regalo.');
+			}
+
+			const minOrderUSD = Number(giftRecord?.min_order_usd || 0);
+			const subtotal = getProductsSubtotalUSD(sourceCart);
+			if (subtotal < minOrderUSD) {
+				throw new Error(`Tu carrito debe llegar a ${formatUSD(minOrderUSD)} en productos para usar este regalo. Agrega productos o elimina el regalo.`);
+			}
+
+			const normalizedGift = {
+				id: `gift-${giftRecord.id}`,
+				gift_id: giftRecord.id,
+				title: giftRecord.name || giftSnapshot.title || 'Regalo',
+				image: getGiftRecordImageUrl(giftRecord) || giftSnapshot.image || 'https://placehold.co/500x500?text=Regalo',
+				price: 0,
+				quantity: 1,
+				stock,
+				min_order_usd: minOrderUSD,
+				is_gift: true,
+				track_stock: true,
+				store_id: CURRENT_STORE_ID,
+			};
+			const normalizedCart = sourceCart.map((item) => isGiftCartItem(item)
+				? normalizedGift
+				: { ...item, store_id: item?.store_id || CURRENT_STORE_ID });
+
+			return persistCheckoutCartSnapshot(normalizedCart);
 		}
 
 		function formatNotificationUsd(value) {
@@ -2036,13 +2201,27 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return String(settings?.store_name || settings?.stored_name || settings?.business_name || settings?.name || 'la tienda').trim() || 'la tienda';
 		}
 
+		function mergeGiftItemsIntoCalculatedItems(cart, calculatedItems) {
+			const list = Array.isArray(calculatedItems) ? [...calculatedItems] : [];
+			const giftItems = Array.isArray(cart) ? cart.filter(isGiftCartItem) : [];
+
+			for (const giftItem of giftItems) {
+				const giftId = normalizeGiftId(giftItem);
+				const alreadyExists = list.some((item) => isGiftCartItem(item) && normalizeGiftId(item) === giftId);
+				if (!alreadyExists) list.push(giftItem);
+			}
+
+			return list;
+		}
+
 		function buildWhatsAppMessage({ order, cart, checkoutData, totals, receiptUrl, settings }) {
 			{
 				const selectedCode = selectedCurrencyCode();
 				const storePublicName = getStorePublicName(settings);
-				const calculatedItems = totals.promotionItems || calculateCartPromotions(cart).items || cart;
-				const productItems = calculatedItems.filter((item) => !item.is_gift);
-				const giftItems = calculatedItems.filter((item) => item.is_gift);
+				const calculatedItemsRaw = totals.promotionItems || calculateCartPromotions(cart).items || cart;
+				const calculatedItems = mergeGiftItemsIntoCalculatedItems(cart, calculatedItemsRaw);
+				const productItems = calculatedItems.filter((item) => !isGiftCartItem(item));
+				const giftItems = calculatedItems.filter((item) => isGiftCartItem(item));
 				const productLines = productItems.map((item, index) => {
 					const quantity = Number(item.quantity || 1);
 					const price = Number(item.price || 0);
@@ -2122,9 +2301,120 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 		}
 
+		function buildOrderItemPayloadDraft(item, selectedCode) {
+			const isGift = isGiftCartItem(item);
+			const quantity = isGift ? 1 : Number(item.quantity || 1);
+			const unitPriceUSD = isGift ? 0 : Number(item.price || 0);
+			const unitFinalPriceUSD = isGift ? 0 : Number(item.unit_price_final_usd ?? unitPriceUSD);
+			const unitCostUSD = isGift ? 0 : Number(item.variation_cost_usd ?? item.cost_usd ?? 0);
+			const unitProfitUSD = isGift ? 0 : unitFinalPriceUSD - unitCostUSD;
+			const lineOriginalUSD = isGift ? 0 : Number(item.line_subtotal_original_usd ?? (unitPriceUSD * quantity));
+			const lineDiscountUSD = isGift ? 0 : Number(item.line_discount_usd || 0);
+			const lineTotalUSD = isGift ? 0 : Number(item.line_subtotal_final_usd ?? (unitFinalPriceUSD * quantity));
+			const lineProfitUSD = isGift ? 0 : unitProfitUSD * quantity;
+			const variationLabel = isGift ? '' : (item.variation_label || item.variation_name || '');
+			const variationRef = isGift ? '' : (item.variation_ref || item.variation_internal_ref || '');
+			const itemTitle = item.title || (isGift ? 'Regalo' : 'Producto');
+			const itemImageUrl = normalizeReceiptImageUrl(item.image || item.image_url || item.thumbnail || '');
+			const visualUnitPrice = isGift ? 0 : (item.only_usd || selectedCode === 'USD' ? unitFinalPriceUSD : convertFromUsd(unitFinalPriceUSD, selectedCode));
+			const visualLineTotal = isGift ? 0 : (item.only_usd || selectedCode === 'USD' ? lineTotalUSD : convertFromUsd(lineTotalUSD, selectedCode));
+			const payload = {
+				product_name: itemTitle,
+				variation_name: variationLabel,
+				variation_label: variationLabel,
+				variation_ref: variationRef,
+				item_image_url: itemImageUrl,
+				item_image_alt: itemTitle,
+				quantity,
+				unit_price_selected_currency: visualUnitPrice,
+				unit_price_usd: unitFinalPriceUSD,
+				variation_price_usd: unitFinalPriceUSD,
+				unit_price_original_usd: unitPriceUSD,
+				unit_price_final_usd: unitFinalPriceUSD,
+				unit_profit_usd: unitProfitUSD,
+				line_profit_usd: lineProfitUSD,
+				line_total_usd: lineTotalUSD,
+				line_total_selected_currency: visualLineTotal,
+				line_subtotal_original_usd: lineOriginalUSD,
+				line_discount_usd: lineDiscountUSD,
+				line_subtotal_final_usd: lineTotalUSD,
+				promotion_id: isGift ? '' : (item.promotion?.id || ''),
+				promotion_name: isGift ? '' : (item.promotion?.name || item.promotion_label || ''),
+				promotion_type: isGift ? '' : (item.promotion?.type || ''),
+				coupon_id: isGift ? '' : (item.coupon?.id || ''),
+				coupon_code: isGift ? '' : (item.coupon?.code || ''),
+				coupon_discount_usd: isGift ? 0 : Number(item.coupon_discount_usd || 0),
+				only_usd: isGift ? false : Boolean(item.only_usd),
+				is_gift: isGift,
+				gift_min_order_usd: isGift ? Number(item.min_order_usd || 0) : 0,
+			};
+
+			if (isGift) {
+				payload.gift = normalizeGiftId(item);
+			} else {
+				payload.product = item.id;
+				payload.product_ref = item.id;
+				if (item.variation_id) payload.variation = item.variation_id;
+			}
+
+			return payload;
+		}
+
+		function validateGiftOrderItemPayload(payload) {
+			if (!payload?.is_gift || !payload.gift || !payload.product_name || Number(payload.quantity) !== 1) {
+				throw new Error('No se pudo preparar el regalo para el pedido. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+
+			const zeroFields = [
+				'unit_price_selected_currency',
+				'unit_price_usd',
+				'variation_price_usd',
+				'unit_price_original_usd',
+				'unit_price_final_usd',
+				'unit_profit_usd',
+				'line_profit_usd',
+				'line_total_usd',
+				'line_total_selected_currency',
+				'line_subtotal_original_usd',
+				'line_discount_usd',
+				'line_subtotal_final_usd',
+				'coupon_discount_usd',
+			];
+			if (zeroFields.some((field) => Number(payload[field] || 0) !== 0)) {
+				throw new Error('No se pudo preparar el regalo como item gratis. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+			if ('product' in payload || 'product_ref' in payload || 'variation' in payload) {
+				throw new Error('No se pudo preparar el regalo para el pedido. Eliminalo del carrito y vuelve a seleccionarlo.');
+			}
+		}
+
+		function buildOrderItemPayloadsForOrder(items, selectedCode) {
+			const payloads = items.map((item) => buildOrderItemPayloadDraft(item, selectedCode));
+			payloads.filter((payload) => payload.is_gift).forEach(validateGiftOrderItemPayload);
+			return payloads;
+		}
+
+		function validateGiftPayloadCount(cart, orderItemPayloads) {
+			const expectedGiftCount = Array.isArray(cart) ? cart.filter(isGiftCartItem).length : 0;
+			const payloadGiftCount = Array.isArray(orderItemPayloads)
+				? orderItemPayloads.filter((payload) => payload.is_gift === true).length
+				: 0;
+
+			if (expectedGiftCount !== payloadGiftCount) {
+				throw new Error('No se pudo preparar el regalo del pedido. Elimina el regalo y vuelve a seleccionarlo.');
+			}
+		}
+
+		async function rollbackPendingOrderAfterItemFailure(createdOrder) {
+			if (!createdOrder?.id || createdOrder.status !== 'pending') return false;
+			await pocketbaseDelete('orders', createdOrder.id);
+			return true;
+		}
+
 
 		async function createOrderAndItems(validation) {
-			const cart = validateGiftRulesOnCheckout();
+			let cart = validateGiftRulesOnCheckout();
+			cart = await validateAndNormalizeLiveGiftForOrder(cart);
 			const stockProblemItems = getStockProblemItems(cart);
 			const variationProblemItems = getVariationProblemItems(cart);
 
@@ -2160,8 +2450,11 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const exchangeRateUsed = Number(expandedCurrency?.exchange_rate || 1);
 			const visualConvertibleTotal = selectedCode === 'USD' ? totals.localCurrencyTotal : convertFromUsd(totals.localCurrencyTotal, selectedCode);
 			const visualShippingTotal = selectedCode === 'USD' ? totals.shippingUSD : convertFromUsd(totals.shippingUSD, selectedCode);
-			const calculatedItems = totals.promotionItems || calculateCartPromotions(cart).items || cart;
+			const calculatedItemsRaw = totals.promotionItems || calculateCartPromotions(cart).items || cart;
+			const calculatedItems = mergeGiftItemsIntoCalculatedItems(cart, calculatedItemsRaw);
 			await validateLiveStockForOrder(calculatedItems);
+			const orderItemPayloads = buildOrderItemPayloadsForOrder(calculatedItems, selectedCode);
+			validateGiftPayloadCount(cart, orderItemPayloads);
 
 			const shippingZoneName = selectedShippingZone
 				? `${selectedShippingZone.municipality} / ${selectedShippingZone.zone || selectedShippingZone.municipality}`
@@ -2217,63 +2510,25 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 			const createdOrder = await pocketbaseRequest('orders', orderPayload);
 
-			for (const item of calculatedItems) {
-				const isGift = Boolean(item.is_gift);
-				const quantity = isGift ? 1 : Number(item.quantity || 1);
-				const unitPriceUSD = isGift ? 0 : Number(item.price || 0);
-				const unitFinalPriceUSD = isGift ? 0 : Number(item.unit_price_final_usd ?? unitPriceUSD);
-				const unitCostUSD = isGift ? 0 : Number(item.variation_cost_usd ?? item.cost_usd ?? 0);
-				const unitProfitUSD = unitFinalPriceUSD - unitCostUSD;
-				const lineOriginalUSD = isGift ? 0 : Number(item.line_subtotal_original_usd ?? (unitPriceUSD * quantity));
-				const lineDiscountUSD = isGift ? 0 : Number(item.line_discount_usd || 0);
-				const lineTotalUSD = isGift ? 0 : Number(item.line_subtotal_final_usd ?? (unitFinalPriceUSD * quantity));
-				const lineProfitUSD = unitProfitUSD * quantity;
-				const variationLabel = isGift ? '' : (item.variation_label || item.variation_name || '');
-				const variationRef = isGift ? '' : (item.variation_ref || item.variation_internal_ref || '');
-				const itemImageUrl = normalizeReceiptImageUrl(item.image || item.image_url || item.thumbnail || '');
-				const visualUnitPrice = item.only_usd || selectedCode === 'USD' ? unitFinalPriceUSD : convertFromUsd(unitFinalPriceUSD, selectedCode);
-				const visualLineTotal = item.only_usd || selectedCode === 'USD' ? lineTotalUSD : convertFromUsd(lineTotalUSD, selectedCode);
-				const orderItemPayload = {
-					order: createdOrder.id,
-					product_name: item.title,
-					variation_name: variationLabel,
-					variation_label: variationLabel,
-					item_image_url: itemImageUrl,
-					item_image_alt: item.title || 'Producto',
-					variation_ref: variationRef,
-					quantity,
-					unit_price_selected_currency: visualUnitPrice,
-					unit_price_usd: unitFinalPriceUSD,
-					variation_price_usd: unitFinalPriceUSD,
-					unit_price_original_usd: unitPriceUSD,
-					unit_price_final_usd: unitFinalPriceUSD,
-					unit_profit_usd: unitProfitUSD,
-					line_profit_usd: lineProfitUSD,
-					line_total_usd: lineTotalUSD,
-					line_total_selected_currency: visualLineTotal,
-					line_subtotal_original_usd: lineOriginalUSD,
-					line_discount_usd: lineDiscountUSD,
-					line_subtotal_final_usd: lineTotalUSD,
-					promotion_id: item.promotion?.id || '',
-					promotion_name: item.promotion?.name || item.promotion_label || '',
-					promotion_type: item.promotion?.type || '',
-					coupon_id: item.coupon?.id || '',
-					coupon_code: item.coupon?.code || '',
-					coupon_discount_usd: Number(item.coupon_discount_usd || 0),
-					only_usd: Boolean(item.only_usd),
-					is_gift: isGift,
-					gift_min_order_usd: isGift ? Number(item.min_order_usd || 0) : 0,
-				};
-
-				if (isGift) {
-					orderItemPayload.gift = item.gift_id;
-				} else {
-					orderItemPayload.product = item.id;
-					orderItemPayload.product_ref = item.id;
-					if (item.variation_id) orderItemPayload.variation = item.variation_id;
+			try {
+				for (const itemPayload of orderItemPayloads) {
+					await pocketbaseRequest('order_items', {
+						order: createdOrder.id,
+						...itemPayload,
+					});
 				}
-
-				await pocketbaseRequest('order_items', orderItemPayload);
+			} catch (error) {
+				let rollbackDone = false;
+				try {
+					rollbackDone = await rollbackPendingOrderAfterItemFailure(createdOrder);
+				} catch (_) {
+					rollbackDone = false;
+				}
+				const detail = error?.message ? ` Detalle: ${error.message}` : '';
+				if (!rollbackDone) {
+					throw new Error(`No se pudo completar el pedido. Intente nuevamente o contacte a la tienda.${detail}`);
+				}
+				throw new Error(`No se pudo completar el pedido. Intente nuevamente.${detail}`);
 			}
 
 			if (totals.couponWinner === 'manual_coupon' && totals.manualCoupon?.id) {
