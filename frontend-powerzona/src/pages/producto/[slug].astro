@@ -4,8 +4,6 @@ import PublicFooter from '../../components/PublicFooter.astro';
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
 import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummary, getProductReviews } from '../../lib/api';
 import {
-	PRODUCT_OG_HEIGHT,
-	PRODUCT_OG_WIDTH,
 	buildProductSeoDescription,
 	buildProductShareMessage,
 	buildProductSeoTitle,
@@ -18,6 +16,9 @@ import {
 } from '../../lib/productSeo';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
+
+const PRODUCT_SOCIAL_IMAGE_WIDTH = 1080;
+const PRODUCT_SOCIAL_IMAGE_HEIGHT = 1080;
 
 export async function getStaticPaths() {
 	const products = await getProducts();
@@ -288,8 +289,8 @@ const variationItems = variations.map((variation) => {
 		description: productSeoDescription,
 		image: productSeoImage,
 		imageAlt: productSeoImageAlt,
-		imageWidth: PRODUCT_OG_WIDTH,
-		imageHeight: PRODUCT_OG_HEIGHT,
+		imageWidth: PRODUCT_SOCIAL_IMAGE_WIDTH,
+		imageHeight: PRODUCT_SOCIAL_IMAGE_HEIGHT,
 		canonical: productSeoUrl,
 		type: 'product',
 		siteName: storeName,

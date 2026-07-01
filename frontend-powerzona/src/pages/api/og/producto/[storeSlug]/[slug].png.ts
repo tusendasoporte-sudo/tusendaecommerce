@@ -2,18 +2,14 @@ import type { APIRoute } from 'astro';
 import { Buffer } from 'node:buffer';
 import sharp from 'sharp';
 import { getProductBySlug, getSettings } from '../../../../../lib/api';
-import {
-  PRODUCT_OG_HEIGHT,
-  PRODUCT_OG_WIDTH,
-  cleanSeoText,
-} from '../../../../../lib/productSeo';
+import { cleanSeoText } from '../../../../../lib/productSeo';
 import { isStoreTemporarilyClosed } from '../../../../../lib/storeAvailability';
 import { getStoreBySlug } from '../../../../../lib/stores';
 
-const CARD_WIDTH = PRODUCT_OG_WIDTH;
-const CARD_HEIGHT = PRODUCT_OG_HEIGHT;
-const PRODUCT_IMAGE_MAX_WIDTH = 1120;
-const PRODUCT_IMAGE_MAX_HEIGHT = 620;
+const CARD_WIDTH = 1080;
+const CARD_HEIGHT = 1080;
+const PRODUCT_IMAGE_MAX_WIDTH = 1000;
+const PRODUCT_IMAGE_MAX_HEIGHT = 1020;
 
 export const GET: APIRoute = async ({ params }) => {
   const storeSlug = cleanSeoText(params.storeSlug).toLowerCase();
@@ -52,8 +48,19 @@ async function renderProductOgImage(productImageUrl: unknown) {
   const productImage = await getContainedProductImage(productImageUrl);
 
   if (!productImage) {
+    const placeholder = await createNoImagePlaceholder();
+    const metadata = await sharp(placeholder).metadata();
+    const width = Number(metadata.width || 0);
+    const height = Number(metadata.height || 0);
+
     return background
-      .composite([{ input: await createNoImagePlaceholder(), left: 390, top: 105 }])
+      .composite([
+        {
+          input: placeholder,
+          left: Math.max(0, Math.round((CARD_WIDTH - width) / 2)),
+          top: Math.max(0, Math.round((CARD_HEIGHT - height) / 2)),
+        },
+      ])
       .png({ compressionLevel: 9 })
       .toBuffer();
   }
@@ -71,28 +78,14 @@ async function renderProductOgImage(productImageUrl: unknown) {
 }
 
 async function createCleanBackground() {
-  const base = sharp({
+  return sharp({
     create: {
       width: CARD_WIDTH,
       height: CARD_HEIGHT,
       channels: 4,
-      background: { r: 248, g: 251, b: 255, alpha: 1 },
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
     },
   });
-
-  return base.composite([
-    {
-      input: Buffer.from(
-        `<svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#ffffff"/>
-          <rect x="28" y="28" width="1144" height="574" rx="42" fill="#f8fbff" stroke="#e6edf7" stroke-width="2"/>
-          <ellipse cx="600" cy="585" rx="350" ry="30" fill="#dbe7f5" opacity="0.42"/>
-        </svg>`
-      ),
-      left: 0,
-      top: 0,
-    },
-  ]);
 }
 
 async function getContainedProductImage(value: unknown) {
@@ -145,28 +138,15 @@ async function trimImageSafely(source: Buffer) {
 }
 
 async function createNoImagePlaceholder() {
-  return sharp({
-    create: {
-      width: 420,
-      height: 420,
-      channels: 4,
-      background: { r: 241, g: 246, b: 252, alpha: 1 },
-    },
-  })
-    .composite([
-      {
-        input: Buffer.from(
-          `<svg width="420" height="420" viewBox="0 0 420 420" xmlns="http://www.w3.org/2000/svg">
-            <rect x="0" y="0" width="420" height="420" rx="54" fill="#f1f6fc"/>
-            <rect x="118" y="128" width="184" height="164" rx="28" fill="#dce8f5"/>
-            <rect x="146" y="100" width="128" height="54" rx="20" fill="#cbdbea"/>
-            <circle cx="210" cy="210" r="46" fill="#edf4fb"/>
-          </svg>`
-        ),
-        left: 0,
-        top: 0,
-      },
-    ])
+  return sharp(
+    Buffer.from(
+      `<svg width="520" height="520" viewBox="0 0 520 520" xmlns="http://www.w3.org/2000/svg">
+        <path d="M154 190h56l28-36h44l28 36h56c30 0 54 24 54 54v122c0 30-24 54-54 54H154c-30 0-54-24-54-54V244c0-30 24-54 54-54Z" fill="#dce8f5"/>
+        <circle cx="260" cy="304" r="72" fill="#f7fbff"/>
+        <circle cx="260" cy="304" r="46" fill="#dce8f5"/>
+      </svg>`
+    )
+  )
     .png()
     .toBuffer();
 }
