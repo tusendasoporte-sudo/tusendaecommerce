@@ -201,7 +201,7 @@ export function buildProductShareMessage(input: {
     return `${heading}\n\nDisponible en ${storeName}. Compra fácil por WhatsApp.`;
   }
 
-  const detailLines = details.map((detail, index) => (index === 0 ? detail : `· ${detail}`));
+  const detailLines = details.map((detail) => `✔ ${detail}`);
   return `${heading}\n\n${detailLines.join('\n')}\n\nDisponible en ${storeName}.`;
 }
 
