@@ -1,0 +1,64 @@
+---
+import LandingQrPublicPage from '../../../components/public-store/LandingQrPublicPage.astro';
+import { getSettings } from '../../../lib/api';
+import { StoreResolutionError, getCurrentStore } from '../../../lib/stores';
+import {
+  buildDefaultLandingQrLinks,
+  getLandingQrInitials,
+  getLandingQrPath,
+  getLandingQrStoreName,
+  normalizeLandingQrAccentColor,
+  normalizeLandingQrLinks,
+} from '../../../lib/landingQr';
+
+let currentStore;
+
+try {
+  currentStore = await getCurrentStore(Astro);
+} catch (error) {
+  if (error instanceof StoreResolutionError) {
+    return Astro.redirect('/');
+  }
+
+  throw error;
+}
+
+const settings = await getSettings({ storeId: currentStore.id });
+const landingPath = getLandingQrPath(currentStore);
+const publicStorePath = landingPath.replace(/\/links$/, '');
+const landingIsDisabled =
+  settings?.landing_qr_enabled === false ||
+  settings?.landing_qr_enabled === 0 ||
+  String(settings?.landing_qr_enabled).toLowerCase() === 'false' ||
+  String(settings?.landing_qr_enabled) === '0';
+
+if (landingIsDisabled) {
+  return Astro.redirect(publicStorePath);
+}
+
+const storeName = getLandingQrStoreName(settings, currentStore);
+const landingTitle = String(settings?.landing_qr_title || '').trim() || 'Escanea y conecta con nosotros';
+const landingSubtitle = String(settings?.landing_qr_subtitle || settings?.welcome_text || settings?.store_description || '').trim() || 'Tu tienda de confianza en Tu Senda 84.';
+const accentColor = normalizeLandingQrAccentColor(settings?.landing_qr_accent_color);
+const configuredLinks = normalizeLandingQrLinks(settings?.landing_qr_links);
+const landingLinks = configuredLinks.length ? configuredLinks : buildDefaultLandingQrLinks(currentStore, settings);
+const logoUrl = settings?.logoImageUrl || currentStore.logoUrl || '';
+const landingHeroImageUrl = settings?.landingQrHeroImageUrl || '';
+const initials = getLandingQrInitials(storeName);
+const publicUrl = new URL(landingPath, Astro.url.origin).toString();
+---
+
+<LandingQrPublicPage
+  currentStore={currentStore}
+  settings={settings}
+  storeName={storeName}
+  landingTitle={landingTitle}
+  landingSubtitle={landingSubtitle}
+  accentColor={accentColor}
+  landingLinks={landingLinks}
+  logoUrl={logoUrl}
+  landingHeroImageUrl={landingHeroImageUrl}
+  initials={initials}
+  publicUrl={publicUrl}
+  landingPath={landingPath}
+/>

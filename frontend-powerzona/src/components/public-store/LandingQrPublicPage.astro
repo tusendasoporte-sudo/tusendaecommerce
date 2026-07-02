@@ -1,0 +1,370 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import type { LandingQrLink } from '../../lib/landingQr';
+import type { PublicStore } from '../../lib/stores';
+
+type Props = {
+  currentStore: PublicStore;
+  settings: any;
+  storeName: string;
+  landingTitle: string;
+  landingSubtitle: string;
+  accentColor: string;
+  landingLinks: LandingQrLink[];
+  logoUrl: string;
+  landingHeroImageUrl: string;
+  initials: string;
+  publicUrl: string;
+  landingPath: string;
+};
+
+const {
+  currentStore,
+  settings,
+  storeName,
+  landingTitle,
+  landingSubtitle,
+  accentColor,
+  landingLinks,
+  logoUrl,
+  landingHeroImageUrl,
+  initials,
+  publicUrl,
+  landingPath,
+} = Astro.props as Props;
+
+const seo = {
+  title: `Enlaces de ${storeName}`,
+  description: landingSubtitle,
+  canonical: landingPath,
+  image: landingHeroImageUrl || logoUrl,
+  imageAlt: storeName,
+  siteName: 'Tu Senda 84',
+};
+
+const iconPaths: Record<string, string> = {
+  store: '<path d="M6 6h15l-1.5 8.5a2 2 0 0 1-2 1.5H9a2 2 0 0 1-2-1.6L5.2 3H3"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
+  whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.9 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M9.5 8.5c.3 2.7 1.8 4.6 4.4 5.8l1.2-1.2 2 1c-.1 1.1-.9 2-2.1 2-3.8 0-7.2-3.4-7.2-7.2 0-1.2.9-2 2-2.1l1 2-1.3 1.7Z"/>',
+  group: '<path d="M16 11a3 3 0 1 0-2.8-4"/><path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/><path d="M2.5 19a5.5 5.5 0 0 1 11 0"/><path d="M14 15.2a5 5 0 0 1 7.5 3.8"/>',
+  instagram: '<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.2"/><path d="M17.2 6.8h.01"/>',
+  facebook: '<path d="M14 8h2V4h-3a4 4 0 0 0-4 4v3H7v4h2v5h4v-5h3l1-4h-4V8a1 1 0 0 1 1-1Z"/>',
+  tiktok: '<path d="M15 4v10.5A4.5 4.5 0 1 1 10.5 10"/><path d="M15 4c.5 2.8 2 4.4 5 4.8"/>',
+  offer: '<path d="M20 13 13 20 4 11V4h7l9 9Z"/><circle cx="8" cy="8" r="1.2"/>',
+  location: '<path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/>',
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.1 0l1.4-1.4a5 5 0 0 0-7.1-7.1L10.5 5"/><path d="M14 11a5 5 0 0 0-7.1 0l-1.4 1.4a5 5 0 0 0 7.1 7.1l.9-.9"/>',
+};
+
+const linkBackgrounds: Record<string, string> = {
+  store: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+  whatsapp: 'linear-gradient(180deg, #22c55e 0%, #16a34a 100%)',
+  group: 'linear-gradient(180deg, #22c55e 0%, #15803d 100%)',
+  instagram: 'linear-gradient(180deg, #fb7185 0%, #ec4899 45%, #8b5cf6 100%)',
+  facebook: 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)',
+  tiktok: 'linear-gradient(180deg, #111827 0%, #020617 100%)',
+  offer: 'linear-gradient(180deg, #fb923c 0%, #f97316 100%)',
+  location: 'linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%)',
+  download: 'linear-gradient(180deg, #14b8a6 0%, #0f766e 100%)',
+  link: 'linear-gradient(180deg, #475569 0%, #334155 100%)',
+};
+
+function getLinkBackground(type: string) {
+  const key = String(type || '').toLowerCase();
+  return linkBackgrounds[key] || linkBackgrounds.link;
+}
+
+const isExternalLink = (value: string) => /^https?:\/\//i.test(value);
+void currentStore;
+void settings;
+void accentColor;
+---
+
+<Layout hideStoreFloatingUi={true} seo={seo}>
+  <section class="landing-qr-page">
+    <div class="landing-qr-card" aria-label={`Enlaces de ${storeName}`}>
+      <header class="landing-qr-header">
+        <div class="landing-qr-mark" aria-hidden={logoUrl ? 'true' : 'false'}>
+          {logoUrl ? <img src={logoUrl} alt="" loading="eager" decoding="async" /> : <span>{initials}</span>}
+        </div>
+        <p class="landing-qr-store">{storeName}</p>
+        <h1>{landingTitle}</h1>
+        <p class="landing-qr-subtitle">{landingSubtitle}</p>
+      </header>
+
+      {landingHeroImageUrl && (
+        <figure class="landing-qr-hero">
+          <img src={landingHeroImageUrl} alt="" loading="lazy" decoding="async" />
+        </figure>
+      )}
+
+      <div class="landing-qr-links">
+        {landingLinks.map((link) => (
+          <a
+            class="landing-qr-link"
+            style={`--link-bg:${getLinkBackground(link.type || link.icon)}`}
+            href={link.url}
+            target={isExternalLink(link.url) ? '_blank' : undefined}
+            rel={isExternalLink(link.url) ? 'noopener noreferrer' : undefined}
+          >
+            <span class="landing-qr-link-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" set:html={iconPaths[link.icon] || iconPaths.link}></svg>
+            </span>
+            <span class="landing-qr-link-copy">
+              <strong>{link.label}</strong>
+              {link.subtitle && <small>{link.subtitle}</small>}
+            </span>
+            <span class="landing-qr-link-arrow" aria-hidden="true">›</span>
+          </a>
+        ))}
+      </div>
+
+      <footer class="landing-qr-footer">
+        <strong>{storeName}</strong>
+        <small>Tu Senda 84</small>
+      </footer>
+    </div>
+
+    <p class="landing-qr-url">{publicUrl}</p>
+  </section>
+</Layout>
+
+<style>
+  :global(body) {
+    background:
+      linear-gradient(180deg, rgba(239, 246, 255, 0.92) 0%, #ffffff 42%, #eaf2ff 100%);
+  }
+
+  .landing-qr-page {
+    min-height: calc(100vh - 2rem);
+    display: grid;
+    place-items: center;
+    gap: 14px;
+    padding: 10px 0 18px;
+    color: #0f172a;
+  }
+
+  .landing-qr-card {
+    width: min(100%, 430px);
+    min-height: min(760px, calc(100vh - 24px));
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(191, 219, 254, 0.75);
+    border-radius: 34px;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.14), transparent 34%),
+      linear-gradient(180deg, #ffffff 0%, #f8fbff 58%, #eef5ff 100%);
+    box-shadow: 0 30px 80px rgba(15, 23, 42, 0.16);
+    padding: 24px 0 0;
+    overflow: hidden;
+  }
+
+  .landing-qr-header {
+    text-align: center;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 6px 20px 10px;
+  }
+
+  .landing-qr-mark {
+    width: 86px;
+    height: 86px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    color: white;
+    background: linear-gradient(135deg, #2563eb, #0f172a);
+    box-shadow: 0 16px 34px rgba(37, 99, 235, 0.24);
+    font-size: 24px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .landing-qr-store {
+    margin: 0;
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .landing-qr-header h1 {
+    margin: 0;
+    max-width: 100%;
+    font-size: clamp(25px, 7vw, 34px);
+    line-height: 1.03;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .landing-qr-subtitle {
+    margin: 0;
+    max-width: 34ch;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 760;
+    line-height: 1.45;
+  }
+
+  .landing-qr-hero {
+    margin: 12px 20px 14px;
+    width: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #e2e8f0;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+  }
+
+  .landing-qr-hero img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .landing-qr-links {
+    display: grid;
+    gap: 10px;
+    padding: 0 20px 18px;
+  }
+
+  .landing-qr-link {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 12px;
+    min-height: 62px;
+    padding: 10px 12px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.96);
+    color: #0f172a;
+    text-decoration: none;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+    border: 1px solid rgba(226, 232, 240, 0.96);
+  }
+
+  .landing-qr-link-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+    box-shadow:
+      0 10px 20px rgba(15, 23, 42, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+  }
+
+  .landing-qr-link-icon svg {
+    width: 19px;
+    height: 19px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .landing-qr-link-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .landing-qr-link-copy strong,
+  .landing-qr-link-copy small {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-qr-link-copy strong {
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.15;
+    font-weight: 1000;
+  }
+
+  .landing-qr-link-copy small {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.15;
+  }
+
+  .landing-qr-link-arrow {
+    justify-self: end;
+    color: #64748b;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .landing-qr-footer {
+    margin: auto 0 0;
+    padding: 18px 20px 22px;
+    display: grid;
+    gap: 3px;
+    justify-items: center;
+    background: linear-gradient(135deg, #0f172a, #07111f);
+    color: #fff;
+    text-align: center;
+  }
+
+  .landing-qr-footer strong,
+  .landing-qr-footer small {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-qr-footer strong {
+    font-size: 14px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-footer small {
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 760;
+  }
+
+  .landing-qr-url {
+    margin: 0;
+    max-width: min(100%, 430px);
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 750;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 460px) {
+    .landing-qr-card {
+      border-radius: 26px;
+      padding: 20px 0 0;
+    }
+
+    .landing-qr-header {
+      padding-inline: 14px;
+    }
+
+    .landing-qr-hero {
+      margin-inline: 14px;
+    }
+
+    .landing-qr-links {
+      padding-inline: 14px;
+    }
+
+    .landing-qr-page {
+      padding-top: 0;
+    }
+  }
+</style>

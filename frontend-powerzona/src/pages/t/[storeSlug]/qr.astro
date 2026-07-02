@@ -1,0 +1,15 @@
+---
+import { StoreResolutionError, getCurrentStore } from '../../../lib/stores';
+import { getLandingQrPath } from '../../../lib/landingQr';
+
+try {
+  const currentStore = await getCurrentStore(Astro);
+  return Astro.redirect(getLandingQrPath(currentStore));
+} catch (error) {
+  if (error instanceof StoreResolutionError) {
+    return Astro.redirect('/');
+  }
+
+  throw error;
+}
+---

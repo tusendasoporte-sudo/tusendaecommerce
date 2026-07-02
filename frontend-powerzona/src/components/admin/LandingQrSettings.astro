@@ -1,0 +1,2028 @@
+---
+type Props = {
+  pocketbaseUrl: string;
+  currentStoreId: string;
+  currentStoreSlug: string;
+  currentStoreName: string;
+  adminAuthToken: string;
+};
+
+const {
+  pocketbaseUrl,
+  currentStoreId,
+  currentStoreSlug,
+  currentStoreName,
+  adminAuthToken,
+} = Astro.props as Props;
+
+const safeStoreSlug = currentStoreSlug || 'powerzona';
+const publicPath = `/t/${encodeURIComponent(safeStoreSlug)}/links`;
+const publicStorePath = `/t/${encodeURIComponent(safeStoreSlug)}`;
+const qrSvgPath = `${publicPath}/qr.svg`;
+const qrPngPath = `${publicPath}/qr.png`;
+---
+
+<section
+  class="landing-qr-admin"
+  data-landing-qr-root
+  aria-label="Configuración de Landing QR"
+>
+  <div class="landing-qr-admin__grid">
+    <div class="landing-qr-admin__editor">
+      <div class="landing-qr-summary" aria-label="Resumen Landing QR">
+        <article>
+          <span>Estado</span>
+          <strong data-landing-status>Publicado</strong>
+          <small>Visibilidad pública</small>
+        </article>
+        <article>
+          <span>Botones activos</span>
+          <strong data-active-count>0</strong>
+          <small>Máximo 10 enlaces</small>
+        </article>
+        <article>
+          <span>URL fija</span>
+          <strong data-url-host>...</strong>
+          <small>El QR apunta siempre aquí</small>
+        </article>
+      </div>
+
+      <form class="landing-qr-form" data-landing-form>
+        <section class="landing-qr-panel">
+          <div class="landing-qr-panel__head landing-qr-panel__head--state">
+            <div>
+              <h3>Estado y contenido</h3>
+              <p>Configura la página que verán tus clientes al escanear el QR.</p>
+            </div>
+            <div class="landing-state-actions">
+              <label class="landing-switch" for="landing-qr-enabled">
+                <input id="landing-qr-enabled" data-field="enabled" type="checkbox" />
+                <span aria-hidden="true"></span>
+              </label>
+              <button class="landing-btn landing-btn--primary landing-save-btn" type="button" data-save-landing disabled>Guardado</button>
+            </div>
+          </div>
+
+          <div class="landing-fields">
+            <label>
+              <span>Título principal</span>
+              <input data-field="title" type="text" maxlength="80" placeholder="Escanea y conecta con nosotros" />
+            </label>
+            <label>
+              <span>Subtítulo</span>
+              <input data-field="subtitle" type="text" maxlength="140" placeholder="Calidad, ofertas y atención rápida en un solo lugar" />
+            </label>
+            <div class="landing-hero-editor">
+              <div>
+                <span class="landing-field-title">Imagen destacada 16:9</span>
+                <p>Opcional. Recomendada 1200 x 675 px. Se optimiza automaticamente a WebP.</p>
+              </div>
+
+              <button class="landing-hero-preview" type="button" data-hero-preview data-select-hero-image>
+                <span>Sin imagen destacada</span>
+              </button>
+
+              <div class="landing-hero-actions">
+                <button class="landing-btn" type="button" data-select-hero-image>Subir imagen</button>
+                <input data-field="heroImage" class="landing-file-input" type="file" accept="image/jpeg,image/png,image/webp" />
+                <button class="landing-btn landing-btn--danger hidden" type="button" data-remove-hero-image>Quitar imagen</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="landing-qr-panel">
+          <div class="landing-qr-panel__head">
+            <div>
+              <h3>Enlaces</h3>
+              <p>Activa, edita y ordena hasta 10 botones para la landing.</p>
+            </div>
+            <button class="landing-btn landing-btn--primary" type="button" data-add-link>Agregar enlace</button>
+          </div>
+
+          <div class="landing-suggestion-row" aria-label="Acciones rápidas de enlaces">
+            <button class="landing-chip" type="button" data-restore-suggested>Restaurar sugeridos</button>
+            <button class="landing-chip" type="button" data-add-suggested="store">Tienda</button>
+            <button class="landing-chip" type="button" data-add-suggested="whatsapp">WhatsApp</button>
+            <button class="landing-chip" type="button" data-add-suggested="group">Grupo</button>
+            <button class="landing-chip" type="button" data-add-suggested="instagram">Instagram</button>
+            <button class="landing-chip" type="button" data-add-suggested="facebook">Facebook</button>
+          </div>
+
+          <div class="landing-links-list" data-links-list></div>
+          <div class="landing-empty hidden" data-links-empty>No hay enlaces configurados.</div>
+        </section>
+
+        <div class="landing-actions">
+          <button class="landing-btn" type="button" data-open-landing>Abrir página</button>
+          <button class="landing-btn" type="button" data-copy-public-url>Copiar URL</button>
+        </div>
+
+        <div class="landing-alert hidden" data-landing-alert></div>
+      </form>
+    </div>
+
+    <aside class="landing-qr-admin__side">
+      <section class="landing-qr-panel landing-preview-panel">
+        <div class="landing-qr-panel__head">
+          <div>
+            <h3>Vista previa móvil</h3>
+            <p>Así se verá al abrir el enlace desde un teléfono.</p>
+          </div>
+        </div>
+        <div class="landing-phone-preview">
+          <div class="landing-phone-preview__screen" data-preview-screen>
+            <div class="landing-preview-logo" data-preview-logo>{currentStoreName.slice(0, 2).toUpperCase()}</div>
+            <p class="landing-preview-store">{currentStoreName || 'Tienda'}</p>
+            <h4 data-preview-title>Escanea y conecta con nosotros</h4>
+            <p data-preview-subtitle>Calidad, ofertas y atención rápida en un solo lugar</p>
+            <div class="landing-preview-hero hidden" data-preview-hero></div>
+            <div class="landing-preview-links" data-preview-links></div>
+            <footer>
+              <strong>{currentStoreName || 'Tienda'}</strong>
+              <span>Tu Senda 84</span>
+            </footer>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-qr-panel landing-qr-download">
+        <div class="landing-qr-panel__head">
+          <div>
+            <h3>Tu página y QR</h3>
+            <p>Imprime este QR y cambia los enlaces cuando quieras.</p>
+          </div>
+        </div>
+        <label class="landing-url-field">
+          <span>URL fija de tu Landing QR</span>
+          <input data-public-url type="text" value="" readonly />
+        </label>
+        <div class="landing-qr-box">
+          <img src={qrSvgPath} alt="QR de Landing QR" loading="lazy" decoding="async" data-qr-image />
+        </div>
+        <div class="landing-qr-download__actions">
+          <a class="landing-btn" href={qrPngPath} download={`landing-qr-${safeStoreSlug}.png`}>Descargar PNG</a>
+          <a class="landing-btn" href={qrSvgPath} download={`landing-qr-${safeStoreSlug}.svg`}>Descargar SVG</a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+
+<style is:global>
+  .landing-qr-admin,
+  .landing-qr-admin * {
+    box-sizing: border-box;
+  }
+
+  .landing-qr-admin {
+    color: #0f172a;
+  }
+
+  .landing-qr-admin .landing-qr-admin__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+    gap: 18px;
+    align-items: start;
+  }
+
+  .landing-qr-admin .landing-qr-admin__editor,
+  .landing-qr-admin .landing-qr-admin__side,
+  .landing-qr-admin .landing-qr-form {
+    display: grid;
+    gap: 16px;
+  }
+
+  .landing-qr-admin .landing-qr-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .landing-qr-admin .landing-qr-summary article,
+  .landing-qr-admin .landing-qr-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.06);
+  }
+
+  .landing-qr-admin .landing-qr-summary article {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .landing-qr-admin .landing-qr-summary span,
+  .landing-qr-admin .landing-qr-summary small {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-qr-admin .landing-qr-summary strong {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    padding: 5px 10px;
+    margin: 5px 0 3px;
+    font-size: 14px;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-qr-admin .landing-qr-summary strong.is-hidden {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  .landing-qr-admin .landing-qr-summary strong.is-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .landing-qr-admin .landing-qr-panel {
+    padding: 16px;
+  }
+
+  .landing-qr-admin .landing-qr-panel__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .landing-qr-admin .landing-qr-panel__head h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-admin .landing-qr-panel__head p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.35;
+  }
+
+  .landing-qr-admin .landing-qr-panel__head--state {
+    align-items: flex-start;
+  }
+
+  .landing-qr-admin .landing-state-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    padding-right: 6px;
+    flex-shrink: 0;
+  }
+
+  .landing-qr-admin .landing-save-btn {
+    min-height: 38px;
+    padding: 0 16px;
+    border-radius: 14px;
+    white-space: nowrap;
+  }
+
+  .landing-qr-admin .landing-switch {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    margin-right: 0;
+  }
+
+  .landing-qr-admin .landing-switch input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .landing-qr-admin .landing-switch span {
+    width: 50px;
+    height: 28px;
+    border-radius: 999px;
+    padding: 3px;
+    background: #cbd5e1;
+    transition: background 0.2s ease;
+  }
+
+  .landing-qr-admin .landing-switch span::before {
+    content: "";
+    display: block;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.22);
+    transition: transform 0.2s ease;
+  }
+
+  .landing-qr-admin .landing-switch input:checked + span {
+    background: #2563eb;
+  }
+
+  .landing-qr-admin .landing-switch input:checked + span::before {
+    transform: translateX(22px);
+  }
+
+  .landing-qr-admin .landing-fields {
+    display: grid;
+    gap: 12px;
+  }
+
+  .landing-qr-admin .landing-fields label,
+  .landing-qr-admin .landing-url-field {
+    display: grid;
+    gap: 6px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .landing-qr-admin .landing-fields input,
+  .landing-qr-admin .landing-fields select,
+  .landing-qr-admin .landing-fields textarea,
+  .landing-qr-admin .landing-url-field input,
+  .landing-qr-admin .landing-link-row input,
+  .landing-qr-admin .landing-link-row select {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #fff;
+    color: #0f172a;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    outline: none;
+  }
+
+  .landing-qr-admin .landing-fields input:focus,
+  .landing-qr-admin .landing-url-field input:focus,
+  .landing-qr-admin .landing-link-row input:focus,
+  .landing-qr-admin .landing-link-row select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+
+  .landing-qr-admin .landing-field-title {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .landing-qr-admin .landing-hero-editor {
+    display: grid;
+    gap: 10px;
+  }
+
+  .landing-qr-admin .landing-hero-editor p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.35;
+  }
+
+  .landing-qr-admin .landing-hero-preview {
+    appearance: none;
+    width: min(100%, 360px);
+    aspect-ratio: 16 / 9;
+    border: 1px dashed #bfd1e8;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f8fbff, #eef6ff);
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.35;
+    cursor: pointer;
+    padding: 0;
+    text-align: center;
+    font: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.76);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .landing-qr-admin .landing-hero-preview:hover {
+    border-color: #2563eb;
+    box-shadow: 0 14px 32px rgba(37, 99, 235, 0.14);
+    transform: translateY(-1px);
+  }
+
+  .landing-qr-admin .landing-hero-preview span {
+    padding: 12px;
+  }
+
+  .landing-qr-admin .landing-hero-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .landing-qr-admin .landing-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .landing-qr-admin .landing-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .landing-qr-admin .landing-suggestion-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .landing-qr-admin .landing-btn,
+  .landing-qr-admin .landing-chip {
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #fff;
+    color: #1d4ed8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 9px 13px;
+    font-size: 13px;
+    font-weight: 950;
+    text-decoration: none;
+  }
+
+  .landing-qr-admin .landing-btn--primary {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #fff;
+    box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
+  }
+
+  .landing-qr-admin .landing-btn--danger {
+    border-color: #fecaca;
+    color: #b91c1c;
+  }
+
+  .landing-qr-admin .landing-btn:disabled,
+  .landing-qr-admin .landing-chip:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+  }
+
+  .landing-qr-admin [data-save-landing][disabled] {
+    opacity: 0.68;
+    box-shadow: none;
+  }
+
+  .landing-qr-admin .landing-chip {
+    min-height: 34px;
+    border-radius: 999px;
+    color: #334155;
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+
+  .landing-qr-admin .landing-links-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .landing-qr-admin .landing-link-row {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fff, #f8fafc);
+    padding: 10px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+  }
+
+  .landing-qr-admin .landing-link-row__top {
+    display: grid;
+    grid-template-columns: 32px 42px minmax(0, 1fr) auto auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .landing-qr-admin .landing-link-row__index {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 900;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+
+  .landing-qr-admin .landing-link-row__icon {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+    color: #ffffff;
+    box-shadow:
+      0 10px 20px rgba(15, 23, 42, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+  }
+
+  .landing-qr-admin .landing-link-row__icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    color: currentColor;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .landing-qr-admin .landing-link-row__copy {
+    min-width: 0;
+  }
+
+  .landing-qr-admin .landing-link-row__title {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-qr-admin .landing-link-row__meta,
+  .landing-qr-admin .landing-link-row__url {
+    display: block;
+    margin-top: 2px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-qr-admin .landing-link-status {
+    border-radius: 999px;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 6px 9px;
+    font-size: 11px;
+    font-weight: 1000;
+    white-space: nowrap;
+  }
+
+  .landing-qr-admin .landing-link-status.is-muted {
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  .landing-qr-admin .landing-link-row__actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+
+  .landing-qr-admin .landing-link-row__actions button {
+    min-width: 32px;
+    height: 32px;
+    border: 1px solid #dbe4f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #334155;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 1000;
+    padding: 0 9px;
+  }
+
+  .landing-qr-admin .landing-link-row__actions .danger {
+    color: #dc2626;
+  }
+
+  .landing-qr-admin .landing-link-row__actions .landing-link-edit {
+    width: auto;
+    color: #1d4ed8;
+    font-size: 12px;
+  }
+
+  .landing-qr-admin .landing-link-row__grid {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .landing-qr-admin .landing-link-row__grid .wide {
+    grid-column: 1 / -1;
+  }
+
+  .landing-qr-admin .landing-link-toggle {
+    justify-self: end;
+  }
+
+  .landing-qr-admin .landing-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .landing-qr-admin .landing-qr-download__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .landing-qr-admin .landing-alert {
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .landing-qr-admin .landing-alert.is-error {
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  .landing-qr-admin .landing-alert.is-success {
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .landing-qr-admin .landing-empty {
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 18px;
+    color: #64748b;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .landing-qr-admin .hidden {
+    display: none !important;
+  }
+
+  .landing-qr-admin .landing-phone-preview {
+    display: grid;
+    place-items: center;
+    padding: 10px 0 4px;
+  }
+
+  .landing-qr-admin .landing-phone-preview__screen {
+    display: flex;
+    flex-direction: column;
+    width: 280px;
+    max-height: 640px;
+    min-height: 560px;
+    border: 10px solid #0f172a;
+    border-radius: 36px;
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 12rem),
+      linear-gradient(180deg, #f8fbff 0%, #eef5ff 62%, #ffffff 100%);
+    box-shadow: 0 22px 46px rgba(15, 23, 42, 0.2);
+    padding: 22px 14px 0;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .landing-qr-admin .landing-preview-logo {
+    width: 66px;
+    height: 66px;
+    margin: 0 auto 8px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #2563eb, #0f172a);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-admin .landing-preview-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .landing-qr-admin .landing-preview-store {
+    margin: 0;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-admin .landing-phone-preview h4 {
+    margin: 4px 0 4px;
+    color: #0f172a;
+    font-size: 22px;
+    line-height: 1.05;
+    font-weight: 1000;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-qr-admin .landing-phone-preview p {
+    margin: 0;
+    color: #334155;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .landing-qr-admin .landing-preview-hero {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 18px;
+    overflow: hidden;
+    margin: 12px 0 4px;
+    background: linear-gradient(135deg, #dbeafe, #f8fafc);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.1);
+  }
+
+  .landing-qr-admin .landing-preview-hero img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .landing-qr-admin .landing-preview-links {
+    display: grid;
+    gap: 9px;
+    margin-top: 14px;
+    min-height: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 2px;
+  }
+
+  .landing-qr-admin .landing-preview-links::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  .landing-qr-admin .landing-preview-link {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 16px;
+    align-items: center;
+    gap: 10px;
+    min-height: 58px;
+    border-radius: 16px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 9px 11px;
+    text-align: left;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    text-decoration: none;
+  }
+
+  .landing-qr-admin .landing-preview-link__icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+    color: #fff;
+    box-shadow:
+      0 8px 18px rgba(15, 23, 42, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+  }
+
+  .landing-qr-admin .landing-preview-link__icon svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .landing-qr-admin .landing-preview-link strong,
+  .landing-qr-admin .landing-preview-link small {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-qr-admin .landing-preview-link strong {
+    color: #0f172a;
+    font-size: 11px;
+    line-height: 1.15;
+    font-weight: 1000;
+  }
+
+  .landing-qr-admin .landing-preview-link small {
+    color: #64748b;
+    font-size: 9px;
+    line-height: 1.15;
+    font-weight: 800;
+  }
+
+  .landing-qr-admin .landing-preview-link__arrow {
+    justify-self: end;
+    color: #64748b;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .landing-qr-admin .landing-phone-preview footer {
+    margin-top: auto;
+    margin-left: -14px;
+    margin-right: -14px;
+    margin-bottom: 0;
+    padding: 16px 14px 18px;
+    border-radius: 24px 24px 26px 26px;
+    background: linear-gradient(135deg, #0f172a, #172554);
+    color: #fff;
+    text-align: center;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-admin .landing-phone-preview footer span {
+    display: block;
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .landing-qr-admin .landing-qr-box {
+    display: grid;
+    place-items: center;
+    margin: 14px auto;
+    width: min(100%, 260px);
+    aspect-ratio: 1;
+    border: 1px solid #dbeafe;
+    border-radius: 22px;
+    background:
+      linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.96)),
+      #fff;
+    padding: 18px;
+    box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.82), 0 18px 42px rgba(37, 99, 235, 0.12);
+  }
+
+  .landing-qr-admin .landing-qr-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  @media (max-width: 1100px) {
+  .landing-qr-admin .landing-qr-admin__grid {
+      grid-template-columns: 1fr;
+    }
+
+  .landing-qr-admin .landing-qr-admin__side {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 760px) {
+  .landing-qr-admin .landing-qr-summary,
+  .landing-qr-admin .landing-link-row__grid,
+  .landing-qr-admin .landing-actions,
+  .landing-qr-admin .landing-qr-download__actions,
+  .landing-qr-admin .landing-qr-admin__side {
+      grid-template-columns: 1fr;
+    }
+
+  .landing-qr-admin .landing-qr-panel__head {
+      display: grid;
+      gap: 12px;
+    }
+
+  .landing-qr-admin .landing-qr-panel__head--state {
+      display: grid;
+      gap: 12px;
+    }
+
+  .landing-qr-admin .landing-state-actions {
+      width: 100%;
+      justify-content: flex-end;
+      padding-right: 0;
+    }
+
+  .landing-qr-admin .landing-link-toggle {
+      justify-self: start;
+    }
+
+  .landing-qr-admin .landing-link-row__top {
+      grid-template-columns: 34px 42px minmax(0, 1fr);
+    }
+
+  .landing-qr-admin .landing-link-status,
+  .landing-qr-admin .landing-link-row__actions {
+      grid-column: 1 / -1;
+    }
+
+  .landing-qr-admin .landing-link-row__actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+
+  }
+</style>
+
+<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug, currentStoreName, adminAuthToken, publicPath, publicStorePath, qrSvgPath, qrPngPath }}>
+  (() => {
+    const root = document.querySelector('[data-landing-qr-root]');
+    if (!root) return;
+
+    const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+    const CURRENT_STORE_ID = String(currentStoreId || '');
+    const CURRENT_STORE_SLUG = String(currentStoreSlug || 'powerzona');
+    const CURRENT_STORE_NAME = String(currentStoreName || 'Tienda');
+    const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+    const PUBLIC_PATH = String(publicPath || `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/links`);
+    const PUBLIC_STORE_PATH = String(publicStorePath || `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}`);
+    const QR_SVG_PATH = String(qrSvgPath || `${PUBLIC_PATH}/qr.svg`);
+    const QR_PNG_PATH = String(qrPngPath || `${PUBLIC_PATH}/qr.png`);
+    const PUBLIC_URL = `${window.location.origin}${PUBLIC_PATH}`;
+    const MAX_LINKS = 10;
+    const FALLBACK_ACCENT = '#2563eb';
+    const ICON_OPTIONS = [
+      ['store', 'Tienda'],
+      ['whatsapp', 'WhatsApp'],
+      ['group', 'Grupo'],
+      ['instagram', 'Instagram'],
+      ['facebook', 'Facebook'],
+      ['tiktok', 'TikTok'],
+      ['offer', 'Oferta'],
+      ['location', 'Ubicación'],
+      ['download', 'Descarga'],
+      ['link', 'Enlace'],
+    ];
+    const LINK_BACKGROUNDS = {
+      store: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+      whatsapp: 'linear-gradient(180deg, #22c55e 0%, #16a34a 100%)',
+      group: 'linear-gradient(180deg, #22c55e 0%, #15803d 100%)',
+      instagram: 'linear-gradient(180deg, #fb7185 0%, #ec4899 45%, #8b5cf6 100%)',
+      facebook: 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)',
+      tiktok: 'linear-gradient(180deg, #111827 0%, #020617 100%)',
+      offer: 'linear-gradient(180deg, #fb923c 0%, #f97316 100%)',
+      location: 'linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%)',
+      download: 'linear-gradient(180deg, #14b8a6 0%, #0f766e 100%)',
+      link: 'linear-gradient(180deg, #475569 0%, #334155 100%)',
+    };
+    const ICON_PATHS = {
+      store: '<path d="M6 6h15l-1.5 8.5a2 2 0 0 1-2 1.5H9a2 2 0 0 1-2-1.6L5.2 3H3"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
+      whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.9 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M9.5 8.5c.3 2.7 1.8 4.6 4.4 5.8l1.2-1.2 2 1c-.1 1.1-.9 2-2.1 2-3.8 0-7.2-3.4-7.2-7.2 0-1.2.9-2 2-2.1l1 2-1.3 1.7Z"/>',
+      group: '<path d="M16 11a3 3 0 1 0-2.8-4"/><path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/><path d="M2.5 19a5.5 5.5 0 0 1 11 0"/><path d="M14 15.2a5 5 0 0 1 7.5 3.8"/>',
+      instagram: '<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.2"/><path d="M17.2 6.8h.01"/>',
+      facebook: '<path d="M14 8h2V4h-3a4 4 0 0 0-4 4v3H7v4h2v5h4v-5h3l1-4h-4V8a1 1 0 0 1 1-1Z"/>',
+      tiktok: '<path d="M15 4v10.5A4.5 4.5 0 1 1 10.5 10"/><path d="M15 4c.5 2.8 2 4.4 5 4.8"/>',
+      offer: '<path d="M20 13 13 20 4 11V4h7l9 9Z"/><circle cx="8" cy="8" r="1.2"/>',
+      location: '<path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/>',
+      download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+      link: '<path d="M10 13a5 5 0 0 0 7.1 0l1.4-1.4a5 5 0 0 0-7.1-7.1L10.5 5"/><path d="M14 11a5 5 0 0 0-7.1 0l-1.4 1.4a5 5 0 0 0 7.1 7.1l.9-.9"/>',
+    };
+
+    const form = root.querySelector('[data-landing-form]');
+    const linksList = root.querySelector('[data-links-list]');
+    const emptyState = root.querySelector('[data-links-empty]');
+    const alertBox = root.querySelector('[data-landing-alert]');
+    const enabledField = root.querySelector('[data-field="enabled"]');
+    const titleField = root.querySelector('[data-field="title"]');
+    const subtitleField = root.querySelector('[data-field="subtitle"]');
+    const heroImageInput = root.querySelector('[data-field="heroImage"]');
+    const heroPreview = root.querySelector('[data-hero-preview]');
+    const removeHeroButton = root.querySelector('[data-remove-hero-image]');
+    const publicUrlFields = root.querySelectorAll('[data-public-url]');
+    const statusLabel = root.querySelector('[data-landing-status]');
+    const activeCountLabel = root.querySelector('[data-active-count]');
+    const urlHostLabel = root.querySelector('[data-url-host]');
+    const previewLogo = root.querySelector('[data-preview-logo]');
+    const previewTitle = root.querySelector('[data-preview-title]');
+    const previewSubtitle = root.querySelector('[data-preview-subtitle]');
+    const previewHero = root.querySelector('[data-preview-hero]');
+    const previewLinks = root.querySelector('[data-preview-links]');
+    const qrImage = root.querySelector('[data-qr-image]');
+    const saveButton = root.querySelector('[data-save-landing]');
+
+    let settingsRecordId = '';
+    let lastSettingsRecord = null;
+    let links = [];
+    let isSaving = false;
+    let hasUnsavedChanges = false;
+    let lastSavedLandingQrEnabled = false;
+    let currentLogoUrl = '';
+    let currentHeroImageName = '';
+    let currentHeroImageUrl = '';
+    let pendingHeroImageFile = null;
+    let pendingHeroImagePreviewUrl = '';
+    let removeHeroImage = false;
+    let heroImageFieldAvailable = true;
+
+    publicUrlFields.forEach((field) => {
+      field.value = PUBLIC_URL;
+    });
+    if (urlHostLabel) urlHostLabel.textContent = new URL(PUBLIC_URL).host;
+    if (qrImage) qrImage.src = QR_SVG_PATH;
+
+    function escapePocketBaseValue(value) {
+      return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function iconSvg(icon) {
+      const name = ICON_PATHS[icon] ? icon : 'link';
+      return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
+    }
+
+    function getLinkBackground(type) {
+      const key = String(type || '').toLowerCase();
+      return LINK_BACKGROUNDS[key] || LINK_BACKGROUNDS.link;
+    }
+
+    function iconStyle(type) {
+      return `--link-bg:${escapeHtml(getLinkBackground(type))};`;
+    }
+
+    function shortenUrl(value) {
+      const text = String(value || '').trim();
+      if (!text) return 'Sin URL';
+      if (text.length <= 46) return text;
+      return `${text.slice(0, 24)}...${text.slice(-16)}`;
+    }
+
+    function cleanText(value, max = 120) {
+      return String(value ?? '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, max);
+    }
+
+    function isLandingQrEnabled(value) {
+      return value === true || value === 1 || String(value).toLowerCase() === 'true' || String(value) === '1';
+    }
+
+    function isLandingQrDisabled(value) {
+      return value === false || value === 0 || String(value).toLowerCase() === 'false' || String(value) === '0';
+    }
+
+    function isHeroImageFieldMissingError(error) {
+      const text = `${error?.message || ''} ${JSON.stringify(error?.payload || {})}`;
+      return /landing_qr_hero_image|hero_image/i.test(text) && /unknown|not found|missing|field/i.test(text);
+    }
+
+    function getSettingsFileName(value) {
+      if (Array.isArray(value)) return value[0] || '';
+      return value || '';
+    }
+
+    function settingsFileUrl(record, fieldName, thumb = '') {
+      const filename = getSettingsFileName(record?.[fieldName]);
+      if (!record?.id || !filename) return '';
+      const base = `${POCKETBASE_URL}/api/files/settings/${record.id}/${encodeURIComponent(filename)}`;
+      const params = new URLSearchParams();
+      if (thumb) params.set('thumb', thumb);
+      if (record.updated) params.set('t', record.updated);
+      const query = params.toString();
+      return query ? `${base}?${query}` : base;
+    }
+
+    function parseJsonArray(value) {
+      if (Array.isArray(value)) return value;
+      if (typeof value !== 'string' || !value.trim()) return [];
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function parseJsonObject(value) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+      if (typeof value !== 'string' || !value.trim()) return {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function normalizeWhatsAppUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      if (/^(wa\.me|api\.whatsapp\.com|web\.whatsapp\.com|chat\.whatsapp\.com)\//i.test(raw)) return `https://${raw}`;
+      if (/^https?:\/\//i.test(raw)) {
+        try {
+          const url = new URL(raw);
+          if (/(^|\.)whatsapp\.com$/i.test(url.hostname) || /^wa\.me$/i.test(url.hostname)) return url.toString();
+        } catch (_) {
+          return '';
+        }
+      }
+      if (/^\+?\d[\d\s().-]{5,}$/.test(raw)) {
+        const digits = raw.replace(/\D/g, '');
+        return digits.length >= 7 ? `https://wa.me/${digits}` : '';
+      }
+      return '';
+    }
+
+    function normalizeUrl(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const whatsappUrl = normalizeWhatsAppUrl(raw);
+      if (whatsappUrl) return whatsappUrl;
+      if (raw.startsWith('/')) return raw.startsWith('//') ? '' : raw;
+      if (/^(javascript|data|vbscript):/i.test(raw)) return '';
+      if (/^(https?|mailto|tel):/i.test(raw)) {
+        try {
+          const parsed = new URL(raw);
+          return /^(https?:|mailto:|tel:)$/i.test(parsed.protocol) ? raw : '';
+        } catch (_) {
+          return '';
+        }
+      }
+      return '';
+    }
+
+    function getStoreInitials(name) {
+      const parts = cleanText(name, 80).split(/\s+/).filter(Boolean).slice(0, 2);
+      const initials = parts.map((part) => part[0]).join('').toUpperCase();
+      return initials || 'TS';
+    }
+
+    function showAlert(message, type = 'info') {
+      if (!alertBox) return;
+      alertBox.textContent = message;
+      alertBox.classList.remove('hidden', 'is-error', 'is-success');
+      if (type === 'error') alertBox.classList.add('is-error');
+      if (type === 'success') alertBox.classList.add('is-success');
+    }
+
+    function hideAlert() {
+      alertBox?.classList.add('hidden');
+    }
+
+    function updateSaveButtonState() {
+      if (!saveButton) return;
+      saveButton.disabled = !hasUnsavedChanges || isSaving;
+      if (isSaving) {
+        saveButton.textContent = 'Guardando...';
+      } else if (hasUnsavedChanges) {
+        saveButton.textContent = 'Guardar cambios';
+      } else {
+        saveButton.textContent = 'Guardado';
+      }
+    }
+
+    function markDirty() {
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+      updateSummary();
+    }
+
+    function revokePendingHeroPreview() {
+      if (pendingHeroImagePreviewUrl) URL.revokeObjectURL(pendingHeroImagePreviewUrl);
+      pendingHeroImagePreviewUrl = '';
+    }
+
+    function renderPreviewLogo() {
+      if (!previewLogo) return;
+      if (currentLogoUrl) {
+        previewLogo.innerHTML = `<img src="${escapeHtml(currentLogoUrl)}" alt="" loading="lazy" decoding="async" />`;
+        return;
+      }
+      previewLogo.textContent = getStoreInitials(CURRENT_STORE_NAME);
+    }
+
+    function renderHeroPreview() {
+      if (!heroImageFieldAvailable) {
+        if (heroPreview) {
+          heroPreview.innerHTML = '<span>La imagen destacada estara disponible cuando se aplique la migracion de Landing QR.</span>';
+        }
+        if (previewHero) {
+          previewHero.classList.add('hidden');
+          previewHero.innerHTML = '';
+        }
+        if (heroImageInput) heroImageInput.disabled = true;
+        if (removeHeroButton) {
+          removeHeroButton.disabled = true;
+          removeHeroButton.classList.add('hidden');
+        }
+        return;
+      }
+
+      if (heroImageInput) heroImageInput.disabled = false;
+      if (removeHeroButton) removeHeroButton.disabled = false;
+      const imageUrl = pendingHeroImagePreviewUrl || (!removeHeroImage ? currentHeroImageUrl : '');
+      if (heroPreview) {
+        heroPreview.innerHTML = imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`
+          : '<span>Sin imagen destacada</span>';
+      }
+      if (previewHero) {
+        previewHero.classList.toggle('hidden', !imageUrl);
+        previewHero.innerHTML = imageUrl
+          ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`
+          : '';
+      }
+      removeHeroButton?.classList.toggle('hidden', !imageUrl);
+    }
+
+    async function optimizeLandingHeroImageFile(file) {
+      if (!file || !file.type || !file.type.startsWith('image/')) return file;
+      if (file.type === 'image/webp' && file.size <= 700000) return file;
+
+      try {
+        const bitmap = await createImageBitmap(file);
+        const targetWidth = 1200;
+        const targetHeight = 675;
+        const sourceRatio = bitmap.width / bitmap.height;
+        const targetRatio = targetWidth / targetHeight;
+
+        let sx = 0;
+        let sy = 0;
+        let sw = bitmap.width;
+        let sh = bitmap.height;
+
+        if (sourceRatio > targetRatio) {
+          sw = Math.round(bitmap.height * targetRatio);
+          sx = Math.round((bitmap.width - sw) / 2);
+        } else if (sourceRatio < targetRatio) {
+          sh = Math.round(bitmap.width / targetRatio);
+          sy = Math.round((bitmap.height - sh) / 2);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return file;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+        if (typeof bitmap.close === 'function') bitmap.close();
+        if (!blob) return file;
+
+        const safeName = (file.name || 'landing_qr')
+          .replace(/\.[^.]+$/, '')
+          .replace(/[^a-zA-Z0-9_-]+/g, '_')
+          .slice(0, 42) || 'landing_qr';
+
+        return new File([blob], `${safeName}_landing_qr.webp`, {
+          type: 'image/webp',
+          lastModified: Date.now(),
+        });
+      } catch (_) {
+        return file;
+      }
+    }
+
+    async function apiRequest(path, options = {}) {
+      if (!POCKETBASE_URL) throw new Error('No se encontró la URL de PocketBase.');
+      const headers = new Headers(options.headers || {});
+      if (ADMIN_AUTH_TOKEN) headers.set('Authorization', `Bearer ${ADMIN_AUTH_TOKEN}`);
+      if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+
+      const response = await fetch(`${POCKETBASE_URL}${path}`, {
+        ...options,
+        headers,
+      });
+      const text = await response.text();
+      let payload = null;
+      try {
+        payload = text ? JSON.parse(text) : null;
+      } catch (_) {
+        payload = text;
+      }
+      if (!response.ok) {
+        const message = payload?.message || 'No se pudo completar la operación.';
+        const error = new Error(message);
+        error.payload = payload;
+        throw error;
+      }
+      return payload;
+    }
+
+    async function findLatestSettingsRecord() {
+      const filter = `store="${escapePocketBaseValue(CURRENT_STORE_ID)}" && active=true`;
+      const params = new URLSearchParams({
+        filter,
+        perPage: '1',
+        sort: '-updated,-created',
+      });
+      const payload = await apiRequest(`/api/collections/settings/records?${params.toString()}`);
+      return payload?.items?.[0] || null;
+    }
+
+    async function fetchSettingsRecordById(recordId) {
+      if (!recordId) return null;
+      return apiRequest(`/api/collections/settings/records/${recordId}`);
+    }
+
+    function suggestedLink(type) {
+      const socialLinks = parseJsonObject(lastSettingsRecord?.footer_social_links);
+      const whatsappUrl = normalizeWhatsAppUrl(lastSettingsRecord?.whatsapp_number || socialLinks.whatsapp);
+      const suggestions = {
+        store: {
+          id: 'store',
+          type: 'store',
+          icon: 'store',
+          label: 'Ver tienda online',
+          subtitle: 'Explora nuestros productos',
+          url: PUBLIC_STORE_PATH,
+          active: true,
+        },
+        whatsapp: {
+          id: 'whatsapp',
+          type: 'whatsapp',
+          icon: 'whatsapp',
+          label: 'Escríbenos por WhatsApp',
+          subtitle: 'Respuesta rápida',
+          url: whatsappUrl,
+          active: Boolean(whatsappUrl),
+        },
+        group: {
+          id: 'grupo-whatsapp',
+          type: 'group',
+          icon: 'group',
+          label: 'Únete a nuestro grupo',
+          subtitle: 'Ofertas y novedades',
+          url: '',
+          active: false,
+        },
+        instagram: {
+          id: 'instagram',
+          type: 'instagram',
+          icon: 'instagram',
+          label: 'Instagram',
+          subtitle: 'Síguenos en Instagram',
+          url: normalizeUrl(socialLinks.instagram),
+          active: Boolean(normalizeUrl(socialLinks.instagram)),
+        },
+        facebook: {
+          id: 'facebook',
+          type: 'facebook',
+          icon: 'facebook',
+          label: 'Facebook',
+          subtitle: 'Síguenos en Facebook',
+          url: normalizeUrl(socialLinks.facebook),
+          active: Boolean(normalizeUrl(socialLinks.facebook)),
+        },
+        tiktok: {
+          id: 'tiktok',
+          type: 'tiktok',
+          icon: 'tiktok',
+          label: 'TikTok',
+          subtitle: 'Videos y novedades',
+          url: normalizeUrl(socialLinks.tiktok),
+          active: Boolean(normalizeUrl(socialLinks.tiktok)),
+        },
+        offer: {
+          id: 'ofertas',
+          type: 'offer',
+          icon: 'offer',
+          label: 'Ofertas del día',
+          subtitle: 'No te pierdas nuestras ofertas',
+          url: PUBLIC_STORE_PATH,
+          active: true,
+        },
+        location: {
+          id: 'ubicacion-horarios',
+          type: 'location',
+          icon: 'location',
+          label: 'Ubicación y horarios',
+          subtitle: 'Encuéntranos fácilmente',
+          url: PUBLIC_STORE_PATH,
+          active: true,
+        },
+      };
+      return suggestions[type] || {
+        id: `link-${Date.now()}`,
+        type: 'link',
+        icon: 'link',
+        label: 'Enlace personalizado',
+        subtitle: '',
+        url: '',
+        active: false,
+      };
+    }
+
+    function suggestedLinks() {
+      return ['store', 'whatsapp', 'group', 'instagram', 'facebook', 'tiktok'].map((type, index) => ({
+        ...suggestedLink(type),
+        order: index + 1,
+      }));
+    }
+
+    function normalizeLinksForEditor(value) {
+      const items = parseJsonArray(value);
+      return items.slice(0, MAX_LINKS).map((entry, index) => {
+        const item = entry && typeof entry === 'object' ? entry : {};
+        const icon = cleanText(item.icon || item.type || 'link', 24).toLowerCase();
+        const type = cleanText(item.type || icon || 'link', 24).toLowerCase();
+        const order = Number(item.order);
+        return {
+          id: cleanText(item.id || `${type}-${index + 1}`, 60) || `link-${index + 1}`,
+          type,
+          icon: ICON_OPTIONS.some(([value]) => value === icon) ? icon : 'link',
+          label: cleanText(item.label, 60),
+          subtitle: cleanText(item.subtitle, 90),
+          url: String(item.url || '').trim(),
+          active: item.active !== false,
+          order: Number.isFinite(order) && order > 0 ? order : index + 1,
+          editing: false,
+        };
+      }).sort((a, b) => a.order - b.order);
+    }
+
+    function getVisibleLinks() {
+      return links
+        .map((link, index) => ({
+          ...link,
+          label: cleanText(link.label, 60),
+          subtitle: cleanText(link.subtitle, 90),
+          url: normalizeUrl(link.url),
+          order: index + 1,
+        }))
+        .filter((link) => link.active && link.label && link.url)
+        .slice(0, MAX_LINKS);
+    }
+
+    function renderPreview() {
+      if (previewTitle) previewTitle.textContent = cleanText(titleField?.value, 80) || 'Escanea y conecta con nosotros';
+      if (previewSubtitle) previewSubtitle.textContent = cleanText(subtitleField?.value, 140) || 'Calidad, ofertas y atención rápida en un solo lugar';
+      renderPreviewLogo();
+      renderHeroPreview();
+      if (!previewLinks) return;
+
+      const visible = getVisibleLinks();
+      previewLinks.innerHTML = visible.length
+        ? visible.map((link) => {
+          const icon = link.icon || 'link';
+          const linkType = link.type || icon;
+          return `
+            <div class="landing-preview-link" style="${iconStyle(linkType)}">
+              <span class="landing-preview-link__icon">${iconSvg(icon)}</span>
+              <div><strong>${escapeHtml(link.label)}</strong>${link.subtitle ? `<small>${escapeHtml(link.subtitle)}</small>` : ''}</div>
+              <span class="landing-preview-link__arrow">›</span>
+            </div>
+          `;
+        }).join('')
+        : '<div class="landing-empty">Sin enlaces activos</div>';
+    }
+
+    function updateSummary() {
+      const activeCount = getVisibleLinks().length;
+      if (activeCountLabel) activeCountLabel.textContent = String(activeCount);
+      if (statusLabel) {
+        const enabled = enabledField?.checked === true;
+        statusLabel.classList.remove('is-hidden', 'is-pending');
+
+        if (hasUnsavedChanges) {
+          const visibilityChanged = enabled !== lastSavedLandingQrEnabled;
+          statusLabel.textContent = visibilityChanged
+            ? (enabled ? 'Publicado pendiente' : 'Oculto pendiente')
+            : 'Cambios sin guardar';
+          statusLabel.classList.add('is-pending');
+          return;
+        }
+
+        statusLabel.textContent = enabled ? 'Publicado' : 'Oculto';
+        if (!enabled) statusLabel.classList.add('is-hidden');
+      }
+    }
+
+    function renderLinks() {
+      if (!linksList) return;
+      links = links.slice(0, MAX_LINKS).map((link, index) => ({ ...link, order: index + 1 }));
+      linksList.innerHTML = links.map((link, index) => {
+        const title = cleanText(link.label, 60) || 'Enlace sin título';
+        const activeId = `landing-link-active-${index}`;
+        const icon = ICON_OPTIONS.some(([value]) => value === link.icon) ? link.icon : 'link';
+        const linkType = link.type || icon;
+        const subtitle = cleanText(link.subtitle, 90);
+        const statusText = link.active ? 'Activo' : 'Oculto';
+        const fieldsClass = link.editing ? 'landing-link-row__grid' : 'landing-link-row__grid hidden';
+        return `
+          <article class="landing-link-row" data-link-index="${index}" style="${iconStyle(linkType)}">
+            <div class="landing-link-row__top">
+              <span class="landing-link-row__index">${index + 1}</span>
+              <span class="landing-link-row__icon" aria-hidden="true">${iconSvg(icon)}</span>
+              <span class="landing-link-row__copy">
+                <strong class="landing-link-row__title">${escapeHtml(title)}</strong>
+                <small class="landing-link-row__meta">${escapeHtml(subtitle || 'Sin texto secundario')}</small>
+                <small class="landing-link-row__url">${escapeHtml(shortenUrl(link.url))}</small>
+              </span>
+              <span class="landing-link-status${link.active ? '' : ' is-muted'}">${escapeHtml(statusText)}</span>
+              <div class="landing-link-row__actions">
+                <button class="landing-link-edit" type="button" data-link-edit>${link.editing ? 'Cerrar' : 'Editar'}</button>
+                <button type="button" data-link-move="up" aria-label="Subir enlace" ${index === 0 ? 'disabled' : ''}>↑</button>
+                <button type="button" data-link-move="down" aria-label="Bajar enlace" ${index === links.length - 1 ? 'disabled' : ''}>↓</button>
+                <button class="danger" type="button" data-link-delete aria-label="Eliminar enlace">×</button>
+              </div>
+            </div>
+            <div class="${fieldsClass}">
+              <label>
+                <span>Icono</span>
+                <select data-link-field="icon">
+                  ${ICON_OPTIONS.map(([value, label]) => `<option value="${escapeHtml(value)}" ${link.icon === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+                </select>
+              </label>
+              <label>
+                <span>Título</span>
+                <input data-link-field="label" type="text" maxlength="60" value="${escapeHtml(link.label)}" placeholder="Ver tienda online" />
+              </label>
+              <label class="wide">
+                <span>Texto secundario</span>
+                <input data-link-field="subtitle" type="text" maxlength="90" value="${escapeHtml(link.subtitle)}" placeholder="Explora nuestros productos" />
+              </label>
+              <label class="wide">
+                <span>URL</span>
+                <input data-link-field="url" type="text" value="${escapeHtml(link.url)}" placeholder="https://... o /t/${escapeHtml(CURRENT_STORE_SLUG)}" />
+              </label>
+              <label class="landing-switch landing-link-toggle" for="${activeId}">
+                <input id="${activeId}" data-link-field="active" type="checkbox" ${link.active ? 'checked' : ''} />
+                <span aria-hidden="true"></span>
+              </label>
+            </div>
+          </article>
+        `;
+      }).join('');
+      emptyState?.classList.toggle('hidden', links.length > 0);
+      updateSummary();
+      renderPreview();
+    }
+
+    function syncLinkFromField(target) {
+      const row = target.closest('[data-link-index]');
+      if (!row) return;
+      const index = Number(row.dataset.linkIndex);
+      if (!Number.isInteger(index) || !links[index]) return;
+      const field = target.dataset.linkField;
+      markDirty();
+      if (field === 'active') links[index].active = target.checked === true;
+      else if (field === 'icon') {
+        links[index].icon = target.value || 'link';
+        links[index].type = target.value || 'link';
+      } else if (field) {
+        links[index][field] = target.value;
+      }
+      if (field === 'active' || field === 'icon') {
+        hideAlert();
+        updateSummary();
+        renderPreview();
+        renderLinks();
+        return;
+      }
+      if (field === 'label') {
+        const title = row.querySelector('.landing-link-row__title');
+        if (title) title.textContent = cleanText(target.value, 60) || 'Enlace sin título';
+      }
+      if (field === 'subtitle') {
+        const subtitle = row.querySelector('.landing-link-row__meta');
+        if (subtitle) subtitle.textContent = cleanText(target.value, 90) || 'Sin texto secundario';
+      }
+      if (field === 'url') {
+        const url = row.querySelector('.landing-link-row__url');
+        if (url) url.textContent = shortenUrl(target.value);
+      }
+      hideAlert();
+      updateSummary();
+      renderPreview();
+    }
+
+    function addLink(link) {
+      if (links.length >= MAX_LINKS) {
+        showAlert('Puedes configurar hasta 10 enlaces.', 'error');
+        return;
+      }
+      const next = {
+        id: `link-${Date.now()}`,
+        type: 'link',
+        icon: 'link',
+        label: '',
+        subtitle: '',
+        url: '',
+        active: false,
+        editing: true,
+        ...link,
+        order: links.length + 1,
+      };
+      links.push(next);
+      markDirty();
+      renderLinks();
+    }
+
+    function collectLinksForSave() {
+      return links.slice(0, MAX_LINKS).map((link, index) => {
+        const label = cleanText(link.label, 60);
+        const subtitle = cleanText(link.subtitle, 90);
+        const icon = ICON_OPTIONS.some(([value]) => value === link.icon) ? link.icon : 'link';
+        const url = normalizeUrl(link.url);
+        const active = link.active === true;
+
+        if (active && !label) throw new Error(`El enlace ${index + 1} está activo y necesita título.`);
+        if (active && !url) throw new Error(`El enlace "${label || index + 1}" está activo y necesita una URL válida.`);
+
+        return {
+          id: cleanText(link.id, 60) || `${icon}-${index + 1}`,
+          type: cleanText(link.type || icon, 24) || icon,
+          icon,
+          label,
+          subtitle,
+          url: url || '',
+          active,
+          order: index + 1,
+        };
+      });
+    }
+
+    async function loadSettings(options = {}) {
+      if (!options.keepAlert) hideAlert();
+      const record = await findLatestSettingsRecord();
+      settingsRecordId = record?.id || '';
+      lastSettingsRecord = record || {};
+
+      const savedEnabled = isLandingQrEnabled(record?.landing_qr_enabled);
+      if (enabledField) enabledField.checked = savedEnabled;
+      lastSavedLandingQrEnabled = savedEnabled;
+      if (titleField) titleField.value = cleanText(record?.landing_qr_title, 80) || CURRENT_STORE_NAME;
+      if (subtitleField) subtitleField.value = cleanText(record?.landing_qr_subtitle, 140) || cleanText(record?.welcome_text, 140) || 'Calidad, ofertas y atención rápida en un solo lugar';
+
+      currentLogoUrl = settingsFileUrl(record, 'logo_image', '160x160');
+      heroImageFieldAvailable = true;
+      currentHeroImageName = getSettingsFileName(record?.landing_qr_hero_image);
+      currentHeroImageUrl = settingsFileUrl(record, 'landing_qr_hero_image', '600x338');
+      pendingHeroImageFile = null;
+      removeHeroImage = false;
+      revokePendingHeroPreview();
+      if (heroImageInput) heroImageInput.value = '';
+
+      const storedLinks = normalizeLinksForEditor(record?.landing_qr_links);
+      links = storedLinks.length ? storedLinks : suggestedLinks();
+      hasUnsavedChanges = false;
+      updateSaveButtonState();
+      renderLinks();
+    }
+
+    async function saveSettings() {
+      if (isSaving || !hasUnsavedChanges) return;
+      isSaving = true;
+      updateSaveButtonState();
+
+      try {
+        const safeLinks = collectLinksForSave();
+        const expectedEnabled = enabledField?.checked === true;
+        const existing = await findLatestSettingsRecord();
+        const targetSettingsId = existing?.id || settingsRecordId;
+        if (existing?.id) {
+          settingsRecordId = existing.id;
+          lastSettingsRecord = existing;
+          heroImageFieldAvailable = true;
+        }
+
+        const basePayload = {
+          store: CURRENT_STORE_ID,
+          active: true,
+          store_name: CURRENT_STORE_NAME,
+          landing_qr_enabled: expectedEnabled,
+          landing_qr_title: cleanText(titleField?.value, 80),
+          landing_qr_subtitle: cleanText(subtitleField?.value, 140),
+          landing_qr_accent_color: FALLBACK_ACCENT,
+          landing_qr_links: safeLinks,
+        };
+
+        const saveJsonPayload = () => (
+          targetSettingsId
+            ? apiRequest(`/api/collections/settings/records/${targetSettingsId}`, { method: 'PATCH', body: JSON.stringify(basePayload) })
+            : apiRequest('/api/collections/settings/records', { method: 'POST', body: JSON.stringify(basePayload) })
+        );
+
+        const saveFormDataPayload = async () => {
+          const formData = new FormData();
+          Object.entries(basePayload).forEach(([key, value]) => {
+            formData.append(key, key === 'landing_qr_links' ? JSON.stringify(value) : String(value ?? ''));
+          });
+
+          if (removeHeroImage && currentHeroImageName) {
+            formData.append('landing_qr_hero_image-', currentHeroImageName);
+          }
+
+          if (pendingHeroImageFile) {
+            if (currentHeroImageName) formData.append('landing_qr_hero_image-', currentHeroImageName);
+            formData.append('landing_qr_hero_image', await optimizeLandingHeroImageFile(pendingHeroImageFile));
+          }
+
+          return targetSettingsId
+            ? apiRequest(`/api/collections/settings/records/${targetSettingsId}`, { method: 'PATCH', body: formData })
+            : apiRequest('/api/collections/settings/records', { method: 'POST', body: formData });
+        };
+
+        const hadPendingHeroImageFile = Boolean(pendingHeroImageFile);
+        const shouldSendHeroImage = hadPendingHeroImageFile || (removeHeroImage && Boolean(currentHeroImageName));
+        let heroImageSaveUnavailable = false;
+        let savedRecord = null;
+
+        if (shouldSendHeroImage) {
+          try {
+            savedRecord = await saveFormDataPayload();
+          } catch (error) {
+            if (hadPendingHeroImageFile) {
+              throw new Error('La imagen destacada no se pudo guardar. Verifica que PocketBase tenga aplicado el campo landing_qr_hero_image.');
+            }
+            if (!isHeroImageFieldMissingError(error)) throw error;
+            heroImageSaveUnavailable = true;
+            heroImageFieldAvailable = false;
+            removeHeroImage = false;
+            renderHeroPreview();
+            savedRecord = await saveJsonPayload();
+          }
+        } else {
+          savedRecord = await saveJsonPayload();
+        }
+
+        const savedRecordId = savedRecord?.id || targetSettingsId;
+        const verifyRecord = savedRecordId
+          ? await fetchSettingsRecordById(savedRecordId)
+          : await findLatestSettingsRecord();
+
+        if (!verifyRecord?.id) {
+          throw new Error('No se pudo verificar el registro de Landing QR en PocketBase.');
+        }
+
+        const savedEnabled = isLandingQrEnabled(verifyRecord?.landing_qr_enabled);
+
+        if (savedEnabled !== expectedEnabled) {
+          throw new Error('La Landing QR no se guardo correctamente en PocketBase.');
+        }
+
+        if (hadPendingHeroImageFile) {
+          const savedHeroImage = getSettingsFileName(verifyRecord?.landing_qr_hero_image);
+          if (!savedHeroImage) {
+            throw new Error('La imagen destacada no se guardo en PocketBase. Verifica que la migracion landing_qr_hero_image este aplicada.');
+          }
+        }
+
+        settingsRecordId = verifyRecord.id;
+        lastSettingsRecord = verifyRecord;
+        lastSavedLandingQrEnabled = savedEnabled;
+        currentHeroImageName = getSettingsFileName(verifyRecord?.landing_qr_hero_image);
+        currentHeroImageUrl = settingsFileUrl(verifyRecord, 'landing_qr_hero_image', '600x338');
+        pendingHeroImageFile = null;
+        removeHeroImage = false;
+        revokePendingHeroPreview();
+        if (heroImageInput) heroImageInput.value = '';
+        hasUnsavedChanges = false;
+        updateSaveButtonState();
+        renderHeroPreview();
+        renderPreview();
+        updateSummary();
+        if (heroImageSaveUnavailable) {
+          heroImageFieldAvailable = false;
+          renderHeroPreview();
+          showAlert('La imagen destacada estara disponible cuando se aplique la migracion de Landing QR.', 'error');
+        } else {
+          showAlert('Landing QR guardada correctamente.', 'success');
+        }
+      } catch (error) {
+        const errorText = `${error?.message || ''} ${JSON.stringify(error?.payload || {})}`;
+        const migrationError = /landing_qr_|hero_image/i.test(errorText) && /unknown|not found|missing|field/i.test(errorText);
+        showAlert(
+          migrationError
+            ? 'La migracion de Landing QR no esta aplicada. Reinicia PocketBase o aplica las migraciones antes de continuar.'
+            : error?.message || 'No se pudo guardar la Landing QR.',
+          'error'
+        );
+      } finally {
+        isSaving = false;
+        updateSaveButtonState();
+      }
+    }
+
+    function copyPublicUrl() {
+      const done = () => showAlert('URL copiada.', 'success');
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(PUBLIC_URL).then(done).catch(() => {
+          publicUrlFields[0]?.select();
+          document.execCommand('copy');
+          done();
+        });
+        return;
+      }
+      publicUrlFields[0]?.select();
+      document.execCommand('copy');
+      done();
+    }
+
+    function openLandingPage() {
+      if (enabledField?.checked !== true) {
+        showAlert('La Landing QR está oculta. Actívala y guarda los cambios para abrir la página pública.', 'error');
+        return;
+      }
+
+      if (hasUnsavedChanges) {
+        showAlert('Guarda los cambios antes de abrir la Landing QR.', 'error');
+        return;
+      }
+
+      window.open(PUBLIC_PATH, '_blank', 'noopener,noreferrer');
+    }
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveSettings();
+    });
+
+    root.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.matches('[data-link-field]')) {
+        syncLinkFromField(target);
+        return;
+      }
+      markDirty();
+      hideAlert();
+      updateSummary();
+      renderPreview();
+    });
+
+    root.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.matches('[data-link-field]')) syncLinkFromField(target);
+      if (target === heroImageInput) {
+        const file = heroImageInput?.files?.[0] || null;
+        if (!file) return;
+        if (file && !file.type.startsWith('image/')) {
+          showAlert('Selecciona una imagen JPG, PNG o WebP.', 'error');
+          return;
+        }
+        pendingHeroImageFile = file;
+        removeHeroImage = false;
+        revokePendingHeroPreview();
+        if (pendingHeroImageFile) pendingHeroImagePreviewUrl = URL.createObjectURL(pendingHeroImageFile);
+        markDirty();
+        hideAlert();
+        renderHeroPreview();
+        renderPreview();
+        return;
+      }
+      if (target === enabledField) {
+        markDirty();
+        updateSummary();
+        hideAlert();
+      }
+    });
+
+    root.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const addSuggested = target.closest('[data-add-suggested]');
+      const row = target.closest('[data-link-index]');
+
+      if (target.closest('[data-save-landing]')) {
+        saveSettings();
+        return;
+      }
+
+      if (target.closest('[data-select-hero-image]')) {
+        heroImageInput?.click();
+        return;
+      }
+
+      if (target.closest('[data-add-link]')) {
+        addLink(suggestedLink('link'));
+        return;
+      }
+
+      if (target.closest('[data-remove-hero-image]')) {
+        pendingHeroImageFile = null;
+        removeHeroImage = true;
+        revokePendingHeroPreview();
+        if (heroImageInput) heroImageInput.value = '';
+        markDirty();
+        hideAlert();
+        renderHeroPreview();
+        renderPreview();
+        return;
+      }
+
+      if (target.closest('[data-restore-suggested]')) {
+        links = suggestedLinks();
+        markDirty();
+        renderLinks();
+        showAlert('Enlaces sugeridos restaurados. Revisa URLs vacías antes de guardar.', 'success');
+        return;
+      }
+
+      if (addSuggested) {
+        addLink(suggestedLink(addSuggested.dataset.addSuggested || 'link'));
+        return;
+      }
+
+      if (target.closest('[data-copy-public-url]')) {
+        copyPublicUrl();
+        return;
+      }
+
+      if (target.closest('[data-open-landing]')) {
+        openLandingPage();
+        return;
+      }
+
+      if (!row) return;
+      const index = Number(row.dataset.linkIndex);
+      if (!Number.isInteger(index) || !links[index]) return;
+
+      if (target.closest('[data-link-edit]')) {
+        links[index].editing = !links[index].editing;
+        markDirty();
+        renderLinks();
+        return;
+      }
+
+      if (target.closest('[data-link-delete]')) {
+        links.splice(index, 1);
+        markDirty();
+        renderLinks();
+        return;
+      }
+
+      const moveButton = target.closest('[data-link-move]');
+      if (moveButton) {
+        const direction = moveButton.dataset.linkMove;
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        if (targetIndex < 0 || targetIndex >= links.length) return;
+        const current = links[index];
+        links[index] = links[targetIndex];
+        links[targetIndex] = current;
+        markDirty();
+        renderLinks();
+      }
+    });
+
+    window.addEventListener('pz:store-settings:save', () => {
+      const tab = document.getElementById('tab-landing');
+      if (tab && !tab.classList.contains('hidden')) saveSettings();
+    });
+
+    loadSettings().catch((error) => {
+      showAlert(error?.message || 'No se pudo cargar la configuración de Landing QR.', 'error');
+      links = suggestedLinks();
+      renderLinks();
+    });
+  })();
+</script>

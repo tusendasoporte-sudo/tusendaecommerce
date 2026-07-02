@@ -43,6 +43,7 @@ export async function getSettings(options?: StoreQueryInput) {
   const records = await pb.collection('settings').getFullList({
     filter: await storeFilter('active = true', options),
     expand: 'default_currency',
+    sort: '-updated,-created',
   });
 
   const settings = records[0] ?? null;
@@ -57,6 +58,7 @@ export async function getSettings(options?: StoreQueryInput) {
     ? coverSlots
     : orderedFileValues(normalizeFileValue(settings.cover_gallery), settings.cover_gallery_order).slice(0, 4);
   const giftsPublicImage = normalizeFileValue(settings.gifts_public_image)[0] || '';
+  const landingQrHeroImage = normalizeFileValue(settings.landing_qr_hero_image)[0] || '';
 
   return {
     ...settings,
@@ -64,6 +66,7 @@ export async function getSettings(options?: StoreQueryInput) {
     coverImageUrl: cover ? getPocketBaseFileUrl('settings', settings.id, cover) : null,
     coverGalleryUrls: coverGallery.map((filename: string) => getPocketBaseFileUrl('settings', settings.id, filename)),
     giftsPublicImageUrl: giftsPublicImage ? getPocketBaseFileUrl('settings', settings.id, giftsPublicImage) : null,
+    landingQrHeroImageUrl: landingQrHeroImage ? getPocketBaseFileUrl('settings', settings.id, landingQrHeroImage) : null,
   };
 }
 

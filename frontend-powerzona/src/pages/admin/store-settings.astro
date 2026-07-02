@@ -7,6 +7,7 @@ import { CUBA_LOCATIONS } from '../../lib/cubaLocations';
 import PublicFooter from '../../components/PublicFooter.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import LandingQrSettings from '../../components/admin/LandingQrSettings.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -3390,6 +3391,7 @@ try {
             <button class="tab-btn" data-tab="monedas" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg><span>Monedas</span></button>
             <button class="tab-btn" data-tab="horario" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg><span>Horarios</span></button>
             <button class="tab-btn" data-tab="rating" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg><span>Rating y rese&ntilde;as</span></button>
+            <button class="tab-btn" data-tab="landing" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm9-2h2v2h-2v-2Zm3 0h2v4h-2v-4Zm-5 4h2v3h-2v-3Zm3 1h2v2h-2v-2Zm3 1h1v1h-1v-1Z"/></svg><span>Landing QR</span></button>
           </div>
 
           <section id="settings-general-summary-grid" class="admin-compact-summary admin-compact-summary--settings" aria-label="Resumen de ajustes generales">
@@ -4099,6 +4101,17 @@ try {
                 </div>
               </section>
             </div>
+          </section>
+
+
+          <section id="tab-landing" class="tab-panel hidden">
+            <LandingQrSettings
+              pocketbaseUrl={pocketbaseUrl}
+              currentStoreId={currentStoreId}
+              currentStoreSlug={currentStoreSlug}
+              currentStoreName={currentStoreName}
+              adminAuthToken={adminAuthToken}
+            />
           </section>
 
 
@@ -4980,6 +4993,7 @@ try {
           monedas: 'Monedas',
           horario: 'Horarios',
           rating: 'Rating y rese\u00f1as',
+          landing: 'Landing QR',
         };
         document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab));
         setSettingsSidebarActive(tab);
@@ -4996,7 +5010,9 @@ try {
             ? 'Agrega la informaci\u00f3n inferior que saldr\u00e1 en portada, categor\u00eda, subcategor\u00eda y producto.'
             : tab === 'horario'
               ? 'Define los horarios de atenci\u00f3n de tu tienda. Estos horarios se muestran en el cat\u00e1logo p\u00fablico y en la informaci\u00f3n de la tienda.'
-              : 'Configura los datos p\u00fablicos, portada, footer, monedas, horario y rese\u00f1as de tu tienda.';
+              : tab === 'landing'
+                ? 'Configura la p\u00e1gina de enlaces que usar\u00e1s con QR f\u00edsico en productos, bolsas o tarjetas.'
+                : 'Configura los datos p\u00fablicos, portada, footer, monedas, horario y rese\u00f1as de tu tienda.';
         }
         if (window.location.hash !== `#${tab}`) {
           history.replaceState(null, '', `#${tab}`);
@@ -5093,6 +5109,7 @@ try {
       else if (window.location.hash === '#monedas') showTab('monedas');
       else if (window.location.hash === '#horario') showTab('horario');
       else if (window.location.hash === '#rating') showTab('rating');
+      else if (window.location.hash === '#landing') showTab('landing');
       else showTab('generales');
     </script>
     <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
@@ -5103,6 +5120,9 @@ try {
         const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(adminAuthToken || '');
         const form = document.getElementById('settings-form');
         window.addEventListener('pz:store-settings:save', () => {
+          const generalTab = document.getElementById('tab-generales');
+          if (generalTab && generalTab.classList.contains('hidden')) return;
+
           const form = document.getElementById('settings-form');
 
           if (form && typeof form.requestSubmit === 'function') {
