@@ -274,11 +274,13 @@ export function buildProductSocialImagePath(input: {
   storeSlug: unknown;
   productSlug: unknown;
   version?: unknown;
+  format?: 'png' | 'jpg';
 }) {
   const storeSlug = encodeURIComponent(cleanSeoText(input.storeSlug).toLowerCase());
   const productSlug = encodeURIComponent(cleanSeoText(input.productSlug));
   if (!storeSlug || !productSlug) return '';
 
   const version = cleanSeoText(input.version);
-  return `/api/og/producto/${storeSlug}/${productSlug}.png${version ? `?v=${encodeURIComponent(version)}` : ''}`;
+  const format = input.format === 'jpg' ? 'jpg' : 'png';
+  return `/api/og/producto/${storeSlug}/${productSlug}.${format}${version ? `?v=${encodeURIComponent(version)}` : ''}`;
 }

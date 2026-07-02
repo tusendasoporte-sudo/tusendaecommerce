@@ -206,6 +206,7 @@ const productSeoImage = buildProductSocialImagePath({
 	storeSlug: currentStore.slug,
 	productSlug: product.slug,
 	version: productSeoVersion,
+	format: 'jpg',
 }) || logoImageUrl || currentStore.logoUrl || mainImage;
 const productSeoImageAlt = buildProductSocialImageAlt(product.name, storeName);
 const productSeoUrl = getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname);
