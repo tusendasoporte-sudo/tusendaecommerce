@@ -2848,6 +2848,139 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				background: #ffffff;
 			}
 
+			.landing-qr-analytics-grid {
+				display: grid;
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+				gap: 12px;
+				margin-top: 18px;
+			}
+
+			.landing-qr-analytics-stat {
+				min-width: 0;
+				display: grid;
+				gap: 9px;
+				align-content: start;
+				border: 1px solid rgba(148, 163, 184, 0.18);
+				border-radius: 16px;
+				background: linear-gradient(180deg, #ffffff, #f8fbff);
+				padding: 15px;
+			}
+
+			.landing-qr-analytics-stat span {
+				color: #64748b;
+				font-size: 11px;
+				font-weight: 950;
+				text-transform: uppercase;
+				letter-spacing: 0.045em;
+			}
+
+			.landing-qr-analytics-stat strong {
+				min-width: 0;
+				color: #0f172a;
+				font-size: clamp(22px, 3vw, 32px);
+				line-height: 1;
+				font-weight: 950;
+				letter-spacing: -0.035em;
+				overflow-wrap: anywhere;
+			}
+
+			.landing-qr-clicks-head {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-end;
+				gap: 14px;
+				margin-top: 20px;
+				flex-wrap: wrap;
+			}
+
+			.landing-qr-clicks-head h4,
+			.landing-qr-clicks-head p {
+				margin: 0;
+			}
+
+			.landing-qr-clicks-head h4 {
+				color: #0f172a;
+				font-size: 15px;
+				font-weight: 950;
+				letter-spacing: -0.02em;
+			}
+
+			.landing-qr-clicks-head p {
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 800;
+			}
+
+			.landing-qr-clicks-list {
+				display: grid;
+				gap: 9px;
+				margin-top: 12px;
+			}
+
+			.landing-qr-click-row {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr) auto auto;
+				align-items: center;
+				gap: 12px;
+				min-height: 44px;
+				border: 1px solid rgba(148, 163, 184, 0.14);
+				border-radius: 14px;
+				background: rgba(248, 250, 252, 0.9);
+				padding: 0 13px;
+			}
+
+			.landing-qr-click-main {
+				min-width: 0;
+				display: grid;
+				gap: 2px;
+			}
+
+			.landing-qr-click-main strong,
+			.landing-qr-click-main span {
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.landing-qr-click-main strong {
+				color: #0f172a;
+				font-size: 14px;
+				font-weight: 900;
+			}
+
+			.landing-qr-click-main span {
+				color: #64748b;
+				font-size: 12px;
+				font-weight: 750;
+			}
+
+			.landing-qr-click-count,
+			.landing-qr-click-percent {
+				color: #475569;
+				font-size: 13px;
+				font-weight: 900;
+				white-space: nowrap;
+			}
+
+			@media (max-width: 900px) {
+				.landing-qr-analytics-grid {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+			}
+
+			@media (max-width: 560px) {
+				.landing-qr-analytics-grid,
+				.landing-qr-click-row {
+					grid-template-columns: 1fr;
+				}
+
+				.landing-qr-click-row {
+					align-items: start;
+					padding: 12px;
+				}
+			}
+
 			.business-summary-card {
 				border: 1px solid rgba(148, 163, 184, 0.22);
 				border-radius: 28px;
@@ -3858,16 +3991,16 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<div class="summary-period-head">
 							<div>
 								<h2>Periodo del resumen</h2>
-								<p>Este resumen muestra actividad reciente con un máximo de 30 días.</p>
+								<p>Este resumen muestra actividad reciente del periodo seleccionado.</p>
 							</div>
 							<p id="range-label" class="dashboard-range-note">Mostrando: Últimos 7 días.</p>
 						</div>
 
 						<div class="summary-period-actions period-tabs" role="tablist" aria-label="Período del resumen" data-pz-scroll-hint>
-							<button class="period-btn" type="button" data-range="today">Hoy</button>
-							<button class="period-btn active" type="button" data-range="7">7 días</button>
-							<button class="period-btn" type="button" data-range="15">15 días</button>
-							<button class="period-btn" type="button" data-range="30">1 mes</button>
+							<button class="period-btn" type="button" data-range="today" aria-selected="false">Hoy</button>
+							<button class="period-btn active" type="button" data-range="7" aria-selected="true">7 días</button>
+							<button class="period-btn" type="button" data-range="15" aria-selected="false">15 días</button>
+							<button class="period-btn" type="button" data-range="30" aria-selected="false">1 mes</button>
 						</div>
 					</section>
 
@@ -3875,7 +4008,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<div class="visit-analytics-header">
 							<p class="visit-analytics-kicker">Analíticas</p>
 							<h2 id="dashboard-traffic-title">Analíticas de visitas</h2>
-							<p>Revisa navegación pública reciente. Las analíticas conservan un máximo de 30 días.</p>
+							<p>Revisa navegación pública reciente con el historial disponible de la tienda.</p>
 						</div>
 
 						<div class="visit-analytics-toolbar">
@@ -3884,6 +4017,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="recurrent" aria-selected="false">Recurrentes</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="pageviews" aria-selected="false">Páginas vistas</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="products" aria-selected="false">Productos más vistos</button>
+								<button class="visit-analytics-tab" type="button" data-analytics-tab="landingqr" aria-selected="false">Landing QR</button>
 							</div>
 						</div>
 
@@ -3916,6 +4050,35 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 							<p class="visit-analytics-panel-help">Top de productos públicos visitados en el periodo.</p>
 							<div id="most-viewed-products-list" class="visit-analytics-top-list"></div>
 							<p id="most-viewed-products-meta" class="mini-panel-meta">Cargando...</p>
+						</div>
+
+						<div class="visit-analytics-panel" data-analytics-panel="landingqr">
+							<h3 class="visit-analytics-panel-title">Landing QR</h3>
+							<p class="visit-analytics-panel-help">Rendimiento de la página abierta desde el QR durante el periodo seleccionado.</p>
+							<div class="landing-qr-analytics-grid">
+								<div class="landing-qr-analytics-stat">
+									<span>Visitas Landing QR</span>
+									<strong id="traffic-landing-views-total">0</strong>
+								</div>
+								<div class="landing-qr-analytics-stat">
+									<span>Clics Landing QR</span>
+									<strong id="traffic-landing-clicks-total">0</strong>
+								</div>
+								<div class="landing-qr-analytics-stat">
+									<span>Interacción</span>
+									<strong id="traffic-landing-rate-total">0%</strong>
+								</div>
+								<div class="landing-qr-analytics-stat">
+									<span>Botón más tocado</span>
+									<strong id="traffic-landing-top-button">Sin datos</strong>
+								</div>
+							</div>
+							<div id="traffic-landing-chart" class="analytics-line-chart"></div>
+							<div class="landing-qr-clicks-head">
+								<h4>Clics por botón</h4>
+								<p id="traffic-landing-clicks-meta">Cargando...</p>
+							</div>
+							<div id="traffic-landing-clicks-list" class="landing-qr-clicks-list"></div>
 						</div>
 					</section>
 
@@ -4071,6 +4234,13 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const trafficVisitsChart = document.getElementById('traffic-visits-chart');
 			const trafficVisitorsChart = document.getElementById('traffic-visitors-chart');
 			const trafficPageviewsChart = document.getElementById('traffic-pageviews-chart');
+			const trafficLandingViewsTotal = document.getElementById('traffic-landing-views-total');
+			const trafficLandingClicksTotal = document.getElementById('traffic-landing-clicks-total');
+			const trafficLandingRateTotal = document.getElementById('traffic-landing-rate-total');
+			const trafficLandingTopButton = document.getElementById('traffic-landing-top-button');
+			const trafficLandingChart = document.getElementById('traffic-landing-chart');
+			const trafficLandingClicksList = document.getElementById('traffic-landing-clicks-list');
+			const trafficLandingClicksMeta = document.getElementById('traffic-landing-clicks-meta');
 			const sidebar = document.querySelector('[data-admin-sidebar-root]');
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
 			const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
@@ -4204,6 +4374,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				periodButtons.forEach((button) => {
 					const isActive = normalizeSummaryRange(button.dataset.range || '') === normalized;
 					button.classList.toggle('active', isActive);
+					button.setAttribute('aria-selected', isActive ? 'true' : 'false');
 				});
 			}
 
@@ -4475,8 +4646,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}
 			}
 
-			function getRangeStart(range) {
-				selectedRange = normalizeSummaryRange(range);
+			function getRangeStart() {
 				const days = getSummaryRangeDays();
 				const start = new Date();
 				start.setHours(0, 0, 0, 0);
@@ -4485,7 +4655,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			function getFilteredOrders() {
-				const start = getRangeStart(selectedRange);
+				const start = getRangeStart();
 				if (!start) return [...orders];
 				return orders.filter((order) => new Date(order.created) >= start);
 			}
@@ -4679,7 +4849,9 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				if (total <= 7) return true;
 				if (total <= 15) return index === 0 || index === total - 1 || index % 3 === 0;
 				if (total <= 30) return index === 0 || index === total - 1 || index % 5 === 0;
-				return index === 0 || index === total - 1 || index % 7 === 0;
+				if (total <= 90) return index === 0 || index === total - 1 || index % 14 === 0;
+				const step = Math.max(1, Math.ceil(total / 10));
+				return index === 0 || index === total - 1 || index % step === 0;
 			}
 
 			function getNiceAnalyticsMax(value) {
@@ -4914,6 +5086,103 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				if (trafficVisitsChart) trafficVisitsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'uniqueVisitors', '#2563eb', '#60a5fa');
 				if (trafficVisitorsChart) trafficVisitorsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'recurrentVisitors', '#0f172a', '#64748b');
 				if (trafficPageviewsChart) trafficPageviewsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'pageViews', '#2563eb', '#60a5fa');
+			}
+
+			function isLandingQrViewEvent(event) {
+				const eventType = String(event?.event_type || 'pageview').trim().toLowerCase();
+				const pageType = String(event?.page_type || '').trim().toLowerCase();
+				return eventType === 'landing_qr_view' || (eventType === 'pageview' && pageType === 'landing_qr');
+			}
+
+			function isLandingQrClickEvent(event) {
+				return String(event?.event_type || '').trim().toLowerCase() === 'landing_qr_click';
+			}
+
+			function computeLandingQrAnalytics() {
+				const days = getAnalyticsRangeDays();
+				const grouped = new Map(days.map((day) => [day, {
+					day,
+					label: shortDayLabel(day),
+					views: 0,
+					clicks: 0,
+				}]));
+				const buttonCounts = new Map();
+				let views = 0;
+				let clicks = 0;
+
+				getAnalyticsEventsForSelectedRange().forEach((event) => {
+					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
+					const bucket = grouped.get(day);
+
+					if (isLandingQrViewEvent(event)) {
+						views += 1;
+						if (bucket) bucket.views += 1;
+						return;
+					}
+
+					if (!isLandingQrClickEvent(event)) return;
+
+					clicks += 1;
+					if (bucket) bucket.clicks += 1;
+
+					const linkId = String(event.link_id || event.link_label || event.link_type || 'link').trim() || 'link';
+					const label = String(event.link_label || 'Enlace').trim() || 'Enlace';
+					const type = String(event.link_type || 'link').trim() || 'link';
+					const current = buttonCounts.get(linkId) || { link_id: linkId, label, type, clicks: 0 };
+					current.clicks += 1;
+					buttonCounts.set(linkId, current);
+				});
+
+				const clicksByButton = Array.from(buttonCounts.values())
+					.sort((a, b) => b.clicks - a.clicks || a.label.localeCompare(b.label))
+					.map((item) => ({
+						...item,
+						percentage: clicks > 0 ? Math.round((item.clicks / clicks) * 100) : 0,
+					}));
+
+				return {
+					views,
+					clicks,
+					interactionRate: views > 0 ? Math.round((clicks / views) * 100) : 0,
+					topButton: clicksByButton[0] || null,
+					clicksByButton,
+					series: days.map((day) => grouped.get(day) || { day, label: shortDayLabel(day), views: 0, clicks: 0 }),
+				};
+			}
+
+			function renderLandingQrAnalytics() {
+				const metrics = computeLandingQrAnalytics();
+				const formatCount = (value) => Number(value || 0).toLocaleString('es-US');
+
+				if (trafficLandingViewsTotal) trafficLandingViewsTotal.textContent = formatCount(metrics.views);
+				if (trafficLandingClicksTotal) trafficLandingClicksTotal.textContent = formatCount(metrics.clicks);
+				if (trafficLandingRateTotal) trafficLandingRateTotal.textContent = `${formatCount(metrics.interactionRate)}%`;
+				if (trafficLandingTopButton) trafficLandingTopButton.textContent = metrics.topButton ? metrics.topButton.label : 'Sin datos';
+				if (trafficLandingChart) trafficLandingChart.innerHTML = createTrafficChartMarkup(metrics.series, 'views', '#16a34a', '#22c55e');
+
+				if (trafficLandingClicksMeta) {
+					trafficLandingClicksMeta.textContent = metrics.clicks
+						? `${formatCount(metrics.clicks)} clics registrados`
+						: 'Sin clics en este periodo';
+				}
+
+				if (!trafficLandingClicksList) return;
+
+				if (!metrics.clicksByButton.length) {
+					trafficLandingClicksList.innerHTML = '<div class="visit-analytics-empty">Todavía no hay clics de Landing QR en este periodo.</div>';
+					return;
+				}
+
+				trafficLandingClicksList.innerHTML = metrics.clicksByButton.slice(0, 10).map((item) => `
+					<div class="landing-qr-click-row">
+						<span class="landing-qr-click-main">
+							<strong>${escapeHtml(item.label)}</strong>
+							<span>${escapeHtml(item.type)}</span>
+						</span>
+						<span class="landing-qr-click-count">${escapeHtml(formatCount(item.clicks))} clics</span>
+						<span class="landing-qr-click-percent">${escapeHtml(formatCount(item.percentage))}%</span>
+					</div>
+				`).join('');
 			}
 
 			function getAnalyticsEventsForSelectedRange() {
@@ -5429,6 +5698,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				dashboardSubtitle.textContent = formatFullDate(new Date()) + '.';
 				rangeLabel.textContent = `Mostrando: ${getSummaryRangeLabel()}.`;
 				renderTrafficAnalytics();
+				renderLandingQrAnalytics();
 				renderKpis(metrics);
 				renderCharts(metrics);
 				renderTopProducts(metrics);
@@ -5452,6 +5722,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				topProductsList.innerHTML = '<div class="activity-empty-text">Cargando productos más vendidos...</div>';
 				if (mostViewedProductsList) mostViewedProductsList.innerHTML = '<div class="empty-state">Cargando productos más vistos...</div>';
 				if (mostViewedProductsMeta) mostViewedProductsMeta.textContent = 'Cargando...';
+				if (trafficLandingClicksList) trafficLandingClicksList.innerHTML = '<div class="empty-state">Cargando clics Landing QR...</div>';
+				if (trafficLandingClicksMeta) trafficLandingClicksMeta.textContent = 'Cargando...';
 				recentOrders.innerHTML = '<div class="activity-empty-text">Cargando pedidos recientes...</div>';
 				statusGrid.innerHTML = '<div class="empty-state">Cargando estados...</div>';
 				if (ratingSummaryGrid) ratingSummaryGrid.innerHTML = '<div class="empty-state">Cargando rating y reseñas...</div>';
@@ -5543,19 +5815,44 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				closeBellDropdown();
 			});
 
+			function getVisitAnalyticsTargetFromHash() {
+				const hash = String(window.location.hash || '').trim().toLowerCase();
+				if (hash === '#landing-qr' || hash === '#landingqr' || hash === '#qr-landing') return 'landingqr';
+				return '';
+			}
+
+			function activateVisitAnalyticsTab(target, options = {}) {
+				const normalizedTarget = String(target || 'visitors').trim() || 'visitors';
+				visitAnalyticsTabs.forEach((item) => {
+					const isActive = item.dataset.analyticsTab === normalizedTarget;
+					item.classList.toggle('is-active', isActive);
+					item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+				});
+				visitAnalyticsPanels.forEach((panel) => {
+					panel.classList.toggle('is-active', panel.dataset.analyticsPanel === normalizedTarget);
+				});
+
+				if (options.syncHash === false) return;
+				const shouldUseLandingHash = normalizedTarget === 'landingqr';
+				const hasLandingHash = Boolean(getVisitAnalyticsTargetFromHash());
+				if (shouldUseLandingHash && window.location.hash !== '#landing-qr') {
+					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#landing-qr`);
+				} else if (!shouldUseLandingHash && hasLandingHash) {
+					window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+				}
+			}
+
 			visitAnalyticsTabs.forEach((button) => {
 				button.addEventListener('click', () => {
-					const target = button.dataset.analyticsTab || '';
-					visitAnalyticsTabs.forEach((item) => {
-						const isActive = item === button;
-						item.classList.toggle('is-active', isActive);
-						item.setAttribute('aria-selected', isActive ? 'true' : 'false');
-					});
-					visitAnalyticsPanels.forEach((panel) => {
-						panel.classList.toggle('is-active', panel.dataset.analyticsPanel === target);
-					});
+					activateVisitAnalyticsTab(button.dataset.analyticsTab || 'visitors');
 				});
 			});
+
+			window.addEventListener('hashchange', () => {
+				const target = getVisitAnalyticsTargetFromHash();
+				if (target) activateVisitAnalyticsTab(target, { syncHash: false });
+			});
+			activateVisitAnalyticsTab(getVisitAnalyticsTargetFromHash() || 'visitors', { syncHash: false });
 
 			businessSummaryTabs.forEach((button) => {
 				button.addEventListener('click', () => {
@@ -5606,6 +5903,9 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
 				window.location.assign('/login');
 			});
+
+			syncSummaryRangeButtons();
+
 			if (!POCKETBASE_URL) {
 				showAdmin();
 				if (businessProductsDetails) businessProductsDetails.innerHTML = '<div class="business-empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';

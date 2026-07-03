@@ -18,6 +18,7 @@ const {
 const safeStoreSlug = currentStoreSlug || 'powerzona';
 const publicPath = `/t/${encodeURIComponent(safeStoreSlug)}/links`;
 const publicStorePath = `/t/${encodeURIComponent(safeStoreSlug)}`;
+const landingAnalyticsPath = `/t/${encodeURIComponent(safeStoreSlug)}/admin#landing-qr`;
 const qrSvgPath = `${publicPath}/qr.svg`;
 const qrPngPath = `${publicPath}/qr.png`;
 ---
@@ -163,6 +164,7 @@ const qrPngPath = `${publicPath}/qr.png`;
         <div class="landing-qr-download__actions">
           <a class="landing-btn" href={qrPngPath} download={`landing-qr-${safeStoreSlug}.png`}>Descargar PNG</a>
           <a class="landing-btn" href={qrSvgPath} download={`landing-qr-${safeStoreSlug}.svg`}>Descargar SVG</a>
+          <a class="landing-btn landing-btn--wide" href={landingAnalyticsPath}>Ver analíticas</a>
         </div>
       </section>
     </aside>
@@ -660,6 +662,10 @@ const qrPngPath = `${publicPath}/qr.png`;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+
+  .landing-qr-admin .landing-btn--wide {
+    grid-column: 1 / -1;
   }
 
   .landing-qr-admin .landing-alert {

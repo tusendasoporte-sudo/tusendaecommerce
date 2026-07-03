@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
 import type { LandingQrLink } from '../../lib/landingQr';
 import type { PublicStore } from '../../lib/stores';
 
@@ -74,12 +75,19 @@ function getLinkBackground(type: string) {
 }
 
 const isExternalLink = (value: string) => /^https?:\/\//i.test(value);
-void currentStore;
 void settings;
 void accentColor;
 ---
 
 <Layout hideStoreFloatingUi={true} seo={seo}>
+  <StoreAnalyticsTracker
+    storeId={currentStore.id}
+    pageType="landing_qr"
+    entityType="landing_qr"
+    entityId={currentStore.id}
+    eventType="landing_qr_view"
+  />
+
   <section class="landing-qr-page">
     <div class="landing-qr-card" aria-label={`Enlaces de ${storeName}`}>
       <header class="landing-qr-header">
@@ -105,6 +113,11 @@ void accentColor;
             href={link.url}
             target={isExternalLink(link.url) ? '_blank' : undefined}
             rel={isExternalLink(link.url) ? 'noopener noreferrer' : undefined}
+            data-landing-link
+            data-link-id={link.id}
+            data-link-type={link.type}
+            data-link-label={link.label}
+            data-link-icon={link.icon}
           >
             <span class="landing-qr-link-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" set:html={iconPaths[link.icon] || iconPaths.link}></svg>
@@ -126,6 +139,110 @@ void accentColor;
 
     <p class="landing-qr-url">{publicUrl}</p>
   </section>
+
+  <script define:vars={{ storeId: currentStore.id, landingPath }}>
+    (() => {
+      try {
+        if (navigator.doNotTrack === '1') return;
+
+        const STORE_ID = String(storeId || '').trim();
+        const LANDING_PATH = String(landingPath || window.location.pathname || '').slice(0, 240);
+        const ENDPOINT = '/api/landing-qr/click';
+        const sessionTimeoutMs = 30 * 60 * 1000;
+
+        if (!STORE_ID) return;
+
+        const cleanText = (value, max) => String(value || '')
+          .replace(/<[^>]*>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, max);
+
+        const makeId = (prefix) => {
+          if (window.crypto?.randomUUID) return `${prefix}_${window.crypto.randomUUID()}`;
+          return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+        };
+
+        const getLocalDay = () => {
+          const now = new Date();
+          return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        };
+
+        const getVisitorContext = () => {
+          let visitorId = '';
+          let sessionId = '';
+
+          try {
+            visitorId = localStorage.getItem('pz_visitor_id') || localStorage.getItem('tusenda84_visitor_id') || '';
+            if (!visitorId) visitorId = makeId('v');
+            localStorage.setItem('pz_visitor_id', visitorId);
+
+            const lastActivity = Number(localStorage.getItem('pz_last_activity_at') || 0);
+            const expired = !Number.isFinite(lastActivity) || !lastActivity || Date.now() - lastActivity > sessionTimeoutMs;
+            sessionId = localStorage.getItem('pz_session_id') || '';
+            if (!sessionId || expired) sessionId = makeId('s');
+            localStorage.setItem('pz_session_id', sessionId);
+            localStorage.setItem('pz_last_activity_at', String(Date.now()));
+          } catch (_) {
+            visitorId = visitorId || makeId('v');
+            sessionId = sessionId || makeId('s');
+          }
+
+          return { visitorId, sessionId };
+        };
+
+        const sendPayload = (payload) => {
+          const body = JSON.stringify(payload);
+
+          try {
+            if (navigator.sendBeacon) {
+              const blob = new Blob([body], { type: 'application/json' });
+              if (navigator.sendBeacon(ENDPOINT, blob)) return;
+            }
+          } catch (_) {}
+
+          try {
+            fetch(ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body,
+              keepalive: true,
+            }).catch(() => {});
+          } catch (_) {}
+        };
+
+        document.addEventListener('click', (event) => {
+          const link = event.target?.closest?.('[data-landing-link]');
+          if (!link) return;
+
+          const linkId = cleanText(link.dataset.linkId, 80);
+          if (!linkId) return;
+
+          try {
+            const clickedKey = `landing_qr_click_${STORE_ID}_${linkId}`;
+            const lastClick = Number(sessionStorage.getItem(clickedKey) || 0);
+            const now = Date.now();
+            if (Number.isFinite(lastClick) && now - lastClick < 1500) return;
+            sessionStorage.setItem(clickedKey, String(now));
+          } catch (_) {}
+
+          const visitor = getVisitorContext();
+          sendPayload({
+            store: STORE_ID,
+            link_id: linkId,
+            link_type: cleanText(link.dataset.linkType, 40) || 'link',
+            link_icon: cleanText(link.dataset.linkIcon, 40) || 'link',
+            link_label: cleanText(link.dataset.linkLabel || link.textContent, 100),
+            visitor_id: visitor.visitorId,
+            session_id: visitor.sessionId,
+            day: getLocalDay(),
+            path: LANDING_PATH || window.location.pathname.slice(0, 240),
+          });
+        }, { capture: true, passive: true });
+      } catch (_) {
+      }
+    })();
+  </script>
 </Layout>
 
 <style>

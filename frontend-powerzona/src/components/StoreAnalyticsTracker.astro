@@ -1,9 +1,10 @@
 ---
 type Props = {
   storeId?: string;
-  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'search' | 'checkout' | 'other';
+  pageType?: 'store_home' | 'category' | 'subcategory' | 'product' | 'gifts' | 'search' | 'checkout' | 'landing_qr' | 'other';
   entityType?: string;
   entityId?: string;
+  eventType?: 'pageview' | 'landing_qr_view';
   heartbeatEnabled?: boolean;
 };
 
@@ -12,6 +13,7 @@ const {
   pageType = 'other',
   entityType = '',
   entityId = '',
+  eventType = 'pageview',
   heartbeatEnabled = false,
 } = Astro.props;
 
@@ -19,7 +21,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 ---
 
 {storeId && pocketbaseUrl && (
-  <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId, heartbeatEnabled }}>
+  <script define:vars={{ pocketbaseUrl, storeId, pageType, entityType, entityId, eventType, heartbeatEnabled }}>
     (() => {
       const HEARTBEAT_ENABLED = heartbeatEnabled === true;
 
@@ -41,6 +43,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const STORE_ID = String(storeId || '').trim();
+        const PAGE_TYPE = String(pageType || 'other').trim() || 'other';
+        const INITIAL_EVENT_TYPE = String(eventType || 'pageview').trim() || 'pageview';
 
         if (!POCKETBASE_URL || !STORE_ID) {
           return;
@@ -91,12 +95,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             day: localDay,
             visitor_id: visitorId,
             session_id: sessionId,
-            page_type: pageType || 'other',
+            page_type: PAGE_TYPE,
             entity_type: entityType || '',
             entity_id: entityId || '',
             path: window.location.pathname.slice(0, 240),
             referrer: document.referrer ? document.referrer.slice(0, 240) : '',
-            user_agent: navigator.userAgent ? navigator.userAgent.slice(0, 260) : '',
+            user_agent: PAGE_TYPE === 'landing_qr' ? '' : (navigator.userAgent ? navigator.userAgent.slice(0, 260) : ''),
           };
         }
 
@@ -119,7 +123,42 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           }
         }
 
-        sendAnalyticsEvent('pageview');
+        function getLandingQrViewStorageKey() {
+          if (INITIAL_EVENT_TYPE !== 'landing_qr_view') return '';
+          return `pz_landing_qr_view_${STORE_ID}_${localDay}`;
+        }
+
+        function shouldSkipLandingQrView() {
+          if (INITIAL_EVENT_TYPE !== 'landing_qr_view') return false;
+
+          try {
+            const key = getLandingQrViewStorageKey();
+            return !!key && sessionStorage.getItem(key) === 'sent';
+          } catch (_) {
+            return false;
+          }
+        }
+
+        function markLandingQrViewSent() {
+          if (INITIAL_EVENT_TYPE !== 'landing_qr_view') return;
+
+          try {
+            const key = getLandingQrViewStorageKey();
+            if (key) sessionStorage.setItem(key, 'sent');
+          } catch (_) {}
+        }
+
+        async function sendInitialAnalyticsEvent() {
+          if (shouldSkipLandingQrView()) return;
+
+          const sent = await sendAnalyticsEvent(INITIAL_EVENT_TYPE);
+
+          if (sent && INITIAL_EVENT_TYPE === 'landing_qr_view') {
+            markLandingQrViewSent();
+          }
+        }
+
+        sendInitialAnalyticsEvent();
 
         if (HEARTBEAT_ENABLED) {
           let heartbeatTimer = null;
