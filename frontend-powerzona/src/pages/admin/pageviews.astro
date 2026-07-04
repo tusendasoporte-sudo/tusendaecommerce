@@ -1,0 +1,1742 @@
+---
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import '../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminAuthToken = authPb.authStore.token;
+const currentStoreId = adminContext.storeId;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resumen de páginas visitadas | PowerZona Admin</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --blue: #2563eb;
+        --blue-dark: #1d4ed8;
+        --green: #16a34a;
+        --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, 0.16), transparent 30%),
+          radial-gradient(circle at 86% 8%, rgba(14, 165, 233, 0.10), transparent 24%),
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+      button { cursor: pointer; font: inherit; }
+      a { color: inherit; text-decoration: none; }
+      .admin-view { min-height: 100vh; }
+      .pageviews-shell {
+        width: min(1220px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 28px 0 44px;
+        display: grid;
+        gap: 28px;
+      }
+
+      .pageviews-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+      }
+
+      .pageviews-hero-copy {
+        min-width: 0;
+      }
+
+      .pageviews-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        color: #64748b;
+        font-size: 0.95rem;
+        font-weight: 850;
+      }
+
+      .pageviews-breadcrumb a {
+        color: #2563eb;
+        text-decoration: none;
+      }
+
+      .pageviews-title {
+        margin: 0;
+        max-width: 760px;
+        color: #0f172a;
+        font-size: 3rem;
+        line-height: 0.94;
+        font-weight: 1000;
+        letter-spacing: 0;
+      }
+
+      .pageviews-back-button {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        min-height: 48px;
+        padding: 0 22px;
+        border: 1px solid rgba(37, 99, 235, 0.55);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.86);
+        color: #1d4ed8;
+        text-decoration: none;
+        font-weight: 950;
+        box-shadow: 0 16px 30px rgba(37, 99, 235, 0.08);
+        white-space: nowrap;
+      }
+
+      .pageviews-card {
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 22px 55px rgba(15, 23, 42, 0.08);
+      }
+
+      .pageviews-period-card {
+        display: grid;
+        gap: 26px;
+        padding: 28px 30px;
+      }
+
+      .pageviews-period-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+      }
+
+      .pageviews-period-head h2,
+      .pageviews-section-head h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1.85rem;
+        line-height: 1.05;
+        font-weight: 1000;
+        letter-spacing: 0;
+      }
+
+      .pageviews-period-head p,
+      .pageviews-section-head p {
+        margin: 0.4rem 0 0;
+        color: #64748b;
+        font-size: 0.96rem;
+        font-weight: 820;
+      }
+
+      .pageviews-period-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .pageviews-period-tab {
+        appearance: none;
+        min-height: 44px;
+        padding: 0 20px;
+        border: 1px solid rgba(203, 213, 225, 0.9);
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #334155;
+        font: inherit;
+        font-weight: 950;
+        cursor: pointer;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+      }
+
+      .pageviews-period-tab.is-active {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+        box-shadow: 0 18px 28px rgba(37, 99, 235, 0.26);
+      }
+
+      .pageviews-metrics-panel {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        border-radius: 24px;
+        background:
+          radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 38%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+      }
+
+      .pageviews-metric-block {
+        position: relative;
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        align-items: center;
+        gap: 16px;
+        min-height: 112px;
+        padding: 20px 22px;
+      }
+
+      .pageviews-metric-block + .pageviews-metric-block {
+        border-left: 1px solid rgba(203, 213, 225, 0.7);
+      }
+
+      .pageviews-metric-icon,
+      .pageviews-row-icon {
+        display: inline-grid;
+        place-items: center;
+        color: #2563eb;
+        background: #eff6ff;
+        border: 1px solid rgba(191, 219, 254, 0.8);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.06);
+      }
+
+      .pageviews-metric-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 17px;
+      }
+
+      .pageviews-metric-icon svg,
+      .pageviews-row-icon svg {
+        width: 24px;
+        height: 24px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.1;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .pageviews-metric-icon svg path,
+      .pageviews-row-icon svg path {
+        fill: none;
+        stroke: currentColor;
+      }
+
+      .pageviews-metric-copy {
+        min-width: 0;
+      }
+
+      .pageviews-metric-copy p {
+        margin: 0 0 8px;
+        color: #475569;
+        font-size: 0.95rem;
+        font-weight: 850;
+      }
+
+      .pageviews-metric-copy strong {
+        display: block;
+        color: #0f172a;
+        font-size: 2rem;
+        line-height: 1.04;
+        font-weight: 1000;
+        letter-spacing: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .pageviews-metric-copy small {
+        display: block;
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 0.86rem;
+        line-height: 1.3;
+        font-weight: 780;
+      }
+
+      .pageviews-metric-block--top .pageviews-metric-copy strong {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        font-size: 1.45rem;
+        line-height: 1.12;
+      }
+
+      .pageviews-list-card {
+        display: grid;
+        gap: 24px;
+        padding: 28px 30px;
+      }
+
+      .pageviews-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      .pageviews-table {
+        display: grid;
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        border-radius: 24px;
+        background: rgba(248, 250, 252, 0.52);
+      }
+
+      .pageviews-table-head {
+        display: grid;
+        grid-template-columns: minmax(120px, 1.05fr) minmax(160px, 1.7fr) minmax(80px, 0.7fr) minmax(110px, 0.85fr) minmax(100px, 0.65fr);
+        gap: 12px;
+        align-items: center;
+        padding: 15px 22px;
+        color: #64748b;
+        font-size: 0.76rem;
+        font-weight: 1000;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .pageviews-list {
+        display: grid;
+        gap: 0;
+      }
+
+      .pageviews-row {
+        display: grid;
+        grid-template-columns: minmax(120px, 1.05fr) minmax(160px, 1.7fr) minmax(80px, 0.7fr) minmax(110px, 0.85fr) minmax(100px, 0.65fr);
+        gap: 12px;
+        align-items: center;
+        padding: 16px 22px;
+        border-top: 1px solid rgba(226, 232, 240, 0.95);
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .pageviews-row:nth-child(even) {
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .pageviews-cell {
+        min-width: 0;
+        color: #0f172a;
+      }
+
+      .pageviews-cell::before {
+        display: none;
+      }
+
+      .pageviews-cell-page {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+      }
+
+      .pageviews-row-icon {
+        flex: 0 0 auto;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+      }
+
+      .pageviews-row-icon svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .pageviews-cell strong {
+        display: block;
+        color: #0f172a;
+        font-weight: 950;
+        line-height: 1.2;
+      }
+
+      .pageviews-cell-detail span {
+        display: -webkit-box;
+        overflow: hidden;
+        color: #334155;
+        font-weight: 780;
+        line-height: 1.25;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+
+      .pageviews-cell-date span {
+        color: #334155;
+        font-weight: 780;
+      }
+
+      .pageviews-cell-action {
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      .pageviews-route-button,
+      .pageviews-route-action,
+      .pageviews-page-btn {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 42px;
+        padding: 0 18px;
+        border: 1px solid rgba(37, 99, 235, 0.55);
+        border-radius: 13px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #1d4ed8;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 950;
+        cursor: pointer;
+        text-decoration: none;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.06);
+        white-space: nowrap;
+      }
+
+      .pageviews-route-action--primary {
+        border-color: #2563eb;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #ffffff;
+      }
+
+      .pageviews-route-box {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 4px;
+        padding: 1rem;
+        border: 1px dashed rgba(37, 99, 235, 0.28);
+        border-radius: 18px;
+        background: rgba(239, 246, 255, 0.75);
+      }
+
+      .pageviews-route-box p {
+        margin: 0;
+        color: #1e3a8a;
+        font-size: 0.76rem;
+        font-weight: 950;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .pageviews-route-box code {
+        display: block;
+        width: 100%;
+        padding: 0.8rem;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.88);
+        color: #0f172a;
+        font-size: 0.9rem;
+        font-weight: 800;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+
+      .pageviews-route-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+      }
+
+      .pageviews-empty {
+        padding: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.88);
+        color: #64748b;
+        font-weight: 850;
+      }
+
+      .pageviews-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .pageviews-pagination p {
+        margin: 0;
+        color: #64748b;
+        font-weight: 850;
+      }
+
+      .pageviews-pagination-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .pageviews-current-page {
+        color: #0f172a;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+
+      .pageviews-page-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.48;
+      }
+
+      @media (max-width: 1120px) {
+        .pageviews-metrics-panel {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pageviews-metric-block:nth-child(3) {
+          border-left: 0;
+          border-top: 1px solid rgba(203, 213, 225, 0.7);
+        }
+
+        .pageviews-metric-block:nth-child(4) {
+          border-top: 1px solid rgba(203, 213, 225, 0.7);
+        }
+      }
+
+      @media (min-width: 761px) {
+        .pageviews-table-head {
+          display: grid;
+        }
+
+        .pageviews-row {
+          display: grid;
+        }
+
+        .pageviews-cell::before {
+          display: none;
+          content: "";
+        }
+      }
+
+      @media (max-width: 760px) {
+        .pageviews-shell {
+          width: min(100%, calc(100vw - 20px));
+          padding: 18px 0 32px;
+          gap: 22px;
+        }
+
+        .pageviews-hero {
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .pageviews-breadcrumb {
+          margin-bottom: 12px;
+          font-size: 0.92rem;
+        }
+
+        .pageviews-title {
+          max-width: 100%;
+          font-size: 2.65rem;
+          line-height: 1.02;
+          letter-spacing: 0;
+        }
+
+        .pageviews-back-button {
+          width: 100%;
+          min-height: 54px;
+        }
+
+        .pageviews-card {
+          border-radius: 26px;
+        }
+
+        .pageviews-period-card,
+        .pageviews-list-card {
+          padding: 20px;
+        }
+
+        .pageviews-period-head {
+          flex-direction: column;
+          gap: 18px;
+        }
+
+        .pageviews-period-tabs {
+          width: 100%;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          justify-content: stretch;
+        }
+
+        .pageviews-period-tab {
+          width: 100%;
+        }
+
+        .pageviews-metrics-panel {
+          grid-template-columns: 1fr;
+          border-radius: 22px;
+        }
+
+        .pageviews-metric-block {
+          grid-template-columns: 50px 1fr auto;
+          min-height: auto;
+          padding: 16px;
+        }
+
+        .pageviews-metric-block + .pageviews-metric-block {
+          border-left: 0;
+          border-top: 1px solid rgba(203, 213, 225, 0.72);
+        }
+
+        .pageviews-metric-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 15px;
+        }
+
+        .pageviews-metric-copy {
+          display: contents;
+        }
+
+        .pageviews-metric-copy p {
+          grid-column: 2;
+          margin: 0;
+          align-self: center;
+          font-size: 1rem;
+        }
+
+        .pageviews-metric-copy strong {
+          grid-column: 3;
+          grid-row: 1;
+          align-self: center;
+          justify-self: end;
+          max-width: 180px;
+          text-align: right;
+          font-size: 1.7rem;
+        }
+
+        .pageviews-metric-copy small {
+          grid-column: 3;
+          grid-row: 2;
+          justify-self: end;
+          max-width: 190px;
+          margin-top: 2px;
+          text-align: right;
+        }
+
+        .pageviews-metric-block--top .pageviews-metric-copy strong {
+          font-size: 1.35rem;
+        }
+
+        .pageviews-table {
+          overflow: visible;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+        }
+
+        .pageviews-table-head {
+          display: none;
+        }
+
+        .pageviews-list {
+          gap: 12px;
+        }
+
+        .pageviews-row {
+          display: grid;
+          grid-template-columns: 1fr auto auto;
+          gap: 10px 12px;
+          align-items: center;
+          padding: 14px;
+          border: 1px solid rgba(226, 232, 240, 0.96);
+          border-radius: 18px;
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+        }
+
+        .pageviews-cell::before {
+          display: none;
+        }
+
+        .pageviews-cell-page {
+          grid-column: 1;
+          grid-row: 1 / span 2;
+          gap: 12px;
+        }
+
+        .pageviews-row-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 14px;
+        }
+
+        .pageviews-cell-page strong {
+          font-size: 1rem;
+        }
+
+        .pageviews-cell-detail {
+          grid-column: 1;
+          grid-row: 2;
+          padding-left: 56px;
+        }
+
+        .pageviews-cell-visits {
+          grid-column: 2;
+          grid-row: 1;
+          justify-self: end;
+          text-align: right;
+        }
+
+        .pageviews-cell-date {
+          grid-column: 2;
+          grid-row: 2;
+          justify-self: end;
+          text-align: right;
+        }
+
+        .pageviews-cell-action {
+          grid-column: 3;
+          grid-row: 1 / span 2;
+          justify-self: end;
+        }
+
+        .pageviews-route-button {
+          min-height: 42px;
+          padding: 0 14px;
+        }
+
+        .pageviews-route-box {
+          grid-column: 1 / -1;
+        }
+
+        .pageviews-route-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .pageviews-pagination {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .pageviews-pagination-actions {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          gap: 0.55rem;
+        }
+
+        .pageviews-page-btn {
+          padding: 0 12px;
+        }
+      }
+
+      @media (max-width: 440px) {
+        .pageviews-period-tabs {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .pageviews-metric-block {
+          grid-template-columns: 46px minmax(0, 1fr) minmax(92px, 42%);
+          gap: 12px;
+        }
+
+        .pageviews-metric-copy strong,
+        .pageviews-metric-copy small {
+          max-width: 100%;
+        }
+
+        .pageviews-pagination-actions {
+          grid-template-columns: 1fr;
+        }
+
+        .pageviews-current-page {
+          text-align: center;
+        }
+      }
+
+      /* M-012 dynamic render safety: JS innerHTML nodes */
+      .pageviews-metric-icon svg,
+      .pageviews-row-icon svg {
+        display: block !important;
+        width: 24px !important;
+        height: 24px !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
+        max-width: 24px !important;
+        max-height: 24px !important;
+        color: currentColor !important;
+      }
+
+      .pageviews-metric-icon svg *,
+      .pageviews-row-icon svg * {
+        fill: none !important;
+        stroke: currentColor !important;
+      }
+
+      .pageviews-metric-icon {
+        width: 58px !important;
+        height: 58px !important;
+        min-width: 58px !important;
+        min-height: 58px !important;
+        display: inline-grid !important;
+        place-items: center !important;
+        border-radius: 17px !important;
+        color: #2563eb !important;
+        background: #eff6ff !important;
+        border: 1px solid rgba(191, 219, 254, 0.8) !important;
+      }
+
+      .pageviews-row-icon {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        display: inline-grid !important;
+        place-items: center !important;
+        border-radius: 12px !important;
+        color: #2563eb !important;
+        background: #eff6ff !important;
+        border: 1px solid rgba(191, 219, 254, 0.8) !important;
+      }
+
+      @media (min-width: 761px) {
+        .pageviews-metrics-panel {
+          display: grid !important;
+          grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+          gap: 0 !important;
+        }
+
+        .pageviews-metric-block {
+          display: grid !important;
+          grid-template-columns: 58px minmax(0, 1fr) !important;
+          align-items: center !important;
+          gap: 16px !important;
+          min-height: 112px !important;
+          padding: 20px 22px !important;
+        }
+
+        .pageviews-table-head,
+        .pageviews-row {
+          display: grid !important;
+          grid-template-columns:
+            minmax(170px, 1.05fr)
+            minmax(260px, 1.7fr)
+            minmax(120px, 0.7fr)
+            minmax(150px, 0.85fr)
+            minmax(130px, 0.65fr) !important;
+          gap: 18px !important;
+          align-items: center !important;
+        }
+
+        .pageviews-row {
+          padding: 16px 22px !important;
+          border-top: 1px solid rgba(226, 232, 240, 0.95) !important;
+          background: rgba(255, 255, 255, 0.92) !important;
+        }
+
+        .pageviews-cell-page {
+          display: flex !important;
+          align-items: center !important;
+          gap: 13px !important;
+        }
+
+        .pageviews-cell::before {
+          display: none !important;
+          content: "" !important;
+        }
+
+        .pageviews-cell-action {
+          display: flex !important;
+          justify-content: flex-end !important;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .pageviews-metrics-panel {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0 !important;
+        }
+
+        .pageviews-metric-block {
+          display: grid !important;
+          grid-template-columns: 50px 1fr auto !important;
+          align-items: center !important;
+          gap: 14px !important;
+          min-height: auto !important;
+          padding: 16px !important;
+        }
+
+        .pageviews-metric-block + .pageviews-metric-block {
+          border-left: 0 !important;
+          border-top: 1px solid rgba(203, 213, 225, 0.72) !important;
+        }
+
+        .pageviews-table {
+          overflow: visible !important;
+          border: 0 !important;
+          background: transparent !important;
+        }
+
+        .pageviews-table-head {
+          display: none !important;
+        }
+
+        .pageviews-list {
+          display: grid !important;
+          gap: 12px !important;
+        }
+
+        .pageviews-row {
+          display: grid !important;
+          grid-template-columns: 1fr auto auto !important;
+          gap: 10px 12px !important;
+          align-items: center !important;
+          padding: 14px !important;
+          border: 1px solid rgba(226, 232, 240, 0.96) !important;
+          border-radius: 18px !important;
+          background: rgba(255, 255, 255, 0.96) !important;
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055) !important;
+        }
+
+        .pageviews-cell::before {
+          display: none !important;
+        }
+
+        .pageviews-cell-page {
+          grid-column: 1 !important;
+          grid-row: 1 / span 2 !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
+        }
+
+        .pageviews-cell-detail {
+          grid-column: 1 !important;
+          grid-row: 2 !important;
+          padding-left: 56px !important;
+        }
+
+        .pageviews-cell-visits {
+          grid-column: 2 !important;
+          grid-row: 1 !important;
+          justify-self: end !important;
+          text-align: right !important;
+        }
+
+        .pageviews-cell-date {
+          grid-column: 2 !important;
+          grid-row: 2 !important;
+          justify-self: end !important;
+          text-align: right !important;
+        }
+
+        .pageviews-cell-action {
+          grid-column: 3 !important;
+          grid-row: 1 / span 2 !important;
+          justify-self: end !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="admin-view pz-admin-content">
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="overview" />
+
+      <main class="pageviews-shell pz-admin-content-inner">
+        <header class="pageviews-hero">
+          <div class="pageviews-hero-copy">
+            <nav class="pageviews-breadcrumb" aria-label="Breadcrumb">
+              <a href={adminBasePath}>Resumen</a>
+              <span>/</span>
+              <span>Páginas vistas</span>
+            </nav>
+            <h1 class="pageviews-title">Resumen de páginas visitadas</h1>
+          </div>
+
+          <a class="pageviews-back-button" href={adminBasePath}>
+            <span aria-hidden="true">←</span>
+            <span>Volver al resumen</span>
+          </a>
+        </header>
+
+        <section class="pageviews-card pageviews-period-card">
+          <div class="pageviews-period-head">
+            <div>
+              <h2>Visitas por período</h2>
+              <p>Usa los mismos eventos de páginas vistas del Resumen.</p>
+            </div>
+
+            <div class="pageviews-period-tabs" role="tablist" aria-label="Filtrar período">
+              <button type="button" class="pageviews-period-tab" data-pageviews-period="today" aria-selected="false">Hoy</button>
+              <button type="button" class="pageviews-period-tab is-active" data-pageviews-period="7d" aria-selected="true">7 días</button>
+              <button type="button" class="pageviews-period-tab" data-pageviews-period="15d" aria-selected="false">15 días</button>
+              <button type="button" class="pageviews-period-tab" data-pageviews-period="1m" aria-selected="false">1 mes</button>
+            </div>
+          </div>
+
+          <div class="pageviews-metrics-panel" data-pageviews-metrics-panel>
+            <div class="pageviews-empty">Cargando páginas visitadas...</div>
+          </div>
+        </section>
+
+        <section class="pageviews-card pageviews-list-card">
+          <div class="pageviews-section-head">
+            <div>
+              <h2>Listado completo</h2>
+              <p>Páginas agrupadas por tipo, detalle y visitas.</p>
+            </div>
+          </div>
+
+          <div class="pageviews-table" data-pageviews-table>
+            <div class="pageviews-table-head" aria-hidden="true">
+              <span>Página</span>
+              <span>Detalle</span>
+              <span>Visitas</span>
+              <span>Última visita</span>
+              <span>Acción</span>
+            </div>
+
+            <div class="pageviews-list" data-pageviews-list></div>
+          </div>
+
+          <div class="pageviews-empty" data-pageviews-empty hidden>
+            Todavía no hay páginas visitadas en este período.
+          </div>
+
+          <footer class="pageviews-pagination">
+            <p data-pageviews-pagination-meta>Mostrando 0 de 0 páginas visitadas</p>
+            <div class="pageviews-pagination-actions">
+              <button type="button" class="pageviews-page-btn" data-pageviews-prev>
+                <span aria-hidden="true">←</span>
+                <span>Anterior</span>
+              </button>
+              <span class="pageviews-current-page" data-pageviews-current-page>Página 1 de 1</span>
+              <button type="button" class="pageviews-page-btn" data-pageviews-next>
+                <span>Siguiente</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </footer>
+        </section>
+      </main>
+    </section>
+
+    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId }}>
+      const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+      const ADMIN_TOKEN = String(adminAuthToken || '');
+      const STORE_FILTER = String(currentStoreFilter || '');
+      const CURRENT_STORE_ID = String(currentStoreId || '');
+      const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
+      const ANALYTICS_MAX_RETENTION_DAYS = 30;
+      const PAGEVIEWS_PAGE_SIZE = 10;
+      const kpiGrid = document.querySelector('[data-pageviews-metrics-panel]');
+      let pageviewsCurrentPage = 1;
+      let expandedRouteKey = '';
+
+      const pageviewsList = document.querySelector('[data-pageviews-list]');
+      const pageviewsEmpty = document.querySelector('[data-pageviews-empty]');
+      const pageviewsTable = document.querySelector('[data-pageviews-table]');
+      const pageviewsPaginationMeta = document.querySelector('[data-pageviews-pagination-meta]');
+      const pageviewsCurrentPageLabel = document.querySelector('[data-pageviews-current-page]');
+      const pageviewsPrevButton = document.querySelector('[data-pageviews-prev]');
+      const pageviewsNextButton = document.querySelector('[data-pageviews-next]');
+      const rangeButtons = Array.from(document.querySelectorAll('.pageviews-period-tab'));
+      let selectedRange = normalizeRange(readInitialRange());
+      let analyticsEvents = [];
+      let products = [];
+      let categories = [];
+      let subcategories = [];
+      let settingsRecord = null;
+
+      const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;',
+      }[char] || char));
+
+      const normalizeText = (value) => String(value ?? '').trim();
+
+      const getSafePublicPath = (path) => {
+        const rawPath = normalizeText(path);
+        if (!rawPath) return '#';
+
+        try {
+          if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
+            const url = new URL(rawPath, window.location.origin);
+            return `${url.pathname}${url.search}${url.hash}`;
+          }
+
+          return rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+        } catch {
+          return '#';
+        }
+      };
+
+      const titleFromSlug = (value) => {
+        const text = normalizeText(value)
+          .split('?')[0]
+          .split('#')[0]
+          .split('/')
+          .filter(Boolean)
+          .pop();
+
+        if (!text) return '';
+
+        return decodeURIComponent(text)
+          .replace(/[-_]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      };
+
+      const getPageColumnLabel = (pageType) => {
+        const type = normalizeText(pageType);
+
+        const labels = {
+          store_home: 'Inicio',
+          home: 'Inicio',
+          product: 'Producto',
+          category: 'Categoría',
+          subcategory: 'Subcategoría',
+          gifts: 'Regalos',
+          search: 'Buscar',
+          checkout: 'Checkout',
+          landing_qr: 'Landing QR',
+        };
+
+        return labels[type] || 'Página pública';
+      };
+
+      const getMapName = (map, id) => {
+        if (!map || !id) return '';
+        const item = map.get(id);
+        return normalizeText(item?.name || item?.title || item?.label || '');
+      };
+
+      const getPageDetailLabel = (row) => {
+        const pageType = normalizeText(row.pageType);
+        const entityId = normalizeText(row.entityId);
+        const path = normalizeText(row.path);
+        const fallbackFromPath = titleFromSlug(path);
+
+        if (pageType === 'store_home' || pageType === 'home') {
+          return 'Tienda principal';
+        }
+
+        if (pageType === 'product') {
+          const productName = getMapName(window.productsById, entityId) || normalizeText(row.label);
+          return productName || fallbackFromPath || 'Producto visitado';
+        }
+
+        if (pageType === 'category') {
+          const categoryName = getMapName(window.categoriesById, entityId) || normalizeText(row.label);
+          return categoryName || fallbackFromPath || 'Categoría visitada';
+        }
+
+        if (pageType === 'subcategory') {
+          const subcategoryName = getMapName(window.subcategoriesById, entityId) || normalizeText(row.label);
+          return subcategoryName || fallbackFromPath || 'Subcategoría visitada';
+        }
+
+        if (pageType === 'checkout') {
+          return 'Finalización del pedido';
+        }
+
+        if (pageType === 'gifts') {
+          return 'Página de regalos';
+        }
+
+        if (pageType === 'search') {
+          return 'Búsqueda en tienda';
+        }
+
+        if (pageType === 'landing_qr') {
+          return 'Página de enlaces QR';
+        }
+
+        return normalizeText(row.label) || fallbackFromPath || 'Página visitada';
+      };
+
+      const normalizePageviewRow = (item) => {
+        const pageType = item.pageType || item.page_type || item.type || 'other';
+        const entityId = item.entityId || item.entity_id || '';
+        const path = getSafePublicPath(item.path || item.url || item.href || '');
+        const key = item.key || `${pageType}:${entityId || path}`;
+
+        return {
+          key,
+          pageType,
+          entityId,
+          path,
+          label: item.label || item.name || '',
+          views: Number(item.views || item.count || item.total || 0),
+          lastVisited: item.lastVisited || item.last_visited || item.created || '',
+          lastVisitedLabel: item.lastVisitedLabel || item.last_visited_label || item.formattedLastVisited || '',
+        };
+      };
+
+      const getVisitLabel = (views) => {
+        const count = Number(views || 0);
+        return `${count} ${count === 1 ? 'visita' : 'visitas'}`;
+      };
+
+      const getLastVisitedLabel = (row) => {
+        if (row.lastVisitedLabel) return row.lastVisitedLabel;
+        if (!row.lastVisited) return 'Sin fecha';
+
+        try {
+          return new Intl.DateTimeFormat('es', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          }).format(new Date(row.lastVisited));
+        } catch {
+          return 'Sin fecha';
+        }
+      };
+
+      function escapePbFilterValue(value) {
+        return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+      }
+      function getAdminToken() { return ADMIN_TOKEN; }
+      async function apiRequest(path, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const token = getAdminToken();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
+        return result;
+      }
+      async function loadAllRecords(collection, params = '') {
+        let page = 1;
+        const perPage = 200;
+        let items = [];
+        let totalPages = 1;
+        const query = new URLSearchParams(params || '');
+        const collectionHasStore = collection !== 'order_items' && collection !== 'product_variations' && collection !== 'manual_coupon_usages';
+        if (collectionHasStore && STORE_FILTER && !query.has('filter')) query.set('filter', STORE_FILTER);
+        do {
+          query.set('page', String(page));
+          query.set('perPage', String(perPage));
+          const result = await apiRequest(`/api/collections/${collection}/records?${query.toString()}`);
+          items = items.concat(result.items || []);
+          totalPages = result.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+        return items;
+      }
+      function normalizeRange(value) {
+        const raw = String(value || '').trim().toLowerCase();
+        if (raw === 'today' || raw === '1') return 'today';
+        if (raw === '7' || raw === '7d') return '7';
+        if (raw === '15' || raw === '15d') return '15';
+        if (raw === '30' || raw === '30d' || raw === '1m') return '30';
+        return '7';
+      }
+      function readInitialRange() {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          const urlRange = params.get('summary_range') || params.get('range') || '';
+          if (urlRange) return urlRange;
+        } catch (_) {}
+        try {
+          return localStorage.getItem(SUMMARY_RANGE_STORAGE_KEY) || '';
+        } catch (_) {
+          return '';
+        }
+      }
+      function persistRange(value) {
+        try {
+          localStorage.setItem(SUMMARY_RANGE_STORAGE_KEY, normalizeRange(value));
+        } catch (_) {}
+      }
+      function updateUrlRange() {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          params.set('summary_range', normalizeRange(selectedRange));
+          const query = params.toString();
+          window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+        } catch (_) {}
+      }
+      function getAnalyticsRetentionDays() {
+        const configured = Number(settingsRecord?.analytics_retention_days ?? ANALYTICS_MAX_RETENTION_DAYS);
+        if (!Number.isFinite(configured) || configured <= 0) return ANALYTICS_MAX_RETENTION_DAYS;
+        return Math.max(1, Math.min(ANALYTICS_MAX_RETENTION_DAYS, Math.floor(configured)));
+      }
+      function getSelectedRangeDays() {
+        const range = normalizeRange(selectedRange);
+        if (range === 'today') return 1;
+        const days = Number(range || 7);
+        if (!Number.isFinite(days)) return 7;
+        return Math.max(1, Math.min(getAnalyticsRetentionDays(), Math.floor(days)));
+      }
+      function localDayKey(value = new Date()) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      function getRangeDays() {
+        const total = getSelectedRangeDays();
+        return Array.from({ length: total }, (_, index) => {
+          const date = new Date();
+          date.setHours(0, 0, 0, 0);
+          date.setDate(date.getDate() - (total - 1 - index));
+          return localDayKey(date);
+        });
+      }
+      function getAnalyticsCutoffIso() {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - (getAnalyticsRetentionDays() - 1));
+        return date.toISOString();
+      }
+      function buildAnalyticsEventsQuery() {
+        if (!CURRENT_STORE_ID) return 'sort=created';
+        const filter = [
+          `store="${escapePbFilterValue(CURRENT_STORE_ID)}"`,
+          `created >= "${escapePbFilterValue(getAnalyticsCutoffIso())}"`,
+        ].join(' && ');
+        const query = new URLSearchParams();
+        query.set('filter', filter);
+        query.set('sort', 'created');
+        return query.toString();
+      }
+      async function loadSettingsRecord() {
+        try {
+          const settingsRecords = await loadAllRecords('settings');
+          settingsRecord = (settingsRecords || []).find((record) => record.active === true) || settingsRecords?.[0] || null;
+        } catch (_) {
+          settingsRecord = null;
+        }
+        return settingsRecord;
+      }
+      function syncRangeButtons() {
+        const normalized = normalizeRange(selectedRange);
+        rangeButtons.forEach((button) => {
+          const isActive = normalizeRange(button.dataset.pageviewsPeriod || '') === normalized;
+          button.classList.toggle('is-active', isActive);
+          button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+      }
+      function getProductName(productId) {
+        const product = products.find((item) => String(item.id || '') === String(productId || ''));
+        return String(product?.name || product?.title || '').trim();
+      }
+      function normalizePageType(pageType) {
+        const key = String(pageType || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+        if (!key) return 'other';
+        if (['home', 'store', 'storefront', 'store_home'].includes(key)) return 'store_home';
+        if (['landingqr', 'qr_landing'].includes(key)) return 'landing_qr';
+        return key;
+      }
+      function getPageEntityId(event) {
+        return String(event?.entity_id || event?.page_id || '').trim();
+      }
+      function getPagePath(event) {
+        const rawPath = String(event?.path || event?.page_path || event?.url || '').trim();
+        if (!rawPath) return '';
+        if (/^https?:\/\//i.test(rawPath)) {
+          try {
+            const parsed = new URL(rawPath);
+            return `${parsed.pathname}${parsed.search}` || rawPath;
+          } catch (_) {
+            return rawPath;
+          }
+        }
+        return rawPath;
+      }
+      function getPageVisitKey(event) {
+        const pageType = normalizePageType(event?.page_type || event?.entity_type);
+        const entityId = getPageEntityId(event);
+        const path = getPagePath(event);
+        if (entityId) return `${pageType}:${entityId}`;
+        if (path) return `${pageType}:${path}`;
+        return `${pageType}:unknown`;
+      }
+      function getPageTypeLabel(pageType) {
+        const key = normalizePageType(pageType);
+        const labels = {
+          store_home: 'Inicio de tienda',
+          product: 'Producto',
+          category: 'Categoría',
+          subcategory: 'Subcategoría',
+          gifts: 'Regalos',
+          search: 'Buscar',
+          checkout: 'Checkout',
+          landing_qr: 'Landing QR',
+          other: 'Página pública',
+        };
+        return labels[key] || 'Página pública';
+      }
+      function getPageDisplayName(event) {
+        const pageType = normalizePageType(event?.page_type || event?.entity_type);
+        const entityId = getPageEntityId(event);
+        const path = getPagePath(event);
+        if (pageType === 'store_home') return 'Inicio de tienda';
+        if (pageType === 'product') {
+          const productName = getProductName(entityId);
+          return productName ? `Producto: ${productName}` : 'Producto';
+        }
+        if (pageType === 'category') return 'Categoría';
+        if (pageType === 'subcategory') return 'Subcategoría';
+        if (pageType === 'gifts') return 'Regalos';
+        if (pageType === 'search') return 'Buscar';
+        if (pageType === 'checkout') return 'Checkout';
+        if (pageType === 'landing_qr') return 'Landing QR';
+        return path || 'Página pública';
+      }
+      function getEventDay(event) {
+        return String(event?.day || '').slice(0, 10) || localDayKey(event?.created);
+      }
+      function getEventCreatedTime(event) {
+        if (!event?.created) return 0;
+        const time = new Date(event.created).getTime();
+        return Number.isFinite(time) ? time : 0;
+      }
+      function formatCount(value) {
+        return Number(value || 0).toLocaleString('es-US');
+      }
+      function formatViews(value) {
+        const views = Number(value || 0);
+        return `${formatCount(views)} visita${views === 1 ? '' : 's'}`;
+      }
+      function getPageviewEventsForSelectedRange() {
+        const daySet = new Set(getRangeDays());
+        return analyticsEvents.filter((event) => {
+          const eventType = String(event?.event_type || 'pageview').trim().toLowerCase();
+          if (eventType !== 'pageview') return false;
+          return daySet.has(getEventDay(event));
+        });
+      }
+      function getPageVisitsSummary() {
+        const counts = new Map();
+        getPageviewEventsForSelectedRange().forEach((event) => {
+          const key = getPageVisitKey(event);
+          const pageType = normalizePageType(event?.page_type || event?.entity_type);
+          const entityId = getPageEntityId(event);
+          const path = getPagePath(event);
+          const createdTime = getEventCreatedTime(event);
+          const current = counts.get(key) || {
+            key,
+            pageType,
+            typeLabel: getPageTypeLabel(pageType),
+            entityId,
+            label: getPageDisplayName(event),
+            path,
+            views: 0,
+            lastVisited: '',
+            lastVisitedTime: 0,
+          };
+          current.views += 1;
+          if (!current.path && path) current.path = path;
+          if (createdTime > current.lastVisitedTime) {
+            current.lastVisited = event.created;
+            current.lastVisitedTime = createdTime;
+          }
+          counts.set(key, current);
+        });
+        return Array.from(counts.values()).sort((a, b) => b.views - a.views || a.label.localeCompare(b.label, 'es'));
+      }
+      function getSvgIcon(paths) {
+        return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
+      }
+
+      function getMetricIcon(name) {
+        const icons = {
+          eye: getSvgIcon('<path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.8"></circle>'),
+          users: getSvgIcon('<path d="M16 20v-1.8c0-2-1.7-3.7-3.7-3.7H7.7C5.7 14.5 4 16.2 4 18.2V20"></path><circle cx="10" cy="7.5" r="3.2"></circle><path d="M20 20v-1.6c0-1.7-1.1-3.1-2.7-3.6"></path><path d="M15.7 4.6a3.1 3.1 0 0 1 0 5.8"></path>'),
+          chart: getSvgIcon('<path d="m4 16 5-5 4 4 7-8"></path><path d="M20 7v5h-5"></path>'),
+          star: getSvgIcon('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"></path>'),
+        };
+
+        return icons[name] || icons.eye;
+      }
+
+      function getPageIcon(pageType) {
+        const key = normalizePageType(pageType);
+
+        const icons = {
+          store_home: getSvgIcon('<path d="M3.5 11 12 4l8.5 7"></path><path d="M5.5 10.5V20h13v-9.5"></path><path d="M9.5 20v-5h5v5"></path>'),
+          home: getSvgIcon('<path d="M3.5 11 12 4l8.5 7"></path><path d="M5.5 10.5V20h13v-9.5"></path><path d="M9.5 20v-5h5v5"></path>'),
+          product: getSvgIcon('<path d="M6.5 8h11l-1 11h-9l-1-11Z"></path><path d="M9 8a3 3 0 0 1 6 0"></path><circle cx="12" cy="13.5" r="1.1"></circle>'),
+          category: getSvgIcon('<path d="M3.5 7.5h6l1.8 2h9.2v9h-17v-11Z"></path>'),
+          subcategory: getSvgIcon('<path d="M4 6.5h6l1.5 2H20v8.5H4V6.5Z"></path><path d="M7 12h10"></path>'),
+          checkout: getSvgIcon('<path d="M3.5 5h2l2 10.5h10.8l1.4-7.2H7"></path><circle cx="9" cy="19" r="1.3"></circle><circle cx="17.5" cy="19" r="1.3"></circle>'),
+          gifts: getSvgIcon('<path d="M4 10h16v10H4V10Z"></path><path d="M12 10v10"></path><path d="M4 14h16"></path><path d="M8.5 7.5C7 7.5 6 6.7 6 5.7S6.9 4 8 4c1.9 0 4 3.5 4 3.5S10.4 7.5 8.5 7.5Z"></path><path d="M15.5 7.5c1.5 0 2.5-.8 2.5-1.8S17.1 4 16 4c-1.9 0-4 3.5-4 3.5s1.6 0 3.5 0Z"></path>'),
+          search: getSvgIcon('<circle cx="10.8" cy="10.8" r="5.8"></circle><path d="m15.2 15.2 4.3 4.3"></path>'),
+          landing_qr: getSvgIcon('<path d="M5 5h5v5H5V5Z"></path><path d="M14 5h5v5h-5V5Z"></path><path d="M5 14h5v5H5v-5Z"></path><path d="M14 14h2.5"></path><path d="M18.5 14H20v2"></path><path d="M14 18h6"></path>'),
+          other: getSvgIcon('<path d="M6 4.5h9l3 3V19.5H6V4.5Z"></path><path d="M14.5 4.5V8H18"></path><path d="M9 12h6"></path><path d="M9 15.5h4"></path>'),
+        };
+
+        return icons[key] || icons.other;
+      }
+      function getTopPageMetricLabel(item) {
+        if (!item) return 'Sin datos';
+        const row = normalizePageviewRow(item);
+        const pageType = normalizePageType(row.pageType);
+        if (pageType === 'store_home') return 'Inicio de tienda';
+        return getPageDetailLabel(row);
+      }
+      function renderPageviewsKpis(summary) {
+        if (!kpiGrid) return;
+        const totalViews = summary.reduce((sum, page) => sum + Number(page.views || 0), 0);
+        const average = totalViews / Math.max(getRangeDays().length, 1);
+        const topPage = getTopPageMetricLabel(summary[0]);
+        const topViews = Number(summary[0]?.views || 0);
+        kpiGrid.innerHTML = `
+          <article class="pageviews-metric-block">
+            <span class="pageviews-metric-icon">${getMetricIcon('eye')}</span>
+            <div class="pageviews-metric-copy">
+              <p>Páginas vistas</p>
+              <strong>${escapeHtml(formatCount(totalViews))}</strong>
+              <small>Total del período</small>
+            </div>
+          </article>
+
+          <article class="pageviews-metric-block">
+            <span class="pageviews-metric-icon">${getMetricIcon('users')}</span>
+            <div class="pageviews-metric-copy">
+              <p>Páginas únicas</p>
+              <strong>${escapeHtml(formatCount(summary.length))}</strong>
+              <small>Agrupadas por página</small>
+            </div>
+          </article>
+
+          <article class="pageviews-metric-block">
+            <span class="pageviews-metric-icon">${getMetricIcon('chart')}</span>
+            <div class="pageviews-metric-copy">
+              <p>Promedio diario</p>
+              <strong>${escapeHtml(average.toFixed(1))}</strong>
+              <small>Según el filtro activo</small>
+            </div>
+          </article>
+
+          <article class="pageviews-metric-block pageviews-metric-block--top">
+            <span class="pageviews-metric-icon">${getMetricIcon('star')}</span>
+            <div class="pageviews-metric-copy">
+              <p>Más visitada</p>
+              <strong title="${escapeHtml(topPage)}">${escapeHtml(topPage)}</strong>
+              <small>${escapeHtml(topViews ? getVisitLabel(topViews) : 'Sin visitas')}</small>
+            </div>
+          </article>
+        `;
+      }
+      const renderPageviewsList = (rawRows = []) => {
+        if (!pageviewsList) return;
+
+        const rows = rawRows
+          .map(normalizePageviewRow)
+          .filter((row) => row.views > 0)
+          .sort((a, b) => {
+            if (b.views !== a.views) return b.views - a.views;
+            return getPageDetailLabel(a).localeCompare(getPageDetailLabel(b), 'es');
+          });
+
+        const totalRows = rows.length;
+        const totalPages = Math.max(1, Math.ceil(totalRows / PAGEVIEWS_PAGE_SIZE));
+
+        if (pageviewsCurrentPage > totalPages) pageviewsCurrentPage = totalPages;
+        if (pageviewsCurrentPage < 1) pageviewsCurrentPage = 1;
+
+        const start = (pageviewsCurrentPage - 1) * PAGEVIEWS_PAGE_SIZE;
+        const end = start + PAGEVIEWS_PAGE_SIZE;
+        const visibleRows = rows.slice(start, end);
+
+        if (pageviewsEmpty) pageviewsEmpty.hidden = totalRows > 0;
+        if (pageviewsTable) pageviewsTable.hidden = totalRows === 0;
+
+        pageviewsList.innerHTML = visibleRows.map((row) => {
+          const pageLabel = getPageColumnLabel(row.pageType);
+          const detailLabel = getPageDetailLabel(row);
+          const routeIsOpen = expandedRouteKey === row.key;
+          const safePath = getSafePublicPath(row.path);
+
+          return `
+            <article class="pageviews-row ${routeIsOpen ? 'is-route-open' : ''}" data-pageviews-row="${escapeHtml(row.key)}">
+              <div class="pageviews-cell pageviews-cell-page" data-label="Página">
+                <span class="pageviews-row-icon">${getPageIcon(row.pageType)}</span>
+                <strong>${escapeHtml(pageLabel)}</strong>
+              </div>
+
+              <div class="pageviews-cell pageviews-cell-detail" data-label="Detalle">
+                <span>${escapeHtml(detailLabel)}</span>
+              </div>
+
+              <div class="pageviews-cell pageviews-cell-visits" data-label="Visitas">
+                <strong>${escapeHtml(getVisitLabel(row.views))}</strong>
+              </div>
+
+              <div class="pageviews-cell pageviews-cell-date" data-label="Última visita">
+                <span>${escapeHtml(getLastVisitedLabel(row))}</span>
+              </div>
+
+              <div class="pageviews-cell pageviews-cell-action" data-label="Acción">
+                <button
+                  type="button"
+                  class="pageviews-route-button"
+                  data-pageviews-route-toggle
+                  data-route-key="${escapeHtml(row.key)}"
+                  aria-expanded="${routeIsOpen ? 'true' : 'false'}"
+                >
+                  ${routeIsOpen ? 'Ocultar ruta' : 'Ver ruta'}
+                </button>
+              </div>
+
+              <div class="pageviews-route-box" ${routeIsOpen ? '' : 'hidden'}>
+                <p>Ruta</p>
+                <code>${escapeHtml(safePath)}</code>
+                <div class="pageviews-route-actions">
+                  <button
+                    type="button"
+                    class="pageviews-route-action"
+                    data-pageviews-copy-route
+                    data-route-path="${escapeHtml(safePath)}"
+                  >
+                    Copiar ruta
+                  </button>
+                  <button
+                    type="button"
+                    class="pageviews-route-action pageviews-route-action--primary"
+                    data-pageviews-open-route
+                    data-route-path="${escapeHtml(safePath)}"
+                  >
+                    Abrir página
+                  </button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        if (pageviewsPaginationMeta) {
+          const from = totalRows === 0 ? 0 : start + 1;
+          const to = Math.min(end, totalRows);
+          pageviewsPaginationMeta.textContent = `Mostrando ${from} a ${to} de ${totalRows} páginas visitadas`;
+        }
+
+        if (pageviewsCurrentPageLabel) {
+          pageviewsCurrentPageLabel.textContent = `Página ${pageviewsCurrentPage} de ${totalPages}`;
+        }
+
+        if (pageviewsPrevButton) {
+          pageviewsPrevButton.disabled = pageviewsCurrentPage <= 1;
+        }
+
+        if (pageviewsNextButton) {
+          pageviewsNextButton.disabled = pageviewsCurrentPage >= totalPages;
+        }
+
+        window.currentPageviewsRows = rows;
+      };
+
+      const rerenderCurrentPageviewsList = () => {
+        renderPageviewsList(window.currentPageviewsRows || []);
+      };
+      function renderPageviews() {
+        syncRangeButtons();
+        persistRange(selectedRange);
+        updateUrlRange();
+        const summary = getPageVisitsSummary();
+        window.productsById = window.productsById || new Map(products.map((product) => [product.id, product]));
+        window.categoriesById = window.categoriesById || new Map(categories.map((category) => [category.id, category]));
+        window.subcategoriesById = window.subcategoriesById || new Map(subcategories.map((subcategory) => [subcategory.id, subcategory]));
+        renderPageviewsKpis(summary);
+        renderPageviewsList(summary);
+      }
+      async function loadPageviews() {
+        if (!POCKETBASE_URL) {
+          if (pageviewsList) pageviewsList.innerHTML = '<div class="pageviews-empty">Falta PUBLIC_POCKETBASE_URL.</div>';
+          return;
+        }
+        await loadSettingsRecord();
+        const [analyticsResult, productsResult, categoriesResult, subcategoriesResult] = await Promise.all([
+          loadAllRecords('store_analytics_events', buildAnalyticsEventsQuery()),
+          loadAllRecords('products', 'fields=id,name,title&sort=name'),
+          loadAllRecords('categories', 'fields=id,name,slug,store&sort=name'),
+          loadAllRecords('subcategories', 'fields=id,name,slug,store&sort=name'),
+        ]);
+        analyticsEvents = analyticsResult || [];
+        products = productsResult || [];
+        categories = categoriesResult || [];
+        subcategories = subcategoriesResult || [];
+        renderPageviews();
+      }
+      rangeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedRange = normalizeRange(button.dataset.pageviewsPeriod || '7');
+          pageviewsCurrentPage = 1;
+          expandedRouteKey = '';
+          renderPageviews();
+        });
+      });
+      pageviewsPrevButton?.addEventListener('click', () => {
+        pageviewsCurrentPage -= 1;
+        rerenderCurrentPageviewsList();
+      });
+      pageviewsNextButton?.addEventListener('click', () => {
+        pageviewsCurrentPage += 1;
+        rerenderCurrentPageviewsList();
+      });
+      pageviewsList?.addEventListener('click', async (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const routeToggle = target.closest('[data-pageviews-route-toggle]');
+        const copyButton = target.closest('[data-pageviews-copy-route]');
+        const openButton = target.closest('[data-pageviews-open-route]');
+
+        if (routeToggle) {
+          const key = routeToggle.dataset.routeKey || '';
+          expandedRouteKey = expandedRouteKey === key ? '' : key;
+          rerenderCurrentPageviewsList();
+          return;
+        }
+
+        if (copyButton) {
+          const path = copyButton.dataset.routePath || '';
+          try {
+            await navigator.clipboard.writeText(path);
+            copyButton.textContent = 'Copiado';
+            window.setTimeout(() => {
+              copyButton.textContent = 'Copiar ruta';
+            }, 1400);
+          } catch {
+            copyButton.textContent = 'No se pudo copiar';
+            window.setTimeout(() => {
+              copyButton.textContent = 'Copiar ruta';
+            }, 1400);
+          }
+          return;
+        }
+
+        if (openButton) {
+          const path = openButton.dataset.routePath || '#';
+          if (path !== '#') {
+            window.open(path, '_blank', 'noopener,noreferrer');
+          }
+        }
+      });
+      syncRangeButtons();
+      loadPageviews().catch(() => {
+        if (kpiGrid) kpiGrid.innerHTML = '<div class="pageviews-empty">No se pudieron cargar las páginas visitadas.</div>';
+        if (pageviewsList) pageviewsList.innerHTML = '<div class="pageviews-empty">No se pudieron cargar las páginas visitadas.</div>';
+      });
+    </script>
+  </body>
+</html>

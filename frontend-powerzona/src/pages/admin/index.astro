@@ -22,6 +22,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 const adminProfitsPath = getStoreAdminPath(currentStoreSlug, 'profits');
+const adminPageviewsPath = getStoreAdminPath(currentStoreSlug, 'pageviews');
 const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
@@ -2686,6 +2687,13 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				display: block;
 			}
 
+			.visit-analytics-panel-head {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 16px;
+			}
+
 			.visit-analytics-panel-title {
 				margin: 0;
 				color: #0f172a;
@@ -4162,6 +4170,11 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					padding: 12px;
 				}
 
+				.visit-analytics-panel-head {
+					display: grid;
+					gap: 12px;
+				}
+
 				.dashboard-hero-clean,
 				.dashboard-block-head,
 				.dashboard-traffic-head {
@@ -4419,7 +4432,10 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						</div>
 
 						<div class="visit-analytics-panel" data-analytics-panel="pageviews">
-							<h3 class="visit-analytics-panel-title">Páginas vistas</h3>
+							<div class="visit-analytics-panel-head">
+								<h3 class="visit-analytics-panel-title">Páginas vistas</h3>
+								<a id="traffic-pageviews-summary-link" class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminPageviewsPath}?summary_range=7`}><span class="pz-admin-btn__label">Ver resumen general</span></a>
+							</div>
 							<strong id="traffic-pageviews-total" class="visit-analytics-big-number">0</strong>
 							<p class="visit-analytics-panel-help">Total de páginas públicas abiertas durante el periodo.</p>
 							<p id="traffic-pageviews-average" class="visit-analytics-average-note">Promedio diario: 0</p>
@@ -4622,7 +4638,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminProductsPath, adminOrdersPath }}>
+		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminProductsPath, adminOrdersPath, adminPageviewsPath }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const SESSION_TOKEN = String(adminAuthToken || '');
 			const STORE_FILTER = String(currentStoreFilter || '');
@@ -4630,6 +4646,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const ORDER_ITEMS_STORE_FILTER = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22` : '';
 			const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
 			const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
+			const ADMIN_PAGEVIEWS_PATH = String(adminPageviewsPath || '/admin/pageviews');
 			const ANALYTICS_MAX_RETENTION_DAYS = 30;
 			const ANALYTICS_CLEANUP_INTERVAL_MS = 23 * 60 * 60 * 1000;
 			const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
@@ -4674,6 +4691,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const trafficVisitsChart = document.getElementById('traffic-visits-chart');
 			const trafficVisitorsChart = document.getElementById('traffic-visitors-chart');
 			const trafficPageviewsChart = document.getElementById('traffic-pageviews-chart');
+			const trafficPageviewsSummaryLink = document.getElementById('traffic-pageviews-summary-link');
 			const trafficLandingViewsTotal = document.getElementById('traffic-landing-views-total');
 			const trafficLandingClicksTotal = document.getElementById('traffic-landing-clicks-total');
 			const trafficLandingTopButton = document.getElementById('traffic-landing-top-button');
@@ -4808,6 +4826,13 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				if (range === '30') return 'Últimos 30 días';
 
 				return 'Últimos 7 días';
+			}
+
+			function syncPageviewsSummaryLink() {
+				if (!trafficPageviewsSummaryLink) return;
+				const params = new URLSearchParams();
+				params.set('summary_range', normalizeSummaryRange(selectedRange));
+				trafficPageviewsSummaryLink.setAttribute('href', `${ADMIN_PAGEVIEWS_PATH}?${params.toString()}`);
 			}
 
 			function syncSummaryRangeButtons() {
@@ -6330,6 +6355,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const metrics = computeMetrics();
 				dashboardSubtitle.textContent = formatFullDate(new Date()) + '.';
 				rangeLabel.textContent = `Mostrando: ${getSummaryRangeLabel()}.`;
+				syncPageviewsSummaryLink();
 				renderTrafficAnalytics();
 				renderLandingQrAnalytics();
 				renderKpis(metrics);
