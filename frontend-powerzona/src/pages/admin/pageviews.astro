@@ -636,90 +636,170 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         }
 
         .pageviews-table {
-          overflow: visible;
-          border: 0;
-          border-radius: 0;
-          background: transparent;
+          overflow: visible !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          background: transparent !important;
         }
 
         .pageviews-table-head {
-          display: none;
+          display: none !important;
         }
 
         .pageviews-list {
-          gap: 12px;
+          display: grid !important;
+          gap: 12px !important;
         }
 
         .pageviews-row {
-          display: grid;
-          grid-template-columns: 1fr auto auto;
-          gap: 10px 12px;
-          align-items: center;
-          padding: 14px;
-          border: 1px solid rgba(226, 232, 240, 0.96);
-          border-radius: 18px;
-          background: rgba(255, 255, 255, 0.96);
-          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0 !important;
+          align-items: stretch !important;
+          padding: 14px !important;
+          border: 1px solid rgba(226, 232, 240, 0.96) !important;
+          border-radius: 18px !important;
+          background: rgba(255, 255, 255, 0.96) !important;
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055) !important;
         }
 
         .pageviews-cell::before {
-          display: none;
+          display: none !important;
+          content: "" !important;
         }
 
         .pageviews-cell-page {
-          grid-column: 1;
-          grid-row: 1 / span 2;
-          gap: 12px;
+          display: flex !important;
+          align-items: center !important;
+          gap: 12px !important;
+          min-width: 0 !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
         }
 
         .pageviews-row-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 14px;
+          flex: 0 0 auto !important;
+          width: 44px !important;
+          height: 44px !important;
+          min-width: 44px !important;
+          min-height: 44px !important;
+          border-radius: 14px !important;
+        }
+
+        .pageviews-row-icon svg {
+          width: 22px !important;
+          height: 22px !important;
+          min-width: 22px !important;
+          min-height: 22px !important;
+          max-width: 22px !important;
+          max-height: 22px !important;
         }
 
         .pageviews-cell-page strong {
-          font-size: 1rem;
+          min-width: 0 !important;
+          overflow: hidden !important;
+          color: #0f172a !important;
+          font-size: 1rem !important;
+          font-weight: 950 !important;
+          line-height: 1.15 !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
         }
 
         .pageviews-cell-detail {
-          grid-column: 1;
-          grid-row: 2;
-          padding-left: 56px;
+          display: block !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
+          min-width: 0 !important;
+          margin-top: 2px !important;
+          padding-left: 56px !important;
+        }
+
+        .pageviews-cell-detail span {
+          display: -webkit-box !important;
+          overflow: hidden !important;
+          color: #334155 !important;
+          font-size: 0.92rem !important;
+          font-weight: 760 !important;
+          line-height: 1.25 !important;
+          -webkit-line-clamp: 2 !important;
+          -webkit-box-orient: vertical !important;
+        }
+
+        .pageviews-cell-visits,
+        .pageviews-cell-date {
+          display: inline-flex !important;
+          align-items: center !important;
+          min-width: 0 !important;
+          margin-top: 12px !important;
+          padding: 0 !important;
+          grid-row: auto !important;
+          text-align: left !important;
         }
 
         .pageviews-cell-visits {
-          grid-column: 2;
-          grid-row: 1;
-          justify-self: end;
-          text-align: right;
+          grid-column: 1 !important;
+          justify-self: start !important;
         }
 
         .pageviews-cell-date {
-          grid-column: 2;
-          grid-row: 2;
-          justify-self: end;
-          text-align: right;
+          grid-column: 1 !important;
+          justify-self: end !important;
+          margin-top: -22px !important;
+        }
+
+        .pageviews-cell-visits strong {
+          color: #0f172a !important;
+          font-size: 0.96rem !important;
+          font-weight: 950 !important;
+          line-height: 1.2 !important;
+          white-space: nowrap !important;
+        }
+
+        .pageviews-cell-date span {
+          color: #475569 !important;
+          font-size: 0.9rem !important;
+          font-weight: 820 !important;
+          line-height: 1.2 !important;
+          white-space: nowrap !important;
         }
 
         .pageviews-cell-action {
-          grid-column: 3;
-          grid-row: 1 / span 2;
-          justify-self: end;
+          display: flex !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
+          justify-content: stretch !important;
+          margin-top: 14px !important;
         }
 
         .pageviews-route-button {
-          min-height: 42px;
-          padding: 0 14px;
+          width: 100% !important;
+          min-height: 44px !important;
+          justify-content: center !important;
+          padding: 0 16px !important;
+          border-radius: 14px !important;
         }
 
         .pageviews-route-box {
-          grid-column: 1 / -1;
+          grid-column: 1 !important;
+          margin-top: 12px !important;
+          padding: 0.85rem !important;
+          border-radius: 16px !important;
+        }
+
+        .pageviews-route-box code {
+          font-size: 0.82rem !important;
+          overflow-wrap: anywhere !important;
         }
 
         .pageviews-route-actions {
-          display: grid;
-          grid-template-columns: 1fr;
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0.55rem !important;
+        }
+
+        .pageviews-route-action {
+          width: 100% !important;
         }
 
         .pageviews-pagination {
@@ -762,7 +842,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         }
       }
 
-      /* M-012 dynamic render safety: JS innerHTML nodes */
       .pageviews-metric-icon svg,
       .pageviews-row-icon svg {
         display: block !important;
@@ -883,6 +962,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         .pageviews-table {
           overflow: visible !important;
           border: 0 !important;
+          border-radius: 0 !important;
           background: transparent !important;
         }
 
@@ -897,9 +977,9 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
 
         .pageviews-row {
           display: grid !important;
-          grid-template-columns: 1fr auto auto !important;
-          gap: 10px 12px !important;
-          align-items: center !important;
+          grid-template-columns: 1fr !important;
+          gap: 0 !important;
+          align-items: stretch !important;
           padding: 14px !important;
           border: 1px solid rgba(226, 232, 240, 0.96) !important;
           border-radius: 18px !important;
@@ -909,40 +989,141 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
 
         .pageviews-cell::before {
           display: none !important;
+          content: "" !important;
         }
 
         .pageviews-cell-page {
-          grid-column: 1 !important;
-          grid-row: 1 / span 2 !important;
           display: flex !important;
           align-items: center !important;
           gap: 12px !important;
+          min-width: 0 !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
+        }
+
+        .pageviews-row-icon {
+          flex: 0 0 auto !important;
+          width: 44px !important;
+          height: 44px !important;
+          min-width: 44px !important;
+          min-height: 44px !important;
+          border-radius: 14px !important;
+        }
+
+        .pageviews-row-icon svg {
+          width: 22px !important;
+          height: 22px !important;
+          min-width: 22px !important;
+          min-height: 22px !important;
+          max-width: 22px !important;
+          max-height: 22px !important;
+        }
+
+        .pageviews-cell-page strong {
+          min-width: 0 !important;
+          overflow: hidden !important;
+          color: #0f172a !important;
+          font-size: 1rem !important;
+          font-weight: 950 !important;
+          line-height: 1.15 !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
         }
 
         .pageviews-cell-detail {
+          display: block !important;
           grid-column: 1 !important;
-          grid-row: 2 !important;
+          grid-row: auto !important;
+          min-width: 0 !important;
+          margin-top: 2px !important;
           padding-left: 56px !important;
         }
 
+        .pageviews-cell-detail span {
+          display: -webkit-box !important;
+          overflow: hidden !important;
+          color: #334155 !important;
+          font-size: 0.92rem !important;
+          font-weight: 760 !important;
+          line-height: 1.25 !important;
+          -webkit-line-clamp: 2 !important;
+          -webkit-box-orient: vertical !important;
+        }
+
+        .pageviews-cell-visits,
+        .pageviews-cell-date {
+          display: inline-flex !important;
+          align-items: center !important;
+          min-width: 0 !important;
+          margin-top: 12px !important;
+          padding: 0 !important;
+          grid-row: auto !important;
+          text-align: left !important;
+        }
+
         .pageviews-cell-visits {
-          grid-column: 2 !important;
-          grid-row: 1 !important;
-          justify-self: end !important;
-          text-align: right !important;
+          grid-column: 1 !important;
+          justify-self: start !important;
         }
 
         .pageviews-cell-date {
-          grid-column: 2 !important;
-          grid-row: 2 !important;
+          grid-column: 1 !important;
           justify-self: end !important;
-          text-align: right !important;
+          margin-top: -22px !important;
+        }
+
+        .pageviews-cell-visits strong {
+          color: #0f172a !important;
+          font-size: 0.96rem !important;
+          font-weight: 950 !important;
+          line-height: 1.2 !important;
+          white-space: nowrap !important;
+        }
+
+        .pageviews-cell-date span {
+          color: #475569 !important;
+          font-size: 0.9rem !important;
+          font-weight: 820 !important;
+          line-height: 1.2 !important;
+          white-space: nowrap !important;
         }
 
         .pageviews-cell-action {
-          grid-column: 3 !important;
-          grid-row: 1 / span 2 !important;
-          justify-self: end !important;
+          display: flex !important;
+          grid-column: 1 !important;
+          grid-row: auto !important;
+          justify-content: stretch !important;
+          margin-top: 14px !important;
+        }
+
+        .pageviews-route-button {
+          width: 100% !important;
+          min-height: 44px !important;
+          justify-content: center !important;
+          padding: 0 16px !important;
+          border-radius: 14px !important;
+        }
+
+        .pageviews-route-box {
+          grid-column: 1 !important;
+          margin-top: 12px !important;
+          padding: 0.85rem !important;
+          border-radius: 16px !important;
+        }
+
+        .pageviews-route-box code {
+          font-size: 0.82rem !important;
+          overflow-wrap: anywhere !important;
+        }
+
+        .pageviews-route-actions {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+          gap: 0.55rem !important;
+        }
+
+        .pageviews-route-action {
+          width: 100% !important;
         }
       }
     </style>
