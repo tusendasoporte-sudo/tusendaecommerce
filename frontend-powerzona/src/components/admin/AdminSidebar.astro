@@ -1317,8 +1317,20 @@ const marketingVisualSubClass = (subsection: string) => {
     window.__pzAdminSidebarReady = true;
 
     const getSidebar = () => document.querySelector('[data-admin-sidebar-root]');
-    const getOverlay = () => document.getElementById('sidebar-overlay');
+    const getOverlay = () => {
+      let overlay = document.getElementById('sidebar-overlay');
+      if (!overlay && document.body) {
+        overlay = document.createElement('div');
+        overlay.id = 'sidebar-overlay';
+        overlay.className = 'sidebar-overlay';
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(overlay);
+      }
+      return overlay;
+    };
     const openButtons = ['#sidebar-open', '#sidebar-open-legacy', '#sidebar-open-btn', '[data-sidebar-open]'];
+    const isMobileSidebar = () => window.matchMedia('(max-width: 1023px)').matches;
 
     const setExpanded = (value) => {
       openButtons.forEach((selector) => {
@@ -1326,24 +1338,59 @@ const marketingVisualSubClass = (subsection: string) => {
       });
     };
 
+    const moveFocusOutOfSidebar = (sidebar) => {
+      if (!sidebar || !sidebar.contains(document.activeElement)) return;
+
+      const mobileButton = document.getElementById('sidebar-open')
+        || document.querySelector('[data-admin-sidebar-toggle]')
+        || document.querySelector('.pz-admin-mobile-topbar__menu')
+        || document.querySelector('.pz-admin-mobile-menu-btn');
+
+      if (mobileButton && typeof mobileButton.focus === 'function') {
+        mobileButton.focus({ preventScroll: true });
+      } else if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    };
+
+    const syncSidebarA11y = () => {
+      const sidebar = getSidebar();
+      if (!sidebar) return;
+
+      if (isMobileSidebar() && !document.body.classList.contains('sidebar-open')) {
+        moveFocusOutOfSidebar(sidebar);
+        sidebar.setAttribute('aria-hidden', 'true');
+        sidebar.setAttribute('inert', '');
+      } else {
+        sidebar.setAttribute('aria-hidden', 'false');
+        sidebar.removeAttribute('inert');
+      }
+    };
+
     const openSidebar = () => {
       const sidebar = getSidebar();
       const overlay = getOverlay();
       document.body.classList.add('sidebar-open');
+      sidebar?.removeAttribute('inert');
       sidebar?.setAttribute('aria-hidden', 'false');
-      if (overlay) overlay.hidden = false;
+      if (overlay) {
+        overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');
+      }
       setExpanded(true);
     };
 
     const closeSidebar = () => {
       const sidebar = getSidebar();
       const overlay = getOverlay();
+      moveFocusOutOfSidebar(sidebar);
       document.body.classList.remove('sidebar-open');
-      sidebar?.setAttribute('aria-hidden', 'true');
+      syncSidebarA11y();
       setExpanded(false);
-      window.setTimeout(() => {
-        if (!document.body.classList.contains('sidebar-open') && overlay) overlay.hidden = true;
-      }, 220);
+      if (overlay) {
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+      }
     };
 
     const isOpenButton = (target) => target instanceof Element && openButtons.some((selector) => target.closest(selector));
@@ -1365,8 +1412,11 @@ const marketingVisualSubClass = (subsection: string) => {
 
     hydrateOpenButtons();
     hydrateMobileBackLink();
+    syncSidebarA11y();
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hydrateOpenButtons, { once: true });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hydrateMobileBackLink, { once: true });
+    window.addEventListener('resize', syncSidebarA11y);
+    window.addEventListener('pz:admin-sidebar-close', closeSidebar);
 
     document.addEventListener('click', (event) => {
       if (isOpenButton(event.target)) {
@@ -1388,9 +1438,7 @@ const marketingVisualSubClass = (subsection: string) => {
         : null;
 
       if (sidebarLink && document.body.classList.contains('sidebar-open')) {
-        const isMobile = window.matchMedia('(max-width: 1023px)').matches;
-
-        if (isMobile) {
+        if (isMobileSidebar()) {
           window.setTimeout(() => {
             closeSidebar();
           }, 0);
@@ -2328,6 +2376,7 @@ const marketingVisualSubClass = (subsection: string) => {
     --pz-admin-content-bottom: 48px;
     --pz-admin-content-max: 1180px;
     --pz-admin-mobile-topbar-offset: 118px;
+    --pz-admin-mobile-bottom-offset: 126px;
     --pz-admin-mobile-scroll-offset: 160px;
   }
 
@@ -2821,10 +2870,10 @@ const marketingVisualSubClass = (subsection: string) => {
 
     .pz-admin-mobile-topbar {
       position: fixed !important;
-      top: 10px !important;
+      top: calc(10px + env(safe-area-inset-top, 0px)) !important;
       left: 10px !important;
       right: 10px !important;
-      z-index: 130 !important;
+      z-index: 3000 !important;
       min-height: 72px !important;
       padding: 9px !important;
       display: grid !important;
@@ -3043,8 +3092,8 @@ const marketingVisualSubClass = (subsection: string) => {
       position: fixed !important;
       left: 10px !important;
       right: 10px !important;
-      bottom: 10px !important;
-      z-index: 120 !important;
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+      z-index: 2990 !important;
       display: grid !important;
       grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
       gap: 6px !important;
@@ -3634,13 +3683,10 @@ const marketingVisualSubClass = (subsection: string) => {
       max-width: 100% !important;
       min-height: 100vh !important;
       margin: 0 !important;
-      /*
-        Espacio superior reservado para:
-        - panel superior movil fijo
-        - sombra del panel
-        - separacion visual antes del contenido
-      */
-      padding: 118px 14px 118px !important;
+      padding:
+        calc(var(--pz-admin-mobile-topbar-offset, 118px) + env(safe-area-inset-top, 0px))
+        14px
+        calc(var(--pz-admin-mobile-bottom-offset, 126px) + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     .pz-admin-content-inner,
@@ -3673,7 +3719,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
   @media (max-width: 430px) {
     .pz-admin-mobile-topbar {
-      top: 8px !important;
+      top: calc(8px + env(safe-area-inset-top, 0px)) !important;
       left: 8px !important;
       right: 8px !important;
       min-height: 68px !important;

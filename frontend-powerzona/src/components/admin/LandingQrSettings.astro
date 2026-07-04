@@ -23,31 +23,46 @@ const qrSvgPath = `${publicPath}/qr.svg`;
 const qrPngPath = `${publicPath}/qr.png`;
 ---
 
-<section
+<div
   class="landing-qr-admin"
   data-landing-qr-root
+  data-landing-qr-admin
   aria-label="Configuración de Landing QR"
 >
-  <div class="landing-qr-admin__grid">
-    <div class="landing-qr-admin__editor">
-      <div class="landing-qr-summary" aria-label="Resumen Landing QR">
-        <article>
-          <span>Estado</span>
-          <strong data-landing-status>Publicado</strong>
-          <small>Visibilidad pública</small>
-        </article>
-        <article>
-          <span>Botones activos</span>
-          <strong data-active-count>0</strong>
-          <small>Máximo 10 enlaces</small>
-        </article>
-        <article>
-          <span>URL fija</span>
-          <strong data-url-host>...</strong>
-          <small>El QR apunta siempre aquí</small>
-        </article>
+  <div class="landing-qr-toast hidden" data-landing-alert role="status" aria-live="polite"></div>
+
+  <section class="landing-summary-card" aria-label="Resumen Landing QR">
+    <div class="landing-summary-card__head">
+      <div>
+        <span class="landing-eyebrow">Resumen</span>
+        <h3>Landing QR</h3>
+        <p>Estado principal de la página de enlaces y QR de la tienda.</p>
+      </div>
+    </div>
+
+    <div class="landing-summary-list">
+      <div class="landing-summary-item">
+        <span>Estado</span>
+        <strong class="is-success" data-summary-status data-landing-status>Publicado</strong>
+        <small>Visibilidad pública</small>
       </div>
 
+      <div class="landing-summary-item">
+        <span>Botones activos</span>
+        <strong data-summary-active-count data-active-count>0</strong>
+        <small>Máximo 10 enlaces</small>
+      </div>
+
+      <div class="landing-summary-item">
+        <span>URL fija</span>
+        <strong class="is-muted" data-summary-fixed-url data-url-host>...</strong>
+        <small>El QR apunta siempre aquí</small>
+      </div>
+    </div>
+  </section>
+
+  <section class="landing-qr-layout">
+    <div class="landing-qr-main">
       <form class="landing-qr-form" data-landing-form>
         <section class="landing-qr-panel">
           <div class="landing-qr-panel__head landing-qr-panel__head--state">
@@ -76,7 +91,7 @@ const qrPngPath = `${publicPath}/qr.png`;
             <div class="landing-hero-editor">
               <div>
                 <span class="landing-field-title">Imagen destacada 16:9</span>
-                <p>Opcional. Recomendada 1200 x 675 px. Se optimiza automaticamente a WebP.</p>
+                <p>Opcional. Recomendada 1200 x 675 px. Se optimiza automáticamente a WebP.</p>
               </div>
 
               <button class="landing-hero-preview" type="button" data-hero-preview data-select-hero-image>
@@ -118,12 +133,10 @@ const qrPngPath = `${publicPath}/qr.png`;
           <button class="landing-btn" type="button" data-open-landing>Abrir página</button>
           <button class="landing-btn" type="button" data-copy-public-url>Copiar URL</button>
         </div>
-
-        <div class="landing-alert hidden" data-landing-alert></div>
       </form>
     </div>
 
-    <aside class="landing-qr-admin__side">
+    <aside class="landing-qr-aside">
       <section class="landing-qr-panel landing-preview-panel">
         <div class="landing-qr-panel__head">
           <div>
@@ -168,8 +181,8 @@ const qrPngPath = `${publicPath}/qr.png`;
         </div>
       </section>
     </aside>
-  </div>
-</section>
+  </section>
+</div>
 
 <style is:global>
   .landing-qr-admin,
@@ -179,75 +192,158 @@ const qrPngPath = `${publicPath}/qr.png`;
 
   .landing-qr-admin {
     color: #0f172a;
-  }
-
-  .landing-qr-admin .landing-qr-admin__grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
     gap: 18px;
-    align-items: start;
-  }
-
-  .landing-qr-admin .landing-qr-admin__editor,
-  .landing-qr-admin .landing-qr-admin__side,
-  .landing-qr-admin .landing-qr-form {
-    display: grid;
-    gap: 16px;
-  }
-
-  .landing-qr-admin .landing-qr-summary {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .landing-qr-admin .landing-qr-summary article,
-  .landing-qr-admin .landing-qr-panel {
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    background: #fff;
-    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.06);
-  }
-
-  .landing-qr-admin .landing-qr-summary article {
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
-    padding: 14px;
+    overflow: visible;
   }
 
-  .landing-qr-admin .landing-qr-summary span,
-  .landing-qr-admin .landing-qr-summary small {
-    display: block;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 800;
-    overflow-wrap: anywhere;
+  .landing-qr-admin .hidden {
+    display: none !important;
   }
 
-  .landing-qr-admin .landing-qr-summary strong {
+  .landing-qr-admin .landing-qr-panel {
+    min-width: 0;
+    border: 1px solid rgba(226, 232, 240, 0.94);
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.07);
+    overflow: visible;
+  }
+
+  .landing-qr-admin .landing-summary-card {
+    border: 1px solid rgba(226, 232, 240, 0.94);
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 22rem),
+      linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.07);
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  .landing-qr-admin .landing-summary-card__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: flex-start;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+  }
+
+  .landing-qr-admin .landing-eyebrow {
     display: inline-flex;
     align-items: center;
+    width: fit-content;
     border-radius: 999px;
     background: #dcfce7;
     color: #166534;
     padding: 5px 10px;
-    margin: 5px 0 3px;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: 1000;
-    overflow-wrap: anywhere;
+    letter-spacing: 0.02em;
+    margin-bottom: 8px;
   }
 
-  .landing-qr-admin .landing-qr-summary strong.is-hidden {
-    background: #f1f5f9;
+  .landing-qr-admin .landing-summary-card h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .landing-qr-admin .landing-summary-card p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .landing-qr-admin .landing-summary-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .landing-qr-admin .landing-summary-item {
+    min-width: 0;
+    padding: 16px 14px 0;
+    border-right: 1px solid rgba(226, 232, 240, 0.86);
+  }
+
+  .landing-qr-admin .landing-summary-item:first-child {
+    padding-left: 0;
+  }
+
+  .landing-qr-admin .landing-summary-item:last-child {
+    border-right: 0;
+    padding-right: 0;
+  }
+
+  .landing-qr-admin .landing-summary-item span {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 1000;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .landing-qr-admin .landing-summary-item strong {
+    display: block;
+    margin-top: 6px;
+    color: #0f172a;
+    font-size: 20px;
+    font-weight: 1000;
+    line-height: 1.05;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-qr-admin .landing-summary-item small {
+    display: block;
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  .landing-qr-admin .landing-summary-item strong.is-success {
+    color: #16a34a;
+  }
+
+  .landing-qr-admin .landing-summary-item strong.is-muted {
     color: #64748b;
   }
 
-  .landing-qr-admin .landing-qr-summary strong.is-pending {
-    background: #fef3c7;
-    color: #92400e;
+  .landing-qr-admin .landing-qr-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+    gap: 22px;
+    align-items: start;
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .landing-qr-admin .landing-qr-main,
+  .landing-qr-admin .landing-qr-aside,
+  .landing-qr-admin .landing-qr-form {
+    display: grid;
+    gap: 18px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
   }
 
   .landing-qr-admin .landing-qr-panel {
-    padding: 16px;
+    padding: 20px;
   }
 
   .landing-qr-admin .landing-qr-panel__head {
@@ -255,109 +351,71 @@ const qrPngPath = `${publicPath}/qr.png`;
     align-items: flex-start;
     justify-content: space-between;
     gap: 14px;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
 
   .landing-qr-admin .landing-qr-panel__head h3 {
     margin: 0;
+    color: #0f172a;
     font-size: 17px;
     font-weight: 1000;
+    line-height: 1.15;
+    letter-spacing: 0;
   }
 
-  .landing-qr-admin .landing-qr-panel__head p {
-    margin: 4px 0 0;
+  .landing-qr-admin .landing-qr-panel__head p,
+  .landing-qr-admin .landing-hero-editor p {
+    margin: 5px 0 0;
     color: #64748b;
     font-size: 12px;
     font-weight: 750;
-    line-height: 1.35;
-  }
-
-  .landing-qr-admin .landing-qr-panel__head--state {
-    align-items: flex-start;
+    line-height: 1.4;
   }
 
   .landing-qr-admin .landing-state-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 10px;
-    margin-left: auto;
-    padding-right: 6px;
+    min-width: 0;
     flex-shrink: 0;
   }
 
-  .landing-qr-admin .landing-save-btn {
-    min-height: 38px;
-    padding: 0 16px;
-    border-radius: 14px;
-    white-space: nowrap;
-  }
-
-  .landing-qr-admin .landing-switch {
-    display: inline-flex;
-    align-items: center;
-    cursor: pointer;
-    margin-right: 0;
-  }
-
-  .landing-qr-admin .landing-switch input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .landing-qr-admin .landing-switch span {
-    width: 50px;
-    height: 28px;
-    border-radius: 999px;
-    padding: 3px;
-    background: #cbd5e1;
-    transition: background 0.2s ease;
-  }
-
-  .landing-qr-admin .landing-switch span::before {
-    content: "";
-    display: block;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.22);
-    transition: transform 0.2s ease;
-  }
-
-  .landing-qr-admin .landing-switch input:checked + span {
-    background: #2563eb;
-  }
-
-  .landing-qr-admin .landing-switch input:checked + span::before {
-    transform: translateX(22px);
-  }
-
-  .landing-qr-admin .landing-fields {
+  .landing-qr-admin .landing-fields,
+  .landing-qr-admin .landing-hero-editor,
+  .landing-qr-admin .landing-links-list {
     display: grid;
     gap: 12px;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-fields label,
-  .landing-qr-admin .landing-url-field {
+  .landing-qr-admin .landing-url-field,
+  .landing-qr-admin .landing-link-row__grid label {
     display: grid;
     gap: 6px;
+    min-width: 0;
     color: #334155;
     font-size: 12px;
     font-weight: 900;
   }
 
-  .landing-qr-admin .landing-fields input,
-  .landing-qr-admin .landing-fields select,
-  .landing-qr-admin .landing-fields textarea,
-  .landing-qr-admin .landing-url-field input,
-  .landing-qr-admin .landing-link-row input,
-  .landing-qr-admin .landing-link-row select {
+  .landing-qr-admin .landing-field-title {
+    display: block;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 950;
+  }
+
+  .landing-qr-admin input,
+  .landing-qr-admin select,
+  .landing-qr-admin textarea {
     width: 100%;
+    min-width: 0;
     min-height: 42px;
     border: 1px solid #dbe4f0;
     border-radius: 12px;
-    background: #fff;
+    background: #ffffff;
     color: #0f172a;
     padding: 10px 12px;
     font: inherit;
@@ -366,118 +424,38 @@ const qrPngPath = `${publicPath}/qr.png`;
     outline: none;
   }
 
-  .landing-qr-admin .landing-fields input:focus,
-  .landing-qr-admin .landing-url-field input:focus,
-  .landing-qr-admin .landing-link-row input:focus,
-  .landing-qr-admin .landing-link-row select:focus {
+  .landing-qr-admin input:focus,
+  .landing-qr-admin select:focus,
+  .landing-qr-admin textarea:focus {
     border-color: #2563eb;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
   }
 
-  .landing-qr-admin .landing-field-title {
-    color: #334155;
-    font-size: 12px;
-    font-weight: 950;
-  }
-
-  .landing-qr-admin .landing-hero-editor {
-    display: grid;
-    gap: 10px;
-  }
-
-  .landing-qr-admin .landing-hero-editor p {
-    margin: 4px 0 0;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 750;
-    line-height: 1.35;
-  }
-
-  .landing-qr-admin .landing-hero-preview {
-    appearance: none;
-    width: min(100%, 360px);
-    aspect-ratio: 16 / 9;
-    border: 1px dashed #bfd1e8;
-    border-radius: 18px;
-    display: grid;
-    place-items: center;
-    overflow: hidden;
-    background: linear-gradient(135deg, #f8fbff, #eef6ff);
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 900;
-    line-height: 1.35;
-    cursor: pointer;
-    padding: 0;
-    text-align: center;
-    font: inherit;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.76);
-    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-  }
-
-  .landing-qr-admin .landing-hero-preview:hover {
-    border-color: #2563eb;
-    box-shadow: 0 14px 32px rgba(37, 99, 235, 0.14);
-    transform: translateY(-1px);
-  }
-
-  .landing-qr-admin .landing-hero-preview span {
-    padding: 12px;
-  }
-
-  .landing-qr-admin .landing-hero-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  .landing-qr-admin .landing-hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .landing-qr-admin .landing-file-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    min-height: 1px;
-    opacity: 0;
-    pointer-events: none;
-    overflow: hidden;
-    border: 0;
-    margin: 0;
-    padding: 0;
-  }
-
-  .landing-qr-admin .landing-suggestion-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
   .landing-qr-admin .landing-btn,
   .landing-qr-admin .landing-chip {
+    min-width: 0;
+    min-height: 40px;
     border: 1px solid #dbe4f0;
     border-radius: 12px;
-    background: #fff;
+    background: #ffffff;
     color: #1d4ed8;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
+    gap: 7px;
     padding: 9px 13px;
     font-size: 13px;
     font-weight: 950;
+    line-height: 1;
     text-decoration: none;
+    white-space: nowrap;
   }
 
   .landing-qr-admin .landing-btn--primary {
     border-color: #2563eb;
     background: #2563eb;
-    color: #fff;
+    color: #ffffff;
     box-shadow: 0 14px 28px rgba(37, 99, 235, 0.2);
   }
 
@@ -505,17 +483,114 @@ const qrPngPath = `${publicPath}/qr.png`;
     font-size: 12px;
   }
 
-  .landing-qr-admin .landing-links-list {
+  .landing-qr-admin .landing-switch {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .landing-qr-admin .landing-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .landing-qr-admin .landing-switch span {
+    width: 50px;
+    height: 28px;
+    border-radius: 999px;
+    padding: 3px;
+    background: #cbd5e1;
+    transition: background 0.2s ease;
+  }
+
+  .landing-qr-admin .landing-switch span::before {
+    content: "";
+    display: block;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.22);
+    transition: transform 0.2s ease;
+  }
+
+  .landing-qr-admin .landing-switch input:checked + span {
+    background: #2563eb;
+  }
+
+  .landing-qr-admin .landing-switch input:checked + span::before {
+    transform: translateX(22px);
+  }
+
+  .landing-qr-admin .landing-hero-preview {
+    appearance: none;
+    width: min(100%, 360px);
+    aspect-ratio: 16 / 9;
+    border: 1px dashed #bfd1e8;
+    border-radius: 18px;
     display: grid;
-    gap: 10px;
+    place-items: center;
+    background: linear-gradient(135deg, #f8fbff, #eef6ff);
+    color: #64748b;
+    cursor: pointer;
+    padding: 0;
+    text-align: center;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1.35;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.76);
+    overflow: hidden;
+  }
+
+  .landing-qr-admin .landing-hero-preview span {
+    padding: 12px;
+  }
+
+  .landing-qr-admin .landing-hero-preview img,
+  .landing-qr-admin .landing-preview-hero img,
+  .landing-qr-admin .landing-preview-logo img,
+  .landing-qr-admin .landing-qr-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .landing-qr-admin .landing-hero-actions,
+  .landing-qr-admin .landing-suggestion-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .landing-qr-admin .landing-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    border: 0;
+    margin: 0;
+    padding: 0;
   }
 
   .landing-qr-admin .landing-link-row {
+    min-width: 0;
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    background: linear-gradient(180deg, #fff, #f8fafc);
-    padding: 10px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    padding: 12px;
     box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+    overflow: visible;
   }
 
   .landing-qr-admin .landing-link-row__top {
@@ -523,6 +598,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     grid-template-columns: 32px 42px minmax(0, 1fr) auto auto;
     gap: 10px;
     align-items: center;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-link-row__index {
@@ -536,34 +612,38 @@ const qrPngPath = `${publicPath}/qr.png`;
     color: #2563eb;
     font-size: 13px;
     font-weight: 900;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
   }
 
-  .landing-qr-admin .landing-link-row__icon {
+  .landing-qr-admin .landing-qr-icon-badge,
+  .landing-qr-admin .landing-link-row__icon,
+  .landing-qr-admin .landing-preview-link__icon {
     width: 42px;
     height: 42px;
     min-width: 42px;
     border-radius: 14px;
     display: grid;
     place-items: center;
-    background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+    overflow: hidden;
     color: #ffffff;
-    box-shadow:
-      0 10px 20px rgba(15, 23, 42, 0.16),
-      inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.24);
     border: 1px solid rgba(255, 255, 255, 0.18);
   }
 
-  .landing-qr-admin .landing-link-row__icon svg {
-    width: 18px;
-    height: 18px;
-    display: block;
-    color: currentColor;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.9;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+  .landing-qr-admin .landing-qr-icon-svg,
+  .landing-qr-admin .landing-qr-icon-badge svg,
+  .landing-qr-admin .landing-link-row__icon svg,
+  .landing-qr-admin .landing-preview-link__icon svg {
+    width: 18px !important;
+    height: 18px !important;
+    max-width: 18px !important;
+    max-height: 18px !important;
+    display: block !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 1.9 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
   }
 
   .landing-qr-admin .landing-link-row__copy {
@@ -608,8 +688,9 @@ const qrPngPath = `${publicPath}/qr.png`;
 
   .landing-qr-admin .landing-link-row__actions {
     display: flex;
-    gap: 6px;
     justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-link-row__actions button {
@@ -617,7 +698,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     height: 32px;
     border: 1px solid #dbe4f0;
     border-radius: 10px;
-    background: #fff;
+    background: #ffffff;
     color: #334155;
     cursor: pointer;
     font-size: 14px;
@@ -642,6 +723,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid #e2e8f0;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-link-row__grid .wide {
@@ -652,39 +734,16 @@ const qrPngPath = `${publicPath}/qr.png`;
     justify-self: end;
   }
 
-  .landing-qr-admin .landing-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
+  .landing-qr-admin .landing-actions,
   .landing-qr-admin .landing-qr-download__actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-btn--wide {
     grid-column: 1 / -1;
-  }
-
-  .landing-qr-admin .landing-alert {
-    border-radius: 14px;
-    padding: 12px 14px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    font-size: 13px;
-    font-weight: 850;
-  }
-
-  .landing-qr-admin .landing-alert.is-error {
-    background: #fef2f2;
-    color: #b91c1c;
-  }
-
-  .landing-qr-admin .landing-alert.is-success {
-    background: #ecfdf5;
-    color: #047857;
   }
 
   .landing-qr-admin .landing-empty {
@@ -697,31 +756,23 @@ const qrPngPath = `${publicPath}/qr.png`;
     font-weight: 850;
   }
 
-  .landing-qr-admin .hidden {
-    display: none !important;
-  }
-
   .landing-qr-admin .landing-phone-preview {
-    display: grid;
-    place-items: center;
-    padding: 10px 0 4px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    overflow: visible;
   }
 
   .landing-qr-admin .landing-phone-preview__screen {
-    display: flex;
-    flex-direction: column;
-    width: 280px;
-    max-height: 640px;
-    min-height: 560px;
+    width: min(280px, 100%);
+    max-width: 280px;
     border: 10px solid #0f172a;
     border-radius: 36px;
-    background:
-      radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 12rem),
-      linear-gradient(180deg, #f8fbff 0%, #eef5ff 62%, #ffffff 100%);
-    box-shadow: 0 22px 46px rgba(15, 23, 42, 0.2);
+    background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 72%, #ffffff 100%);
     padding: 22px 14px 0;
     text-align: center;
     overflow: hidden;
+    box-shadow: 0 22px 46px rgba(15, 23, 42, 0.2);
   }
 
   .landing-qr-admin .landing-preview-logo {
@@ -733,15 +784,9 @@ const qrPngPath = `${publicPath}/qr.png`;
     place-items: center;
     overflow: hidden;
     background: linear-gradient(135deg, #2563eb, #0f172a);
-    color: #fff;
+    color: #ffffff;
     font-size: 18px;
     font-weight: 1000;
-  }
-
-  .landing-qr-admin .landing-preview-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   .landing-qr-admin .landing-preview-store {
@@ -752,7 +797,7 @@ const qrPngPath = `${publicPath}/qr.png`;
   }
 
   .landing-qr-admin .landing-phone-preview h4 {
-    margin: 4px 0 4px;
+    margin: 5px 0 5px;
     color: #0f172a;
     font-size: 22px;
     line-height: 1.05;
@@ -779,31 +824,16 @@ const qrPngPath = `${publicPath}/qr.png`;
     box-shadow: 0 16px 30px rgba(15, 23, 42, 0.1);
   }
 
-  .landing-qr-admin .landing-preview-hero img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
   .landing-qr-admin .landing-preview-links {
     display: grid;
     gap: 9px;
     margin-top: 14px;
-    min-height: 0;
-    max-height: 260px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-right: 2px;
-  }
-
-  .landing-qr-admin .landing-preview-links::-webkit-scrollbar {
-    width: 0;
-    height: 0;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-preview-link {
     display: grid;
-    grid-template-columns: 38px minmax(0, 1fr) 16px;
+    grid-template-columns: 42px minmax(0, 1fr) 16px;
     align-items: center;
     gap: 10px;
     min-height: 58px;
@@ -815,32 +845,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     box-shadow: 0 12px 26px rgba(15, 23, 42, 0.1);
     border: 1px solid rgba(226, 232, 240, 0.95);
     text-decoration: none;
-  }
-
-  .landing-qr-admin .landing-preview-link__icon {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    border-radius: 12px;
-    display: grid;
-    place-items: center;
-    background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
-    color: #fff;
-    box-shadow:
-      0 8px 18px rgba(15, 23, 42, 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.24);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-  }
-
-  .landing-qr-admin .landing-preview-link__icon svg {
-    width: 17px;
-    height: 17px;
-    display: block;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.9;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    min-width: 0;
   }
 
   .landing-qr-admin .landing-preview-link strong,
@@ -874,16 +879,15 @@ const qrPngPath = `${publicPath}/qr.png`;
   }
 
   .landing-qr-admin .landing-phone-preview footer {
-    margin-top: auto;
+    margin-top: 14px;
     margin-left: -14px;
     margin-right: -14px;
     margin-bottom: 0;
     padding: 16px 14px 18px;
     border-radius: 24px 24px 26px 26px;
     background: linear-gradient(135deg, #0f172a, #172554);
-    color: #fff;
+    color: #ffffff;
     text-align: center;
-    flex-shrink: 0;
     font-size: 11px;
     font-weight: 1000;
   }
@@ -903,72 +907,147 @@ const qrPngPath = `${publicPath}/qr.png`;
     aspect-ratio: 1;
     border: 1px solid #dbeafe;
     border-radius: 22px;
-    background:
-      linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.96)),
-      #fff;
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0.96)), #ffffff;
     padding: 18px;
     box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.82), 0 18px 42px rgba(37, 99, 235, 0.12);
   }
 
   .landing-qr-admin .landing-qr-box img {
-    width: 100%;
-    height: 100%;
     object-fit: contain;
   }
 
-  @media (max-width: 1100px) {
-  .landing-qr-admin .landing-qr-admin__grid {
-      grid-template-columns: 1fr;
-    }
+  .landing-qr-admin .landing-qr-toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 88px);
+    right: 24px;
+    z-index: 3100;
+    width: min(360px, calc(100vw - 32px));
+    max-height: 110px;
+    overflow: hidden;
+    border-radius: 18px;
+    padding: 14px 16px;
+    box-shadow: 0 22px 50px rgba(15, 23, 42, 0.18);
+    font-size: 13px;
+    font-weight: 900;
+    line-height: 1.35;
+    pointer-events: auto;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+  }
 
-  .landing-qr-admin .landing-qr-admin__side {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  .landing-qr-admin .landing-qr-toast.hidden {
+    display: block !important;
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+
+  .landing-qr-admin .landing-qr-toast.is-success {
+    border: 1px solid rgba(34, 197, 94, 0.28);
+    background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+    color: #166534;
+  }
+
+  .landing-qr-admin .landing-qr-toast.is-error {
+    border: 1px solid rgba(239, 68, 68, 0.28);
+    background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+    color: #991b1b;
+  }
+
+  @media (max-width: 1023px) {
+    .landing-qr-admin .landing-qr-layout {
+      grid-template-columns: 1fr;
     }
   }
 
   @media (max-width: 760px) {
-  .landing-qr-admin .landing-qr-summary,
-  .landing-qr-admin .landing-link-row__grid,
-  .landing-qr-admin .landing-actions,
-  .landing-qr-admin .landing-qr-download__actions,
-  .landing-qr-admin .landing-qr-admin__side {
+    .landing-qr-admin {
+      gap: 14px;
+      overflow: visible;
+    }
+
+    .landing-qr-admin .landing-qr-main,
+    .landing-qr-admin .landing-qr-aside,
+    .landing-qr-admin .landing-qr-layout {
+      overflow: visible;
+    }
+
+    .landing-qr-admin .landing-qr-panel {
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .landing-qr-admin .landing-summary-card {
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .landing-qr-admin .landing-summary-list {
       grid-template-columns: 1fr;
     }
 
-  .landing-qr-admin .landing-qr-panel__head {
+    .landing-qr-admin .landing-summary-item {
+      padding: 14px 0;
+      border-right: 0;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+    }
+
+    .landing-qr-admin .landing-summary-item:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .landing-qr-admin .landing-summary-item:first-child {
+      padding-top: 14px;
+    }
+
+    .landing-qr-admin .landing-qr-panel__head,
+    .landing-qr-admin .landing-qr-panel__head--state {
       display: grid;
       gap: 12px;
     }
 
-  .landing-qr-admin .landing-qr-panel__head--state {
-      display: grid;
-      gap: 12px;
-    }
-
-  .landing-qr-admin .landing-state-actions {
+    .landing-qr-admin .landing-state-actions {
       width: 100%;
       justify-content: flex-end;
-      padding-right: 0;
     }
 
-  .landing-qr-admin .landing-link-toggle {
-      justify-self: start;
+    .landing-qr-admin .landing-link-row__top {
+      grid-template-columns: 32px 42px minmax(0, 1fr);
     }
 
-  .landing-qr-admin .landing-link-row__top {
-      grid-template-columns: 34px 42px minmax(0, 1fr);
-    }
-
-  .landing-qr-admin .landing-link-status,
-  .landing-qr-admin .landing-link-row__actions {
+    .landing-qr-admin .landing-link-status,
+    .landing-qr-admin .landing-link-row__actions {
       grid-column: 1 / -1;
     }
 
-  .landing-qr-admin .landing-link-row__actions {
+    .landing-qr-admin .landing-link-row__actions {
       justify-content: flex-start;
       flex-wrap: wrap;
     }
 
+    .landing-qr-admin .landing-link-row__grid,
+    .landing-qr-admin .landing-actions,
+    .landing-qr-admin .landing-qr-download__actions {
+      grid-template-columns: 1fr;
+    }
+
+    .landing-qr-admin .landing-link-toggle {
+      justify-self: start;
+    }
+
+    .landing-qr-admin .landing-phone-preview__screen {
+      width: min(280px, calc(100vw - 64px));
+      max-width: min(280px, calc(100vw - 64px));
+    }
+
+    .landing-qr-admin .landing-qr-toast {
+      top: calc(env(safe-area-inset-top, 0px) + 88px);
+      left: 14px;
+      right: 14px;
+      width: auto;
+    }
   }
 </style>
 
@@ -1037,9 +1116,9 @@ const qrPngPath = `${publicPath}/qr.png`;
     const heroPreview = root.querySelector('[data-hero-preview]');
     const removeHeroButton = root.querySelector('[data-remove-hero-image]');
     const publicUrlFields = root.querySelectorAll('[data-public-url]');
-    const statusLabel = root.querySelector('[data-landing-status]');
-    const activeCountLabel = root.querySelector('[data-active-count]');
-    const urlHostLabel = root.querySelector('[data-url-host]');
+    const statusLabel = root.querySelector('[data-summary-status]') || root.querySelector('[data-landing-status]');
+    const activeCountLabel = root.querySelector('[data-summary-active-count]') || root.querySelector('[data-active-count]');
+    const urlHostLabel = root.querySelector('[data-summary-fixed-url]') || root.querySelector('[data-url-host]');
     const previewLogo = root.querySelector('[data-preview-logo]');
     const previewTitle = root.querySelector('[data-preview-title]');
     const previewSubtitle = root.querySelector('[data-preview-subtitle]');
@@ -1084,7 +1163,7 @@ const qrPngPath = `${publicPath}/qr.png`;
 
     function iconSvg(icon) {
       const name = ICON_PATHS[icon] ? icon : 'link';
-      return `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
+      return `<svg class="landing-qr-icon-svg" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${ICON_PATHS[name]}</svg>`;
     }
 
     function getLinkBackground(type) {
@@ -1540,7 +1619,7 @@ const qrPngPath = `${publicPath}/qr.png`;
           const linkType = link.type || icon;
           return `
             <div class="landing-preview-link" style="${iconStyle(linkType)}">
-              <span class="landing-preview-link__icon">${iconSvg(icon)}</span>
+              <span class="landing-preview-link__icon landing-qr-icon-badge">${iconSvg(icon)}</span>
               <div><strong>${escapeHtml(link.label)}</strong>${link.subtitle ? `<small>${escapeHtml(link.subtitle)}</small>` : ''}</div>
               <span class="landing-preview-link__arrow">›</span>
             </div>
@@ -1554,19 +1633,9 @@ const qrPngPath = `${publicPath}/qr.png`;
       if (activeCountLabel) activeCountLabel.textContent = String(activeCount);
       if (statusLabel) {
         const enabled = enabledField?.checked === true;
-        statusLabel.classList.remove('is-hidden', 'is-pending');
-
-        if (hasUnsavedChanges) {
-          const visibilityChanged = enabled !== lastSavedLandingQrEnabled;
-          statusLabel.textContent = visibilityChanged
-            ? (enabled ? 'Publicado pendiente' : 'Oculto pendiente')
-            : 'Cambios sin guardar';
-          statusLabel.classList.add('is-pending');
-          return;
-        }
-
         statusLabel.textContent = enabled ? 'Publicado' : 'Oculto';
-        if (!enabled) statusLabel.classList.add('is-hidden');
+        statusLabel.classList.toggle('is-success', enabled);
+        statusLabel.classList.toggle('is-muted', !enabled);
       }
     }
 
@@ -1585,7 +1654,7 @@ const qrPngPath = `${publicPath}/qr.png`;
           <article class="landing-link-row" data-link-index="${index}" style="${iconStyle(linkType)}">
             <div class="landing-link-row__top">
               <span class="landing-link-row__index">${index + 1}</span>
-              <span class="landing-link-row__icon" aria-hidden="true">${iconSvg(icon)}</span>
+              <span class="landing-link-row__icon landing-qr-icon-badge" aria-hidden="true">${iconSvg(icon)}</span>
               <span class="landing-link-row__copy">
                 <strong class="landing-link-row__title">${escapeHtml(title)}</strong>
                 <small class="landing-link-row__meta">${escapeHtml(subtitle || 'Sin texto secundario')}</small>
