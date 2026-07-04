@@ -1061,6 +1061,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     let pendingHeroImagePreviewUrl = '';
     let removeHeroImage = false;
     let heroImageFieldAvailable = true;
+    let landingAlertTimer = null;
 
     publicUrlFields.forEach((field) => {
       field.value = PUBLIC_URL;
@@ -1204,16 +1205,33 @@ const qrPngPath = `${publicPath}/qr.png`;
       return initials || 'TS';
     }
 
-    function showAlert(message, type = 'info') {
+    function showAlert(message, type = 'success') {
+      if (landingAlertTimer) {
+        window.clearTimeout(landingAlertTimer);
+        landingAlertTimer = null;
+      }
+
       if (!alertBox) return;
       alertBox.textContent = message;
       alertBox.classList.remove('hidden', 'is-error', 'is-success');
-      if (type === 'error') alertBox.classList.add('is-error');
-      if (type === 'success') alertBox.classList.add('is-success');
+      alertBox.classList.add(type === 'error' ? 'is-error' : 'is-success');
+
+      if (type !== 'error') {
+        landingAlertTimer = window.setTimeout(() => {
+          hideAlert();
+        }, 3000);
+      }
     }
 
     function hideAlert() {
-      alertBox?.classList.add('hidden');
+      if (landingAlertTimer) {
+        window.clearTimeout(landingAlertTimer);
+        landingAlertTimer = null;
+      }
+
+      if (!alertBox) return;
+      alertBox.classList.add('hidden');
+      alertBox.textContent = '';
     }
 
     function updateSaveButtonState() {
@@ -1230,6 +1248,7 @@ const qrPngPath = `${publicPath}/qr.png`;
 
     function markDirty() {
       hasUnsavedChanges = true;
+      hideAlert();
       updateSaveButtonState();
       updateSummary();
     }

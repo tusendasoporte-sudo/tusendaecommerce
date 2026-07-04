@@ -2848,136 +2848,493 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				background: #ffffff;
 			}
 
-			.landing-qr-analytics-grid {
-				display: grid;
-				grid-template-columns: repeat(4, minmax(0, 1fr));
-				gap: 12px;
-				margin-top: 18px;
+			.visit-analytics-panel[data-analytics-panel="landingqr"] {
+				border: 0;
+				background: transparent;
+				padding: 0;
 			}
 
-			.landing-qr-analytics-stat {
-				min-width: 0;
-				display: grid;
-				gap: 9px;
-				align-content: start;
-				border: 1px solid rgba(148, 163, 184, 0.18);
-				border-radius: 16px;
-				background: linear-gradient(180deg, #ffffff, #f8fbff);
-				padding: 15px;
+			.analytics-landing-panel {
+				border: 1px solid rgba(203, 213, 225, 0.78);
+				border-radius: 28px;
+				background:
+					radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 24rem),
+					linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+				box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+				padding: 28px;
 			}
 
-			.landing-qr-analytics-stat span {
-				color: #64748b;
-				font-size: 11px;
-				font-weight: 950;
-				text-transform: uppercase;
-				letter-spacing: 0.045em;
-			}
-
-			.landing-qr-analytics-stat strong {
-				min-width: 0;
-				color: #0f172a;
-				font-size: clamp(22px, 3vw, 32px);
-				line-height: 1;
-				font-weight: 950;
-				letter-spacing: -0.035em;
-				overflow-wrap: anywhere;
-			}
-
-			.landing-qr-clicks-head {
+			.analytics-landing-header {
 				display: flex;
-				justify-content: space-between;
-				align-items: flex-end;
-				gap: 14px;
-				margin-top: 20px;
-				flex-wrap: wrap;
+				align-items: center;
+				gap: 18px;
+				margin-bottom: 26px;
 			}
 
-			.landing-qr-clicks-head h4,
-			.landing-qr-clicks-head p {
+			.analytics-landing-badge {
+				width: 54px;
+				height: 54px;
+				flex: 0 0 54px;
+				border-radius: 16px;
+				display: grid;
+				place-items: center;
+				color: #ffffff;
+				background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+				box-shadow:
+					0 16px 32px rgba(37, 99, 235, 0.22),
+					inset 0 1px 0 rgba(255, 255, 255, 0.28);
+			}
+
+			.analytics-landing-badge svg {
+				width: 25px;
+				height: 25px;
+				display: block;
+				fill: none;
+				stroke: currentColor;
+				stroke-width: 2;
+				stroke-linecap: round;
+				stroke-linejoin: round;
+			}
+
+			.analytics-landing-header h3 {
 				margin: 0;
+				color: #0f172a;
+				font-size: 24px;
+				font-weight: 1000;
+				letter-spacing: -0.04em;
 			}
 
-			.landing-qr-clicks-head h4 {
+			.analytics-landing-header p {
+				margin: 5px 0 0;
+				color: #64748b;
+				font-size: 14px;
+				font-weight: 750;
+			}
+
+			.analytics-landing-kpis {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 18px;
+				margin-bottom: 24px;
+			}
+
+			.analytics-landing-kpis--two {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				margin-bottom: 18px;
+			}
+
+			.landing-kpi-card {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+				min-height: 118px;
+				border: 1px solid rgba(226, 232, 240, 0.96);
+				border-radius: 22px;
+				background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+				box-shadow: 0 16px 34px rgba(15, 23, 42, 0.07);
+				padding: 20px 22px;
+				overflow: hidden;
+			}
+
+			.landing-kpi-card > div:last-child {
+				min-width: 0;
+			}
+
+			.landing-kpi-icon {
+				width: 56px;
+				height: 56px;
+				min-width: 56px;
+				border-radius: 18px;
+				display: grid;
+				place-items: center;
+				box-shadow:
+					0 12px 24px rgba(15, 23, 42, 0.12),
+					inset 0 1px 0 rgba(255, 255, 255, 0.26);
+			}
+
+			.landing-kpi-icon svg {
+				width: 25px;
+				height: 25px;
+				display: block;
+				fill: none;
+				stroke: currentColor;
+				stroke-width: 1.9;
+				stroke-linecap: round;
+				stroke-linejoin: round;
+			}
+
+			.landing-kpi-icon--views {
+				color: #2563eb;
+				background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+			}
+
+			.landing-kpi-icon--clicks {
+				color: #2563eb;
+				background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+			}
+
+			.landing-top-button-card {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+				border: 1px solid rgba(226, 232, 240, 0.96);
+				border-radius: 22px;
+				background:
+					radial-gradient(circle at left, rgba(34, 197, 94, 0.10), transparent 18rem),
+					linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+				box-shadow: 0 16px 34px rgba(15, 23, 42, 0.07);
+				padding: 20px 22px;
+				margin-bottom: 24px;
+				overflow: hidden;
+			}
+
+			.landing-top-button-card > div:last-child {
+				min-width: 0;
+			}
+
+			.landing-top-button-card span {
+				display: block;
+				color: #2563eb;
+				font-size: 12px;
+				font-weight: 1000;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+
+			.landing-top-button-card strong {
+				margin-top: 6px;
+				color: #0f172a;
+				font-size: 26px;
+				line-height: 1.05;
+				font-weight: 1000;
+				letter-spacing: -0.04em;
+				overflow: hidden;
+				display: -webkit-box;
+				-webkit-line-clamp: 2;
+				-webkit-box-orient: vertical;
+			}
+
+			.landing-top-button-card small {
+				display: block;
+				margin-top: 6px;
+				color: #475569;
+				font-size: 15px;
+				font-weight: 900;
+			}
+
+			.landing-kpi-card span {
+				display: block;
+				color: #2563eb;
+				font-size: 12px;
+				font-weight: 1000;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+
+			.landing-kpi-card strong {
+				display: block;
+				margin-top: 6px;
+				color: #0f172a;
+				font-size: 38px;
+				line-height: 0.95;
+				font-weight: 1000;
+				letter-spacing: -0.06em;
+			}
+
+			.landing-kpi-card small {
+				display: block;
+				margin-top: 6px;
+				color: #475569;
+				font-size: 14px;
+				font-weight: 900;
+			}
+
+			.landing-chart-card,
+			.landing-clicks-card {
+				border: 1px solid rgba(226, 232, 240, 0.96);
+				border-radius: 24px;
+				background: rgba(255, 255, 255, 0.94);
+				box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+				padding: 22px;
+			}
+
+			.landing-chart-card {
+				margin-bottom: 24px;
+			}
+
+			.landing-chart-card > header,
+			.landing-clicks-card > header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 14px;
+				margin-bottom: 16px;
+			}
+
+			.landing-chart-card h4,
+			.landing-clicks-card h4 {
+				margin: 0;
+				color: #0f172a;
+				font-size: 18px;
+				font-weight: 1000;
+				letter-spacing: -0.03em;
+			}
+
+			.landing-clicks-card > header span {
+				color: #64748b;
+				font-size: 13px;
+				font-weight: 900;
+			}
+
+			.landing-chart-legend {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+				color: #475569;
+				font-size: 12px;
+				font-weight: 900;
+			}
+
+			.landing-chart-legend span {
+				display: inline-flex;
+				align-items: center;
+				gap: 7px;
+			}
+
+			.legend-line {
+				width: 24px;
+				height: 3px;
+				border-radius: 999px;
+				display: inline-block;
+			}
+
+			.legend-line--views {
+				background: #16a34a;
+			}
+
+			.legend-line--clicks {
+				background: repeating-linear-gradient(
+					90deg,
+					#2563eb 0,
+					#2563eb 4px,
+					transparent 4px,
+					transparent 8px
+				);
+			}
+
+			.landing-chart-card .analytics-line-chart {
+				margin-top: 0;
+				min-height: 304px;
+				border: 0;
+				border-radius: 18px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.96)),
+					repeating-linear-gradient(0deg, rgba(226, 232, 240, 0.55) 0 1px, transparent 1px 62px);
+				box-shadow: none;
+				padding: 4px 0 0;
+			}
+
+			.landing-chart-card .traffic-chart-svg {
+				height: 286px;
+				min-height: 286px;
+			}
+
+			.landing-click-list {
+				display: grid;
+				gap: 0;
+			}
+
+			:global(.analytics-landing-panel .landing-click-row) {
+				display: grid;
+				grid-template-columns: 48px minmax(0, 1fr) minmax(160px, 42%) auto;
+				align-items: center;
+				gap: 16px;
+				min-height: 72px;
+				padding: 14px 0;
+				border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+				overflow: hidden;
+			}
+
+			:global(.analytics-landing-panel .landing-click-row:last-child) {
+				border-bottom: 0;
+			}
+
+			:global(.analytics-landing-panel .landing-click-icon) {
+				width: 44px;
+				height: 44px;
+				min-width: 44px;
+				max-width: 44px;
+				min-height: 44px;
+				max-height: 44px;
+				border-radius: 14px;
+				display: grid;
+				place-items: center;
+				overflow: hidden;
+				color: #ffffff;
+				background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+				box-shadow:
+					0 12px 24px rgba(15, 23, 42, 0.14),
+					inset 0 1px 0 rgba(255, 255, 255, 0.24);
+				flex: 0 0 44px;
+			}
+
+			:global(.analytics-landing-panel .landing-click-icon svg),
+			:global(.analytics-landing-panel .landing-click-svg),
+			:global(.analytics-landing-panel .landing-click-list svg) {
+				width: 20px !important;
+				height: 20px !important;
+				min-width: 20px !important;
+				max-width: 20px !important;
+				min-height: 20px !important;
+				max-height: 20px !important;
+				display: block !important;
+				fill: none !important;
+				stroke: currentColor !important;
+				stroke-width: 1.9 !important;
+				stroke-linecap: round !important;
+				stroke-linejoin: round !important;
+				flex: 0 0 20px !important;
+			}
+
+			:global(.analytics-landing-panel .landing-click-copy) {
+				min-width: 0;
+				overflow: hidden;
+			}
+
+			:global(.analytics-landing-panel .landing-click-copy strong) {
+				display: block;
 				color: #0f172a;
 				font-size: 15px;
-				font-weight: 950;
-				letter-spacing: -0.02em;
-			}
-
-			.landing-qr-clicks-head p {
-				color: #64748b;
-				font-size: 12px;
-				font-weight: 800;
-			}
-
-			.landing-qr-clicks-list {
-				display: grid;
-				gap: 9px;
-				margin-top: 12px;
-			}
-
-			.landing-qr-click-row {
-				display: grid;
-				grid-template-columns: minmax(0, 1fr) auto auto;
-				align-items: center;
-				gap: 12px;
-				min-height: 44px;
-				border: 1px solid rgba(148, 163, 184, 0.14);
-				border-radius: 14px;
-				background: rgba(248, 250, 252, 0.9);
-				padding: 0 13px;
-			}
-
-			.landing-qr-click-main {
-				min-width: 0;
-				display: grid;
-				gap: 2px;
-			}
-
-			.landing-qr-click-main strong,
-			.landing-qr-click-main span {
-				min-width: 0;
+				font-weight: 1000;
 				overflow: hidden;
 				text-overflow: ellipsis;
 				white-space: nowrap;
 			}
 
-			.landing-qr-click-main strong {
-				color: #0f172a;
-				font-size: 14px;
-				font-weight: 900;
-			}
-
-			.landing-qr-click-main span {
+			:global(.analytics-landing-panel .landing-click-copy small) {
+				display: block;
+				margin-top: 4px;
 				color: #64748b;
-				font-size: 12px;
-				font-weight: 750;
-			}
-
-			.landing-qr-click-count,
-			.landing-qr-click-percent {
-				color: #475569;
 				font-size: 13px;
-				font-weight: 900;
+				font-weight: 800;
+				overflow: hidden;
+				text-overflow: ellipsis;
 				white-space: nowrap;
 			}
 
-			@media (max-width: 900px) {
-				.landing-qr-analytics-grid {
-					grid-template-columns: repeat(2, minmax(0, 1fr));
-				}
+			:global(.analytics-landing-panel .landing-click-bar) {
+				height: 8px;
+				border-radius: 999px;
+				background: #edf2f7;
+				overflow: hidden;
 			}
 
-			@media (max-width: 560px) {
-				.landing-qr-analytics-grid,
-				.landing-qr-click-row {
+			:global(.analytics-landing-panel .landing-click-bar span) {
+				display: block;
+				height: 100%;
+				width: var(--bar-width, 0%);
+				border-radius: inherit;
+				background: var(--link-bg, linear-gradient(180deg, #3b82f6 0%, #2563eb 100%));
+				box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
+			}
+
+			:global(.analytics-landing-panel .landing-click-count) {
+				justify-self: end;
+				color: #334155;
+				font-size: 16px;
+				font-weight: 1000;
+				white-space: nowrap;
+			}
+
+			@media (max-width: 1024px) {
+				.analytics-landing-kpis {
 					grid-template-columns: 1fr;
 				}
 
-				.landing-qr-click-row {
-					align-items: start;
-					padding: 12px;
+				.analytics-landing-kpis--two {
+					grid-template-columns: repeat(2, minmax(0, 1fr));
+				}
+
+				:global(.analytics-landing-panel .landing-click-row) {
+					grid-template-columns: 44px minmax(0, 1fr) auto;
+				}
+
+				:global(.analytics-landing-panel .landing-click-bar) {
+					grid-column: 2 / -1;
+					width: 100%;
+				}
+			}
+
+			@media (max-width: 760px) {
+				.analytics-landing-kpis--two {
+					grid-template-columns: 1fr;
+				}
+
+				.landing-top-button-card {
+					align-items: flex-start;
+					padding: 16px;
+				}
+
+				.landing-top-button-card strong {
+					font-size: 21px;
+				}
+			}
+
+			@media (max-width: 640px) {
+				.analytics-landing-panel {
+					padding: 18px;
+					border-radius: 22px;
+				}
+
+				.analytics-landing-header {
+					align-items: flex-start;
+				}
+
+				.analytics-landing-badge {
+					width: 46px;
+					height: 46px;
+					flex-basis: 46px;
+					border-radius: 14px;
+				}
+
+				.analytics-landing-header h3 {
+					font-size: 21px;
+				}
+
+				.landing-kpi-card {
+					min-height: 94px;
+					padding: 16px;
+				}
+
+				.landing-kpi-icon {
+					width: 48px;
+					height: 48px;
+					min-width: 48px;
+				}
+
+				.landing-kpi-card strong {
+					font-size: 30px;
+				}
+
+				.landing-chart-card > header,
+				.landing-clicks-card > header {
+					align-items: flex-start;
+					flex-direction: column;
+				}
+
+				:global(.analytics-landing-panel .landing-click-row) {
+					grid-template-columns: 42px minmax(0, 1fr);
+					gap: 12px;
+				}
+
+				:global(.analytics-landing-panel .landing-click-count) {
+					grid-column: 2;
+					justify-self: start;
+					font-size: 14px;
+				}
+
+				:global(.analytics-landing-panel .landing-click-bar) {
+					grid-column: 2;
 				}
 			}
 
@@ -4053,32 +4410,86 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						</div>
 
 						<div class="visit-analytics-panel" data-analytics-panel="landingqr">
-							<h3 class="visit-analytics-panel-title">Landing QR</h3>
-							<p class="visit-analytics-panel-help">Rendimiento de la página abierta desde el QR durante el periodo seleccionado.</p>
-							<div class="landing-qr-analytics-grid">
-								<div class="landing-qr-analytics-stat">
-									<span>Visitas Landing QR</span>
-									<strong id="traffic-landing-views-total">0</strong>
+							<section class="analytics-landing-panel">
+								<header class="analytics-landing-header">
+									<div class="analytics-landing-badge" aria-hidden="true">
+										<svg viewBox="0 0 24 24">
+											<rect x="4" y="4" width="6" height="6" rx="1.4"></rect>
+											<rect x="14" y="4" width="6" height="6" rx="1.4"></rect>
+											<rect x="4" y="14" width="6" height="6" rx="1.4"></rect>
+											<path d="M14 14h2.5v2.5H19"></path>
+											<path d="M20 20h-2.5v-2.5H14"></path>
+										</svg>
+									</div>
+									<div>
+										<h3>Landing QR</h3>
+										<p>Rendimiento de la página abierta desde el QR durante el periodo seleccionado.</p>
+									</div>
+								</header>
+
+								<div class="analytics-landing-kpis analytics-landing-kpis--two">
+									<article class="landing-kpi-card">
+										<div class="landing-kpi-icon landing-kpi-icon--views" aria-hidden="true">
+											<svg viewBox="0 0 24 24">
+												<path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+												<circle cx="9.5" cy="7" r="4"></circle>
+												<path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+												<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+											</svg>
+										</div>
+										<div>
+											<span>Visitas Landing QR</span>
+											<strong id="traffic-landing-views-total">0</strong>
+										</div>
+									</article>
+
+									<article class="landing-kpi-card">
+										<div class="landing-kpi-icon landing-kpi-icon--clicks" aria-hidden="true">
+											<svg viewBox="0 0 24 24">
+												<path d="M3 3l7.5 18 2.8-7.7L21 10.5 3 3Z"></path>
+												<path d="M13 13l5 5"></path>
+											</svg>
+										</div>
+										<div>
+											<span>Clics Landing QR</span>
+											<strong id="traffic-landing-clicks-total">0</strong>
+										</div>
+									</article>
 								</div>
-								<div class="landing-qr-analytics-stat">
-									<span>Clics Landing QR</span>
-									<strong id="traffic-landing-clicks-total">0</strong>
-								</div>
-								<div class="landing-qr-analytics-stat">
-									<span>Interacción</span>
-									<strong id="traffic-landing-rate-total">0%</strong>
-								</div>
-								<div class="landing-qr-analytics-stat">
-									<span>Botón más tocado</span>
-									<strong id="traffic-landing-top-button">Sin datos</strong>
-								</div>
-							</div>
-							<div id="traffic-landing-chart" class="analytics-line-chart"></div>
-							<div class="landing-qr-clicks-head">
-								<h4>Clics por botón</h4>
-								<p id="traffic-landing-clicks-meta">Cargando...</p>
-							</div>
-							<div id="traffic-landing-clicks-list" class="landing-qr-clicks-list"></div>
+
+								<article class="landing-top-button-card">
+									<div id="traffic-landing-top-button-icon" class="landing-click-icon" aria-hidden="true">
+										<svg class="landing-click-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+											<path d="M10 13a5 5 0 0 0 7.1 0l1.4-1.4a5 5 0 0 0-7.1-7.1L10.5 5"></path>
+											<path d="M14 11a5 5 0 0 0-7.1 0l-1.4 1.4a5 5 0 0 0 7.1 7.1l.9-.9"></path>
+										</svg>
+									</div>
+									<div>
+										<span>Botón más tocado</span>
+										<strong id="traffic-landing-top-button">Sin clics todavía</strong>
+										<small id="traffic-landing-top-button-clicks">0 clics</small>
+									</div>
+								</article>
+
+								<section class="landing-chart-card">
+									<header>
+										<h4>Rendimiento de Landing QR</h4>
+										<div class="landing-chart-legend" aria-label="Leyenda del gráfico">
+											<span><i class="legend-line legend-line--views" aria-hidden="true"></i>Visitas</span>
+											<span><i class="legend-line legend-line--clicks" aria-hidden="true"></i>Clics</span>
+										</div>
+									</header>
+									<div id="traffic-landing-chart" class="analytics-line-chart"></div>
+								</section>
+
+								<section class="landing-clicks-card">
+									<header>
+										<h4>Clics por botón</h4>
+										<span id="traffic-landing-clicks-meta">Cargando...</span>
+									</header>
+									<div id="traffic-landing-clicks-list" class="landing-click-list"></div>
+								</section>
+							</section>
 						</div>
 					</section>
 
@@ -4236,8 +4647,9 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const trafficPageviewsChart = document.getElementById('traffic-pageviews-chart');
 			const trafficLandingViewsTotal = document.getElementById('traffic-landing-views-total');
 			const trafficLandingClicksTotal = document.getElementById('traffic-landing-clicks-total');
-			const trafficLandingRateTotal = document.getElementById('traffic-landing-rate-total');
 			const trafficLandingTopButton = document.getElementById('traffic-landing-top-button');
+			const trafficLandingTopButtonClicks = document.getElementById('traffic-landing-top-button-clicks');
+			const trafficLandingTopButtonIcon = document.getElementById('traffic-landing-top-button-icon');
 			const trafficLandingChart = document.getElementById('traffic-landing-chart');
 			const trafficLandingClicksList = document.getElementById('traffic-landing-clicks-list');
 			const trafficLandingClicksMeta = document.getElementById('traffic-landing-clicks-meta');
@@ -5098,6 +5510,171 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				return String(event?.event_type || '').trim().toLowerCase() === 'landing_qr_click';
 			}
 
+			const LANDING_QR_TYPE_LABELS = {
+				store: 'Tienda',
+				whatsapp: 'WhatsApp',
+				group: 'Grupo',
+				instagram: 'Instagram',
+				facebook: 'Facebook',
+				tiktok: 'TikTok',
+				offer: 'Oferta',
+				location: 'Ubicación',
+				download: 'Descarga',
+				link: 'Enlace',
+			};
+
+			const LANDING_QR_ICON_PATHS = {
+				store: '<path d="M6 6h15l-1.5 8.5a2 2 0 0 1-2 1.5H9a2 2 0 0 1-2-1.6L5.2 3H3"/><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/>',
+				whatsapp: '<path d="M20 11.5a8 8 0 0 1-11.9 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z"/><path d="M9.5 8.5c.3 2.7 1.8 4.6 4.4 5.8l1.2-1.2 2 1c-.1 1.1-.9 2-2.1 2-3.8 0-7.2-3.4-7.2-7.2 0-1.2.9-2 2-2.1l1 2-1.3 1.7Z"/>',
+				group: '<path d="M16 11a3 3 0 1 0-2.8-4"/><path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z"/><path d="M2.5 19a5.5 5.5 0 0 1 11 0"/><path d="M14 15.2a5 5 0 0 1 7.5 3.8"/>',
+				instagram: '<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.2"/><path d="M17.2 6.8h.01"/>',
+				facebook: '<path d="M14 8h2V4h-3a4 4 0 0 0-4 4v3H7v4h2v5h4v-5h3l1-4h-4V8a1 1 0 0 1 1-1Z"/>',
+				tiktok: '<path d="M15 4v10.5A4.5 4.5 0 1 1 10.5 10"/><path d="M15 4c.5 2.8 2 4.4 5 4.8"/>',
+				offer: '<path d="M20 13 13 20 4 11V4h7l9 9Z"/><circle cx="8" cy="8" r="1.2"/>',
+				location: '<path d="M12 21s7-6.1 7-12a7 7 0 1 0-14 0c0 5.9 7 12 7 12Z"/><circle cx="12" cy="9" r="2.4"/>',
+				download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
+				link: '<path d="M10 13a5 5 0 0 0 7.1 0l1.4-1.4a5 5 0 0 0-7.1-7.1L10.5 5"/><path d="M14 11a5 5 0 0 0-7.1 0l-1.4 1.4a5 5 0 0 0 7.1 7.1l.9-.9"/>',
+			};
+
+			function normalizeLandingQrLinkType(type) {
+				const key = String(type || '').trim().toLowerCase();
+				return LANDING_QR_ICON_PATHS[key] ? key : 'link';
+			}
+
+			function getLandingQrIconSvg(icon) {
+				const name = normalizeLandingQrLinkType(icon);
+				return `<svg class="landing-click-svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${LANDING_QR_ICON_PATHS[name]}</svg>`;
+			}
+
+			function getLandingQrLinkBackground(type) {
+				const key = normalizeLandingQrLinkType(type);
+				const backgrounds = {
+					store: 'linear-gradient(180deg, #3b82f6 0%, #2563eb 100%)',
+					whatsapp: 'linear-gradient(180deg, #22c55e 0%, #16a34a 100%)',
+					group: 'linear-gradient(180deg, #22c55e 0%, #15803d 100%)',
+					instagram: 'linear-gradient(180deg, #fb7185 0%, #ec4899 45%, #8b5cf6 100%)',
+					facebook: 'linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%)',
+					tiktok: 'linear-gradient(180deg, #111827 0%, #020617 100%)',
+					offer: 'linear-gradient(180deg, #fb923c 0%, #f97316 100%)',
+					location: 'linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%)',
+					download: 'linear-gradient(180deg, #14b8a6 0%, #0f766e 100%)',
+					link: 'linear-gradient(180deg, #475569 0%, #334155 100%)',
+				};
+
+				return backgrounds[key] || backgrounds.link;
+			}
+
+			function getLandingQrTypeLabel(type) {
+				const key = normalizeLandingQrLinkType(type);
+				return LANDING_QR_TYPE_LABELS[key] || LANDING_QR_TYPE_LABELS.link;
+			}
+
+			function createLandingQrChartMarkup(points) {
+				const hasData = points.some((point) => Number(point.views || 0) > 0 || Number(point.clicks || 0) > 0);
+
+				if (!points.length || !hasData) {
+					return `
+						<div class="traffic-empty-state">
+							<strong>Sin actividad visible todavía</strong>
+							<small>Cuando haya visitas o clics en este periodo, la tendencia aparecerá aquí.</small>
+						</div>
+					`;
+				}
+
+				const width = 900;
+				const height = 300;
+				const paddingX = 58;
+				const paddingTop = 24;
+				const paddingBottom = 54;
+				const innerWidth = width - paddingX * 2;
+				const innerHeight = height - paddingTop - paddingBottom;
+				const values = points.flatMap((point) => [Number(point.views || 0), Number(point.clicks || 0)]);
+				const scale = getAnalyticsGridScale(Math.max(...values, 0));
+				const stepX = points.length > 1 ? innerWidth / (points.length - 1) : 0;
+
+				function buildCoords(field) {
+					return points.map((point, index) => {
+						const value = Number(point[field] || 0);
+						const x = points.length > 1 ? paddingX + index * stepX : paddingX + innerWidth / 2;
+						const y = paddingTop + innerHeight - ((value / scale.max) * innerHeight);
+						return { ...point, value, x, y, index };
+					});
+				}
+
+				function buildSmoothPath(items) {
+					if (items.length === 1) return `M ${paddingX} ${items[0].y} L ${width - paddingX} ${items[0].y}`;
+
+					return items.map((point, index) => {
+						if (index === 0) return `M ${point.x} ${point.y}`;
+						const previous = items[index - 1];
+						const middleX = (previous.x + point.x) / 2;
+						return `C ${middleX} ${previous.y}, ${middleX} ${point.y}, ${point.x} ${point.y}`;
+					}).join(' ');
+				}
+
+				function buildAreaPath(items, linePath) {
+					const baselineY = height - paddingBottom;
+					if (items.length === 1) return `${linePath} L ${width - paddingX} ${baselineY} L ${paddingX} ${baselineY} Z`;
+					return `${linePath} L ${items[items.length - 1].x} ${baselineY} L ${items[0].x} ${baselineY} Z`;
+				}
+
+				function getVisiblePoints(coords) {
+					return coords.filter((point) => {
+						if (coords.length <= 15) return true;
+						if (point.index === 0 || point.index === coords.length - 1) return true;
+						if (point.index % 5 === 0) return true;
+						if (point.value <= 0) return false;
+						const previousValue = coords[point.index - 1]?.value || 0;
+						const nextValue = coords[point.index + 1]?.value || 0;
+						return point.value > previousValue && point.value >= nextValue;
+					});
+				}
+
+				const viewCoords = buildCoords('views');
+				const clickCoords = buildCoords('clicks');
+				const viewPath = buildSmoothPath(viewCoords);
+				const clickPath = buildSmoothPath(clickCoords);
+				const viewAreaPath = buildAreaPath(viewCoords, viewPath);
+				const gradientId = `landing-qr-views-${selectedRange}-${points.length}`;
+				const grid = scale.ticks.map((value) => {
+					const y = paddingTop + innerHeight - ((value / scale.max) * innerHeight);
+					return { y, value };
+				});
+				const visibleLabels = viewCoords.filter((point) => shouldShowAnalyticsTickLabel(point.index, viewCoords.length));
+
+				function renderPoints(coords, color) {
+					return getVisiblePoints(coords).map((point) => {
+						const isLast = point.index === coords.length - 1;
+						const radius = isLast ? 6.2 : point.value > 0 ? 4.2 : 3;
+						const opacity = isLast || point.value > 0 ? 1 : 0.44;
+						return `<circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${color}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="${isLast ? 3 : 2}" />`;
+					}).join('');
+				}
+
+				return `
+					<svg class="traffic-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de Landing QR">
+						<defs>
+							<linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stop-color="#22c55e" stop-opacity="0.24" />
+								<stop offset="100%" stop-color="#22c55e" stop-opacity="0.04" />
+							</linearGradient>
+						</defs>
+						${grid.map((tick) => `
+							<line x1="${paddingX}" y1="${tick.y}" x2="${width - paddingX}" y2="${tick.y}" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="5 7" stroke-linecap="round" />
+							<text x="${paddingX - 18}" y="${tick.y + 4}" text-anchor="end" font-size="12" font-weight="800" fill="#64748b">${tick.value}</text>
+						`).join('')}
+						<path d="${viewAreaPath}" fill="url(#${gradientId})"></path>
+						<path d="${viewPath}" fill="none" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+						<path d="${clickPath}" fill="none" stroke="#2563eb" stroke-width="3.6" stroke-dasharray="4 8" stroke-linecap="round" stroke-linejoin="round"></path>
+						${renderPoints(viewCoords, '#16a34a')}
+						${renderPoints(clickCoords, '#2563eb')}
+						${visibleLabels.map((point) => `
+							<text x="${point.x}" y="${height - 16}" text-anchor="middle" font-size="12" font-weight="850" fill="#475569">${escapeHtml(point.label)}</text>
+						`).join('')}
+					</svg>
+				`;
+			}
+
 			function computeLandingQrAnalytics() {
 				const days = getAnalyticsRangeDays();
 				const grouped = new Map(days.map((day) => [day, {
@@ -5127,23 +5704,24 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 					const linkId = String(event.link_id || event.link_label || event.link_type || 'link').trim() || 'link';
 					const label = String(event.link_label || 'Enlace').trim() || 'Enlace';
-					const type = String(event.link_type || 'link').trim() || 'link';
-					const current = buttonCounts.get(linkId) || { link_id: linkId, label, type, clicks: 0 };
+					const type = normalizeLandingQrLinkType(event.link_type || event.icon || 'link');
+					const current = buttonCounts.get(linkId) || {
+						link_id: linkId,
+						label,
+						type,
+						typeLabel: getLandingQrTypeLabel(type),
+						clicks: 0,
+					};
 					current.clicks += 1;
 					buttonCounts.set(linkId, current);
 				});
 
 				const clicksByButton = Array.from(buttonCounts.values())
-					.sort((a, b) => b.clicks - a.clicks || a.label.localeCompare(b.label))
-					.map((item) => ({
-						...item,
-						percentage: clicks > 0 ? Math.round((item.clicks / clicks) * 100) : 0,
-					}));
+					.sort((a, b) => b.clicks - a.clicks || a.label.localeCompare(b.label));
 
 				return {
 					views,
 					clicks,
-					interactionRate: views > 0 ? Math.round((clicks / views) * 100) : 0,
 					topButton: clicksByButton[0] || null,
 					clicksByButton,
 					series: days.map((day) => grouped.get(day) || { day, label: shortDayLabel(day), views: 0, clicks: 0 }),
@@ -5153,16 +5731,27 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			function renderLandingQrAnalytics() {
 				const metrics = computeLandingQrAnalytics();
 				const formatCount = (value) => Number(value || 0).toLocaleString('es-US');
+				const formatClickCount = (value) => {
+					const clicks = Number(value || 0);
+					return `${formatCount(clicks)} ${clicks === 1 ? 'clic' : 'clics'}`;
+				};
+				const topButton = metrics.topButton;
+				const topButtonType = normalizeLandingQrLinkType(topButton?.type || 'link');
+				const topButtonBackground = getLandingQrLinkBackground(topButtonType);
 
 				if (trafficLandingViewsTotal) trafficLandingViewsTotal.textContent = formatCount(metrics.views);
 				if (trafficLandingClicksTotal) trafficLandingClicksTotal.textContent = formatCount(metrics.clicks);
-				if (trafficLandingRateTotal) trafficLandingRateTotal.textContent = `${formatCount(metrics.interactionRate)}%`;
-				if (trafficLandingTopButton) trafficLandingTopButton.textContent = metrics.topButton ? metrics.topButton.label : 'Sin datos';
-				if (trafficLandingChart) trafficLandingChart.innerHTML = createTrafficChartMarkup(metrics.series, 'views', '#16a34a', '#22c55e');
+				if (trafficLandingTopButton) trafficLandingTopButton.textContent = topButton ? topButton.label : 'Sin clics todavía';
+				if (trafficLandingTopButtonClicks) trafficLandingTopButtonClicks.textContent = formatClickCount(topButton?.clicks || 0);
+				if (trafficLandingTopButtonIcon) {
+					trafficLandingTopButtonIcon.style.setProperty('--link-bg', topButtonBackground);
+					trafficLandingTopButtonIcon.innerHTML = getLandingQrIconSvg(topButtonType);
+				}
+				if (trafficLandingChart) trafficLandingChart.innerHTML = createLandingQrChartMarkup(metrics.series);
 
 				if (trafficLandingClicksMeta) {
 					trafficLandingClicksMeta.textContent = metrics.clicks
-						? `${formatCount(metrics.clicks)} clics registrados`
+						? `${formatClickCount(metrics.clicks)} registrados`
 						: 'Sin clics en este periodo';
 				}
 
@@ -5173,16 +5762,31 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					return;
 				}
 
-				trafficLandingClicksList.innerHTML = metrics.clicksByButton.slice(0, 10).map((item) => `
-					<div class="landing-qr-click-row">
-						<span class="landing-qr-click-main">
-							<strong>${escapeHtml(item.label)}</strong>
-							<span>${escapeHtml(item.type)}</span>
-						</span>
-						<span class="landing-qr-click-count">${escapeHtml(formatCount(item.clicks))} clics</span>
-						<span class="landing-qr-click-percent">${escapeHtml(formatCount(item.percentage))}%</span>
-					</div>
-				`).join('');
+				const topClickCount = Math.max(...metrics.clicksByButton.map((item) => Number(item.clicks || 0)), 1);
+				trafficLandingClicksList.innerHTML = metrics.clicksByButton.slice(0, 10).map((item) => {
+					const clicks = Number(item.clicks || 0);
+					const barWidth = Math.max(6, Math.round((clicks / topClickCount) * 100));
+					const type = normalizeLandingQrLinkType(item.type || item.link_type || item.icon || 'link');
+					const label = item.label || item.link_label || 'Enlace';
+					const subtitle = item.typeLabel || getLandingQrTypeLabel(type);
+					const background = getLandingQrLinkBackground(type);
+
+					return `
+						<article class="landing-click-row">
+							<div class="landing-click-icon" style="--link-bg:${escapeHtml(background)};" aria-hidden="true">
+								${getLandingQrIconSvg(type)}
+							</div>
+							<div class="landing-click-copy">
+								<strong>${escapeHtml(label)}</strong>
+								<small>${escapeHtml(subtitle)}</small>
+							</div>
+							<div class="landing-click-bar" aria-hidden="true">
+								<span style="--bar-width:${barWidth}%; --link-bg:${escapeHtml(background)};"></span>
+							</div>
+							<strong class="landing-click-count">${escapeHtml(formatClickCount(clicks))}</strong>
+						</article>
+					`;
+				}).join('');
 			}
 
 			function getAnalyticsEventsForSelectedRange() {
