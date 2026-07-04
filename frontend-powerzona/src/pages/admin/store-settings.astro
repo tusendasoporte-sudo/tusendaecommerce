@@ -3362,9 +3362,13 @@ try {
       body.pz-settings-landing-active .pz-admin-mobile-topbar__action {
         display: none !important;
       }
+
+      body.pz-settings-resolving #admin-view {
+        visibility: hidden;
+      }
     </style>
   </head>
-  <body>
+  <body class="pz-settings-resolving">
     <div class="app-shell pz-admin-content">
       <AdminSidebar
         storeId={currentStoreId}
@@ -5061,6 +5065,7 @@ try {
           window.dispatchEvent(new Event('hashchange'));
         }
         if (options.centerTab !== false) centerTabButton(tab);
+        document.body.classList.remove('pz-settings-resolving');
       }
       function showAdmin() { adminView.classList.remove('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
 

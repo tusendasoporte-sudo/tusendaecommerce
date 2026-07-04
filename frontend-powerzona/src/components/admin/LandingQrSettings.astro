@@ -94,7 +94,7 @@ const qrPngPath = `${publicPath}/qr.png`;
                 <p>Opcional. Recomendada 1200 x 675 px. Se optimiza automáticamente a WebP.</p>
               </div>
 
-              <button class="landing-hero-preview" type="button" data-hero-preview data-select-hero-image>
+              <button class="landing-hero-preview landing-hero-preview--compact" type="button" data-hero-preview data-select-hero-image>
                 <span>Sin imagen destacada</span>
               </button>
 
@@ -138,45 +138,46 @@ const qrPngPath = `${publicPath}/qr.png`;
 
     <aside class="landing-qr-aside">
       <section class="landing-qr-panel landing-preview-panel">
-        <div class="landing-qr-panel__head">
+        <div class="landing-qr-panel__head landing-qr-panel__head--toggle">
           <div>
             <h3>Vista previa móvil</h3>
             <p>Así se verá al abrir el enlace desde un teléfono.</p>
           </div>
+          <button
+            class="landing-btn landing-btn--primary landing-toggle-btn"
+            type="button"
+            data-toggle-preview
+            aria-expanded="false"
+            aria-controls="landing-preview-mount"
+          >
+            Ver vista previa
+          </button>
         </div>
-        <div class="landing-phone-preview">
-          <div class="landing-phone-preview__screen" data-preview-screen>
-            <div class="landing-preview-logo" data-preview-logo>{currentStoreName.slice(0, 2).toUpperCase()}</div>
-            <p class="landing-preview-store">{currentStoreName || 'Tienda'}</p>
-            <h4 data-preview-title>Escanea y conecta con nosotros</h4>
-            <p data-preview-subtitle>Calidad, ofertas y atención rápida en un solo lugar</p>
-            <div class="landing-preview-hero hidden" data-preview-hero></div>
-            <div class="landing-preview-links" data-preview-links></div>
-            <footer>
-              <strong>{currentStoreName || 'Tienda'}</strong>
-              <span>Tu Senda 84</span>
-            </footer>
-          </div>
-        </div>
+        <div id="landing-preview-mount" class="landing-preview-mount" data-preview-mount></div>
       </section>
 
       <section class="landing-qr-panel landing-qr-download">
-        <div class="landing-qr-panel__head">
+        <div class="landing-qr-panel__head landing-qr-panel__head--toggle">
           <div>
             <h3>Tu página y QR</h3>
-            <p>Imprime este QR y cambia los enlaces cuando quieras.</p>
+            <p>Comparte la URL siempre visible o carga el QR solo cuando lo necesites.</p>
           </div>
+          <button
+            class="landing-btn landing-btn--primary landing-toggle-btn"
+            type="button"
+            data-toggle-qr
+            aria-expanded="false"
+            aria-controls="landing-qr-mount"
+          >
+            Ver QR para imprimir
+          </button>
         </div>
         <label class="landing-url-field">
           <span>URL fija de tu Landing QR</span>
           <input data-public-url type="text" value="" readonly />
         </label>
-        <div class="landing-qr-box">
-          <img src={qrSvgPath} alt="QR de Landing QR" loading="lazy" decoding="async" data-qr-image />
-        </div>
-        <div class="landing-qr-download__actions">
-          <a class="landing-btn" href={qrPngPath} download={`landing-qr-${safeStoreSlug}.png`}>Descargar PNG</a>
-          <a class="landing-btn" href={qrSvgPath} download={`landing-qr-${safeStoreSlug}.svg`}>Descargar SVG</a>
+        <div id="landing-qr-mount" class="landing-qr-mount" data-qr-mount></div>
+        <div class="landing-qr-download__actions landing-qr-download__actions--static">
           <a class="landing-btn landing-btn--wide" href={landingAnalyticsPath}>Ver analíticas</a>
         </div>
       </section>
@@ -372,6 +373,14 @@ const qrPngPath = `${publicPath}/qr.png`;
     line-height: 1.4;
   }
 
+  .landing-qr-admin .landing-qr-panel__head--toggle {
+    align-items: center;
+  }
+
+  .landing-qr-admin .landing-toggle-btn {
+    flex-shrink: 0;
+  }
+
   .landing-qr-admin .landing-state-actions {
     display: flex;
     align-items: center;
@@ -529,17 +538,19 @@ const qrPngPath = `${publicPath}/qr.png`;
 
   .landing-qr-admin .landing-hero-preview {
     appearance: none;
-    width: min(100%, 360px);
-    aspect-ratio: 16 / 9;
-    border: 1px dashed #bfd1e8;
+    width: min(100%, 440px);
+    min-height: 92px;
+    border: 1px solid #dbeafe;
     border-radius: 18px;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
     background: linear-gradient(135deg, #f8fbff, #eef6ff);
-    color: #64748b;
+    color: #334155;
     cursor: pointer;
-    padding: 0;
-    text-align: center;
+    padding: 10px;
+    text-align: left;
     font: inherit;
     font-size: 12px;
     font-weight: 900;
@@ -548,8 +559,41 @@ const qrPngPath = `${publicPath}/qr.png`;
     overflow: hidden;
   }
 
-  .landing-qr-admin .landing-hero-preview span {
-    padding: 12px;
+  .landing-qr-admin .landing-hero-preview__thumb {
+    width: 76px;
+    height: 76px;
+    min-width: 76px;
+    border-radius: 18px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #ffffff;
+    color: #64748b;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .landing-qr-admin .landing-hero-preview__copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .landing-qr-admin .landing-hero-preview__copy strong,
+  .landing-qr-admin .landing-hero-preview__copy small {
+    display: block;
+    min-width: 0;
+  }
+
+  .landing-qr-admin .landing-hero-preview__copy strong {
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+  }
+
+  .landing-qr-admin .landing-hero-preview__copy small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
   }
 
   .landing-qr-admin .landing-hero-preview img,
@@ -754,6 +798,17 @@ const qrPngPath = `${publicPath}/qr.png`;
     text-align: center;
     font-size: 13px;
     font-weight: 850;
+  }
+
+  .landing-qr-admin .landing-preview-mount,
+  .landing-qr-admin .landing-qr-mount {
+    display: grid;
+    gap: 14px;
+  }
+
+  .landing-qr-admin .landing-preview-mount:empty,
+  .landing-qr-admin .landing-qr-mount:empty {
+    display: none;
   }
 
   .landing-qr-admin .landing-phone-preview {
@@ -1013,6 +1068,10 @@ const qrPngPath = `${publicPath}/qr.png`;
       justify-content: flex-end;
     }
 
+    .landing-qr-admin .landing-toggle-btn {
+      width: 100%;
+    }
+
     .landing-qr-admin .landing-link-row__top {
       grid-template-columns: 32px 42px minmax(0, 1fr);
     }
@@ -1068,6 +1127,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     const PUBLIC_URL = `${window.location.origin}${PUBLIC_PATH}`;
     const MAX_LINKS = 10;
     const FALLBACK_ACCENT = '#2563eb';
+    const QR_FILE_SLUG = CURRENT_STORE_SLUG.replace(/[^a-z0-9_-]+/gi, '-').slice(0, 60) || 'powerzona';
     const ICON_OPTIONS = [
       ['store', 'Tienda'],
       ['whatsapp', 'WhatsApp'],
@@ -1116,20 +1176,20 @@ const qrPngPath = `${publicPath}/qr.png`;
     const heroPreview = root.querySelector('[data-hero-preview]');
     const removeHeroButton = root.querySelector('[data-remove-hero-image]');
     const publicUrlFields = root.querySelectorAll('[data-public-url]');
+    const previewToggleButton = root.querySelector('[data-toggle-preview]');
+    const previewMount = root.querySelector('[data-preview-mount]');
+    const qrToggleButton = root.querySelector('[data-toggle-qr]');
+    const qrMount = root.querySelector('[data-qr-mount]');
     const statusLabel = root.querySelector('[data-summary-status]') || root.querySelector('[data-landing-status]');
     const activeCountLabel = root.querySelector('[data-summary-active-count]') || root.querySelector('[data-active-count]');
     const urlHostLabel = root.querySelector('[data-summary-fixed-url]') || root.querySelector('[data-url-host]');
-    const previewLogo = root.querySelector('[data-preview-logo]');
-    const previewTitle = root.querySelector('[data-preview-title]');
-    const previewSubtitle = root.querySelector('[data-preview-subtitle]');
-    const previewHero = root.querySelector('[data-preview-hero]');
-    const previewLinks = root.querySelector('[data-preview-links]');
-    const qrImage = root.querySelector('[data-qr-image]');
     const saveButton = root.querySelector('[data-save-landing]');
 
     let settingsRecordId = '';
     let lastSettingsRecord = null;
     let links = [];
+    let isPreviewOpen = false;
+    let isQrOpen = false;
     let isSaving = false;
     let hasUnsavedChanges = false;
     let lastSavedLandingQrEnabled = false;
@@ -1141,12 +1201,16 @@ const qrPngPath = `${publicPath}/qr.png`;
     let removeHeroImage = false;
     let heroImageFieldAvailable = true;
     let landingAlertTimer = null;
+    let previewLogo = null;
+    let previewTitle = null;
+    let previewSubtitle = null;
+    let previewHero = null;
+    let previewLinks = null;
 
     publicUrlFields.forEach((field) => {
       field.value = PUBLIC_URL;
     });
     if (urlHostLabel) urlHostLabel.textContent = new URL(PUBLIC_URL).host;
-    if (qrImage) qrImage.src = QR_SVG_PATH;
 
     function escapePocketBaseValue(value) {
       return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -1284,6 +1348,88 @@ const qrPngPath = `${publicPath}/qr.png`;
       return initials || 'TS';
     }
 
+    function refreshPreviewRefs() {
+      previewLogo = previewMount?.querySelector('[data-preview-logo]') || null;
+      previewTitle = previewMount?.querySelector('[data-preview-title]') || null;
+      previewSubtitle = previewMount?.querySelector('[data-preview-subtitle]') || null;
+      previewHero = previewMount?.querySelector('[data-preview-hero]') || null;
+      previewLinks = previewMount?.querySelector('[data-preview-links]') || null;
+    }
+
+    function mountPreview() {
+      if (!previewMount || isPreviewOpen) return;
+      isPreviewOpen = true;
+      previewMount.innerHTML = `
+        <div class="landing-phone-preview">
+          <div class="landing-phone-preview__screen" data-preview-screen>
+            <div class="landing-preview-logo" data-preview-logo>${escapeHtml(getStoreInitials(CURRENT_STORE_NAME))}</div>
+            <p class="landing-preview-store">${escapeHtml(CURRENT_STORE_NAME || 'Tienda')}</p>
+            <h4 data-preview-title>Escanea y conecta con nosotros</h4>
+            <p data-preview-subtitle>Calidad, ofertas y atención rápida en un solo lugar</p>
+            <div class="landing-preview-hero hidden" data-preview-hero></div>
+            <div class="landing-preview-links" data-preview-links></div>
+            <footer>
+              <strong>${escapeHtml(CURRENT_STORE_NAME || 'Tienda')}</strong>
+              <span>Tu Senda 84</span>
+            </footer>
+          </div>
+        </div>
+      `;
+      refreshPreviewRefs();
+      if (previewToggleButton) {
+        previewToggleButton.textContent = 'Ocultar vista previa';
+        previewToggleButton.setAttribute('aria-expanded', 'true');
+      }
+      renderPreview();
+    }
+
+    function unmountPreview() {
+      isPreviewOpen = false;
+      if (previewMount) previewMount.innerHTML = '';
+      refreshPreviewRefs();
+      if (previewToggleButton) {
+        previewToggleButton.textContent = 'Ver vista previa';
+        previewToggleButton.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function togglePreview() {
+      if (isPreviewOpen) unmountPreview();
+      else mountPreview();
+    }
+
+    function mountQr() {
+      if (!qrMount || isQrOpen) return;
+      isQrOpen = true;
+      qrMount.innerHTML = `
+        <div class="landing-qr-box">
+          <img src="${escapeHtml(QR_SVG_PATH)}" alt="QR de Landing QR" loading="lazy" decoding="async" data-qr-image />
+        </div>
+        <div class="landing-qr-download__actions">
+          <a class="landing-btn" href="${escapeHtml(QR_PNG_PATH)}" download="landing-qr-${escapeHtml(QR_FILE_SLUG)}.png">Descargar PNG</a>
+          <a class="landing-btn" href="${escapeHtml(QR_SVG_PATH)}" download="landing-qr-${escapeHtml(QR_FILE_SLUG)}.svg">Descargar SVG</a>
+        </div>
+      `;
+      if (qrToggleButton) {
+        qrToggleButton.textContent = 'Ocultar QR';
+        qrToggleButton.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    function unmountQr() {
+      isQrOpen = false;
+      if (qrMount) qrMount.innerHTML = '';
+      if (qrToggleButton) {
+        qrToggleButton.textContent = 'Ver QR para imprimir';
+        qrToggleButton.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    function toggleQr() {
+      if (isQrOpen) unmountQr();
+      else mountQr();
+    }
+
     function showAlert(message, type = 'success') {
       if (landingAlertTimer) {
         window.clearTimeout(landingAlertTimer);
@@ -1349,9 +1495,15 @@ const qrPngPath = `${publicPath}/qr.png`;
     function renderHeroPreview() {
       if (!heroImageFieldAvailable) {
         if (heroPreview) {
-          heroPreview.innerHTML = '<span>La imagen destacada estara disponible cuando se aplique la migracion de Landing QR.</span>';
+          heroPreview.innerHTML = `
+            <span class="landing-hero-preview__thumb">--</span>
+            <span class="landing-hero-preview__copy">
+              <strong>Imagen destacada no disponible</strong>
+              <small>Aplica la migración de Landing QR para activarla.</small>
+            </span>
+          `;
         }
-        if (previewHero) {
+        if (isPreviewOpen && previewHero) {
           previewHero.classList.add('hidden');
           previewHero.innerHTML = '';
         }
@@ -1368,10 +1520,24 @@ const qrPngPath = `${publicPath}/qr.png`;
       const imageUrl = pendingHeroImagePreviewUrl || (!removeHeroImage ? currentHeroImageUrl : '');
       if (heroPreview) {
         heroPreview.innerHTML = imageUrl
-          ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`
-          : '<span>Sin imagen destacada</span>';
+          ? `
+            <span class="landing-hero-preview__thumb">
+              <img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />
+            </span>
+            <span class="landing-hero-preview__copy">
+              <strong>Imagen destacada actual</strong>
+              <small>Toca para cambiarla.</small>
+            </span>
+          `
+          : `
+            <span class="landing-hero-preview__thumb">16:9</span>
+            <span class="landing-hero-preview__copy">
+              <strong>Sin imagen destacada</strong>
+              <small>Toca para subir una imagen.</small>
+            </span>
+          `;
       }
-      if (previewHero) {
+      if (isPreviewOpen && previewHero) {
         previewHero.classList.toggle('hidden', !imageUrl);
         previewHero.innerHTML = imageUrl
           ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`
@@ -1606,6 +1772,8 @@ const qrPngPath = `${publicPath}/qr.png`;
     }
 
     function renderPreview() {
+      if (!isPreviewOpen || !previewMount) return;
+      if (!previewTitle || !previewSubtitle || !previewLinks) refreshPreviewRefs();
       if (previewTitle) previewTitle.textContent = cleanText(titleField?.value, 80) || 'Escanea y conecta con nosotros';
       if (previewSubtitle) previewSubtitle.textContent = cleanText(subtitleField?.value, 140) || 'Calidad, ofertas y atención rápida en un solo lugar';
       renderPreviewLogo();
@@ -1809,6 +1977,7 @@ const qrPngPath = `${publicPath}/qr.png`;
       links = storedLinks.length ? storedLinks : suggestedLinks();
       hasUnsavedChanges = false;
       updateSaveButtonState();
+      renderHeroPreview();
       renderLinks();
     }
 
@@ -2032,6 +2201,16 @@ const qrPngPath = `${publicPath}/qr.png`;
         return;
       }
 
+      if (target.closest('[data-toggle-preview]')) {
+        togglePreview();
+        return;
+      }
+
+      if (target.closest('[data-toggle-qr]')) {
+        toggleQr();
+        return;
+      }
+
       if (target.closest('[data-select-hero-image]')) {
         heroImageInput?.click();
         return;
@@ -2116,6 +2295,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     loadSettings().catch((error) => {
       showAlert(error?.message || 'No se pudo cargar la configuración de Landing QR.', 'error');
       links = suggestedLinks();
+      renderHeroPreview();
       renderLinks();
     });
   })();
