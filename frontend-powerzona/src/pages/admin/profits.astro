@@ -100,7 +100,7 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
         color: #fff;
         box-shadow: 0 14px 28px rgba(37,99,235,.22);
       }
-      .profits-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+      .profits-kpi-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
       .profits-kpi {
         min-height: 128px;
         padding: 16px;
@@ -176,7 +176,7 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
           <div class="profits-head">
             <div>
               <h2>Resumen de rentabilidad</h2>
-              <p>Ventas, costo estimado, ganancia y margen del período.</p>
+              <p>Ventas, costo estimado y ganancia del período.</p>
             </div>
 
             <div class="profits-period-tabs">
@@ -317,8 +317,7 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
         const totalSale = rows.reduce((sum, row) => sum + row.productSale, 0);
         const totalCost = rows.reduce((sum, row) => sum + row.cost, 0);
         const totalProfit = rows.reduce((sum, row) => sum + row.profit, 0);
-        const averageMargin = totalSale > 0 ? (totalProfit / totalSale) * 100 : 0;
-        return { rows, totalSale, totalCost, totalProfit, averageMargin };
+        return { rows, totalSale, totalCost, totalProfit };
       }
       function renderProfits() {
         const data = computeProfits();
@@ -326,7 +325,6 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
           <article class="profits-kpi"><span class="profits-kpi-icon green">$</span><p>Ganancia total</p><strong>${escapeHtml(formatUSD(data.totalProfit))}</strong></article>
           <article class="profits-kpi"><span class="profits-kpi-icon blue">↗</span><p>Ventas confirmadas</p><strong>${escapeHtml(formatUSD(data.totalSale))}</strong></article>
           <article class="profits-kpi"><span class="profits-kpi-icon orange">−</span><p>Costo estimado</p><strong>${escapeHtml(formatUSD(data.totalCost))}</strong></article>
-          <article class="profits-kpi"><span class="profits-kpi-icon purple">%</span><p>Margen promedio</p><strong>${data.averageMargin.toFixed(1)}%</strong></article>
         `;
         if (!data.rows.length) {
           orderList.innerHTML = '<div class="profits-empty">No hay órdenes confirmadas o entregadas en este período.</div>';

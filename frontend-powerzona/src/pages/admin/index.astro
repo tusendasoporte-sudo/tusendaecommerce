@@ -3435,6 +3435,21 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				font-weight: 650;
 			}
 
+			.business-summary-panel-head {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				gap: 16px;
+			}
+
+			.business-summary-panel-head > div {
+				min-width: 0;
+			}
+
+			.business-summary-panel-head .pz-admin-btn {
+				flex: 0 0 auto;
+			}
+
 			.business-summary-big-number {
 				display: block;
 				margin-top: 22px;
@@ -4102,6 +4117,15 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					padding: 18px;
 				}
 
+				.business-summary-panel-head {
+					display: grid;
+					gap: 12px;
+				}
+
+				.business-summary-panel-head .pz-admin-btn {
+					width: 100%;
+				}
+
 				.visit-analytics-big-number {
 					font-size: clamp(38px, 15vw, 54px);
 				}
@@ -4524,9 +4548,14 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						</div>
 
 						<div class="business-summary-panel" data-business-summary-panel="profit">
-							<h3 class="business-summary-panel-title">Ganancia estimada</h3>
+							<div class="business-summary-panel-head">
+								<div>
+									<h3 class="business-summary-panel-title">Ganancia estimada</h3>
+									<p class="business-summary-panel-help">Ganancia calculada según costos y ventas del periodo.</p>
+								</div>
+								<a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminProfitsPath}><span class="pz-admin-btn__label">Ver detalle de ganancias</span></a>
+							</div>
 							<strong id="business-profit-total" class="business-summary-big-number">0.00 USD</strong>
-							<p class="business-summary-panel-help">Ganancia calculada según costos y ventas del periodo.</p>
 							<div id="business-profit-chart" class="business-line-chart"></div>
 						</div>
 
@@ -4539,7 +4568,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						</div>
 					</section>
 
-					<section class="dashboard-block dashboard-profit-control-block" aria-labelledby="dashboard-profit-title"><div class="dashboard-block-head"><div><h2 id="dashboard-profit-title" class="dashboard-block-title">Ganancia y control</h2><p class="dashboard-block-subtitle">Controla rentabilidad, envíos, vencimientos y stock.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminProfitsPath}><span class="pz-admin-btn__label">Ver detalle de ganancias</span></a></div><div class="analytics-card-grid analytics-card-grid-secondary" id="profit-kpi-grid"></div></section>
+					<section class="dashboard-block dashboard-profit-control-block" aria-labelledby="dashboard-profit-title"><div class="dashboard-block-head"><div><h2 id="dashboard-profit-title" class="dashboard-block-title">Control</h2><p class="dashboard-block-subtitle">Supervisa productos, envíos, vencimientos y stock.</p></div></div><div class="analytics-card-grid analytics-card-grid-secondary" id="profit-kpi-grid"></div></section>
 
 					<section class="dashboard-block dashboard-activity-block admin-recent-activity-card" aria-labelledby="dashboard-activity-title">
 						<div class="recent-activity-head">
