@@ -6443,14 +6443,15 @@ try {
       })();
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, adminAuthToken, publicStorePath }}>
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
+        const CURRENT_STORE_NAME = String(currentStoreName || '');
         const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
         const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-        const DEFAULT_REVIEW_WHATSAPP_MESSAGE = "Hola {cliente} \ud83d\udc4b\n\nGracias por tu compra en {tienda}.\n\nNos ayudar\u00eda mucho si puedes dejar una rese\u00f1a sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqu\u00ed:\n{link_rese\u00f1a}\n\nGracias \ud83d\ude4c";
+        const DEFAULT_REVIEW_WHATSAPP_MESSAGE = "Hola {cliente}\n\nGracias por tu compra en {tienda}.\n\nNos ayudaria mucho si puedes dejar una resena sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqui:\n{link_rese\u00f1a}\n\nGracias\n{tienda}";
         const form = document.getElementById('rating-settings-form');
         const alertBox = document.getElementById('rating-settings-alert');
         const pendingAlertBox = document.getElementById('rating-pending-alert');
@@ -7016,14 +7017,49 @@ try {
             ? readyReviewOrders.slice(0, 3).map(readyOrderCompactRow).join('')
             : '<div class="empty-state">No hay &oacute;rdenes listas para pedir rese&ntilde;a.</div>';
         }
+        function reviewMessageStoreName() {
+          return settingsRecord?.store_name
+            || settingsRecord?.stored_name
+            || settingsRecord?.business_name
+            || CURRENT_STORE_NAME
+            || 'tu tienda';
+        }
+        function reviewTemplateHasBrokenEncoding(template) {
+          const text = String(template || '');
+          return text.includes('\uFFFD') || text.includes('\u00ef\u00bf\u00bd') || /[\uD800-\uDBFF][\uDC00-\uDFFF]/.test(text);
+        }
+        function cleanReviewMessageText(message) {
+          return String(message || '')
+            .replace(/\uFFFD/g, '')
+            .replace(/\u00ef\u00bf\u00bd/g, '')
+            .replace(/\r\n?/g, '\n')
+            .trim();
+        }
+        function activeReviewWhatsappTemplate() {
+          const template = String(settingsRecord?.review_whatsapp_message || fields.reviewWhatsappMessage?.value || '').trim();
+          if (!template || reviewTemplateHasBrokenEncoding(template)) return DEFAULT_REVIEW_WHATSAPP_MESSAGE;
+          return template;
+        }
+        function ensureReviewMessageSignature(message, storeName) {
+          const lines = cleanReviewMessageText(message).split('\n').map((line) => line.trimEnd());
+          while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+          const lastLine = String(lines[lines.length - 1] || '').trim();
+          if (lastLine.toLowerCase() === String(storeName || '').trim().toLowerCase()) return lines.join('\n').trim();
+          if (lastLine.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim() === 'gracias') {
+            lines.push(storeName);
+            return lines.join('\n').trim();
+          }
+          return `${lines.join('\n').trim()}\n\nGracias\n${storeName}`.trim();
+        }
         function reviewRequestMessage(order, reviewLink) {
-          const template = settingsRecord?.review_whatsapp_message || fields.reviewWhatsappMessage?.value || DEFAULT_REVIEW_WHATSAPP_MESSAGE;
-          return String(template)
+          const storeName = reviewMessageStoreName();
+          const message = activeReviewWhatsappTemplate()
             .replace(/\{cliente\}/g, order.customer_name || 'cliente')
-            .replace(/\{tienda\}/g, settingsRecord?.store_name || settingsRecord?.stored_name || 'PowerZona')
+            .replace(/\{tienda\}/g, storeName)
             .replace(/\{link_rese\u00f1a\}/g, reviewLink)
-            .replace(/\{link_rese\u00f1a\}/g, reviewLink)
+            .replace(/\{link_resena\}/g, reviewLink)
             .replace(/\{numero_orden\}/g, order.order_number || '');
+          return ensureReviewMessageSignature(message, storeName);
         }
         async function patchOrder(orderId, payload) {
           return api('/api/collections/orders/records/' + encodeURIComponent(orderId), {

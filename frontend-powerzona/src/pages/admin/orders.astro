@@ -1106,10 +1106,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
       )}
     </div>
 
-    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, adminOrdersPath, initialOrderId, isOrderDetailPage, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, currentStoreName, adminOrdersPath, initialOrderId, isOrderDetailPage, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
+      const CURRENT_STORE_NAME = String(currentStoreName || '');
       const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
       const INITIAL_ORDER_ID = String(initialOrderId || '');
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
@@ -1229,7 +1230,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       };
       const deliveryLabels = { delivery: 'Envío', pickup: 'Recogida', coordinate: 'Coordinar' };
 
-      const DEFAULT_REVIEW_WHATSAPP_MESSAGE = 'Hola {cliente}, gracias por comprar en {tienda}. Nos ayudas dejando tu rese\u00f1a de la orden {numero_orden} aqu\u00ed: {link_rese\u00f1a}';
+      const DEFAULT_REVIEW_WHATSAPP_MESSAGE = 'Hola {cliente}\n\nGracias por tu compra en {tienda}.\n\nNos ayudaria mucho si puedes dejar una resena sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqui:\n{link_rese\u00f1a}\n\nGracias\n{tienda}';
 
       function escapePocketBaseFilterValue(value) {
         return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -3257,20 +3258,58 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function getReviewStoreName() {
         return storeSettingsRecord?.store_name
+          || storeSettingsRecord?.stored_name
           || storeSettingsRecord?.business_name
           || storeSettingsRecord?.name
           || storeSettingsRecord?.title
+          || CURRENT_STORE_NAME
           || 'tu tienda';
       }
 
+      function reviewTemplateHasBrokenEncoding(template) {
+        const text = String(template || '');
+        return text.includes('\uFFFD') || text.includes('\u00ef\u00bf\u00bd') || /[\uD800-\uDBFF][\uDC00-\uDFFF]/.test(text);
+      }
+
+      function cleanReviewMessageText(message) {
+        return String(message || '')
+          .replace(/\uFFFD/g, '')
+          .replace(/\u00ef\u00bf\u00bd/g, '')
+          .replace(/\r\n?/g, '\n')
+          .trim();
+      }
+
+      function reviewWhatsappTemplate() {
+        const template = String(storeSettingsRecord?.review_whatsapp_message || '').trim();
+        if (!template || reviewTemplateHasBrokenEncoding(template)) return DEFAULT_REVIEW_WHATSAPP_MESSAGE;
+        return template;
+      }
+
+      function ensureReviewSignature(message, storeName) {
+        const cleanMessage = cleanReviewMessageText(message);
+        const lines = cleanMessage.split('\n').map((line) => line.trimEnd());
+        while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+        const lastLine = String(lines[lines.length - 1] || '').trim();
+        if (lastLine.toLowerCase() === String(storeName || '').trim().toLowerCase()) return lines.join('\n').trim();
+
+        const lastLineWords = lastLine.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+        if (lastLineWords === 'gracias') {
+          lines.push(storeName);
+          return lines.join('\n').trim();
+        }
+
+        return `${lines.join('\n').trim()}\n\nGracias\n${storeName}`.trim();
+      }
+
       function buildReviewWhatsappMessage(order, reviewUrl) {
-        const template = String(storeSettingsRecord?.review_whatsapp_message || DEFAULT_REVIEW_WHATSAPP_MESSAGE);
-        return template
+        const storeName = getReviewStoreName();
+        const message = reviewWhatsappTemplate()
           .replace(/\{cliente\}/g, order?.customer_name || 'cliente')
-          .replace(/\{tienda\}/g, getReviewStoreName())
+          .replace(/\{tienda\}/g, storeName)
           .replace(/\{numero_orden\}/g, order?.order_number || '')
           .replace(/\{link_rese\u00f1a\}/g, reviewUrl)
           .replace(/\{link_resena\}/g, reviewUrl);
+        return ensureReviewSignature(message, storeName);
       }
 
       async function openReviewWhatsApp() {
