@@ -1249,6 +1249,41 @@ const isOrderDetailPage = Boolean(initialOrderId);
         return value !== null && value !== undefined && String(value).trim() !== '';
       }
 
+      function cleanPhoneDigits(value) {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (digits.startsWith('00')) digits = digits.slice(2);
+        if (digits.startsWith('011') && digits.length > 11) digits = digits.slice(3);
+        return digits;
+      }
+
+      function normalizeStoredWhatsAppPhone(value) {
+        const digits = cleanPhoneDigits(value);
+
+        if (digits.length === 8) {
+          return { isValid: true, phone: `53${digits}` };
+        }
+
+        if (digits.startsWith('53') && digits.length === 10) {
+          return { isValid: true, phone: digits };
+        }
+
+        if (digits.startsWith('1') && digits.length === 11) {
+          return { isValid: true, phone: digits };
+        }
+
+        if (digits.length >= 8 && digits.length <= 15) {
+          return { isValid: true, phone: digits };
+        }
+
+        return { isValid: false, phone: digits };
+      }
+
+      function normalizeEditableCustomerPhone(value) {
+        const rawPhone = String(value || '').trim();
+        if (!rawPhone) return { isValid: true, phone: '' };
+        return normalizeStoredWhatsAppPhone(rawPhone);
+      }
+
       function getOrderDetailPath(orderId) {
         return `${ADMIN_ORDERS_PATH.replace(/\/$/, '')}/${encodeURIComponent(orderId || '')}`;
       }
@@ -1699,7 +1734,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         updateDeliveryLivePreview();
       }
 
-      function getOrderEditorPayloadForAutoSave() {
+      function getOrderEditorPayloadForAutoSave(normalizedPhoneValue = undefined) {
         if (!selectedOrder) return null;
         const nextDeliveryMethod = editDeliveryMethod?.value || selectedOrder.delivery_method || 'delivery';
         const nextShippingZone = nextDeliveryMethod === 'delivery' ? getSelectedShippingZoneForEditor() : null;
@@ -1710,7 +1745,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         const nextTotal = orderSubtotal + nextShippingAmount;
         const payload = {
           customer_name: editCustomerName?.value.trim() || '',
-          customer_phone: editCustomerPhone?.value.trim() || '',
+          customer_phone: normalizedPhoneValue ?? (editCustomerPhone?.value.trim() || ''),
           customer_address: editCustomerAddress?.value.trim() || '',
           delivery_method: nextDeliveryMethod,
           shipping: nextShippingAmount,
@@ -1743,7 +1778,12 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       async function autoSaveOrderEditorFields() {
         if (!selectedOrder || isOrderEditingLocked()) return;
-        const payload = getOrderEditorPayloadForAutoSave();
+        const phoneValidation = normalizeEditableCustomerPhone(editCustomerPhone?.value || '');
+        if (!phoneValidation.isValid) {
+          setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de guardar.', 'error');
+          return;
+        }
+        const payload = getOrderEditorPayloadForAutoSave(phoneValidation.phone);
         if (!payload) return;
 
         if (orderAutoSaveRunning) {
@@ -1768,6 +1808,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           detailStatusBadge.textContent = getStatusLabel(selectedOrder.status);
           detailCustomer.textContent = selectedOrder.customer_name || 'Sin nombre';
           detailPhone.textContent = selectedOrder.customer_phone || 'Sin teléfono';
+          if (editCustomerPhone) editCustomerPhone.value = selectedOrder.customer_phone || '';
           updateShippingCostPreview();
           updateDeliveryLivePreview();
           renderStats();
@@ -3019,6 +3060,12 @@ const isOrderDetailPage = Boolean(initialOrderId);
           saveOrderBtn.disabled = false;
           return;
         }
+        const phoneValidation = normalizeEditableCustomerPhone(editCustomerPhone?.value || '');
+        if (!phoneValidation.isValid) {
+          setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de guardar.', 'error');
+          saveOrderBtn.disabled = false;
+          return;
+        }
         const hadStockDeducted = orderHasStockDeducted(previousOrder);
         const shouldDeductInventory = nextStatus === 'confirmed' && !hadStockDeducted;
         const shouldRestoreInventory = hadStockDeducted && ['pending', 'cancelled'].includes(nextStatus);
@@ -3043,7 +3090,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
           const payload = {
             customer_name: editCustomerName.value.trim(),
-            customer_phone: editCustomerPhone.value.trim(),
+            customer_phone: phoneValidation.phone,
             customer_address: editCustomerAddress.value.trim(),
             delivery_method: nextDeliveryMethod,
             shipping: nextShippingAmount,
@@ -3188,9 +3235,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function openWhatsAppOrder() {
         if (!selectedOrder) return;
-        const phone = String(selectedOrder.customer_phone || '').replace(/\D/g, '');
+        const phoneValidation = normalizeStoredWhatsAppPhone(selectedOrder.customer_phone);
+        if (!phoneValidation.isValid) {
+          setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de contactar.', 'error');
+          return;
+        }
         const message = buildCustomerContactMessage();
-        const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
+        const url = `https://wa.me/${phoneValidation.phone}?text=${encodeURIComponent(message)}`;
         window.open(url, '_blank', 'noopener,noreferrer');
       }
 
@@ -3348,12 +3399,17 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }
 
         try {
+          const phoneValidation = normalizeStoredWhatsAppPhone(selectedOrder.customer_phone);
+          if (!phoneValidation.isValid) {
+            setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de pedir la reseña.', 'error');
+            if (requestReviewBtn) requestReviewBtn.textContent = originalLabel;
+            return;
+          }
           const orderWithToken = await ensureSelectedOrderReviewToken();
           const reviewUrl = buildReviewUrl(orderWithToken);
           if (!reviewUrl) throw new Error('No se pudo generar el enlace público de reseña.');
           const message = buildReviewWhatsappMessage(orderWithToken, reviewUrl);
-          const phone = String(orderWithToken.customer_phone || '').replace(/\D/g, '');
-          const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(message)}` : `https://wa.me/?text=${encodeURIComponent(message)}`;
+          const whatsappUrl = `https://wa.me/${phoneValidation.phone}?text=${encodeURIComponent(message)}`;
           window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
 
           const updatedOrder = await apiRequest(`/api/collections/orders/records/${orderWithToken.id}?expand=shipping_zone,currency`, {

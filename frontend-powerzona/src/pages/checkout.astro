@@ -167,14 +167,28 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 								<label for="customer-phone" class="block text-sm font-semibold text-gray-700 mb-2">
 									Teléfono / WhatsApp <span class="text-red-500">*</span>
 								</label>
-								<input
-									id="customer-phone"
-									name="customer_phone"
-									type="tel"
-									placeholder="Ej: +53 5..."
-									autocomplete="tel"
-									class="checkout-field w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-								/>
+								<div class="flex flex-col sm:flex-row gap-3">
+									<select
+										id="customer-phone-country"
+										name="customer_phone_country"
+										class="checkout-field sm:w-36 bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+									>
+										<option value="CU" selected>CUB +53</option>
+										<option value="US">EE.UU +1</option>
+										<option value="OTHER">Otro</option>
+									</select>
+									<input
+										id="customer-phone"
+										name="customer_phone"
+										type="tel"
+										placeholder="Ej: 59224567"
+										autocomplete="tel"
+										class="checkout-field flex-1 w-full bg-gray-100 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+									/>
+								</div>
+								<p id="customer-phone-helper" class="text-xs text-gray-500 font-semibold mt-2">
+									Ej: 59224567. No hace falta escribir +53.
+								</p>
 								<p id="customer-phone-error" class="hidden text-xs text-red-500 font-semibold mt-2">
 									Escribe un teléfono válido para coordinar el pedido.
 								</p>
@@ -327,7 +341,10 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const checkoutForm = document.getElementById('checkout-form');
 
 		const customerName = document.getElementById('customer-name');
+		const customerPhoneCountry = document.getElementById('customer-phone-country');
 		const customerPhone = document.getElementById('customer-phone');
+		const customerPhoneHelper = document.getElementById('customer-phone-helper');
+		const customerPhoneError = document.getElementById('customer-phone-error');
 		const customerMunicipality = document.getElementById('customer-municipality');
 		const customerAddress = document.getElementById('customer-address');
 		const customerShippingZone = document.getElementById('customer-shipping-zone');
@@ -390,6 +407,28 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
 		const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Vuelve pronto.';
 		const BUSINESS_DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+		const PHONE_COUNTRY_OPTIONS = {
+			CU: {
+				prefix: '53',
+				localLength: 8,
+				placeholder: 'Ej: 59224567',
+				helper: 'Ej: 59224567. No hace falta escribir +53.',
+				error: 'El número de WhatsApp no es correcto. Para Cuba escribe 8 dígitos o usa +53 con 8 dígitos.',
+			},
+			US: {
+				prefix: '1',
+				localLength: 10,
+				placeholder: 'Ej: 3055551234',
+				helper: 'Ej: 3055551234. No hace falta escribir +1.',
+				error: 'El número de WhatsApp no es correcto. Para EE.UU escribe 10 dígitos o usa +1 con 10 dígitos.',
+			},
+			OTHER: {
+				prefix: '',
+				placeholder: 'Ej: +34 612 345 678',
+				helper: 'Escribe el número completo con código de país. Ej: +34 612 345 678.',
+				error: 'El número de WhatsApp no parece correcto. Escribe el número completo con código de país.',
+			},
+		};
 		const DEFAULT_BUSINESS_HOURS = {
 			monday: { enabled: false, open: '09:00', close: '18:00' },
 			tuesday: { enabled: false, open: '09:00', close: '18:00' },
@@ -899,6 +938,52 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				.replace(/'/g, '&#039;');
 		}
 
+		function cleanPhoneDigits(value) {
+			let digits = String(value || '').replace(/\D/g, '');
+			if (digits.startsWith('00')) digits = digits.slice(2);
+			if (digits.startsWith('011') && digits.length > 11) digits = digits.slice(3);
+			return digits;
+		}
+
+		function getSelectedPhoneCountry() {
+			const country = customerPhoneCountry?.value || 'CU';
+			return PHONE_COUNTRY_OPTIONS[country] ? country : 'CU';
+		}
+
+		function normalizeCheckoutWhatsAppPhone(value, countryCode = 'CU') {
+			const selectedCountry = PHONE_COUNTRY_OPTIONS[countryCode] ? countryCode : 'CU';
+			const digits = cleanPhoneDigits(value);
+
+			if (selectedCountry === 'CU') {
+				if (digits.length === 8) return { isValid: true, phone: `53${digits}`, country: 'CU' };
+				if (digits.startsWith('53') && digits.length === 10) return { isValid: true, phone: digits, country: 'CU' };
+				return { isValid: false, phone: digits, country: 'CU' };
+			}
+
+			if (selectedCountry === 'US') {
+				if (digits.length === 10) return { isValid: true, phone: `1${digits}`, country: 'US' };
+				if (digits.startsWith('1') && digits.length === 11) return { isValid: true, phone: digits, country: 'US' };
+				return { isValid: false, phone: digits, country: 'US' };
+			}
+
+			if (digits.length >= 8 && digits.length <= 15) {
+				return { isValid: true, phone: digits, country: 'OTHER' };
+			}
+
+			return { isValid: false, phone: digits, country: 'OTHER' };
+		}
+
+		function getPhoneCountryOption(countryCode = getSelectedPhoneCountry()) {
+			return PHONE_COUNTRY_OPTIONS[countryCode] || PHONE_COUNTRY_OPTIONS.CU;
+		}
+
+		function updateCustomerPhoneCopy() {
+			const option = getPhoneCountryOption();
+			if (customerPhone) customerPhone.placeholder = option.placeholder;
+			if (customerPhoneHelper) customerPhoneHelper.textContent = option.helper;
+			if (customerPhoneError) customerPhoneError.textContent = option.error;
+		}
+
 		function getShippingZonePrice(zone) {
 			if (!zone) return 0;
 		return Number(zone.price_usd ?? 0);	
@@ -1048,8 +1133,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function isValidPhone(value) {
-			const digits = String(value || '').replace(/\D/g, '');
-			return digits.length >= 6;
+			return normalizeCheckoutWhatsAppPhone(value, getSelectedPhoneCountry()).isValid;
 		}
 
 		function setError(id, show) {
@@ -1165,9 +1249,15 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function getCheckoutData() {
+			const rawPhone = customerPhone?.value.trim() || '';
+			const phoneCountry = getSelectedPhoneCountry();
+			const normalizedPhone = normalizeCheckoutWhatsAppPhone(rawPhone, phoneCountry);
+
 			return {
 				customer_name: customerName?.value.trim() || '',
-				customer_phone: customerPhone?.value.trim() || '',
+				customer_phone: normalizedPhone.isValid ? normalizedPhone.phone : rawPhone,
+				customer_phone_country: normalizedPhone.country,
+				customer_phone_raw: rawPhone,
 				customer_municipality: customerMunicipality?.value.trim() || '',
 				customer_address: customerAddress?.value.trim() || '',
 				customer_note: customerNote?.value.trim() || '',
@@ -1237,6 +1327,9 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		function validateCheckout(showErrors = false) {
 			const cart = validateGiftRulesOnCheckout();
 			const data = getCheckoutData();
+			const phoneValidation = normalizeCheckoutWhatsAppPhone(data.customer_phone_raw, data.customer_phone_country);
+			if (phoneValidation.isValid) data.customer_phone = phoneValidation.phone;
+			data.customer_phone_country = phoneValidation.country;
 			const requiresAddress = data.delivery_method === 'delivery';
 			const giftProblemMessage = getGiftRuleProblemMessage(cart);
 			const stockProblemItems = getStockProblemItems(cart);
@@ -1248,7 +1341,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				stock: stockProblemItems.length > 0,
 				variation: variationProblemItems.length > 0,
 				name: data.customer_name.length < 2,
-				phone: !isValidPhone(data.customer_phone),
+				phone: !phoneValidation.isValid,
 				delivery_method: !data.delivery_method,
 				municipality: requiresAddress && data.customer_municipality.length < 2,
 				shipping_zone: requiresAddress && !data.shipping_zone,
@@ -1257,6 +1350,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			};
 
 			if (showErrors) {
+				updateCustomerPhoneCopy();
 				setError('customer-name-error', errors.name);
 				setError('customer-phone-error', errors.phone);
 				setError('delivery-method-error', errors.delivery_method);
@@ -1265,6 +1359,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				setError('customer-address-error', errors.address);
 
 				setFieldInvalid(customerName, errors.name);
+				setFieldInvalid(customerPhoneCountry, errors.phone);
 				setFieldInvalid(customerPhone, errors.phone);
 				setFieldInvalid(customerMunicipality, errors.municipality);
 				setFieldInvalid(customerShippingZone, errors.shipping_zone);
@@ -1717,6 +1812,12 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		customerShippingZone?.addEventListener('change', () => {
 			checkoutSuccessAlert.classList.add('hidden');
 			renderCheckout();
+			validateCheckout(false);
+		});
+
+		customerPhoneCountry?.addEventListener('change', () => {
+			checkoutSuccessAlert.classList.add('hidden');
+			updateCustomerPhoneCopy();
 			validateCheckout(false);
 		});
 
@@ -2640,6 +2741,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		getActiveSettings().catch((error) => {
 		});
+
+		updateCustomerPhoneCopy();
 
 		loadShippingZones()
 			.catch((error) => {
