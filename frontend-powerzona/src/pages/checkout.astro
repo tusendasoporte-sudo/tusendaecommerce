@@ -27,6 +27,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			</p>
 		</div>
 
+		<div id="checkout-live-alert" class="hidden mb-6 rounded-2xl border border-blue-100 bg-blue-50 text-blue-800 p-4 text-sm font-bold"></div>
+
 		<div id="checkout-empty" class="hidden bg-white rounded-3xl border border-gray-100 shadow-sm p-8 text-center">
 			<div class="text-5xl mb-4">🛒</div>
 
@@ -35,7 +37,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			</h2>
 
 			<p class="text-gray-500 mb-6">
-				No hay productos para realizar el pedido. Te enviaremos nuevamente al catálogo.
+				No hay productos disponibles para realizar el pedido.
 			</p>
 
 			<a
@@ -339,6 +341,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const checkoutContent = document.getElementById('checkout-content');
 		const checkoutItems = document.getElementById('checkout-items');
 		const checkoutForm = document.getElementById('checkout-form');
+		const checkoutLiveAlert = document.getElementById('checkout-live-alert');
 
 		const customerName = document.getElementById('customer-name');
 		const customerPhoneCountry = document.getElementById('customer-phone-country');
@@ -385,6 +388,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		let checkoutLocked = false;
 		let activeSettingsCache = null;
 		let customerPhoneTouched = false;
+		let checkoutLiveMessages = [];
 		let businessHoursStatus = { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
 		const CURRENT_STORE_ID = currentStoreId || '';
 		const CURRENT_STORE_SLUG = currentStoreSlug || 'powerzona';
@@ -551,6 +555,55 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				window.dispatchEvent(new Event('cart-updated'));
 				renderCheckout();
 			}
+
+		function getCartValidator() {
+			return window.PZCartLiveValidator || null;
+		}
+
+		function isCartItemUnavailable(item) {
+			return Boolean(getCartValidator()?.isCartItemUnavailable?.(item));
+		}
+
+		function getValidCheckoutCart(cart) {
+			return getCartValidator()?.getValidCartItems?.(cart) || (Array.isArray(cart) ? cart.filter((item) => !isCartItemUnavailable(item)) : []);
+		}
+
+		function hasCheckoutProducts(cart) {
+			return getValidCheckoutCart(cart).some((item) => !isGiftCartItem(item));
+		}
+
+		function setCheckoutLiveMessages(messages = []) {
+			checkoutLiveMessages = [...new Set((messages || []).map((message) => String(message || '').trim()).filter(Boolean))].slice(0, 6);
+			if (!checkoutLiveAlert) return;
+			checkoutLiveAlert.classList.toggle('hidden', checkoutLiveMessages.length === 0);
+			checkoutLiveAlert.innerHTML = checkoutLiveMessages.length
+				? `<p>${escapeHtml(checkoutLiveMessages[0])}</p>${checkoutLiveMessages.length > 1 ? `<ul class="mt-2 space-y-1">${checkoutLiveMessages.slice(1).map((message) => `<li>${escapeHtml(message)}</li>`).join('')}</ul>` : ''}`
+				: '';
+		}
+
+		function saveLiveValidatedCheckoutCart(cart) {
+			const nextCart = persistCheckoutCartSnapshot(cart);
+			window.dispatchEvent(new Event('cart-updated'));
+			return nextCart;
+		}
+
+		async function runCheckoutLiveValidation({ force = false, removeUnavailable = false, reviewMessage = '' } = {}) {
+			const validator = getCartValidator();
+			if (!validator?.applyCartValidation) return null;
+			const result = await validator.applyCartValidation(getCart(), {
+				force,
+				removeUnavailable,
+				pocketbaseUrl: POCKETBASE_URL,
+				currentStoreId: CURRENT_STORE_ID,
+				saveCart: saveLiveValidatedCheckoutCart,
+			});
+			const summary = validator.getCartValidationSummary?.(result) || null;
+			const shouldShowMessages = Boolean(summary?.hasChanges || summary?.requiresReview || result?.removedCount);
+			if (shouldShowMessages) {
+				setCheckoutLiveMessages([reviewMessage, ...(summary?.messages || [])].filter(Boolean));
+			}
+			return { result, summary };
+		}
 
 		function normalizeGiftId(item) {
 			const rawValue = Array.isArray(item?.gift_id)
@@ -1392,7 +1445,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function validateCheckout(showErrors = false) {
-			const cart = validateGiftRulesOnCheckout();
+			const cart = getValidCheckoutCart(validateGiftRulesOnCheckout());
 			const data = getCheckoutData();
 			if (showErrors) customerPhoneTouched = true;
 			const phoneValidation = updatePhoneFieldState({ force: showErrors });
@@ -1548,7 +1601,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function renderCheckout() {
-			const cart = validateGiftRulesOnCheckout();
+			const cart = getValidCheckoutCart(validateGiftRulesOnCheckout());
 
 			const giftNotice = sessionStorage.getItem('powerzona_gift_notice');
 			if (giftNotice) {
@@ -1560,10 +1613,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			if (!cart.length || cart.filter((item) => !item.is_gift).length === 0) {
 				checkoutEmpty.classList.remove('hidden');
 				checkoutContent.classList.add('hidden');
-
-				setTimeout(() => {
-					window.location.href = homePath || '/';
-				}, 1800);
 
 				return;
 			}
@@ -2599,7 +2648,29 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 
 		async function createOrderAndItems(validation) {
-			let cart = validateGiftRulesOnCheckout();
+			const liveValidation = await runCheckoutLiveValidation({
+				force: true,
+				removeUnavailable: true,
+				reviewMessage: 'Actualizamos tu pedido. Revisa los cambios antes de confirmar.',
+			});
+			const liveResult = liveValidation?.result || null;
+			const liveChangedBeforeOrder = Boolean(
+				liveResult?.removedCount
+				|| liveResult?.availabilityChanged
+				|| liveResult?.quantityAdjusted
+				|| liveResult?.priceChanged
+				|| liveResult?.rulesChanged
+			);
+
+			if (liveChangedBeforeOrder) {
+				renderCheckout();
+				if (!hasCheckoutProducts(getCart())) {
+					throw new Error('Los productos de tu carrito ya no estan disponibles.');
+				}
+				throw new Error('Actualizamos tu pedido. Revisa los cambios antes de confirmar.');
+			}
+
+			let cart = getValidCheckoutCart(validateGiftRulesOnCheckout());
 			cart = await validateAndNormalizeLiveGiftForOrder(cart);
 			const stockProblemItems = getStockProblemItems(cart);
 			const variationProblemItems = getVariationProblemItems(cart);
@@ -2837,7 +2908,16 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		updateCustomerPhoneCopy();
 
-		loadShippingZones()
+		runCheckoutLiveValidation({
+			force: true,
+			removeUnavailable: true,
+			reviewMessage: 'Actualizamos tu pedido con la disponibilidad y precios actuales.',
+		})
+			.catch((error) => {
+				checkoutValidationAlert.textContent = error?.message || 'No se pudo actualizar tu pedido antes de continuar.';
+				checkoutValidationAlert.classList.remove('hidden');
+			})
+			.then(() => loadShippingZones())
 			.catch((error) => {
 				checkoutValidationAlert.textContent = error?.message || 'No se pudieron cargar las zonas de envío.';
 				checkoutValidationAlert.classList.remove('hidden');

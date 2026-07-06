@@ -123,6 +123,7 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 				migrateLegacyCart();
 			})();
 		</script>}
+		{!hideStoreFloatingUi && <script is:inline src="/cart-live-validator.js"></script>}
 		
 		<main class="flex flex-col min-h-screen w-full min-w-0">
 			<div class="w-full max-w-7xl mx-auto p-4 sm:p-6">

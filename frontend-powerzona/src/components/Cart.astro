@@ -42,6 +42,8 @@
     </button>
   </div>
 
+  <div id="cart-live-alert" class="hidden mx-5 mt-4 rounded-2xl border border-blue-100 bg-blue-50 text-blue-800 p-3 text-xs font-bold"></div>
+
   <div id="cart-items-container" class="flex-1 overflow-y-auto p-5 space-y-4"></div>
 
   <div class="p-5 border-t border-gray-100 bg-gray-50">
@@ -67,6 +69,7 @@
   const cartOverlay = document.getElementById('cart-overlay');
   const closeCartBtn = document.getElementById('close-cart-btn');
   const cartItemsContainer = document.getElementById('cart-items-container');
+  const cartLiveAlert = document.getElementById('cart-live-alert');
   const cartTotal = document.getElementById('cart-total');
   const checkoutBtn = document.getElementById('checkout-btn');
   const publicPathPrefix = String(window.PZ_PUBLIC_PATH_PREFIX || '').replace(/\/$/, '');
@@ -102,17 +105,113 @@
   };
   const hasMixedCurrency = (cart) => shouldSeparateUsdOnlyTotals() && cart.some((item) => Boolean(item.only_usd)) && cart.some((item) => !item.only_usd);
   const calculatePromotions = (cart) => window.PZPromotions?.calculateCartPromotions(cart, window.PZ_AUTOMATIC_PROMOTIONS || []) || null;
+  let cartNoticeMessages = [];
+  let cartReviewRequired = false;
+  let checkoutValidationRunning = false;
+
+  const escapeHtml = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+  const getCartValidator = () => window.PZCartLiveValidator || null;
+  const isCartItemUnavailable = (item) => Boolean(getCartValidator()?.isCartItemUnavailable?.(item))
+    || (!item?.is_gift && itemTracksStock(item) && !item.preorder && Number(item.stock || 0) <= 0);
+  const getValidCartItems = (cart) => getCartValidator()?.getValidCartItems?.(cart) || (cart || []).filter((item) => !isCartItemUnavailable(item));
+  const getUnavailableBadge = (item) => {
+    const status = String(item?.cart_validation_status || '');
+    const reason = String(item?.cart_validation_reason || '');
+    if (status === 'variation_unavailable' && reason === 'variation_out_of_stock') return 'Variacion agotada';
+    if (status === 'variation_unavailable') return 'Variacion no disponible';
+    if (status === 'unavailable') return 'No disponible';
+    return 'Agotado';
+  };
+  const getItemValidationMessages = (item) => {
+    const messages = Array.isArray(item?.cart_validation_messages)
+      ? item.cart_validation_messages
+      : [item?.cart_validation_message].filter(Boolean);
+    return [...new Set(messages.map((message) => String(message || '').trim()).filter(Boolean))];
+  };
+  const updateCartLiveAlert = (cart) => {
+    if (!cartLiveAlert) return;
+    const itemMessages = (cart || []).flatMap(getItemValidationMessages);
+    const messages = [...new Set([...cartNoticeMessages, ...itemMessages].filter(Boolean))].slice(0, 5);
+    cartLiveAlert.classList.toggle('hidden', messages.length === 0);
+    cartLiveAlert.innerHTML = messages.length
+      ? `<p>${escapeHtml(messages[0])}</p>${messages.length > 1 ? `<ul class="mt-2 space-y-1">${messages.slice(1).map((message) => `<li>${escapeHtml(message)}</li>`).join('')}</ul>` : ''}`
+      : '';
+  };
+  const setCheckoutButtonLoading = (loading) => {
+    checkoutValidationRunning = Boolean(loading);
+    if (!checkoutBtn) return;
+    const shouldDisable = Boolean(loading) || isCheckoutPage || !getCart().length;
+    checkoutBtn.disabled = shouldDisable;
+    checkoutBtn.textContent = loading ? 'Actualizando carrito...' : 'Hacer el pedido';
+    checkoutBtn.classList.toggle('opacity-50', shouldDisable);
+    checkoutBtn.classList.toggle('cursor-not-allowed', shouldDisable);
+  };
+  const runCartLiveValidation = async ({ force = false, removeUnavailable = false } = {}) => {
+    const validator = getCartValidator();
+    if (!validator?.applyCartValidation) return null;
+    const result = await validator.applyCartValidation(getCart(), {
+      force,
+      removeUnavailable,
+      pocketbaseUrl: window.PZ_POCKETBASE_URL,
+      currentStoreId,
+      saveCart,
+    });
+    const summary = validator.getCartValidationSummary?.(result) || null;
+    if (summary?.messages?.length) {
+      cartNoticeMessages = summary.messages;
+    }
+    if (summary?.requiresReview) {
+      cartReviewRequired = true;
+    }
+    return { result, summary };
+  };
 
 if (isCheckoutPage) {
   floatingBtn?.classList.add('hidden');
   cartOverlay?.classList.add('hidden');
   cartSidebar?.classList.add('translate-x-full');
 }
-  checkoutBtn?.addEventListener('click', () => {
-    const cart = getCart();
-    if (!cart.length) return;
+  checkoutBtn?.addEventListener('click', async () => {
+    if (checkoutValidationRunning) return;
+    if (!getCart().length) return;
 
-    // Respaldo seguro para que el checkout reciba el carrito aunque el navegador tarde en sincronizar localStorage.
+    setCheckoutButtonLoading(true);
+    let validation = null;
+
+    try {
+      validation = await runCartLiveValidation({ force: true, removeUnavailable: true });
+    } catch (_) {
+      cartNoticeMessages = ['No pudimos actualizar el carrito. Intenta nuevamente antes de continuar.'];
+      window.dispatchEvent(new Event('cart-updated'));
+      setCheckoutButtonLoading(false);
+      return;
+    }
+
+    const cart = getCart();
+    const validProducts = getValidCartItems(cart).filter((item) => !item.is_gift);
+    const shouldReview = Boolean(cartReviewRequired || validation?.summary?.requiresReview || validation?.result?.removedCount);
+
+    if (!validProducts.length) {
+      cartNoticeMessages = ['Los productos de tu carrito ya no estan disponibles.'];
+      cartReviewRequired = false;
+      window.dispatchEvent(new Event('cart-updated'));
+      setCheckoutButtonLoading(false);
+      return;
+    }
+
+    if (shouldReview) {
+      cartNoticeMessages = ['Actualizamos tu carrito. Revisa los cambios y vuelve a tocar Hacer el pedido.'];
+      cartReviewRequired = false;
+      window.dispatchEvent(new Event('cart-updated'));
+      setCheckoutButtonLoading(false);
+      return;
+    }
+
     try {
       const payload = JSON.stringify(cart);
       localStorage.setItem(cartStorageKey(), payload);
@@ -155,6 +254,10 @@ if (isCheckoutPage) {
     }, 10);
 
     cartSidebar.classList.remove('translate-x-full');
+    runCartLiveValidation({ force: true, removeUnavailable: false }).catch(() => {
+      cartNoticeMessages = ['No pudimos actualizar el carrito en este momento.'];
+      window.dispatchEvent(new Event('cart-updated'));
+    });
   }
 
   function closeCart() {
@@ -172,9 +275,10 @@ if (isCheckoutPage) {
 
   window.addEventListener('cart-updated', () => {
     const cart = getCart();
+    const validCart = getValidCartItems(cart);
     const totalItems = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-    const hasUnavailableItems = cart.some((item) => itemTracksStock(item) && !item.preorder && (Number(item.stock || 0) <= 0 || Number(item.quantity || 1) > Number(item.stock || 0)));
-    
+    const hasCartItems = cart.length > 0;
+    updateCartLiveAlert(cart);
 
     cartCount.textContent = totalItems;
 
@@ -183,12 +287,11 @@ if (isCheckoutPage) {
   checkoutBtn.disabled = true;
   checkoutBtn.classList.add('opacity-50', 'cursor-not-allowed');
   closeCart();
-} else if (totalItems > 0) {
+} else if (hasCartItems) {
   floatingBtn.classList.remove('hidden');
-  checkoutBtn.disabled = hasUnavailableItems;
-  checkoutBtn.textContent = hasUnavailableItems ? 'Revisa productos agotados' : 'Hacer el pedido';
-  checkoutBtn.classList.toggle('opacity-50', hasUnavailableItems);
-  checkoutBtn.classList.toggle('cursor-not-allowed', hasUnavailableItems);
+  checkoutBtn.disabled = false;
+  checkoutBtn.textContent = 'Hacer el pedido';
+  checkoutBtn.classList.remove('opacity-50', 'cursor-not-allowed');
 } else {
   floatingBtn.classList.add('hidden');
   checkoutBtn.disabled = true;
@@ -200,8 +303,9 @@ if (isCheckoutPage) {
 
     cartItemsContainer.innerHTML = '';
 
-    const promotionTotals = calculatePromotions(cart);
-    const cartForRender = promotionTotals?.items || cart;
+    const promotionTotals = calculatePromotions(validCart);
+    const promotedItems = new Map((promotionTotals?.items || validCart).map((item) => [getItemKey(item), item]));
+    const cartForRender = cart.map((item) => promotedItems.get(getItemKey(item)) || item);
     let totalUSD = promotionTotals?.subtotalFinalUSD || 0;
     let visualConvertibleTotalUSD = promotionTotals?.localCurrencyTotal || 0;
     let usdOnlyTotalUSD = promotionTotals?.usdOnlyTotal || 0;
@@ -223,8 +327,11 @@ if (isCheckoutPage) {
         const price = Number(item.price || 0);
         const quantity = Number(item.quantity || 1);
         const stock = Number(item.stock || 0);
-        const lineTotal = Number(item.line_subtotal_final_usd ?? (price * quantity));
-        const lineOriginal = Number(item.line_subtotal_original_usd ?? (price * quantity));
+        const isUnavailable = isCartItemUnavailable(item);
+        const validationMessages = getItemValidationMessages(item);
+        const unavailableBadge = isUnavailable ? getUnavailableBadge(item) : '';
+        const lineTotal = isUnavailable ? 0 : Number(item.line_subtotal_final_usd ?? (price * quantity));
+        const lineOriginal = isUnavailable ? 0 : Number(item.line_subtotal_original_usd ?? (price * quantity));
         const lineDiscount = Number(item.line_discount_usd || 0);
         const regularPrice = Number(item.regular_price_usd || item.original_price_usd || price || 0);
         const hasOffer = Boolean(item.is_offer) && regularPrice > price && price > 0;
@@ -233,14 +340,14 @@ if (isCheckoutPage) {
         const hasAutomaticPromo = lineDiscount > 0 && Boolean(item.promotion_label);
         const tracksStock = itemTracksStock(item);
         const isPreorder = Boolean(item.preorder);
-        const isOutOfStock = tracksStock && stock <= 0 && !isPreorder;
-        const isOverStock = tracksStock && !isPreorder && !isOutOfStock && quantity > stock;
+        const isOutOfStock = !isUnavailable && tracksStock && stock <= 0 && !isPreorder;
+        const isOverStock = !isUnavailable && tracksStock && !isPreorder && !isOutOfStock && quantity > stock;
         const isGift = Boolean(item.is_gift);
-        const isAtMaxStock = isGift || (tracksStock && !isPreorder && !isOutOfStock && quantity >= stock);
+        const isAtMaxStock = isUnavailable || isGift || (tracksStock && !isPreorder && !isOutOfStock && quantity >= stock);
 
         cartItemsContainer.innerHTML += `
-          <div class="flex gap-4 border-b border-gray-100 pb-4 relative pr-8">
-            <img src="${item.image}" alt="${item.title}" class="w-16 h-16 object-cover rounded-lg">
+          <div class="flex gap-4 border-b border-gray-100 pb-4 relative pr-8 ${isUnavailable ? 'opacity-70' : ''}">
+            <img src="${item.image}" alt="${item.title}" class="w-16 h-16 object-cover rounded-lg ${isUnavailable ? 'grayscale' : ''}">
 
             <div class="flex-1">
               <h4 class="text-sm font-bold text-gray-800 line-clamp-2">
@@ -251,6 +358,10 @@ if (isCheckoutPage) {
                 <p class="text-xs text-green-700 font-black mt-1">Regalo incluido</p>
               ` : item.variation_label ? `
                 <p class="text-xs text-gray-500 font-bold mt-1">${item.variation_label}</p>
+              ` : ''}
+
+              ${isUnavailable ? `
+                <span class="inline-flex w-fit mt-2 text-[10px] font-black bg-red-100 text-red-700 px-2 py-1 rounded-full">${escapeHtml(unavailableBadge)}</span>
               ` : ''}
 
               ${hasOffer ? `
@@ -274,8 +385,16 @@ if (isCheckoutPage) {
                 </div>
               ` : ''}
 
+              ${validationMessages.length ? `
+                <div class="mt-2 rounded-xl bg-blue-50 border border-blue-100 px-3 py-2">
+                  ${validationMessages.map((message) => `<p class="text-[11px] text-blue-800 font-black">${escapeHtml(message)}</p>`).join('')}
+                </div>
+              ` : ''}
+
               ${item.is_gift ? `
                 <p class="text-xs text-gray-500 font-black mt-2">Disponible desde ${formatCartPrice(Number(item.min_order_usd || 0), { only_usd: false })}. Solo 1 regalo por orden.</p>
+              ` : isUnavailable ? `
+                <p class="text-xs text-red-600 font-black mt-2">Este producto ya no esta disponible y se quitara antes de continuar.</p>
               ` : !tracksStock ? `` : isPreorder ? `
                 <p class="text-xs text-blue-700 font-black mt-2">Preorden disponible. Se coordina por WhatsApp.</p>
               ` : isOutOfStock ? `
@@ -289,7 +408,12 @@ if (isCheckoutPage) {
                   <button
                     type="button"
                     data-key="${itemKey}"
-                    class="decrease-item-btn px-3 py-1.5 text-gray-700 hover:bg-gray-100 font-bold"
+                    ${isUnavailable ? 'disabled' : ''}
+                    class="decrease-item-btn px-3 py-1.5 font-bold ${
+                      isUnavailable
+                        ? 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }"
                   >
                     −
                   </button>
@@ -301,9 +425,9 @@ if (isCheckoutPage) {
                   <button
                     type="button"
                     data-key="${itemKey}"
-                    ${(isAtMaxStock || isOutOfStock) ? 'disabled' : ''}
+                    ${(isUnavailable || isAtMaxStock || isOutOfStock) ? 'disabled' : ''}
                     class="increase-item-btn px-3 py-1.5 font-bold ${
-                      (isAtMaxStock || isOutOfStock)
+                      (isUnavailable || isAtMaxStock || isOutOfStock)
                         ? 'text-gray-400 bg-gray-100 cursor-not-allowed opacity-60'
                         : 'text-gray-700 hover:bg-gray-100'
                     }"
@@ -313,11 +437,11 @@ if (isCheckoutPage) {
                 </div>
 
                 <span class="text-xs font-bold text-gray-600">
-                  ${item.is_gift ? 'Gratis' : (hasAutomaticPromo ? `${formatCartPrice(lineTotal, item)} <span class="text-gray-400 line-through ml-1">${formatCartPrice(lineOriginal, item)}</span>` : formatCartPrice(lineTotal, item))}
+                  ${isUnavailable ? 'No suma al total' : item.is_gift ? 'Gratis' : (hasAutomaticPromo ? `${formatCartPrice(lineTotal, item)} <span class="text-gray-400 line-through ml-1">${formatCartPrice(lineOriginal, item)}</span>` : formatCartPrice(lineTotal, item))}
                 </span>
               </div>
 
-              ${isAtMaxStock && !isOutOfStock ? `
+              ${isAtMaxStock && !isOutOfStock && !isUnavailable ? `
                 <p class="text-xs text-orange-600 font-semibold mt-2">
                   Stock máximo alcanzado (${stock} disponibles)
                 </p>
@@ -341,7 +465,7 @@ if (isCheckoutPage) {
       });
     }
 
-    if (hasMixedCurrency(cart)) {
+    if (hasMixedCurrency(validCart)) {
       cartTotal.textContent = `${formatCartPrice(visualConvertibleTotalUSD, { only_usd: false })} + ${formatCartPrice(usdOnlyTotalUSD, { only_usd: true })}`;
     } else if (usdOnlyTotalUSD > 0 && visualConvertibleTotalUSD <= 0) {
       cartTotal.textContent = formatCartPrice(usdOnlyTotalUSD, { only_usd: true });
@@ -361,7 +485,7 @@ if (isCheckoutPage) {
             const tracksStock = itemTracksStock(item);
             const isPreorder = Boolean(item.preorder);
 
-            if (item.is_gift || (tracksStock && !isPreorder && (stock <= 0 || quantity >= stock))) {
+            if (isCartItemUnavailable(item) || item.is_gift || (tracksStock && !isPreorder && (stock <= 0 || quantity >= stock))) {
               return item;
             }
 
@@ -386,6 +510,7 @@ if (isCheckoutPage) {
         const updatedCart = currentCart
           .map((item) => {
             if (getItemKey(item) === key) {
+              if (isCartItemUnavailable(item)) return item;
               const quantity = Number(item.quantity || 1);
 
               return {
