@@ -74,6 +74,7 @@
   const isCheckoutPage = window.location.pathname.replace(/\/$/, '') === checkoutPath.replace(/\/$/, '');
   const currentStoreId = String(window.PZ_CURRENT_STORE_ID || '');
   const cartStorage = window.PZCartStorage || null;
+  const ONE_TO_ONE_RATE_TOLERANCE = 0.000001;
   const parseCart = (value) => {
     try {
       const parsed = JSON.parse(value || '[]');
@@ -85,12 +86,21 @@
   const cartStorageKey = () => cartStorage?.getCartStorageKey?.() || window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${currentStoreId || 'powerzona'}`;
   const checkoutCartStorageKey = () => cartStorage?.getCheckoutStorageKey?.() || window.PZ_CHECKOUT_CART_STORAGE_KEY || `${cartStorageKey()}_checkout`;
   const itemTracksStock = (item) => item?.track_stock !== false;
-  const getSelectedCurrencyCode = () => window.PZCurrency?.selected?.code || 'USD';
+  const getSelectedCurrencyCode = () => String(window.PZCurrency?.selected?.code || 'USD').toUpperCase();
+  const getSelectedCurrencyObject = () => window.PZCurrency?.selected || null;
+  const isSelectedCurrencyOneToOne = () => {
+    const selectedCode = getSelectedCurrencyCode();
+    if (selectedCode === 'USD') return true;
+    const rate = Number(getSelectedCurrencyObject()?.exchange_rate);
+    return Number.isFinite(rate) && Math.abs(rate - 1) < ONE_TO_ONE_RATE_TOLERANCE;
+  };
+  const shouldSeparateUsdOnlyTotals = () => !isSelectedCurrencyOneToOne();
+  const shouldFormatItemAsOnlyUsd = (item = {}) => shouldSeparateUsdOnlyTotals() && Boolean(item.only_usd);
   const formatCartPrice = (amountUsd, item = {}) => {
-    if (window.PZCurrency?.formatVisualFromUsd) return window.PZCurrency.formatVisualFromUsd(amountUsd, { onlyUsd: Boolean(item.only_usd) });
+    if (window.PZCurrency?.formatVisualFromUsd) return window.PZCurrency.formatVisualFromUsd(amountUsd, { onlyUsd: shouldFormatItemAsOnlyUsd(item) });
     return '$' + Number(amountUsd || 0).toFixed(2) + ' USD';
   };
-  const hasMixedCurrency = (cart) => getSelectedCurrencyCode() !== 'USD' && cart.some((item) => Boolean(item.only_usd)) && cart.some((item) => !item.only_usd);
+  const hasMixedCurrency = (cart) => shouldSeparateUsdOnlyTotals() && cart.some((item) => Boolean(item.only_usd)) && cart.some((item) => !item.only_usd);
   const calculatePromotions = (cart) => window.PZPromotions?.calculateCartPromotions(cart, window.PZ_AUTOMATIC_PROMOTIONS || []) || null;
 
 if (isCheckoutPage) {

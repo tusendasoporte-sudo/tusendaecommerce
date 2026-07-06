@@ -51,6 +51,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
     const STORAGE_KEY = `powerzona_currency_${STORE_ID}`;
     const LEGACY_STORAGE_KEY = 'powerzona_currency';
     const SYSTEM_CODES = ['USD', 'CUP', 'EUR', 'CASHAPP', 'ZELLE'];
+    const ONE_TO_ONE_RATE_TOLERANCE = 0.000001;
     const getCartStorageKey = () => window.PZ_CART_STORAGE_KEY || window.PZCartStorage?.getCartStorageKey?.() || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
     const switcher = document.getElementById('pz-currency-switcher');
     const select = document.getElementById('pz-currency-select');
@@ -102,6 +103,13 @@ const { hideFloatingSwitcher = false } = Astro.props;
       return getCurrencies().find((currency) => currency.code === target) || getCurrencies()[0] || fallbackCurrencies()[0];
     }
 
+    function isCurrencyOneToOne(currency) {
+      const code = String(currency?.code || '').toUpperCase();
+      if (code === 'USD') return true;
+      const rate = Number(currency?.exchange_rate);
+      return Number.isFinite(rate) && Math.abs(rate - 1) < ONE_TO_ONE_RATE_TOLERANCE;
+    }
+
     function formatMoney(amount, currencyCode) {
       const currency = getCurrency(currencyCode);
       const value = Number(amount || 0);
@@ -123,7 +131,8 @@ const { hideFloatingSwitcher = false } = Astro.props;
     function formatVisualFromUsd(amountUsd, options = {}) {
       const onlyUsd = Boolean(options.onlyUsd);
       const selected = getCurrency(state.selectedCode || state.defaultCode);
-      if (onlyUsd || selected.code === 'USD') return formatUsd(amountUsd);
+      if (selected.code === 'USD') return formatUsd(amountUsd);
+      if (onlyUsd && !isCurrencyOneToOne(selected)) return formatUsd(amountUsd);
       return formatMoney(convertFromUsd(amountUsd, selected.code), selected.code);
     }
 
@@ -160,6 +169,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
         convertFromUsd,
         formatVisualFromUsd,
         formatShipping,
+        isCurrencyOneToOne,
       };
       updatePriceNodes();
       window.dispatchEvent(new CustomEvent('pz-currency-ready', { detail: window.PZCurrency }));
@@ -258,6 +268,7 @@ const { hideFloatingSwitcher = false } = Astro.props;
       convertFromUsd,
       formatVisualFromUsd,
       formatShipping,
+      isCurrencyOneToOne,
     };
 
     document.addEventListener('DOMContentLoaded', () => updatePriceNodes());

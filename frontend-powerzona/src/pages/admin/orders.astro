@@ -1317,29 +1317,42 @@ const isOrderDetailPage = Boolean(initialOrderId);
         const code = getOrderCurrencyCode(order);
         const list = Array.isArray(items) ? items : (orderItemsByOrder[order?.id] || []);
         const subtotalUSD = Number(order?.subtotal ?? Math.max(0, Number(order?.total || 0) - Number(order?.shipping || 0)));
-        let usdOnlyUSD = Number(order?.usd_only_total || 0);
-        if (!usdOnlyUSD && list.length) {
+        const isMixedPayment = order?.mixed_payment === true;
+        const storedUsdOnlyUSD = Number(order?.usd_only_total || 0);
+        const storedSelectedProductTotal = Number(order?.local_currency_total || 0);
+        const hasStandaloneUsdOnly = !isMixedPayment && code !== 'USD' && storedUsdOnlyUSD > 0 && storedSelectedProductTotal <= 0;
+        let usdOnlyUSD = (isMixedPayment || hasStandaloneUsdOnly) ? storedUsdOnlyUSD : 0;
+        if (isMixedPayment && !usdOnlyUSD && list.length) {
           usdOnlyUSD = list.reduce((sum, item) => Boolean(item.only_usd) ? sum + Number(item.line_total_usd || 0) : sum, 0);
         }
-        let convertibleUSD = Math.max(0, subtotalUSD - usdOnlyUSD);
-        if (list.length) {
+        let convertibleUSD = hasStandaloneUsdOnly ? 0 : Math.max(0, subtotalUSD - usdOnlyUSD);
+        if (isMixedPayment && list.length) {
           const fromItems = list.reduce((sum, item) => !Boolean(item.only_usd) ? sum + Number(item.line_total_usd || 0) : sum, 0);
           if (fromItems > 0 || usdOnlyUSD > 0) convertibleUSD = fromItems;
         }
 
-        const selectedProductTotal = code === 'USD' ? convertibleUSD : Number(order?.local_currency_total || convertOrderUsdToSelected(order, convertibleUSD));
+        const selectedProductTotal = code === 'USD'
+          ? (isMixedPayment ? convertibleUSD : subtotalUSD)
+          : (hasStandaloneUsdOnly ? 0 : Number(order?.local_currency_total || convertOrderUsdToSelected(order, convertibleUSD)));
         const shippingUSD = Number(order?.shipping || 0);
         const shippingSelected = code === 'USD' ? shippingUSD : Number(order?.shipping_cup || convertOrderUsdToSelected(order, shippingUSD));
 
-        return { code, subtotalUSD, convertibleUSD, usdOnlyUSD, selectedProductTotal, shippingUSD, shippingSelected, totalInternalUSD: subtotalUSD + shippingUSD };
+        return { code, subtotalUSD, convertibleUSD, usdOnlyUSD, selectedProductTotal, shippingUSD, shippingSelected, totalInternalUSD: subtotalUSD + shippingUSD, isMixedPayment, hasStandaloneUsdOnly };
       }
 
       function getOrderVisualSummaryLines(order, items = null) {
         const data = getOrderVisualBreakdown(order, items);
         const lines = [];
-        if (data.code !== 'USD' && data.convertibleUSD > 0) lines.push(`Productos ${data.code}: ${formatVisualAmount(data.selectedProductTotal, data.code)}`);
-        if (data.usdOnlyUSD > 0) lines.push(`Productos USD: ${formatUSD(data.usdOnlyUSD)}`);
-        if (data.code === 'USD' && data.usdOnlyUSD <= 0) lines.push(`Productos USD: ${formatUSD(data.subtotalUSD)}`);
+        if (data.isMixedPayment) {
+          if (data.code !== 'USD' && data.convertibleUSD > 0) lines.push(`Productos ${data.code}: ${formatVisualAmount(data.selectedProductTotal, data.code)}`);
+          if (data.usdOnlyUSD > 0) lines.push(`Productos USD: ${formatUSD(data.usdOnlyUSD)}`);
+        } else if (data.hasStandaloneUsdOnly) {
+          lines.push(`Productos USD: ${formatUSD(data.usdOnlyUSD)}`);
+        } else if (data.code === 'USD') {
+          lines.push(`Productos USD: ${formatUSD(data.subtotalUSD)}`);
+        } else {
+          lines.push(`Productos ${data.code}: ${formatVisualAmount(data.selectedProductTotal || convertOrderUsdToSelected(order, data.subtotalUSD), data.code)}`);
+        }
         if (!lines.length) lines.push(`Productos ${data.code}: ${formatVisualAmount(data.selectedProductTotal || data.subtotalUSD, data.code)}`);
         lines.push(`Envío: ${data.shippingUSD > 0 ? (data.code !== 'USD' ? `${formatUSD(data.shippingUSD)} / ${formatVisualAmount(data.shippingSelected, data.code)}` : formatUSD(data.shippingUSD)) : 'Sin costo / pendiente'}`);
         return lines;

@@ -249,9 +249,9 @@ const receiptSeo = {
       return `${item.product_name || 'Producto'}${variation ? ` (${variation})` : ''}`;
     }
 
-    function getItemTotal(item, currencyCode) {
+    function getItemTotal(item, currencyCode, isMixedPayment = false) {
       if (item.is_gift) return 'Gratis';
-      if (item.only_usd) return formatUSD(item.line_total_usd);
+      if (isMixedPayment && item.only_usd) return formatUSD(item.line_total_usd);
       if (currencyCode !== 'USD' && Number(item.line_total_selected_currency || 0) > 0) {
         return formatMoney(item.line_total_selected_currency, currencyCode);
       }
@@ -264,11 +264,12 @@ const receiptSeo = {
       const subtotal = Number(order.subtotal || 0);
       const shippingUsd = Number(order.shipping || 0);
       const shippingVisual = Number(order.shipping_cup || 0);
+      const isMixedPayment = order.mixed_payment === true;
       const hasUsdOnly = usdOnlyTotal > 0;
       const hasLocal = currencyCode !== 'USD' && localCurrencyTotal > 0;
       const rows = [];
 
-      if (currencyCode !== 'USD' && hasUsdOnly && hasLocal) {
+      if (isMixedPayment && currencyCode !== 'USD' && hasUsdOnly && hasLocal) {
         rows.push(['Productos convertibles', formatMoney(localCurrencyTotal, currencyCode)]);
         rows.push(['Productos solo USD', formatUSD(usdOnlyTotal)]);
       } else if (currencyCode !== 'USD' && hasUsdOnly && !hasLocal) {
@@ -481,6 +482,7 @@ const receiptSeo = {
         'subtotal',
         'shipping',
         'shipping_cup',
+        'mixed_payment',
         'usd_only_total',
         'local_currency_total',
         'expand.shipping_zone.municipality',
@@ -525,7 +527,7 @@ const receiptSeo = {
         const itemName = getItemName(item);
         const itemInitial = String(itemName || 'P').trim().slice(0, 1).toUpperCase();
         const quantity = item.is_gift ? 1 : Number(item.quantity || 0);
-        const total = getItemTotal(item, currencyCode);
+        const total = getItemTotal(item, currencyCode, order.mixed_payment === true);
 
         return `
           <div class="receipt-item-card">
