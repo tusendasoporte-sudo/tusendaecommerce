@@ -56,8 +56,8 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 
 				function migrateLegacyCart() {
 					if (!shouldMigrateLegacy) return;
-					const currentCart = parseCart(localStorage.getItem(cartStorageKey));
-					if (currentCart.length) return;
+					const currentRawCart = localStorage.getItem(cartStorageKey);
+					if (currentRawCart !== null) return;
 					const legacyCart = parseCart(localStorage.getItem(legacyCartStorageKey));
 					if (!legacyCart.length) return;
 					const payload = JSON.stringify(legacyCart);
@@ -69,8 +69,8 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 
 				function readCart() {
 					migrateLegacyCart();
-					const cart = parseCart(localStorage.getItem(cartStorageKey));
-					if (cart.length) return cart;
+					const currentRawCart = localStorage.getItem(cartStorageKey);
+					if (currentRawCart !== null) return parseCart(currentRawCart);
 					const checkoutBackup = parseCart(sessionStorage.getItem(checkoutCartStorageKey));
 					if (checkoutBackup.length) {
 						localStorage.setItem(cartStorageKey, JSON.stringify(checkoutBackup));
@@ -84,9 +84,27 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 					const payload = JSON.stringify(safeCart);
 					localStorage.setItem(cartStorageKey, payload);
 					if (safeCart.length) sessionStorage.setItem(checkoutCartStorageKey, payload);
-					else sessionStorage.removeItem(checkoutCartStorageKey);
+					else {
+						sessionStorage.removeItem(checkoutCartStorageKey);
+						sessionStorage.removeItem(legacyCheckoutCartStorageKey);
+						if (shouldMigrateLegacy) {
+							localStorage.removeItem(legacyCartStorageKey);
+							sessionStorage.removeItem(legacyCheckoutCartStorageKey);
+						}
+					}
 					return safeCart;
 				}
+
+				window.addEventListener('storage', (event) => {
+					if (event.key === cartStorageKey) {
+						if (event.newValue !== null && parseCart(event.newValue).length === 0) {
+							sessionStorage.removeItem(checkoutCartStorageKey);
+							sessionStorage.removeItem(legacyCheckoutCartStorageKey);
+						}
+						window.dispatchEvent(new Event('cart-updated'));
+					}
+					if (event.key === checkoutCartStorageKey || event.key === legacyCheckoutCartStorageKey) return;
+				});
 
 				window.PZ_CURRENT_STORE_ID = storeId;
 				window.PZ_PUBLIC_PATH_PREFIX = publicPathPrefix || '';

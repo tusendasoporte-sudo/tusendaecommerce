@@ -523,8 +523,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 			function getCart() {
 				if (cartStorage?.readCart) return cartStorage.readCart();
-				const localCart = parseStoredCart(localStorage.getItem(CART_STORAGE_KEY));
-				if (localCart.length) return localCart;
+				const currentRawCart = localStorage.getItem(CART_STORAGE_KEY);
+				if (currentRawCart !== null) return parseStoredCart(currentRawCart);
 
 				const checkoutBackup = parseStoredCart(sessionStorage.getItem(CHECKOUT_CART_STORAGE_KEY));
 				if (checkoutBackup.length) {
@@ -687,8 +687,12 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		function completeCheckoutAfterWhatsApp() {
-			localStorage.removeItem(CART_STORAGE_KEY);
-			sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
+			if (cartStorage?.writeCart) {
+				cartStorage.writeCart([]);
+			} else {
+				localStorage.setItem(CART_STORAGE_KEY, '[]');
+				sessionStorage.removeItem(CHECKOUT_CART_STORAGE_KEY);
+			}
 			localStorage.removeItem('powerzona_checkout_draft');
 			clearPendingCheckoutOrder();
 			window.dispatchEvent(new Event('cart-updated'));
