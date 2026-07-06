@@ -405,9 +405,12 @@ const marketingVisualSubClass = (subsection: string) => {
     const browserNotificationsButton = document.querySelector('[data-pz-admin-browser-notifications]');
     const originalDocumentTitle = String(document.title || '').replace(/^\((?:99\+|\d+)\)\s+/, '');
     const browserNotificationsStorageKey = 'pz_admin_browser_notifications_enabled';
-    const processedRealtimeNotificationIds = new Set();
+    const liveNotificationIdMemoryLimit = 300;
+    const processedLiveNotificationIds = new Set();
+    const knownNotificationIds = new Set();
     let isOpen = false;
     let isLoading = false;
+    let hasLoadedInitialNotifications = false;
     let realtimePb = null;
     let realtimeUnsubscribe = null;
     let realtimeRefreshTimer = null;
@@ -561,22 +564,31 @@ const marketingVisualSubClass = (subsection: string) => {
         notification.onclick = () => {
           notification.close();
           window.focus();
-          const targetUrl = item?.targetUrl || notificationsPath || '';
+          const targetUrl = getOrderNotificationUrl(item) || notificationsPath || '';
           if (targetUrl) window.location.assign(targetUrl);
         };
       } catch (error) {
       }
     }
 
-    function rememberRealtimeNotificationId(id) {
-      if (!id) return false;
-      if (processedRealtimeNotificationIds.has(id)) return false;
-      processedRealtimeNotificationIds.add(id);
-      while (processedRealtimeNotificationIds.size > 200) {
-        const firstId = processedRealtimeNotificationIds.values().next().value;
-        processedRealtimeNotificationIds.delete(firstId);
+    function rememberNotificationId(collection, id) {
+      const safeId = String(id || '');
+      if (!safeId) return false;
+      if (collection.has(safeId)) return false;
+      collection.add(safeId);
+      while (collection.size > liveNotificationIdMemoryLimit) {
+        const firstId = collection.values().next().value;
+        collection.delete(firstId);
       }
       return true;
+    }
+
+    function rememberLiveNotificationId(id) {
+      return rememberNotificationId(processedLiveNotificationIds, id);
+    }
+
+    function rememberKnownNotificationId(id) {
+      return rememberNotificationId(knownNotificationIds, id);
     }
 
     function scheduleRealtimeRefresh() {
@@ -589,6 +601,47 @@ const marketingVisualSubClass = (subsection: string) => {
         }
         loadAll().catch(() => {});
       }, 500);
+    }
+
+    function deliverLiveNotification(item, source = 'realtime') {
+      try {
+        if (!item?.id) return false;
+        if (item.status === 'archived') return false;
+        if (!rememberLiveNotificationId(item.id)) return false;
+
+        rememberKnownNotificationId(item.id);
+        showInternalRealtimeToast(item);
+        showBrowserRealtimeNotification(item);
+        playSoftNotificationSound();
+        if (source === 'realtime') scheduleRealtimeRefresh();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function syncLoadedNotificationIds(items) {
+      const safeItems = Array.isArray(items) ? items : [];
+
+      if (!hasLoadedInitialNotifications) {
+        safeItems.forEach((item) => {
+          if (!item?.id) return;
+          rememberKnownNotificationId(item.id);
+          rememberLiveNotificationId(item.id);
+        });
+        hasLoadedInitialNotifications = true;
+        return;
+      }
+
+      safeItems.forEach((item) => {
+        if (!item?.id) return;
+        const id = String(item.id || '');
+        const wasKnown = knownNotificationIds.has(id);
+        if (!wasKnown && item.status !== 'archived') {
+          deliverLiveNotification(item, 'polling');
+        }
+        rememberKnownNotificationId(id);
+      });
     }
 
     function timeAgo(value) {
@@ -900,14 +953,11 @@ const marketingVisualSubClass = (subsection: string) => {
       try {
         const settings = await loadSettings();
 
-        if (detectPending) {
-          await runNotificationCleanup(settings);
-        }
-
         if (detectNewOrders || detectPending) {
           await detectMissingNewOrderNotifications(settings);
         }
         if (detectPending) {
+          await runNotificationCleanup(settings);
           await detectPendingOrders(settings);
           await detectPendingReviewNotifications(settings);
           await detectInventoryNotifications(settings);
@@ -919,6 +969,7 @@ const marketingVisualSubClass = (subsection: string) => {
           loadVisibleNotificationCount({ pb, storeId }),
         ]);
 
+        syncLoadedNotificationIds(items);
         render(items);
         setUnreadState(unreadSummary, settings);
         setPanelSummary({ total: visibleCount, shown: items.length });
@@ -942,13 +993,8 @@ const marketingVisualSubClass = (subsection: string) => {
         if (!record?.id) return;
         if (String(record.store || '') !== storeId) return;
         if (record.status === 'archived') return;
-        if (!rememberRealtimeNotificationId(record.id)) return;
 
-        const item = normalizeNotification(record);
-        showInternalRealtimeToast(item);
-        showBrowserRealtimeNotification(item);
-        playSoftNotificationSound();
-        scheduleRealtimeRefresh();
+        deliverLiveNotification(normalizeNotification(record), 'realtime');
       } catch (error) {
       }
     }
