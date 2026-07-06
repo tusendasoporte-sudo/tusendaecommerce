@@ -384,6 +384,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		let pendingOrderFingerprint = '';
 		let checkoutLocked = false;
 		let activeSettingsCache = null;
+		let customerPhoneTouched = false;
 		let businessHoursStatus = { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
 		const CURRENT_STORE_ID = currentStoreId || '';
 		const CURRENT_STORE_SLUG = currentStoreSlug || 'powerzona';
@@ -981,7 +982,36 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const option = getPhoneCountryOption();
 			if (customerPhone) customerPhone.placeholder = option.placeholder;
 			if (customerPhoneHelper) customerPhoneHelper.textContent = option.helper;
-			if (customerPhoneError) customerPhoneError.textContent = option.error;
+		}
+
+		function updatePhoneFieldState({ force = false } = {}) {
+			const selectedCountry = getSelectedPhoneCountry();
+			const rawPhone = customerPhone?.value || '';
+			const hasPhoneValue = rawPhone.trim().length > 0;
+			const result = normalizeCheckoutWhatsAppPhone(rawPhone, selectedCountry);
+			const option = getPhoneCountryOption(selectedCountry);
+			const showRequiredError = !hasPhoneValue && (force || customerPhoneTouched);
+			const showInvalidError = hasPhoneValue && !result.isValid;
+
+			if (customerPhone) customerPhone.placeholder = option.placeholder;
+			if (customerPhoneHelper) customerPhoneHelper.textContent = option.helper;
+
+			if (customerPhoneError) {
+				if (showInvalidError || showRequiredError) {
+					customerPhoneError.textContent = showInvalidError
+						? option.error
+						: 'El teléfono / WhatsApp es obligatorio.';
+					customerPhoneError.classList.remove('hidden');
+				} else {
+					customerPhoneError.textContent = '';
+					customerPhoneError.classList.add('hidden');
+				}
+			}
+
+			setFieldInvalid(customerPhoneCountry, showInvalidError || showRequiredError);
+			setFieldInvalid(customerPhone, showInvalidError || showRequiredError);
+
+			return result;
 		}
 
 		function getShippingZonePrice(zone) {
@@ -1327,7 +1357,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		function validateCheckout(showErrors = false) {
 			const cart = validateGiftRulesOnCheckout();
 			const data = getCheckoutData();
-			const phoneValidation = normalizeCheckoutWhatsAppPhone(data.customer_phone_raw, data.customer_phone_country);
+			if (showErrors) customerPhoneTouched = true;
+			const phoneValidation = updatePhoneFieldState({ force: showErrors });
 			if (phoneValidation.isValid) data.customer_phone = phoneValidation.phone;
 			data.customer_phone_country = phoneValidation.country;
 			const requiresAddress = data.delivery_method === 'delivery';
@@ -1350,17 +1381,13 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			};
 
 			if (showErrors) {
-				updateCustomerPhoneCopy();
 				setError('customer-name-error', errors.name);
-				setError('customer-phone-error', errors.phone);
 				setError('delivery-method-error', errors.delivery_method);
 				setError('customer-municipality-error', errors.municipality);
 				setError('customer-shipping-zone-error', errors.shipping_zone);
 				setError('customer-address-error', errors.address);
 
 				setFieldInvalid(customerName, errors.name);
-				setFieldInvalid(customerPhoneCountry, errors.phone);
-				setFieldInvalid(customerPhone, errors.phone);
 				setFieldInvalid(customerMunicipality, errors.municipality);
 				setFieldInvalid(customerShippingZone, errors.shipping_zone);
 				setFieldInvalid(customerAddress, errors.address);
@@ -1817,12 +1844,26 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		customerPhoneCountry?.addEventListener('change', () => {
 			checkoutSuccessAlert.classList.add('hidden');
-			updateCustomerPhoneCopy();
+			updatePhoneFieldState();
+			validateCheckout(false);
+		});
+
+		customerPhone?.addEventListener('input', () => {
+			customerPhoneTouched = true;
+			checkoutSuccessAlert.classList.add('hidden');
+			updatePhoneFieldState();
+			validateCheckout(false);
+		});
+
+		customerPhone?.addEventListener('blur', () => {
+			customerPhoneTouched = true;
+			updatePhoneFieldState({ force: true });
 			validateCheckout(false);
 		});
 
 		document.querySelectorAll('.checkout-field').forEach((field) => {
 			field.addEventListener('input', () => {
+				if (field === customerPhone) return;
 				checkoutSuccessAlert.classList.add('hidden');
 				validateCheckout(false);
 			});
@@ -2697,6 +2738,11 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const validation = validateCheckout(true);
 
 			if (!validation.isValid) {
+				if (validation.errors.phone) {
+					customerPhoneTouched = true;
+					updatePhoneFieldState({ force: true });
+					customerPhone?.focus();
+				}
 				checkoutValidationAlert.textContent = 'Revisa los campos marcados antes de realizar el pedido.';
 				checkoutValidationAlert.classList.remove('hidden');
 				checkoutSuccessAlert.classList.add('hidden');
