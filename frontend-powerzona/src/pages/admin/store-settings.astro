@@ -3507,6 +3507,7 @@ try {
                   <label class="rating-setting-row full" for="settings-notifications-enabled"><span><strong>Activar notificaciones</strong><small>Mostrar avisos dentro del admin.</small></span><span class="switch-control"><input id="settings-notifications-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                   <label class="rating-setting-row full" for="settings-notify-new-order"><span><strong>Nuevo pedido recibido</strong><small>Crear una alerta cuando entre un pedido nuevo.</small></span><span class="switch-control"><input id="settings-notify-new-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                   <label class="rating-setting-row full" for="settings-notify-pending-order"><span><strong>Pedido pendiente sin atender</strong><small>Avisar si un pedido sigue pendiente demasiado tiempo.</small></span><span class="switch-control"><input id="settings-notify-pending-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
+                  <label class="rating-setting-row full" for="settings-notify-review-pending"><span><strong>Nueva rese&ntilde;a pendiente</strong><small>Avisar cuando un cliente deje una rese&ntilde;a que necesita aprobaci&oacute;n.</small></span><span class="switch-control"><input id="settings-notify-review-pending" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                   <div class="field"><label for="settings-pending-order-hours">Avisar despu&eacute;s de X horas</label><input id="settings-pending-order-hours" type="number" min="1" step="1" value="2" /></div>
                   <div class="field full">
                     <div class="notification-priority-config">
@@ -5060,8 +5061,9 @@ try {
                 ? 'Configura la p\u00e1gina de enlaces que usar\u00e1s con QR f\u00edsico en productos, bolsas o tarjetas.'
                 : 'Configura los datos p\u00fablicos, portada, footer, monedas, horario y rese\u00f1as de tu tienda.';
         }
-        if (window.location.hash !== `#${tab}`) {
-          history.replaceState(null, '', `#${tab}`);
+        const nextHash = options.hash || `#${tab}`;
+        if (window.location.hash !== nextHash) {
+          history.replaceState(null, '', nextHash);
           window.dispatchEvent(new Event('hashchange'));
         }
         if (options.centerTab !== false) centerTabButton(tab);
@@ -5153,7 +5155,7 @@ try {
       if (window.location.hash === '#footer') showTab('footer');
       else if (window.location.hash === '#monedas') showTab('monedas');
       else if (window.location.hash === '#horario') showTab('horario');
-      else if (window.location.hash === '#rating') showTab('rating');
+      else if (window.location.hash === '#rating' || window.location.hash === '#rating-pending') showTab('rating', { hash: window.location.hash === '#rating-pending' ? '#rating-pending' : '#rating' });
       else if (window.location.hash === '#landing') showTab('landing');
       else showTab('generales');
     </script>
@@ -5188,6 +5190,7 @@ try {
           notificationsEnabled: document.getElementById('settings-notifications-enabled'),
           notifyNewOrder: document.getElementById('settings-notify-new-order'),
           notifyPendingOrder: document.getElementById('settings-notify-pending-order'),
+          notifyReviewPending: document.getElementById('settings-notify-review-pending'),
           pendingOrderHours: document.getElementById('settings-pending-order-hours'),
           notificationPriorityEnabled: document.getElementById('settings-notification-priority-enabled'),
           notificationPriorityImportantMin: document.getElementById('settings-notification-priority-important-min'),
@@ -5640,6 +5643,7 @@ try {
             notificationsEnabled: fields.notificationsEnabled?.checked !== false,
             notifyNewOrder: fields.notifyNewOrder?.checked !== false,
             notifyPendingOrder: fields.notifyPendingOrder?.checked !== false,
+            notifyReviewPending: fields.notifyReviewPending?.checked !== false,
             pendingOrderHours: Math.max(1, Number(fields.pendingOrderHours?.value || 2)),
             notificationPriorityEnabled: fields.notificationPriorityEnabled?.checked !== false,
             notificationPriorityImportantMin: Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50)),
@@ -5955,6 +5959,7 @@ try {
             notifications_enabled: fields.notificationsEnabled?.checked !== false,
             notify_new_order: fields.notifyNewOrder?.checked !== false,
             notify_pending_order: fields.notifyPendingOrder?.checked !== false,
+            notify_review_pending: fields.notifyReviewPending?.checked !== false,
             pending_order_hours: Math.max(1, Number(fields.pendingOrderHours?.value || 2)),
             notification_priority_enabled: fields.notificationPriorityEnabled?.checked !== false,
             notification_priority_important_min_usd: Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50)),
@@ -6060,6 +6065,7 @@ try {
           if (fields.notificationsEnabled) fields.notificationsEnabled.checked = record.notifications_enabled !== false;
           if (fields.notifyNewOrder) fields.notifyNewOrder.checked = record.notify_new_order !== false;
           if (fields.notifyPendingOrder) fields.notifyPendingOrder.checked = record.notify_pending_order !== false;
+          if (fields.notifyReviewPending) fields.notifyReviewPending.checked = record.notify_review_pending !== false;
           if (fields.pendingOrderHours) fields.pendingOrderHours.value = String(Math.max(1, Number(record.pending_order_hours || 2)));
           if (fields.notificationPriorityEnabled) fields.notificationPriorityEnabled.checked = record.notification_priority_enabled !== false;
           if (fields.notificationPriorityImportantMin) fields.notificationPriorityImportantMin.value = String(Math.max(0, Number(record.notification_priority_important_min_usd ?? 50)));
@@ -6145,6 +6151,7 @@ try {
             data.append('notifications_enabled', fields.notificationsEnabled?.checked !== false);
             data.append('notify_new_order', fields.notifyNewOrder?.checked !== false);
             data.append('notify_pending_order', fields.notifyPendingOrder?.checked !== false);
+            data.append('notify_review_pending', fields.notifyReviewPending?.checked !== false);
             data.append('pending_order_hours', Math.max(1, Number(fields.pendingOrderHours?.value || 2)));
             data.append('notification_priority_enabled', fields.notificationPriorityEnabled?.checked !== false);
             data.append('notification_priority_important_min_usd', Math.max(0, Number(fields.notificationPriorityImportantMin?.value || 50)));
@@ -6700,6 +6707,7 @@ try {
             show_verified_badge: boolValue(fields.showVerifiedBadge),
             review_request_delay_hours: delayHoursValue(),
             review_whatsapp_message: fields.reviewWhatsappMessage?.value?.trim() || DEFAULT_REVIEW_WHATSAPP_MESSAGE,
+            notify_review_pending: true,
           };
           const defaultCurrencyId = await findDefaultCurrencyId();
           if (defaultCurrencyId) payload.default_currency = defaultCurrencyId;
@@ -6991,6 +6999,21 @@ try {
           if (allNextPageBtn) allNextPageBtn.disabled = ratingAllReviewsPage >= totalPages;
           allPagination?.classList.toggle('hidden', items.length <= RATING_REVIEWS_PAGE_SIZE);
         }
+        function focusRatingPendingHash() {
+          if (window.location.hash !== '#rating-pending') return;
+          if (reviewFilterSelect) {
+            reviewFilterSelect.value = 'pending';
+            activeReviewFilter = 'pending';
+          }
+          ratingAllReviewsPage = 1;
+          renderAllReviews();
+          const target = pendingReviewsShortcut || allReviewsSection;
+          window.setTimeout(() => {
+            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            allReviewsSection?.classList.add('rating-section-highlight');
+            window.setTimeout(() => allReviewsSection?.classList.remove('rating-section-highlight'), 1800);
+          }, 80);
+        }
         function readyOrderCard(order) {
           return `
             <article class="item-row" data-ready-order-id="${escapeHtml(order.id)}">
@@ -7217,6 +7240,7 @@ try {
           await loadSettings();
           await loadReviews();
           await loadReadyReviewOrders();
+          focusRatingPendingHash();
         }
 
         form?.addEventListener('submit', (event) => save(event).catch((error) => {
@@ -7271,6 +7295,7 @@ try {
           event.preventDefault();
           pendingReviewsShortcut.click();
         });
+        window.addEventListener('hashchange', focusRatingPendingHash);
         document.addEventListener('click', (event) => {
           const target = event.target instanceof Element ? event.target : null;
           if (!target?.closest('.rating-row-actions')) closeRatingMenus();

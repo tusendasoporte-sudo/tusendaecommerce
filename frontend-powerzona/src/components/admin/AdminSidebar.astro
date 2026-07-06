@@ -349,7 +349,7 @@ const marketingVisualSubClass = (subsection: string) => {
   </section>
 </div>
 
-<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath }}>
+<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
@@ -357,6 +357,7 @@ const marketingVisualSubClass = (subsection: string) => {
     ordersPath: String(notificationsAdminOrdersPath || ''),
     productsPath: String(notificationsAdminProductsPath || ''),
     notificationsPath: String(adminNotificationsPath || ''),
+    settingsPath: String(adminStoreSettingsPath || ''),
   };
 </script>
 
@@ -386,6 +387,7 @@ const marketingVisualSubClass = (subsection: string) => {
     const ordersPath = String(config.ordersPath || '');
     const productsPath = String(config.productsPath || '');
     const notificationsPath = String(config.notificationsPath || '');
+    const settingsPath = String(config.settingsPath || '');
     const pb = { baseUrl, token };
     const panel = document.querySelector('[data-pz-admin-notifications-panel]');
     const list = document.querySelector('[data-pz-admin-notifications-list]');
@@ -434,6 +436,7 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     function iconFor(type) {
+      if (type === 'review_pending') return '\u2605';
       if (type === 'new_order') return '$';
       if (type === 'pending_order') return '!';
       if (type === 'low_stock') return '📦';
@@ -516,6 +519,7 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     function getOrderNotificationUrl(item) {
+      if (item?.type === 'review_pending' && item?.targetUrl) return String(item.targetUrl || '');
       const entityCollection = String(item?.entityCollection || item?.raw?.entity_collection || '');
       const entityId = String(item?.entityId || item?.raw?.entity_id || '');
 
@@ -524,6 +528,10 @@ const marketingVisualSubClass = (subsection: string) => {
       }
 
       return String(item?.targetUrl || '');
+    }
+
+    function buildRatingPendingUrl() {
+      return settingsPath ? `${settingsPath.replace(/#.*$/, '')}#rating-pending` : '';
     }
 
     function getInventoryNotificationSettings(settings = {}) {
@@ -731,6 +739,7 @@ const marketingVisualSubClass = (subsection: string) => {
         }
         if (detectPending) {
           await detectPendingOrders(settings);
+          await detectPendingReviewNotifications(settings);
           await detectInventoryNotifications(settings);
         }
 
@@ -887,6 +896,92 @@ const marketingVisualSubClass = (subsection: string) => {
             },
           });
         }));
+      } catch (error) {
+      }
+    }
+
+    async function detectPendingReviewNotifications(settingsRecord = null) {
+      try {
+        const settings = settingsRecord || await loadSettings();
+        if (!settings || settings.notifications_enabled === false || settings.notify_review_pending === false) return;
+
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const filter = encodeURIComponent(`store="${escapeFilterValue(storeId)}" && status="pending" && created >= "${since}"`);
+        const result = await api(`/api/collections/reviews/records?filter=${filter}&sort=-created&perPage=50&expand=order,product`);
+        const reviews = result.items || [];
+        const orderReviews = new Map();
+        const publicReviews = [];
+
+        reviews.forEach((review) => {
+          const orderId = String(review.order || review.expand?.order?.id || '');
+          if (review.source === 'order_review_link' && orderId) {
+            if (!orderReviews.has(orderId)) orderReviews.set(orderId, []);
+            orderReviews.get(orderId).push(review);
+            return;
+          }
+          publicReviews.push(review);
+        });
+
+        const targetUrl = buildRatingPendingUrl();
+        const tasks = [];
+
+        orderReviews.forEach((items, orderId) => {
+          const firstReview = items[0] || {};
+          const order = firstReview.expand?.order || {};
+          const orderNumber = order.order_number || orderId;
+          const customerName = firstReview.customer_name || order.customer_name || 'Cliente';
+          tasks.push(ensureStoreNotificationAnyStatus({
+            pb,
+            storeId,
+            type: 'review_pending',
+            entityCollection: 'orders',
+            entityId: orderId,
+            title: 'Nueva reseña pendiente',
+            message: `${customerName} dejó ${items.length} reseña${items.length === 1 ? '' : 's'} de la orden #${orderNumber}.`,
+            priority: 'important',
+            targetUrl,
+            metadata: {
+              order_id: orderId,
+              order_number: order.order_number || '',
+              customer_name: customerName,
+              review_count: items.length,
+              review_ids: items.map((review) => review.id).filter(Boolean),
+              source: 'order_review_link',
+            },
+          }));
+        });
+
+        publicReviews.forEach((review) => {
+          if (!review?.id) return;
+          const isProductReview = review.type === 'product';
+          const product = review.expand?.product || {};
+          const customerName = review.customer_name || 'Cliente';
+          const rating = Number(review.rating || 0);
+          const metadata = {
+            review_id: review.id,
+            customer_name: customerName,
+            rating,
+            source: review.source || (isProductReview ? 'public_product' : 'public_store'),
+          };
+          if (isProductReview) {
+            metadata.product_id = review.product || '';
+            metadata.product_name = product.name || '';
+          }
+          tasks.push(ensureStoreNotificationAnyStatus({
+            pb,
+            storeId,
+            type: 'review_pending',
+            entityCollection: 'reviews',
+            entityId: review.id,
+            title: 'Nueva reseña pendiente',
+            message: `${customerName} dejó una reseña de ${isProductReview ? 'producto' : 'tienda'} con ${rating} estrellas.`,
+            priority: 'important',
+            targetUrl,
+            metadata,
+          }));
+        });
+
+        await Promise.all(tasks);
       } catch (error) {
       }
     }
@@ -1537,6 +1632,7 @@ const marketingVisualSubClass = (subsection: string) => {
         '#horario': 'horario',
         '#schedule': 'horario',
         '#rating': 'rating',
+        '#rating-pending': 'rating',
         '#landing': 'landing',
       };
 

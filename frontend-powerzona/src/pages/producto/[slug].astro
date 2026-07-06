@@ -77,6 +77,7 @@ const variations = !productUnavailable && product.has_variations ? await getProd
 const automaticPromotions = productUnavailable ? [] : await getAutomaticPromotions(storeQuery);
 const automaticPromotionText = productUnavailable ? '' : getProductAutomaticPromotionText(product, automaticPromotions);
 const reviewsEnabled = settings?.reviews_enabled !== false;
+const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;
 const showProductRating = reviewsEnabled && settings?.show_product_rating !== false;
 const productReviewsEnabled = reviewsEnabled && settings?.product_reviews_enabled !== false;
 const showVerifiedBadge = settings?.show_verified_badge !== false;
@@ -2092,11 +2093,14 @@ const variationItems = variations.map((variation) => {
 		</section>
 	)}
 
-	<script define:vars={{ pocketbaseUrl, currentStoreId, productId: product.id }}>
+	<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug: currentStore.slug, productId: product.id, productName: product.name, reviewNotificationsEnabled }}>
 		(() => {
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
+			const CURRENT_STORE_SLUG = String(currentStoreSlug || '');
 			const PRODUCT_ID = String(productId || '');
+			const PRODUCT_NAME = String(productName || 'Producto');
+			const REVIEW_NOTIFICATIONS_ENABLED = reviewNotificationsEnabled !== false;
 
 			const productReviewToggle = document.getElementById('product-review-toggle');
 			const productReviewFormShell = document.getElementById('product-review-form-shell');
@@ -2192,6 +2196,38 @@ const variationItems = variations.map((variation) => {
 				return result;
 			}
 
+			async function createProductReviewNotification(review, customerName, rating) {
+				try {
+					if (!REVIEW_NOTIFICATIONS_ENABLED || !POCKETBASE_URL || !CURRENT_STORE_ID || !review?.id) return;
+					const payload = {
+						store: CURRENT_STORE_ID,
+						type: 'review_pending',
+						title: 'Nueva reseña pendiente',
+						message: `${customerName || 'Cliente'} dejó una reseña de producto con ${rating} estrellas.`,
+						status: 'unread',
+						priority: 'important',
+						target_url: `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/admin/store-settings#rating-pending`,
+						entity_collection: 'reviews',
+						entity_id: review.id,
+						metadata_json: {
+							review_id: review.id,
+							product_id: PRODUCT_ID,
+							product_name: PRODUCT_NAME,
+							customer_name: customerName || 'Cliente',
+							rating,
+							source: 'public_product',
+						},
+					};
+
+					await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload),
+					});
+				} catch {
+				}
+			}
+
 			form.addEventListener('submit', async (event) => {
 				event.preventDefault();
 				setProductReviewAlert('');
@@ -2245,7 +2281,8 @@ const variationItems = variations.map((variation) => {
 				}
 
 				try {
-					await createProductReview(payload);
+					const review = await createProductReview(payload);
+					await createProductReviewNotification(review, customerName, rating);
 					form.reset();
 					setRating(0);
 					setProductReviewAlert('Gracias por dejar tu reseña. Será publicada cuando la tienda la apruebe.', 'success');

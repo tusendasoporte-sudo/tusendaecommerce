@@ -16,6 +16,7 @@ if (!currentStore) {
 
 const storeName = currentStore.name || 'Tienda';
 const settings = await getSettings({ storeId: currentStore.id }).catch(() => null);
+const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;
 
 function cleanDisplayText(value: unknown, fallback = '') {
   const text = String(value ?? fallback)
@@ -138,11 +139,12 @@ const storeMarkText = getStoreInitials(publicStoreName);
     </div>
   </section>
 
-  <script define:vars={{ pocketbaseUrl, storeId: currentStore.id, storeSlug, token }}>
+  <script define:vars={{ pocketbaseUrl, storeId: currentStore.id, storeSlug, token, reviewNotificationsEnabled }}>
     const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
     const CURRENT_STORE_ID = String(storeId || '');
     const STORE_SLUG = String(storeSlug || '');
     const REVIEW_TOKEN = decodeURIComponent(String(token || ''));
+    const REVIEW_NOTIFICATIONS_ENABLED = reviewNotificationsEnabled !== false;
 
     const loadingBox = document.getElementById('review-loading');
     const errorBox = document.getElementById('review-error');
@@ -426,6 +428,43 @@ const storeMarkText = getStoreInitials(publicStoreName);
       }
     }
 
+    async function createReviewPendingNotification(createdReviews = []) {
+      try {
+        const reviewIds = createdReviews.map((review) => review?.id).filter(Boolean);
+        if (!REVIEW_NOTIFICATIONS_ENABLED || !POCKETBASE_URL || !reviewOrder?.id || !reviewIds.length) return;
+
+        const customerName = String(customerNameInput.value || reviewOrder.customer_name || 'Cliente').trim() || 'Cliente';
+        const orderNumber = reviewOrder.order_number || reviewOrder.id;
+        const reviewCount = reviewIds.length;
+        const payload = {
+          store: reviewOrder.store || CURRENT_STORE_ID,
+          type: 'review_pending',
+          title: 'Nueva reseña pendiente',
+          message: `${customerName} dejó ${reviewCount} reseña${reviewCount === 1 ? '' : 's'} de la orden #${orderNumber}.`,
+          status: 'unread',
+          priority: 'important',
+          target_url: `/t/${encodeURIComponent(STORE_SLUG)}/admin/store-settings#rating-pending`,
+          entity_collection: 'orders',
+          entity_id: reviewOrder.id,
+          metadata_json: {
+            order_id: reviewOrder.id,
+            order_number: reviewOrder.order_number || '',
+            customer_name: customerName,
+            review_count: reviewCount,
+            review_ids: reviewIds,
+            source: 'order_review_link',
+          },
+        };
+
+        await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch {
+      }
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!reviewOrder) return;
@@ -435,13 +474,16 @@ const storeMarkText = getStoreInitials(publicStoreName);
 
       try {
         const payloads = buildReviewPayloads();
+        const createdReviews = [];
         for (const payload of payloads) {
           try {
-            await createReview(payload);
+            const review = await createReview(payload);
+            if (review?.id) createdReviews.push(review);
           } catch (error) {
             if (!isDuplicateReviewError(error)) throw error;
           }
         }
+        await createReviewPendingNotification(createdReviews);
         showThanks();
       } catch (error) {
         showSubmitAlert(error?.message || 'No se pudo enviar la reseña. Inténtalo nuevamente.');
