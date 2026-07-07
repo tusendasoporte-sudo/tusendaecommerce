@@ -49,10 +49,13 @@ const adminStoreSettingsPath = getStoreAdminPath(storeSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(storeSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
+const adminRafflesPath = getStoreAdminPath(storeSlug, 'promos/raffles');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
 const notificationsAdminProductsPath = adminProductsPath;
+const currentAdminPath = Astro.url.pathname.replace(/\/+$/, '');
+const isMarketingRafflesPath = /\/admin\/promos\/raffles$/.test(currentAdminPath);
 
 const defaultMobileTitleBySection: Record<string, string> = {
   overview: 'Resumen',
@@ -114,8 +117,13 @@ const subClass = (subsection: string) => {
   return `pz-admin-sidebar__settings-subitem${isSettingsActive && (normalizedSubsection === subsection || isGeneral) ? ' is-active' : ''}`;
 };
 const marketingVisualSubClass = (subsection: string) => {
-  const isDefaultMarketing = activeSection === 'marketing' && subsection === 'destacados';
-  return `pz-admin-sidebar__settings-subitem${isDefaultMarketing ? ' is-active' : ''}`;
+  const isActive =
+    isMarketingVisualActive &&
+    (
+      (subsection === 'rifas' && isMarketingRafflesPath) ||
+      (subsection === 'destacados' && !isMarketingRafflesPath)
+    );
+  return `pz-admin-sidebar__settings-subitem${isActive ? ' is-active' : ''}`;
 };
 ---
 
@@ -174,6 +182,7 @@ const marketingVisualSubClass = (subsection: string) => {
           <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={`${adminPromosPath}#destacados`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>
           <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones automáticas</span></a>
           <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>
+          <a class={marketingVisualSubClass('rifas')} data-marketing-visual-subitem="rifas" href={adminRafflesPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h14v10H5V10Zm3 2v2h8v-2H8Zm0 4v2h5v-2H8Zm9-13 2 2-2 2-2-2 2-2ZM7 3l2 2-2 2-2-2 2-2Z"/></svg></span><span>Rifas</span></a>
           <a class={marketingVisualSubClass('cintillo')} data-marketing-visual-subitem="cintillo" href={`${adminPromosPath}#cintillo`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v5H3V6Zm2 7h14v5H5v-5Zm3-5v1h8V8H8Zm0 7v1h8v-1H8Z"/></svg></span><span>Cintillo promocional</span></a>
           <a class={marketingVisualSubClass('visuales')} data-marketing-visual-subitem="visuales" href={`${adminPromosPath}#visuales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></span><span>Accesos rápidos</span></a>
         </div>
@@ -1903,7 +1912,8 @@ const marketingVisualSubClass = (subsection: string) => {
         '#visuales': 'visuales',
       };
       const isPromos = /\/admin\/promos$/.test(path);
-      const activeKey = isPromos ? (hashMap[window.location.hash] || 'destacados') : '';
+      const isRaffles = /\/admin\/promos\/raffles$/.test(path);
+      const activeKey = isRaffles ? 'rifas' : (isPromos ? (hashMap[window.location.hash] || 'destacados') : '');
       items.forEach((item) => item.classList.toggle('is-active', item.getAttribute('data-marketing-visual-subitem') === activeKey));
     };
 

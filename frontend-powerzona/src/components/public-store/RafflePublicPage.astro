@@ -1,0 +1,1954 @@
+---
+import SocialMeta from '../SocialMeta.astro';
+import {
+  RAFFLE_STATUSES,
+  buildRaffleWhatsappReceiptHref,
+  cleanWhatsappNumber,
+  getCalculatedRaffleStatus,
+  isRaffleConfigured,
+  isRaffleLinkEnabled,
+  isRaffleShownInStore,
+  isValidRaffleNumber,
+  normalizeRafflePrizeDisplayMode,
+  raffleAcceptsEntries,
+  rafflePrizeCards,
+  type RaffleRecord,
+} from '../../lib/raffles';
+
+interface Props {
+  store: any;
+  settings?: any;
+  raffle: RaffleRecord | null;
+  occupiedNumbers?: string[];
+  canonicalPath: string;
+}
+
+const {
+  store,
+  settings = null,
+  raffle,
+  occupiedNumbers = [],
+  canonicalPath,
+} = Astro.props;
+
+const storeSlug = String(store?.slug || '').trim().toLowerCase();
+const storeName = String(settings?.store_name || store?.name || 'PowerZona').trim();
+const whatsapp = cleanWhatsappNumber(settings?.whatsapp_number || store?.owner_phone);
+const storeUrl = `/t/${encodeURIComponent(storeSlug)}`;
+const raffleSlug = String(raffle?.slug || '').trim();
+const raffleUrl = raffleSlug
+  ? `/t/${encodeURIComponent(storeSlug)}/rifa/${encodeURIComponent(raffleSlug)}`
+  : `/t/${encodeURIComponent(storeSlug)}/rifa`;
+const fullRaffleUrl = new URL(raffleUrl, Astro.url).toString();
+const contactHref = whatsapp ? `https://wa.me/${whatsapp}` : storeUrl;
+const title = raffle?.title || `Rifa ${storeName}`;
+const description = String(raffle?.description || '').trim();
+const conditionsText = String(raffle?.conditions || '').trim();
+const customConditions = conditionsText
+  .split(/\r?\n/)
+  .map((line) => line.replace(/^[-*]\s*/, '').trim())
+  .filter(Boolean)
+  .slice(0, 4);
+const conditions = [
+  'Debes pertenecer al grupo de WhatsApp',
+  'Introduce el código exclusivo del grupo',
+  'Cada teléfono puede escoger un solo número',
+  'La rifa es gratis para miembros del grupo',
+  'Los números van del 00 al 99',
+  'Cuando reserves tu número dejará de estar disponible',
+  ...customConditions,
+].slice(0, 8);
+const calculatedStatus = raffle ? getCalculatedRaffleStatus(raffle) : RAFFLE_STATUSES.ARCHIVED;
+const linkEnabled = Boolean(raffle && isRaffleLinkEnabled(raffle));
+const showInStore = Boolean(raffle && isRaffleShownInStore(raffle));
+const configured = Boolean(raffle && isRaffleConfigured(raffle));
+const hasAvailableRaffle = Boolean(raffle && configured && linkEnabled);
+const shouldNoindex = Boolean(!hasAvailableRaffle || !showInStore);
+const isActive = Boolean(raffle && raffleAcceptsEntries(raffle));
+const isScheduled = calculatedStatus === RAFFLE_STATUSES.SCHEDULED;
+const isSelectionClosed = calculatedStatus === RAFFLE_STATUSES.SELECTION_CLOSED;
+const isResultPending = calculatedStatus === RAFFLE_STATUSES.RESULT_PENDING;
+const isWinnerPublished = calculatedStatus === RAFFLE_STATUSES.WINNER_PUBLISHED;
+const isNoWinnerPublished = calculatedStatus === RAFFLE_STATUSES.NO_WINNER_PUBLISHED;
+const isFinalized = calculatedStatus === RAFFLE_STATUSES.FINALIZED;
+const numbers = Array.from({ length: 100 }, (_, index) => String(index).padStart(2, '0'));
+const occupiedSet = new Set(occupiedNumbers.filter(isValidRaffleNumber));
+const prizeCards = raffle ? rafflePrizeCards(raffle, storeName, description) : [];
+const prizesDisplayMode = normalizeRafflePrizeDisplayMode(raffle?.prizes_display_mode);
+const usePrizeCarousel = prizesDisplayMode === 'carousel' || prizeCards.length > 3;
+const prizeLayoutClass = usePrizeCarousel ? 'is-carousel' : 'is-fixed';
+const drawLabel = raffle?.draw_at
+  ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(raffle.draw_at))
+  : 'Por anunciar';
+const startsLabel = raffle?.starts_at
+  ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(raffle.starts_at))
+  : 'Por anunciar';
+const countdownCaption = calculatedStatus === RAFFLE_STATUSES.SCHEDULED
+  ? 'para comenzar la selección de números'
+  : calculatedStatus === RAFFLE_STATUSES.SELECTION_CLOSED
+  ? 'para anunciar el ganador'
+  : calculatedStatus === RAFFLE_STATUSES.RESULT_PENDING
+    ? 'resultado pendiente de publicación'
+    : calculatedStatus === RAFFLE_STATUSES.WINNER_PUBLISHED || calculatedStatus === RAFFLE_STATUSES.NO_WINNER_PUBLISHED
+      ? 'resultado publicado'
+      : calculatedStatus === RAFFLE_STATUSES.FINALIZED
+        ? 'rifa finalizada'
+        : calculatedStatus === RAFFLE_STATUSES.ACTIVE
+          ? 'para cerrar la selección de números'
+          : 'rifa no disponible';
+const closesAt = raffle?.closes_at || '';
+const drawAt = raffle?.draw_at || '';
+const startsAt = raffle?.starts_at || '';
+const seoDescription = description || `Rifa gratis exclusiva para miembros del grupo de WhatsApp de ${storeName}.`;
+const initialWhatsappReceipt = raffle ? buildRaffleWhatsappReceiptHref({
+  whatsapp,
+  storeName,
+  raffleTitle: title,
+  chosenNumber: '--',
+  phone: '53________',
+  receiptCode: 'RF',
+  raffleUrl: fullRaffleUrl,
+}) : '';
+const faviconVersion = '2';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" href={`/favicon.ico?v=${faviconVersion}`} sizes="any" />
+    <link rel="icon" type="image/svg+xml" href={`/favicon.svg?v=${faviconVersion}`} />
+    <link rel="icon" type="image/png" sizes="32x32" href={`/favicon-32x32.png?v=${faviconVersion}`} />
+    <link rel="icon" type="image/png" sizes="16x16" href={`/favicon-16x16.png?v=${faviconVersion}`} />
+    <link rel="apple-touch-icon" sizes="180x180" href={`/apple-touch-icon.png?v=${faviconVersion}`} />
+    <SocialMeta
+      title={`${title} | ${storeName}`}
+      description={seoDescription}
+      canonical={canonicalPath || raffleUrl}
+      siteName={storeName}
+      type="website"
+      image={prizeCards[0]?.imageUrl || store?.bannerUrl || store?.logoUrl || '/brand/tusenda84-bazzar-logo.webp'}
+    />
+    {shouldNoindex && <meta name="robots" content="noindex,nofollow" />}
+  </head>
+  <body>
+    <main
+      class="pz-raffle-page"
+      data-raffle-root
+      data-raffle-status={calculatedStatus}
+      data-starts-at={startsAt}
+      data-closes-at={closesAt}
+      data-draw-at={drawAt}
+      data-store-slug={storeSlug}
+      data-raffle-slug={raffleSlug}
+    >
+      <section class="pz-raffle-shell">
+        <header class="pz-raffle-hero">
+          <div class="pz-raffle-hero-copy">
+            <span class="pz-raffle-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.8 6 6.2.8-4.6 4.5 1.1 6.2L12 16.5 6.5 19.5l1.1-6.2L3 8.8 9.2 8 12 2Z"></path></svg>
+              Promoción exclusiva
+            </span>
+
+            <h1 class="pz-raffle-title">
+              <span>Rifa</span>
+              <strong>{storeName}</strong>
+            </h1>
+
+            <p class="pz-raffle-subtitle">
+              Exclusiva para clientes del grupo de WhatsApp.
+            </p>
+
+            <p class="pz-raffle-note">
+              {description || 'Agradecemos tu preferencia y fidelidad.'}
+            </p>
+
+            <div class="pz-raffle-actions">
+              <a class="pz-raffle-btn pz-raffle-btn-blue" href={storeUrl}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h5v2H8v-2Z"></path></svg>
+                Ver tienda
+              </a>
+
+              <a class="pz-raffle-btn pz-raffle-btn-green" href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8.5 8.5 0 0 0-7.4 12.7L3.5 21l5.4-1.1A8.5 8.5 0 1 0 12 3Zm0 2a6.5 6.5 0 0 1 0 13c-1 0-2-.2-2.9-.7l-.3-.2-2.6.5.5-2.5-.2-.3A6.5 6.5 0 0 1 12 5Zm-2.4 3.3c-.2 0-.5.1-.7.4-.2.3-.8.8-.8 2s.8 2.3 1 2.5c.1.2 1.7 2.7 4.2 3.6 2.1.8 2.5.5 3 .5.4 0 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1-.1-.1-.2-.2-.5-.3l-1.7-.8c-.2-.1-.4-.1-.6.2l-.7.9c-.1.2-.3.2-.6.1a5.4 5.4 0 0 1-2.7-2.4c-.2-.3 0-.5.1-.6l.5-.6c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.6l-.8-1.8c-.2-.4-.4-.4-.7-.4Z"></path></svg>
+                Contactar por WhatsApp
+              </a>
+            </div>
+          </div>
+
+          <article class="pz-raffle-countdown-card" aria-live="polite">
+            <p class="pz-countdown-eyebrow">Faltan</p>
+
+            <div class="pz-countdown-grid" data-countdown>
+              <div class="pz-countdown-unit">
+                <strong data-days>00</strong>
+                <span>días</span>
+              </div>
+
+              <b class="pz-countdown-separator">:</b>
+
+              <div class="pz-countdown-unit">
+                <strong data-hours>00</strong>
+                <span>horas</span>
+              </div>
+
+              <b class="pz-countdown-separator">:</b>
+
+              <div class="pz-countdown-unit">
+                <strong data-minutes>00</strong>
+                <span>minutos</span>
+              </div>
+
+              <b class="pz-countdown-separator">:</b>
+
+              <div class="pz-countdown-unit">
+                <strong data-seconds>00</strong>
+                <span>segundos</span>
+              </div>
+            </div>
+
+            <p class="pz-countdown-caption" data-countdown-caption>
+              {countdownCaption}
+            </p>
+
+            <p class="pz-countdown-date">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 8H4v10h16V10ZM6 6v2h12V6H6Z"></path></svg>
+              Fecha del sorteo: <time data-draw-label>{drawLabel}</time>
+            </p>
+          </article>
+        </header>
+
+        {!hasAvailableRaffle && (
+          <section class="pz-raffle-state-card pz-raffle-state-empty">
+            <strong>Rifa no disponible</strong>
+            <p>Esta rifa todavía no está activa.</p>
+            <div class="pz-state-actions">
+              <a href={storeUrl}>Ver tienda</a>
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && isScheduled && (
+          <section class="pz-raffle-state-card pz-raffle-state-warning">
+            <strong>La rifa todavía no ha comenzado</strong>
+            <p>Comenzaremos a tomar números el día {startsLabel}.</p>
+            <div class="pz-state-actions">
+              <a href={storeUrl}>Ver tienda</a>
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && isSelectionClosed && (
+          <section class="pz-raffle-state-card pz-raffle-state-warning">
+            <strong>Selección de números cerrada</strong>
+            <p>Ya no se pueden reservar más números para esta rifa. El resultado será anunciado el día {drawLabel}.</p>
+            <div class="pz-state-actions">
+              <a href={storeUrl}>Ver tienda</a>
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && isResultPending && (
+          <section class="pz-raffle-state-card pz-raffle-state-warning">
+            <strong>Sorteo cerrado</strong>
+            <p>El resultado está pendiente de ser publicado por la tienda.</p>
+            <div class="pz-state-actions">
+              <a href={storeUrl}>Ver tienda</a>
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && isWinnerPublished && (
+          <section class="pz-raffle-state-card pz-raffle-state-success">
+            <strong>Número ganador: {raffle?.winner_number || '--'}</strong>
+            <p>Felicidades al ganador. Contacta con la tienda para reclamar tu premio.</p>
+            <div class="pz-state-actions">
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+              <a href={storeUrl}>Ver tienda</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && isNoWinnerPublished && (
+          <section class="pz-raffle-state-card pz-raffle-state-empty">
+            <strong>No hubo ganador esta vez</strong>
+            <p>El número sorteado fue {raffle?.no_winner_number || '--'}, pero no estaba reservado. Mantente atento a la próxima rifa de {storeName}.</p>
+            <div class="pz-state-actions">
+              <a href={storeUrl}>Ver tienda</a>
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && isFinalized && (
+          <section class="pz-raffle-state-card pz-raffle-state-empty">
+            <strong>Rifa finalizada</strong>
+            <p>Esta rifa ya finalizó. Mantente atento a la próxima rifa de {storeName}.</p>
+            <div class="pz-state-actions">
+              <a href={storeUrl}>Ver tienda</a>
+              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
+            </div>
+          </section>
+        )}
+
+        {hasAvailableRaffle && (
+          <section class="pz-raffle-content">
+            <div class="pz-raffle-main-column">
+              <article class:list={['pz-raffle-card pz-prizes-card', prizeLayoutClass]}>
+                <div class="pz-section-heading">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12v8H4v-8H3V7h4.2A3 3 0 1 1 12 3.5 3 3 0 1 1 16.8 7H21v5h-1ZM6 18h5v-6H6v6Zm7 0h5v-6h-5v6ZM6.5 5a1 1 0 0 0 0 2H11C9.8 5.7 8.3 5 6.5 5Zm11 0c-1.8 0-3.3.7-4.5 2h4.5a1 1 0 0 0 0-2ZM5 9v1h14V9H5Z"></path></svg>
+                  <h2>Premios increíbles</h2>
+                </div>
+
+                {usePrizeCarousel && (
+                  <button class="pz-carousel-arrow pz-carousel-prev" type="button" aria-label="Premio anterior">‹</button>
+                )}
+
+                <div class="pz-prize-track" data-prize-track>
+                  {prizeCards.map((prize) => (
+                    <article class="pz-prize-card">
+                      <span class="pz-prize-label">{prize.label}</span>
+                      <div class="pz-prize-image-wrap">
+                        {prize.imageUrl ? (
+                          <img src={prize.imageUrl} alt={prize.name} loading="lazy" />
+                        ) : (
+                          <div class="pz-prize-placeholder" aria-hidden="true">{storeName.slice(0, 2).toUpperCase()}</div>
+                        )}
+                      </div>
+                      <h3>{prize.name}</h3>
+                      <p>{prize.description}</p>
+                    </article>
+                  ))}
+                </div>
+
+                {usePrizeCarousel && (
+                  <button class="pz-carousel-arrow pz-carousel-next" type="button" aria-label="Premio siguiente">›</button>
+                )}
+
+                {usePrizeCarousel && (
+                  <div class="pz-carousel-dots" aria-hidden="true">
+                    {prizeCards.map((_, index) => <span class:list={[index === 0 && 'is-active']}></span>)}
+                  </div>
+                )}
+              </article>
+
+              <article class="pz-raffle-card pz-numbers-card">
+                <div class="pz-numbers-head">
+                  <h2>Selecciona tu número (00 al 99)</h2>
+
+                  <div class="pz-number-legend">
+                    <span><i class="legend-dot legend-available"></i> Disponible</span>
+                    <span><i class="legend-dot legend-occupied"></i> Ocupado</span>
+                    <span><i class="legend-dot legend-selected"></i> Seleccionado</span>
+                  </div>
+                </div>
+
+                <div class="pz-number-grid" data-number-grid>
+                  {numbers.map((number) => {
+                    const isOccupied = occupiedSet.has(number);
+
+                    return (
+                      <button
+                        type="button"
+                        class:list={[
+                          'pz-number-btn',
+                          isOccupied && 'is-occupied',
+                        ]}
+                        data-number={number}
+                        disabled={isOccupied || !isActive}
+                        aria-label={`Número ${number}`}
+                      >
+                        {number}
+                      </button>
+                    );
+                  })}
+                </div>
+              </article>
+            </div>
+
+            <aside class="pz-raffle-side-column">
+              <article class="pz-raffle-card pz-conditions-card">
+                <div class="pz-section-heading">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-4Zm0 4 4 2v4c0 2.6-1.5 4.8-4 5.9-2.5-1.1-4-3.3-4-5.9V8l4-2Zm3.7 4.3-4.4 4.4-2.5-2.5 1.4-1.4 1.1 1.1 3-3 1.4 1.4Z"></path></svg>
+                  <h2>Condiciones para participar</h2>
+                </div>
+
+                <ul class="pz-condition-list">
+                  {conditions.map((condition) => <li>{condition}</li>)}
+                </ul>
+              </article>
+
+              {isActive && (
+                <article class="pz-raffle-card pz-form-card">
+                  <div class="pz-section-heading">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v5h4v2h-6V7h2Z"></path></svg>
+                    <h2>Participa ahora</h2>
+                  </div>
+
+                  <form class="pz-raffle-form" data-raffle-form>
+                    <label class="pz-field">
+                      <span>Código del grupo de WhatsApp</span>
+                      <input type="text" name="access_code" placeholder="Ej: PZ-AB12CD" autocomplete="off" required />
+                    </label>
+
+                    <label class="pz-field">
+                      <span>Número de celular cubano</span>
+                      <div class="pz-phone-field">
+                        <strong>CU +53</strong>
+                        <input type="tel" name="phone" placeholder="Ej: 59224567" inputmode="numeric" required />
+                      </div>
+                      <small>Solo se permiten números de Cuba porque la rifa es exclusiva para miembros del grupo.</small>
+                    </label>
+
+                    <input type="hidden" name="chosen_number" data-selected-number-input />
+
+                    <p class="pz-form-error" data-form-error hidden></p>
+
+                    <button class="pz-confirm-btn" type="submit">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"></path></svg>
+                      Confirmar número
+                    </button>
+
+                    <button class="pz-whatsapp-outline" type="button" data-send-receipt-button disabled>
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8.5 8.5 0 0 0-7.4 12.7L3.5 21l5.4-1.1A8.5 8.5 0 1 0 12 3Zm0 2a6.5 6.5 0 0 1 0 13c-1 0-2-.2-2.9-.7l-.3-.2-2.6.5.5-2.5-.2-.3A6.5 6.5 0 0 1 12 5Z"></path></svg>
+                      Enviar comprobante por WhatsApp
+                    </button>
+                  </form>
+                </article>
+              )}
+
+              <article class="pz-receipt-card is-preview" data-receipt-card>
+                <div class="pz-receipt-top">
+                  <span class="pz-receipt-check" aria-hidden="true">✓</span>
+                  <div>
+                    <p>Tu número para esta rifa es:</p>
+                    <strong data-receipt-number>--</strong>
+                  </div>
+                </div>
+
+                <p class="pz-receipt-ok">
+                  Número reservado correctamente. Guarda este comprobante o envíalo por WhatsApp a la tienda.
+                </p>
+
+                <div class="pz-receipt-summary">
+                  <h3>Resumen para tu comprobante</h3>
+
+                  <dl>
+                    <div>
+                      <dt>Rifa:</dt>
+                      <dd>{title}</dd>
+                    </div>
+
+                    <div>
+                      <dt>Número seleccionado:</dt>
+                      <dd data-receipt-number-text>--</dd>
+                    </div>
+
+                    <div>
+                      <dt>Teléfono:</dt>
+                      <dd data-receipt-phone>53________</dd>
+                    </div>
+
+                    <div>
+                      <dt>Comprobante:</dt>
+                      <dd data-receipt-code>--</dd>
+                    </div>
+
+                    <div>
+                      <dt>Fecha y hora:</dt>
+                      <dd data-receipt-date>--</dd>
+                    </div>
+
+                    <div>
+                      <dt>Enlace directo:</dt>
+                      <dd>
+                        <a href={raffleUrl} data-receipt-link>{raffleUrl}</a>
+                        <button type="button" class="pz-copy-link" data-copy-raffle-link aria-label="Copiar enlace">⧉</button>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <a class="pz-receipt-whatsapp" href={initialWhatsappReceipt || contactHref} target="_blank" rel="noopener" data-receipt-whatsapp>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8.5 8.5 0 0 0-7.4 12.7L3.5 21l5.4-1.1A8.5 8.5 0 1 0 12 3Zm0 2a6.5 6.5 0 0 1 0 13c-1 0-2-.2-2.9-.7l-.3-.2-2.6.5.5-2.5-.2-.3A6.5 6.5 0 0 1 12 5Z"></path></svg>
+                  Enviar comprobante por WhatsApp
+                </a>
+
+                <p class="pz-safe-note">
+                  Tu información está segura y no será compartida.
+                </p>
+              </article>
+            </aside>
+          </section>
+        )}
+      </section>
+    </main>
+
+    <style>
+      :root {
+        --pz-blue: #075bea;
+        --pz-blue-2: #0047c7;
+        --pz-blue-dark: #061642;
+        --pz-green: #08a83e;
+        --pz-text: #061642;
+        --pz-muted: #667085;
+        --pz-border: #dbe7ff;
+        --pz-shadow: 0 20px 50px rgba(6, 22, 66, 0.11);
+        --pz-shadow-soft: 0 12px 34px rgba(6, 22, 66, 0.08);
+        --pz-radius-lg: 20px;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body { background: #f7fbff; }
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: 0.68; }
+
+      .pz-raffle-page {
+        min-height: 100vh;
+        color: var(--pz-text);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fbff 42%, #eef6ff 100%);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        overflow-x: hidden;
+      }
+
+      .pz-raffle-shell {
+        width: min(1440px, calc(100% - 64px));
+        margin: 0 auto;
+        padding: 44px 0 58px;
+      }
+
+      .pz-raffle-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 560px;
+        gap: 38px;
+        align-items: center;
+        margin-bottom: 30px;
+      }
+
+      .pz-raffle-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        width: fit-content;
+        padding: 9px 16px;
+        border-radius: 999px;
+        color: var(--pz-blue);
+        background: #eaf2ff;
+        font-weight: 900;
+        font-size: 15px;
+        box-shadow: inset 0 0 0 1px rgba(7, 91, 234, 0.08);
+      }
+
+      .pz-raffle-badge svg,
+      .pz-raffle-btn svg,
+      .pz-countdown-date svg,
+      .pz-section-heading svg,
+      .pz-confirm-btn svg,
+      .pz-whatsapp-outline svg,
+      .pz-receipt-whatsapp svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+        flex: 0 0 auto;
+      }
+
+      .pz-raffle-title {
+        margin: 18px 0 8px;
+        font-size: clamp(54px, 6vw, 86px);
+        line-height: 0.93;
+        letter-spacing: 0;
+        color: #080b13;
+        font-weight: 1000;
+      }
+
+      .pz-raffle-title span,
+      .pz-raffle-title strong {
+        display: block;
+      }
+
+      .pz-raffle-title strong {
+        color: var(--pz-blue);
+        font-weight: 1000;
+      }
+
+      .pz-raffle-subtitle,
+      .pz-raffle-note {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.45;
+        color: #18254a;
+        font-weight: 650;
+      }
+
+      .pz-raffle-note {
+        color: #354064;
+        font-weight: 520;
+        max-width: 740px;
+      }
+
+      .pz-raffle-actions {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+      }
+
+      .pz-raffle-btn,
+      .pz-state-actions a {
+        min-height: 58px;
+        padding: 0 34px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        color: #fff;
+        font-weight: 900;
+        text-decoration: none;
+        border: 0;
+        box-shadow: 0 16px 30px rgba(7, 91, 234, 0.22);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .pz-raffle-btn:hover,
+      .pz-state-actions a:hover {
+        transform: translateY(-2px);
+      }
+
+      .pz-raffle-btn-blue {
+        background: linear-gradient(180deg, #126cff 0%, #0057e6 100%);
+      }
+
+      .pz-raffle-btn-green {
+        background: linear-gradient(180deg, #13b94d 0%, #079639 100%);
+        box-shadow: 0 16px 30px rgba(8, 168, 62, 0.22);
+      }
+
+      .pz-raffle-countdown-card {
+        border: 1px solid rgba(7, 91, 234, 0.34);
+        border-radius: var(--pz-radius-lg);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: var(--pz-shadow);
+        padding: 28px 34px 30px;
+        overflow: hidden;
+      }
+
+      .pz-countdown-eyebrow {
+        margin: 0 0 8px;
+        font-size: 19px;
+        font-weight: 750;
+      }
+
+      .pz-countdown-grid {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+        align-items: center;
+        gap: 14px;
+        text-align: center;
+      }
+
+      .pz-countdown-unit strong {
+        display: block;
+        font-size: clamp(38px, 4.5vw, 58px);
+        line-height: 1;
+        color: var(--pz-blue-dark);
+        letter-spacing: 0;
+      }
+
+      .pz-countdown-unit span {
+        display: block;
+        margin-top: 6px;
+        color: #18254a;
+        font-size: 16px;
+        font-weight: 650;
+      }
+
+      .pz-countdown-separator {
+        color: var(--pz-blue);
+        font-size: 44px;
+        line-height: 1;
+        padding-bottom: 22px;
+      }
+
+      .pz-countdown-caption {
+        margin: 16px 0 18px;
+        text-align: center;
+        color: #18254a;
+        font-size: 17px;
+        font-weight: 800;
+      }
+
+      .pz-countdown-date {
+        width: fit-content;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 11px 18px;
+        border-radius: 10px;
+        background: #f4f6fb;
+        border: 1px solid #e4e9f5;
+        color: #354064;
+        font-size: 15px;
+        font-weight: 650;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .pz-raffle-content {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(360px, 0.85fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .pz-raffle-main-column,
+      .pz-raffle-side-column {
+        display: grid;
+        gap: 18px;
+      }
+
+      .pz-raffle-card,
+      .pz-receipt-card,
+      .pz-raffle-state-card {
+        background: rgba(255, 255, 255, 0.93);
+        border: 1px solid rgba(219, 231, 255, 0.95);
+        border-radius: var(--pz-radius-lg);
+        box-shadow: var(--pz-shadow-soft);
+      }
+
+      .pz-raffle-card { padding: 22px; }
+
+      .pz-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        margin-bottom: 16px;
+      }
+
+      .pz-section-heading svg { color: var(--pz-blue); }
+
+      .pz-section-heading h2 {
+        margin: 0;
+        color: var(--pz-blue-dark);
+        font-size: 20px;
+        font-weight: 950;
+        letter-spacing: 0;
+      }
+
+      .pz-prizes-card {
+        position: relative;
+        overflow: visible;
+      }
+
+      .pz-prize-track {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .pz-prizes-card.is-fixed .pz-prize-track {
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      }
+
+      .pz-prizes-card.is-carousel .pz-prize-track {
+        display: flex;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        padding: 2px 2px 8px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .pz-prizes-card.is-carousel .pz-prize-card {
+        flex: 0 0 calc((100% - 36px) / 3);
+        min-width: 210px;
+        scroll-snap-align: start;
+      }
+
+      .pz-prize-card {
+        position: relative;
+        min-height: 282px;
+        border: 1px solid #dfe8fb;
+        border-radius: 13px;
+        background: #fff;
+        padding: 15px;
+        overflow: hidden;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .pz-prize-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 34px rgba(6, 22, 66, 0.11);
+      }
+
+      .pz-prize-label {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        z-index: 2;
+        transform: translate(-50%, -1px);
+        min-width: 86px;
+        text-align: center;
+        padding: 6px 10px;
+        border-radius: 0 0 7px 7px;
+        color: white;
+        background: var(--pz-blue);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .pz-prize-image-wrap {
+        height: 178px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 12px;
+      }
+
+      .pz-prize-image-wrap img {
+        max-width: 100%;
+        max-height: 174px;
+        object-fit: contain;
+        filter: drop-shadow(0 18px 16px rgba(6, 22, 66, 0.12));
+      }
+
+      .pz-prize-placeholder {
+        width: min(150px, 80%);
+        aspect-ratio: 1;
+        border-radius: 24px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #eaf2ff, #d8fbe4);
+        color: var(--pz-blue-dark);
+        font-size: 34px;
+        font-weight: 1000;
+        border: 1px solid #dfe8fb;
+      }
+
+      .pz-prize-card h3 {
+        margin: 0 0 6px;
+        color: var(--pz-blue-dark);
+        font-size: 17px;
+        font-weight: 950;
+      }
+
+      .pz-prize-card p {
+        margin: 0;
+        color: #172349;
+        font-size: 14px;
+        line-height: 1.35;
+        font-weight: 560;
+      }
+
+      .pz-carousel-arrow {
+        position: absolute;
+        top: 50%;
+        z-index: 3;
+        width: 42px;
+        height: 42px;
+        border-radius: 999px;
+        border: 1px solid #dae5f9;
+        background: #fff;
+        color: var(--pz-blue-dark);
+        font-size: 34px;
+        line-height: 1;
+        box-shadow: 0 12px 24px rgba(6, 22, 66, 0.12);
+      }
+
+      .pz-carousel-prev { left: -20px; }
+      .pz-carousel-next { right: -20px; }
+
+      .pz-carousel-dots {
+        display: none;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 13px;
+      }
+
+      .pz-carousel-dots span {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #d6deee;
+      }
+
+      .pz-carousel-dots .is-active { background: var(--pz-blue); }
+
+      .pz-condition-list {
+        display: grid;
+        gap: 16px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .pz-condition-list li {
+        position: relative;
+        padding-left: 30px;
+        color: #18254a;
+        font-size: 14px;
+        line-height: 1.45;
+        font-weight: 700;
+      }
+
+      .pz-condition-list li::before {
+        content: "✓";
+        position: absolute;
+        left: 0;
+        top: 1px;
+        width: 18px;
+        height: 18px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: white;
+        background: var(--pz-blue);
+        font-size: 12px;
+        font-weight: 1000;
+      }
+
+      .pz-raffle-form { display: grid; gap: 14px; }
+      .pz-field { display: grid; gap: 7px; }
+
+      .pz-field > span {
+        color: var(--pz-blue-dark);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .pz-field input {
+        width: 100%;
+        height: 46px;
+        border: 1px solid #d9e2f1;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--pz-text);
+        font-size: 15px;
+        font-weight: 650;
+        outline: none;
+        padding: 0 14px;
+      }
+
+      .pz-field input:focus {
+        border-color: var(--pz-blue);
+        box-shadow: 0 0 0 4px rgba(7, 91, 234, 0.10);
+      }
+
+      .pz-phone-field {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        border: 1px solid #d9e2f1;
+        border-radius: 10px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .pz-phone-field strong {
+        height: 46px;
+        display: inline-flex;
+        align-items: center;
+        padding: 0 12px;
+        border-right: 1px solid #e5ecf7;
+        color: #172349;
+        font-size: 14px;
+        font-weight: 900;
+        background: #f8fbff;
+      }
+
+      .pz-phone-field input {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .pz-field small {
+        color: #727d97;
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 600;
+      }
+
+      .pz-form-error {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fff0f0;
+        color: #c02727;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .pz-confirm-btn,
+      .pz-whatsapp-outline,
+      .pz-receipt-whatsapp {
+        min-height: 50px;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 950;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-decoration: none;
+      }
+
+      .pz-confirm-btn {
+        color: #fff;
+        border: 0;
+        background: linear-gradient(180deg, #126cff 0%, #0057e6 100%);
+        box-shadow: 0 14px 26px rgba(7, 91, 234, 0.20);
+      }
+
+      .pz-whatsapp-outline {
+        color: var(--pz-green);
+        border: 1px solid rgba(8, 168, 62, 0.55);
+        background: #fff;
+      }
+
+      .pz-numbers-card { padding: 20px 24px 24px; }
+
+      .pz-numbers-head {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .pz-numbers-head h2 {
+        margin: 0;
+        color: var(--pz-blue-dark);
+        font-size: 20px;
+        font-weight: 950;
+      }
+
+      .pz-number-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px 28px;
+        color: #263456;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .pz-number-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend-dot {
+        width: 17px;
+        height: 17px;
+        border-radius: 999px;
+        display: inline-block;
+      }
+
+      .legend-available {
+        border: 2px solid var(--pz-blue);
+        background: #fff;
+      }
+
+      .legend-occupied {
+        border: 2px solid #aab3c4;
+        background: #eef1f6;
+      }
+
+      .legend-selected { background: var(--pz-blue); }
+
+      .pz-number-grid {
+        display: grid;
+        grid-template-columns: repeat(10, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .pz-number-btn {
+        min-width: 0;
+        height: 38px;
+        border: 1px solid #bcd1ff;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--pz-blue-dark);
+        font-size: 14px;
+        font-weight: 900;
+        transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+      }
+
+      .pz-number-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        border-color: var(--pz-blue);
+        background: #edf4ff;
+      }
+
+      .pz-number-btn.is-selected {
+        color: #fff;
+        background: var(--pz-blue);
+        border-color: var(--pz-blue);
+        box-shadow: 0 10px 20px rgba(7, 91, 234, 0.20);
+      }
+
+      .pz-number-btn.is-occupied {
+        color: #8b94a8;
+        background: #e8ecf3;
+        border-color: #d5dbe7;
+        cursor: not-allowed;
+      }
+
+      .pz-receipt-card {
+        padding: 22px;
+        background: linear-gradient(180deg, #effff5 0%, #ffffff 72%);
+        border-color: rgba(8, 168, 62, 0.20);
+      }
+
+      .pz-receipt-card.is-preview { display: none; }
+
+      .pz-receipt-top {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .pz-receipt-check {
+        width: 58px;
+        height: 58px;
+        border: 5px solid var(--pz-green);
+        border-radius: 999px;
+        color: var(--pz-green);
+        display: grid;
+        place-items: center;
+        font-size: 34px;
+        font-weight: 1000;
+      }
+
+      .pz-receipt-top p {
+        margin: 0;
+        color: var(--pz-green);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .pz-receipt-top strong {
+        display: block;
+        color: var(--pz-green);
+        font-size: 42px;
+        line-height: 0.92;
+        font-weight: 1000;
+        letter-spacing: 0;
+      }
+
+      .pz-receipt-ok {
+        margin: 8px 0 14px;
+        color: #176a34;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .pz-receipt-summary {
+        padding: 15px;
+        border-radius: 13px;
+        background: #fff;
+        border: 1px solid #dceee3;
+      }
+
+      .pz-receipt-summary h3 {
+        margin: 0 0 12px;
+        color: var(--pz-blue-dark);
+        font-size: 14px;
+        font-weight: 950;
+      }
+
+      .pz-receipt-summary dl {
+        display: grid;
+        gap: 9px;
+        margin: 0;
+      }
+
+      .pz-receipt-summary div {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+      }
+
+      .pz-receipt-summary dt {
+        color: #263456;
+        font-size: 13px;
+        font-weight: 850;
+      }
+
+      .pz-receipt-summary dd {
+        margin: 0;
+        color: var(--pz-blue-dark);
+        font-size: 13px;
+        font-weight: 900;
+        min-width: 0;
+      }
+
+      .pz-receipt-summary a {
+        color: var(--pz-blue);
+        text-decoration: none;
+        overflow-wrap: anywhere;
+      }
+
+      .pz-copy-link {
+        width: 28px;
+        height: 28px;
+        margin-left: 8px;
+        border: 0;
+        border-radius: 7px;
+        background: #eef5ff;
+        color: var(--pz-blue);
+      }
+
+      .pz-receipt-whatsapp {
+        width: 100%;
+        margin-top: 16px;
+        color: white;
+        background: linear-gradient(180deg, #13b94d 0%, #079639 100%);
+        box-shadow: 0 14px 26px rgba(8, 168, 62, 0.19);
+      }
+
+      .pz-safe-note {
+        margin: 12px 0 0;
+        text-align: center;
+        color: #67718a;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .pz-raffle-state-card {
+        margin-bottom: 20px;
+        padding: 22px 24px;
+      }
+
+      .pz-raffle-state-card strong {
+        display: block;
+        font-size: 28px;
+        line-height: 1.1;
+        font-weight: 1000;
+        letter-spacing: 0;
+      }
+
+      .pz-raffle-state-card p {
+        margin: 8px 0 16px;
+        color: #263456;
+        font-size: 16px;
+        line-height: 1.5;
+        font-weight: 650;
+      }
+
+      .pz-raffle-state-warning {
+        background: linear-gradient(180deg, #fff8e8 0%, #ffffff 100%);
+        border-color: #ffe0a6;
+      }
+
+      .pz-raffle-state-success {
+        background: linear-gradient(180deg, #effff5 0%, #ffffff 100%);
+        border-color: #bdf0cd;
+      }
+
+      .pz-raffle-state-empty {
+        background: linear-gradient(180deg, #eef5ff 0%, #ffffff 100%);
+        border-color: #cfe0ff;
+      }
+
+      .pz-state-actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .pz-state-actions a:first-child { background: var(--pz-blue); }
+      .pz-state-actions a:last-child { background: var(--pz-green); }
+
+      @media (max-width: 1100px) {
+        .pz-raffle-shell {
+          width: min(760px, calc(100% - 32px));
+          padding: 28px 0 40px;
+        }
+
+        .pz-raffle-hero,
+        .pz-raffle-content {
+          grid-template-columns: 1fr;
+        }
+
+        .pz-raffle-title {
+          font-size: clamp(48px, 12vw, 72px);
+        }
+
+        .pz-prizes-card.is-carousel .pz-prize-track {
+          grid-template-columns: repeat(3, minmax(180px, 1fr));
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 4px;
+        }
+
+        .pz-prizes-card.is-carousel .pz-prize-card { scroll-snap-align: start; }
+        .pz-prizes-card.is-carousel .pz-carousel-dots { display: flex; }
+      }
+
+      @media (max-width: 640px) {
+        .pz-raffle-page { background: linear-gradient(180deg, #ffffff 0%, #f6faff 100%); }
+
+        .pz-raffle-shell {
+          width: min(100% - 22px, 460px);
+          padding: 18px 0 28px;
+        }
+
+        .pz-raffle-badge {
+          font-size: 13px;
+          padding: 8px 13px;
+        }
+
+        .pz-raffle-title {
+          margin-top: 14px;
+          font-size: 46px;
+          line-height: 0.94;
+          letter-spacing: 0;
+        }
+
+        .pz-raffle-subtitle,
+        .pz-raffle-note {
+          font-size: 15px;
+          line-height: 1.35;
+        }
+
+        .pz-raffle-actions {
+          display: grid;
+          grid-template-columns: 1fr 1.25fr;
+          gap: 12px;
+          margin-top: 16px;
+        }
+
+        .pz-raffle-btn {
+          min-height: 48px;
+          padding: 0 14px;
+          border-radius: 10px;
+          font-size: 14px;
+        }
+
+        .pz-raffle-countdown-card {
+          padding: 18px 14px 17px;
+          border-radius: 15px;
+        }
+
+        .pz-countdown-eyebrow { font-size: 15px; }
+        .pz-countdown-grid { gap: 5px; }
+        .pz-countdown-unit strong { font-size: 32px; }
+        .pz-countdown-unit span {
+          margin-top: 4px;
+          font-size: 12px;
+        }
+
+        .pz-countdown-separator {
+          font-size: 27px;
+          padding-bottom: 16px;
+        }
+
+        .pz-countdown-caption {
+          margin: 10px 0 12px;
+          font-size: 13px;
+        }
+
+        .pz-countdown-date {
+          width: 100%;
+          padding: 9px 10px;
+          font-size: 12px;
+          text-align: center;
+        }
+
+        .pz-raffle-card,
+        .pz-receipt-card,
+        .pz-raffle-state-card {
+          border-radius: 15px;
+        }
+
+        .pz-raffle-card { padding: 15px; }
+        .pz-section-heading { margin-bottom: 12px; }
+
+        .pz-section-heading h2,
+        .pz-numbers-head h2 {
+          font-size: 17px;
+        }
+
+        .pz-prizes-card.is-fixed .pz-prize-track {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+
+        .pz-prizes-card.is-carousel .pz-prize-track {
+          display: flex;
+          gap: 10px;
+          overflow-x: auto;
+          padding: 2px 2px 8px;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .pz-prizes-card.is-carousel .pz-prize-card {
+          flex: 0 0 31%;
+          min-width: 0;
+        }
+
+        .pz-prize-card {
+          min-height: 204px;
+          padding: 10px;
+          border-radius: 11px;
+        }
+
+        .pz-prize-label {
+          min-width: 66px;
+          font-size: 10px;
+          padding: 5px 7px;
+        }
+
+        .pz-prize-image-wrap {
+          height: 104px;
+          margin-bottom: 8px;
+        }
+
+        .pz-prize-image-wrap img { max-height: 100px; }
+
+        .pz-prize-card h3 {
+          font-size: 12px;
+          line-height: 1.2;
+        }
+
+        .pz-prize-card p {
+          font-size: 10px;
+          line-height: 1.3;
+        }
+
+        .pz-carousel-arrow {
+          width: 32px;
+          height: 32px;
+          font-size: 25px;
+        }
+
+        .pz-carousel-prev { left: -11px; }
+        .pz-carousel-next { right: -11px; }
+
+        .pz-condition-list {
+          grid-template-columns: 1fr 1fr;
+          gap: 9px 12px;
+        }
+
+        .pz-condition-list li {
+          padding-left: 23px;
+          font-size: 10.5px;
+          line-height: 1.35;
+        }
+
+        .pz-condition-list li::before {
+          width: 15px;
+          height: 15px;
+          font-size: 10px;
+        }
+
+        .pz-raffle-form { gap: 11px; }
+        .pz-field > span { font-size: 12px; }
+
+        .pz-field input,
+        .pz-phone-field strong {
+          height: 42px;
+          font-size: 13px;
+        }
+
+        .pz-field small { font-size: 10.5px; }
+
+        .pz-confirm-btn,
+        .pz-whatsapp-outline {
+          min-height: 42px;
+          font-size: 13px;
+        }
+
+        .pz-number-legend {
+          gap: 8px 12px;
+          font-size: 10px;
+        }
+
+        .legend-dot {
+          width: 14px;
+          height: 14px;
+        }
+
+        .pz-number-grid {
+          grid-template-columns: repeat(10, minmax(0, 1fr));
+          gap: 6px;
+        }
+
+        .pz-number-btn {
+          height: 29px;
+          border-radius: 6px;
+          font-size: 11px;
+          padding: 0;
+        }
+
+        .pz-receipt-card { padding: 15px; }
+
+        .pz-receipt-check {
+          width: 48px;
+          height: 48px;
+          font-size: 28px;
+          border-width: 4px;
+        }
+
+        .pz-receipt-top strong { font-size: 34px; }
+        .pz-receipt-summary { padding: 12px; }
+
+        .pz-receipt-summary div {
+          grid-template-columns: 132px minmax(0, 1fr);
+          gap: 6px;
+        }
+
+        .pz-receipt-summary dt,
+        .pz-receipt-summary dd {
+          font-size: 11.5px;
+        }
+
+        .pz-receipt-whatsapp {
+          min-height: 46px;
+          font-size: 13px;
+        }
+
+        .pz-raffle-state-card { padding: 18px; }
+        .pz-raffle-state-card strong { font-size: 23px; }
+        .pz-raffle-state-card p { font-size: 13px; }
+
+        .pz-state-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .pz-state-actions a {
+          min-height: 46px;
+          padding: 0 16px;
+          font-size: 13px;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .pz-raffle-title { font-size: 40px; }
+        .pz-raffle-actions { grid-template-columns: 1fr; }
+        .pz-number-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+        .pz-number-btn {
+          height: 38px;
+          font-size: 13px;
+        }
+        .pz-prizes-card.is-carousel .pz-prize-card { flex-basis: 78%; }
+        .pz-condition-list { grid-template-columns: 1fr; }
+        .pz-receipt-summary div { grid-template-columns: 1fr; }
+      }
+    </style>
+
+    <script define:vars={{ storeSlug, raffleSlug, fullRaffleUrl }}>
+      (() => {
+        const root = document.querySelector('[data-raffle-root]');
+        if (!root) return;
+
+        const status = root.dataset.raffleStatus || 'active';
+        const startsAt = root.dataset.startsAt ? new Date(root.dataset.startsAt) : null;
+        const closesAt = root.dataset.closesAt ? new Date(root.dataset.closesAt) : null;
+        const drawAt = root.dataset.drawAt ? new Date(root.dataset.drawAt) : null;
+
+        const daysNode = root.querySelector('[data-days]');
+        const hoursNode = root.querySelector('[data-hours]');
+        const minutesNode = root.querySelector('[data-minutes]');
+        const secondsNode = root.querySelector('[data-seconds]');
+        const captionNode = root.querySelector('[data-countdown-caption]');
+
+        const getTargetDate = () => {
+          if (status === 'scheduled') return startsAt;
+          if (status === 'active') return closesAt;
+          if (status === 'selection_closed') return drawAt;
+          return null;
+        };
+
+        const pad = (value) => String(Math.max(0, value)).padStart(2, '0');
+
+        const renderCountdown = () => {
+          const target = getTargetDate();
+          if (captionNode) {
+            const captions = {
+              scheduled: 'para comenzar la selección de números',
+              active: 'para cerrar la selección de números',
+              selection_closed: 'para anunciar el ganador',
+              result_pending: 'resultado pendiente de publicación',
+              winner_published: 'resultado publicado',
+              no_winner_published: 'resultado publicado',
+              finalized: 'rifa finalizada',
+            };
+            captionNode.textContent = captions[status] || 'rifa no disponible';
+          }
+
+          if (!target || Number.isNaN(target.getTime())) return;
+
+          const diff = Math.max(0, target.getTime() - Date.now());
+          const totalSeconds = Math.floor(diff / 1000);
+          const days = Math.floor(totalSeconds / 86400);
+          const hours = Math.floor((totalSeconds % 86400) / 3600);
+          const minutes = Math.floor((totalSeconds % 3600) / 60);
+          const seconds = totalSeconds % 60;
+
+          if (daysNode) daysNode.textContent = pad(days);
+          if (hoursNode) hoursNode.textContent = pad(hours);
+          if (minutesNode) minutesNode.textContent = pad(minutes);
+          if (secondsNode) secondsNode.textContent = pad(seconds);
+
+        };
+
+        renderCountdown();
+        window.setInterval(renderCountdown, 1000);
+
+        const grid = root.querySelector('[data-number-grid]');
+        const selectedInput = root.querySelector('[data-selected-number-input]');
+        const receiptCard = root.querySelector('[data-receipt-card]');
+        const receiptNumber = root.querySelector('[data-receipt-number]');
+        const receiptNumberText = root.querySelector('[data-receipt-number-text]');
+        const receiptPhone = root.querySelector('[data-receipt-phone]');
+        const receiptCode = root.querySelector('[data-receipt-code]');
+        const receiptDate = root.querySelector('[data-receipt-date]');
+        const receiptWhatsapp = root.querySelector('[data-receipt-whatsapp]');
+        const sendReceiptButton = root.querySelector('[data-send-receipt-button]');
+        const errorNode = root.querySelector('[data-form-error]');
+        let currentWhatsappUrl = '';
+        const receiptStoragePrefix = `pz-raffle-receipt:${storeSlug}:${raffleSlug}`;
+        const legacyReceiptStorageKey = receiptStoragePrefix;
+
+        const setError = (message) => {
+          if (!errorNode) return;
+          errorNode.textContent = message || '';
+          errorNode.hidden = !message;
+        };
+
+        const setSelectedNumber = (number) => {
+          if (selectedInput) selectedInput.value = number;
+          if (receiptNumber) receiptNumber.textContent = number || '--';
+          if (receiptNumberText) receiptNumberText.textContent = number || '--';
+        };
+
+        if (grid) {
+          grid.addEventListener('click', (event) => {
+            const button = event.target.closest('.pz-number-btn');
+            if (!button || button.disabled || button.classList.contains('is-occupied')) return;
+
+            grid.querySelectorAll('.pz-number-btn.is-selected').forEach((item) => {
+              item.classList.remove('is-selected');
+            });
+
+            button.classList.add('is-selected');
+            setSelectedNumber(button.dataset.number || '');
+            setError('');
+          });
+        }
+
+        const markOccupied = (number) => {
+          if (!grid || !number) return;
+          const button = grid.querySelector(`.pz-number-btn[data-number="${CSS.escape(number)}"]`);
+          if (!button) return;
+          button.classList.remove('is-selected');
+          button.classList.add('is-occupied');
+          button.disabled = true;
+        };
+
+        const lockNumberGrid = (number = '') => {
+          if (!grid) return;
+          grid.querySelectorAll('.pz-number-btn').forEach((button) => {
+            const isSelectedNumber = number && button.dataset.number === number;
+            button.disabled = true;
+            button.classList.toggle('is-selected', Boolean(isSelectedNumber));
+            if (isSelectedNumber) button.classList.remove('is-occupied');
+          });
+        };
+
+        const unlockNumberGrid = () => {
+          if (!grid) return;
+          grid.querySelectorAll('.pz-number-btn').forEach((button) => {
+            button.classList.remove('is-selected');
+            button.disabled = status !== 'active' || button.classList.contains('is-occupied');
+          });
+        };
+
+        const normalizePhone = (value) => {
+          const digits = String(value || '').replace(/\D/g, '');
+          if (/^\d{8}$/.test(digits)) return `53${digits}`;
+          if (/^53\d{8}$/.test(digits)) return digits;
+          return '';
+        };
+
+        const form = root.querySelector('[data-raffle-form]');
+        const setFormLocked = (locked) => {
+          if (!form) return;
+          form.querySelectorAll('input').forEach((input) => {
+            input.disabled = locked;
+          });
+          const submitButton = form.querySelector('.pz-confirm-btn');
+          if (submitButton) {
+            submitButton.disabled = locked;
+            submitButton.hidden = locked;
+          }
+        };
+
+        const receiptKeyForPhone = (phone) => `${receiptStoragePrefix}:${normalizePhone(phone)}`;
+
+        const saveLocalReceipt = (receipt) => {
+          try {
+            const phone = normalizePhone(receipt.phone_normalized || receipt.phone);
+            const key = phone ? receiptKeyForPhone(phone) : legacyReceiptStorageKey;
+            window.localStorage.setItem(key, JSON.stringify({
+              storeSlug,
+              raffleSlug,
+              chosen_number: receipt.chosen_number || receipt.selected_number || '',
+              selected_number: receipt.chosen_number || receipt.selected_number || '',
+              phone,
+              phone_normalized: phone,
+              receipt_code: receipt.receipt_code || '',
+              created: receipt.created || receipt.created_at || new Date().toISOString(),
+              created_at: receipt.created || receipt.created_at || new Date().toISOString(),
+              status: receipt.status || '',
+              whatsapp_url: receipt.whatsapp_url || '',
+            }));
+            if (phone) window.localStorage.removeItem(legacyReceiptStorageKey);
+          } catch (_) {
+          }
+        };
+
+        const readLocalReceipt = () => {
+          try {
+            const candidates = [];
+            const legacy = window.localStorage.getItem(legacyReceiptStorageKey);
+            if (legacy) candidates.push({ key: legacyReceiptStorageKey, raw: legacy });
+            for (let index = 0; index < window.localStorage.length; index += 1) {
+              const key = window.localStorage.key(index) || '';
+              if (!key.startsWith(`${receiptStoragePrefix}:`)) continue;
+              const raw = window.localStorage.getItem(key);
+              if (raw) candidates.push({ key, raw });
+            }
+            for (const candidate of candidates) {
+              try {
+                const parsed = JSON.parse(candidate.raw);
+                if (parsed && typeof parsed === 'object') return { ...parsed, storageKey: candidate.key };
+              } catch (_) {
+              }
+            }
+            return null;
+          } catch (_) {
+            return null;
+          }
+        };
+
+        const removeLocalReceipt = (receipt = {}) => {
+          try {
+            if (receipt.storageKey) window.localStorage.removeItem(receipt.storageKey);
+            const phone = normalizePhone(receipt.phone_normalized || receipt.phone);
+            if (phone) window.localStorage.removeItem(receiptKeyForPhone(phone));
+            window.localStorage.removeItem(legacyReceiptStorageKey);
+          } catch (_) {
+          }
+        };
+
+        const showReceipt = (receipt = {}, message = '') => {
+          const chosenNumber = String(receipt.chosen_number || receipt.selected_number || '').trim();
+          if (chosenNumber) setSelectedNumber(chosenNumber);
+          if (receiptPhone) receiptPhone.textContent = receipt.phone || receipt.phone_masked || '--';
+          if (receiptCode) receiptCode.textContent = receipt.receipt_code || '--';
+          if (receiptDate) {
+            const date = receipt.created ? new Date(receipt.created) : new Date();
+            receiptDate.textContent = Number.isNaN(date.getTime())
+              ? '--'
+              : new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+          }
+          currentWhatsappUrl = receipt.whatsapp_url || currentWhatsappUrl || '';
+          if (receiptWhatsapp && currentWhatsappUrl) receiptWhatsapp.href = currentWhatsappUrl;
+          if (sendReceiptButton) sendReceiptButton.disabled = !currentWhatsappUrl;
+          receiptCard?.classList.remove('is-preview');
+          if (message) setError(message);
+        };
+
+        const hideReceipt = () => {
+          receiptCard?.classList.add('is-preview');
+          setSelectedNumber('');
+          currentWhatsappUrl = '';
+          if (sendReceiptButton) sendReceiptButton.disabled = true;
+        };
+
+        const lockParticipation = (receipt = {}, message = '') => {
+          const chosenNumber = String(receipt.chosen_number || receipt.selected_number || '').trim();
+          lockNumberGrid(chosenNumber);
+          setFormLocked(true);
+          if (chosenNumber) showReceipt(receipt, message);
+          else {
+            hideReceipt();
+            if (message) setError(message);
+          }
+        };
+
+        const unlockParticipation = (message = '') => {
+          hideReceipt();
+          unlockNumberGrid();
+          setFormLocked(false);
+          if (selectedInput) selectedInput.value = '';
+          setError(message || '');
+        };
+
+        const validateStoredReceipt = async (receipt) => {
+          const phone = normalizePhone(receipt?.phone_normalized || receipt?.phone);
+          if (!phone) {
+            removeLocalReceipt(receipt);
+            unlockParticipation('');
+            return;
+          }
+          try {
+            const response = await fetch('/api/raffles/status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ storeSlug, raffleSlug, phone, receipt_code: receipt.receipt_code || '' }),
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || !result?.ok) throw new Error(result?.message || 'No se pudo validar tu participación.');
+
+            if (result.status === 'active' && result.receipt) {
+              saveLocalReceipt(result.receipt);
+              lockParticipation(result.receipt, 'Ya tienes un número reservado.');
+              return;
+            }
+
+            if (result.status === 'cancelled') {
+              saveLocalReceipt({ phone, status: 'cancelled' });
+              lockParticipation({}, result.message || 'Tu participación fue cancelada por la tienda. Contacta con la tienda si crees que fue un error.');
+              return;
+            }
+
+            if (result.status === 'reentry_allowed') {
+              removeLocalReceipt(receipt);
+              unlockParticipation(result.message || 'Puedes participar nuevamente. Escoge un número disponible.');
+              return;
+            }
+
+            removeLocalReceipt(receipt);
+            unlockParticipation('');
+          } catch (error) {
+            lockParticipation(receipt, error?.message || 'No se pudo validar tu participación. Intenta nuevamente.');
+          }
+        };
+
+        const storedReceipt = readLocalReceipt();
+        if (storedReceipt?.chosen_number) {
+          lockParticipation(storedReceipt, 'Ya tienes un número reservado.');
+          validateStoredReceipt(storedReceipt);
+        } else if (storedReceipt?.phone || storedReceipt?.phone_normalized) {
+          lockParticipation({}, '');
+          validateStoredReceipt(storedReceipt);
+        }
+
+        if (form) {
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            setError('');
+
+            const formData = new FormData(form);
+            const phone = normalizePhone(formData.get('phone'));
+            const accessCode = String(formData.get('access_code') || '').trim();
+            const chosenNumber = String(formData.get('chosen_number') || '');
+
+            if (!chosenNumber) {
+              setError('Escoge un número disponible antes de confirmar.');
+              return;
+            }
+
+            if (!phone) {
+              setError('Escribe un número cubano válido de 8 dígitos.');
+              return;
+            }
+
+            if (!accessCode) {
+              setError('Introduce el código exclusivo del grupo de WhatsApp.');
+              return;
+            }
+
+            const submitButton = form.querySelector('.pz-confirm-btn');
+            const originalSubmitHtml = submitButton ? submitButton.innerHTML : '';
+            if (submitButton) {
+              submitButton.disabled = true;
+              submitButton.textContent = 'Reservando...';
+            }
+
+            try {
+              const response = await fetch('/api/raffles/enter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  storeSlug,
+                  raffleSlug,
+                  access_code: accessCode,
+                  phone,
+                  chosen_number: chosenNumber,
+                }),
+              });
+              const result = await response.json().catch(() => null);
+              if (!response.ok || !result?.ok) {
+                const occupied = result?.occupiedNumber || '';
+                if (occupied) markOccupied(occupied);
+                if (result?.reservedNumber) {
+                  const duplicateReceipt = result.receipt || {
+                    chosen_number: result.reservedNumber,
+                    phone,
+                    created: new Date().toISOString(),
+                  };
+                  saveLocalReceipt(duplicateReceipt);
+                  lockParticipation(duplicateReceipt, result?.message || 'Ya tienes una participación registrada en esta rifa.');
+                } else if (result?.participationBlocked) {
+                  saveLocalReceipt({ phone, status: 'cancelled' });
+                  lockParticipation({}, result?.message || 'Tu participación fue cancelada por la tienda. Contacta con la tienda si crees que fue un error.');
+                }
+                throw new Error(result?.message || 'No se pudo reservar el número. Intenta nuevamente.');
+              }
+
+              const receipt = result.receipt || {};
+              saveLocalReceipt(receipt);
+              lockParticipation(receipt, '');
+              form.reset();
+              if (selectedInput) selectedInput.value = '';
+            } catch (error) {
+              setError(error?.message || 'No se pudo reservar el número. Intenta nuevamente.');
+            } finally {
+              if (submitButton) {
+                submitButton.disabled = form.querySelector('.pz-confirm-btn')?.hidden === true;
+                submitButton.innerHTML = originalSubmitHtml;
+              }
+            }
+          });
+        }
+
+        sendReceiptButton?.addEventListener('click', () => {
+          if (currentWhatsappUrl) window.open(currentWhatsappUrl, '_blank', 'noopener');
+        });
+
+        const copyButton = root.querySelector('[data-copy-raffle-link]');
+        const receiptLink = root.querySelector('[data-receipt-link]');
+        copyButton?.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(receiptLink?.href || fullRaffleUrl || window.location.href);
+            copyButton.textContent = '✓';
+            window.setTimeout(() => { copyButton.textContent = '⧉'; }, 1200);
+          } catch (_) {
+            copyButton.textContent = '⧉';
+          }
+        });
+
+        const track = root.querySelector('[data-prize-track]');
+        root.querySelector('.pz-carousel-prev')?.addEventListener('click', () => {
+          track?.scrollBy({ left: -Math.max(180, track.clientWidth * 0.8), behavior: 'smooth' });
+        });
+        root.querySelector('.pz-carousel-next')?.addEventListener('click', () => {
+          track?.scrollBy({ left: Math.max(180, track.clientWidth * 0.8), behavior: 'smooth' });
+        });
+      })();
+    </script>
+  </body>
+</html>

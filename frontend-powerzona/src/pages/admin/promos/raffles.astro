@@ -1,0 +1,1807 @@
+---
+import { refreshAuthFromCookie } from '../../../lib/auth';
+import { getPublicStorePath, getStoreAdminPath } from '../../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
+import AdminSidebar from '../../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../../components/admin/AdminSectionHeader.astro';
+import '../../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const currentStoreId = adminContext.storeId;
+const adminAuthToken = authPb.authStore.token;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona';
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const publicStorePath = getPublicStorePath(currentStoreSlug);
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rifas | PowerZona</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --surface: #ffffff;
+        --surface-soft: #f8fafc;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --green: #16a34a;
+        --blue: #2563eb;
+        --red: #dc2626;
+        --orange: #f97316;
+        --shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background:
+          linear-gradient(180deg, #f8fbff 0%, var(--page) 48%, #e8eef7 100%);
+      }
+      a { color: inherit; text-decoration: none; }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .65; }
+      .hidden { display: none !important; }
+
+      .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; display: block; }
+      .main-wrap { min-width: 0; padding: 2px 0 28px; }
+      .raffle-admin-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(380px, .9fr); gap: 18px; align-items: start; }
+      .raffle-admin-panel,
+      .raffle-admin-card {
+        background: rgba(255,255,255,.95);
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+      .raffle-admin-panel { padding: 20px; display: grid; gap: 16px; }
+      .raffle-admin-summary { margin-bottom: 18px; }
+      .raffle-summary-card {
+        display: grid;
+        grid-template-columns: minmax(220px, .9fr) minmax(260px, 1fr);
+        gap: 16px;
+        align-items: start;
+        padding: 20px 22px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 58%, #eff6ff 100%);
+        border: 1px solid rgba(191, 219, 254, .86);
+        box-shadow: var(--shadow);
+      }
+      .raffle-summary-head h2 { margin: 0; color: #0f172a; font-size: 20px; font-weight: 1000; letter-spacing: 0; }
+      .raffle-summary-head p { margin: 6px 0 0; color: #64748b; font-size: 13px; line-height: 1.45; font-weight: 800; }
+      .raffle-summary-metrics { display: grid; border: 1px solid rgba(226,232,240,.96); border-radius: 16px; background: rgba(255,255,255,.82); overflow: hidden; }
+      .raffle-summary-row { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 14px; }
+      .raffle-summary-row + .raffle-summary-row { border-top: 1px solid rgba(226,232,240,.9); }
+      .raffle-summary-label { color: #64748b; font-size: 13px; font-weight: 950; letter-spacing: 0; }
+      .raffle-summary-value { color: #0f172a; font-size: 18px; font-weight: 1000; line-height: 1; letter-spacing: 0; }
+      .raffle-panel-head { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+      .raffle-panel-head h2 { margin: 0; color: #0f172a; font-size: 22px; font-weight: 1000; letter-spacing: 0; }
+      .raffle-panel-head p { margin: 6px 0 0; color: #64748b; font-size: 13px; line-height: 1.45; font-weight: 800; }
+      .raffle-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+      .raffle-btn {
+        min-height: 42px;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #0f172a;
+        padding: 10px 13px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 1000;
+        box-shadow: 0 10px 22px rgba(15,23,42,.06);
+      }
+      .raffle-btn.primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; border-color: #1d4ed8; box-shadow: 0 14px 26px rgba(37,99,235,.20); }
+      .raffle-btn.success { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+      .raffle-btn.warning { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+      .raffle-btn.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+      .raffle-btn svg { width: 18px; height: 18px; fill: currentColor; }
+      .raffle-icon-btn {
+        width: 42px;
+        height: 42px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #fff;
+        color: #0f172a;
+        display: inline-grid;
+        place-items: center;
+        font-size: 22px;
+        font-weight: 1000;
+        box-shadow: 0 10px 22px rgba(15,23,42,.06);
+      }
+      .raffle-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+        background: rgba(15, 23, 42, .46);
+        backdrop-filter: blur(4px);
+      }
+      .raffle-modal-card {
+        width: min(900px, 100%);
+        max-height: min(88vh, 920px);
+        overflow: auto;
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .28);
+      }
+      .raffle-date-card {
+        width: min(520px, 100%);
+        overflow: hidden;
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 28px 80px rgba(15, 23, 42, .28);
+      }
+      .raffle-date-body { display: grid; gap: 12px; padding: 18px 20px; }
+      .raffle-date-actions { justify-content: flex-end; padding: 0 20px 20px; }
+      .raffle-modal-head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 20px 20px 14px;
+        border-bottom: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(10px);
+      }
+      .raffle-modal-head h2 { margin: 0; color: #0f172a; font-size: 22px; font-weight: 1000; letter-spacing: 0; }
+      .raffle-form { display: grid; gap: 14px; }
+      .raffle-form.hidden { display: none !important; }
+      .raffle-form > .raffle-form-grid,
+      .raffle-form > .alert,
+      .raffle-form > .raffle-actions { margin-left: 20px; margin-right: 20px; }
+      .raffle-form > .raffle-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        margin: 0;
+        padding: 14px 20px 20px;
+        border-top: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(10px);
+      }
+      .raffle-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .raffle-form-grid .full { grid-column: 1 / -1; }
+      .field { display: grid; gap: 7px; }
+      .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: 0; }
+      .field input, .field select, .field textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+        color: var(--text);
+        padding: 12px 13px;
+        outline: none;
+        font-weight: 800;
+        box-shadow: inset 0 1px 0 rgba(15,23,42,.02);
+      }
+      .field textarea { min-height: 92px; resize: vertical; line-height: 1.45; }
+      .field input:focus, .field select:focus, .field textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.10); }
+      .field input[readonly] { background: #f8fafc; color: #334155; }
+      .form-help { margin: 0; color: #64748b; font-size: 12px; font-weight: 750; line-height: 1.45; }
+      .switch-row { display: inline-flex; align-items: center; gap: 9px; color: #334155; font-size: 13px; font-weight: 900; }
+      .switch-row input { width: 18px; height: 18px; accent-color: #2563eb; }
+      .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .segmented-control label { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #dbeafe; border-radius: 14px; background: #fff; color: #1e3a8a; font-size: 13px; font-weight: 950; text-transform: none; }
+      .segmented-control input { width: 16px; height: 16px; accent-color: #2563eb; }
+      .prize-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+      .prize-editor-head h3 { margin: 0; color: #0f172a; font-size: 17px; font-weight: 1000; letter-spacing: 0; }
+      .prize-editor-list { display: grid; gap: 10px; }
+      .prize-editor-card {
+        display: grid;
+        grid-template-columns: 112px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+        padding: 12px;
+        border: 1px solid #dbeafe;
+        border-radius: 18px;
+        background: #f8fbff;
+      }
+      .prize-photo-box { display: grid; gap: 8px; }
+      .prize-photo-preview { width: 100%; aspect-ratio: 1; border-radius: 14px; border: 1px solid #dbeafe; background: #eff6ff; display: grid; place-items: center; overflow: hidden; color: #1d4ed8; font-size: 12px; font-weight: 1000; text-align: center; }
+      .prize-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+      .prize-photo-box input { padding: 8px; font-size: 11px; border-radius: 12px; }
+      .prize-fields { display: grid; gap: 9px; }
+      .prize-fields input,
+      .prize-fields textarea { width: 100%; }
+      .prize-fields textarea { min-height: 68px; }
+      .prize-remove-btn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; font-size: 20px; font-weight: 1000; line-height: 1; }
+      .alert { position: relative; border-radius: 14px; padding: 11px 42px 11px 12px; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+      .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+      .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+      .alert-close { position: absolute; top: 7px; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 8px; background: rgba(255,255,255,.72); color: currentColor; font-weight: 1000; }
+      .raffle-list { display: grid; gap: 10px; }
+      .raffle-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        align-items: stretch;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 10px 24px rgba(15,23,42,.04);
+        cursor: pointer;
+        transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+      }
+      .raffle-row:hover { border-color: #bfdbfe; box-shadow: 0 16px 32px rgba(15,23,42,.08); transform: translateY(-1px); }
+      .raffle-row.is-selected { border-color: #2563eb; background: #eff6ff; box-shadow: 0 18px 42px rgba(37,99,235,.16); }
+      .raffle-row.is-selected .raffle-participant-pill { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
+      .raffle-row-main { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; min-width: 0; align-items: start; }
+      .raffle-row-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+      .raffle-selected-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 5px 9px; border-radius: 999px; background: #2563eb; color: #fff; font-size: 11px; font-weight: 1000; }
+      .raffle-participant-pill { min-height: 34px; border: 1px solid #e2e8f0; border-radius: 999px; background: #f8fafc; color: #475569; padding: 7px 10px; font-size: 12px; font-weight: 1000; white-space: nowrap; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
+      .raffle-thumb { width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(135deg, #dbeafe, #dcfce7); display: grid; place-items: center; color: #1d4ed8; font-weight: 1000; flex: 0 0 auto; overflow: hidden; border: 1px solid #dbeafe; }
+      .raffle-thumb img { width: 100%; height: 100%; object-fit: cover; }
+      .raffle-row-copy { min-width: 0; }
+      .raffle-row-slot { margin: 0 0 3px; color: #2563eb; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: 0; }
+      .raffle-row-title { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .raffle-row-meta { margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.4; font-weight: 800; }
+      .raffle-row-link { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px; align-items: center; }
+      .raffle-row-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+      .raffle-row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
+      .raffle-status-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 1000; background: #f1f5f9; color: #64748b; }
+      .raffle-status-pill.draft { background: #f1f5f9; color: #475569; }
+      .raffle-status-pill.scheduled { background: #e0f2fe; color: #075985; }
+      .raffle-status-pill.active { background: #dcfce7; color: #166534; }
+      .raffle-status-pill.selection_closed { background: #fff7ed; color: #9a3412; }
+      .raffle-status-pill.result_pending { background: #fef3c7; color: #92400e; }
+      .raffle-status-pill.winner_published { background: #dbeafe; color: #1d4ed8; }
+      .raffle-status-pill.no_winner_published { background: #eef2ff; color: #4338ca; }
+      .raffle-status-pill.finalized { background: #e2e8f0; color: #334155; }
+      .raffle-menu { position: relative; }
+      .raffle-menu-button { width: 38px; min-height: 38px; border: 1px solid #e2e8f0; border-radius: 13px; background: #fff; color: #0f172a; display: grid; place-items: center; font-size: 22px; font-weight: 1000; box-shadow: 0 10px 22px rgba(15,23,42,.06); }
+      .raffle-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 220px; padding: 8px; border-radius: 14px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 22px 48px rgba(15,23,42,.18); display: grid; gap: 6px; }
+      .raffle-menu-panel[hidden] { display: none; }
+      .raffle-menu-panel button { width: 100%; min-height: 42px; border: 0; border-radius: 10px; background: #fff; color: #0f172a; text-align: left; padding: 10px 11px; font-weight: 900; }
+      .raffle-menu-panel button:hover { background: #eff6ff; color: #1d4ed8; }
+      .raffle-menu-panel button.danger { background: #fff1f2; color: #991b1b; }
+      .raffle-control-card { display: grid; gap: 10px; padding: 14px; border-radius: 18px; border: 1px solid #dbeafe; background: #f8fbff; }
+      .raffle-control-card h3 { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; }
+      .raffle-control-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .empty-state { border: 1px dashed #cbd5e1; border-radius: 18px; background: #f8fafc; color: #64748b; padding: 20px; font-size: 14px; font-weight: 850; text-align: center; }
+      .entry-toolbar { display: grid; gap: 10px; }
+      .result-box { display: grid; gap: 10px; padding: 14px; border-radius: 18px; border: 1px solid #e2e8f0; background: #f8fafc; }
+      .result-box h3 { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; }
+      .result-actions { display: grid; grid-template-columns: 110px 1fr 1fr; gap: 8px; }
+      .winner-contact-box { display: grid; gap: 9px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; }
+      .winner-contact-box p { margin: 0; color: #1e3a8a; font-size: 13px; font-weight: 850; line-height: 1.45; }
+      .winner-contact-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .winner-detail-list { display: grid; gap: 8px; margin: 0; padding: 0; }
+      .winner-detail-list div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; align-items: start; }
+      .winner-detail-list dt { color: #64748b; font-size: 12px; font-weight: 950; text-transform: uppercase; }
+      .winner-detail-list dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 900; overflow-wrap: anywhere; }
+      .entry-list { display: grid; gap: 9px; max-height: 520px; overflow: auto; padding-right: 3px; }
+      .entry-row { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; padding: 10px; }
+      .entry-number { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; background: #eff6ff; color: #1d4ed8; font-size: 20px; font-weight: 1000; }
+      .entry-title { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; }
+      .entry-meta { margin: 4px 0 0; color: #64748b; font-size: 12px; font-weight: 800; overflow-wrap: anywhere; }
+      .entry-section-title { margin: 10px 0 0; color: #334155; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: 0; }
+      .entry-status-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 6px 9px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 12px; font-weight: 1000; }
+      .entry-status-badge.allowed { background: #dcfce7; color: #166534; }
+      .image-strip { display: flex; flex-wrap: wrap; gap: 8px; }
+      .image-strip img { width: 64px; height: 48px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; }
+
+      @media (max-width: 1023px) {
+        .app-shell { padding-top: 76px; }
+      }
+
+      @media (max-width: 900px) {
+        .raffle-admin-grid,
+        .raffle-form-grid,
+        .result-actions {
+          grid-template-columns: 1fr;
+        }
+        .raffle-summary-card,
+        .prize-editor-card {
+          grid-template-columns: 1fr;
+        }
+        .raffle-summary-metrics {
+          grid-template-columns: 1fr;
+        }
+        .raffle-panel-head,
+        .raffle-row,
+        .entry-row {
+          grid-template-columns: 1fr;
+          align-items: stretch;
+        }
+        .raffle-row-main {
+          grid-template-columns: 58px minmax(0, 1fr);
+        }
+        .raffle-row-head-actions {
+          grid-column: 1 / -1;
+          justify-content: flex-start;
+        }
+        .raffle-row-actions { justify-content: flex-start; }
+        .prize-remove-btn { width: 100%; }
+      }
+
+      @media (max-width: 560px) {
+        .raffle-modal {
+          align-items: end;
+          padding: 0;
+        }
+        .raffle-modal-card {
+          width: 100%;
+          max-height: 94vh;
+          border-radius: 22px 22px 0 0;
+        }
+        .raffle-form > .raffle-form-grid,
+        .raffle-form > .alert,
+        .raffle-form > .raffle-actions {
+          margin-left: 14px;
+          margin-right: 14px;
+        }
+        .raffle-form > .raffle-actions {
+          margin: 0;
+          padding: 12px 14px 16px;
+        }
+        .raffle-summary-metrics,
+        .segmented-control {
+          grid-template-columns: 1fr;
+        }
+        .raffle-row-actions {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .raffle-row-actions .raffle-btn,
+        .raffle-menu,
+        .raffle-menu-button {
+          width: 100%;
+        }
+        .raffle-menu-panel {
+          left: 0;
+          right: auto;
+          width: min(260px, calc(100vw - 38px));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
+    <div class="app-shell pz-admin-content">
+      <AdminSidebar
+        storeId={currentStoreId}
+        pocketbaseUrl={pocketbaseUrl}
+        authToken={adminAuthToken}
+        storeSlug={currentStoreSlug}
+        storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
+        activeSection="marketing"
+        mobileTitle="Rifas"
+        mobileActionLabel="Actualizar"
+        mobileActionTarget="#raffle-new-btn"
+        mobileBackHref={adminPromosPath}
+        mobileBackLabel="Promociones"
+      />
+
+      <main class="main-wrap pz-admin-content-inner">
+        <AdminSectionHeader
+          kicker="Marketing / Rifas"
+          title="Rifas"
+          description="Administra hasta 3 rifas reutilizables para tu grupo de WhatsApp."
+          titleId="raffle-admin-title"
+          bellId="admin-raffles-bell"
+        >
+          <button id="raffle-new-btn" class="admin-primary-action admin-header-primary-action" type="button" slot="action">
+            <span aria-hidden="true">↻</span>
+            <span>Actualizar</span>
+          </button>
+        </AdminSectionHeader>
+
+        <section class="raffle-admin-summary" aria-label="Resumen de rifas">
+          <article class="raffle-summary-card">
+            <div class="raffle-summary-head">
+              <h2>Resumen de rifas</h2>
+              <p>Actividad general de las rifas de esta tienda.</p>
+            </div>
+            <div class="raffle-summary-metrics">
+              <div class="raffle-summary-row">
+                <span class="raffle-summary-label">Rifas creadas</span>
+                <strong id="raffle-summary-total" class="raffle-summary-value">0</strong>
+              </div>
+              <div class="raffle-summary-row">
+                <span class="raffle-summary-label">Rifas activas</span>
+                <strong id="raffle-summary-active" class="raffle-summary-value">0</strong>
+              </div>
+              <div class="raffle-summary-row">
+                <span class="raffle-summary-label">Participantes</span>
+                <strong id="raffle-summary-entries" class="raffle-summary-value">0</strong>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="raffle-admin-grid">
+          <div class="raffle-admin-panel">
+            <div class="raffle-panel-head">
+              <div>
+                <h2>Rifas de la tienda</h2>
+                <p>Administra hasta 3 rifas reutilizables para tu grupo de WhatsApp. Cada espacio conserva un enlace fijo.</p>
+              </div>
+            </div>
+
+            <div id="raffle-alert" class="alert alert-info hidden"></div>
+
+            <div id="raffle-modal" class="raffle-modal hidden" aria-hidden="true">
+              <div class="raffle-modal-card" role="dialog" aria-modal="true" aria-labelledby="raffle-modal-title">
+                <form id="raffle-form" class="raffle-form">
+                  <div class="raffle-modal-head">
+                    <div>
+                      <p id="raffle-modal-kicker" class="raffle-row-slot">Rifa</p>
+                      <h2 id="raffle-modal-title">Administrar rifa</h2>
+                    </div>
+                    <button id="raffle-modal-close-btn" class="raffle-icon-btn" type="button" aria-label="Cerrar">×</button>
+                  </div>
+                  <input id="raffle-id" type="hidden" />
+              <div class="raffle-form-grid">
+                <div class="field full">
+                  <label for="raffle-title">Título</label>
+                  <input id="raffle-title" type="text" maxlength="140" required />
+                </div>
+                <div class="field">
+                  <label for="raffle-access-code">Código del grupo</label>
+                  <input id="raffle-access-code" type="text" maxlength="80" autocomplete="off" required />
+                  <p class="form-help">Este código será solicitado a los clientes del grupo para participar.</p>
+                </div>
+                <div class="field">
+                  <label for="raffle-starts">Inicio</label>
+                  <input id="raffle-starts" type="datetime-local" />
+                </div>
+                <div class="field">
+                  <label for="raffle-closes">Cierre de selección</label>
+                  <input id="raffle-closes" type="datetime-local" />
+                </div>
+                <div class="field">
+                  <label for="raffle-draw">Sorteo</label>
+                  <input id="raffle-draw" type="datetime-local" />
+                </div>
+                <div class="field full">
+                  <label>Acceso a la rifa</label>
+                  <label class="switch-row"><input id="raffle-link-enabled" type="checkbox" checked /> Activar link de la rifa</label>
+                  <p class="form-help">Permite que las personas con el enlace directo puedan entrar.</p>
+                  <label class="switch-row"><input id="raffle-show-in-store" type="checkbox" /> Mostrar rifa en la tienda pública</label>
+                  <p class="form-help">Muestra un acceso a esta rifa dentro de la tienda. Si está apagado, solo se podrá entrar por link directo.</p>
+                </div>
+                <div class="field full">
+                  <label for="raffle-description">Descripción</label>
+                  <textarea id="raffle-description"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="raffle-conditions">Condiciones adicionales</label>
+                  <textarea id="raffle-conditions"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="raffle-winner-message">Mensaje para ganador</label>
+                  <textarea id="raffle-winner-message" maxlength="1800"></textarea>
+                  <p class="form-help">Variables: &#123;nombre_cliente&#125;, &#123;telefono_cliente&#125;, &#123;numero_ganador&#125;, &#123;nombre_rifa&#125;, &#123;nombre_tienda&#125;, &#123;premios&#125;, &#123;link_rifa&#125;</p>
+                </div>
+                <div class="field full">
+                  <div class="prize-editor-head">
+                    <div>
+                      <h3>Regalos / Premios de la rifa</h3>
+                      <p class="form-help">Cada regalo puede tener foto, nombre y una descripción corta.</p>
+                    </div>
+                    <button id="raffle-add-prize-btn" class="raffle-btn" type="button">+ Agregar regalo</button>
+                  </div>
+                  <div id="raffle-prizes-list" class="prize-editor-list"></div>
+                </div>
+                <div class="field full">
+                  <label>Presentación de premios</label>
+                  <div class="segmented-control" role="radiogroup" aria-label="Presentación de premios">
+                    <label><input type="radio" name="raffle-prizes-display" value="fixed" checked /> Fijo</label>
+                    <label><input type="radio" name="raffle-prizes-display" value="carousel" /> Carrusel</label>
+                  </div>
+                  <p class="form-help">Si agregas más de 3 regalos, se recomienda carrusel para mantener una vista cómoda.</p>
+                </div>
+                <div id="raffle-control-card" class="raffle-control-card full hidden">
+                  <h3>Estado actual de la rifa</h3>
+                  <div><span id="raffle-current-status" class="raffle-status-pill draft">Nueva rifa</span></div>
+                  <p class="form-help">Acciones de control</p>
+                  <div class="raffle-control-actions">
+                    <button class="raffle-btn js-form-control-action" type="button" data-action="close_selection">Cerrar selección</button>
+                    <button class="raffle-btn js-form-control-action" type="button" data-action="open_selection">Abrir selección</button>
+                    <button class="raffle-btn js-form-control-action" type="button" data-action="finalize">Finalizar rifa</button>
+                    <button class="raffle-btn js-form-control-action" type="button" data-action="open_raffle">Abrir rifa</button>
+                    <button class="raffle-btn danger js-form-control-action" type="button" data-action="reset">Restablecer rifa</button>
+                  </div>
+                </div>
+              </div>
+              <div id="raffle-form-alert" class="alert alert-info hidden"></div>
+              <div class="raffle-actions">
+                <button id="raffle-cancel-btn" class="raffle-btn" type="button">Cancelar</button>
+                <button id="raffle-save-btn" class="raffle-btn primary" type="submit">Guardar rifa</button>
+              </div>
+                </form>
+              </div>
+            </div>
+
+            <div id="raffle-list" class="raffle-list">
+              <div class="empty-state">Cargando rifas...</div>
+            </div>
+          </div>
+
+          <aside class="raffle-admin-panel">
+            <div class="raffle-panel-head">
+              <div>
+                <h2>Participantes y resultado</h2>
+                <p id="entries-subtitle">Selecciona una rifa para ver sus participantes activos.</p>
+              </div>
+            </div>
+
+            <div class="entry-toolbar">
+              <div id="result-box" class="result-box">
+                <h3>Publicar resultado</h3>
+                <p class="form-help">Introduce el número sorteado. Si existe participante activo, publica ganador; si no existe, marca No hubo ganador.</p>
+                <p class="form-help">Revisa que cada participante cumpla las condiciones del grupo antes de publicar resultado.</p>
+                <div class="result-actions">
+                  <input id="result-number" type="text" maxlength="2" inputmode="numeric" placeholder="00" />
+                  <button id="publish-winner-btn" class="raffle-btn success" type="button">Publicar ganador</button>
+                  <button id="publish-no-winner-btn" class="raffle-btn warning" type="button">No hubo ganador</button>
+                </div>
+                <div id="winner-contact-box" class="winner-contact-box hidden">
+                  <p id="winner-contact-text">Ganador publicado.</p>
+                  <div class="winner-contact-actions">
+                    <button id="winner-whatsapp-btn" class="raffle-btn success" type="button">Escribir al ganador por WhatsApp</button>
+                    <button id="winner-copy-btn" class="raffle-btn" type="button">Copiar mensaje</button>
+                  </div>
+                </div>
+              </div>
+              <div id="entries-alert" class="alert alert-info hidden"></div>
+              <div id="entry-list" class="entry-list">
+                <div class="empty-state">No hay rifa seleccionada.</div>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+
+    <div id="raffle-date-modal" class="raffle-modal hidden" aria-hidden="true">
+      <div class="raffle-date-card" role="dialog" aria-modal="true" aria-labelledby="raffle-date-modal-title">
+        <div class="raffle-modal-head">
+          <div>
+            <p class="raffle-row-slot">Fechas</p>
+            <h2 id="raffle-date-modal-title">Abrir selección de números</h2>
+          </div>
+          <button id="raffle-date-cancel-x" class="raffle-icon-btn" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <div class="raffle-date-body">
+          <label class="field">
+            <span>Nuevo cierre de selección</span>
+            <input id="raffle-date-closes" type="datetime-local" />
+          </label>
+          <label class="field">
+            <span>Nueva fecha del sorteo</span>
+            <input id="raffle-date-draw" type="datetime-local" />
+          </label>
+          <p id="raffle-date-error" class="alert alert-error hidden"></p>
+        </div>
+        <div class="raffle-actions raffle-date-actions">
+          <button id="raffle-date-cancel-btn" class="raffle-btn" type="button">Cancelar</button>
+          <button id="raffle-date-save-btn" class="raffle-btn primary" type="button">Guardar fechas</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="raffle-winner-modal" class="raffle-modal hidden" aria-hidden="true">
+      <div class="raffle-date-card" role="dialog" aria-modal="true" aria-labelledby="raffle-winner-modal-title">
+        <div class="raffle-modal-head">
+          <div>
+            <p class="raffle-row-slot">Resultado</p>
+            <h2 id="raffle-winner-modal-title">Ganador encontrado</h2>
+          </div>
+          <button id="raffle-winner-cancel-x" class="raffle-icon-btn" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <div class="raffle-date-body">
+          <dl class="winner-detail-list">
+            <div>
+              <dt>Número ganador</dt>
+              <dd id="winner-modal-number">--</dd>
+            </div>
+            <div>
+              <dt>Cliente</dt>
+              <dd id="winner-modal-client">cliente</dd>
+            </div>
+            <div>
+              <dt>Teléfono</dt>
+              <dd id="winner-modal-phone">--</dd>
+            </div>
+          </dl>
+          <p class="form-help">Este número pertenece a un participante activo. Puedes publicar el ganador y contactar al cliente por WhatsApp.</p>
+          <p id="winner-modal-warning" class="alert alert-error hidden"></p>
+        </div>
+        <div class="raffle-actions raffle-date-actions">
+          <button id="winner-modal-cancel-btn" class="raffle-btn" type="button">Cancelar</button>
+          <button id="winner-modal-publish-btn" class="raffle-btn primary" type="button">Publicar ganador</button>
+          <button id="winner-modal-whatsapp-btn" class="raffle-btn success" type="button">Publicar y escribir por WhatsApp</button>
+        </div>
+      </div>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath, currentStoreName }}>
+      (() => {
+        const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const CURRENT_STORE_ID = String(currentStoreId || '');
+        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const PUBLIC_STORE_PATH = String(publicStorePath || '');
+        const CURRENT_STORE_NAME = String(currentStoreName || 'PowerZona');
+        const STORE_FILTER = CURRENT_STORE_ID ? `store="${String(CURRENT_STORE_ID).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : '';
+        const DEFAULT_WINNER_MESSAGE = [
+          'Felicidades {nombre_cliente}',
+          '',
+          'Tu numero {numero_ganador} salio ganador en la rifa de {nombre_tienda}.',
+          '',
+          'Rifa: {nombre_rifa}',
+          'Premio: {premios}',
+          '',
+          'Por favor contactanos para coordinar la entrega de tu premio.',
+          '',
+          'Link de la rifa:',
+          '{link_rifa}',
+        ].join('\n');
+        const statusLabels = {
+          draft: 'Nueva rifa',
+          scheduled: 'Programada',
+          active: 'Activa',
+          selection_closed: 'Selección cerrada',
+          result_pending: 'Resultado pendiente',
+          winner_published: 'Ganador publicado',
+          no_winner_published: 'No hubo ganador',
+          finalized: 'Finalizada',
+          archived: 'Archivada',
+        };
+
+        const sidebar = document.querySelector('[data-admin-sidebar-root]');
+        const sidebarOpenBtn = document.getElementById('sidebar-open');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const newBtn = document.getElementById('raffle-new-btn');
+        const modal = document.getElementById('raffle-modal');
+        const modalTitle = document.getElementById('raffle-modal-title');
+        const modalKicker = document.getElementById('raffle-modal-kicker');
+        const modalCloseBtn = document.getElementById('raffle-modal-close-btn');
+        const dateModal = document.getElementById('raffle-date-modal');
+        const dateModalTitle = document.getElementById('raffle-date-modal-title');
+        const dateClosesInput = document.getElementById('raffle-date-closes');
+        const dateDrawInput = document.getElementById('raffle-date-draw');
+        const dateError = document.getElementById('raffle-date-error');
+        const dateCancelX = document.getElementById('raffle-date-cancel-x');
+        const dateCancelBtn = document.getElementById('raffle-date-cancel-btn');
+        const dateSaveBtn = document.getElementById('raffle-date-save-btn');
+        const winnerModal = document.getElementById('raffle-winner-modal');
+        const winnerModalCancelX = document.getElementById('raffle-winner-cancel-x');
+        const winnerModalCancelBtn = document.getElementById('winner-modal-cancel-btn');
+        const winnerModalPublishBtn = document.getElementById('winner-modal-publish-btn');
+        const winnerModalWhatsappBtn = document.getElementById('winner-modal-whatsapp-btn');
+        const winnerModalNumber = document.getElementById('winner-modal-number');
+        const winnerModalClient = document.getElementById('winner-modal-client');
+        const winnerModalPhone = document.getElementById('winner-modal-phone');
+        const winnerModalWarning = document.getElementById('winner-modal-warning');
+        const form = document.getElementById('raffle-form');
+        const alertBox = document.getElementById('raffle-alert');
+        const formAlert = document.getElementById('raffle-form-alert');
+        const entriesAlert = document.getElementById('entries-alert');
+        const list = document.getElementById('raffle-list');
+        const entryList = document.getElementById('entry-list');
+        const entriesSubtitle = document.getElementById('entries-subtitle');
+        const resultBox = document.getElementById('result-box');
+        const resultNumber = document.getElementById('result-number');
+        const publishWinnerBtn = document.getElementById('publish-winner-btn');
+        const publishNoWinnerBtn = document.getElementById('publish-no-winner-btn');
+        const winnerContactBox = document.getElementById('winner-contact-box');
+        const winnerContactText = document.getElementById('winner-contact-text');
+        const winnerWhatsappBtn = document.getElementById('winner-whatsapp-btn');
+        const winnerCopyBtn = document.getElementById('winner-copy-btn');
+        const controlCard = document.getElementById('raffle-control-card');
+        const currentStatusBadge = document.getElementById('raffle-current-status');
+        const fields = {
+          id: document.getElementById('raffle-id'),
+          title: document.getElementById('raffle-title'),
+          accessCode: document.getElementById('raffle-access-code'),
+          starts: document.getElementById('raffle-starts'),
+          closes: document.getElementById('raffle-closes'),
+          draw: document.getElementById('raffle-draw'),
+          linkEnabled: document.getElementById('raffle-link-enabled'),
+          showInStore: document.getElementById('raffle-show-in-store'),
+          description: document.getElementById('raffle-description'),
+          conditions: document.getElementById('raffle-conditions'),
+          winnerMessage: document.getElementById('raffle-winner-message'),
+          prizesList: document.getElementById('raffle-prizes-list'),
+          addPrize: document.getElementById('raffle-add-prize-btn'),
+          total: document.getElementById('raffle-summary-total'),
+          active: document.getElementById('raffle-summary-active'),
+          entries: document.getElementById('raffle-summary-entries'),
+        };
+        let raffles = [];
+        let allEntries = [];
+        let entries = [];
+        let selectedRaffleId = '';
+        let prizeState = [];
+        let formSnapshot = '';
+        let pendingDateResolve = null;
+        let pendingWinner = null;
+        const alertTimers = new WeakMap();
+
+        function openSidebar() {
+          document.body.classList.add('sidebar-open');
+          sidebar?.setAttribute('aria-hidden', 'false');
+          if (sidebarOverlay) sidebarOverlay.hidden = false;
+          sidebarOpenBtn?.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeSidebar() {
+          document.body.classList.remove('sidebar-open');
+          sidebar?.setAttribute('aria-hidden', 'true');
+          sidebarOpenBtn?.setAttribute('aria-expanded', 'false');
+          window.setTimeout(() => {
+            if (!document.body.classList.contains('sidebar-open') && sidebarOverlay) sidebarOverlay.hidden = true;
+          }, 220);
+        }
+
+        function show(box, message = '', type = 'info') {
+          if (!box) return;
+          const previousTimer = alertTimers.get(box);
+          if (previousTimer) window.clearTimeout(previousTimer);
+          if (!message) {
+            box.className = 'alert alert-info hidden';
+            box.innerHTML = '';
+            return;
+          }
+          box.className = `alert alert-${type}`;
+          box.innerHTML = `<span>${escapeHtml(message)}</span>${type === 'error' ? '<button class="alert-close" type="button" aria-label="Cerrar">×</button>' : ''}`;
+          box.querySelector('.alert-close')?.addEventListener('click', () => show(box, ''));
+          const timeout = type === 'success' ? 4000 : type === 'error' ? 8000 : 5000;
+          const timer = window.setTimeout(() => show(box, ''), timeout);
+          alertTimers.set(box, timer);
+        }
+
+        function escapeHtml(value) {
+          return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+        }
+
+        function slugify(value) {
+          return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-')
+            .slice(0, 90);
+        }
+
+        function parseJsonArray(value) {
+          if (Array.isArray(value)) return value;
+          if (typeof value !== 'string' || !value.trim()) return [];
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (_) {
+            return [];
+          }
+        }
+
+        function isLinkEnabled(raffle) {
+          if (!raffle) return false;
+          if (typeof raffle.link_enabled === 'boolean') return raffle.link_enabled;
+          return raffle.visible !== false;
+        }
+
+        function addHours(value, hours) {
+          const date = new Date(value || '');
+          if (Number.isNaN(date.getTime())) return null;
+          return new Date(date.getTime() + hours * 60 * 60 * 1000);
+        }
+
+        function calculatedStatus(raffle) {
+          if (!raffle) return 'archived';
+          if (raffle.is_configured !== true) return 'draft';
+          const now = Date.now();
+          const status = String(raffle.status || 'active');
+          if (status === 'archived' || status === 'finalized') return status;
+
+          const finalizedAt = raffle.finalized_at ? new Date(raffle.finalized_at) : null;
+          if (finalizedAt && !Number.isNaN(finalizedAt.getTime()) && finalizedAt.getTime() <= now) return 'finalized';
+
+          if (status === 'winner_published' || status === 'no_winner_published') {
+            const autoFinal = addHours(raffle.result_published_at, 24);
+            return autoFinal && autoFinal.getTime() <= now ? 'finalized' : status;
+          }
+
+          const drawAt = raffle.draw_at ? new Date(raffle.draw_at) : null;
+          if (drawAt && !Number.isNaN(drawAt.getTime()) && drawAt.getTime() <= now) return 'result_pending';
+
+          if (raffle.selection_manually_closed === true) return 'selection_closed';
+
+          const closesAt = raffle.closes_at ? new Date(raffle.closes_at) : null;
+          if (closesAt && !Number.isNaN(closesAt.getTime()) && closesAt.getTime() <= now) return 'selection_closed';
+
+          if (status === 'selection_closed' || status === 'result_pending') return status;
+          const startsAt = raffle.starts_at ? new Date(raffle.starts_at) : null;
+          if (startsAt && !Number.isNaN(startsAt.getTime()) && startsAt.getTime() > now) return 'scheduled';
+          return 'active';
+        }
+
+        function setPrizeDisplayMode(mode) {
+          const value = mode === 'carousel' ? 'carousel' : 'fixed';
+          const input = document.querySelector(`input[name="raffle-prizes-display"][value="${value}"]`);
+          if (input) input.checked = true;
+        }
+
+        function getPrizeDisplayMode() {
+          return document.querySelector('input[name="raffle-prizes-display"]:checked')?.value || 'fixed';
+        }
+
+        function makePrizeId() {
+          return `premio-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        }
+
+        function normalizePrizeItem(item, index, raffle = null) {
+          const prize = item && typeof item === 'object' ? item : {};
+          return {
+            id: slugify(prize.id || `premio-${index + 1}`) || `premio-${index + 1}`,
+            name: String(prize.name || '').trim().slice(0, 80),
+            description: String(prize.description || '').trim().slice(0, 180),
+            image: String(prize.image || '').trim(),
+            raffleId: raffle?.id || '',
+          };
+        }
+
+        function prizesFromRaffle(raffle) {
+          const structured = parseJsonArray(raffle?.prizes_json)
+            .map((item, index) => normalizePrizeItem(item, index, raffle))
+            .filter((prize) => prize.name || prize.description || prize.image);
+
+          if (structured.length) return structured;
+
+          const images = Array.isArray(raffle?.images) ? raffle.images : (raffle?.images ? [raffle.images] : []);
+          return images.map((image, index) => ({
+            id: `legacy-${index + 1}`,
+            name: `Premio ${index + 1}`,
+            description: raffle?.description || '',
+            image,
+            raffleId: raffle?.id || '',
+          }));
+        }
+
+        function currentPrizeRows() {
+          return Array.from(fields.prizesList?.querySelectorAll('[data-prize-id]') || []);
+        }
+
+        function readPrizeRows() {
+          return currentPrizeRows().map((row) => ({
+            id: row.dataset.prizeId || makePrizeId(),
+            name: row.querySelector('.js-prize-name')?.value?.trim() || '',
+            description: row.querySelector('.js-prize-description')?.value?.trim() || '',
+            image: row.dataset.image || '',
+            uploadKey: row.dataset.prizeId || '',
+          })).filter((prize) => {
+            const row = fields.prizesList?.querySelector(`[data-prize-id="${CSS.escape(prize.id)}"]`);
+            const file = row?.querySelector('.js-prize-file')?.files?.[0];
+            return prize.name || prize.description || prize.image || file;
+          });
+        }
+
+        function prizeEditorRowHtml(prize, index) {
+          const image = prize.image && prize.raffleId ? fileUrl({ id: prize.raffleId }, prize.image) : '';
+          const preview = image
+            ? `<img src="${escapeHtml(image)}" alt="">`
+            : `<span>Foto<br>Premio ${index + 1}</span>`;
+
+          return `
+            <article class="prize-editor-card" data-prize-id="${escapeHtml(prize.id)}" data-image="${escapeHtml(prize.image || '')}">
+              <div class="prize-photo-box">
+                <div class="prize-photo-preview js-prize-preview">${preview}</div>
+                <input class="js-prize-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+              </div>
+              <div class="prize-fields">
+                <input class="js-prize-name" type="text" maxlength="80" placeholder="Nombre del regalo" value="${escapeHtml(prize.name || '')}" />
+                <textarea class="js-prize-description" maxlength="180" placeholder="Descripción corta">${escapeHtml(prize.description || '')}</textarea>
+              </div>
+              <button class="prize-remove-btn js-prize-remove" type="button" aria-label="Borrar regalo">&times;</button>
+            </article>
+          `;
+        }
+
+        function renderPrizeEditor() {
+          if (!fields.prizesList) return;
+          if (!prizeState.length) {
+            fields.prizesList.innerHTML = '<div class="empty-state">Agrega al menos un regalo para mostrarlo en la página pública.</div>';
+            return;
+          }
+
+          fields.prizesList.innerHTML = prizeState.map(prizeEditorRowHtml).join('');
+        }
+
+        function normalizeNumber(value) {
+          const digits = String(value || '').replace(/\D/g, '').slice(0, 2);
+          return digits.length === 1 ? `0${digits}` : digits;
+        }
+
+        function toDatetimeLocal(value) {
+          if (!value) return '';
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) return '';
+          const offset = date.getTimezoneOffset() * 60000;
+          return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+        }
+
+        function dateLabel(value) {
+          if (!value) return 'Sin fecha';
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) return 'Sin fecha';
+          return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+        }
+
+        function slotLabel(raffle) {
+          const number = Number(raffle?.slot_number || String(raffle?.slug || '').replace('rifa-', ''));
+          return Number.isInteger(number) && number >= 1 && number <= 3 ? `Rifa ${number}` : 'Rifa';
+        }
+
+        function displayTitle(raffle) {
+          return raffle?.is_configured === true && String(raffle?.title || '').trim()
+            ? String(raffle.title).trim()
+            : 'Nueva rifa';
+        }
+
+        function activeEntryCount(raffleId) {
+          return allEntries.filter((entry) => entry.raffle === raffleId && entry.status === 'active').length;
+        }
+
+        function participantLabel(count) {
+          return `${count} ${count === 1 ? 'participante' : 'participantes'}`;
+        }
+
+        function activeEntryForNumber(number) {
+          return entries.find((entry) => entry.status === 'active' && entry.chosen_number === number) || null;
+        }
+
+        function prizeSummary(raffle) {
+          const names = prizesFromRaffle(raffle)
+            .map((prize) => prize.name || prize.description)
+            .filter(Boolean)
+            .slice(0, 6);
+          return names.length ? names.join(', ') : 'Premio de la rifa';
+        }
+
+        function winnerTemplate(raffle) {
+          const text = String(raffle?.winner_message || '').trim();
+          return text || DEFAULT_WINNER_MESSAGE;
+        }
+
+        function winnerMessage(raffle, entry, number) {
+          const phone = String(entry?.phone || '').trim();
+          const replacements = {
+            nombre_cliente: phone || 'cliente',
+            telefono_cliente: phone,
+            numero_ganador: number || raffle?.winner_number || '--',
+            nombre_rifa: displayTitle(raffle),
+            nombre_tienda: CURRENT_STORE_NAME,
+            premios: prizeSummary(raffle),
+            link_rifa: `${window.location.origin}${publicRaffleHref(raffle)}`,
+          };
+          return winnerTemplate(raffle).replace(/\{([a-z_]+)\}/g, (_, key) => (
+            Object.prototype.hasOwnProperty.call(replacements, key) ? replacements[key] : `{${key}}`
+          ));
+        }
+
+        function winnerWhatsappHref(entry, message) {
+          const phone = String(entry?.phone || '').replace(/\D/g, '');
+          if (!/^53\d{8}$/.test(phone)) return '';
+          return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+        }
+
+        function winnerContactData() {
+          const raffle = raffles.find((item) => item.id === selectedRaffleId);
+          const number = String(raffle?.winner_number || '').trim();
+          if (!raffle || !number) return null;
+          const entry = activeEntryForNumber(number);
+          if (!entry) return null;
+          const message = winnerMessage(raffle, entry, number);
+          return { raffle, entry, number, message, href: winnerWhatsappHref(entry, message) };
+        }
+
+        function renderWinnerContact() {
+          const data = winnerContactData();
+          winnerContactBox?.classList.toggle('hidden', !data);
+          if (!data) return;
+          if (winnerContactText) {
+            winnerContactText.textContent = `Ganador publicado: numero ${data.number}. Telefono: ${data.entry.phone || '--'}.`;
+          }
+          if (winnerWhatsappBtn) winnerWhatsappBtn.disabled = !data.href;
+          if (!data.href) {
+            show(entriesAlert, 'El telefono del ganador no parece valido para WhatsApp. Revisa el numero antes de contactar.', 'error');
+          }
+        }
+
+        function openWinnerWhatsapp(data) {
+          if (!data?.href) {
+            show(entriesAlert, 'El telefono del ganador no parece valido para WhatsApp. Revisa el numero antes de contactar.', 'error');
+            return false;
+          }
+          const opened = window.open(data.href, '_blank', 'noopener');
+          if (!opened) {
+            show(entriesAlert, 'Ganador publicado. Puedes contactar al cliente por WhatsApp.', 'info');
+            return false;
+          }
+          return true;
+        }
+
+        function currentFormSignature() {
+          if (!form) return '';
+          return JSON.stringify({
+            id: fields.id.value,
+            title: fields.title.value,
+            accessCode: fields.accessCode.value,
+            starts: fields.starts.value,
+            closes: fields.closes.value,
+            draw: fields.draw.value,
+            linkEnabled: fields.linkEnabled.checked,
+            showInStore: fields.showInStore.checked,
+            description: fields.description.value,
+            conditions: fields.conditions.value,
+            winnerMessage: fields.winnerMessage.value,
+            displayMode: getPrizeDisplayMode(),
+            prizes: readPrizeRows().map(({ id, name, description, image }) => ({ id, name, description, image })),
+            files: currentPrizeRows().map((row) => {
+              const file = row.querySelector('.js-prize-file')?.files?.[0];
+              return file ? `${row.dataset.prizeId || ''}:${file.name}:${file.size}` : '';
+            }),
+          });
+        }
+
+        function hasUnsavedChanges() {
+          return modal && !modal.classList.contains('hidden') && formSnapshot && currentFormSignature() !== formSnapshot;
+        }
+
+        function closeOpenMenus(except = null) {
+          document.querySelectorAll('.raffle-menu-panel:not([hidden])').forEach((panel) => {
+            if (panel !== except) {
+              panel.hidden = true;
+              panel.closest('.raffle-menu')?.querySelector('.raffle-menu-button')?.setAttribute('aria-expanded', 'false');
+            }
+          });
+        }
+
+        function closePassed(raffle) {
+          const closesAt = raffle?.closes_at ? new Date(raffle.closes_at) : null;
+          return !closesAt || Number.isNaN(closesAt.getTime()) || closesAt.getTime() <= Date.now();
+        }
+
+        function canOpenSelection(raffle) {
+          const status = calculatedStatus(raffle);
+          return raffle?.is_configured === true && !['winner_published', 'no_winner_published', 'finalized'].includes(status);
+        }
+
+        function hasPublishedResult(raffle) {
+          return Boolean(raffle?.winner_number || raffle?.no_winner_number || raffle?.result_published_at)
+            || ['winner_published', 'no_winner_published'].includes(String(raffle?.status || ''));
+        }
+
+        function actionMenuHtml(raffle, status) {
+          const configured = raffle?.is_configured === true;
+          const items = [];
+          if (!configured) items.push(['edit', 'Configurar', '']);
+          if (configured && status === 'active') items.push(['close_selection', 'Cerrar selección', '']);
+          if (configured && ['selection_closed', 'result_pending'].includes(status) && canOpenSelection(raffle)) items.push(['open_selection', 'Abrir selección', '']);
+          if (configured && status === 'finalized' && !hasPublishedResult(raffle)) items.push(['open_raffle', 'Abrir rifa', '']);
+          if (configured && !['draft', 'finalized'].includes(status)) items.push(['finalize', 'Finalizar rifa', '']);
+          if (configured) items.push(['reset', 'Restablecer rifa', 'danger']);
+          if (!items.length) return '';
+          return `
+            <div class="raffle-menu">
+              <button class="raffle-menu-button" type="button" aria-label="Acciones de ${escapeHtml(slotLabel(raffle))}" aria-expanded="false" data-menu-button>⋯</button>
+              <div class="raffle-menu-panel" hidden>
+                ${items.map(([action, label, className]) => `<button class="${className}" type="button" data-control-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`).join('')}
+              </div>
+            </div>
+          `;
+        }
+
+        function updateControlButtons(container, raffle, status) {
+          if (!container) return;
+          const configured = raffle?.is_configured === true;
+          container.querySelectorAll('[data-action]').forEach((button) => {
+            const action = button.dataset.action || '';
+            const visible = action === 'reset'
+              || (configured && action === 'close_selection' && status === 'active')
+              || (configured && action === 'open_selection' && ['selection_closed', 'result_pending'].includes(status) && canOpenSelection(raffle))
+              || (configured && action === 'open_raffle' && status === 'finalized' && !hasPublishedResult(raffle))
+              || (configured && action === 'finalize' && !['draft', 'finalized'].includes(status));
+            button.hidden = !visible;
+            button.disabled = !visible;
+          });
+        }
+
+        function getToken() {
+          return ADMIN_AUTH_TOKEN;
+        }
+
+        async function pbRequest(path, options = {}) {
+          const headers = { ...(options.headers || {}) };
+          const token = getToken();
+          if (token) headers.Authorization = `Bearer ${token}`;
+          const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
+          const result = await response.json().catch(() => null);
+          if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
+          return result;
+        }
+
+        async function adminRequest(path, options = {}) {
+          const response = await fetch(path, options);
+          const result = await response.json().catch(() => null);
+          if (!response.ok || !result?.ok) throw new Error(result?.message || 'No se pudo completar la acción.');
+          return result;
+        }
+
+        function fileUrl(raffle, filename, thumb = '320x220') {
+          if (!raffle?.id || !filename || !POCKETBASE_URL) return '';
+          return `${POCKETBASE_URL}/api/files/raffles/${encodeURIComponent(raffle.id)}/${encodeURIComponent(filename)}${thumb ? `?thumb=${encodeURIComponent(thumb)}` : ''}`;
+        }
+
+        function firstImage(raffle) {
+          const prizes = prizesFromRaffle(raffle);
+          const prizeImage = prizes.find((prize) => prize.image)?.image || '';
+          if (prizeImage) return prizeImage;
+          const images = Array.isArray(raffle?.images) ? raffle.images : (raffle?.images ? [raffle.images] : []);
+          return images[0] || '';
+        }
+
+        function publicRaffleHref(raffle) {
+          return `${PUBLIC_STORE_PATH}/rifa/${encodeURIComponent(raffle.slug || '')}`;
+        }
+
+        function openForm(raffle = null) {
+          if (!raffle) return;
+          closeOpenMenus();
+          modal?.classList.remove('hidden');
+          modal?.setAttribute('aria-hidden', 'false');
+          show(formAlert, '');
+          const configured = raffle?.is_configured === true;
+          if (modalTitle) modalTitle.textContent = `${configured ? 'Editar' : 'Configurar'} ${slotLabel(raffle)}`;
+          if (modalKicker) modalKicker.textContent = 'Administrar rifa';
+          fields.id.value = raffle?.id || '';
+          fields.title.value = configured ? (raffle?.title || '') : '';
+          fields.accessCode.value = raffle?.access_code || '';
+          fields.starts.value = toDatetimeLocal(raffle?.starts_at);
+          fields.closes.value = toDatetimeLocal(raffle?.closes_at);
+          fields.draw.value = toDatetimeLocal(raffle?.draw_at);
+          fields.linkEnabled.checked = configured ? isLinkEnabled(raffle) : false;
+          fields.showInStore.checked = configured ? raffle.show_in_store === true : false;
+          fields.description.value = raffle?.description || '';
+          fields.conditions.value = raffle?.conditions || '';
+          fields.winnerMessage.value = raffle?.winner_message || DEFAULT_WINNER_MESSAGE;
+          setPrizeDisplayMode(raffle?.prizes_display_mode || 'fixed');
+          prizeState = raffle ? prizesFromRaffle(raffle) : [{
+            id: makePrizeId(),
+            name: '',
+            description: '',
+            image: '',
+            raffleId: '',
+          }];
+          renderPrizeEditor();
+          const status = calculatedStatus(raffle);
+          if (currentStatusBadge) {
+            currentStatusBadge.className = `raffle-status-pill ${status}`;
+            currentStatusBadge.textContent = statusLabels[status] || status;
+          }
+          controlCard?.classList.toggle('hidden', raffle?.is_configured !== true);
+          updateControlButtons(controlCard, raffle, status);
+          formSnapshot = currentFormSignature();
+          fields.title.focus();
+        }
+
+        function closeForm() {
+          modal?.classList.add('hidden');
+          modal?.setAttribute('aria-hidden', 'true');
+          form?.reset();
+          fields.id.value = '';
+          fields.winnerMessage.value = DEFAULT_WINNER_MESSAGE;
+          prizeState = [];
+          renderPrizeEditor();
+          controlCard?.classList.add('hidden');
+          show(formAlert, '');
+          formSnapshot = '';
+        }
+
+        function requestCloseForm() {
+          if (hasUnsavedChanges()) {
+            const ok = window.confirm('¿Cerrar sin guardar?\n\nLos cambios no guardados se perderán.');
+            if (!ok) return;
+          }
+          closeForm();
+        }
+
+        async function saveRaffle(event) {
+          event.preventDefault();
+          show(formAlert, 'Guardando rifa...', 'info');
+          const data = new FormData();
+          data.append('id', fields.id.value.trim());
+          data.append('title', fields.title.value.trim());
+          const accessCode = fields.accessCode.value.trim();
+          if (!accessCode) {
+            show(formAlert, 'El código del grupo es obligatorio para guardar la rifa.', 'error');
+            fields.accessCode.focus();
+            return;
+          }
+          data.append('access_code', accessCode);
+          data.append('starts_at', fields.starts.value);
+          data.append('closes_at', fields.closes.value);
+          data.append('draw_at', fields.draw.value);
+          data.append('link_enabled', fields.linkEnabled.checked ? 'true' : 'false');
+          data.append('show_in_store', fields.showInStore.checked ? 'true' : 'false');
+          data.append('description', fields.description.value.trim());
+          data.append('conditions', fields.conditions.value.trim());
+          data.append('winner_message', fields.winnerMessage.value.trim() || DEFAULT_WINNER_MESSAGE);
+          data.append('prizes_display_mode', getPrizeDisplayMode());
+          const prizes = readPrizeRows();
+          data.append('prizes_json', JSON.stringify(prizes));
+          currentPrizeRows().forEach((row) => {
+            const file = row.querySelector('.js-prize-file')?.files?.[0];
+            const id = row.dataset.prizeId || '';
+            if (file && id) data.append(`prize_image_${id}`, file);
+          });
+          await adminRequest('/api/admin/raffles', { method: 'POST', body: data });
+          closeForm();
+          show(alertBox, 'Rifa guardada correctamente.', 'success');
+          await loadData();
+        }
+
+        function renderSummary() {
+          if (fields.total) fields.total.textContent = String(raffles.length);
+          if (fields.active) fields.active.textContent = String(raffles.filter((raffle) => isLinkEnabled(raffle) && calculatedStatus(raffle) === 'active').length);
+          if (fields.entries) fields.entries.textContent = String(allEntries.filter((entry) => entry.status === 'active').length);
+        }
+
+        function renderList() {
+          if (!list) return;
+          if (!raffles.length) {
+            list.innerHTML = '<div class="empty-state">No hay rifas creadas todavía.</div>';
+            return;
+          }
+
+          list.innerHTML = raffles.map((raffle) => {
+            const image = firstImage(raffle);
+            const thumb = image ? `<img src="${fileUrl(raffle, image)}" alt="">` : 'RF';
+            const status = calculatedStatus(raffle);
+            const isSelected = raffle.id === selectedRaffleId;
+            const href = publicRaffleHref(raffle);
+            const fullHref = `${window.location.origin}${href}`;
+            const linkText = isLinkEnabled(raffle) ? 'Link activo' : 'Link apagado';
+            const closeText = raffle.closes_at ? `Cierre: ${dateLabel(raffle.closes_at)}` : 'Sin cierre definido';
+            const titleText = displayTitle(raffle);
+            const editText = raffle.is_configured === true ? 'Editar' : 'Configurar';
+            const storeText = raffle.show_in_store === true ? 'En tienda pública' : 'Solo enlace directo';
+            const participants = activeEntryCount(raffle.id);
+            return `
+              <article class="raffle-row ${isSelected ? 'is-selected' : ''}" data-raffle-id="${escapeHtml(raffle.id)}" tabindex="0" role="button" aria-pressed="${isSelected ? 'true' : 'false'}">
+                <div class="raffle-row-main">
+                  <div class="raffle-thumb">${thumb}</div>
+                  <div class="raffle-row-copy">
+                    <p class="raffle-row-slot">${escapeHtml(slotLabel(raffle))}</p>
+                    <h3 class="raffle-row-title">${escapeHtml(titleText)}</h3>
+                    <p class="raffle-row-meta">
+                      <span class="raffle-status-pill ${escapeHtml(status)}">${escapeHtml(statusLabels[status] || status)}</span>
+                      ${escapeHtml(linkText)} · ${escapeHtml(storeText)} · ${escapeHtml(closeText)}
+                    </p>
+                    <p class="raffle-row-meta raffle-row-link"><strong>Enlace directo:</strong> <span>${escapeHtml(isLinkEnabled(raffle) ? fullHref : 'Enlace directo disponible. Usa Copiar enlace.')}</span></p>
+                  </div>
+                  <div class="raffle-row-head-actions">
+                    ${isSelected ? '<span class="raffle-selected-pill">Seleccionada</span>' : ''}
+                    <button class="raffle-participant-pill js-raffle-select" type="button">${escapeHtml(participantLabel(participants))}</button>
+                    ${actionMenuHtml(raffle, status)}
+                  </div>
+                </div>
+                <div class="raffle-row-actions">
+                  <button class="raffle-btn js-raffle-copy" type="button" data-copy-href="${escapeHtml(fullHref)}">Copiar enlace</button>
+                  <a class="raffle-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener">Ver rifa pública</a>
+                  <button class="raffle-btn js-raffle-edit" type="button">${escapeHtml(editText)}</button>
+                </div>
+              </article>
+            `;
+          }).join('');
+        }
+
+        function renderEntries() {
+          const raffle = raffles.find((item) => item.id === selectedRaffleId);
+          const configured = raffle?.is_configured === true;
+          if (entriesSubtitle) {
+            entriesSubtitle.textContent = raffle
+              ? configured
+                ? `${slotLabel(raffle)} · ${displayTitle(raffle)} · ${entries.filter((entry) => entry.status === 'active').length} participantes activos`
+                : 'Esta rifa todavía no está configurada.'
+              : 'Selecciona una rifa para ver sus participantes y resultado.';
+          }
+          resultBox?.classList.toggle('hidden', !configured);
+          renderWinnerContact();
+          if (!entryList) return;
+          if (!raffle) {
+            entryList.innerHTML = '<div class="empty-state">Selecciona una rifa para ver sus participantes y resultado.</div>';
+            return;
+          }
+          if (!configured) {
+            entryList.innerHTML = '<div class="empty-state">Esta rifa todavía no está configurada. Configúrala antes de revisar participantes o publicar resultado.</div>';
+            return;
+          }
+          if (!entries.length) {
+            entryList.innerHTML = '<div class="empty-state">Todavía no hay participantes en esta rifa.</div>';
+            return;
+          }
+          const activeEntries = entries.filter((entry) => entry.status === 'active');
+          const cancelledEntries = entries.filter((entry) => entry.status === 'cancelled');
+          const activePhones = new Set(activeEntries.map((entry) => entry.phone).filter(Boolean));
+          const activeHtml = activeEntries.length
+            ? activeEntries.map((entry) => `
+            <article class="entry-row" data-entry-id="${escapeHtml(entry.id)}">
+              <div class="entry-number">${escapeHtml(entry.chosen_number || '--')}</div>
+              <div>
+                <p class="entry-title">${escapeHtml(entry.phone || '')}</p>
+                <p class="entry-meta">${escapeHtml(entry.receipt_code || '')} · ${escapeHtml(dateLabel(entry.created))} · Activo</p>
+              </div>
+              <button class="raffle-btn danger js-entry-cancel" type="button">Cancelar participación</button>
+            </article>
+          `).join('')
+            : '<div class="empty-state">No hay participantes activos en esta rifa.</div>';
+          const cancelledHtml = cancelledEntries.length
+            ? `
+              <p class="entry-section-title">Participaciones canceladas</p>
+              ${cancelledEntries.map((entry) => `
+                <article class="entry-row" data-entry-id="${escapeHtml(entry.id)}">
+                  <div class="entry-number">${escapeHtml(entry.chosen_number || '--')}</div>
+                  <div>
+                    <p class="entry-title">${escapeHtml(entry.phone || '')}</p>
+                    <p class="entry-meta">Cancelada: ${escapeHtml(dateLabel(entry.cancelled_at || entry.updated))}${entry.cancelled_reason ? ` · ${escapeHtml(entry.cancelled_reason)}` : ''}</p>
+                  </div>
+                  ${activePhones.has(entry.phone)
+                    ? '<span class="entry-status-badge">Ya participó nuevamente</span>'
+                    : entry.can_reenter === true
+                      ? '<span class="entry-status-badge allowed">Autorizado para participar de nuevo</span>'
+                      : '<button class="raffle-btn js-entry-allow" type="button">Permitir participar de nuevo</button>'}
+                </article>
+              `).join('')}
+            `
+            : '';
+          entryList.innerHTML = `${activeHtml}${cancelledHtml}`;
+        }
+
+        async function loadRaffles() {
+          const result = await adminRequest('/api/admin/raffles');
+          raffles = (result.raffles || []).sort((a, b) => Number(a.slot_number || 0) - Number(b.slot_number || 0));
+          if (!raffles.some((raffle) => raffle.id === selectedRaffleId)) {
+            selectedRaffleId = raffles[0]?.id || '';
+          }
+        }
+
+        async function loadAllEntries() {
+          if (!CURRENT_STORE_ID) {
+            allEntries = [];
+            return;
+          }
+          const items = [];
+          let page = 1;
+          const perPage = 200;
+          while (true) {
+            const query = new URLSearchParams({
+              filter: STORE_FILTER,
+              sort: 'raffle,chosen_number',
+              page: String(page),
+              perPage: String(perPage),
+            });
+            const result = await pbRequest(`/api/collections/raffle_entries/records?${query.toString()}`);
+            items.push(...(result.items || []));
+            if (page >= Number(result.totalPages || 1)) break;
+            page += 1;
+          }
+          allEntries = items;
+        }
+
+        async function loadEntries() {
+          if (!selectedRaffleId) {
+            entries = [];
+            return;
+          }
+          entries = allEntries
+            .filter((entry) => entry.raffle === selectedRaffleId)
+            .sort((a, b) => String(a.chosen_number || '').localeCompare(String(b.chosen_number || '')));
+        }
+
+        async function loadData() {
+          await loadRaffles();
+          await loadAllEntries();
+          await loadEntries();
+          renderSummary();
+          renderList();
+          renderEntries();
+        }
+
+        async function selectRaffle(id) {
+          selectedRaffleId = id;
+          await loadEntries();
+          renderSummary();
+          renderList();
+          renderEntries();
+          show(entriesAlert, '');
+        }
+
+        function datetimePromptValue(value) {
+          return toDatetimeLocal(value || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
+        }
+
+        function closeDateModal(result = null) {
+          dateModal?.classList.add('hidden');
+          dateModal?.setAttribute('aria-hidden', 'true');
+          if (dateError) {
+            dateError.className = 'alert alert-error hidden';
+            dateError.textContent = '';
+          }
+          const resolve = pendingDateResolve;
+          pendingDateResolve = null;
+          if (resolve) resolve(result);
+        }
+
+        function requestOpenDates(raffle, title = 'Abrir selección de números') {
+          if (!dateModal || !dateClosesInput || !dateDrawInput) return Promise.resolve(null);
+          if (dateModalTitle) dateModalTitle.textContent = title;
+          dateClosesInput.value = datetimePromptValue(raffle?.closes_at);
+          dateDrawInput.value = datetimePromptValue(raffle?.draw_at || raffle?.closes_at);
+          dateModal.classList.remove('hidden');
+          dateModal.setAttribute('aria-hidden', 'false');
+          dateClosesInput.focus();
+          return new Promise((resolve) => {
+            pendingDateResolve = resolve;
+          });
+        }
+
+        function saveDateModal() {
+          if (!dateClosesInput || !dateDrawInput) return;
+          const closesAt = dateClosesInput.value;
+          const drawAt = dateDrawInput.value;
+          const closesDate = new Date(closesAt);
+          const drawDate = new Date(drawAt);
+          const now = Date.now();
+          if (!closesAt || Number.isNaN(closesDate.getTime()) || closesDate.getTime() <= now) {
+            if (dateError) {
+              dateError.className = 'alert alert-error';
+              dateError.textContent = 'El nuevo cierre debe ser futuro.';
+            }
+            return;
+          }
+          if (!drawAt || Number.isNaN(drawDate.getTime()) || drawDate.getTime() <= closesDate.getTime()) {
+            if (dateError) {
+              dateError.className = 'alert alert-error';
+              dateError.textContent = 'El sorteo debe ser posterior al cierre de selección.';
+            }
+            return;
+          }
+          closeDateModal({ closes_at: closesAt, draw_at: drawAt });
+        }
+
+        function closeWinnerModal() {
+          pendingWinner = null;
+          winnerModal?.classList.add('hidden');
+          winnerModal?.setAttribute('aria-hidden', 'true');
+          if (winnerModalWarning) {
+            winnerModalWarning.className = 'alert alert-error hidden';
+            winnerModalWarning.textContent = '';
+          }
+        }
+
+        function openWinnerModal(entry, number) {
+          pendingWinner = { entry, number };
+          if (winnerModalNumber) winnerModalNumber.textContent = number || '--';
+          if (winnerModalClient) winnerModalClient.textContent = entry?.phone || 'cliente';
+          if (winnerModalPhone) winnerModalPhone.textContent = entry?.phone || '--';
+          const validPhone = Boolean(winnerWhatsappHref(entry, 'Mensaje'));
+          if (winnerModalWarning) {
+            winnerModalWarning.className = validPhone ? 'alert alert-error hidden' : 'alert alert-error';
+            winnerModalWarning.textContent = validPhone ? '' : 'El telefono del ganador no parece valido para WhatsApp. Revisa el numero antes de contactar.';
+          }
+          if (winnerModalWhatsappBtn) winnerModalWhatsappBtn.disabled = !validPhone;
+          winnerModal?.classList.remove('hidden');
+          winnerModal?.setAttribute('aria-hidden', 'false');
+          winnerModalPublishBtn?.focus();
+        }
+
+        async function controlRaffleAction(id, action, sourceBox = alertBox) {
+          const raffle = raffles.find((item) => item.id === id);
+          if (!raffle) {
+            show(sourceBox, 'Selecciona una rifa.', 'error');
+            return;
+          }
+
+          const messages = {
+            close_selection: ['¿Cerrar selección de números?', 'Los clientes ya no podrán reservar números para esta rifa.', 'Selección cerrada correctamente.'],
+            open_selection: ['¿Abrir selección de números?', 'La rifa volverá a aceptar reservas si las fechas lo permiten.', 'Selección abierta correctamente.'],
+            finalize: ['¿Finalizar esta rifa?', 'Esta acción cerrará la rifa y ya no se podrán publicar cambios para los clientes.', 'Rifa finalizada correctamente.'],
+            open_raffle: ['¿Abrir esta rifa?', 'La rifa volverá al estado que corresponda según sus fechas. No se borrarán participantes ni premios.', 'Rifa abierta correctamente.'],
+            reset: ['¿Restablecer esta rifa?', 'Se borrarán participantes, números reservados, premios, imágenes, fechas, código y resultado. El espacio volverá a Nueva rifa. Esta acción no se puede deshacer.', 'Rifa restablecida correctamente.'],
+          };
+          const [title, detail, success] = messages[action] || ['¿Confirmar acción?', 'Confirma para continuar.', 'Acción realizada correctamente.'];
+          if (!window.confirm(`${title}\n\n${detail}`)) return;
+
+          const body = { id, action };
+          if ((action === 'open_selection' || action === 'open_raffle') && closePassed(raffle)) {
+            const nextDates = await requestOpenDates(raffle, action === 'open_raffle' ? 'Abrir rifa' : 'Abrir selección de números');
+            if (!nextDates) return;
+            body.closes_at = nextDates.closes_at;
+            body.draw_at = nextDates.draw_at;
+          }
+
+          await adminRequest('/api/admin/raffles', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          show(sourceBox, success, 'success');
+          if (action === 'reset' && selectedRaffleId === id) entries = [];
+          await loadData();
+        }
+
+        async function publishWinnerConfirmed(writeWhatsapp = false) {
+          if (!selectedRaffleId || !pendingWinner) return;
+          const number = pendingWinner.number;
+          await adminRequest('/api/admin/raffles', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: selectedRaffleId, action: 'publish_winner', number }),
+          });
+          closeWinnerModal();
+          show(entriesAlert, writeWhatsapp ? 'Ganador publicado. Puedes contactar al cliente por WhatsApp.' : 'Ganador publicado correctamente.', 'success');
+          await loadData();
+          const data = winnerContactData();
+          if (writeWhatsapp) openWinnerWhatsapp(data);
+        }
+
+        async function publishResult(action) {
+          if (!selectedRaffleId) {
+            show(entriesAlert, 'Selecciona una rifa.', 'error');
+            return;
+          }
+          const number = normalizeNumber(resultNumber.value);
+          if (!/^\d{2}$/.test(number)) {
+            show(entriesAlert, 'Escribe un número entre 00 y 99.', 'error');
+            return;
+          }
+          resultNumber.value = number;
+          if (action === 'publish_winner') {
+            const entry = activeEntryForNumber(number);
+            if (!entry) {
+              show(entriesAlert, 'No hay participante activo con ese número. Puedes marcar No hubo ganador.', 'error');
+              return;
+            }
+            openWinnerModal(entry, number);
+            return;
+          }
+          await adminRequest('/api/admin/raffles', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: selectedRaffleId, action, number }),
+          });
+          show(entriesAlert, action === 'publish_winner' ? 'Ganador publicado correctamente.' : 'Resultado publicado correctamente.', 'success');
+          await loadData();
+        }
+
+        async function cancelEntry(entryId) {
+          if (!selectedRaffleId) return;
+          const ok = window.confirm('¿Cancelar esta participación?\n\nEste número quedará disponible para otros clientes, pero este teléfono no podrá volver a participar salvo que lo autorices.');
+          if (!ok) return;
+          const reason = window.prompt('Motivo opcional: No pertenece al grupo, Telefono incorrecto, Duplicado u Otro.', '') || '';
+          await adminRequest('/api/admin/raffles', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: selectedRaffleId, action: 'cancel_entry', entryId, reason }),
+          });
+          show(entriesAlert, 'Participación cancelada correctamente.', 'success');
+          await loadAllEntries();
+          await loadEntries();
+          renderSummary();
+          renderEntries();
+          renderList();
+        }
+
+        async function allowEntryReenter(entryId) {
+          if (!selectedRaffleId) return;
+          const ok = window.confirm('¿Permitir que este cliente participe de nuevo?\n\nEl cliente podrá entrar nuevamente con su teléfono y escoger un número disponible.');
+          if (!ok) return;
+          await adminRequest('/api/admin/raffles', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: selectedRaffleId, action: 'allow_entry_reenter', entryId }),
+          });
+          show(entriesAlert, 'El cliente ya puede participar nuevamente.', 'success');
+          await loadAllEntries();
+          await loadEntries();
+          renderSummary();
+          renderEntries();
+          renderList();
+        }
+
+        sidebarOpenBtn?.addEventListener('click', openSidebar);
+        sidebarOverlay?.addEventListener('click', closeSidebar);
+        document.addEventListener('click', (event) => {
+          if (!event.target.closest('.raffle-menu')) closeOpenMenus();
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key !== 'Escape') return;
+          if (winnerModal && !winnerModal.classList.contains('hidden')) {
+            closeWinnerModal();
+            return;
+          }
+          if (dateModal && !dateModal.classList.contains('hidden')) {
+            closeDateModal(null);
+            return;
+          }
+          if (modal && !modal.classList.contains('hidden')) {
+            requestCloseForm();
+            return;
+          }
+          closeOpenMenus();
+          closeSidebar();
+        });
+        newBtn?.addEventListener('click', () => loadData().catch((error) => show(alertBox, error.message || 'No se pudieron cargar las rifas.', 'error')));
+        dateCancelX?.addEventListener('click', () => closeDateModal(null));
+        dateCancelBtn?.addEventListener('click', () => closeDateModal(null));
+        dateSaveBtn?.addEventListener('click', saveDateModal);
+        dateModal?.addEventListener('click', (event) => {
+          if (event.target === dateModal) closeDateModal(null);
+        });
+        winnerModalCancelX?.addEventListener('click', closeWinnerModal);
+        winnerModalCancelBtn?.addEventListener('click', closeWinnerModal);
+        winnerModalPublishBtn?.addEventListener('click', () => publishWinnerConfirmed(false).catch((error) => show(entriesAlert, error.message || 'No se pudo publicar el ganador.', 'error')));
+        winnerModalWhatsappBtn?.addEventListener('click', () => publishWinnerConfirmed(true).catch((error) => show(entriesAlert, error.message || 'No se pudo publicar el ganador.', 'error')));
+        winnerModal?.addEventListener('click', (event) => {
+          if (event.target === winnerModal) closeWinnerModal();
+        });
+        winnerWhatsappBtn?.addEventListener('click', () => openWinnerWhatsapp(winnerContactData()));
+        winnerCopyBtn?.addEventListener('click', async () => {
+          const data = winnerContactData();
+          if (!data) return;
+          try {
+            await navigator.clipboard.writeText(data.message);
+            show(entriesAlert, 'Mensaje copiado correctamente.', 'success');
+          } catch (_) {
+            show(entriesAlert, 'No se pudo copiar el mensaje automáticamente.', 'error');
+          }
+        });
+        fields.addPrize?.addEventListener('click', () => {
+          if (!fields.prizesList) return;
+          const nextPrize = { id: makePrizeId(), name: '', description: '', image: '', raffleId: fields.id.value || '' };
+          const count = currentPrizeRows().length;
+          if (!count) fields.prizesList.innerHTML = '';
+          fields.prizesList.insertAdjacentHTML('beforeend', prizeEditorRowHtml(nextPrize, count));
+        });
+        fields.prizesList?.addEventListener('click', (event) => {
+          const removeButton = event.target.closest('.js-prize-remove');
+          if (!removeButton) return;
+          const row = removeButton.closest('[data-prize-id]');
+          row?.remove();
+          if (!currentPrizeRows().length) {
+            prizeState = [];
+            renderPrizeEditor();
+          }
+        });
+        fields.prizesList?.addEventListener('change', (event) => {
+          const input = event.target.closest('.js-prize-file');
+          if (!input) return;
+          const file = input.files?.[0];
+          const preview = input.closest('[data-prize-id]')?.querySelector('.js-prize-preview');
+          if (file && preview) {
+            preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`;
+          }
+        });
+        form?.addEventListener('submit', (event) => saveRaffle(event).catch((error) => show(formAlert, error.message || 'No se pudo guardar la rifa.', 'error')));
+        document.getElementById('raffle-cancel-btn')?.addEventListener('click', requestCloseForm);
+        modalCloseBtn?.addEventListener('click', requestCloseForm);
+        modal?.addEventListener('click', (event) => {
+          if (event.target === modal) requestCloseForm();
+        });
+        controlCard?.addEventListener('click', (event) => {
+          const button = event.target.closest('.js-form-control-action');
+          if (!button || !fields.id.value) return;
+          const action = button.dataset.action || '';
+          controlRaffleAction(fields.id.value, action, formAlert).catch((error) => show(formAlert, error.message || 'No se pudo actualizar la rifa.', 'error'));
+        });
+        list?.addEventListener('click', (event) => {
+          const row = event.target.closest('[data-raffle-id]');
+          if (!row) return;
+          const id = row.dataset.raffleId || '';
+          const menuButton = event.target.closest('[data-menu-button]');
+          if (menuButton) {
+            const panel = menuButton.closest('.raffle-menu')?.querySelector('.raffle-menu-panel');
+            if (panel) {
+              const willOpen = panel.hidden;
+              closeOpenMenus(panel);
+              panel.hidden = !willOpen;
+              menuButton.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            }
+            return;
+          }
+          const controlButton = event.target.closest('[data-control-action]');
+          if (controlButton) {
+            const action = controlButton.dataset.controlAction || '';
+            closeOpenMenus();
+            if (action === 'edit') {
+              const raffle = raffles.find((item) => item.id === id);
+              if (raffle) openForm(raffle);
+              return;
+            }
+            controlRaffleAction(id, action, alertBox).catch((error) => show(alertBox, error.message || 'No se pudo actualizar la rifa.', 'error'));
+            return;
+          }
+          if (event.target.closest('.js-raffle-select')) {
+            selectRaffle(id).catch((error) => show(entriesAlert, error.message || 'No se pudieron cargar participantes.', 'error'));
+            return;
+          }
+          if (event.target.closest('.js-raffle-copy')) {
+            const href = event.target.closest('.js-raffle-copy')?.dataset?.copyHref || '';
+            if (href) {
+              navigator.clipboard?.writeText(href)
+                .then(() => show(alertBox, 'Enlace copiado correctamente.', 'success'))
+                .catch(() => show(alertBox, 'No se pudo copiar el enlace automáticamente.', 'error'));
+            }
+            return;
+          }
+          if (event.target.closest('.js-raffle-edit')) {
+            const raffle = raffles.find((item) => item.id === id);
+            if (raffle) openForm(raffle);
+            return;
+          }
+          if (!event.target.closest('a,button,input,textarea,select,.raffle-menu-panel')) {
+            selectRaffle(id).catch((error) => show(entriesAlert, error.message || 'No se pudieron cargar participantes.', 'error'));
+          }
+        });
+        list?.addEventListener('keydown', (event) => {
+          const row = event.target.closest('[data-raffle-id]');
+          if (!row || !['Enter', ' '].includes(event.key)) return;
+          if (event.target !== row) return;
+          event.preventDefault();
+          selectRaffle(row.dataset.raffleId || '').catch((error) => show(entriesAlert, error.message || 'No se pudieron cargar participantes.', 'error'));
+        });
+        entryList?.addEventListener('click', (event) => {
+          const cancelButton = event.target.closest('.js-entry-cancel');
+          const allowButton = event.target.closest('.js-entry-allow');
+          if (!cancelButton && !allowButton) return;
+          const row = (cancelButton || allowButton).closest('[data-entry-id]');
+          const id = row?.dataset?.entryId || '';
+          if (!id) return;
+          if (cancelButton) {
+            cancelEntry(id).catch((error) => show(entriesAlert, error.message || 'No se pudo cancelar la participación.', 'error'));
+            return;
+          }
+          allowEntryReenter(id).catch((error) => show(entriesAlert, error.message || 'No se pudo autorizar una nueva participación.', 'error'));
+        });
+        resultNumber?.addEventListener('input', () => {
+          resultNumber.value = String(resultNumber.value || '').replace(/\D/g, '').slice(0, 2);
+        });
+        publishWinnerBtn?.addEventListener('click', () => publishResult('publish_winner').catch((error) => show(entriesAlert, error.message || 'No se pudo publicar el ganador.', 'error')));
+        publishNoWinnerBtn?.addEventListener('click', () => publishResult('publish_no_winner').catch((error) => show(entriesAlert, error.message || 'No se pudo publicar el resultado.', 'error')));
+        loadData().catch((error) => {
+          if (list) list.innerHTML = `<div class="empty-state">${escapeHtml(error.message || 'No se pudieron cargar las rifas.')}</div>`;
+        });
+      })();
+    </script>
+  </body>
+</html>

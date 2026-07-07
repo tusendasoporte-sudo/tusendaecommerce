@@ -20,6 +20,7 @@ const adminStoreSettingsPath = getStoreAdminPath(currentStoreSlug, 'store-settin
 const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
+const adminRafflesPath = getStoreAdminPath(currentStoreSlug, 'promos/raffles');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 ---
@@ -2605,6 +2606,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             <button class="tab-btn active" data-tab="destacados" type="button">Destacados</button>
             <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>
             <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>
+            <a class="tab-btn" href={adminRafflesPath}>Rifas</a>
             <button class="tab-btn" data-tab="visuales" type="button">Promo visual / Acceso rápido</button>
           </div>
 

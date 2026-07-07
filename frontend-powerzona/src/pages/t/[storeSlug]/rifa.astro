@@ -1,0 +1,33 @@
+---
+import RafflePublicPage from '../../../components/public-store/RafflePublicPage.astro';
+import { getSettings } from '../../../lib/api';
+import { StoreResolutionError, getCurrentStore } from '../../../lib/stores';
+import { getFirstVisibleRaffle, getOccupiedRaffleNumbers } from '../../../lib/raffles';
+
+let currentStore;
+
+try {
+  currentStore = await getCurrentStore(Astro);
+} catch (error) {
+  if (error instanceof StoreResolutionError) {
+    return Astro.redirect('/');
+  }
+
+  throw error;
+}
+
+const settings = await getSettings({ storeId: currentStore.id }).catch(() => null);
+const raffle = await getFirstVisibleRaffle(currentStore.id);
+const occupiedNumbers = raffle ? await getOccupiedRaffleNumbers(raffle.id) : [];
+const canonicalPath = raffle?.slug
+  ? `/t/${encodeURIComponent(currentStore.slug)}/rifa/${encodeURIComponent(raffle.slug)}`
+  : `/t/${encodeURIComponent(currentStore.slug)}/rifa`;
+---
+
+<RafflePublicPage
+  store={currentStore}
+  settings={settings}
+  raffle={raffle}
+  occupiedNumbers={occupiedNumbers}
+  canonicalPath={canonicalPath}
+/>
