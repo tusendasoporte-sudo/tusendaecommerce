@@ -404,9 +404,279 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .raffle-control-actions { display: flex; flex-wrap: wrap; gap: 8px; }
       .empty-state { border: 1px dashed #cbd5e1; border-radius: 18px; background: #f8fafc; color: #64748b; padding: 20px; font-size: 14px; font-weight: 850; text-align: center; }
       .entry-toolbar { display: grid; gap: 10px; }
-      .result-box { display: grid; gap: 10px; padding: 14px; border-radius: 18px; border: 1px solid #e2e8f0; background: #f8fafc; }
-      .result-box h3 { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; }
-      .result-actions { display: grid; grid-template-columns: 110px 1fr 1fr; gap: 8px; }
+      .result-box.result-checker {
+        display: grid;
+        gap: 14px;
+        padding: 16px;
+        border-radius: 22px;
+        border: 1px solid rgba(191, 219, 254, 0.88);
+        background:
+          radial-gradient(circle at 92% 12%, rgba(7, 91, 234, 0.08), transparent 30%),
+          linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+      }
+      .result-checker-intro {
+        display: grid;
+        gap: 9px;
+      }
+      .result-checker-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .result-checker-eyebrow {
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 10px;
+        border-radius: 999px;
+        color: #075bea;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        font-size: 11px;
+        font-weight: 1000;
+        text-transform: uppercase;
+      }
+      .result-draw-date-pill {
+        min-width: 172px;
+        display: grid;
+        gap: 4px;
+        justify-items: start;
+        padding: 11px 13px;
+        border-radius: 16px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+      }
+      .result-draw-date-pill span {
+        color: #075bea;
+        font-size: 10px;
+        font-weight: 1000;
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+      .result-draw-date-pill strong {
+        color: #0f172a;
+        font-size: 12px;
+        line-height: 1.25;
+        font-weight: 1000;
+      }
+      .result-draw-date-pill.is-scheduled {
+        border-color: #bfdbfe;
+        background: linear-gradient(180deg, #eff6ff, #ffffff);
+      }
+      .result-draw-date-pill.is-due {
+        border-color: #fecaca;
+        background: linear-gradient(180deg, #fef2f2, #ffffff);
+        box-shadow: 0 14px 32px rgba(220, 38, 38, 0.10);
+      }
+      .result-draw-date-pill.is-due span {
+        color: #dc2626;
+      }
+      .result-draw-date-pill.is-published {
+        border-color: #bbf7d0;
+        background: linear-gradient(180deg, #f0fdf4, #ffffff);
+      }
+      .result-draw-date-pill.is-published span {
+        color: #16a34a;
+      }
+      .result-draw-date-pill.is-muted {
+        border-color: #e2e8f0;
+        background: #f8fafc;
+      }
+      .result-draw-date-pill.is-muted span {
+        color: #64748b;
+      }
+      .result-box.result-checker h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 18px;
+        line-height: 1.15;
+        font-weight: 1000;
+      }
+      .result-start-check-btn {
+        width: fit-content;
+        max-width: 100%;
+        min-width: 210px;
+        margin-top: 4px;
+        white-space: normal;
+        text-align: left;
+      }
+      .result-start-check-btn span {
+        overflow-wrap: anywhere;
+      }
+      .result-start-check-btn:disabled,
+      .result-start-check-btn.is-disabled {
+        cursor: not-allowed;
+        opacity: .64;
+        color: #64748b;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+        box-shadow: none;
+      }
+      .result-checker-disabled-help {
+        margin: 0;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 850;
+        line-height: 1.45;
+      }
+      .result-checker-disabled-help.is-due {
+        color: #dc2626;
+      }
+      .result-check-panel {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(219, 231, 255, 0.95);
+        background: rgba(248, 251, 255, 0.94);
+      }
+      .result-number-field > span {
+        color: #334155;
+        font-size: 12px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+      .result-number-row {
+        display: grid;
+        grid-template-columns: 96px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+      }
+      .result-number-row input {
+        width: 100%;
+        min-height: 48px;
+        border-radius: 14px;
+        border: 1px solid #dbeafe;
+        background: #ffffff;
+        color: #0f172a;
+        font-size: 22px;
+        font-weight: 1000;
+        text-align: center;
+        outline: none;
+      }
+      .result-number-row input:focus {
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.16);
+      }
+      .result-reset-check-btn {
+        justify-self: start;
+        border: 0;
+        background: transparent;
+        color: #075bea;
+        font-size: 13px;
+        font-weight: 950;
+        cursor: pointer;
+        padding: 0;
+      }
+      .result-check-preview {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 14px;
+        border-radius: 18px;
+      }
+      .result-check-preview.is-winner {
+        border: 1px solid rgba(134, 239, 172, 0.95);
+        background:
+          radial-gradient(circle at 92% 14%, rgba(34, 197, 94, 0.14), transparent 28%),
+          linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+      }
+      .result-check-preview.is-no-winner {
+        border: 1px solid rgba(253, 186, 116, 0.9);
+        background:
+          radial-gradient(circle at 92% 14%, rgba(249, 115, 22, 0.12), transparent 28%),
+          linear-gradient(180deg, #fff7ed 0%, #ffffff 100%);
+      }
+      .result-check-icon {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: #ffffff;
+        font-size: 22px;
+        font-weight: 1000;
+      }
+      .result-check-preview.is-winner .result-check-icon {
+        background: #16a34a;
+        box-shadow: 0 14px 28px rgba(22, 163, 74, 0.2);
+      }
+      .result-check-preview.is-no-winner .result-check-icon {
+        background: #f97316;
+        box-shadow: 0 14px 28px rgba(249, 115, 22, 0.18);
+      }
+      .result-check-copy {
+        min-width: 0;
+        display: grid;
+        gap: 8px;
+      }
+      .result-check-copy h4 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 16px;
+        font-weight: 1000;
+      }
+      .result-check-copy p {
+        margin: 0;
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 850;
+      }
+      .result-check-copy strong {
+        color: #075bea;
+        font-weight: 1000;
+      }
+      .result-check-copy dl {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px 12px;
+        margin: 4px 0 0;
+      }
+      .result-check-copy dl div {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .result-check-copy dt {
+        color: #64748b;
+        font-size: 11px;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+      .result-check-copy dd {
+        min-width: 0;
+        margin: 0;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 950;
+        overflow-wrap: anywhere;
+      }
+      .result-check-note {
+        color: #9a3412 !important;
+      }
+      .result-publish-actions {
+        display: grid;
+        gap: 8px;
+      }
+      .result-publish-actions .raffle-btn {
+        min-height: 48px;
+      }
+      .result-box .hidden,
+      .result-check-panel.hidden,
+      .result-check-preview.hidden,
+      .result-publish-actions.hidden,
+      .result-reset-check-btn.hidden,
+      #publish-winner-btn.hidden,
+      #publish-no-winner-btn.hidden {
+        display: none !important;
+      }
       .winner-contact-box { display: grid; gap: 9px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 14px; background: #eff6ff; }
       .winner-contact-box p { margin: 0; color: #1e3a8a; font-size: 13px; font-weight: 850; line-height: 1.45; }
       .winner-contact-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -431,8 +701,24 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
       @media (max-width: 900px) {
         .raffle-admin-grid,
-        .raffle-form-grid,
-        .result-actions {
+        .raffle-form-grid {
+          grid-template-columns: 1fr;
+        }
+        .result-number-row {
+          grid-template-columns: 1fr;
+        }
+        .result-start-check-btn {
+          width: 100%;
+          min-width: 0;
+        }
+        .result-check-preview {
+          grid-template-columns: 1fr;
+        }
+        .result-check-icon {
+          width: 42px;
+          height: 42px;
+        }
+        .result-check-copy dl {
           grid-template-columns: 1fr;
         }
         .raffle-summary-card,
@@ -455,6 +741,16 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           justify-content: end;
         }
         .prize-remove-btn { width: 100%; }
+      }
+
+      @media (max-width: 720px) {
+        .result-checker-head {
+          display: grid;
+        }
+        .result-draw-date-pill {
+          width: 100%;
+          min-width: 0;
+        }
       }
 
       @media (max-width: 560px) {
@@ -742,15 +1038,60 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             </div>
 
             <div class="entry-toolbar">
-              <div id="result-box" class="result-box">
-                <h3>Publicar resultado</h3>
-                <p class="form-help">Introduce el número sorteado. Si existe participante activo, publica ganador; si no existe, marca No hubo ganador.</p>
-                <p class="form-help">Revisa que cada participante cumpla las condiciones del grupo antes de publicar resultado.</p>
-                <div class="result-actions">
-                  <input id="result-number" type="text" maxlength="2" inputmode="numeric" placeholder="00" />
-                  <button id="publish-winner-btn" class="raffle-btn pz-admin-action-btn success" type="button">Publicar ganador</button>
-                  <button id="publish-no-winner-btn" class="raffle-btn pz-admin-action-btn warning" type="button">No hubo ganador</button>
+              <div id="result-box" class="result-box result-checker" data-result-check-state="idle">
+                <div id="result-checker-intro" class="result-checker-intro">
+                  <div class="result-checker-head">
+                    <div>
+                      <span class="result-checker-eyebrow">Resultado de la rifa</span>
+                      <h3>Chequear resultado</h3>
+                    </div>
+
+                    <div id="result-draw-date-pill" class="result-draw-date-pill is-muted">
+                      <span id="result-draw-date-status">Sin fecha</span>
+                      <strong id="result-draw-date-label">Fecha no configurada</strong>
+                    </div>
+                  </div>
+                  <p class="form-help">
+                    Introduce el número que salió en el sorteo y el sistema verificará si pertenece a un participante activo.
+                  </p>
+                  <p class="form-help">
+                    Los botones de publicar solo aparecerán después de chequear el número para evitar errores.
+                  </p>
+                  <button id="result-start-check-btn" class="raffle-btn pz-admin-action-btn primary result-start-check-btn" type="button">
+                    <AdminIcon name="search" class="pz-admin-action-icon" />
+                    <span>Chequear resultado</span>
+                  </button>
+                  <p id="result-checker-disabled-help" class="result-checker-disabled-help">Selecciona una rifa para chequear el resultado.</p>
                 </div>
+
+                <div id="result-check-panel" class="result-check-panel hidden">
+                  <label class="field result-number-field" for="result-number">
+                    <span>Número sorteado</span>
+                    <div class="result-number-row">
+                      <input id="result-number" type="text" maxlength="2" inputmode="numeric" placeholder="00" autocomplete="off" />
+                      <button id="check-result-btn" class="raffle-btn pz-admin-action-btn primary" type="button">
+                        <AdminIcon name="search" class="pz-admin-action-icon" />
+                        <span>Chequear número</span>
+                      </button>
+                    </div>
+                  </label>
+                  <p class="form-help">Acepta números del 00 al 99. Si escribes 4, se convertirá en 04.</p>
+                  <button id="result-reset-check-btn" class="raffle-link-btn result-reset-check-btn hidden" type="button">Cambiar número</button>
+                </div>
+
+                <div id="result-check-preview" class="result-check-preview hidden" aria-live="polite"></div>
+
+                <div class="result-publish-actions hidden" id="result-publish-actions">
+                  <button id="publish-winner-btn" class="raffle-btn pz-admin-action-btn success hidden" type="button">
+                    <AdminIcon name="save" class="pz-admin-action-icon" />
+                    <span>Publicar número ganador</span>
+                  </button>
+                  <button id="publish-no-winner-btn" class="raffle-btn pz-admin-action-btn warning hidden" type="button">
+                    <AdminIcon name="save" class="pz-admin-action-icon" />
+                    <span>Publicar resultado sin ganador</span>
+                  </button>
+                </div>
+
                 <div id="winner-contact-box" class="winner-contact-box hidden">
                   <p id="winner-contact-text">Ganador publicado.</p>
                   <div class="winner-contact-actions">
@@ -915,6 +1256,19 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const entriesSubtitle = document.getElementById('entries-subtitle');
         const resultBox = document.getElementById('result-box');
         const resultNumber = document.getElementById('result-number');
+        const resultStartCheckBtn = document.getElementById('result-start-check-btn');
+        const resultStartCheckLabel = resultStartCheckBtn?.querySelector('span');
+        const resultDrawDatePill = document.getElementById('result-draw-date-pill');
+        const resultDrawDateStatus = document.getElementById('result-draw-date-status');
+        const resultDrawDateLabel = document.getElementById('result-draw-date-label');
+        const resultCheckerDisabledHelp = document.getElementById('result-checker-disabled-help');
+        const resultCheckPanel = document.getElementById('result-check-panel');
+        const checkResultBtn = document.getElementById('check-result-btn');
+        const resultResetCheckBtn = document.getElementById('result-reset-check-btn');
+        const resultCheckPreview = document.getElementById('result-check-preview');
+        const resultPublishActions = document.getElementById('result-publish-actions');
+        const resultCheckerIntro = document.getElementById('result-checker-intro');
+        const resultCheckerGuides = Array.from(resultCheckerIntro?.querySelectorAll('.form-help') || []);
         const publishWinnerBtn = document.getElementById('publish-winner-btn');
         const publishNoWinnerBtn = document.getElementById('publish-no-winner-btn');
         const winnerContactBox = document.getElementById('winner-contact-box');
@@ -958,6 +1312,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         let formSnapshot = '';
         let pendingDateResolve = null;
         let pendingWinner = null;
+        let resultCheck = null;
         const alertTimers = new WeakMap();
 
         function openSidebar() {
@@ -1188,6 +1543,86 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
         }
 
+        function parseDate(value) {
+          const date = new Date(value || '');
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        function getSelectedRaffle() {
+          return raffles.find((item) => item.id === selectedRaffleId) || null;
+        }
+
+        function raffleHasPublishedResult(raffle) {
+          const status = String(raffle?.status || '');
+          return status === 'winner_published'
+            || status === 'no_winner_published'
+            || status === 'finalized'
+            || Boolean(raffle?.winner_number)
+            || Boolean(raffle?.no_winner_number)
+            || Boolean(raffle?.result_published_at);
+        }
+
+        function isDrawDateReached(raffle) {
+          const drawDate = parseDate(raffle?.draw_at);
+          return Boolean(drawDate && drawDate.getTime() <= Date.now());
+        }
+
+        function getResultCheckAvailability(raffle) {
+          if (!raffle) {
+            return {
+              enabled: false,
+              state: 'no_raffle',
+              label: 'Selecciona una rifa',
+              help: 'Selecciona una rifa para chequear el resultado.',
+            };
+          }
+
+          if (raffle.is_configured !== true) {
+            return {
+              enabled: false,
+              state: 'not_configured',
+              label: 'Configura la rifa',
+              help: 'Configura la rifa antes de chequear el resultado.',
+            };
+          }
+
+          if (raffleHasPublishedResult(raffle)) {
+            return {
+              enabled: false,
+              state: 'published',
+              label: 'Resultado publicado',
+              help: 'Esta rifa ya tiene resultado publicado.',
+            };
+          }
+
+          const drawDate = parseDate(raffle.draw_at);
+          if (!drawDate) {
+            return {
+              enabled: false,
+              state: 'missing_draw_date',
+              label: 'Sin fecha de sorteo',
+              help: 'Agrega una fecha de sorteo para poder chequear el resultado.',
+            };
+          }
+
+          if (drawDate.getTime() > Date.now()) {
+            const formattedDate = dateLabel(drawDate);
+            return {
+              enabled: false,
+              state: 'scheduled',
+              label: `Disponible el ${formattedDate}`,
+              help: `Podrás chequear el resultado el ${formattedDate}.`,
+            };
+          }
+
+          return {
+            enabled: true,
+            state: 'due',
+            label: 'Chequear resultado',
+            help: 'La fecha del sorteo ya llegó. Puedes chequear el número sorteado.',
+          };
+        }
+
         function slotLabel(raffle) {
           const number = Number(raffle?.slot_number || String(raffle?.slug || '').replace('rifa-', ''));
           return Number.isInteger(number) && number >= 1 && number <= 3 ? `Rifa ${number}` : 'Rifa';
@@ -1208,7 +1643,217 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         }
 
         function activeEntryForNumber(number) {
-          return entries.find((entry) => entry.status === 'active' && entry.chosen_number === number) || null;
+          const normalized = normalizeNumber(number);
+          return entries.find((entry) => entry.status === 'active' && normalizeNumber(entry.chosen_number) === normalized) || null;
+        }
+
+        function renderResultDrawDate(raffle, availability = getResultCheckAvailability(raffle)) {
+          if (!resultDrawDatePill || !resultDrawDateStatus || !resultDrawDateLabel) return;
+          const drawDate = parseDate(raffle?.draw_at);
+          let pillClass = 'is-muted';
+          let statusText = 'Sin fecha';
+          let labelText = 'Fecha no configurada';
+
+          if (drawDate) {
+            labelText = dateLabel(drawDate);
+            if (availability.state === 'published') {
+              pillClass = 'is-published';
+              statusText = 'Publicado';
+            } else if (drawDate.getTime() <= Date.now()) {
+              pillClass = 'is-due';
+              statusText = 'Resultado pendiente';
+            } else {
+              pillClass = 'is-scheduled';
+              statusText = 'Programado';
+            }
+          } else if (raffle && raffle.is_configured !== true) {
+            statusText = 'Sin configurar';
+            labelText = 'Configura la rifa';
+          }
+
+          resultDrawDatePill.classList.remove('is-muted', 'is-scheduled', 'is-due', 'is-published');
+          resultDrawDatePill.classList.add(pillClass);
+          resultDrawDateStatus.textContent = statusText;
+          resultDrawDateLabel.textContent = labelText;
+        }
+
+        function renderResultCheckButton(availability) {
+          if (resultStartCheckBtn) {
+            const isPublished = availability.state === 'published';
+            resultStartCheckBtn.classList.toggle('hidden', isPublished);
+            resultStartCheckBtn.disabled = !availability.enabled;
+            resultStartCheckBtn.classList.toggle('is-disabled', !availability.enabled);
+            resultStartCheckBtn.setAttribute('aria-disabled', availability.enabled ? 'false' : 'true');
+          }
+          if (resultStartCheckLabel) {
+            resultStartCheckLabel.textContent = availability.enabled ? 'Chequear resultado' : availability.label;
+          }
+          if (resultCheckerDisabledHelp) {
+            resultCheckerDisabledHelp.textContent = availability.help;
+            resultCheckerDisabledHelp.classList.toggle('hidden', availability.state === 'published');
+            resultCheckerDisabledHelp.classList.toggle('is-due', availability.state === 'due');
+          }
+          resultCheckerGuides.forEach((item) => item.classList.toggle('hidden', availability.state === 'published'));
+        }
+
+        function resultAvailabilityMessage(availability, forPublish = false) {
+          if (forPublish && availability.state === 'scheduled') {
+            return 'El resultado estará disponible en la fecha del sorteo.';
+          }
+          return availability.help || 'No se puede chequear el resultado en este momento.';
+        }
+
+        function clearResultCheck(keepPanelOpen = true) {
+          resultCheck = null;
+          resultStartCheckBtn?.classList.remove('hidden');
+          if (resultCheckPreview) {
+            resultCheckPreview.className = 'result-check-preview hidden';
+            resultCheckPreview.innerHTML = '';
+          }
+          resultPublishActions?.classList.add('hidden');
+          publishWinnerBtn?.classList.add('hidden');
+          publishNoWinnerBtn?.classList.add('hidden');
+          resultResetCheckBtn?.classList.add('hidden');
+          resultCheckerIntro?.classList.remove('hidden');
+          if (!keepPanelOpen) {
+            resultCheckPanel?.classList.add('hidden');
+            resultBox?.setAttribute('data-result-check-state', 'idle');
+            if (resultNumber) resultNumber.value = '';
+            return;
+          }
+          resultBox?.setAttribute('data-result-check-state', 'checking');
+        }
+
+        function openResultCheckPanel() {
+          const raffle = getSelectedRaffle();
+          const availability = getResultCheckAvailability(raffle);
+          if (!availability.enabled) {
+            renderResultChecker(raffle);
+            show(entriesAlert, resultAvailabilityMessage(availability), 'error');
+            return;
+          }
+          clearResultCheck(true);
+          resultCheckPanel?.classList.remove('hidden');
+          resultResetCheckBtn?.classList.add('hidden');
+          resultBox?.setAttribute('data-result-check-state', 'checking');
+          window.setTimeout(() => resultNumber?.focus(), 0);
+        }
+
+        function renderResultCheckWinner(number, entry) {
+          if (!resultCheckPreview) return;
+          resultCheckPreview.className = 'result-check-preview is-winner';
+          resultCheckPreview.innerHTML = `
+            <div class="result-check-icon">✓</div>
+            <div class="result-check-copy">
+              <h4>Ganador encontrado</h4>
+              <p>El número <strong>${escapeHtml(number)}</strong> pertenece a un participante activo.</p>
+              <dl>
+                <div><dt>Número reservado</dt><dd>${escapeHtml(number)}</dd></div>
+                <div><dt>Teléfono</dt><dd>${escapeHtml(entry?.phone || '--')}</dd></div>
+                <div><dt>Comprobante</dt><dd>${escapeHtml(entry?.receipt_code || '--')}</dd></div>
+                <div><dt>Fecha de reserva</dt><dd>${escapeHtml(dateLabel(entry?.created) || '--')}</dd></div>
+              </dl>
+            </div>
+          `;
+          resultPublishActions?.classList.remove('hidden');
+          publishWinnerBtn?.classList.remove('hidden');
+          publishNoWinnerBtn?.classList.add('hidden');
+          resultResetCheckBtn?.classList.remove('hidden');
+          resultBox?.setAttribute('data-result-check-state', 'winner');
+        }
+
+        function renderResultCheckNoWinner(number) {
+          if (!resultCheckPreview) return;
+          resultCheckPreview.className = 'result-check-preview is-no-winner';
+          resultCheckPreview.innerHTML = `
+            <div class="result-check-icon">!</div>
+            <div class="result-check-copy">
+              <h4>No hay ganador para este número</h4>
+              <p>El número <strong>${escapeHtml(number)}</strong> no pertenece a ningún participante activo.</p>
+              <p class="result-check-note">Puedes publicar el resultado sin ganador si ese fue el número sorteado.</p>
+            </div>
+          `;
+          resultPublishActions?.classList.remove('hidden');
+          publishWinnerBtn?.classList.add('hidden');
+          publishNoWinnerBtn?.classList.remove('hidden');
+          resultResetCheckBtn?.classList.remove('hidden');
+          resultBox?.setAttribute('data-result-check-state', 'no-winner');
+        }
+
+        function renderPublishedResult(raffle) {
+          resultCheck = null;
+          resultCheckerIntro?.classList.remove('hidden');
+          resultCheckPanel?.classList.add('hidden');
+          resultPublishActions?.classList.add('hidden');
+          publishWinnerBtn?.classList.add('hidden');
+          publishNoWinnerBtn?.classList.add('hidden');
+          resultResetCheckBtn?.classList.add('hidden');
+          resultBox?.setAttribute('data-result-check-state', 'published');
+          if (!resultCheckPreview) return;
+
+          const status = String(raffle?.status || '');
+          const winnerNumber = normalizeNumber(raffle?.winner_number || '');
+          const noWinnerNumber = normalizeNumber(raffle?.no_winner_number || '');
+          const hasWinner = status === 'winner_published' || Boolean(winnerNumber);
+          const number = hasWinner ? winnerNumber : noWinnerNumber;
+          resultCheckPreview.className = hasWinner ? 'result-check-preview is-winner' : 'result-check-preview is-no-winner';
+          resultCheckPreview.innerHTML = `
+            <div class="result-check-icon">${hasWinner ? '✓' : '!'}</div>
+            <div class="result-check-copy">
+              <h4>${hasWinner ? 'Resultado publicado' : 'Resultado publicado sin ganador'}</h4>
+              <p>${hasWinner ? 'Número ganador' : 'Número sorteado'}: <strong>${escapeHtml(number || '--')}</strong></p>
+            </div>
+          `;
+        }
+
+        function renderResultChecker(raffle) {
+          if (!resultBox) return;
+          const availability = getResultCheckAvailability(raffle);
+          renderResultDrawDate(raffle, availability);
+          const configured = raffle?.is_configured === true;
+          if (!raffle || !configured) {
+            clearResultCheck(false);
+            renderResultCheckButton(availability);
+            return;
+          }
+          if (availability.state === 'published') {
+            renderResultCheckButton(availability);
+            renderPublishedResult(raffle);
+            return;
+          }
+          clearResultCheck(false);
+          renderResultCheckButton(availability);
+        }
+
+        function resultNumberFromInput() {
+          const raw = String(resultNumber?.value || '').trim();
+          if (!/^\d{1,2}$/.test(raw)) return '';
+          return normalizeNumber(raw);
+        }
+
+        function checkResultNumber() {
+          const raffle = getSelectedRaffle();
+          const availability = getResultCheckAvailability(raffle);
+          if (!availability.enabled) {
+            renderResultChecker(raffle);
+            show(entriesAlert, resultAvailabilityMessage(availability), 'error');
+            return;
+          }
+
+          const number = resultNumberFromInput();
+          if (!/^\d{2}$/.test(number)) {
+            show(entriesAlert, 'Escribe un número entre 00 y 99.', 'error');
+            return;
+          }
+          if (resultNumber) resultNumber.value = number;
+          const entry = activeEntryForNumber(number);
+          if (entry) {
+            resultCheck = { number, entry, outcome: 'winner' };
+            renderResultCheckWinner(number, entry);
+            return;
+          }
+          resultCheck = { number, entry: null, outcome: 'no_winner' };
+          renderResultCheckNoWinner(number);
         }
 
         function prizeSummary(raffle) {
@@ -1658,6 +2303,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
               : 'Selecciona una rifa para ver sus participantes y resultado.';
           }
           resultBox?.classList.toggle('hidden', !configured);
+          renderResultChecker(raffle);
           renderWinnerContact();
           if (!entryList) return;
           if (!raffle) {
@@ -1668,12 +2314,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             entryList.innerHTML = '<div class="empty-state">Esta rifa todavía no está configurada. Configúrala antes de revisar participantes o publicar resultado.</div>';
             return;
           }
-          if (!entries.length) {
-            entryList.innerHTML = '<div class="empty-state">Todavía no hay participantes en esta rifa.</div>';
-            return;
-          }
           const activeEntries = entries.filter((entry) => entry.status === 'active');
           const cancelledEntries = entries.filter((entry) => entry.status === 'cancelled');
+          if (!entries.length) {
+            entryList.innerHTML = activeEntriesEmptyStateHtml(raffle);
+            return;
+          }
           const activePhones = new Set(activeEntries.map((entry) => entry.phone).filter(Boolean));
           const activeHtml = activeEntries.length
             ? activeEntries.map((entry) => `
@@ -1686,7 +2332,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
               <button class="raffle-btn danger js-entry-cancel" type="button">Cancelar participación</button>
             </article>
           `).join('')
-            : '<div class="empty-state">No hay participantes activos en esta rifa.</div>';
+            : activeEntriesEmptyStateHtml(raffle);
           const cancelledHtml = cancelledEntries.length
             ? `
               <p class="entry-section-title">Participaciones canceladas</p>
@@ -1757,6 +2403,16 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           renderSummary();
           renderList();
           renderEntries();
+        }
+
+        function activeEntriesEmptyStateHtml(raffle) {
+          const title = isDrawDateReached(raffle)
+            ? 'No hay participantes activos en esta rifa.'
+            : 'Todavía no hay participantes activos en esta rifa.';
+          const detail = isDrawDateReached(raffle)
+            ? 'Puedes chequear el número sorteado y publicar el resultado sin ganador para cerrar la rifa.'
+            : 'Cuando llegue la fecha del sorteo, podrás publicar el número sorteado sin ganador si nadie participa.';
+          return `<div class="empty-state">${escapeHtml(title)}<br>${escapeHtml(detail)}</div>`;
         }
 
         async function selectRaffle(id) {
@@ -1899,7 +2555,19 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
         async function publishWinnerConfirmed(writeWhatsapp = false) {
           if (!selectedRaffleId || !pendingWinner) return;
-          const number = pendingWinner.number;
+          const raffle = getSelectedRaffle();
+          const availability = getResultCheckAvailability(raffle);
+          if (!availability.enabled) {
+            show(winnerModalWarning || entriesAlert, resultAvailabilityMessage(availability, true), 'error');
+            return;
+          }
+          const number = normalizeNumber(pendingWinner.number);
+          const checkedEntryId = String(resultCheck?.entry?.id || '');
+          const pendingEntryId = String(pendingWinner.entry?.id || '');
+          if (!resultCheck || resultCheck.number !== number || resultCheck.outcome !== 'winner' || !checkedEntryId || checkedEntryId !== pendingEntryId) {
+            show(winnerModalWarning || entriesAlert, 'Primero chequea el número sorteado.', 'error');
+            return;
+          }
           await adminRequest('/api/admin/raffles', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -1913,31 +2581,47 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         }
 
         async function publishResult(action) {
-          if (!selectedRaffleId) {
-            show(entriesAlert, 'Selecciona una rifa.', 'error');
+          const raffle = getSelectedRaffle();
+          const availability = getResultCheckAvailability(raffle);
+          if (!availability.enabled) {
+            show(entriesAlert, resultAvailabilityMessage(availability, true), 'error');
             return;
           }
           const number = normalizeNumber(resultNumber.value);
-          if (!/^\d{2}$/.test(number)) {
-            show(entriesAlert, 'Escribe un número entre 00 y 99.', 'error');
+          if (!resultCheck || resultCheck.number !== number) {
+            show(entriesAlert, 'Primero chequea el número sorteado.', 'error');
             return;
           }
-          resultNumber.value = number;
+
           if (action === 'publish_winner') {
-            const entry = activeEntryForNumber(number);
-            if (!entry) {
-              show(entriesAlert, 'No hay participante activo con ese número. Puedes marcar No hubo ganador.', 'error');
+            if (resultCheck.outcome !== 'winner' || !resultCheck.entry) {
+              show(entriesAlert, 'Primero chequea el número sorteado.', 'error');
               return;
             }
-            openWinnerModal(entry, number);
+            openWinnerModal(resultCheck.entry, resultCheck.number);
             return;
           }
+
+          if (action !== 'publish_no_winner' || resultCheck.outcome !== 'no_winner') {
+            show(entriesAlert, 'Primero chequea el número sorteado.', 'error');
+            return;
+          }
+
+          const ok = await window.AdminDialog.confirm({
+            title: '¿Publicar resultado sin ganador?',
+            message: `Vas a publicar que el número ${number} salió sorteado, pero no pertenece a ningún participante activo.`,
+            confirmText: 'Publicar sin ganador',
+            cancelText: 'Volver',
+            tone: 'warning',
+          });
+          if (!ok) return;
+
           await adminRequest('/api/admin/raffles', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: selectedRaffleId, action, number }),
+            body: JSON.stringify({ id: selectedRaffleId, action: 'publish_no_winner', number }),
           });
-          show(entriesAlert, action === 'publish_winner' ? 'Ganador publicado correctamente.' : 'Resultado publicado correctamente.', 'success');
+          show(entriesAlert, 'Resultado publicado correctamente.', 'success');
           await loadData();
         }
 
@@ -2168,8 +2852,20 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           }
           allowEntryReenter(id).catch((error) => show(entriesAlert, error.message || 'No se pudo autorizar una nueva participación.', 'error'));
         });
+        resultStartCheckBtn?.addEventListener('click', openResultCheckPanel);
+        checkResultBtn?.addEventListener('click', checkResultNumber);
+        resultResetCheckBtn?.addEventListener('click', () => {
+          clearResultCheck(true);
+          resultNumber?.focus();
+        });
         resultNumber?.addEventListener('input', () => {
           resultNumber.value = String(resultNumber.value || '').replace(/\D/g, '').slice(0, 2);
+          if (resultCheck) clearResultCheck(true);
+        });
+        resultNumber?.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') return;
+          event.preventDefault();
+          checkResultNumber();
         });
         publishWinnerBtn?.addEventListener('click', () => publishResult('publish_winner').catch((error) => show(entriesAlert, error.message || 'No se pudo publicar el ganador.', 'error')));
         publishNoWinnerBtn?.addEventListener('click', () => publishResult('publish_no_winner').catch((error) => show(entriesAlert, error.message || 'No se pudo publicar el resultado.', 'error')));

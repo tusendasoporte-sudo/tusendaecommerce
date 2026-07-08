@@ -345,13 +345,14 @@ const marketingVisualSubClass = (subsection: string) => {
 
 <AdminDialog />
 
-<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath }}>
+<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
     authToken: String(authToken || ''),
     ordersPath: String(notificationsAdminOrdersPath || ''),
     productsPath: String(notificationsAdminProductsPath || ''),
+    rafflesPath: String(adminRafflesPath || ''),
     notificationsPath: String(adminNotificationsPath || ''),
     settingsPath: String(adminStoreSettingsPath || ''),
   };
@@ -384,6 +385,7 @@ const marketingVisualSubClass = (subsection: string) => {
     const token = String(config.authToken || '');
     const ordersPath = String(config.ordersPath || '');
     const productsPath = String(config.productsPath || '');
+    const rafflesPath = String(config.rafflesPath || '');
     const notificationsPath = String(config.notificationsPath || '');
     const settingsPath = String(config.settingsPath || '');
     const pb = { baseUrl, token };
@@ -822,6 +824,29 @@ const marketingVisualSubClass = (subsection: string) => {
       return `${url.pathname}${url.search}`;
     }
 
+    function parseDateTime(value) {
+      const date = new Date(value || '');
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function raffleHasPublishedResult(raffle = {}) {
+      const status = String(raffle.status || '');
+      return status === 'winner_published'
+        || status === 'no_winner_published'
+        || status === 'finalized'
+        || Boolean(raffle.winner_number)
+        || Boolean(raffle.no_winner_number)
+        || Boolean(raffle.result_published_at);
+    }
+
+    function raffleDrawNotificationKey(raffle = {}) {
+      return String(raffle.draw_at || '').replace(/[^0-9TZ]/g, '').slice(0, 32) || 'sinfecha';
+    }
+
+    function buildRaffleAdminUrl() {
+      return rafflesPath || notificationsPath || '';
+    }
+
     async function loadAllCollectionRecords(collectionName, query = {}) {
       const params = new URLSearchParams();
       Object.entries(query || {}).forEach(([key, value]) => {
@@ -951,6 +976,7 @@ const marketingVisualSubClass = (subsection: string) => {
           await runNotificationCleanup(settings);
           await detectPendingOrders(settings);
           await detectPendingReviewNotifications(settings);
+          await detectDueRaffleResults(settings);
           await detectInventoryNotifications(settings);
         }
 
@@ -1236,6 +1262,63 @@ const marketingVisualSubClass = (subsection: string) => {
         });
 
         await Promise.all(tasks);
+      } catch (error) {
+      }
+    }
+
+    async function countActiveRaffleEntries(raffleId) {
+      if (!raffleId) return 0;
+      const filter = encodeURIComponent(`store="${escapeFilterValue(storeId)}" && raffle="${escapeFilterValue(raffleId)}" && status="active"`);
+      const result = await api(`/api/collections/raffle_entries/records?filter=${filter}&page=1&perPage=1&fields=id`);
+      return Number(result.totalItems || (result.items || []).length || 0);
+    }
+
+    async function detectDueRaffleResults(settingsRecord = null) {
+      try {
+        const settings = settingsRecord || await loadSettings();
+        if (!settings || settings.notifications_enabled === false) return;
+
+        const raffles = await loadAllCollectionRecords('raffles', {
+          filter: `store="${escapeFilterValue(storeId)}" && is_configured=true`,
+          sort: 'draw_at',
+          perPage: 50,
+        });
+        const now = Date.now();
+        const dueRaffles = raffles.filter((raffle) => {
+          if (!raffle?.id || raffle.is_configured !== true) return false;
+          const status = String(raffle.status || '');
+          if (status === 'archived' || raffleHasPublishedResult(raffle)) return false;
+          const drawDate = parseDateTime(raffle.draw_at);
+          return Boolean(drawDate && drawDate.getTime() <= now);
+        });
+
+        await Promise.all(dueRaffles.map(async (raffle) => {
+          const activeEntriesCount = await countActiveRaffleEntries(raffle.id);
+          const drawKey = raffleDrawNotificationKey(raffle);
+          const raffleName = raffle.title || `Rifa ${raffle.slot_number || ''}`.trim() || 'Rifa';
+          const message = activeEntriesCount > 0
+            ? `La fecha del sorteo de ${raffleName} ya llegó. Revisa y publica el resultado.`
+            : `La fecha del sorteo de ${raffleName} ya llegó. Publica el número sorteado para cerrar la rifa.`;
+
+          return ensureStoreNotificationAnyStatus({
+            pb,
+            storeId,
+            type: 'system_warning',
+            entityCollection: 'raffles',
+            entityId: `${raffle.id}_${drawKey}`,
+            title: 'Resultado de rifa pendiente',
+            message,
+            priority: 'critical',
+            targetUrl: buildRaffleAdminUrl(),
+            metadata: {
+              subtype: 'raffle_result_due',
+              raffle_id: raffle.id,
+              raffle_title: raffle.title || '',
+              draw_at: raffle.draw_at || '',
+              active_entries: activeEntriesCount,
+            },
+          });
+        }));
       } catch (error) {
       }
     }

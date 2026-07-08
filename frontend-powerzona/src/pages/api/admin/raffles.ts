@@ -164,6 +164,16 @@ function assertCanPublishResult(raffle: any) {
   }
 }
 
+function assertDrawDateReached(raffle: any) {
+  const drawDate = dateTime(raffle?.draw_at);
+  if (!drawDate) {
+    throw new Error('Configura la fecha del sorteo antes de publicar resultado.');
+  }
+  if (drawDate.getTime() > Date.now()) {
+    throw new Error('Todavía no ha llegado la fecha del sorteo.');
+  }
+}
+
 function parsePrizePayload(formData: FormData) {
   const raw = String(formData.get('prizes_json') || '').trim();
   let items: unknown[] = [];
@@ -406,6 +416,7 @@ export const PATCH: APIRoute = async ({ request }) => {
 
     if (action === 'publish_winner') {
       assertCanPublishResult(currentRaffle);
+      assertDrawDateReached(currentRaffle);
       const number = cleanText(body.number, 2);
       if (!isValidRaffleNumber(number)) return json({ ok: false, message: 'Escribe un número entre 00 y 99.' }, 400);
 
@@ -434,6 +445,7 @@ export const PATCH: APIRoute = async ({ request }) => {
 
     if (action === 'publish_no_winner') {
       assertCanPublishResult(currentRaffle);
+      assertDrawDateReached(currentRaffle);
       const number = cleanText(body.number, 2);
       if (!isValidRaffleNumber(number)) return json({ ok: false, message: 'Escribe un número entre 00 y 99.' }, 400);
 
