@@ -223,10 +223,6 @@ const faviconVersion = '2';
           <section class="pz-raffle-state-card pz-raffle-state-empty">
             <strong>Rifa no disponible</strong>
             <p>Esta rifa todavía no está activa.</p>
-            <div class="pz-state-actions">
-              <a href={storeUrl}>Ver tienda</a>
-              <a href={contactHref} target={whatsapp ? '_blank' : undefined} rel={whatsapp ? 'noopener' : undefined}>Contactar por WhatsApp</a>
-            </div>
           </section>
         )}
 
@@ -1241,6 +1237,10 @@ const faviconVersion = '2';
         font-size: 16px;
         line-height: 1.5;
         font-weight: 650;
+      }
+
+      .pz-raffle-state-card p:last-child {
+        margin-bottom: 0;
       }
 
       .pz-raffle-state-warning {
