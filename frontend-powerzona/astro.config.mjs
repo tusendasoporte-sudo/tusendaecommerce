@@ -6,6 +6,15 @@ const isProductionBuild = process.env.NODE_ENV === 'production' || process.argv.
 
 export default defineConfig({
   output: 'server',
+  security: {
+    checkOrigin: true,
+    allowedDomains: [
+      { protocol: 'https', hostname: 'tusenda84.com' },
+      { protocol: 'https', hostname: 'www.tusenda84.com' },
+      { protocol: 'https', hostname: 'mob76fcvxkxyb8tq0nwys18o.91.99.99.83.sslip.io' },
+      { protocol: 'https', hostname: '*.91.99.99.83.sslip.io' },
+    ],
+  },
   adapter: node({
     mode: 'standalone',
   }),
