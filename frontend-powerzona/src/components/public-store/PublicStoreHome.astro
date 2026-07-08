@@ -889,16 +889,16 @@ function getProductOfferView(product: any) {
     .hero-dot.active { background: #0b63f6; width: 20px; }
     .public-hero-actions {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 0;
-      margin: 0 0 22px;
+      margin: 0 0 18px;
       border: 1px solid #dbe7f6;
-      border-radius: 8px;
-      background: rgba(255,255,255,.92);
-      box-shadow: 0 14px 36px rgba(15,23,42,.06);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 18px 44px rgba(37,99,235,.08);
       overflow: hidden;
     }
-    .public-info-item, .public-location-line, .public-rating-link, .business-status, .hero-btn {
+    .public-info-item, .public-location-line, .public-rating-link, .business-status {
       min-height: 58px;
       margin: 0;
       border: 0;
@@ -917,14 +917,16 @@ function getProductOfferView(product: any) {
       text-decoration: none;
       border-right: 1px solid #e6eef8;
     }
-    .public-info-item svg, .hero-btn svg, .public-location-line svg { width: 22px; height: 22px; color: #0b63f6; flex: 0 0 auto; }
-    .public-rating-link { grid-column: 1 / -1; justify-content: center; flex-wrap: wrap; text-align: center; background: linear-gradient(180deg, rgba(248,251,255,.98), rgba(239,246,255,.86)); color: #172554; width: 100%; max-width: none; min-height: 64px; padding: 14px 18px; border-right: 0; border-bottom: 1px solid #e6eef8; }
+    .public-hero-actions > *:last-child { border-right: 0; }
+    .public-info-item svg, .public-location-line svg { width: 22px; height: 22px; color: #0b63f6; flex: 0 0 auto; }
+    .public-rating-link { flex: 0 1 auto; justify-content: center; flex-wrap: nowrap; text-align: center; background: transparent; color: #172554; width: auto; max-width: none; min-height: 64px; padding: 14px 18px; }
     .public-rating-stars { color: #f5a400; }
-    .business-status { color: #0f766e; border-color: #e6eef8; }
-    .business-status.closed { background: transparent; color: #b45309; border-color: #e6eef8; }
-    .business-status strong { font-size: 14px; }
+    .business-status { color: #16a34a; border-color: #e6eef8; }
+    .business-status.closed { background: transparent; color: #b45309; border-color: #e6eef8; flex-direction: column; align-items: flex-start; gap: 3px; }
+    .business-status strong { display: inline-flex; align-items: center; gap: 9px; font-size: 14px; }
+    .business-status-dot { width: 11px; height: 11px; border-radius: 999px; background: #16a34a; box-shadow: 0 0 0 4px rgba(22,163,74,.12); flex: 0 0 auto; }
+    .business-status.closed .business-status-dot { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,.13); }
     .hero-btn { background: transparent; color: #0b63f6; }
-    .hero-btn.whatsapp-link { color: #16a34a; }
     .hero-btn.secondary { background: transparent; color: #21315d; border: 0; }
     .public-store-description, .public-welcome-text { display: none; }
     .quick-categories-section, .store-visual-section, .quick-access-section, #destacados, #regalos, #categorias, .homepage-products-section, .public-reviews-section {
@@ -1115,17 +1117,19 @@ function getProductOfferView(product: any) {
       .public-hero-title { font-size: 34px; }
       .public-hero-text { font-size: 14px; }
       .hero-arrow { display: none; }
-      .public-hero-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .public-info-item, .public-location-line, .public-rating-link, .business-status, .hero-btn {
+      .public-hero-actions { grid-template-columns: 1fr; margin-bottom: 14px; border-radius: 24px; }
+      .public-info-item, .public-location-line, .public-rating-link, .business-status {
         justify-content: flex-start;
         min-height: 56px;
         border-right: 0;
         border-bottom: 1px solid #e6eef8;
         font-size: 12px;
       }
+      .public-hero-actions > *:last-child { border-bottom: 0; }
       .public-rating-link {
         grid-column: 1 / -1;
         justify-content: center;
+        flex-wrap: wrap;
         gap: 7px;
         min-height: 58px;
         padding: 13px 12px;
@@ -1147,7 +1151,7 @@ function getProductOfferView(product: any) {
       .public-store-head { align-items: center; }
       .public-header-actions { gap: 6px; }
       .public-action-btn { min-width: 42px; height: 42px; }
-      .public-hero-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .public-hero-actions { grid-template-columns: 1fr; }
       .public-category-grid.columns-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .public-category-grid.columns-1 { grid-template-columns: 1fr; }
       .public-category-link { min-height: 230px; }
@@ -1223,17 +1227,130 @@ function getProductOfferView(product: any) {
       object-position: center;
       display: block;
     }
+    .public-store-action-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      gap: 20px;
+      align-items: stretch;
+      margin: 0 0 18px;
+    }
     .public-presentation-card {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
       gap: 18px;
-      margin: 0 0 18px;
+      margin: 0;
       padding: clamp(18px, 3vw, 26px);
       border: 1px solid #dbe7f6;
-      border-radius: 18px;
+      border-radius: 24px;
       background: rgba(255,255,255,.96);
       box-shadow: 0 18px 44px rgba(37,99,235,.08);
+    }
+    @keyframes publicWhatsappIconRing {
+      0%, 84%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+      87% { transform: translate3d(-1px, 0, 0) rotate(-3deg); }
+      90% { transform: translate3d(1.5px, 0, 0) rotate(3deg); }
+      93% { transform: translate3d(-1.5px, 0, 0) rotate(-2deg); }
+      96% { transform: translate3d(1px, 0, 0) rotate(1.5deg); }
+      98% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    }
+    @keyframes publicWhatsappGlow {
+      0%, 84%, 100% { opacity: 0; box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+      90% { opacity: .55; box-shadow: 0 18px 42px rgba(22,163,74,.18), 0 0 0 3px rgba(34,197,94,.10); }
+      96% { opacity: .42; box-shadow: 0 16px 34px rgba(22,163,74,.14), 0 0 0 2px rgba(34,197,94,.08); }
+    }
+    .public-whatsapp-standalone {
+      position: relative;
+      min-width: 0;
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      align-self: stretch;
+      gap: 18px;
+      padding: 22px;
+      border: 1px solid rgba(34,197,94,.45);
+      border-radius: 24px;
+      background-color: #fff;
+      background-image: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,253,250,.94));
+      color: #071a44;
+      text-decoration: none;
+      box-shadow: 0 16px 38px rgba(22,163,74,.14), 0 18px 44px rgba(37,99,235,.06);
+      transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+    }
+    .public-whatsapp-standalone::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      pointer-events: none;
+      opacity: 0;
+      animation: publicWhatsappGlow 6s ease-in-out infinite;
+    }
+    .public-whatsapp-standalone:hover {
+      border-color: rgba(22,163,74,.68);
+      box-shadow: 0 20px 44px rgba(22,163,74,.18), 0 18px 44px rgba(37,99,235,.06);
+      transform: translateY(-1px);
+    }
+    .public-whatsapp-standalone:active {
+      box-shadow: 0 12px 28px rgba(22,163,74,.12), 0 14px 34px rgba(37,99,235,.05);
+      transform: scale(.99);
+    }
+    .public-whatsapp-standalone:focus-visible {
+      outline: 3px solid rgba(22,163,74,.32);
+      outline-offset: 3px;
+    }
+    .public-whatsapp-standalone__icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      box-shadow: 0 16px 30px rgba(22,163,74,.26);
+      animation: publicWhatsappIconRing 6s ease-in-out infinite;
+      transform-origin: center;
+      will-change: transform;
+    }
+    .public-whatsapp-standalone__icon svg {
+      width: 34px;
+      height: 34px;
+      color: #fff;
+    }
+    .public-whatsapp-standalone__copy {
+      min-width: 0;
+      display: grid;
+      gap: 5px;
+      line-height: 1.1;
+    }
+    .public-whatsapp-standalone__copy strong {
+      color: #071a44;
+      font-size: 17px;
+      line-height: 1.08;
+      font-weight: 1000;
+    }
+    .public-whatsapp-standalone__copy small {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.25;
+      font-weight: 850;
+    }
+    .public-whatsapp-standalone__arrow {
+      width: 36px;
+      height: 36px;
+      margin-left: auto;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      background: #ecfdf5;
+      color: #16a34a;
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 900;
     }
     .public-presentation-copy { min-width: 0; display: grid; gap: 8px; }
     .public-presentation-title {
@@ -1290,6 +1407,14 @@ function getProductOfferView(product: any) {
       box-shadow: 0 12px 26px rgba(15,23,42,.05);
     }
     @media (max-width: 980px) {
+      .public-store-action-row { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
+      .public-store-action-row .public-presentation-card { order: 2; }
+      .public-whatsapp-standalone {
+        order: 1;
+        width: 100%;
+        min-height: 80px;
+        padding: 18px 20px;
+      }
       .public-presentation-card { grid-template-columns: 1fr; gap: 16px; }
       .public-presentation-actions { justify-content: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .presentation-btn { width: 100%; padding: 0 12px; }
@@ -1306,6 +1431,17 @@ function getProductOfferView(product: any) {
       .public-presentation-title { font-size: 24px; }
       .public-presentation-description { font-size: 14px; }
       .public-presentation-actions { grid-template-columns: 1fr; }
+      .public-whatsapp-standalone { min-height: 82px; padding: 18px; gap: 14px; }
+      .public-whatsapp-standalone__icon { width: 56px; height: 56px; }
+      .public-whatsapp-standalone__icon svg { width: 31px; height: 31px; }
+      .public-whatsapp-standalone__copy strong { font-size: 16px; }
+      .public-whatsapp-standalone__arrow { width: 32px; height: 32px; font-size: 26px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .public-whatsapp-standalone::after,
+      .public-whatsapp-standalone__icon {
+        animation: none !important;
+      }
     }
 
     /* Categorias tipo regalos: texto e imagen viven en zonas separadas. */
@@ -2037,36 +2173,47 @@ function getProductOfferView(product: any) {
         <span>{publicLocationText}</span>
       </div>
     )}
+    {!businessHoursStatus.isClosed && <div class="business-status"><strong><span class="business-status-dot" aria-hidden="true"></span>Disponible ahora</strong></div>}
+    {businessHoursStatus.isClosed && (
+      <div class="business-status closed">
+        <strong><span class="business-status-dot" aria-hidden="true"></span>{businessHoursStatus.title}</strong>
+        <p>{businessHoursStatus.message}</p>
+      </div>
+    )}
     {publicTrustItems.map((item) => (
       <div class="public-info-item">
         <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 3 5 6v5c0 4.4 2.8 8.4 7 10 4.2-1.6 7-5.6 7-10V6l-7-3Zm3.6 7.4-4.4 4.4-2.3-2.3 1.4-1.4.9.9 3-3 1.4 1.4Z"></path></svg>
         <span>{item.title}</span>
       </div>
     ))}
-    {!businessHoursStatus.isClosed && <div class="business-status"><strong>Disponible ahora</strong></div>}
-    {businessHoursStatus.isClosed && (
-      <div class="business-status closed">
-        <strong>{businessHoursStatus.title}</strong>
-        <p>{businessHoursStatus.message}</p>
-      </div>
-    )}
-    <a class="hero-btn whatsapp-link" href={whatsappStoreHref} target="_blank" rel="noreferrer">
-      <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2a9 9 0 0 0-7.7 13.7L3 22l6.4-1.2A9 9 0 1 0 12 2Zm0 2a7 7 0 1 1-2.1 13.7l-.4-.1-3.9.7.8-3.8-.2-.4A7 7 0 0 1 12 4Z"></path></svg>
-      WhatsApp
-    </a>
   </div>
 
-  <section class="public-presentation-card" aria-labelledby="public-presentation-title">
-    <div class="public-presentation-copy">
-      <h1 id="public-presentation-title" class="public-presentation-title">{storeName}</h1>
-      {publicBusinessTypes.length > 0 && <p class="public-presentation-types">{publicBusinessTypes.join(' • ')}</p>}
-      {storeDescription && <p class="public-presentation-description">{storeDescription}</p>}
-    </div>
-    <div class="public-presentation-actions">
-      <a class="presentation-btn" href={productAnchorPath}>Ver productos</a>
-      <button id="store-info-open" class="presentation-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
-    </div>
-  </section>
+  <div class="public-store-action-row">
+    <section class="public-presentation-card" aria-labelledby="public-presentation-title">
+      <div class="public-presentation-copy">
+        <h1 id="public-presentation-title" class="public-presentation-title">{storeName}</h1>
+        {publicBusinessTypes.length > 0 && <p class="public-presentation-types">{publicBusinessTypes.join(' • ')}</p>}
+        {storeDescription && <p class="public-presentation-description">{storeDescription}</p>}
+      </div>
+      <div class="public-presentation-actions">
+        <a class="presentation-btn" href={productAnchorPath}>Ver productos</a>
+        <button id="store-info-open" class="presentation-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
+      </div>
+    </section>
+
+    <a class="public-whatsapp-standalone" href={whatsappStoreHref} target="_blank" rel="noreferrer" aria-label={`Escribir por WhatsApp a ${storeName}`}>
+      <span class="public-whatsapp-standalone__icon" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="currentColor">
+          <path d="M16 3.2C8.9 3.2 3.2 8.9 3.2 16c0 2.3.6 4.4 1.7 6.3L3.2 28.8l6.6-1.7c1.9 1.1 4 1.7 6.2 1.7 7.1 0 12.8-5.7 12.8-12.8S23.1 3.2 16 3.2Zm0 23c-1.9 0-3.8-.6-5.4-1.6l-.4-.3-3.9 1 1-3.8-.3-.4c-1-1.5-1.5-3.3-1.5-5.1C5.5 10.2 10.2 5.5 16 5.5S26.5 10.2 26.5 16 21.8 26.2 16 26.2Zm5.8-7.6c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.5-.5.1-.2.2-.3.3-.5.1-.2.1-.4 0-.5-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.2 3.4 5.4 4.7.8.3 1.4.5 1.9.6.8.2 1.5.2 2 .1.6-.1 1.8-.7 2.1-1.5.3-.7.3-1.4.2-1.5-.2-.2-.4-.3-.7-.5Z"></path>
+        </svg>
+      </span>
+      <span class="public-whatsapp-standalone__copy">
+        <strong>Escribir por WhatsApp</strong>
+        <small>Compra o pregunta directo</small>
+      </span>
+      <span class="public-whatsapp-standalone__arrow" aria-hidden="true">&rsaquo;</span>
+    </a>
+  </div>
 
   <div id="store-info-overlay" class="store-info-overlay" hidden>
     <section id="store-info-modal" class="store-info-card" role="dialog" aria-modal="true" aria-labelledby="store-info-title">
