@@ -2017,18 +2017,6 @@ function getProductOfferView(product: any) {
     )}
   </section>
 
-  <section class="public-presentation-card" aria-labelledby="public-presentation-title">
-    <div class="public-presentation-copy">
-      <h1 id="public-presentation-title" class="public-presentation-title">{storeName}</h1>
-      {publicBusinessTypes.length > 0 && <p class="public-presentation-types">{publicBusinessTypes.join(' • ')}</p>}
-      {storeDescription && <p class="public-presentation-description">{storeDescription}</p>}
-    </div>
-    <div class="public-presentation-actions">
-      <a class="presentation-btn" href={productAnchorPath}>Ver productos</a>
-      <button id="store-info-open" class="presentation-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
-    </div>
-  </section>
-
   <div class="public-hero-actions" aria-label="Acciones después de la portada">
     {showStoreRating && storeReviewSummary.count > 0 && (
       <a class="public-rating-link" href={reviewsAnchorPath} aria-label={`${storeReviewSummary.average.toFixed(1)} de 5 con ${reviewCountLabel(storeReviewSummary.count)}`}>
@@ -2067,6 +2055,18 @@ function getProductOfferView(product: any) {
       WhatsApp
     </a>
   </div>
+
+  <section class="public-presentation-card" aria-labelledby="public-presentation-title">
+    <div class="public-presentation-copy">
+      <h1 id="public-presentation-title" class="public-presentation-title">{storeName}</h1>
+      {publicBusinessTypes.length > 0 && <p class="public-presentation-types">{publicBusinessTypes.join(' • ')}</p>}
+      {storeDescription && <p class="public-presentation-description">{storeDescription}</p>}
+    </div>
+    <div class="public-presentation-actions">
+      <a class="presentation-btn" href={productAnchorPath}>Ver productos</a>
+      <button id="store-info-open" class="presentation-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
+    </div>
+  </section>
 
   <div id="store-info-overlay" class="store-info-overlay" hidden>
     <section id="store-info-modal" class="store-info-card" role="dialog" aria-modal="true" aria-labelledby="store-info-title">
