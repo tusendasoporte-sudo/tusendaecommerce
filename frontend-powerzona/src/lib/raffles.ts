@@ -31,6 +31,8 @@ export const RAFFLE_PRIZE_DISPLAY_MODES = {
   CAROUSEL: 'carousel',
 } as const;
 
+export const RAFFLE_FIXED_PRIZE_LIMIT = 3;
+
 export const DEFAULT_RAFFLE_WINNER_MESSAGE = [
   'Felicidades {nombre_cliente}',
   '',
@@ -206,6 +208,16 @@ export function normalizeRafflePrizeDisplayMode(value: unknown): RafflePrizeDisp
   return value === RAFFLE_PRIZE_DISPLAY_MODES.CAROUSEL
     ? RAFFLE_PRIZE_DISPLAY_MODES.CAROUSEL
     : RAFFLE_PRIZE_DISPLAY_MODES.FIXED;
+}
+
+export function shouldForceRafflePrizeCarousel(prizeCount: unknown) {
+  return Number(prizeCount || 0) > RAFFLE_FIXED_PRIZE_LIMIT;
+}
+
+export function getEffectiveRafflePrizeDisplayMode(value: unknown, prizeCount: unknown): RafflePrizeDisplayMode {
+  return shouldForceRafflePrizeCarousel(prizeCount)
+    ? RAFFLE_PRIZE_DISPLAY_MODES.CAROUSEL
+    : normalizeRafflePrizeDisplayMode(value);
 }
 
 export function parseRafflePrizes(raffle: Partial<RaffleRecord> | null | undefined, storeName = 'PowerZona') {

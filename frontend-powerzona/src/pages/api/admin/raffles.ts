@@ -8,6 +8,7 @@ import {
   ensureRaffleSlotsForStore,
   escapePocketBaseValue,
   getCalculatedRaffleStatus,
+  getEffectiveRafflePrizeDisplayMode,
   getRaffleSlotByNumber,
   getRaffleSlotBySlug,
   isValidRaffleNumber,
@@ -291,11 +292,13 @@ export const POST: APIRoute = async ({ request }) => {
     const drawAt = normalizeDateField(formData.get('draw_at'), 'El sorteo');
     const linkEnabled = formData.get('link_enabled') === 'true';
     const showInStore = formData.get('show_in_store') === 'true';
-    const prizesDisplayMode = ALLOWED_PRIZE_DISPLAY_MODES.has(cleanText(formData.get('prizes_display_mode'), 40))
-      ? cleanText(formData.get('prizes_display_mode'), 40)
-      : 'fixed';
     const winnerMessage = normalizeWinnerMessage(formData.get('winner_message'));
     const prizes = parsePrizePayload(formData);
+    const requestedPrizeDisplayMode = cleanText(formData.get('prizes_display_mode'), 40);
+    const prizesDisplayMode = getEffectiveRafflePrizeDisplayMode(
+      ALLOWED_PRIZE_DISPLAY_MODES.has(requestedPrizeDisplayMode) ? requestedPrizeDisplayMode : 'fixed',
+      prizes.length
+    );
 
     if (!id) return json({ ok: false, message: 'Selecciona uno de los 3 espacios de rifa.' }, 400);
     if (!accessCode) return json({ ok: false, message: 'El código del grupo es obligatorio para guardar la rifa.' }, 400);

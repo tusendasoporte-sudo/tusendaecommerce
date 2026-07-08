@@ -5,11 +5,11 @@ import {
   buildRaffleWhatsappReceiptHref,
   cleanWhatsappNumber,
   getCalculatedRaffleStatus,
+  getEffectiveRafflePrizeDisplayMode,
   isRaffleConfigured,
   isRaffleLinkEnabled,
   isRaffleShownInStore,
   isValidRaffleNumber,
-  normalizeRafflePrizeDisplayMode,
   raffleAcceptsEntries,
   rafflePrizeCards,
   type RaffleRecord,
@@ -74,8 +74,8 @@ const isFinalized = calculatedStatus === RAFFLE_STATUSES.FINALIZED;
 const numbers = Array.from({ length: 100 }, (_, index) => String(index).padStart(2, '0'));
 const occupiedSet = new Set(occupiedNumbers.filter(isValidRaffleNumber));
 const prizeCards = raffle ? rafflePrizeCards(raffle, storeName, description) : [];
-const prizesDisplayMode = normalizeRafflePrizeDisplayMode(raffle?.prizes_display_mode);
-const usePrizeCarousel = prizesDisplayMode === 'carousel' || prizeCards.length > 3;
+const prizesDisplayMode = getEffectiveRafflePrizeDisplayMode(raffle?.prizes_display_mode, prizeCards.length);
+const usePrizeCarousel = prizesDisplayMode === 'carousel';
 const prizeLayoutClass = usePrizeCarousel ? 'is-carousel' : 'is-fixed';
 const drawLabel = raffle?.draw_at
   ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(raffle.draw_at))
@@ -333,7 +333,7 @@ const faviconVersion = '2';
                 )}
               </article>
 
-              <article class="pz-raffle-card pz-numbers-card">
+              <article class="pz-raffle-card pz-numbers-card" data-participation-panel>
                 <div class="pz-numbers-head">
                   <h2>Selecciona tu número (00 al 99)</h2>
 
@@ -380,7 +380,7 @@ const faviconVersion = '2';
               </article>
 
               {isActive && (
-                <article class="pz-raffle-card pz-form-card">
+                <article class="pz-raffle-card pz-form-card" data-participation-panel>
                   <div class="pz-section-heading">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v5h4v2h-6V7h2Z"></path></svg>
                     <h2>Participa ahora</h2>
@@ -418,20 +418,30 @@ const faviconVersion = '2';
                 </article>
               )}
 
-              <article class="pz-receipt-card is-preview" data-receipt-card>
-                <div class="pz-receipt-top">
-                  <span class="pz-receipt-check" aria-hidden="true">✓</span>
+            </aside>
+
+            <article class="pz-reservation-wait-card is-preview" data-receipt-card>
+              <div class="pz-reservation-wait-grid">
+                <section class="pz-reservation-confirmation">
+                  <span class="pz-reservation-check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z"></path></svg>
+                  </span>
+
                   <div>
-                    <p>Tu número para esta rifa es:</p>
+                    <h2>Tu número ya está reservado</h2>
+                    <p class="pz-reservation-subtitle">No necesitas volver a seleccionar un número.</p>
+                  </div>
+
+                  <div class="pz-reservation-number-box">
+                    <span>Número reservado</span>
                     <strong data-receipt-number>--</strong>
                   </div>
-                </div>
 
-                <p class="pz-receipt-ok">
-                  Número reservado correctamente. Guarda este comprobante o envíalo por WhatsApp a la tienda.
-                </p>
+                  <p class="pz-reservation-wait-message">Estamos en espera del ganador. Te deseamos mucha suerte.</p>
+                  <p class="pz-reservation-confirmed-line">Tu reserva fue registrada correctamente.</p>
+                </section>
 
-                <div class="pz-receipt-summary">
+                <section class="pz-receipt-summary pz-reservation-summary">
                   <h3>Resumen para tu comprobante</h3>
 
                   <dl>
@@ -441,7 +451,7 @@ const faviconVersion = '2';
                     </div>
 
                     <div>
-                      <dt>Número seleccionado:</dt>
+                      <dt>Número reservado:</dt>
                       <dd data-receipt-number-text>--</dd>
                     </div>
 
@@ -464,22 +474,22 @@ const faviconVersion = '2';
                       <dt>Enlace directo:</dt>
                       <dd>
                         <a href={raffleUrl} data-receipt-link>{raffleUrl}</a>
-                        <button type="button" class="pz-copy-link" data-copy-raffle-link aria-label="Copiar enlace">⧉</button>
+                        <button type="button" class="pz-copy-link" data-copy-raffle-link aria-label="Copiar enlace">Copiar</button>
                       </dd>
                     </div>
                   </dl>
-                </div>
+                </section>
+              </div>
 
-                <a class="pz-receipt-whatsapp" href={initialWhatsappReceipt || contactHref} target="_blank" rel="noopener" data-receipt-whatsapp>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8.5 8.5 0 0 0-7.4 12.7L3.5 21l5.4-1.1A8.5 8.5 0 1 0 12 3Zm0 2a6.5 6.5 0 0 1 0 13c-1 0-2-.2-2.9-.7l-.3-.2-2.6.5.5-2.5-.2-.3A6.5 6.5 0 0 1 12 5Z"></path></svg>
-                  Enviar comprobante por WhatsApp
-                </a>
+              <a class="pz-receipt-whatsapp pz-reservation-whatsapp" href={initialWhatsappReceipt || contactHref} target="_blank" rel="noopener" data-receipt-whatsapp>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8.5 8.5 0 0 0-7.4 12.7L3.5 21l5.4-1.1A8.5 8.5 0 1 0 12 3Zm0 2a6.5 6.5 0 0 1 0 13c-1 0-2-.2-2.9-.7l-.3-.2-2.6.5.5-2.5-.2-.3A6.5 6.5 0 0 1 12 5Z"></path></svg>
+                Enviar comprobante por WhatsApp
+              </a>
 
-                <p class="pz-safe-note">
-                  Tu información está segura y no será compartida.
-                </p>
-              </article>
-            </aside>
+              <p class="pz-safe-note">
+                Tu información está segura y no será compartida.
+              </p>
+            </article>
           </section>
         )}
       </section>
@@ -713,6 +723,7 @@ const faviconVersion = '2';
 
       .pz-raffle-card,
       .pz-receipt-card,
+      .pz-reservation-wait-card,
       .pz-raffle-state-card {
         background: rgba(255, 255, 255, 0.93);
         border: 1px solid rgba(219, 231, 255, 0.95);
@@ -1103,6 +1114,124 @@ const faviconVersion = '2';
       }
 
       .pz-receipt-card.is-preview { display: none; }
+      .pz-reservation-wait-card.is-preview { display: none; }
+
+      .pz-reservation-wait-card {
+        grid-column: 1 / -1;
+        padding: 24px;
+        background:
+          radial-gradient(circle at 14% 18%, rgba(8, 168, 62, 0.10), transparent 34%),
+          linear-gradient(135deg, #ffffff 0%, #f8fbff 54%, #f1f7ff 100%);
+        border-color: rgba(191, 219, 254, 0.96);
+        box-shadow: 0 20px 50px rgba(6, 22, 66, 0.10);
+      }
+
+      .pz-reservation-wait-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.92fr);
+        gap: 20px;
+        align-items: stretch;
+      }
+
+      .pz-reservation-confirmation {
+        min-width: 0;
+        display: grid;
+        gap: 15px;
+        align-content: center;
+        justify-items: start;
+        padding: 24px;
+        border: 1px solid rgba(189, 240, 205, 0.95);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #f2fff7 0%, #ffffff 100%);
+      }
+
+      .pz-reservation-check {
+        width: 76px;
+        height: 76px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: linear-gradient(180deg, #13b94d 0%, #079639 100%);
+        color: #fff;
+        box-shadow: 0 18px 34px rgba(8, 168, 62, 0.22);
+      }
+
+      .pz-reservation-check svg {
+        width: 42px;
+        height: 42px;
+        fill: currentColor;
+      }
+
+      .pz-reservation-confirmation h2 {
+        margin: 0;
+        color: var(--pz-blue-dark);
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 0.96;
+        font-weight: 1000;
+        letter-spacing: 0;
+      }
+
+      .pz-reservation-subtitle,
+      .pz-reservation-wait-message,
+      .pz-reservation-confirmed-line {
+        margin: 0;
+        color: #263456;
+        font-size: 17px;
+        line-height: 1.45;
+        font-weight: 800;
+      }
+
+      .pz-reservation-number-box {
+        width: min(100%, 300px);
+        display: grid;
+        gap: 7px;
+        padding: 18px 20px;
+        border-radius: 18px;
+        background: #ffffff;
+        border: 1px solid #dbeafe;
+        box-shadow: 0 14px 30px rgba(7, 91, 234, 0.10);
+      }
+
+      .pz-reservation-number-box span {
+        color: var(--pz-blue);
+        font-size: 13px;
+        font-weight: 1000;
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+
+      .pz-reservation-number-box strong {
+        color: var(--pz-green);
+        font-size: clamp(76px, 12vw, 118px);
+        line-height: 0.86;
+        font-weight: 1000;
+        letter-spacing: 0;
+      }
+
+      .pz-reservation-wait-message {
+        color: #07512a;
+      }
+
+      .pz-reservation-confirmed-line {
+        color: #58708f;
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .pz-reservation-summary {
+        min-width: 0;
+        align-self: stretch;
+        display: grid;
+        align-content: start;
+        background: rgba(255, 255, 255, 0.92);
+        border-color: rgba(219, 231, 255, 0.98);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+      }
+
+      .pz-reservation-whatsapp {
+        width: min(100%, 560px);
+        margin: 20px auto 0;
+      }
 
       .pz-receipt-top {
         display: flex;
@@ -1193,13 +1322,16 @@ const faviconVersion = '2';
       }
 
       .pz-copy-link {
-        width: 28px;
+        min-width: 62px;
         height: 28px;
         margin-left: 8px;
         border: 0;
         border-radius: 7px;
         background: #eef5ff;
         color: var(--pz-blue);
+        padding: 0 9px;
+        font-size: 12px;
+        font-weight: 900;
       }
 
       .pz-receipt-whatsapp {
@@ -1365,8 +1497,17 @@ const faviconVersion = '2';
 
         .pz-raffle-card,
         .pz-receipt-card,
+        .pz-reservation-wait-card,
         .pz-raffle-state-card {
           border-radius: 15px;
+        }
+
+        .pz-reservation-wait-card {
+          padding: 18px;
+        }
+
+        .pz-reservation-wait-grid {
+          grid-template-columns: 1fr;
         }
 
         .pz-raffle-card { padding: 15px; }
@@ -1489,7 +1630,38 @@ const faviconVersion = '2';
           padding: 0;
         }
 
-        .pz-receipt-card { padding: 15px; }
+        .pz-receipt-card,
+        .pz-reservation-wait-card { padding: 15px; }
+
+        .pz-reservation-confirmation {
+          justify-items: center;
+          text-align: center;
+          padding: 18px 14px;
+        }
+
+        .pz-reservation-check {
+          width: 62px;
+          height: 62px;
+        }
+
+        .pz-reservation-check svg {
+          width: 34px;
+          height: 34px;
+        }
+
+        .pz-reservation-confirmation h2 {
+          font-size: 28px;
+        }
+
+        .pz-reservation-subtitle,
+        .pz-reservation-wait-message {
+          font-size: 14px;
+        }
+
+        .pz-reservation-number-box {
+          justify-items: center;
+          padding: 15px;
+        }
 
         .pz-receipt-check {
           width: 48px;
@@ -1615,15 +1787,30 @@ const faviconVersion = '2';
         const receiptDate = root.querySelector('[data-receipt-date]');
         const receiptWhatsapp = root.querySelector('[data-receipt-whatsapp]');
         const sendReceiptButton = root.querySelector('[data-send-receipt-button]');
+        const participationPanels = Array.from(root.querySelectorAll('[data-participation-panel]'));
         const errorNode = root.querySelector('[data-form-error]');
         let currentWhatsappUrl = '';
         const receiptStoragePrefix = `pz-raffle-receipt:${storeSlug}:${raffleSlug}`;
         const legacyReceiptStorageKey = receiptStoragePrefix;
+        const isReservationMode = () => root.classList.contains('has-existing-reservation');
 
         const setError = (message) => {
           if (!errorNode) return;
+          if (isReservationMode()) {
+            errorNode.textContent = '';
+            errorNode.hidden = true;
+            return;
+          }
           errorNode.textContent = message || '';
           errorNode.hidden = !message;
+        };
+
+        const setReservationMode = (active) => {
+          root.classList.toggle('has-existing-reservation', Boolean(active));
+          participationPanels.forEach((panel) => {
+            panel.hidden = Boolean(active);
+          });
+          if (active) setError('');
         };
 
         const setSelectedNumber = (number) => {
@@ -1767,7 +1954,7 @@ const faviconVersion = '2';
           if (receiptWhatsapp && currentWhatsappUrl) receiptWhatsapp.href = currentWhatsappUrl;
           if (sendReceiptButton) sendReceiptButton.disabled = !currentWhatsappUrl;
           receiptCard?.classList.remove('is-preview');
-          if (message) setError(message);
+          if (message && !chosenNumber) setError(message);
         };
 
         const hideReceipt = () => {
@@ -1781,7 +1968,8 @@ const faviconVersion = '2';
           const chosenNumber = String(receipt.chosen_number || receipt.selected_number || '').trim();
           lockNumberGrid(chosenNumber);
           setFormLocked(true);
-          if (chosenNumber) showReceipt(receipt, message);
+          setReservationMode(Boolean(chosenNumber));
+          if (chosenNumber) showReceipt(receipt, '');
           else {
             hideReceipt();
             if (message) setError(message);
@@ -1789,6 +1977,7 @@ const faviconVersion = '2';
         };
 
         const unlockParticipation = (message = '') => {
+          setReservationMode(false);
           hideReceipt();
           unlockNumberGrid();
           setFormLocked(false);
@@ -1934,10 +2123,10 @@ const faviconVersion = '2';
         copyButton?.addEventListener('click', async () => {
           try {
             await navigator.clipboard.writeText(receiptLink?.href || fullRaffleUrl || window.location.href);
-            copyButton.textContent = '✓';
-            window.setTimeout(() => { copyButton.textContent = '⧉'; }, 1200);
+            copyButton.textContent = 'Copiado';
+            window.setTimeout(() => { copyButton.textContent = 'Copiar'; }, 1200);
           } catch (_) {
-            copyButton.textContent = '⧉';
+            copyButton.textContent = 'Copiar';
           }
         });
 

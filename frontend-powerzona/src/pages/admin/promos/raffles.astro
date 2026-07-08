@@ -293,6 +293,25 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
       .segmented-control label { min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid #dbeafe; border-radius: 14px; background: #fff; color: #1e3a8a; font-size: 13px; font-weight: 950; text-transform: none; }
       .segmented-control input { width: 16px; height: 16px; accent-color: #2563eb; }
+      .segmented-control label.is-disabled {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #64748b;
+        opacity: .68;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+      .segmented-control label.is-disabled input {
+        cursor: not-allowed;
+      }
+      .prize-display-limit-note {
+        margin-top: 2px;
+        color: #1e40af;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 9px 11px;
+      }
       .prize-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
       .prize-editor-head h3 { margin: 0; color: #0f172a; font-size: 17px; font-weight: 1000; letter-spacing: 0; }
       .prize-editor-list { display: grid; gap: 10px; }
@@ -678,10 +697,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 <div class="field full">
                   <label>Presentación de premios</label>
                   <div class="segmented-control" role="radiogroup" aria-label="Presentación de premios">
-                    <label><input type="radio" name="raffle-prizes-display" value="fixed" checked /> Fijo</label>
-                    <label><input type="radio" name="raffle-prizes-display" value="carousel" /> Carrusel</label>
+                    <label id="raffle-prizes-display-fixed-label"><input id="raffle-prizes-display-fixed" type="radio" name="raffle-prizes-display" value="fixed" checked /> Fijo</label>
+                    <label><input id="raffle-prizes-display-carousel" type="radio" name="raffle-prizes-display" value="carousel" /> Carrusel</label>
                   </div>
                   <p class="form-help">Si agregas más de 3 regalos, se recomienda carrusel para mantener una vista cómoda.</p>
+                  <p id="raffle-prizes-display-limit-note" class="form-help prize-display-limit-note hidden">Con más de 3 premios, la presentación debe ser carrusel para mantener una vista cómoda.</p>
                 </div>
                 <div id="raffle-control-card" class="raffle-control-card full hidden">
                   <h3>Estado actual de la rifa</h3>
@@ -834,6 +854,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
         const PUBLIC_STORE_PATH = String(publicStorePath || '');
         const CURRENT_STORE_NAME = String(currentStoreName || 'PowerZona');
+        const PRIZE_FIXED_LIMIT = 3;
         const STORE_FILTER = CURRENT_STORE_ID ? `store="${String(CURRENT_STORE_ID).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : '';
         const DEFAULT_WINNER_MESSAGE = [
           'Felicidades {nombre_cliente}',
@@ -921,6 +942,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           winnerMessage: document.getElementById('raffle-winner-message'),
           prizesList: document.getElementById('raffle-prizes-list'),
           addPrize: document.getElementById('raffle-add-prize-btn'),
+          prizeDisplayFixed: document.getElementById('raffle-prizes-display-fixed'),
+          prizeDisplayFixedLabel: document.getElementById('raffle-prizes-display-fixed-label'),
+          prizeDisplayCarousel: document.getElementById('raffle-prizes-display-carousel'),
+          prizeDisplayLimitNote: document.getElementById('raffle-prizes-display-limit-note'),
           total: document.getElementById('raffle-summary-total'),
           active: document.getElementById('raffle-summary-active'),
           entries: document.getElementById('raffle-summary-entries'),
@@ -1038,11 +1063,25 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
         function setPrizeDisplayMode(mode) {
           const value = mode === 'carousel' ? 'carousel' : 'fixed';
-          const input = document.querySelector(`input[name="raffle-prizes-display"][value="${value}"]`);
+          const input = value === 'carousel' ? fields.prizeDisplayCarousel : fields.prizeDisplayFixed;
           if (input) input.checked = true;
         }
 
+        function shouldForcePrizeCarousel() {
+          return currentPrizeRows().length > PRIZE_FIXED_LIMIT;
+        }
+
+        function updatePrizeDisplayModeAvailability() {
+          const forceCarousel = shouldForcePrizeCarousel();
+          if (forceCarousel) setPrizeDisplayMode('carousel');
+          if (fields.prizeDisplayFixed) fields.prizeDisplayFixed.disabled = forceCarousel;
+          fields.prizeDisplayFixedLabel?.classList.toggle('is-disabled', forceCarousel);
+          fields.prizeDisplayFixedLabel?.setAttribute('aria-disabled', forceCarousel ? 'true' : 'false');
+          fields.prizeDisplayLimitNote?.classList.toggle('hidden', !forceCarousel);
+        }
+
         function getPrizeDisplayMode() {
+          if (shouldForcePrizeCarousel()) return 'carousel';
           return document.querySelector('input[name="raffle-prizes-display"]:checked')?.value || 'fixed';
         }
 
@@ -1121,10 +1160,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           if (!fields.prizesList) return;
           if (!prizeState.length) {
             fields.prizesList.innerHTML = '<div class="empty-state">Agrega al menos un regalo para mostrarlo en la página pública.</div>';
+            updatePrizeDisplayModeAvailability();
             return;
           }
 
           fields.prizesList.innerHTML = prizeState.map(prizeEditorRowHtml).join('');
+          updatePrizeDisplayModeAvailability();
         }
 
         function normalizeNumber(value) {
@@ -1531,8 +1572,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           data.append('description', fields.description.value.trim());
           data.append('conditions', fields.conditions.value.trim());
           data.append('winner_message', fields.winnerMessage.value.trim() || DEFAULT_WINNER_MESSAGE);
-          data.append('prizes_display_mode', getPrizeDisplayMode());
           const prizes = readPrizeRows();
+          const prizesDisplayMode = prizes.length > PRIZE_FIXED_LIMIT ? 'carousel' : getPrizeDisplayMode();
+          data.append('prizes_display_mode', prizesDisplayMode);
           data.append('prizes_json', JSON.stringify(prizes));
           currentPrizeRows().forEach((row) => {
             const file = row.querySelector('.js-prize-file')?.files?.[0];
@@ -2010,6 +2052,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const count = currentPrizeRows().length;
           if (!count) fields.prizesList.innerHTML = '';
           fields.prizesList.insertAdjacentHTML('beforeend', prizeEditorRowHtml(nextPrize, count));
+          updatePrizeDisplayModeAvailability();
         });
         fields.prizesList?.addEventListener('click', (event) => {
           const removeButton = event.target.closest('.js-prize-remove');
@@ -2019,6 +2062,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           if (!currentPrizeRows().length) {
             prizeState = [];
             renderPrizeEditor();
+          } else {
+            updatePrizeDisplayModeAvailability();
           }
         });
         fields.prizesList?.addEventListener('change', (event) => {
