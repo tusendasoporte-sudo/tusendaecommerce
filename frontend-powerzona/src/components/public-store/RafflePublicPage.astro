@@ -230,7 +230,7 @@ const faviconVersion = '2';
           ) : (
             <article class:list={['pz-raffle-result-status-card', isPublishedWinnerResult && 'is-winner-result', isPublishedNoWinnerResult && 'is-no-winner-result']} aria-live="polite">
               <span>Resultado publicado</span>
-              <strong>{isPublishedWinnerResult ? 'Número ganador' : 'Sorteo publicado'}</strong>
+              <strong>{isPublishedWinnerResult ? 'Sorteo completado' : 'Sorteo publicado'}</strong>
               <p>
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 8H4v10h16V10ZM6 6v2h12V6H6Z"></path></svg>
                 Fecha del sorteo: <time>{drawLabel}</time>
@@ -295,19 +295,23 @@ const faviconVersion = '2';
             <div class="pz-raffle-main-column">
               {isPublishedWinnerResult && (
                 <section class:list={['pz-raffle-result-stage', 'is-public-result', shouldAnimateWinnerResult && 'has-result-animation']} data-result-stage>
-                  {shouldAnimateWinnerResult && (
-                    <>
-                      <div class="pz-result-confetti" aria-hidden="true">
-                        {Array.from({ length: 16 }, (_, index) => (
-                          <i style={`--x:${6 + index * 5.8}%; --d:${index * 70}ms`}></i>
+                  <article class="pz-result-celebration-card">
+                    {shouldAnimateWinnerResult && (
+                      <div class="pz-result-celebration-sky" aria-hidden="true">
+                        {Array.from({ length: 28 }, (_, index) => (
+                          <i
+                            class="pz-result-confetti-piece"
+                            style={`--x:${4 + index * 3.4}%; --d:${index * 48}ms; --r:${(index % 7) * 22}deg;`}
+                          ></i>
                         ))}
+                        <span class="pz-result-firework pz-result-firework-left"><b></b></span>
+                        <span class="pz-result-firework pz-result-firework-right"><b></b></span>
+                        <span class="pz-result-star pz-result-star-one"></span>
+                        <span class="pz-result-star pz-result-star-two"></span>
+                        <span class="pz-result-star pz-result-star-three"></span>
                       </div>
-                      <span class="pz-result-firework pz-result-firework-left" aria-hidden="true"><i></i></span>
-                      <span class="pz-result-firework pz-result-firework-right" aria-hidden="true"><i></i></span>
-                    </>
-                  )}
+                    )}
 
-                  <article class="pz-result-published-card">
                     <div class="pz-result-message">
                       <span class="pz-result-badge">Resultado publicado</span>
                       <h2 data-result-title>¡Número ganador!</h2>
@@ -321,9 +325,15 @@ const faviconVersion = '2';
                     </div>
 
                     <div class="pz-result-winner-spotlight">
-                      <span>Ganador</span>
+                      <div class="pz-result-medal" aria-hidden="true">
+                        <span class="pz-result-medal-ring"></span>
+                        <span class="pz-result-laurel pz-result-laurel-left"></span>
+                        <span class="pz-result-laurel pz-result-laurel-right"></span>
+                        <span class="pz-result-podium"></span>
+                      </div>
+                      <span>Número ganador</span>
                       <strong class="pz-result-winner-number" data-result-winner-number>{winnerNumberDisplay}</strong>
-                      <small>Número ganador</small>
+                      <small>Ganador</small>
                     </div>
 
                     <aside class="pz-result-client-card" data-result-client-card hidden>
@@ -814,41 +824,34 @@ const faviconVersion = '2';
 
       .pz-raffle-result-status-card {
         position: relative;
+        min-height: 128px;
         overflow: hidden;
-        min-height: 210px;
         display: grid;
         align-content: center;
-        gap: 14px;
-        padding: 30px;
-        border: 1px solid rgba(125, 211, 252, 0.56);
-        border-radius: var(--pz-radius-lg);
+        justify-items: start;
+        gap: 12px;
+        padding: 24px 28px;
+        border: 1px solid rgba(125, 211, 252, 0.72);
+        border-radius: 20px;
         background:
-          radial-gradient(circle at 88% 14%, rgba(8, 168, 62, 0.16), transparent 32%),
-          linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, #eef8ff 54%, #effff5 100%);
-        box-shadow: var(--pz-shadow);
-      }
-
-      .pz-raffle-result-status-card::after {
-        content: "";
-        position: absolute;
-        inset: auto -22px -28px auto;
-        width: 150px;
-        height: 150px;
-        border-radius: 999px;
-        background: rgba(7, 91, 234, 0.09);
+          radial-gradient(circle at 92% 70%, rgba(7, 91, 234, 0.12), transparent 34%),
+          radial-gradient(circle at 78% 14%, rgba(8, 168, 62, 0.16), transparent 34%),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 255, 246, 0.94));
+        box-shadow: 0 22px 52px rgba(6, 22, 66, 0.12);
       }
 
       .pz-raffle-result-status-card span {
-        width: fit-content;
+        position: relative;
+        z-index: 1;
         display: inline-flex;
         align-items: center;
-        min-height: 34px;
-        padding: 0 14px;
+        min-height: 28px;
+        padding: 0 12px;
         border-radius: 999px;
         color: #07512a;
-        background: rgba(220, 252, 231, 0.86);
+        background: rgba(220, 252, 231, 0.9);
         border: 1px solid rgba(8, 168, 62, 0.22);
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 1000;
         text-transform: uppercase;
       }
@@ -857,8 +860,8 @@ const faviconVersion = '2';
         position: relative;
         z-index: 1;
         color: var(--pz-blue-dark);
-        font-size: 34px;
-        line-height: 1;
+        font-size: 26px;
+        line-height: 1.05;
         font-weight: 1000;
       }
 
@@ -866,25 +869,24 @@ const faviconVersion = '2';
         position: relative;
         z-index: 1;
         width: fit-content;
-        max-width: 100%;
-        margin: 0;
-        padding: 11px 14px;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.74);
-        border: 1px solid rgba(219, 231, 255, 0.84);
-        color: #354064;
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        font-size: 15px;
-        font-weight: 800;
+        margin: 0;
+        padding: 9px 12px;
+        border-radius: 10px;
+        color: #263456;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(219, 231, 255, 0.9);
+        font-size: 13px;
+        font-weight: 850;
       }
 
       .pz-raffle-result-status-card svg {
-        width: 18px;
-        height: 18px;
+        width: 16px;
+        height: 16px;
         fill: currentColor;
-        flex: 0 0 auto;
+        opacity: 0.78;
       }
 
       .pz-raffle-content {
@@ -912,29 +914,55 @@ const faviconVersion = '2';
         position: relative;
         min-width: 0;
         display: grid;
-        gap: 16px;
+        gap: 18px;
         isolation: isolate;
       }
 
+      .pz-result-celebration-card,
       .pz-result-published-card {
         position: relative;
         overflow: hidden;
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(260px, 0.78fr);
-        gap: 22px;
+        grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.05fr);
+        gap: 28px;
         align-items: stretch;
-        padding: 28px;
-        border: 1px solid rgba(191, 219, 254, 0.96);
-        border-radius: var(--pz-radius-lg);
+        min-height: 390px;
+        padding: 34px;
+        border: 1px solid rgba(125, 211, 252, 0.72);
+        border-radius: 24px;
         background:
-          radial-gradient(circle at 12% 16%, rgba(7, 91, 234, 0.10), transparent 34%),
-          radial-gradient(circle at 92% 10%, rgba(8, 168, 62, 0.14), transparent 30%),
-          linear-gradient(135deg, #ffffff 0%, #f8fbff 52%, #f1fff6 100%);
-        box-shadow: 0 24px 60px rgba(6, 22, 66, 0.13);
+          radial-gradient(circle at 14% 18%, rgba(7, 91, 234, 0.10), transparent 30%),
+          radial-gradient(circle at 86% 14%, rgba(8, 168, 62, 0.16), transparent 28%),
+          radial-gradient(circle at 50% 100%, rgba(8, 168, 62, 0.12), transparent 34%),
+          linear-gradient(135deg, #ffffff 0%, #f8fbff 50%, #effff6 100%);
+        box-shadow: 0 28px 70px rgba(6, 22, 66, 0.15);
       }
 
-      .pz-raffle-result-stage.has-client-number .pz-result-published-card {
-        grid-template-columns: minmax(0, 1fr) minmax(230px, 0.68fr) minmax(220px, 0.58fr);
+      .pz-raffle-result-stage.has-client-number .pz-result-celebration-card {
+        grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr) minmax(230px, 0.68fr);
+      }
+
+      .pz-result-celebration-card::before {
+        content: "";
+        position: absolute;
+        inset: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .pz-result-celebration-card::after {
+        content: "";
+        position: absolute;
+        width: 290px;
+        height: 290px;
+        right: -96px;
+        top: -106px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(8, 168, 62, 0.14), transparent 68%);
+        pointer-events: none;
+        z-index: 0;
       }
 
       .pz-result-no-winner-card {
@@ -945,97 +973,157 @@ const faviconVersion = '2';
 
       .pz-result-message {
         position: relative;
-        z-index: 2;
+        z-index: 3;
         min-width: 0;
         display: grid;
         align-content: center;
         justify-items: start;
-        gap: 12px;
+        gap: 14px;
       }
 
       .pz-result-badge {
         display: inline-flex;
         align-items: center;
         min-height: 34px;
-        padding: 0 14px;
+        padding: 0 15px;
         border-radius: 999px;
         color: #07512a;
-        background: rgba(220, 252, 231, 0.88);
-        border: 1px solid rgba(8, 168, 62, 0.22);
-        font-size: 13px;
+        background: rgba(220, 252, 231, 0.94);
+        border: 1px solid rgba(8, 168, 62, 0.24);
+        box-shadow: 0 10px 22px rgba(8, 168, 62, 0.08);
+        font-size: 12px;
         font-weight: 1000;
         text-transform: uppercase;
       }
 
       .pz-result-message h2 {
+        max-width: 520px;
         margin: 0;
         color: var(--pz-blue-dark);
-        font-size: 42px;
-        line-height: 1;
+        font-size: clamp(36px, 4.4vw, 58px);
+        line-height: 0.98;
+        letter-spacing: 0;
         font-weight: 1000;
+      }
+
+      .pz-raffle-result-stage.is-client-not-winner .pz-result-message h2 {
+        color: var(--pz-blue);
       }
 
       .pz-result-subtitle,
       .pz-result-copy {
+        max-width: 500px;
         margin: 0;
-        color: #263456;
+        color: #233355;
         font-size: 17px;
         line-height: 1.45;
-        font-weight: 760;
+        font-weight: 850;
       }
 
       .pz-result-copy {
         color: #50607e;
         font-size: 15px;
-        font-weight: 720;
+        font-weight: 760;
       }
 
       .pz-result-action {
-        margin-top: 6px;
-        min-width: 244px;
+        margin-top: 8px;
+        min-width: 260px;
+        min-height: 54px;
+        box-shadow: 0 18px 34px rgba(8, 168, 62, 0.28);
       }
 
-      .pz-result-winner-spotlight,
-      .pz-result-client-card {
+      .pz-result-action[hidden],
+      .pz-result-receipt-summary[hidden],
+      .pz-result-client-card[hidden] {
+        display: none !important;
+      }
+
+      .pz-result-winner-spotlight {
         position: relative;
-        z-index: 2;
+        z-index: 3;
         min-width: 0;
+        min-height: 318px;
         display: grid;
         place-items: center;
         align-content: center;
         text-align: center;
-        border-radius: 18px;
+        padding: 28px 18px;
+        border-radius: 22px;
         background: rgba(255, 255, 255, 0.88);
         border: 1px solid rgba(219, 231, 255, 0.98);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78), 0 18px 36px rgba(6, 22, 66, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82), 0 22px 45px rgba(6, 22, 66, 0.10);
       }
 
-      .pz-result-winner-spotlight {
-        min-height: 260px;
-        padding: 28px 18px;
-      }
-
-      .pz-result-winner-spotlight::before {
-        content: "";
+      .pz-result-medal {
         position: absolute;
-        width: 190px;
-        height: 190px;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .pz-result-medal-ring {
+        width: min(260px, 82%);
+        aspect-ratio: 1;
         border-radius: 999px;
         background:
-          radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 48%, transparent 49%),
-          conic-gradient(from 28deg, rgba(8, 168, 62, 0.22), rgba(7, 91, 234, 0.20), rgba(245, 158, 11, 0.22), rgba(8, 168, 62, 0.22));
-        filter: drop-shadow(0 18px 34px rgba(8, 168, 62, 0.13));
+          radial-gradient(circle, rgba(255, 255, 255, 0.94) 0 48%, transparent 49%),
+          conic-gradient(from 25deg, rgba(245, 158, 11, 0.48), rgba(8, 168, 62, 0.24), rgba(7, 91, 234, 0.26), rgba(245, 158, 11, 0.48));
+        filter: drop-shadow(0 24px 44px rgba(8, 168, 62, 0.16));
       }
 
-      .pz-result-winner-spotlight span,
-      .pz-result-winner-spotlight small,
+      .pz-result-laurel {
+        position: absolute;
+        bottom: 42px;
+        width: 58px;
+        height: 132px;
+        border-radius: 999px;
+        opacity: 0.86;
+        background:
+          radial-gradient(ellipse at 50% 12%, rgba(8, 168, 62, 0.82) 0 12%, transparent 13%),
+          radial-gradient(ellipse at 34% 30%, rgba(8, 168, 62, 0.78) 0 11%, transparent 12%),
+          radial-gradient(ellipse at 66% 30%, rgba(8, 168, 62, 0.78) 0 11%, transparent 12%),
+          radial-gradient(ellipse at 30% 50%, rgba(8, 168, 62, 0.70) 0 10%, transparent 11%),
+          radial-gradient(ellipse at 70% 50%, rgba(8, 168, 62, 0.70) 0 10%, transparent 11%),
+          radial-gradient(ellipse at 42% 70%, rgba(8, 168, 62, 0.58) 0 9%, transparent 10%);
+      }
+
+      .pz-result-laurel-left {
+        left: 12%;
+        transform: rotate(-20deg);
+      }
+
+      .pz-result-laurel-right {
+        right: 12%;
+        transform: scaleX(-1) rotate(-20deg);
+      }
+
+      .pz-result-podium {
+        position: absolute;
+        bottom: 28px;
+        left: 50%;
+        width: min(220px, 70%);
+        height: 38px;
+        border-radius: 50%;
+        transform: translateX(-50%);
+        background:
+          radial-gradient(ellipse at center, rgba(255, 255, 255, 0.98) 0 44%, rgba(220, 252, 231, 0.82) 45% 70%, transparent 71%),
+          linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 255, 246, 0.85));
+        box-shadow: 0 18px 36px rgba(8, 168, 62, 0.16);
+      }
+
+      .pz-result-winner-spotlight > span,
+      .pz-result-winner-spotlight > small,
+      .pz-result-winner-number,
       .pz-result-client-card span,
       .pz-result-client-card p {
         position: relative;
-        z-index: 1;
+        z-index: 2;
       }
 
-      .pz-result-winner-spotlight span,
+      .pz-result-winner-spotlight > span,
       .pz-result-client-card span {
         color: var(--pz-blue);
         font-size: 13px;
@@ -1044,45 +1132,86 @@ const faviconVersion = '2';
       }
 
       .pz-result-winner-number {
-        position: relative;
-        z-index: 1;
         color: var(--pz-green);
-        font-size: 132px;
-        line-height: 0.84;
+        font-size: clamp(126px, 11vw, 178px);
+        line-height: 0.82;
         font-weight: 1000;
         letter-spacing: 0;
-        text-shadow: 0 14px 34px rgba(8, 168, 62, 0.26);
+        text-shadow:
+          0 10px 0 rgba(255, 255, 255, 0.72),
+          0 18px 40px rgba(8, 168, 62, 0.32);
       }
 
       .pz-raffle-result-stage.is-client-not-winner .pz-result-winner-number,
       .pz-raffle-result-stage.is-no-winner-result .pz-result-winner-number {
         color: var(--pz-blue);
-        text-shadow: 0 14px 34px rgba(7, 91, 234, 0.22);
+        text-shadow:
+          0 10px 0 rgba(255, 255, 255, 0.72),
+          0 18px 40px rgba(7, 91, 234, 0.30);
       }
 
       .pz-result-winner-spotlight small {
         margin-top: 8px;
         color: #64728e;
         font-size: 13px;
-        font-weight: 850;
+        font-weight: 900;
       }
 
       .pz-result-client-card {
-        padding: 22px 18px;
-        background: linear-gradient(180deg, rgba(239, 255, 245, 0.94) 0%, #ffffff 100%);
+        position: relative;
+        z-index: 3;
+        min-width: 0;
+        display: grid;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+        text-align: center;
+        padding: 24px 18px;
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at 50% 24%, rgba(8, 168, 62, 0.16), transparent 40%),
+          linear-gradient(180deg, rgba(239, 255, 245, 0.96) 0%, #ffffff 100%);
+        border: 1px solid rgba(187, 247, 208, 0.96);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84), 0 18px 36px rgba(6, 22, 66, 0.08);
+      }
+
+      .pz-result-client-card::after {
+        content: "✓";
+        position: absolute;
+        top: 28%;
+        right: 18%;
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: #ffffff;
+        background: var(--pz-green);
+        box-shadow: 0 12px 24px rgba(8, 168, 62, 0.24);
+        font-size: 20px;
+        font-weight: 1000;
       }
 
       .pz-result-client-card strong {
-        margin: 10px 0;
         color: var(--pz-green);
-        font-size: 78px;
+        font-size: 86px;
         line-height: 0.9;
         font-weight: 1000;
         letter-spacing: 0;
       }
 
       .pz-raffle-result-stage.is-client-not-winner .pz-result-client-card {
-        background: linear-gradient(180deg, rgba(238, 246, 255, 0.96) 0%, #ffffff 100%);
+        background:
+          radial-gradient(circle at 50% 24%, rgba(7, 91, 234, 0.13), transparent 40%),
+          linear-gradient(180deg, rgba(238, 246, 255, 0.96) 0%, #ffffff 100%);
+        border-color: rgba(191, 219, 254, 0.96);
+      }
+
+      .pz-raffle-result-stage.is-client-not-winner .pz-result-client-card::after {
+        content: "•";
+        color: #ffffff;
+        background: #94a3b8;
+        box-shadow: 0 12px 24px rgba(100, 116, 139, 0.18);
       }
 
       .pz-raffle-result-stage.is-client-not-winner .pz-result-client-card strong {
@@ -1094,7 +1223,7 @@ const faviconVersion = '2';
         color: #07512a;
         font-size: 14px;
         line-height: 1.35;
-        font-weight: 950;
+        font-weight: 1000;
       }
 
       .pz-raffle-result-stage.is-client-not-winner .pz-result-client-card p {
@@ -1102,11 +1231,11 @@ const faviconVersion = '2';
       }
 
       .pz-result-receipt-summary {
-        padding: 18px;
-        border-radius: 16px;
-        background: rgba(255, 255, 255, 0.96);
+        padding: 20px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.98);
         border: 1px solid rgba(219, 231, 255, 0.96);
-        box-shadow: var(--pz-shadow-soft);
+        box-shadow: 0 20px 46px rgba(6, 22, 66, 0.09);
       }
 
       .pz-result-receipt-summary.is-preview {
@@ -1122,23 +1251,21 @@ const faviconVersion = '2';
 
       .pz-result-receipt-summary dl {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px 16px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px 18px;
         margin: 0;
       }
 
       .pz-result-receipt-summary div {
         min-width: 0;
         display: grid;
-        grid-template-columns: 138px minmax(0, 1fr);
-        gap: 10px;
-        align-items: center;
+        gap: 4px;
       }
 
       .pz-result-receipt-summary dt {
-        color: #263456;
-        font-size: 13px;
-        font-weight: 850;
+        color: #60708f;
+        font-size: 12px;
+        font-weight: 900;
       }
 
       .pz-result-receipt-summary dd {
@@ -1146,7 +1273,7 @@ const faviconVersion = '2';
         margin: 0;
         color: var(--pz-blue-dark);
         font-size: 13px;
-        font-weight: 900;
+        font-weight: 950;
       }
 
       .pz-result-receipt-summary a {
@@ -1155,72 +1282,74 @@ const faviconVersion = '2';
         overflow-wrap: anywhere;
       }
 
-      .pz-result-confetti,
-      .pz-result-firework {
+      .pz-result-celebration-sky {
         position: absolute;
-        pointer-events: none;
-        z-index: 3;
-      }
-
-      .pz-result-confetti {
         inset: 0;
         overflow: hidden;
-        border-radius: var(--pz-radius-lg);
+        border-radius: 24px;
+        pointer-events: none;
+        z-index: 2;
       }
 
-      .pz-result-confetti i {
+      .pz-result-confetti-piece {
         position: absolute;
-        top: -18px;
+        top: -24px;
         left: var(--x);
         width: 8px;
         height: 16px;
         border-radius: 3px;
         background: #13b94d;
         opacity: 0;
-        transform: translateY(-12px) rotate(0deg);
-        animation: pzResultConfetti 2400ms ease-out both;
+        transform: translateY(-20px) rotate(var(--r));
+        animation: pzResultConfetti 2600ms ease-out both;
         animation-delay: var(--d);
       }
 
-      .pz-result-confetti i:nth-child(3n) {
+      .pz-result-confetti-piece:nth-child(3n) {
         background: #126cff;
       }
 
-      .pz-result-confetti i:nth-child(4n) {
-        background: #f5b84b;
+      .pz-result-confetti-piece:nth-child(4n) {
         width: 7px;
         height: 7px;
         border-radius: 999px;
+        background: #f5b84b;
+      }
+
+      .pz-result-confetti-piece:nth-child(5n) {
+        background: #22c55e;
       }
 
       .pz-result-firework {
-        width: 96px;
-        height: 96px;
-        top: 24px;
+        position: absolute;
+        width: 120px;
+        height: 120px;
         opacity: 0;
-        animation: pzFireworkFade 1400ms ease-out 220ms both;
+        pointer-events: none;
+        animation: pzFireworkFade 1800ms ease-out 260ms both;
       }
 
       .pz-result-firework-left {
-        left: 22px;
+        left: 22%;
+        top: 32px;
       }
 
       .pz-result-firework-right {
-        right: 28px;
+        right: 18%;
         top: 42px;
       }
 
       .pz-result-firework::before,
       .pz-result-firework::after,
-      .pz-result-firework i {
+      .pz-result-firework b {
         content: "";
         position: absolute;
         left: 50%;
         top: 50%;
-        width: 76px;
+        width: 96px;
         height: 2px;
         border-radius: 999px;
-        background: linear-gradient(90deg, transparent, rgba(7, 91, 234, 0.72), transparent);
+        background: linear-gradient(90deg, transparent, rgba(7, 91, 234, 0.78), transparent);
         transform-origin: center;
       }
 
@@ -1230,29 +1359,64 @@ const faviconVersion = '2';
 
       .pz-result-firework::after {
         transform: translate(-50%, -50%) rotate(60deg);
-        background: linear-gradient(90deg, transparent, rgba(8, 168, 62, 0.74), transparent);
+        background: linear-gradient(90deg, transparent, rgba(8, 168, 62, 0.76), transparent);
       }
 
-      .pz-result-firework i {
+      .pz-result-firework b {
         transform: translate(-50%, -50%) rotate(120deg);
-        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.76), transparent);
+        background: linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.78), transparent);
+      }
+
+      .pz-result-star {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        opacity: 0.9;
+        clip-path: polygon(50% 0, 62% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 38% 34%);
+        background: #f5b84b;
+        filter: drop-shadow(0 8px 12px rgba(245, 158, 11, 0.28));
+        animation: pzStarPulse 1600ms ease-out 420ms both;
+      }
+
+      .pz-result-star-one {
+        left: 8%;
+        top: 34%;
+      }
+
+      .pz-result-star-two {
+        right: 9%;
+        top: 24%;
+        width: 14px;
+        height: 14px;
+        background: #126cff;
+      }
+
+      .pz-result-star-three {
+        left: 48%;
+        bottom: 14%;
+        width: 22px;
+        height: 22px;
       }
 
       .pz-raffle-result-stage.has-result-animation .pz-result-winner-number {
-        animation: pzWinnerReveal 840ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+        animation: pzWinnerReveal 900ms cubic-bezier(0.2, 0.82, 0.2, 1) both;
+      }
+
+      .pz-raffle-result-stage.has-result-animation .pz-result-medal-ring {
+        animation: pzMedalGlow 1200ms ease-out both;
       }
 
       @keyframes pzWinnerReveal {
         0% {
           opacity: 0;
-          transform: translateY(18px) scale(0.84);
+          transform: translateY(24px) scale(0.78);
           filter: brightness(1);
         }
 
-        68% {
+        62% {
           opacity: 1;
-          transform: translateY(-6px) scale(1.04);
-          filter: brightness(1.08);
+          transform: translateY(-8px) scale(1.08);
+          filter: brightness(1.12);
         }
 
         100% {
@@ -1262,35 +1426,69 @@ const faviconVersion = '2';
         }
       }
 
+      @keyframes pzMedalGlow {
+        0% {
+          opacity: 0.4;
+          transform: scale(0.86);
+        }
+
+        70% {
+          opacity: 1;
+          transform: scale(1.04);
+        }
+
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
       @keyframes pzResultConfetti {
         0% {
           opacity: 0;
-          transform: translateY(-12px) rotate(0deg);
+          transform: translateY(-20px) rotate(var(--r));
         }
 
-        16% {
-          opacity: 0.9;
+        14% {
+          opacity: 0.95;
         }
 
         100% {
           opacity: 0;
-          transform: translateY(310px) rotate(220deg);
+          transform: translateY(390px) rotate(280deg);
         }
       }
 
       @keyframes pzFireworkFade {
         0% {
           opacity: 0;
-          transform: scale(0.56);
+          transform: scale(0.5);
         }
 
-        34% {
-          opacity: 0.78;
+        32% {
+          opacity: 0.9;
         }
 
         100% {
           opacity: 0;
-          transform: scale(1.22);
+          transform: scale(1.3);
+        }
+      }
+
+      @keyframes pzStarPulse {
+        0% {
+          opacity: 0;
+          transform: scale(0.4) rotate(-18deg);
+        }
+
+        55% {
+          opacity: 1;
+          transform: scale(1.2) rotate(10deg);
+        }
+
+        100% {
+          opacity: 0.82;
+          transform: scale(1) rotate(0deg);
         }
       }
 
@@ -1973,34 +2171,25 @@ const faviconVersion = '2';
       .pz-state-actions a:last-child { background: var(--pz-green); }
 
       @media (prefers-reduced-motion: reduce) {
-        .pz-raffle-btn,
-        .pz-state-actions a,
-        .pz-prize-card,
-        .pz-number-btn,
-        .pz-result-winner-number {
-          transition: none;
-          animation: none;
+        .pz-raffle-result-stage.has-result-animation .pz-result-winner-number,
+        .pz-raffle-result-stage.has-result-animation .pz-result-medal-ring,
+        .pz-result-confetti-piece,
+        .pz-result-firework,
+        .pz-result-star {
+          animation: none !important;
+          opacity: 1;
         }
 
-        .pz-result-confetti,
+        .pz-result-confetti-piece,
         .pz-result-firework {
           display: none;
         }
       }
 
-      @media (max-width: 1100px) {
-        .pz-raffle-shell {
-          width: min(760px, calc(100% - 32px));
-          padding: 28px 0 40px;
-        }
-
-        .pz-raffle-hero,
-        .pz-raffle-content {
-          grid-template-columns: 1fr;
-        }
-
+      @media (max-width: 980px) {
+        .pz-result-celebration-card,
         .pz-result-published-card,
-        .pz-raffle-result-stage.has-client-number .pz-result-published-card {
+        .pz-raffle-result-stage.has-client-number .pz-result-celebration-card {
           grid-template-columns: 1fr;
         }
 
@@ -2013,7 +2202,23 @@ const faviconVersion = '2';
           width: min(100%, 360px);
         }
 
+        .pz-result-client-card {
+          min-height: 190px;
+        }
+
         .pz-result-receipt-summary dl {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 1100px) {
+        .pz-raffle-shell {
+          width: min(760px, calc(100% - 32px));
+          padding: 28px 0 40px;
+        }
+
+        .pz-raffle-hero,
+        .pz-raffle-content {
           grid-template-columns: 1fr;
         }
 
@@ -2105,20 +2310,19 @@ const faviconVersion = '2';
         .pz-raffle-result-status-card {
           min-height: 0;
           padding: 18px;
-          border-radius: 15px;
-          gap: 10px;
+          border-radius: 16px;
+          justify-items: center;
+          text-align: center;
         }
 
         .pz-raffle-result-status-card strong {
-          font-size: 25px;
+          font-size: 23px;
         }
 
         .pz-raffle-result-status-card p {
           width: 100%;
           justify-content: center;
-          padding: 9px 10px;
           font-size: 12px;
-          text-align: center;
         }
 
         .pz-raffle-card,
@@ -2132,14 +2336,23 @@ const faviconVersion = '2';
           padding: 18px;
         }
 
+        .pz-result-celebration-card,
         .pz-result-published-card {
-          padding: 18px;
-          gap: 16px;
-          border-radius: 15px;
+          min-height: 0;
+          padding: 20px;
+          gap: 18px;
+          border-radius: 18px;
+        }
+
+        .pz-result-celebration-card::before {
+          inset: 10px;
+          border-radius: 16px;
         }
 
         .pz-result-message h2 {
-          font-size: 30px;
+          max-width: 100%;
+          font-size: clamp(30px, 10vw, 42px);
+          line-height: 1;
         }
 
         .pz-result-subtitle {
@@ -2151,60 +2364,110 @@ const faviconVersion = '2';
         }
 
         .pz-result-action {
-          width: 100%;
           min-width: 0;
-          min-height: 48px;
+          min-height: 50px;
           font-size: 14px;
         }
 
         .pz-result-winner-spotlight {
-          min-height: 210px;
+          min-height: 250px;
           padding: 24px 14px;
+          border-radius: 18px;
         }
 
-        .pz-result-winner-spotlight::before {
-          width: 148px;
-          height: 148px;
+        .pz-result-medal-ring {
+          width: min(210px, 84%);
+        }
+
+        .pz-result-laurel {
+          bottom: 36px;
+          width: 44px;
+          height: 102px;
+        }
+
+        .pz-result-laurel-left {
+          left: 8%;
+        }
+
+        .pz-result-laurel-right {
+          right: 8%;
+        }
+
+        .pz-result-podium {
+          bottom: 24px;
+          width: min(180px, 74%);
         }
 
         .pz-result-winner-number {
-          font-size: 96px;
+          font-size: clamp(96px, 28vw, 124px);
         }
 
         .pz-result-client-card {
-          padding: 18px 14px;
+          min-height: 172px;
+          padding: 20px 14px;
+          border-radius: 18px;
         }
 
         .pz-result-client-card strong {
-          font-size: 62px;
+          font-size: 72px;
+        }
+
+        .pz-result-client-card::after {
+          top: 24%;
+          right: 20%;
+          width: 30px;
+          height: 30px;
+          font-size: 17px;
         }
 
         .pz-result-receipt-summary {
-          padding: 14px;
-          border-radius: 14px;
+          padding: 16px;
+          border-radius: 16px;
+        }
+
+        .pz-result-receipt-summary dl {
+          grid-template-columns: 1fr;
+          gap: 10px;
         }
 
         .pz-result-receipt-summary div {
-          grid-template-columns: 128px minmax(0, 1fr);
-          gap: 6px;
-        }
-
-        .pz-result-receipt-summary dt,
-        .pz-result-receipt-summary dd {
-          font-size: 11.5px;
+          grid-template-columns: 1fr;
         }
 
         .pz-result-firework {
-          width: 70px;
-          height: 70px;
+          width: 72px;
+          height: 72px;
         }
 
         .pz-result-firework-left {
-          left: 0;
+          left: 4px;
+          top: 78px;
         }
 
         .pz-result-firework-right {
-          right: 0;
+          right: 4px;
+          top: 92px;
+        }
+
+        .pz-result-firework::before,
+        .pz-result-firework::after,
+        .pz-result-firework b {
+          width: 58px;
+        }
+
+        .pz-result-star-one {
+          left: 7%;
+          top: 42%;
+        }
+
+        .pz-result-star-two {
+          right: 8%;
+          top: 36%;
+        }
+
+        .pz-result-star-three {
+          left: 47%;
+          bottom: 20%;
         }
 
         .pz-reservation-wait-grid {
@@ -2416,9 +2679,22 @@ const faviconVersion = '2';
         .pz-prizes-card.is-carousel .pz-prize-card { flex-basis: 78%; }
         .pz-condition-list { grid-template-columns: 1fr; }
         .pz-receipt-summary div { grid-template-columns: 1fr; }
-        .pz-result-winner-number { font-size: 82px; }
-        .pz-result-message h2 { font-size: 27px; }
-        .pz-result-receipt-summary div { grid-template-columns: 1fr; }
+
+        .pz-result-message h2 {
+          font-size: 30px;
+        }
+
+        .pz-result-winner-number {
+          font-size: 90px;
+        }
+
+        .pz-result-client-card strong {
+          font-size: 62px;
+        }
+
+        .pz-result-badge {
+          font-size: 11px;
+        }
       }
     </style>
 
@@ -2512,6 +2788,7 @@ const faviconVersion = '2';
         const resultReceiptCard = root.querySelector('[data-result-receipt-card]');
         const resultAction = root.querySelector('[data-result-action]');
         const resultActionLabel = root.querySelector('[data-result-action-label]');
+        const bottomWhatsappButtons = Array.from(root.querySelectorAll('[data-receipt-whatsapp], [data-whatsapp-receipt], .pz-receipt-whatsapp, .pz-result-bottom-whatsapp'));
         const participationPanels = Array.from(root.querySelectorAll('[data-participation-panel]'));
         const errorNode = root.querySelector('[data-form-error]');
         let currentWhatsappUrl = '';
@@ -2545,11 +2822,22 @@ const faviconVersion = '2';
           if (receiptNumberText) receiptNumberText.textContent = displayNumber || '--';
         };
 
-        const setResultAction = (label, href) => {
+        const hidePublishedResultBottomWhatsapp = () => {
+          if (!publishedResultMode) return;
+          bottomWhatsappButtons.forEach((button) => {
+            button.hidden = true;
+            button.setAttribute('aria-hidden', 'true');
+          });
+        };
+
+        const setResultAction = (label, href, visible = true) => {
           if (!resultAction) return;
           const nextHref = href || contactHref || window.location.href;
           if (resultActionLabel) resultActionLabel.textContent = label;
           resultAction.href = nextHref;
+          resultAction.hidden = !visible;
+          if (visible) resultAction.removeAttribute('aria-hidden');
+          else resultAction.setAttribute('aria-hidden', 'true');
           if (/^https?:\/\//i.test(nextHref)) {
             resultAction.target = '_blank';
             resultAction.rel = 'noopener';
@@ -2572,6 +2860,7 @@ const faviconVersion = '2';
           if (resultClientCard) resultClientCard.hidden = true;
           resultReceiptCard?.classList.add('is-preview');
           setResultAction('Contactar por WhatsApp', contactHref);
+          hidePublishedResultBottomWhatsapp();
         };
 
         const updatePublishedResultPersonalization = (receipt = {}) => {
@@ -2600,7 +2889,8 @@ const faviconVersion = '2';
               resultCopy.hidden = false;
             }
             if (resultClientStatus) resultClientStatus.textContent = '¡Coincide con el ganador!';
-            setResultAction('Contactar por WhatsApp', contactHref);
+            setResultAction('Reclamar mi premio por WhatsApp', contactHref);
+            hidePublishedResultBottomWhatsapp();
             return;
           }
 
@@ -2611,8 +2901,8 @@ const faviconVersion = '2';
             resultCopy.hidden = false;
           }
           if (resultClientStatus) resultClientStatus.textContent = 'Esta vez no coincidió';
-          const receiptWhatsappHref = currentWhatsappUrl || receipt.whatsapp_url || '';
-          setResultAction(receiptWhatsappHref ? 'Enviar comprobante por WhatsApp' : 'Contactar por WhatsApp', receiptWhatsappHref || contactHref);
+          setResultAction('', contactHref, false);
+          hidePublishedResultBottomWhatsapp();
         };
 
         resetPublishedResult();
