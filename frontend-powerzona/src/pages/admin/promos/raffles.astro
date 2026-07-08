@@ -1227,9 +1227,15 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           formSnapshot = '';
         }
 
-        function requestCloseForm() {
+        async function requestCloseForm() {
           if (hasUnsavedChanges()) {
-            const ok = window.confirm('¿Cerrar sin guardar?\n\nLos cambios no guardados se perderán.');
+            const ok = await window.AdminDialog.confirm({
+              title: 'Cerrar sin guardar',
+              message: 'Los cambios no guardados se perderan.',
+              confirmText: 'Cerrar sin guardar',
+              cancelText: 'Seguir editando',
+              tone: 'warning',
+            });
             if (!ok) return;
           }
           closeForm();
@@ -1540,7 +1546,22 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             reset: ['¿Restablecer esta rifa?', 'Se borrarán participantes, números reservados, premios, imágenes, fechas, código y resultado. El espacio volverá a Nueva rifa. Esta acción no se puede deshacer.', 'Rifa restablecida correctamente.'],
           };
           const [title, detail, success] = messages[action] || ['¿Confirmar acción?', 'Confirma para continuar.', 'Acción realizada correctamente.'];
-          if (!window.confirm(`${title}\n\n${detail}`)) return;
+          const confirmTextByAction = {
+            close_selection: 'Cerrar seleccion',
+            open_selection: 'Abrir seleccion',
+            finalize: 'Finalizar rifa',
+            open_raffle: 'Abrir rifa',
+            reset: 'Restablecer',
+          };
+          const dangerousActions = new Set(['finalize', 'reset']);
+          const confirmed = await window.AdminDialog.confirm({
+            title,
+            message: detail,
+            confirmText: confirmTextByAction[action] || 'Confirmar',
+            cancelText: 'Cancelar',
+            tone: dangerousActions.has(action) ? 'danger' : 'warning',
+          });
+          if (!confirmed) return;
 
           const body = { id, action };
           if ((action === 'open_selection' || action === 'open_raffle') && closePassed(raffle)) {
@@ -1606,9 +1627,26 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
         async function cancelEntry(entryId) {
           if (!selectedRaffleId) return;
-          const ok = window.confirm('¿Cancelar esta participación?\n\nEste número quedará disponible para otros clientes, pero este teléfono no podrá volver a participar salvo que lo autorices.');
+          const ok = await window.AdminDialog.confirm({
+            title: 'Cancelar participacion',
+            message: 'Este numero quedara disponible para otros clientes, pero este telefono no podra volver a participar salvo que lo autorices.',
+            confirmText: 'Cancelar participacion',
+            cancelText: 'Volver',
+            tone: 'danger',
+          });
           if (!ok) return;
-          const reason = window.prompt('Motivo opcional: No pertenece al grupo, Telefono incorrecto, Duplicado u Otro.', '') || '';
+          const reason = await window.AdminDialog.prompt({
+            title: 'Motivo de cancelacion',
+            message: 'Puedes indicar un motivo para dejar registro interno.',
+            inputLabel: 'Motivo opcional',
+            inputPlaceholder: 'No pertenece al grupo, telefono incorrecto, duplicado u otro',
+            inputValue: '',
+            required: false,
+            confirmText: 'Continuar',
+            cancelText: 'Volver',
+            tone: 'info',
+          });
+          if (reason === null) return;
           await adminRequest('/api/admin/raffles', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -1624,7 +1662,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
         async function allowEntryReenter(entryId) {
           if (!selectedRaffleId) return;
-          const ok = window.confirm('¿Permitir que este cliente participe de nuevo?\n\nEl cliente podrá entrar nuevamente con su teléfono y escoger un número disponible.');
+          const ok = await window.AdminDialog.confirm({
+            title: 'Permitir participar de nuevo',
+            message: 'El cliente podra entrar nuevamente con su telefono y escoger un numero disponible.',
+            confirmText: 'Permitir',
+            cancelText: 'Cancelar',
+            tone: 'warning',
+          });
           if (!ok) return;
           await adminRequest('/api/admin/raffles', {
             method: 'PATCH',

@@ -1,0 +1,638 @@
+<div id="pz-admin-dialog-overlay" class="pz-admin-dialog-overlay hidden" aria-hidden="true" data-tone="normal" data-type="confirm">
+  <section
+    id="pz-admin-dialog-card"
+    class="pz-admin-dialog-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pz-admin-dialog-title"
+    aria-describedby="pz-admin-dialog-message"
+  >
+    <button id="pz-admin-dialog-close" class="pz-admin-dialog-close" type="button" aria-label="Cerrar">&times;</button>
+    <p id="pz-admin-dialog-kicker" class="pz-admin-dialog-kicker">Confirmar accion</p>
+    <h2 id="pz-admin-dialog-title" class="pz-admin-dialog-title">Confirmar accion</h2>
+    <p id="pz-admin-dialog-message" class="pz-admin-dialog-message">Confirma para continuar.</p>
+
+    <div id="pz-admin-dialog-field" class="pz-admin-dialog-field hidden">
+      <label id="pz-admin-dialog-input-label" class="pz-admin-dialog-input-label" for="pz-admin-dialog-input">Detalle</label>
+      <input id="pz-admin-dialog-input" class="pz-admin-dialog-input" type="text" autocomplete="off" />
+      <textarea id="pz-admin-dialog-textarea" class="pz-admin-dialog-input pz-admin-dialog-textarea hidden" rows="4"></textarea>
+      <p id="pz-admin-dialog-error" class="pz-admin-dialog-error hidden" role="alert"></p>
+    </div>
+
+    <div class="pz-admin-dialog-actions">
+      <button id="pz-admin-dialog-cancel" class="pz-admin-dialog-btn pz-admin-dialog-btn--secondary" type="button">Cancelar</button>
+      <button id="pz-admin-dialog-submit" class="pz-admin-dialog-btn pz-admin-dialog-btn--primary" type="button">Confirmar</button>
+    </div>
+  </section>
+</div>
+
+<div id="pz-admin-toast-root" class="pz-admin-toast-root" aria-live="polite" aria-atomic="true"></div>
+
+<script is:inline>
+  (() => {
+    if (window.__pzAdminDialogReady) return;
+
+    const overlay = document.getElementById('pz-admin-dialog-overlay');
+    const card = document.getElementById('pz-admin-dialog-card');
+    const kicker = document.getElementById('pz-admin-dialog-kicker');
+    const title = document.getElementById('pz-admin-dialog-title');
+    const message = document.getElementById('pz-admin-dialog-message');
+    const closeButton = document.getElementById('pz-admin-dialog-close');
+    const cancelButton = document.getElementById('pz-admin-dialog-cancel');
+    const submitButton = document.getElementById('pz-admin-dialog-submit');
+    const field = document.getElementById('pz-admin-dialog-field');
+    const inputLabel = document.getElementById('pz-admin-dialog-input-label');
+    const input = document.getElementById('pz-admin-dialog-input');
+    const textarea = document.getElementById('pz-admin-dialog-textarea');
+    const error = document.getElementById('pz-admin-dialog-error');
+    const toastRoot = document.getElementById('pz-admin-toast-root');
+
+    if (!overlay || !card || !toastRoot) return;
+    window.__pzAdminDialogReady = true;
+
+    const toneSet = new Set(['normal', 'info', 'success', 'warning', 'danger']);
+    const toastDurations = {
+      normal: 5000,
+      info: 5000,
+      success: 4000,
+      warning: 6000,
+      danger: 8000,
+    };
+
+    let activeDialog = null;
+    let lastFocusedElement = null;
+
+    function normalizeTone(tone) {
+      const value = String(tone || 'normal').toLowerCase();
+      if (value === 'error') return 'danger';
+      return toneSet.has(value) ? value : 'normal';
+    }
+
+    function toText(value, fallback = '') {
+      if (Array.isArray(value)) return value.map((item) => String(item ?? '')).join('\n');
+      const text = value == null ? fallback : value;
+      return String(text);
+    }
+
+    function setHidden(element, hidden) {
+      if (!element) return;
+      element.classList.toggle('hidden', Boolean(hidden));
+    }
+
+    function fallbackValue(type) {
+      if (type === 'confirm') return false;
+      if (type === 'prompt') return null;
+      return undefined;
+    }
+
+    function clearPromptError() {
+      if (!error) return;
+      error.textContent = '';
+      setHidden(error, true);
+    }
+
+    function promptControl() {
+      return textarea && !textarea.classList.contains('hidden') ? textarea : input;
+    }
+
+    function restoreFocus() {
+      if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+        lastFocusedElement.focus();
+      }
+      lastFocusedElement = null;
+    }
+
+    function closeDialog(value) {
+      if (!activeDialog) return;
+      const dialog = activeDialog;
+      activeDialog = null;
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('pz-admin-dialog-open', 'pz-admin-confirm-open');
+      window.setTimeout(restoreFocus, 0);
+      dialog.resolve(value);
+    }
+
+    function submitDialog() {
+      if (!activeDialog) return;
+      if (activeDialog.type === 'confirm') {
+        closeDialog(true);
+        return;
+      }
+      if (activeDialog.type === 'alert') {
+        closeDialog(undefined);
+        return;
+      }
+      const control = promptControl();
+      const value = control ? String(control.value || '') : '';
+      if (activeDialog.required && !value.trim()) {
+        if (error) {
+          error.textContent = activeDialog.requiredMessage || 'Este campo es obligatorio.';
+          setHidden(error, false);
+        }
+        control?.focus();
+        return;
+      }
+      closeDialog(value);
+    }
+
+    function focusInitial(type) {
+      window.setTimeout(() => {
+        if (type === 'prompt') {
+          promptControl()?.focus();
+          return;
+        }
+        submitButton?.focus();
+      }, 0);
+    }
+
+    function focusableElements() {
+      return Array.from(card.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter((item) => {
+          if (!(item instanceof HTMLElement)) return false;
+          if (item.hasAttribute('disabled') || item.getAttribute('aria-hidden') === 'true') return false;
+          return !item.classList.contains('hidden') && item.offsetParent !== null;
+        });
+    }
+
+    function configurePrompt(options) {
+      const isPrompt = activeDialog?.type === 'prompt';
+      setHidden(field, !isPrompt);
+      setHidden(input, !isPrompt || options.multiline === true);
+      setHidden(textarea, !isPrompt || options.multiline !== true);
+      clearPromptError();
+      if (!isPrompt) return;
+
+      const control = promptControl();
+      if (inputLabel) inputLabel.textContent = toText(options.inputLabel, 'Detalle');
+      if (control) {
+        control.value = toText(options.inputValue, '');
+        control.setAttribute('placeholder', toText(options.inputPlaceholder, ''));
+      }
+    }
+
+    function defaultKicker(type, tone) {
+      if (tone === 'danger') return 'Accion destructiva';
+      if (type === 'alert') return 'Aviso';
+      if (type === 'prompt') return 'Completar informacion';
+      if (tone === 'warning') return 'Revisar antes de continuar';
+      if (tone === 'success') return 'Confirmacion';
+      return 'Confirmar accion';
+    }
+
+    function openDialog(type, options = {}) {
+      if (activeDialog) closeDialog(fallbackValue(activeDialog.type));
+
+      return new Promise((resolve) => {
+        const tone = normalizeTone(options.tone || (type === 'confirm' ? 'normal' : 'info'));
+        activeDialog = {
+          type,
+          tone,
+          resolve,
+          required: Boolean(options.required),
+          requiredMessage: toText(options.requiredMessage, 'Este campo es obligatorio.'),
+          closeOnOverlay: options.closeOnOverlay == null ? tone !== 'danger' : Boolean(options.closeOnOverlay),
+          closeOnEscape: options.closeOnEscape == null ? true : Boolean(options.closeOnEscape),
+        };
+
+        lastFocusedElement = document.activeElement;
+        overlay.dataset.tone = tone;
+        overlay.dataset.type = type;
+        if (kicker) kicker.textContent = toText(options.kicker, defaultKicker(type, tone));
+        if (title) title.textContent = toText(options.title, type === 'alert' ? 'Aviso' : 'Confirmar accion');
+        if (message) message.textContent = toText(options.message, type === 'prompt' ? 'Escribe el dato solicitado para continuar.' : 'Confirma para continuar.');
+        if (cancelButton) {
+          cancelButton.textContent = toText(options.cancelText, 'Cancelar');
+          setHidden(cancelButton, type === 'alert');
+        }
+        if (submitButton) {
+          submitButton.textContent = toText(options.confirmText, type === 'alert' ? 'Entendido' : 'Confirmar');
+          submitButton.className = `pz-admin-dialog-btn pz-admin-dialog-btn--primary pz-admin-dialog-btn--${tone}`;
+        }
+
+        configurePrompt(options);
+        overlay.classList.remove('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('pz-admin-dialog-open', 'pz-admin-confirm-open');
+        focusInitial(type);
+      });
+    }
+
+    function toast(inputOptions = {}) {
+      const options = typeof inputOptions === 'string' ? { message: inputOptions } : (inputOptions || {});
+      const text = toText(options.message, '').trim();
+      if (!text) return;
+
+      const tone = normalizeTone(options.tone || options.type || 'info');
+      const toast = document.createElement('div');
+      const dismissible = tone === 'danger' || options.dismissible === true;
+      toast.className = `pz-admin-toast pz-admin-toast--${tone}`;
+      toast.setAttribute('role', tone === 'danger' ? 'alert' : 'status');
+
+      const messageNode = document.createElement('span');
+      messageNode.className = 'pz-admin-toast__message';
+      messageNode.textContent = text;
+      toast.appendChild(messageNode);
+
+      let removeTimer = null;
+      const removeToast = () => {
+        window.clearTimeout(removeTimer);
+        toast.classList.remove('is-visible');
+        window.setTimeout(() => toast.remove(), 220);
+      };
+
+      if (dismissible) {
+        const close = document.createElement('button');
+        close.className = 'pz-admin-toast__close';
+        close.type = 'button';
+        close.setAttribute('aria-label', 'Cerrar mensaje');
+        close.textContent = 'x';
+        close.addEventListener('click', removeToast);
+        toast.appendChild(close);
+      }
+
+      toastRoot.appendChild(toast);
+      window.setTimeout(() => toast.classList.add('is-visible'), 20);
+      const duration = Number(options.duration || toastDurations[tone] || 5000);
+      if (duration > 0) removeTimer = window.setTimeout(removeToast, duration);
+    }
+
+    const api = {
+      confirm(options = {}) {
+        return openDialog('confirm', options).then(Boolean);
+      },
+      alert(options = {}) {
+        return openDialog('alert', options).then(() => undefined);
+      },
+      prompt(options = {}) {
+        return openDialog('prompt', options);
+      },
+      toast,
+    };
+
+    window.AdminDialog = api;
+    window.adminConfirm = (options = {}) => api.confirm(options);
+    window.adminToast = (message, type = 'info') => api.toast({ message, tone: type });
+
+    cancelButton?.addEventListener('click', () => closeDialog(fallbackValue(activeDialog?.type)));
+    closeButton?.addEventListener('click', () => closeDialog(fallbackValue(activeDialog?.type)));
+    submitButton?.addEventListener('click', submitDialog);
+    input?.addEventListener('input', clearPromptError);
+    textarea?.addEventListener('input', clearPromptError);
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitDialog();
+      }
+    });
+
+    overlay.addEventListener('click', (event) => {
+      if (event.target === overlay && activeDialog?.closeOnOverlay) {
+        closeDialog(fallbackValue(activeDialog.type));
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (!activeDialog) return;
+      if (event.key === 'Escape' && activeDialog.closeOnEscape) {
+        event.preventDefault();
+        closeDialog(fallbackValue(activeDialog.type));
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusableElements();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  })();
+</script>
+
+<style is:global>
+  .pz-admin-dialog-overlay,
+  .pz-admin-dialog-overlay *,
+  .pz-admin-dialog-overlay *::before,
+  .pz-admin-dialog-overlay *::after,
+  .pz-admin-toast-root,
+  .pz-admin-toast-root *,
+  .pz-admin-toast-root *::before,
+  .pz-admin-toast-root *::after {
+    box-sizing: border-box;
+  }
+
+  .pz-admin-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 22px;
+    background: rgba(15, 23, 42, .46);
+    backdrop-filter: blur(8px);
+  }
+
+  .pz-admin-dialog-overlay.hidden {
+    display: none !important;
+  }
+
+  .pz-admin-dialog-card {
+    position: relative;
+    width: min(470px, 100%);
+    max-height: min(760px, calc(100vh - 44px));
+    overflow: hidden auto;
+    border-radius: 24px;
+    border: 1px solid rgba(219, 234, 254, .95);
+    background: #ffffff;
+    box-shadow: 0 30px 90px rgba(15, 23, 42, .26);
+    padding: 24px;
+    color: #0f172a;
+  }
+
+  .pz-admin-dialog-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pz-admin-dialog-close:hover,
+  .pz-admin-dialog-close:focus-visible {
+    background: #eef2ff;
+    color: #1d4ed8;
+  }
+
+  .pz-admin-dialog-kicker {
+    margin: 0 46px 8px 0;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 1000;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .pz-admin-dialog-title {
+    margin: 0;
+    max-width: 360px;
+    color: #0f172a;
+    font-size: 24px;
+    line-height: 1.08;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .pz-admin-dialog-message {
+    margin: 12px 0 0;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 750;
+    white-space: pre-line;
+  }
+
+  .pz-admin-dialog-field {
+    display: grid;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .pz-admin-dialog-input-label {
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+
+  .pz-admin-dialog-input {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 14px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a;
+    padding: 11px 13px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 750;
+    outline: none;
+  }
+
+  .pz-admin-dialog-input:focus {
+    border-color: #2563eb;
+    background: #ffffff;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, .13);
+  }
+
+  .pz-admin-dialog-textarea {
+    min-height: 112px;
+    resize: vertical;
+  }
+
+  .pz-admin-dialog-error {
+    margin: 0;
+    color: #b91c1c;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 900;
+  }
+
+  .pz-admin-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+  }
+
+  .pz-admin-dialog-btn {
+    min-height: 44px;
+    border-radius: 14px;
+    padding: 11px 16px;
+    font-size: 13px;
+    font-weight: 1000;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .pz-admin-dialog-btn--secondary {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #0f172a;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .07);
+  }
+
+  .pz-admin-dialog-btn--primary {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 14px 30px rgba(37, 99, 235, .24);
+  }
+
+  .pz-admin-dialog-btn--success {
+    background: #16a34a;
+    border-color: #16a34a;
+    box-shadow: 0 14px 30px rgba(22, 163, 74, .22);
+  }
+
+  .pz-admin-dialog-btn--warning {
+    background: #f97316;
+    border-color: #f97316;
+    box-shadow: 0 14px 30px rgba(249, 115, 22, .22);
+  }
+
+  .pz-admin-dialog-btn--danger {
+    background: #dc2626;
+    border-color: #dc2626;
+    box-shadow: 0 14px 30px rgba(220, 38, 38, .24);
+  }
+
+  .pz-admin-dialog-overlay[data-tone="success"] .pz-admin-dialog-kicker {
+    color: #15803d;
+  }
+
+  .pz-admin-dialog-overlay[data-tone="warning"] .pz-admin-dialog-kicker {
+    color: #9a3412;
+  }
+
+  .pz-admin-dialog-overlay[data-tone="danger"] .pz-admin-dialog-kicker {
+    color: #991b1b;
+  }
+
+  .pz-admin-dialog-open,
+  .pz-admin-confirm-open {
+    overflow: hidden;
+  }
+
+  .pz-admin-toast-root {
+    position: fixed;
+    z-index: 2147483001;
+    right: 18px;
+    bottom: 18px;
+    display: grid;
+    gap: 10px;
+    width: min(370px, calc(100vw - 28px));
+    pointer-events: none;
+  }
+
+  .pz-admin-toast {
+    transform: translateY(12px);
+    opacity: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 16px;
+    border: 1px solid #dbeafe;
+    background: #eff6ff;
+    color: #1e40af;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 900;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, .16);
+    transition: opacity .18s ease, transform .18s ease;
+    pointer-events: auto;
+  }
+
+  .pz-admin-toast.is-visible {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .pz-admin-toast--normal,
+  .pz-admin-toast--info {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1e40af;
+  }
+
+  .pz-admin-toast--success {
+    border-color: #bbf7d0;
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .pz-admin-toast--warning {
+    border-color: #fed7aa;
+    background: #ffedd5;
+    color: #9a3412;
+  }
+
+  .pz-admin-toast--danger,
+  .pz-admin-toast--error {
+    border-color: #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .pz-admin-toast__message {
+    min-width: 0;
+  }
+
+  .pz-admin-toast__close {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 1000;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (max-width: 640px) {
+    .pz-admin-dialog-overlay {
+      align-items: flex-end;
+      padding: 12px;
+    }
+
+    .pz-admin-dialog-card {
+      width: 100%;
+      max-height: calc(100vh - 24px - env(safe-area-inset-bottom));
+      border-radius: 22px;
+      padding: 22px;
+    }
+
+    .pz-admin-dialog-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .pz-admin-dialog-btn {
+      width: 100%;
+      min-height: 48px;
+    }
+
+    .pz-admin-toast-root {
+      right: 14px;
+      bottom: calc(92px + env(safe-area-inset-bottom));
+      width: calc(100vw - 28px);
+    }
+  }
+</style>

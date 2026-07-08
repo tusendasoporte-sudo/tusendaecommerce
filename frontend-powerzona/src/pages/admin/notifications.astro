@@ -342,7 +342,13 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
         });
 
         archiveAllButton?.addEventListener('click', async () => {
-          const confirmed = window.confirm('Eliminar todas las notificaciones? Se archivaran y dejaran de mostrarse.');
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Eliminar notificaciones',
+            message: 'Se archivaran todas las notificaciones y dejaran de mostrarse.',
+            confirmText: 'Eliminar todas',
+            cancelText: 'Cancelar',
+            tone: 'danger',
+          });
           if (!confirmed) return;
           archiveAllButton.disabled = true;
           archiveAllButton.textContent = 'Eliminando...';

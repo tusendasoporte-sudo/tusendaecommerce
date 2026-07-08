@@ -1,4 +1,5 @@
 ---
+import AdminDialog from './AdminDialog.astro';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 
 interface Props {
@@ -342,26 +343,7 @@ const marketingVisualSubClass = (subsection: string) => {
   </a>
 </nav>
 
-<div id="pz-admin-toast-root" class="pz-admin-toast-root" aria-live="polite" aria-atomic="true"></div>
-
-<div id="pz-admin-confirm-overlay" class="pz-admin-confirm-overlay hidden" aria-hidden="true">
-  <section
-    class="pz-admin-confirm-card"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="pz-admin-confirm-title"
-    aria-describedby="pz-admin-confirm-message"
-  >
-    <button id="pz-admin-confirm-close" class="pz-admin-confirm-close" type="button" aria-label="Cerrar">&times;</button>
-    <p id="pz-admin-confirm-kicker" class="pz-admin-confirm-kicker">Confirmar accion</p>
-    <h2 id="pz-admin-confirm-title" class="pz-admin-confirm-title">Eliminar</h2>
-    <p id="pz-admin-confirm-message" class="pz-admin-confirm-message">Esta accion no se puede deshacer.</p>
-    <div class="pz-admin-confirm-actions">
-      <button id="pz-admin-confirm-cancel" class="pz-admin-confirm-btn pz-admin-confirm-btn--secondary" type="button">Cancelar</button>
-      <button id="pz-admin-confirm-submit" class="pz-admin-confirm-btn pz-admin-confirm-btn--danger" type="button">Eliminar</button>
-    </div>
-  </section>
-</div>
+<AdminDialog />
 
 <script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
@@ -1643,7 +1625,13 @@ const marketingVisualSubClass = (subsection: string) => {
     });
 
     archiveAllButton?.addEventListener('click', async () => {
-      const confirmed = window.confirm('Eliminar todas las notificaciones? Se archivaran y dejaran de mostrarse en la campana.');
+      const confirmed = await window.AdminDialog.confirm({
+        title: 'Eliminar notificaciones',
+        message: 'Se archivaran todas las notificaciones y dejaran de mostrarse en la campana.',
+        confirmText: 'Eliminar todas',
+        cancelText: 'Cancelar',
+        tone: 'danger',
+      });
       if (!confirmed) return;
 
       archiveAllButton.disabled = true;
@@ -1951,87 +1939,6 @@ const marketingVisualSubClass = (subsection: string) => {
     window.addEventListener('hashchange', syncMarketingVisualActiveItem);
     window.addEventListener('hashchange', syncSettingsActiveItem);
 
-    const confirmOverlay = document.getElementById('pz-admin-confirm-overlay');
-    const confirmCard = confirmOverlay?.querySelector('.pz-admin-confirm-card');
-    const confirmTitle = document.getElementById('pz-admin-confirm-title');
-    const confirmMessage = document.getElementById('pz-admin-confirm-message');
-    const confirmKicker = document.getElementById('pz-admin-confirm-kicker');
-    const confirmClose = document.getElementById('pz-admin-confirm-close');
-    const confirmCancel = document.getElementById('pz-admin-confirm-cancel');
-    const confirmSubmit = document.getElementById('pz-admin-confirm-submit');
-    const toastRoot = document.getElementById('pz-admin-toast-root');
-    let confirmResolver = null;
-    let lastFocusedElement = null;
-
-    const closeAdminConfirm = (value) => {
-      if (!confirmOverlay || !confirmResolver) return;
-      const resolve = confirmResolver;
-      confirmResolver = null;
-      confirmOverlay.classList.add('hidden');
-      confirmOverlay.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('pz-admin-confirm-open');
-      if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') lastFocusedElement.focus();
-      lastFocusedElement = null;
-      resolve(Boolean(value));
-    };
-
-    window.adminConfirm = (options = {}) => {
-      if (!confirmOverlay) return Promise.resolve(false);
-      if (confirmResolver) closeAdminConfirm(false);
-      const tone = options.tone || 'danger';
-      lastFocusedElement = document.activeElement;
-      confirmOverlay.dataset.tone = tone;
-      if (confirmKicker) confirmKicker.textContent = options.kicker || (tone === 'danger' ? 'Accion destructiva' : 'Confirmar accion');
-      if (confirmTitle) confirmTitle.textContent = options.title || 'Confirmar accion';
-      if (confirmMessage) confirmMessage.textContent = options.message || 'Esta accion no se puede deshacer.';
-      if (confirmCancel) confirmCancel.textContent = options.cancelText || 'Cancelar';
-      if (confirmSubmit) confirmSubmit.textContent = options.confirmText || 'Eliminar';
-      confirmOverlay.classList.remove('hidden');
-      confirmOverlay.setAttribute('aria-hidden', 'false');
-      document.body.classList.add('pz-admin-confirm-open');
-      window.setTimeout(() => confirmSubmit?.focus(), 0);
-      return new Promise((resolve) => {
-        confirmResolver = resolve;
-      });
-    };
-
-    window.adminToast = (message, type = 'info') => {
-      if (!toastRoot || !message) return;
-      const toast = document.createElement('div');
-      toast.className = `pz-admin-toast pz-admin-toast--${type}`;
-      toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-      toast.textContent = message;
-      toastRoot.appendChild(toast);
-      window.setTimeout(() => toast.classList.add('is-visible'), 20);
-      window.setTimeout(() => {
-        toast.classList.remove('is-visible');
-        window.setTimeout(() => toast.remove(), 220);
-      }, type === 'error' ? 4600 : 2800);
-    };
-
-    confirmCancel?.addEventListener('click', () => closeAdminConfirm(false));
-    confirmClose?.addEventListener('click', () => closeAdminConfirm(false));
-    confirmSubmit?.addEventListener('click', () => closeAdminConfirm(true));
-    confirmOverlay?.addEventListener('click', (event) => {
-      if (event.target === confirmOverlay) closeAdminConfirm(false);
-    });
-
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && confirmResolver) closeAdminConfirm(false);
-      if (event.key !== 'Tab' || !confirmResolver || !confirmCard) return;
-      const focusable = Array.from(confirmCard.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
-        .filter((item) => !item.disabled && item.getAttribute('aria-hidden') !== 'true');
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    });
   })();
 </script>
 
@@ -2229,170 +2136,6 @@ const marketingVisualSubClass = (subsection: string) => {
   .pz-admin-sidebar *::before,
   .pz-admin-sidebar *::after {
     box-sizing: border-box;
-  }
-
-  .pz-admin-confirm-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 2147483000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: rgba(15, 23, 42, .42);
-    backdrop-filter: blur(8px);
-  }
-
-  .pz-admin-confirm-overlay.hidden {
-    display: none !important;
-  }
-
-  .pz-admin-confirm-card {
-    position: relative;
-    width: min(440px, 100%);
-    border-radius: 24px;
-    border: 1px solid rgba(226, 232, 240, .95);
-    background: #ffffff;
-    box-shadow: 0 26px 80px rgba(15, 23, 42, .24);
-    padding: 24px;
-    color: #0f172a;
-  }
-
-  .pz-admin-confirm-close {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 34px;
-    height: 34px;
-    border: 1px solid #e2e8f0;
-    border-radius: 999px;
-    background: #f8fafc;
-    color: #475569;
-    font-size: 22px;
-    line-height: 1;
-    font-weight: 900;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .pz-admin-confirm-kicker {
-    margin: 0 44px 8px 0;
-    color: #991b1b;
-    font-size: 11px;
-    font-weight: 1000;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-  }
-
-  .pz-admin-confirm-title {
-    margin: 0;
-    max-width: 340px;
-    color: #0f172a;
-    font-size: 24px;
-    line-height: 1.05;
-    font-weight: 1000;
-    letter-spacing: 0;
-  }
-
-  .pz-admin-confirm-message {
-    margin: 12px 0 0;
-    color: #475569;
-    font-size: 14px;
-    line-height: 1.55;
-    font-weight: 750;
-  }
-
-  .pz-admin-confirm-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 22px;
-    flex-wrap: wrap;
-  }
-
-  .pz-admin-confirm-btn {
-    min-height: 44px;
-    border-radius: 14px;
-    padding: 11px 16px;
-    font-size: 13px;
-    font-weight: 1000;
-    border: 1px solid transparent;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .pz-admin-confirm-btn--secondary {
-    background: #ffffff;
-    border-color: #e2e8f0;
-    color: #0f172a;
-    box-shadow: 0 10px 22px rgba(15, 23, 42, .07);
-  }
-
-  .pz-admin-confirm-btn--danger {
-    background: #dc2626;
-    border-color: #dc2626;
-    color: #ffffff;
-    box-shadow: 0 14px 30px rgba(220, 38, 38, .24);
-  }
-
-  .pz-admin-confirm-overlay[data-tone="warning"] .pz-admin-confirm-kicker {
-    color: #9a3412;
-  }
-
-  .pz-admin-confirm-overlay[data-tone="warning"] .pz-admin-confirm-btn--danger {
-    background: #f97316;
-    border-color: #f97316;
-    box-shadow: 0 14px 30px rgba(249, 115, 22, .22);
-  }
-
-  .pz-admin-confirm-open {
-    overflow: hidden;
-  }
-
-  .pz-admin-toast-root {
-    position: fixed;
-    z-index: 2147483001;
-    right: 18px;
-    bottom: 18px;
-    display: grid;
-    gap: 10px;
-    width: min(360px, calc(100vw - 28px));
-    pointer-events: none;
-  }
-
-  .pz-admin-toast {
-    transform: translateY(12px);
-    opacity: 0;
-    border-radius: 16px;
-    border: 1px solid #dbeafe;
-    background: #eff6ff;
-    color: #1e40af;
-    padding: 12px 14px;
-    font-size: 13px;
-    line-height: 1.45;
-    font-weight: 900;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, .16);
-    transition: opacity .18s ease, transform .18s ease;
-    pointer-events: auto;
-  }
-
-  .pz-admin-toast.is-visible {
-    transform: translateY(0);
-    opacity: 1;
-  }
-
-  .pz-admin-toast--success {
-    border-color: #bbf7d0;
-    background: #dcfce7;
-    color: #166534;
-  }
-
-  .pz-admin-toast--error {
-    border-color: #fecaca;
-    background: #fee2e2;
-    color: #991b1b;
   }
 
   .sidebar-overlay,
@@ -3989,31 +3732,6 @@ const marketingVisualSubClass = (subsection: string) => {
   }
 
   @media (max-width: 640px) {
-    .pz-admin-confirm-overlay {
-      align-items: flex-end;
-      padding: 12px;
-    }
-
-    .pz-admin-confirm-card {
-      border-radius: 22px;
-      padding: 22px;
-    }
-
-    .pz-admin-confirm-actions {
-      display: grid;
-      grid-template-columns: 1fr;
-    }
-
-    .pz-admin-confirm-btn {
-      width: 100%;
-      min-height: 48px;
-    }
-
-    .pz-admin-toast-root {
-      right: 14px;
-      bottom: 104px;
-    }
-
     .pz-admin-btn,
     .pz-admin-content .pz-admin-btn {
       min-height: var(--pz-admin-btn-height-mobile) !important;
