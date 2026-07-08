@@ -4,6 +4,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -1429,11 +1430,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           display: none !important;
         }
         .actions-trigger {
-          width: 36px !important;
-          height: 36px !important;
-          min-width: 36px !important;
+          width: 44px !important;
+          height: 44px !important;
+          min-width: 44px !important;
           padding: 0 !important;
-          border-radius: 12px !important;
+          border-radius: 16px !important;
         }
         .actions-menu {
           right: 0 !important;
@@ -2160,6 +2161,44 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       }
 
+      #variation-manager .variation-more-btn.pz-admin-kebab-btn {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 16px !important;
+        font-size: 0 !important;
+      }
+
+      #variation-manager .variation-row-menu.pz-admin-dropdown {
+        min-width: 210px !important;
+        padding: 7px !important;
+        border-radius: 16px !important;
+      }
+
+      #variation-manager .variation-row-menu button.pz-admin-dropdown-item {
+        min-height: 42px !important;
+        display: grid !important;
+        grid-template-columns: 20px minmax(0, 1fr) !important;
+        align-items: center !important;
+        gap: 10px !important;
+        font-weight: 900 !important;
+      }
+
+      #variation-manager .variation-row-menu button.pz-admin-dropdown-item svg {
+        width: 16px !important;
+        height: 16px !important;
+      }
+
+      @media (max-width: 760px) {
+        #variation-manager .variation-more-btn.pz-admin-kebab-btn {
+          width: 44px !important;
+          height: 44px !important;
+          min-width: 44px !important;
+          min-height: 44px !important;
+        }
+      }
+
       /* PZ - Refuerzo final precio y oferta padre compacto */
       .price-offer-card {
         border-radius: 20px !important;
@@ -2762,7 +2801,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <p class="form-help">Agrega hasta 3 datos editables por producto. Ej: Marca, Presentación, Beneficio, Sabor, Tamaño o Servicio.</p>
                     <div class="product-extra-panel">
                       <div id="product-extra-list" class="product-extra-list"></div>
-                      <button id="product-extra-add-btn" class="product-extra-add" type="button">＋ Añadir información</button>
+                      <button id="product-extra-add-btn" class="product-extra-add pz-admin-action-btn" type="button">
+                        <AdminIcon name="plus" class="pz-admin-action-icon" />
+                        <span data-product-extra-add-label>Añadir información</span>
+                      </button>
                       <div id="product-extra-editor" class="product-extra-editor hidden">
                         <div class="product-extra-editor-head">
                           <div>
@@ -2803,7 +2845,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                           <p class="related-products-title">Productos relacionados</p>
                           <p class="related-products-subtitle">Artículos sugeridos junto a este producto.</p>
                         </div>
-                        <button id="related-products-open-btn" class="mini-btn" type="button">＋ Añadir productos</button>
+                        <button id="related-products-open-btn" class="mini-btn pz-admin-action-btn" type="button">
+                          <AdminIcon name="plus" class="pz-admin-action-icon" />
+                          <span>Añadir productos</span>
+                        </button>
                       </div>
                       <div id="related-products-list" class="related-products-list"></div>
                     </div>
@@ -3063,7 +3108,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <label for="search-input">Buscar producto</label>
                 <input id="search-input" type="search" placeholder="Nombre, ref interna, slug o categoría" />
               </div>
-              <button id="filters-toggle-btn" class="action-btn filters-toggle" type="button" aria-expanded="false">Filtros</button>
+              <button id="filters-toggle-btn" class="action-btn pz-admin-action-btn filters-toggle" type="button" aria-expanded="false">
+                <AdminIcon name="filter" class="pz-admin-action-icon" />
+                <span>Filtros</span>
+              </button>
               <div class="field filter-field">
                 <label for="category-filter">Categoría</label>
                 <select id="category-filter"><option value="">Todas</option></select>
@@ -3090,7 +3138,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <option value="out-stock">Sin stock</option>
                 </select>
               </div>
-              <button id="refresh-btn" class="action-btn filter-field" type="button">Actualizar</button>
+              <button id="refresh-btn" class="action-btn pz-admin-action-btn filter-field" type="button">Actualizar</button>
             </section>
 
             <section class="list-card products-table-card">
@@ -3533,7 +3581,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           : '<div class="variation-empty">Sin información adicional. Agrega datos como Marca, Presentación o Beneficio.</div>';
         if (productExtraAddBtn) {
           productExtraAddBtn.disabled = productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT;
-          productExtraAddBtn.textContent = productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT ? 'Máximo 3 informaciones' : '＋ Añadir información';
+          const productExtraAddLabel = productExtraAddBtn.querySelector('[data-product-extra-add-label]');
+          const nextLabel = productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT ? 'Máximo 3 informaciones' : 'Añadir información';
+          if (productExtraAddLabel) productExtraAddLabel.textContent = nextLabel;
+          else productExtraAddBtn.textContent = nextLabel;
         }
         productExtraList.querySelectorAll('[data-extra-edit]').forEach((button) => {
           button.addEventListener('click', () => openExtraInfoEditor(Number(button.dataset.extraEdit || -1)));
@@ -3654,7 +3705,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const label = isCover ? 'Portada' : `Foto ${index + 1}`;
           return `
             <div class="product-image-slot ${isCover ? 'is-cover' : ''}" data-slot="${index}">
-              <div class="product-image-preview">${hasImage ? `<img src="${preview}" alt="${label}" />` : '＋'}</div>
+              <div class="product-image-preview">${hasImage ? `<img src="${preview}" alt="${label}" />` : '+'}</div>
               <div class="product-image-label"><span>${label}</span>${isCover ? '<span class="product-image-badge">Portada</span>' : ''}</div>
               <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
               <div class="product-image-actions">
@@ -3813,7 +3864,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function variationThumbMarkup(variation) {
         const url = variationImageUrl(variation);
-        if (!url) return '<span class="variation-thumb">🏷️</span>';
+        if (!url) return '<span class="variation-thumb">VR</span>';
         return `<img class="variation-thumb" src="${url}" alt="${escapeHtml(variation.value || 'Variación')}" loading="lazy" />`;
       }
       function setVariationAlert(message, type = 'info') {
@@ -4323,16 +4374,34 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </div>
               <div class="variation-mini-actions">
                 <span class="variation-order-actions" aria-label="Mover variacion">
-                  <button class="mini-btn variation-order-btn js-variation-up" type="button" title="Subir">↑</button>
-                  <button class="mini-btn variation-order-btn js-variation-down" type="button" title="Bajar">↓</button>
+                  <button class="mini-btn variation-order-btn js-variation-up" type="button" title="Subir">
+                    ${adminIconSvg('up', 'pz-admin-action-icon')}
+                  </button>
+                  <button class="mini-btn variation-order-btn js-variation-down" type="button" title="Bajar">
+                    ${adminIconSvg('down', 'pz-admin-action-icon')}
+                  </button>
                 </span>
                 <div class="variation-more-wrap">
-                  <button class="variation-more-btn js-variation-menu" type="button" aria-label="Mas acciones">⋯</button>
-                  <div class="variation-row-menu hidden" role="menu">
-                    <button type="button" data-variation-action="edit">Editar variacion</button>
-                    <button type="button" data-variation-action="duplicate">Duplicar variacion</button>
-                    <button type="button" data-variation-action="toggle">${active ? 'Ocultar variacion' : 'Mostrar variacion'}</button>
-                    <button type="button" data-variation-action="delete" class="danger">Borrar variacion</button>
+                  <button class="variation-more-btn pz-admin-kebab-btn js-variation-menu" type="button" aria-label="Mas acciones">
+                    <span class="pz-admin-kebab-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                  </button>
+                  <div class="variation-row-menu pz-admin-dropdown hidden" role="menu">
+                    <button class="pz-admin-dropdown-item" type="button" data-variation-action="edit">
+                      ${adminIconSvg('edit', 'pz-admin-dropdown-item-icon')}
+                      <span>Editar variacion</span>
+                    </button>
+                    <button class="pz-admin-dropdown-item" type="button" data-variation-action="duplicate">
+                      ${adminIconSvg('copy', 'pz-admin-dropdown-item-icon')}
+                      <span>Duplicar variacion</span>
+                    </button>
+                    <button class="pz-admin-dropdown-item" type="button" data-variation-action="toggle">
+                      ${adminIconSvg(active ? 'hide' : 'visible', 'pz-admin-dropdown-item-icon')}
+                      <span>${active ? 'Ocultar variacion' : 'Mostrar variacion'}</span>
+                    </button>
+                    <button class="pz-admin-dropdown-item danger" type="button" data-variation-action="delete">
+                      ${adminIconSvg('delete', 'pz-admin-dropdown-item-icon')}
+                      <span>Borrar variacion</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -4991,10 +5060,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!product?.id || !firstImage || !POCKETBASE_URL) return '';
         return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(firstImage)}?thumb=160x160`;
       }
+      function adminIconSvg(name, className = 'pz-admin-action-icon') {
+        const icons = {
+          edit: '<path d="M4 20h4.5L19 9.5a2.12 2.12 0 0 0-3-3L5.5 17H4v3Z"></path><path d="m14.5 7.5 3 3"></path>',
+          hide: '<path d="M3 3l18 18"></path><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path><path d="M9.9 5.2A9.6 9.6 0 0 1 12 5c6 0 9.5 7 9.5 7a16 16 0 0 1-2.25 3.1"></path><path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7c1.6 0 3.05-.5 4.3-1.2"></path>',
+          visible: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="3"></circle>',
+          delete: '<path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 15H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path>',
+          close: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+          up: '<path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path>',
+          down: '<path d="m12 5v14"></path><path d="m19 12-7 7-7-7"></path>',
+          copy: '<rect x="8" y="8" width="11" height="13" rx="2"></rect><path d="M5 16H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+        };
+        const icon = icons[name] || icons.edit;
+        return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>`;
+      }
       function productImageMarkup(product) {
         const name = product?.name || 'Producto';
         const url = productImageUrl(product);
-        if (!url) return '<span class="product-thumb placeholder js-product-open" role="button" tabindex="0" title="Editar producto">📦</span>';
+        if (!url) return '<span class="product-thumb placeholder js-product-open" role="button" tabindex="0" title="Editar producto">PZ</span>';
         return `<img class="product-thumb js-product-open" src="${url}" alt="${escapeHtml(name)}" loading="lazy" title="Editar producto" />`;
       }
       function normalizeRelatedProductsValue(value) {
@@ -5005,7 +5088,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function relatedProductThumbMarkup(product) {
         const url = productImageUrl(product);
         const name = escapeHtml(product?.name || 'Producto');
-        if (!url) return '<span class="related-product-thumb placeholder">📦</span>';
+        if (!url) return '<span class="related-product-thumb placeholder">PZ</span>';
         return `<img class="related-product-thumb" src="${url}" alt="${name}" loading="lazy" />`;
       }
       function relatedProductPriceText(product) {
@@ -5301,13 +5384,27 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <span class="stock">${trackStock ? `Stock: ${stockNumber}${isOutOfStock ? (allowPreorder ? ' · Preorder' : ' · Agotado') : ''}` : 'Sin stock descontable'}</span>
               <span class="pill ${visible ? 'pill-visible' : 'pill-hidden'}">${visible ? 'Visible' : 'Oculto'}</span>
               <div class="row-actions">
-                <button class="mini-btn js-product-toggle" type="button">${product.active ? 'Ocultar' : 'Activar'}</button>
+                <button class="mini-btn pz-admin-action-btn js-product-toggle" type="button">
+                  ${adminIconSvg(product.active ? 'hide' : 'visible')}
+                  <span>${product.active ? 'Ocultar' : 'Activar'}</span>
+                </button>
                 <div class="actions-wrap">
-                  <button class="mini-btn actions-trigger js-actions-trigger" type="button" aria-haspopup="menu" aria-expanded="false" title="Más acciones">⋯</button>
-                  <div class="actions-menu hidden" role="menu">
-                    <button class="js-product-edit" type="button" role="menuitem">Editar <span>✏️</span></button>
-                    <button class="danger-action js-product-soldout" type="button" role="menuitem" ${isOutOfStock ? 'disabled' : ''}>${isOutOfStock ? 'Ya está agotado' : 'Marcar agotado'} <span>⚠️</span></button>
-                    <button class="danger-action js-product-delete" type="button" role="menuitem">Borrar <span>🗑️</span></button>
+                  <button class="mini-btn actions-trigger pz-admin-kebab-btn js-actions-trigger" type="button" aria-haspopup="menu" aria-expanded="false" title="Más acciones">
+                    <span class="pz-admin-kebab-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                  </button>
+                  <div class="actions-menu pz-admin-dropdown hidden" role="menu">
+                    <button class="pz-admin-dropdown-item js-product-edit" type="button" role="menuitem">
+                      ${adminIconSvg('edit', 'pz-admin-dropdown-item-icon')}
+                      <span>Editar</span>
+                    </button>
+                    <button class="pz-admin-dropdown-item danger-action js-product-soldout" type="button" role="menuitem" ${isOutOfStock ? 'disabled' : ''}>
+                      ${adminIconSvg('close', 'pz-admin-dropdown-item-icon')}
+                      <span>${isOutOfStock ? 'Ya está agotado' : 'Marcar agotado'}</span>
+                    </button>
+                    <button class="pz-admin-dropdown-item danger-action js-product-delete" type="button" role="menuitem">
+                      ${adminIconSvg('delete', 'pz-admin-dropdown-item-icon')}
+                      <span>Borrar</span>
+                    </button>
                   </div>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -1044,7 +1045,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
                 <div class="edit-order-header">
                   <h3 class="section-title">Editar Datos del Cliente</h3>
-                  <button id="toggle-edit-order-btn" class="btn btn-secondary" type="button">✏️ Editar Datos del Cliente</button>
+                  <button id="toggle-edit-order-btn" class="btn btn-secondary pz-admin-action-btn" type="button">
+                    <AdminIcon name="edit" class="pz-admin-action-icon" />
+                    <span data-edit-order-label>Editar Datos del Cliente</span>
+                  </button>
                 </div>
                 <div id="edit-order-panel" class="edit-order-panel hidden">
                   <div class="form-grid two">
@@ -1070,7 +1074,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
                   <h3 class="section-title">Acciones rápidas</h3>
                   <div class="quick-actions">
                     <button id="copy-order-btn" class="btn btn-secondary" type="button">Copiar resumen</button>
-                    <button id="whatsapp-order-btn" class="btn btn-secondary whatsapp-contact-btn" type="button">🟢 Contactar cliente</button>
+                    <button id="whatsapp-order-btn" class="btn btn-secondary whatsapp-contact-btn pz-admin-action-btn success" type="button">
+                      <AdminIcon name="whatsapp" class="pz-admin-action-icon" />
+                      <span data-whatsapp-order-label>Contactar cliente</span>
+                    </button>
                     <button id="print-order-btn" class="btn btn-secondary" type="button">Imprimir pedido</button>
                     <button id="mark-delivered-btn" class="btn btn-secondary" type="button">Marcar entregada</button>
                     <button id="request-review-btn" class="btn btn-secondary" type="button">Pedir reseña</button>
@@ -2393,7 +2400,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }
         editOrderPanel.classList.toggle('hidden', !open);
         toggleEditOrderBtn.disabled = false;
-        toggleEditOrderBtn.textContent = open ? 'Cerrar edición' : '✏️ Editar Datos del Cliente';
+        const editOrderLabel = toggleEditOrderBtn?.querySelector('[data-edit-order-label]');
+        if (editOrderLabel) editOrderLabel.textContent = open ? 'Cerrar edición' : 'Editar Datos del Cliente';
+        else toggleEditOrderBtn.textContent = open ? 'Cerrar edición' : 'Editar Datos del Cliente';
       }
 
       function parseProductImageOrder(product) {
@@ -2452,7 +2461,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
         });
         if (toggleEditOrderBtn) {
           toggleEditOrderBtn.disabled = locked;
-          toggleEditOrderBtn.textContent = locked ? 'Datos bloqueados' : (editOrderPanel?.classList.contains('hidden') ? '✏️ Editar Datos del Cliente' : 'Cerrar edición');
+          const editOrderLabel = toggleEditOrderBtn.querySelector('[data-edit-order-label]');
+          const nextLabel = locked ? 'Datos bloqueados' : (editOrderPanel?.classList.contains('hidden') ? 'Editar Datos del Cliente' : 'Cerrar edición');
+          if (editOrderLabel) editOrderLabel.textContent = nextLabel;
+          else toggleEditOrderBtn.textContent = nextLabel;
         }
         if (locked && editOrderPanel) editOrderPanel.classList.add('hidden');
       }
@@ -3206,12 +3218,15 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (!whatsappOrderBtn || !selectedOrder) return;
         const status = normalizeStatus(selectedOrder.status);
         const labels = {
-          pending: '🟢 Contactar cliente',
-          confirmed: '🟢 Notificar confirmación',
-          delivered: '🟢 Notificar entrega',
-          cancelled: '🟢 Notificar cancelación',
+          pending: 'Contactar cliente',
+          confirmed: 'Notificar confirmación',
+          delivered: 'Notificar entrega',
+          cancelled: 'Notificar cancelación',
         };
-        whatsappOrderBtn.textContent = labels[status] || '🟢 Contactar cliente';
+        const whatsappOrderLabel = whatsappOrderBtn.querySelector('[data-whatsapp-order-label]');
+        const nextLabel = labels[status] || 'Contactar cliente';
+        if (whatsappOrderLabel) whatsappOrderLabel.textContent = nextLabel;
+        else whatsappOrderBtn.textContent = nextLabel;
       }
 
       function buildCustomerContactMessage() {

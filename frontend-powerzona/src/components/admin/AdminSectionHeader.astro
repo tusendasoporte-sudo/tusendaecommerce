@@ -1,4 +1,6 @@
 ---
+import AdminIcon from './AdminIcon.astro';
+
 interface Props {
   kicker: string;
   title: string;
@@ -56,10 +58,7 @@ const actionClasses = ['admin-primary-action', 'admin-header-primary-action', ac
       aria-controls="pz-admin-notifications-panel"
       data-pz-admin-notification-trigger
     >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"></path>
-        <path d="M10 21a2 2 0 0 0 4 0"></path>
-      </svg>
+      <AdminIcon name="bell" class="pz-admin-action-icon" />
       <span class="admin-bell-count hidden" data-pz-admin-notification-count></span>
     </button>
     <div
@@ -76,12 +75,12 @@ const actionClasses = ['admin-primary-action', 'admin-header-primary-action', ac
       <slot name="action" />
     ) : actionHref && actionLabel ? (
       <a id={actionId || undefined} class={actionClasses} href={actionHref}>
-        <span aria-hidden="true">+</span>
+        <AdminIcon name="plus" class="pz-admin-action-icon" />
         <span>{actionLabel}</span>
       </a>
     ) : actionLabel ? (
       <button id={actionId || undefined} class={actionClasses} type={actionType}>
-        <span aria-hidden="true">+</span>
+        <AdminIcon name="plus" class="pz-admin-action-icon" />
         <span>{actionLabel}</span>
       </button>
     ) : null}

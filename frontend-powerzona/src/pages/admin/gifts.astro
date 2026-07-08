@@ -4,6 +4,7 @@ import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import AdminIcon from '../../components/admin/AdminIcon.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -346,7 +347,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           bellId="admin-gifts-bell"
         >
           <button id="new-gift-btn" class="admin-primary-action admin-header-primary-action js-new-gift" type="button" slot="action">
-            <span aria-hidden="true">+</span>
+            <AdminIcon name="plus" class="pz-admin-action-icon" />
             <span>Nuevo regalo</span>
           </button>
         </AdminSectionHeader>
@@ -413,7 +414,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <p class="panel-subtitle">Configura cómo se muestra Regalos en la tienda pública.</p>
               </div>
               <span id="gifts-category-status" class="badge visible">Visible</span>
-              <button id="toggle-gifts-category-card-btn" class="btn btn-dark" type="button">Configurar</button>
+              <button id="toggle-gifts-category-card-btn" class="btn btn-dark pz-admin-action-btn" type="button">
+                <AdminIcon name="settings" class="pz-admin-action-icon" />
+                <span>Configurar</span>
+              </button>
             </section>
 
             <section id="gifts-category-inline-card" class="category-inline-card hidden">
@@ -650,6 +654,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       }
       function escapeHtml(value){ return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+      function adminIconSvg(name, className = 'pz-admin-action-icon') {
+        const icons = {
+          edit: '<path d="M4 20h4.5L19 9.5a2.12 2.12 0 0 0-3-3L5.5 17H4v3Z"></path><path d="m14.5 7.5 3 3"></path>',
+          hide: '<path d="M3 3l18 18"></path><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path><path d="M9.9 5.2A9.6 9.6 0 0 1 12 5c6 0 9.5 7 9.5 7a16 16 0 0 1-2.25 3.1"></path><path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7c1.6 0 3.05-.5 4.3-1.2"></path>',
+          visible: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="3"></circle>',
+          delete: '<path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 15H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path>',
+          up: '<path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path>',
+          down: '<path d="m12 5v14"></path><path d="m19 12-7 7-7-7"></path>',
+        };
+        const icon = icons[name] || icons.edit;
+        return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>`;
+      }
       function normalizeFile(value){ return Array.isArray(value) ? value[0] : value; }
       function fileUrl(record){ const file = normalizeFile(record?.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}` : 'https://placehold.co/640x360?text=Regalo'; }
       function thumbUrl(record){ const file = normalizeFile(record?.image); return file ? `${POCKETBASE_URL}/api/files/gifts/${record.id}/${file}?thumb=120x120` : 'https://placehold.co/120x120?text=Regalo'; }
@@ -929,15 +945,33 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <div class="gift-cell">${Number(gift.stock || 0)}</div>
               <span class="badge ${gift.active !== false ? 'visible' : 'hidden-badge'}">${gift.active !== false ? 'Visible' : 'Oculto'}</span>
               <div class="gift-actions">
-                <button class="mini-btn dark edit-gift" data-id="${gift.id}" type="button">Editar</button>
-                <button class="mini-btn toggle-gift" data-id="${gift.id}" type="button">${gift.active !== false ? 'Ocultar' : 'Mostrar'}</button>
-                <button class="mini-btn move-gift" data-id="${gift.id}" data-dir="up" type="button" ${orderIndex === 0 ? 'disabled' : ''} title="Subir" aria-label="Subir regalo">↑</button>
-                <button class="mini-btn move-gift" data-id="${gift.id}" data-dir="down" type="button" ${orderIndex === gifts.length - 1 ? 'disabled' : ''} title="Bajar" aria-label="Bajar regalo">↓</button>
+                <button class="mini-btn pz-admin-action-btn dark edit-gift" data-id="${gift.id}" type="button">
+                  ${adminIconSvg('edit')}
+                  <span>Editar</span>
+                </button>
+                <button class="mini-btn pz-admin-action-btn toggle-gift" data-id="${gift.id}" type="button">
+                  ${adminIconSvg(gift.active !== false ? 'hide' : 'visible')}
+                  <span>${gift.active !== false ? 'Ocultar' : 'Mostrar'}</span>
+                </button>
+                <button class="mini-btn pz-admin-icon-btn move-gift" data-id="${gift.id}" data-dir="up" type="button" ${orderIndex === 0 ? 'disabled' : ''} title="Subir" aria-label="Subir regalo">
+                  ${adminIconSvg('up')}
+                </button>
+                <button class="mini-btn pz-admin-icon-btn move-gift" data-id="${gift.id}" data-dir="down" type="button" ${orderIndex === gifts.length - 1 ? 'disabled' : ''} title="Bajar" aria-label="Bajar regalo">
+                  ${adminIconSvg('down')}
+                </button>
                 <div class="gift-menu-wrap">
-                  <button class="mini-btn gift-menu-btn" data-id="${gift.id}" type="button" aria-label="Más acciones">...</button>
-                  <div id="gift-menu-${gift.id}" class="gift-menu">
-                    <button class="edit-gift" data-id="${gift.id}" type="button">Editar</button>
-                    <button class="danger delete-gift" data-id="${gift.id}" type="button">Borrar</button>
+                  <button class="mini-btn pz-admin-kebab-btn gift-menu-btn" data-id="${gift.id}" type="button" aria-label="Más acciones" aria-expanded="false" aria-controls="gift-menu-${gift.id}">
+                    <span class="pz-admin-kebab-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                  </button>
+                  <div id="gift-menu-${gift.id}" class="gift-menu pz-admin-dropdown hidden" role="menu">
+                    <button class="pz-admin-dropdown-item edit-gift" data-id="${gift.id}" type="button" role="menuitem">
+                      ${adminIconSvg('edit', 'pz-admin-dropdown-item-icon')}
+                      <span>Editar</span>
+                    </button>
+                    <button class="pz-admin-dropdown-item danger delete-gift" data-id="${gift.id}" type="button" role="menuitem">
+                      ${adminIconSvg('delete', 'pz-admin-dropdown-item-icon')}
+                      <span>Borrar</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1205,9 +1239,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function openGiftMenu(id){
-        document.querySelectorAll('.gift-menu').forEach((menu)=>menu.classList.toggle('open', menu.id === `gift-menu-${id}` && !menu.classList.contains('open')));
+        document.querySelectorAll('.gift-menu').forEach((menu)=>{
+          const shouldOpen = menu.id === `gift-menu-${id}` && !menu.classList.contains('open');
+          menu.classList.toggle('open', shouldOpen);
+          menu.classList.toggle('hidden', !shouldOpen);
+          document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+        });
       }
-      function closeGiftMenu(){ document.querySelectorAll('.gift-menu.open').forEach((menu)=>menu.classList.remove('open')); }
+      function closeGiftMenu(){
+        document.querySelectorAll('.gift-menu.open').forEach((menu)=>{
+          menu.classList.remove('open');
+          menu.classList.add('hidden');
+          document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+        });
+      }
 
       async function boot(){
         if(!POCKETBASE_URL){ showAlert('Falta PUBLIC_POCKETBASE_URL en .env', 'error'); return; }

@@ -4,6 +4,7 @@ import { getPublicStorePath } from '../../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
 import AdminSidebar from '../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../components/admin/AdminSectionHeader.astro';
+import AdminIcon from '../../../components/admin/AdminIcon.astro';
 import '../../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -488,7 +489,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                       <p id="raffle-modal-kicker" class="raffle-row-slot">Rifa</p>
                       <h2 id="raffle-modal-title">Administrar rifa</h2>
                     </div>
-                    <button id="raffle-modal-close-btn" class="raffle-icon-btn" type="button" aria-label="Cerrar">×</button>
+                    <button id="raffle-modal-close-btn" class="raffle-icon-btn pz-admin-icon-btn" type="button" aria-label="Cerrar">
+                      <AdminIcon name="close" class="pz-admin-action-icon" />
+                    </button>
                   </div>
                   <input id="raffle-id" type="hidden" />
               <div class="raffle-form-grid">
@@ -539,7 +542,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                       <h3>Regalos / Premios de la rifa</h3>
                       <p class="form-help">Cada regalo puede tener foto, nombre y una descripción corta.</p>
                     </div>
-                    <button id="raffle-add-prize-btn" class="raffle-btn" type="button">+ Agregar regalo</button>
+                    <button id="raffle-add-prize-btn" class="raffle-btn pz-admin-action-btn" type="button">
+                      <AdminIcon name="plus" class="pz-admin-action-icon" />
+                      <span>Agregar regalo</span>
+                    </button>
                   </div>
                   <div id="raffle-prizes-list" class="prize-editor-list"></div>
                 </div>
@@ -556,18 +562,21 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                   <div><span id="raffle-current-status" class="raffle-status-pill draft">Nueva rifa</span></div>
                   <p class="form-help">Acciones de control</p>
                   <div class="raffle-control-actions">
-                    <button class="raffle-btn js-form-control-action" type="button" data-action="close_selection">Cerrar selección</button>
-                    <button class="raffle-btn js-form-control-action" type="button" data-action="open_selection">Abrir selección</button>
-                    <button class="raffle-btn js-form-control-action" type="button" data-action="finalize">Finalizar rifa</button>
-                    <button class="raffle-btn js-form-control-action" type="button" data-action="open_raffle">Abrir rifa</button>
-                    <button class="raffle-btn danger js-form-control-action" type="button" data-action="reset">Restablecer rifa</button>
+                    <button class="raffle-btn pz-admin-action-btn js-form-control-action" type="button" data-action="close_selection">Cerrar selección</button>
+                    <button class="raffle-btn pz-admin-action-btn js-form-control-action" type="button" data-action="open_selection">Abrir selección</button>
+                    <button class="raffle-btn pz-admin-action-btn js-form-control-action" type="button" data-action="finalize">Finalizar rifa</button>
+                    <button class="raffle-btn pz-admin-action-btn js-form-control-action" type="button" data-action="open_raffle">Abrir rifa</button>
+                    <button class="raffle-btn pz-admin-action-btn danger js-form-control-action" type="button" data-action="reset">Restablecer rifa</button>
                   </div>
                 </div>
               </div>
               <div id="raffle-form-alert" class="alert alert-info hidden"></div>
               <div class="raffle-actions">
-                <button id="raffle-cancel-btn" class="raffle-btn" type="button">Cancelar</button>
-                <button id="raffle-save-btn" class="raffle-btn primary" type="submit">Guardar rifa</button>
+                <button id="raffle-cancel-btn" class="raffle-btn pz-admin-action-btn" type="button">Cancelar</button>
+                <button id="raffle-save-btn" class="raffle-btn pz-admin-action-btn primary" type="submit">
+                  <AdminIcon name="save" class="pz-admin-action-icon" />
+                  <span>Guardar rifa</span>
+                </button>
               </div>
                 </form>
               </div>
@@ -593,14 +602,20 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                 <p class="form-help">Revisa que cada participante cumpla las condiciones del grupo antes de publicar resultado.</p>
                 <div class="result-actions">
                   <input id="result-number" type="text" maxlength="2" inputmode="numeric" placeholder="00" />
-                  <button id="publish-winner-btn" class="raffle-btn success" type="button">Publicar ganador</button>
-                  <button id="publish-no-winner-btn" class="raffle-btn warning" type="button">No hubo ganador</button>
+                  <button id="publish-winner-btn" class="raffle-btn pz-admin-action-btn success" type="button">Publicar ganador</button>
+                  <button id="publish-no-winner-btn" class="raffle-btn pz-admin-action-btn warning" type="button">No hubo ganador</button>
                 </div>
                 <div id="winner-contact-box" class="winner-contact-box hidden">
                   <p id="winner-contact-text">Ganador publicado.</p>
                   <div class="winner-contact-actions">
-                    <button id="winner-whatsapp-btn" class="raffle-btn success" type="button">Escribir al ganador por WhatsApp</button>
-                    <button id="winner-copy-btn" class="raffle-btn" type="button">Copiar mensaje</button>
+                    <button id="winner-whatsapp-btn" class="raffle-btn pz-admin-action-btn success" type="button">
+                      <AdminIcon name="whatsapp" class="pz-admin-action-icon" />
+                      <span>Escribir al ganador por WhatsApp</span>
+                    </button>
+                    <button id="winner-copy-btn" class="raffle-btn pz-admin-action-btn" type="button">
+                      <AdminIcon name="copy" class="pz-admin-action-icon" />
+                      <span>Copiar mensaje</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -621,7 +636,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <p class="raffle-row-slot">Fechas</p>
             <h2 id="raffle-date-modal-title">Abrir selección de números</h2>
           </div>
-          <button id="raffle-date-cancel-x" class="raffle-icon-btn" type="button" aria-label="Cerrar">×</button>
+          <button id="raffle-date-cancel-x" class="raffle-icon-btn pz-admin-icon-btn" type="button" aria-label="Cerrar">
+            <AdminIcon name="close" class="pz-admin-action-icon" />
+          </button>
         </div>
         <div class="raffle-date-body">
           <label class="field">
@@ -635,8 +652,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           <p id="raffle-date-error" class="alert alert-error hidden"></p>
         </div>
         <div class="raffle-actions raffle-date-actions">
-          <button id="raffle-date-cancel-btn" class="raffle-btn" type="button">Cancelar</button>
-          <button id="raffle-date-save-btn" class="raffle-btn primary" type="button">Guardar fechas</button>
+          <button id="raffle-date-cancel-btn" class="raffle-btn pz-admin-action-btn" type="button">Cancelar</button>
+          <button id="raffle-date-save-btn" class="raffle-btn pz-admin-action-btn primary" type="button">
+            <AdminIcon name="save" class="pz-admin-action-icon" />
+            <span>Guardar fechas</span>
+          </button>
         </div>
       </div>
     </div>
@@ -648,7 +668,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <p class="raffle-row-slot">Resultado</p>
             <h2 id="raffle-winner-modal-title">Ganador encontrado</h2>
           </div>
-          <button id="raffle-winner-cancel-x" class="raffle-icon-btn" type="button" aria-label="Cerrar">×</button>
+          <button id="raffle-winner-cancel-x" class="raffle-icon-btn pz-admin-icon-btn" type="button" aria-label="Cerrar">
+            <AdminIcon name="close" class="pz-admin-action-icon" />
+          </button>
         </div>
         <div class="raffle-date-body">
           <dl class="winner-detail-list">
@@ -669,9 +691,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           <p id="winner-modal-warning" class="alert alert-error hidden"></p>
         </div>
         <div class="raffle-actions raffle-date-actions">
-          <button id="winner-modal-cancel-btn" class="raffle-btn" type="button">Cancelar</button>
-          <button id="winner-modal-publish-btn" class="raffle-btn primary" type="button">Publicar ganador</button>
-          <button id="winner-modal-whatsapp-btn" class="raffle-btn success" type="button">Publicar y escribir por WhatsApp</button>
+          <button id="winner-modal-cancel-btn" class="raffle-btn pz-admin-action-btn" type="button">Cancelar</button>
+          <button id="winner-modal-publish-btn" class="raffle-btn pz-admin-action-btn primary" type="button">Publicar ganador</button>
+          <button id="winner-modal-whatsapp-btn" class="raffle-btn pz-admin-action-btn success" type="button">
+            <AdminIcon name="whatsapp" class="pz-admin-action-icon" />
+            <span>Publicar y escribir por WhatsApp</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1141,16 +1166,31 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             || ['winner_published', 'no_winner_published'].includes(String(raffle?.status || ''));
         }
 
+        function adminIconSvg(name, className = 'pz-admin-dropdown-item-icon') {
+          const icons = {
+            view: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="3"></circle>',
+            settings: '<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.38a1.7 1.7 0 0 0-1 .92V20a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-.92 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.62 15a1.7 1.7 0 0 0-.92-1H3.6a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 .92-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.62a1.7 1.7 0 0 0 1-.92V3.6a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 .92 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.38 9c.14.34.44.68.92 1h.1a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-.92 1Z"></path>',
+            copy: '<rect x="8" y="8" width="11" height="13" rx="2"></rect><path d="M5 16H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+            edit: '<path d="M4 20h4.5L19 9.5a2.12 2.12 0 0 0-3-3L5.5 17H4v3Z"></path><path d="m14.5 7.5 3 3"></path>',
+            hide: '<path d="M3 3l18 18"></path><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"></path><path d="M9.9 5.2A9.6 9.6 0 0 1 12 5c6 0 9.5 7 9.5 7a16 16 0 0 1-2.25 3.1"></path><path d="M6.6 6.9C3.9 8.7 2.5 12 2.5 12s3.5 7 9.5 7c1.6 0 3.05-.5 4.3-1.2"></path>',
+            visible: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="3"></circle>',
+            save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path>',
+            close: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+          };
+          const icon = icons[name] || icons.view;
+          return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>`;
+        }
+
         function raffleMenuIcon(action) {
           const icons = {
-            copy_link: '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"/><path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15"/></svg>',
-            close_selection: '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5"/><path d="m22 8-5 5"/></svg>',
-            open_selection: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 14.9-6.8"/><path d="M18 2v4h-4"/><path d="M21 12a9 9 0 0 1-14.9 6.8"/><path d="M6 22v-4h4"/></svg>',
-            open_raffle: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 14.9-6.8"/><path d="M18 2v4h-4"/><path d="M21 12a9 9 0 0 1-14.9 6.8"/><path d="M6 22v-4h4"/></svg>',
-            finalize: '<svg viewBox="0 0 24 24"><path d="M4 22V4"/><path d="M4 4h13l-1 5 1 5H4"/></svg>',
-            reset: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>',
+            copy_link: 'copy',
+            close_selection: 'hide',
+            open_selection: 'visible',
+            open_raffle: 'visible',
+            finalize: 'save',
+            reset: 'close',
           };
-          return icons[action] || '';
+          return adminIconSvg(icons[action] || 'view');
         }
 
         function actionMenuHtml(raffle, status, fullHref = '') {
@@ -1179,16 +1219,18 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           }
           return `
             <div class="raffle-menu">
-              <button class="raffle-menu-button" type="button" aria-label="Acciones de ${escapeHtml(slotLabel(raffle))}" aria-expanded="false" data-menu-button>⋯</button>
-              <div class="raffle-menu-panel" hidden>
+              <button class="raffle-menu-button pz-admin-kebab-btn" type="button" aria-label="Acciones de ${escapeHtml(slotLabel(raffle))}" aria-expanded="false" data-menu-button>
+                <span class="pz-admin-kebab-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+              </button>
+              <div class="raffle-menu-panel pz-admin-dropdown" hidden>
                 ${items.map((item) => `
                   <button
-                    class="${escapeHtml(item.className || '')}"
+                    class="pz-admin-dropdown-item ${escapeHtml(item.className || '')}"
                     type="button"
                     data-control-action="${escapeHtml(item.action)}"
                     ${item.action === 'copy_link' ? `data-copy-href="${escapeHtml(item.href || '')}"` : ''}
                   >
-                    <span class="raffle-menu-icon" aria-hidden="true">${raffleMenuIcon(item.action)}</span>
+                    ${raffleMenuIcon(item.action)}
                     <span>${escapeHtml(item.label)}</span>
                   </button>
                 `).join('')}
@@ -1397,8 +1439,14 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                   </div>
                 </div>
                 <div class="raffle-row-actions">
-                  <a class="raffle-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener">Ver rifa pública</a>
-                  <button class="raffle-btn js-raffle-edit" type="button">${escapeHtml(editText)}</button>
+                  <a class="raffle-btn pz-admin-action-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener">
+                    ${adminIconSvg('view', 'pz-admin-action-icon')}
+                    <span>Ver rifa pública</span>
+                  </a>
+                  <button class="raffle-btn pz-admin-action-btn js-raffle-edit" type="button">
+                    ${adminIconSvg(raffle.is_configured === true ? 'edit' : 'settings', 'pz-admin-action-icon')}
+                    <span>${escapeHtml(editText)}</span>
+                  </button>
                   ${actionMenuHtml(raffle, status, fullHref)}
                 </div>
               </article>
