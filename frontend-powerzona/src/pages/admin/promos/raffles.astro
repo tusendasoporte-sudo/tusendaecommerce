@@ -200,6 +200,94 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .field input:focus, .field select:focus, .field textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37,99,235,.10); }
       .field input[readonly] { background: #f8fafc; color: #334155; }
       .form-help { margin: 0; color: #64748b; font-size: 12px; font-weight: 750; line-height: 1.45; }
+      .winner-message-field { gap: 10px; }
+      .winner-message-toggle {
+        width: 100%;
+        min-height: 78px;
+        border: 1px solid #bfdbfe;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 56%, #eff6ff 100%);
+        color: #0f172a;
+        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        box-shadow: 0 14px 30px rgba(37, 99, 235, .09);
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      }
+      .winner-message-toggle:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 18px 34px rgba(37, 99, 235, .13);
+        transform: translateY(-1px);
+      }
+      .winner-message-toggle:focus-visible {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37,99,235,.12), 0 18px 34px rgba(37, 99, 235, .13);
+      }
+      .winner-message-toggle-copy { display: grid; gap: 4px; min-width: 0; }
+      .winner-message-title { color: #0f172a; font-size: 15px; font-weight: 1000; line-height: 1.18; }
+      .winner-message-description { color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; }
+      .winner-message-badge,
+      .winner-message-toggle-label {
+        min-height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .winner-message-badge {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+      .winner-message-toggle-label {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+      }
+      .winner-message-chevron {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: inline-grid;
+        place-items: center;
+        background: #ffffff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, .08);
+      }
+      .winner-message-chevron svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: transform .18s ease;
+      }
+      .winner-message-field.is-open .winner-message-chevron svg {
+        transform: rotate(180deg);
+      }
+      .winner-message-panel {
+        display: grid;
+        gap: 8px;
+        padding: 14px;
+        border: 1px solid #dbeafe;
+        border-radius: 16px;
+        background: #ffffff;
+      }
+      .winner-message-panel[hidden] { display: none; }
+      .winner-message-panel textarea {
+        min-height: 118px;
+      }
       .switch-row { display: inline-flex; align-items: center; gap: 9px; color: #334155; font-size: 13px; font-weight: 900; }
       .switch-row input { width: 18px; height: 18px; accent-color: #2563eb; }
       .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -374,6 +462,25 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         .segmented-control {
           grid-template-columns: 1fr;
         }
+        .winner-message-toggle {
+          min-height: 86px;
+          grid-template-columns: minmax(0, 1fr) auto;
+          padding: 13px;
+        }
+        .winner-message-badge,
+        .winner-message-toggle-label {
+          justify-self: start;
+        }
+        .winner-message-chevron {
+          grid-column: 2;
+          grid-row: 1 / span 3;
+        }
+        .winner-message-panel {
+          padding: 12px;
+        }
+        .winner-message-panel textarea {
+          min-height: 104px;
+        }
         .app-shell {
           padding-left: 12px;
           padding-right: 12px;
@@ -531,10 +638,29 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                   <label for="raffle-conditions">Condiciones adicionales</label>
                   <textarea id="raffle-conditions"></textarea>
                 </div>
-                <div class="field full">
-                  <label for="raffle-winner-message">Mensaje para ganador</label>
-                  <textarea id="raffle-winner-message" maxlength="1800"></textarea>
-                  <p class="form-help">Variables: &#123;nombre_cliente&#125;, &#123;telefono_cliente&#125;, &#123;numero_ganador&#125;, &#123;nombre_rifa&#125;, &#123;nombre_tienda&#125;, &#123;premios&#125;, &#123;link_rifa&#125;</p>
+                <div class="field full winner-message-field" id="raffle-winner-message-field">
+                  <button
+                    id="raffle-winner-message-toggle"
+                    class="winner-message-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="raffle-winner-message-panel"
+                  >
+                    <span class="winner-message-toggle-copy">
+                      <span class="winner-message-title">Mensaje para ganador</span>
+                      <span class="winner-message-description">Personaliza el mensaje que recibirá el ganador.</span>
+                    </span>
+                    <span id="raffle-winner-message-badge" class="winner-message-badge hidden">Configurado</span>
+                    <span id="raffle-winner-message-toggle-label" class="winner-message-toggle-label">Editar mensaje</span>
+                    <span class="winner-message-chevron" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
+                    </span>
+                  </button>
+                  <div id="raffle-winner-message-panel" class="winner-message-panel" hidden>
+                    <label for="raffle-winner-message">Mensaje para ganador</label>
+                    <textarea id="raffle-winner-message" maxlength="1800"></textarea>
+                    <p class="form-help">Variables: &#123;nombre_cliente&#125;, &#123;telefono_cliente&#125;, &#123;numero_ganador&#125;, &#123;nombre_rifa&#125;, &#123;nombre_tienda&#125;, &#123;premios&#125;, &#123;link_rifa&#125;</p>
+                  </div>
                 </div>
                 <div class="field full">
                   <div class="prize-editor-head">
@@ -776,6 +902,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         const winnerCopyBtn = document.getElementById('winner-copy-btn');
         const controlCard = document.getElementById('raffle-control-card');
         const currentStatusBadge = document.getElementById('raffle-current-status');
+        const winnerMessageField = document.getElementById('raffle-winner-message-field');
+        const winnerMessageToggle = document.getElementById('raffle-winner-message-toggle');
+        const winnerMessagePanel = document.getElementById('raffle-winner-message-panel');
+        const winnerMessageBadge = document.getElementById('raffle-winner-message-badge');
+        const winnerMessageToggleLabel = document.getElementById('raffle-winner-message-toggle-label');
         const fields = {
           id: document.getElementById('raffle-id'),
           title: document.getElementById('raffle-title'),
@@ -1137,6 +1268,24 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return modal && !modal.classList.contains('hidden') && formSnapshot && currentFormSignature() !== formSnapshot;
         }
 
+        function hasCustomWinnerMessage() {
+          const current = String(fields.winnerMessage?.value || '').trim();
+          return Boolean(current && current !== DEFAULT_WINNER_MESSAGE.trim());
+        }
+
+        function updateWinnerMessageBadge() {
+          winnerMessageBadge?.classList.toggle('hidden', !hasCustomWinnerMessage());
+        }
+
+        function setWinnerMessagePanel(open) {
+          const isOpen = Boolean(open);
+          winnerMessageField?.classList.toggle('is-open', isOpen);
+          winnerMessageToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (winnerMessagePanel) winnerMessagePanel.hidden = !isOpen;
+          if (winnerMessageToggleLabel) winnerMessageToggleLabel.textContent = isOpen ? 'Ocultar mensaje' : 'Editar mensaje';
+          updateWinnerMessageBadge();
+        }
+
         function closeOpenMenus(except = null) {
           document.querySelectorAll('.raffle-menu-panel:not([hidden])').forEach((panel) => {
             if (panel !== except) {
@@ -1312,6 +1461,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           fields.description.value = raffle?.description || '';
           fields.conditions.value = raffle?.conditions || '';
           fields.winnerMessage.value = raffle?.winner_message || DEFAULT_WINNER_MESSAGE;
+          setWinnerMessagePanel(false);
           setPrizeDisplayMode(raffle?.prizes_display_mode || 'fixed');
           prizeState = raffle ? prizesFromRaffle(raffle) : [{
             id: makePrizeId(),
@@ -1338,6 +1488,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           form?.reset();
           fields.id.value = '';
           fields.winnerMessage.value = DEFAULT_WINNER_MESSAGE;
+          setWinnerMessagePanel(false);
           prizeState = [];
           renderPrizeEditor();
           controlCard?.classList.add('hidden');
@@ -1879,6 +2030,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`;
           }
         });
+        winnerMessageToggle?.addEventListener('click', () => {
+          setWinnerMessagePanel(winnerMessagePanel?.hidden !== false);
+        });
+        fields.winnerMessage?.addEventListener('input', updateWinnerMessageBadge);
         form?.addEventListener('submit', (event) => saveRaffle(event).catch((error) => show(formAlert, error.message || 'No se pudo guardar la rifa.', 'error')));
         document.getElementById('raffle-cancel-btn')?.addEventListener('click', requestCloseForm);
         modalCloseBtn?.addEventListener('click', requestCloseForm);
