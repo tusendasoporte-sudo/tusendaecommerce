@@ -1,6 +1,6 @@
 ---
 import { refreshAuthFromCookie } from '../../../lib/auth';
-import { getPublicStorePath, getStoreAdminPath } from '../../../lib/adminRoutes';
+import { getPublicStorePath } from '../../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
 import AdminSidebar from '../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../components/admin/AdminSectionHeader.astro';
@@ -13,7 +13,6 @@ const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona';
-const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 ---
 
@@ -232,37 +231,43 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
       .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
       .alert-close { position: absolute; top: 7px; right: 8px; width: 28px; height: 28px; border: 0; border-radius: 8px; background: rgba(255,255,255,.72); color: currentColor; font-weight: 1000; }
-      .raffle-list { display: grid; gap: 10px; }
+      .raffle-list { display: grid; gap: 12px; overflow: visible; }
       .raffle-row {
         position: relative;
         display: grid;
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 14px;
         align-items: stretch;
-        padding: 14px;
-        border: 1px solid #e2e8f0;
-        border-radius: 18px;
+        padding: 16px;
+        border: 1px solid #dbeafe;
+        border-radius: 22px;
         background: #fff;
-        box-shadow: 0 10px 24px rgba(15,23,42,.04);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, .055);
         cursor: pointer;
+        overflow: visible;
         transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
       }
-      .raffle-row:hover { border-color: #bfdbfe; box-shadow: 0 16px 32px rgba(15,23,42,.08); transform: translateY(-1px); }
-      .raffle-row.is-selected { border-color: #2563eb; background: #eff6ff; box-shadow: 0 18px 42px rgba(37,99,235,.16); }
-      .raffle-row.is-selected .raffle-participant-pill { color: #1d4ed8; background: #dbeafe; border-color: #93c5fd; }
-      .raffle-row-main { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; min-width: 0; align-items: start; }
-      .raffle-row-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
-      .raffle-selected-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 5px 9px; border-radius: 999px; background: #2563eb; color: #fff; font-size: 11px; font-weight: 1000; }
-      .raffle-participant-pill { min-height: 34px; border: 1px solid #e2e8f0; border-radius: 999px; background: #f8fafc; color: #475569; padding: 7px 10px; font-size: 12px; font-weight: 1000; white-space: nowrap; box-shadow: 0 8px 18px rgba(15,23,42,.05); }
-      .raffle-thumb { width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(135deg, #dbeafe, #dcfce7); display: grid; place-items: center; color: #1d4ed8; font-weight: 1000; flex: 0 0 auto; overflow: hidden; border: 1px solid #dbeafe; }
+      .raffle-row:hover { border-color: #bfdbfe; box-shadow: 0 18px 38px rgba(15, 23, 42, .08); transform: translateY(-1px); }
+      .raffle-row.is-selected { border-color: #2563eb; background: #eff6ff; box-shadow: 0 20px 44px rgba(37, 99, 235, .16); }
+      .raffle-row.is-menu-open { z-index: 30; }
+      .raffle-row.is-menu-open .raffle-menu { z-index: 1000; }
+      .raffle-row-main { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 13px; align-items: start; min-width: 0; overflow: visible; }
+      .raffle-thumb { width: 58px; height: 58px; border-radius: 17px; background: linear-gradient(135deg, #dbeafe, #dcfce7); display: grid; place-items: center; color: #1d4ed8; font-weight: 1000; font-size: 18px; overflow: hidden; border: 1px solid #dbeafe; }
       .raffle-thumb img { width: 100%; height: 100%; object-fit: cover; }
       .raffle-row-copy { min-width: 0; }
-      .raffle-row-slot { margin: 0 0 3px; color: #2563eb; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: 0; }
-      .raffle-row-title { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .raffle-row-meta { margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.4; font-weight: 800; }
-      .raffle-row-link { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px; align-items: center; }
-      .raffle-row-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-      .raffle-row-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start; align-items: center; }
+      .raffle-row-slot { margin: 0 0 3px; color: #2563eb; font-size: 12px; font-weight: 1000; text-transform: uppercase; letter-spacing: .01em; }
+      .raffle-row-title { margin: 0; color: #0f172a; font-size: 17px; font-weight: 1000; line-height: 1.16; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .raffle-row-meta { margin: 8px 0 0; color: #64748b; font-size: 13px; line-height: 1.35; font-weight: 850; }
+      .raffle-row-access { display: inline-flex; align-items: center; gap: 7px; }
+      .raffle-row-access::before { content: ""; width: 8px; height: 8px; flex: 0 0 8px; border-radius: 999px; background: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, .14); }
+      .raffle-row-access.is-enabled::before { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .12); }
+      .raffle-row-access.is-disabled::before { background: #94a3b8; box-shadow: 0 0 0 3px rgba(148, 163, 184, .16); }
+      .raffle-row-head-actions { display: grid; gap: 8px; justify-items: end; align-content: start; min-width: 118px; }
+      .raffle-select-pill { min-height: 36px; border: 1px solid #bfdbfe; border-radius: 999px; background: #fff; color: #2563eb; padding: 8px 14px; font-size: 12px; font-weight: 1000; white-space: nowrap; box-shadow: 0 10px 22px rgba(15, 23, 42, .06); }
+      .raffle-select-pill.is-selected { border-color: #2563eb; background: #2563eb; color: #fff; box-shadow: 0 14px 28px rgba(37, 99, 235, .24); }
+      .raffle-participant-pill { min-height: 34px; border: 1px solid #dbeafe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; padding: 7px 12px; font-size: 12px; font-weight: 1000; white-space: nowrap; box-shadow: 0 8px 18px rgba(37, 99, 235, .08); }
+      .raffle-row-actions { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) 54px; gap: 10px; align-items: center; overflow: visible; }
+      .raffle-row-actions .raffle-btn { width: 100%; min-height: 46px; border-radius: 15px; justify-content: center; }
       .raffle-status-pill { display: inline-flex; align-items: center; min-height: 28px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 1000; background: #f1f5f9; color: #64748b; }
       .raffle-status-pill.draft { background: #f1f5f9; color: #475569; }
       .raffle-status-pill.scheduled { background: #e0f2fe; color: #075985; }
@@ -272,13 +277,20 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .raffle-status-pill.winner_published { background: #dbeafe; color: #1d4ed8; }
       .raffle-status-pill.no_winner_published { background: #eef2ff; color: #4338ca; }
       .raffle-status-pill.finalized { background: #e2e8f0; color: #334155; }
-      .raffle-menu { position: relative; }
-      .raffle-menu-button { width: 38px; min-height: 38px; border: 1px solid #e2e8f0; border-radius: 13px; background: #fff; color: #0f172a; display: grid; place-items: center; font-size: 22px; font-weight: 1000; box-shadow: 0 10px 22px rgba(15,23,42,.06); }
-      .raffle-menu-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 220px; padding: 8px; border-radius: 14px; border: 1px solid #e5e7eb; background: #fff; box-shadow: 0 22px 48px rgba(15,23,42,.18); display: grid; gap: 6px; }
+      .raffle-menu { position: relative; width: 54px; min-width: 54px; overflow: visible; z-index: 5; }
+      .raffle-menu-button { width: 54px; min-height: 46px; border: 1px solid #e2e8f0; border-radius: 15px; background: #fff; color: #0f172a; display: grid; place-items: center; font-size: 24px; font-weight: 1000; line-height: 1; box-shadow: 0 10px 22px rgba(15, 23, 42, .06); }
+      .raffle-menu-button:hover,
+      .raffle-menu-button[aria-expanded="true"] { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+      .raffle-menu-panel { position: absolute; right: 0; top: calc(100% + 10px); z-index: 999; width: min(280px, calc(100vw - 42px)); min-width: 230px; padding: 8px; border-radius: 18px; border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 24px 58px rgba(15, 23, 42, .22); display: grid; gap: 4px; }
       .raffle-menu-panel[hidden] { display: none; }
-      .raffle-menu-panel button { width: 100%; min-height: 42px; border: 0; border-radius: 10px; background: #fff; color: #0f172a; text-align: left; padding: 10px 11px; font-weight: 900; }
+      .raffle-menu-panel::before { content: ""; position: absolute; top: -7px; right: 20px; width: 14px; height: 14px; transform: rotate(45deg); border-left: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; background: #fff; }
+      .raffle-menu-panel button { position: relative; z-index: 1; width: 100%; min-height: 46px; border: 0; border-radius: 13px; background: #fff; color: #0f172a; display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 10px; text-align: left; padding: 10px 12px; font-size: 14px; font-weight: 900; }
+      .raffle-menu-panel button + button { border-top: 1px solid #eef2f7; }
       .raffle-menu-panel button:hover { background: #eff6ff; color: #1d4ed8; }
-      .raffle-menu-panel button.danger { background: #fff1f2; color: #991b1b; }
+      .raffle-menu-panel button.danger { color: #991b1b; }
+      .raffle-menu-panel button.danger:hover { background: #fff1f2; color: #991b1b; }
+      .raffle-menu-icon { width: 28px; height: 28px; border-radius: 10px; display: grid; place-items: center; color: currentColor; font-size: 17px; }
+      .raffle-menu-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
       .raffle-control-card { display: grid; gap: 10px; padding: 14px; border-radius: 18px; border: 1px solid #dbeafe; background: #f8fbff; }
       .raffle-control-card h3 { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; }
       .raffle-control-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -306,7 +318,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .image-strip img { width: 64px; height: 48px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; }
 
       @media (max-width: 1023px) {
-        .app-shell { padding-top: 76px; }
+        .app-shell { padding-top: 76px; padding-bottom: 104px; }
       }
 
       @media (max-width: 900px) {
@@ -323,19 +335,17 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           grid-template-columns: 1fr;
         }
         .raffle-panel-head,
-        .raffle-row,
         .entry-row {
           grid-template-columns: 1fr;
           align-items: stretch;
         }
         .raffle-row-main {
-          grid-template-columns: 58px minmax(0, 1fr);
+          grid-template-columns: 58px minmax(0, 1fr) auto;
         }
         .raffle-row-head-actions {
-          grid-column: 1 / -1;
-          justify-content: flex-start;
+          grid-column: auto;
+          justify-content: end;
         }
-        .raffle-row-actions { justify-content: flex-start; }
         .prize-remove-btn { width: 100%; }
       }
 
@@ -363,19 +373,46 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         .segmented-control {
           grid-template-columns: 1fr;
         }
+        .app-shell {
+          padding-left: 12px;
+          padding-right: 12px;
+        }
+        .raffle-admin-panel {
+          padding: 14px;
+          border-radius: 18px;
+        }
+        .raffle-summary-card {
+          padding: 14px;
+          border-radius: 18px;
+        }
+        .raffle-list { gap: 12px; }
+        .raffle-row { padding: 14px; border-radius: 20px; }
+        .raffle-row-main {
+          grid-template-columns: 54px minmax(0, 1fr) auto;
+          gap: 11px;
+        }
+        .raffle-thumb {
+          width: 54px;
+          height: 54px;
+          border-radius: 16px;
+          font-size: 17px;
+        }
+        .raffle-row-title { font-size: 16px; }
+        .raffle-row-head-actions { min-width: 104px; gap: 7px; }
+        .raffle-select-pill { min-height: 32px; padding: 7px 11px; font-size: 11px; }
+        .raffle-participant-pill { min-height: 31px; padding: 6px 10px; font-size: 11px; }
         .raffle-row-actions {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: minmax(0, 1fr) minmax(0, .9fr) 52px;
+          gap: 8px;
         }
         .raffle-row-actions .raffle-btn,
-        .raffle-menu,
-        .raffle-menu-button {
-          width: 100%;
-        }
+        .raffle-menu-button { min-height: 42px; border-radius: 14px; font-size: 12px; }
+        .raffle-menu { width: 52px; min-width: 52px; }
+        .raffle-menu-button { width: 52px; }
         .raffle-menu-panel {
-          left: 0;
-          right: auto;
-          width: min(260px, calc(100vw - 38px));
+          right: 0;
+          top: calc(100% + 10px);
+          width: min(270px, calc(100vw - 34px));
         }
       }
     </style>
@@ -393,8 +430,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         mobileTitle="Rifas"
         mobileActionLabel="Actualizar"
         mobileActionTarget="#raffle-new-btn"
-        mobileBackHref={adminPromosPath}
-        mobileBackLabel="Promociones"
       />
 
       <main class="main-wrap pz-admin-content-inner">
@@ -1082,7 +1117,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             if (panel !== except) {
               panel.hidden = true;
               panel.closest('.raffle-menu')?.querySelector('.raffle-menu-button')?.setAttribute('aria-expanded', 'false');
+              panel.closest('.raffle-row')?.classList.remove('is-menu-open');
             }
+          });
+          document.querySelectorAll('.raffle-row.is-menu-open').forEach((row) => {
+            const openPanel = row.querySelector('.raffle-menu-panel:not([hidden])');
+            if (!openPanel || openPanel !== except) row.classList.remove('is-menu-open');
           });
         }
 
@@ -1101,21 +1141,57 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             || ['winner_published', 'no_winner_published'].includes(String(raffle?.status || ''));
         }
 
-        function actionMenuHtml(raffle, status) {
+        function raffleMenuIcon(action) {
+          const icons = {
+            copy_link: '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.07 0l2-2a5 5 0 0 0-7.07-7.07l-1.15 1.15"/><path d="M14 11a5 5 0 0 0-7.07 0l-2 2A5 5 0 0 0 12 20.07l1.15-1.15"/></svg>',
+            close_selection: '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5"/><path d="m22 8-5 5"/></svg>',
+            open_selection: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 14.9-6.8"/><path d="M18 2v4h-4"/><path d="M21 12a9 9 0 0 1-14.9 6.8"/><path d="M6 22v-4h4"/></svg>',
+            open_raffle: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 14.9-6.8"/><path d="M18 2v4h-4"/><path d="M21 12a9 9 0 0 1-14.9 6.8"/><path d="M6 22v-4h4"/></svg>',
+            finalize: '<svg viewBox="0 0 24 24"><path d="M4 22V4"/><path d="M4 4h13l-1 5 1 5H4"/></svg>',
+            reset: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v6h6"/></svg>',
+          };
+          return icons[action] || '';
+        }
+
+        function actionMenuHtml(raffle, status, fullHref = '') {
           const configured = raffle?.is_configured === true;
           const items = [];
-          if (!configured) items.push(['edit', 'Configurar', '']);
-          if (configured && status === 'active') items.push(['close_selection', 'Cerrar selección', '']);
-          if (configured && ['selection_closed', 'result_pending'].includes(status) && canOpenSelection(raffle)) items.push(['open_selection', 'Abrir selección', '']);
-          if (configured && status === 'finalized' && !hasPublishedResult(raffle)) items.push(['open_raffle', 'Abrir rifa', '']);
-          if (configured && !['draft', 'finalized'].includes(status)) items.push(['finalize', 'Finalizar rifa', '']);
-          if (configured) items.push(['reset', 'Restablecer rifa', 'danger']);
-          if (!items.length) return '';
+          items.push({
+            action: 'copy_link',
+            label: 'Copiar enlace',
+            className: '',
+            href: fullHref,
+          });
+          if (configured && status === 'active') {
+            items.push({ action: 'close_selection', label: 'Cerrar selección', className: '' });
+          }
+          if (configured && ['selection_closed', 'result_pending'].includes(status) && canOpenSelection(raffle)) {
+            items.push({ action: 'open_selection', label: 'Abrir selección', className: '' });
+          }
+          if (configured && status === 'finalized' && !hasPublishedResult(raffle)) {
+            items.push({ action: 'open_raffle', label: 'Abrir rifa', className: '' });
+          }
+          if (configured && !['draft', 'finalized'].includes(status)) {
+            items.push({ action: 'finalize', label: 'Finalizar rifa', className: '' });
+          }
+          if (configured) {
+            items.push({ action: 'reset', label: 'Restablecer rifa', className: 'danger' });
+          }
           return `
             <div class="raffle-menu">
               <button class="raffle-menu-button" type="button" aria-label="Acciones de ${escapeHtml(slotLabel(raffle))}" aria-expanded="false" data-menu-button>⋯</button>
               <div class="raffle-menu-panel" hidden>
-                ${items.map(([action, label, className]) => `<button class="${className}" type="button" data-control-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`).join('')}
+                ${items.map((item) => `
+                  <button
+                    class="${escapeHtml(item.className || '')}"
+                    type="button"
+                    data-control-action="${escapeHtml(item.action)}"
+                    ${item.action === 'copy_link' ? `data-copy-href="${escapeHtml(item.href || '')}"` : ''}
+                  >
+                    <span class="raffle-menu-icon" aria-hidden="true">${raffleMenuIcon(item.action)}</span>
+                    <span>${escapeHtml(item.label)}</span>
+                  </button>
+                `).join('')}
               </div>
             </div>
           `;
@@ -1296,12 +1372,12 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             const isSelected = raffle.id === selectedRaffleId;
             const href = publicRaffleHref(raffle);
             const fullHref = `${window.location.origin}${href}`;
-            const linkText = isLinkEnabled(raffle) ? 'Link activo' : 'Link apagado';
-            const closeText = raffle.closes_at ? `Cierre: ${dateLabel(raffle.closes_at)}` : 'Sin cierre definido';
             const titleText = displayTitle(raffle);
             const editText = raffle.is_configured === true ? 'Editar' : 'Configurar';
-            const storeText = raffle.show_in_store === true ? 'En tienda pública' : 'Solo enlace directo';
             const participants = activeEntryCount(raffle.id);
+            const accessEnabled = isLinkEnabled(raffle);
+            const accessText = accessEnabled ? 'Acceso activado' : 'Desactivado';
+            const accessClass = accessEnabled ? 'is-enabled' : 'is-disabled';
             return `
               <article class="raffle-row ${isSelected ? 'is-selected' : ''}" data-raffle-id="${escapeHtml(raffle.id)}" tabindex="0" role="button" aria-pressed="${isSelected ? 'true' : 'false'}">
                 <div class="raffle-row-main">
@@ -1309,22 +1385,21 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
                   <div class="raffle-row-copy">
                     <p class="raffle-row-slot">${escapeHtml(slotLabel(raffle))}</p>
                     <h3 class="raffle-row-title">${escapeHtml(titleText)}</h3>
-                    <p class="raffle-row-meta">
-                      <span class="raffle-status-pill ${escapeHtml(status)}">${escapeHtml(statusLabels[status] || status)}</span>
-                      ${escapeHtml(linkText)} · ${escapeHtml(storeText)} · ${escapeHtml(closeText)}
-                    </p>
-                    <p class="raffle-row-meta raffle-row-link"><strong>Enlace directo:</strong> <span>${escapeHtml(isLinkEnabled(raffle) ? fullHref : 'Enlace directo disponible. Usa Copiar enlace.')}</span></p>
+                    <p class="raffle-row-meta raffle-row-access ${accessClass}">${escapeHtml(accessText)}</p>
                   </div>
                   <div class="raffle-row-head-actions">
-                    ${isSelected ? '<span class="raffle-selected-pill">Seleccionada</span>' : ''}
-                    <button class="raffle-participant-pill js-raffle-select" type="button">${escapeHtml(participantLabel(participants))}</button>
-                    ${actionMenuHtml(raffle, status)}
+                    <button class="raffle-select-pill js-raffle-select ${isSelected ? 'is-selected' : ''}" type="button">
+                      ${isSelected ? 'Seleccionada' : 'Seleccionar'}
+                    </button>
+                    <button class="raffle-participant-pill js-raffle-select" type="button">
+                      ${escapeHtml(participantLabel(participants))}
+                    </button>
                   </div>
                 </div>
                 <div class="raffle-row-actions">
-                  <button class="raffle-btn js-raffle-copy" type="button" data-copy-href="${escapeHtml(fullHref)}">Copiar enlace</button>
                   <a class="raffle-btn" href="${escapeHtml(href)}" target="_blank" rel="noopener">Ver rifa pública</a>
                   <button class="raffle-btn js-raffle-edit" type="button">${escapeHtml(editText)}</button>
+                  ${actionMenuHtml(raffle, status, fullHref)}
                 </div>
               </article>
             `;
@@ -1774,18 +1849,35 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const id = row.dataset.raffleId || '';
           const menuButton = event.target.closest('[data-menu-button]');
           if (menuButton) {
-            const panel = menuButton.closest('.raffle-menu')?.querySelector('.raffle-menu-panel');
+            event.preventDefault();
+            event.stopPropagation();
+            const menu = menuButton.closest('.raffle-menu');
+            const rowWithMenu = menuButton.closest('.raffle-row');
+            const panel = menu?.querySelector('.raffle-menu-panel');
             if (panel) {
               const willOpen = panel.hidden;
               closeOpenMenus(panel);
               panel.hidden = !willOpen;
               menuButton.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+              rowWithMenu?.classList.toggle('is-menu-open', willOpen);
             }
             return;
           }
           const controlButton = event.target.closest('[data-control-action]');
           if (controlButton) {
             const action = controlButton.dataset.controlAction || '';
+            if (action === 'copy_link') {
+              const href = controlButton.dataset.copyHref || '';
+              closeOpenMenus();
+              if (href && navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(href)
+                  .then(() => show(alertBox, 'Enlace copiado correctamente.', 'success'))
+                  .catch(() => show(alertBox, 'No se pudo copiar el enlace automáticamente.', 'error'));
+              } else if (href) {
+                show(alertBox, 'No se pudo copiar el enlace automáticamente.', 'error');
+              }
+              return;
+            }
             closeOpenMenus();
             if (action === 'edit') {
               const raffle = raffles.find((item) => item.id === id);
@@ -1797,15 +1889,6 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           }
           if (event.target.closest('.js-raffle-select')) {
             selectRaffle(id).catch((error) => show(entriesAlert, error.message || 'No se pudieron cargar participantes.', 'error'));
-            return;
-          }
-          if (event.target.closest('.js-raffle-copy')) {
-            const href = event.target.closest('.js-raffle-copy')?.dataset?.copyHref || '';
-            if (href) {
-              navigator.clipboard?.writeText(href)
-                .then(() => show(alertBox, 'Enlace copiado correctamente.', 'success'))
-                .catch(() => show(alertBox, 'No se pudo copiar el enlace automáticamente.', 'error'));
-            }
             return;
           }
           if (event.target.closest('.js-raffle-edit')) {
