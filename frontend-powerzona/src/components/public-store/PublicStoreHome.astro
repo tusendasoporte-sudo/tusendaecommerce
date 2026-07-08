@@ -1227,24 +1227,23 @@ function getProductOfferView(product: any) {
       object-position: center;
       display: block;
     }
-    .public-store-action-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
-      gap: 20px;
-      align-items: stretch;
-      margin: 0 0 18px;
-    }
     .public-presentation-card {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 18px;
-      margin: 0;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
+      align-items: stretch;
+      gap: 22px;
+      margin: 0 0 18px;
       padding: clamp(18px, 3vw, 26px);
       border: 1px solid #dbe7f6;
       border-radius: 24px;
       background: rgba(255,255,255,.96);
       box-shadow: 0 18px 44px rgba(37,99,235,.08);
+    }
+    .public-presentation-main {
+      min-width: 0;
+      display: grid;
+      align-content: center;
+      gap: 18px;
     }
     @keyframes publicWhatsappIconRing {
       0%, 84%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
@@ -1259,25 +1258,26 @@ function getProductOfferView(product: any) {
       90% { opacity: .55; box-shadow: 0 18px 42px rgba(22,163,74,.18), 0 0 0 3px rgba(34,197,94,.10); }
       96% { opacity: .42; box-shadow: 0 16px 34px rgba(22,163,74,.14), 0 0 0 2px rgba(34,197,94,.08); }
     }
-    .public-whatsapp-standalone {
+    .public-whatsapp-inline-card {
       position: relative;
       min-width: 0;
-      min-height: 100%;
+      width: 100%;
+      min-height: 110px;
       display: flex;
       align-items: center;
-      align-self: stretch;
-      gap: 18px;
-      padding: 22px;
-      border: 1px solid rgba(34,197,94,.45);
-      border-radius: 24px;
+      align-self: center;
+      gap: 16px;
+      padding: 18px 20px;
+      border: 1px solid rgba(34,197,94,.42);
+      border-radius: 22px;
       background-color: #fff;
       background-image: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,253,250,.94));
       color: #071a44;
       text-decoration: none;
-      box-shadow: 0 16px 38px rgba(22,163,74,.14), 0 18px 44px rgba(37,99,235,.06);
+      box-shadow: 0 12px 28px rgba(22,163,74,.10), 0 16px 34px rgba(37,99,235,.05);
       transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
     }
-    .public-whatsapp-standalone::after {
+    .public-whatsapp-inline-card::after {
       content: '';
       position: absolute;
       inset: -1px;
@@ -1286,20 +1286,20 @@ function getProductOfferView(product: any) {
       opacity: 0;
       animation: publicWhatsappGlow 6s ease-in-out infinite;
     }
-    .public-whatsapp-standalone:hover {
+    .public-whatsapp-inline-card:hover {
       border-color: rgba(22,163,74,.68);
-      box-shadow: 0 20px 44px rgba(22,163,74,.18), 0 18px 44px rgba(37,99,235,.06);
+      box-shadow: 0 16px 34px rgba(22,163,74,.16), 0 18px 38px rgba(37,99,235,.06);
       transform: translateY(-1px);
     }
-    .public-whatsapp-standalone:active {
+    .public-whatsapp-inline-card:active {
       box-shadow: 0 12px 28px rgba(22,163,74,.12), 0 14px 34px rgba(37,99,235,.05);
       transform: scale(.99);
     }
-    .public-whatsapp-standalone:focus-visible {
+    .public-whatsapp-inline-card:focus-visible {
       outline: 3px solid rgba(22,163,74,.32);
       outline-offset: 3px;
     }
-    .public-whatsapp-standalone__icon {
+    .public-whatsapp-inline-card__icon {
       width: 60px;
       height: 60px;
       border-radius: 999px;
@@ -1314,30 +1314,30 @@ function getProductOfferView(product: any) {
       transform-origin: center;
       will-change: transform;
     }
-    .public-whatsapp-standalone__icon svg {
+    .public-whatsapp-inline-card__icon svg {
       width: 34px;
       height: 34px;
       color: #fff;
     }
-    .public-whatsapp-standalone__copy {
+    .public-whatsapp-inline-card__copy {
       min-width: 0;
       display: grid;
       gap: 5px;
       line-height: 1.1;
     }
-    .public-whatsapp-standalone__copy strong {
+    .public-whatsapp-inline-card__copy strong {
       color: #071a44;
       font-size: 17px;
       line-height: 1.08;
       font-weight: 1000;
     }
-    .public-whatsapp-standalone__copy small {
+    .public-whatsapp-inline-card__copy small {
       color: #64748b;
       font-size: 13px;
       line-height: 1.25;
       font-weight: 850;
     }
-    .public-whatsapp-standalone__arrow {
+    .public-whatsapp-inline-card__arrow {
       width: 36px;
       height: 36px;
       margin-left: auto;
@@ -1382,7 +1382,7 @@ function getProductOfferView(product: any) {
       grid-template-columns: repeat(2, max-content);
       gap: 10px;
       align-items: center;
-      justify-content: end;
+      justify-content: start;
     }
     .presentation-btn {
       min-height: 46px;
@@ -1407,15 +1407,9 @@ function getProductOfferView(product: any) {
       box-shadow: 0 12px 26px rgba(15,23,42,.05);
     }
     @media (max-width: 980px) {
-      .public-store-action-row { display: flex; flex-direction: column; gap: 14px; margin-bottom: 22px; }
-      .public-store-action-row .public-presentation-card { order: 2; }
-      .public-whatsapp-standalone {
-        order: 1;
-        width: 100%;
-        min-height: 80px;
-        padding: 18px 20px;
-      }
-      .public-presentation-card { grid-template-columns: 1fr; gap: 16px; }
+      .public-presentation-card { grid-template-columns: 1fr; gap: 18px; }
+      .public-presentation-main { gap: 16px; }
+      .public-whatsapp-inline-card { width: 100%; min-height: 82px; padding: 16px 18px; }
       .public-presentation-actions { justify-content: stretch; grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .presentation-btn { width: 100%; padding: 0 12px; }
     }
@@ -1431,15 +1425,15 @@ function getProductOfferView(product: any) {
       .public-presentation-title { font-size: 24px; }
       .public-presentation-description { font-size: 14px; }
       .public-presentation-actions { grid-template-columns: 1fr; }
-      .public-whatsapp-standalone { min-height: 82px; padding: 18px; gap: 14px; }
-      .public-whatsapp-standalone__icon { width: 56px; height: 56px; }
-      .public-whatsapp-standalone__icon svg { width: 31px; height: 31px; }
-      .public-whatsapp-standalone__copy strong { font-size: 16px; }
-      .public-whatsapp-standalone__arrow { width: 32px; height: 32px; font-size: 26px; }
+      .public-whatsapp-inline-card { min-height: 78px; padding: 16px; gap: 14px; }
+      .public-whatsapp-inline-card__icon { width: 54px; height: 54px; }
+      .public-whatsapp-inline-card__icon svg { width: 30px; height: 30px; }
+      .public-whatsapp-inline-card__copy strong { font-size: 16px; }
+      .public-whatsapp-inline-card__arrow { width: 32px; height: 32px; font-size: 26px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .public-whatsapp-standalone::after,
-      .public-whatsapp-standalone__icon {
+      .public-whatsapp-inline-card::after,
+      .public-whatsapp-inline-card__icon {
         animation: none !important;
       }
     }
@@ -2188,8 +2182,8 @@ function getProductOfferView(product: any) {
     ))}
   </div>
 
-  <div class="public-store-action-row">
-    <section class="public-presentation-card" aria-labelledby="public-presentation-title">
+  <section class="public-presentation-card" aria-labelledby="public-presentation-title">
+    <div class="public-presentation-main">
       <div class="public-presentation-copy">
         <h1 id="public-presentation-title" class="public-presentation-title">{storeName}</h1>
         {publicBusinessTypes.length > 0 && <p class="public-presentation-types">{publicBusinessTypes.join(' • ')}</p>}
@@ -2199,21 +2193,21 @@ function getProductOfferView(product: any) {
         <a class="presentation-btn" href={productAnchorPath}>Ver productos</a>
         <button id="store-info-open" class="presentation-btn secondary" type="button" aria-haspopup="dialog" aria-controls="store-info-modal">Info de la tienda</button>
       </div>
-    </section>
+    </div>
 
-    <a class="public-whatsapp-standalone" href={whatsappStoreHref} target="_blank" rel="noreferrer" aria-label={`Escribir por WhatsApp a ${storeName}`}>
-      <span class="public-whatsapp-standalone__icon" aria-hidden="true">
+    <a class="public-whatsapp-inline-card" href={whatsappStoreHref} target="_blank" rel="noreferrer" aria-label={`Escribir por WhatsApp a ${storeName}`}>
+      <span class="public-whatsapp-inline-card__icon" aria-hidden="true">
         <svg viewBox="0 0 32 32" fill="currentColor">
           <path d="M16 3.2C8.9 3.2 3.2 8.9 3.2 16c0 2.3.6 4.4 1.7 6.3L3.2 28.8l6.6-1.7c1.9 1.1 4 1.7 6.2 1.7 7.1 0 12.8-5.7 12.8-12.8S23.1 3.2 16 3.2Zm0 23c-1.9 0-3.8-.6-5.4-1.6l-.4-.3-3.9 1 1-3.8-.3-.4c-1-1.5-1.5-3.3-1.5-5.1C5.5 10.2 10.2 5.5 16 5.5S26.5 10.2 26.5 16 21.8 26.2 16 26.2Zm5.8-7.6c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.5-.5.1-.2.2-.3.3-.5.1-.2.1-.4 0-.5-.1-.2-.7-1.7-1-2.3-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.2c.2.2 2.2 3.4 5.4 4.7.8.3 1.4.5 1.9.6.8.2 1.5.2 2 .1.6-.1 1.8-.7 2.1-1.5.3-.7.3-1.4.2-1.5-.2-.2-.4-.3-.7-.5Z"></path>
         </svg>
       </span>
-      <span class="public-whatsapp-standalone__copy">
+      <span class="public-whatsapp-inline-card__copy">
         <strong>Escribir por WhatsApp</strong>
         <small>Compra o pregunta directo</small>
       </span>
-      <span class="public-whatsapp-standalone__arrow" aria-hidden="true">&rsaquo;</span>
+      <span class="public-whatsapp-inline-card__arrow" aria-hidden="true">&rsaquo;</span>
     </a>
-  </div>
+  </section>
 
   <div id="store-info-overlay" class="store-info-overlay" hidden>
     <section id="store-info-modal" class="store-info-card" role="dialog" aria-modal="true" aria-labelledby="store-info-title">
@@ -2331,7 +2325,7 @@ function getProductOfferView(product: any) {
 
   {promoVisualItems.length > 0 && (
     <section class="store-visual-section">
-      <div class="section-head"><div><h2 class="section-title">Promo visual</h2></div></div>
+      <div class="section-head"><div><h2 class="section-title">Promo</h2></div></div>
       <div class="promo-visual-grid">
         {promoVisualItems.map((item) => (
           <a href={visualItemHref(item)} target={item.action_type === 'url' || item.action_type === 'archivo' || item.action_type === 'whatsapp' ? '_blank' : undefined} rel="noreferrer" class="promo-visual-card">
