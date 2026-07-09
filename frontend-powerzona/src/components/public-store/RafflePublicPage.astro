@@ -85,6 +85,7 @@ const occupiedSet = new Set(occupiedNumbers.filter(isValidRaffleNumber));
 const prizeCards = raffle ? rafflePrizeCards(raffle, storeName, description) : [];
 const prizesDisplayMode = getEffectiveRafflePrizeDisplayMode(raffle?.prizes_display_mode, prizeCards.length);
 const usePrizeCarousel = prizesDisplayMode === 'carousel';
+const showPrizeCarouselControls = usePrizeCarousel && prizeCards.length > 1;
 const prizeLayoutClass = usePrizeCarousel ? 'is-carousel' : 'is-fixed';
 const drawLabel = raffle?.draw_at
   ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(raffle.draw_at))
@@ -409,34 +410,44 @@ const faviconVersion = '2';
                   <h2>Premios increíbles</h2>
                 </div>
 
-                {usePrizeCarousel && (
+                {showPrizeCarouselControls && (
                   <button class="pz-carousel-arrow pz-carousel-prev" type="button" aria-label="Premio anterior">‹</button>
                 )}
 
-                <div class="pz-prize-track" data-prize-track>
-                  {prizeCards.map((prize) => (
-                    <article class="pz-prize-card">
-                      <span class="pz-prize-label">{prize.label}</span>
-                      <div class="pz-prize-image-wrap">
-                        {prize.imageUrl ? (
-                          <img src={prize.imageUrl} alt={prize.name} loading="lazy" />
-                        ) : (
-                          <div class="pz-prize-placeholder" aria-hidden="true">{storeName.slice(0, 2).toUpperCase()}</div>
-                        )}
-                      </div>
-                      <h3>{prize.name}</h3>
-                      <p>{prize.description}</p>
-                    </article>
-                  ))}
+                <div class="pz-prize-carousel-viewport">
+                  <div class="pz-prize-track" data-prize-track>
+                    {prizeCards.map((prize) => (
+                      <article class="pz-prize-card">
+                        <span class="pz-prize-label">{prize.label}</span>
+                        <div class="pz-prize-image-wrap">
+                          {prize.imageUrl ? (
+                            <img src={prize.imageUrl} alt={prize.name} loading="lazy" />
+                          ) : (
+                            <div class="pz-prize-placeholder" aria-hidden="true">{storeName.slice(0, 2).toUpperCase()}</div>
+                          )}
+                        </div>
+                        <h3>{prize.name}</h3>
+                        <p>{prize.description}</p>
+                      </article>
+                    ))}
+                  </div>
                 </div>
 
-                {usePrizeCarousel && (
+                {showPrizeCarouselControls && (
                   <button class="pz-carousel-arrow pz-carousel-next" type="button" aria-label="Premio siguiente">›</button>
                 )}
 
-                {usePrizeCarousel && (
-                  <div class="pz-carousel-dots" aria-hidden="true">
-                    {prizeCards.map((_, index) => <span class:list={[index === 0 && 'is-active']}></span>)}
+                {showPrizeCarouselControls && (
+                  <div class="pz-carousel-dots" aria-label="Premios del carrusel">
+                    {prizeCards.map((_, index) => (
+                      <button
+                        class:list={[index === 0 && 'is-active']}
+                        type="button"
+                        data-prize-dot
+                        aria-label={`Ver premio ${index + 1}`}
+                        aria-current={index === 0 ? 'true' : undefined}
+                      ></button>
+                    ))}
                   </div>
                 )}
               </article>
@@ -902,6 +913,7 @@ const faviconVersion = '2';
 
       .pz-raffle-main-column,
       .pz-raffle-side-column {
+        min-width: 0;
         display: grid;
         gap: 18px;
       }
@@ -1523,7 +1535,18 @@ const faviconVersion = '2';
 
       .pz-prizes-card {
         position: relative;
+        min-width: 0;
         overflow: visible;
+      }
+
+      .pz-prizes-card.is-carousel {
+        overflow: hidden;
+      }
+
+      .pz-prize-carousel-viewport {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
       }
 
       .pz-prize-track {
@@ -1537,16 +1560,31 @@ const faviconVersion = '2';
       }
 
       .pz-prizes-card.is-carousel .pz-prize-track {
+        --pz-prize-gap: 18px;
+        --pz-prize-card-size: calc((100% - 36px) / 3);
         display: flex;
+        gap: var(--pz-prize-gap);
+        width: 100%;
+        max-width: 100%;
         overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
         scroll-snap-type: x mandatory;
-        padding: 2px 2px 8px;
+        scroll-behavior: smooth;
+        padding: 2px 0 8px;
         -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      .pz-prizes-card.is-carousel .pz-prize-track::-webkit-scrollbar {
+        display: none;
       }
 
       .pz-prizes-card.is-carousel .pz-prize-card {
-        flex: 0 0 calc((100% - 36px) / 3);
-        min-width: 210px;
+        flex: 0 0 var(--pz-prize-card-size);
+        min-width: 0;
+        max-width: var(--pz-prize-card-size);
         scroll-snap-align: start;
       }
 
@@ -1630,6 +1668,8 @@ const faviconVersion = '2';
         z-index: 3;
         width: 42px;
         height: 42px;
+        display: grid;
+        place-items: center;
         border-radius: 999px;
         border: 1px solid #dae5f9;
         background: #fff;
@@ -1637,26 +1677,48 @@ const faviconVersion = '2';
         font-size: 34px;
         line-height: 1;
         box-shadow: 0 12px 24px rgba(6, 22, 66, 0.12);
+        cursor: pointer;
+        transform: translateY(-50%);
+        transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
       }
 
-      .pz-carousel-prev { left: -20px; }
-      .pz-carousel-next { right: -20px; }
+      .pz-carousel-arrow:hover,
+      .pz-carousel-arrow:focus-visible {
+        background: var(--pz-blue);
+        color: #fff;
+        box-shadow: 0 16px 28px rgba(7, 91, 234, 0.2);
+      }
+
+      .pz-carousel-prev { left: 10px; }
+      .pz-carousel-next { right: 10px; }
 
       .pz-carousel-dots {
-        display: none;
+        display: flex;
         justify-content: center;
+        align-items: center;
         gap: 8px;
         margin-top: 13px;
       }
 
-      .pz-carousel-dots span {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: #d6deee;
+      .pz-carousel-dots[hidden] {
+        display: none;
       }
 
-      .pz-carousel-dots .is-active { background: var(--pz-blue); }
+      .pz-carousel-dots button {
+        width: 8px;
+        height: 8px;
+        padding: 0;
+        border-radius: 999px;
+        border: 0;
+        background: #d6deee;
+        cursor: pointer;
+        transition: width 0.18s ease, background 0.18s ease;
+      }
+
+      .pz-carousel-dots button.is-active {
+        width: 22px;
+        background: var(--pz-blue);
+      }
 
       .pz-condition-list {
         display: grid;
@@ -2171,6 +2233,10 @@ const faviconVersion = '2';
       .pz-state-actions a:last-child { background: var(--pz-green); }
 
       @media (prefers-reduced-motion: reduce) {
+        .pz-prizes-card.is-carousel .pz-prize-track {
+          scroll-behavior: auto;
+        }
+
         .pz-raffle-result-stage.has-result-animation .pz-result-winner-number,
         .pz-raffle-result-stage.has-result-animation .pz-result-medal-ring,
         .pz-result-confetti-piece,
@@ -2227,14 +2293,10 @@ const faviconVersion = '2';
         }
 
         .pz-prizes-card.is-carousel .pz-prize-track {
-          grid-template-columns: repeat(3, minmax(180px, 1fr));
-          overflow-x: auto;
-          scroll-snap-type: x mandatory;
+          --pz-prize-gap: 14px;
+          --pz-prize-card-size: calc((100% - 14px) / 2);
           padding-bottom: 4px;
         }
-
-        .pz-prizes-card.is-carousel .pz-prize-card { scroll-snap-align: start; }
-        .pz-prizes-card.is-carousel .pz-carousel-dots { display: flex; }
       }
 
       @media (max-width: 640px) {
@@ -2488,16 +2550,9 @@ const faviconVersion = '2';
         }
 
         .pz-prizes-card.is-carousel .pz-prize-track {
-          display: flex;
-          gap: 10px;
-          overflow-x: auto;
-          padding: 2px 2px 8px;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .pz-prizes-card.is-carousel .pz-prize-card {
-          flex: 0 0 31%;
-          min-width: 0;
+          --pz-prize-gap: 12px;
+          --pz-prize-card-size: min(88%, 330px);
+          padding: 2px 0 8px;
         }
 
         .pz-prize-card {
@@ -2535,8 +2590,8 @@ const faviconVersion = '2';
           font-size: 25px;
         }
 
-        .pz-carousel-prev { left: -11px; }
-        .pz-carousel-next { right: -11px; }
+        .pz-carousel-prev { left: 7px; }
+        .pz-carousel-next { right: 7px; }
 
         .pz-condition-list {
           grid-template-columns: 1fr 1fr;
@@ -2676,7 +2731,7 @@ const faviconVersion = '2';
           height: 38px;
           font-size: 13px;
         }
-        .pz-prizes-card.is-carousel .pz-prize-card { flex-basis: 78%; }
+        .pz-prizes-card.is-carousel .pz-prize-track { --pz-prize-card-size: 90%; }
         .pz-condition-list { grid-template-columns: 1fr; }
         .pz-receipt-summary div { grid-template-columns: 1fr; }
 
@@ -3220,13 +3275,217 @@ const faviconVersion = '2';
           }
         });
 
-        const track = root.querySelector('[data-prize-track]');
-        root.querySelector('.pz-carousel-prev')?.addEventListener('click', () => {
-          track?.scrollBy({ left: -Math.max(180, track.clientWidth * 0.8), behavior: 'smooth' });
-        });
-        root.querySelector('.pz-carousel-next')?.addEventListener('click', () => {
-          track?.scrollBy({ left: Math.max(180, track.clientWidth * 0.8), behavior: 'smooth' });
-        });
+        const carouselCard = root.querySelector('.pz-prizes-card.is-carousel');
+        const track = carouselCard?.querySelector('[data-prize-track]');
+        if (carouselCard && track) {
+          const cards = Array.from(track.querySelectorAll('.pz-prize-card'));
+          const prevButton = carouselCard.querySelector('.pz-carousel-prev');
+          const nextButton = carouselCard.querySelector('.pz-carousel-next');
+          const dotsContainer = carouselCard.querySelector('.pz-carousel-dots');
+          const dots = Array.from(carouselCard.querySelectorAll('[data-prize-dot]'));
+          const reducedMotionQuery = typeof window.matchMedia === 'function'
+            ? window.matchMedia('(prefers-reduced-motion: reduce)')
+            : null;
+          const autoplayDelay = 4500;
+          const resumeDelay = 6500;
+          let positions = [];
+          let activePositionIndex = 0;
+          let autoplayTimer = 0;
+          let resumeTimer = 0;
+          let scrollFrame = 0;
+          let resizeFrame = 0;
+
+          const shouldReduceMotion = () => Boolean(reducedMotionQuery?.matches);
+
+          const setControlVisibility = (enabled) => {
+            [prevButton, nextButton].forEach((button) => {
+              if (!button) return;
+              button.hidden = !enabled;
+              button.disabled = !enabled;
+            });
+            if (dotsContainer) dotsContainer.hidden = !enabled;
+          };
+
+          const updateDots = () => {
+            const labelType = positions.length === cards.length ? 'premio' : 'grupo';
+            dots.forEach((dot, index) => {
+              const isAvailable = index < positions.length;
+              dot.hidden = !isAvailable;
+              dot.classList.toggle('is-active', isAvailable && index === activePositionIndex);
+              if (!isAvailable) {
+                dot.removeAttribute('aria-current');
+                return;
+              }
+              dot.dataset.prizeDotIndex = String(index);
+              dot.setAttribute('aria-label', `Ver ${labelType} ${index + 1}`);
+              if (index === activePositionIndex) {
+                dot.setAttribute('aria-current', 'true');
+              } else {
+                dot.removeAttribute('aria-current');
+              }
+            });
+          };
+
+          const getNearestPositionIndex = () => {
+            if (!positions.length) return 0;
+            const currentLeft = track.scrollLeft;
+            return positions.reduce((nearestIndex, position, index) => {
+              const currentDistance = Math.abs(position.left - currentLeft);
+              const nearestDistance = Math.abs(positions[nearestIndex].left - currentLeft);
+              return currentDistance < nearestDistance ? index : nearestIndex;
+            }, 0);
+          };
+
+          const refreshPositions = () => {
+            const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+            const trackRect = track.getBoundingClientRect();
+            const nextPositions = [];
+
+            cards.forEach((card) => {
+              const cardRect = card.getBoundingClientRect();
+              const rawLeft = cardRect.left - trackRect.left + track.scrollLeft;
+              const left = Math.min(Math.max(0, Math.round(rawLeft)), Math.round(maxScroll));
+              const isDuplicate = nextPositions.some((position) => Math.abs(position.left - left) < 2);
+              if (!isDuplicate) nextPositions.push({ left });
+            });
+
+            positions = nextPositions.length ? nextPositions : [{ left: 0 }];
+            activePositionIndex = getNearestPositionIndex();
+            setControlVisibility(positions.length > 1);
+            updateDots();
+          };
+
+          const goTo = (positionIndex, behavior = 'smooth') => {
+            if (!positions.length) return;
+            activePositionIndex = (positionIndex + positions.length) % positions.length;
+            updateDots();
+            track.scrollTo({
+              left: positions[activePositionIndex]?.left || 0,
+              behavior: shouldReduceMotion() ? 'auto' : behavior,
+            });
+          };
+
+          const next = () => goTo(activePositionIndex + 1);
+          const previous = () => goTo(activePositionIndex - 1);
+
+          const clearResumeTimer = () => {
+            if (!resumeTimer) return;
+            window.clearTimeout(resumeTimer);
+            resumeTimer = 0;
+          };
+
+          const stopAutoplay = () => {
+            if (!autoplayTimer) return;
+            window.clearInterval(autoplayTimer);
+            autoplayTimer = 0;
+          };
+
+          const startAutoplay = () => {
+            stopAutoplay();
+            clearResumeTimer();
+            if (positions.length <= 1 || shouldReduceMotion()) return;
+            autoplayTimer = window.setInterval(next, autoplayDelay);
+          };
+
+          const scheduleAutoplayResume = (delay = resumeDelay) => {
+            clearResumeTimer();
+            if (positions.length <= 1 || shouldReduceMotion()) return;
+            resumeTimer = window.setTimeout(startAutoplay, delay);
+          };
+
+          const pauseAutoplay = (delay = resumeDelay) => {
+            stopAutoplay();
+            scheduleAutoplayResume(delay);
+          };
+
+          const scheduleRefresh = () => {
+            if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+            resizeFrame = window.requestAnimationFrame(() => {
+              const targetIndex = activePositionIndex;
+              resizeFrame = 0;
+              refreshPositions();
+              goTo(Math.min(targetIndex, Math.max(0, positions.length - 1)), 'auto');
+              startAutoplay();
+            });
+          };
+
+          if (cards.length <= 1) {
+            setControlVisibility(false);
+          } else {
+            refreshPositions();
+            goTo(0, 'auto');
+            startAutoplay();
+
+            prevButton?.addEventListener('click', () => {
+              pauseAutoplay();
+              previous();
+            });
+            nextButton?.addEventListener('click', () => {
+              pauseAutoplay();
+              next();
+            });
+            dots.forEach((dot, index) => {
+              dot.addEventListener('click', () => {
+                pauseAutoplay();
+                goTo(Number(dot.dataset.prizeDotIndex || index));
+              });
+            });
+
+            track.addEventListener('scroll', () => {
+              if (scrollFrame) return;
+              scrollFrame = window.requestAnimationFrame(() => {
+                scrollFrame = 0;
+                activePositionIndex = getNearestPositionIndex();
+                updateDots();
+              });
+            }, { passive: true });
+            track.addEventListener('pointerdown', () => pauseAutoplay(), { passive: true });
+            track.addEventListener('touchstart', () => pauseAutoplay(), { passive: true });
+            track.addEventListener('wheel', () => pauseAutoplay(), { passive: true });
+
+            carouselCard.addEventListener('pointerenter', () => {
+              stopAutoplay();
+              clearResumeTimer();
+            });
+            carouselCard.addEventListener('pointerleave', () => scheduleAutoplayResume(1200));
+            carouselCard.addEventListener('focusin', () => {
+              stopAutoplay();
+              clearResumeTimer();
+            });
+            carouselCard.addEventListener('focusout', (event) => {
+              const nextFocus = event.relatedTarget;
+              if (!nextFocus || !carouselCard.contains(nextFocus)) scheduleAutoplayResume(1200);
+            });
+
+            if ('ResizeObserver' in window) {
+              const resizeObserver = new ResizeObserver(scheduleRefresh);
+              resizeObserver.observe(carouselCard);
+              resizeObserver.observe(track);
+            } else {
+              window.addEventListener('resize', scheduleRefresh);
+            }
+
+            if (reducedMotionQuery?.addEventListener) {
+              reducedMotionQuery.addEventListener('change', () => {
+                if (shouldReduceMotion()) {
+                  stopAutoplay();
+                  clearResumeTimer();
+                } else {
+                  startAutoplay();
+                }
+              });
+            } else if (reducedMotionQuery?.addListener) {
+              reducedMotionQuery.addListener(() => {
+                if (shouldReduceMotion()) {
+                  stopAutoplay();
+                  clearResumeTimer();
+                } else {
+                  startAutoplay();
+                }
+              });
+            }
+          }
+        }
       })();
     </script>
   </body>
