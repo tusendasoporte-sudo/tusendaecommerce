@@ -2744,23 +2744,134 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 			.analytics-line-chart {
-				margin-top: 24px;
+				position: relative;
+				margin-top: 20px;
 				width: 100%;
-				min-height: 304px;
+				min-height: 360px;
 				border: 1px solid rgba(148, 163, 184, 0.16);
 				border-radius: 20px;
 				background: linear-gradient(180deg, #ffffff, #f8fbff);
-				padding: 18px 16px 12px;
+				padding: 12px 10px 8px;
 				overflow: hidden;
 				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 			}
 
 			.analytics-line-chart .traffic-chart-svg {
 				width: 100%;
-				height: 274px;
-				min-height: 274px;
+				height: 340px;
+				min-height: 340px;
 				display: block;
 				overflow: visible;
+			}
+
+			.traffic-chart-tooltip {
+				position: absolute;
+				z-index: 4;
+				display: grid;
+				gap: 4px;
+				min-width: 126px;
+				max-width: min(220px, calc(100% - 18px));
+				padding: 12px 14px;
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 16px;
+				background: rgba(255, 255, 255, 0.98);
+				box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14), 0 4px 14px rgba(37, 99, 235, 0.08);
+				color: #0f172a;
+				pointer-events: none;
+				opacity: 0;
+				transform: translateY(3px);
+				transition: opacity 160ms ease, transform 160ms ease;
+			}
+
+			.traffic-chart-tooltip::after {
+				content: "";
+				position: absolute;
+				left: 50%;
+				bottom: -6px;
+				width: 12px;
+				height: 12px;
+				border-right: 1px solid rgba(148, 163, 184, 0.2);
+				border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+				background: rgba(255, 255, 255, 0.98);
+				transform: translateX(-50%) rotate(45deg);
+			}
+
+			.traffic-chart-tooltip[hidden] {
+				display: none;
+			}
+
+			.traffic-chart-tooltip.is-visible {
+				opacity: 1;
+				transform: translateY(0);
+			}
+
+			.traffic-chart-tooltip span {
+				color: #64748b;
+				font-size: 12px;
+				line-height: 1.15;
+				font-weight: 850;
+				letter-spacing: 0;
+			}
+
+			.traffic-chart-tooltip strong {
+				color: #0f172a;
+				font-size: 14px;
+				line-height: 1.2;
+				font-weight: 1000;
+			}
+
+			.traffic-chart-point {
+				cursor: pointer;
+				outline: none;
+			}
+
+			.traffic-chart-point-hit {
+				fill: transparent;
+				stroke: transparent;
+				pointer-events: all;
+			}
+
+			.traffic-chart-point-dot {
+				pointer-events: none;
+				transform-box: fill-box;
+				transform-origin: center;
+				transition: opacity 160ms ease, transform 160ms ease, stroke-width 160ms ease, filter 160ms ease;
+			}
+
+			.traffic-chart-point-ring {
+				opacity: 0;
+				pointer-events: none;
+				transform-box: fill-box;
+				transform-origin: center;
+				transition: opacity 160ms ease, transform 160ms ease;
+			}
+
+			.traffic-chart-point:hover .traffic-chart-point-dot,
+			.traffic-chart-point:focus .traffic-chart-point-dot,
+			.traffic-chart-point.is-active .traffic-chart-point-dot {
+				opacity: 1;
+				filter: drop-shadow(0 2px 5px rgba(37, 99, 235, 0.16));
+				stroke-width: 2.6px;
+				transform: scale(1.1);
+			}
+
+			.traffic-chart-point:hover .traffic-chart-point-ring,
+			.traffic-chart-point:focus .traffic-chart-point-ring,
+			.traffic-chart-point.is-active .traffic-chart-point-ring {
+				opacity: 1;
+				transform: scale(1.04);
+			}
+
+			.traffic-chart-point:focus-visible .traffic-chart-point-ring {
+				opacity: 1;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.traffic-chart-tooltip,
+				.traffic-chart-point-dot,
+				.traffic-chart-point-ring {
+					transition: none;
+				}
 			}
 
 			.analytics-line-chart .traffic-empty-state {
@@ -3132,19 +3243,19 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 			.landing-chart-card .analytics-line-chart {
 				margin-top: 0;
-				min-height: 304px;
+				min-height: 354px;
 				border: 0;
 				border-radius: 18px;
 				background:
 					linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 251, 255, 0.96)),
 					repeating-linear-gradient(0deg, rgba(226, 232, 240, 0.55) 0 1px, transparent 1px 62px);
 				box-shadow: none;
-				padding: 4px 0 0;
+				padding: 2px 0 0;
 			}
 
 			.landing-chart-card .traffic-chart-svg {
-				height: 286px;
-				min-height: 286px;
+				height: 340px;
+				min-height: 340px;
 			}
 
 			.landing-click-list {
@@ -4144,18 +4255,29 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}
 
 				.analytics-line-chart {
-					min-height: 250px;
-					padding: 12px 10px 8px;
+					min-height: 294px;
+					padding: 10px 8px 6px;
 					border-radius: 16px;
 				}
 
 				.analytics-line-chart .traffic-chart-svg {
-					height: 230px;
-					min-height: 230px;
+					height: 276px;
+					min-height: 276px;
+				}
+
+				.traffic-chart-tooltip {
+					min-width: 118px;
+					max-width: calc(100% - 14px);
+					padding: 10px 12px;
+					border-radius: 14px;
+				}
+
+				.traffic-chart-tooltip strong {
+					font-size: 13px;
 				}
 
 				.analytics-line-chart .traffic-empty-state {
-					min-height: 228px;
+					min-height: 274px;
 				}
 
 				.business-detail-row {
@@ -4199,6 +4321,169 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}
 			}</style>
 		<style is:global>
+			.analytics-line-chart .traffic-chart-svg {
+				width: 100%;
+				height: 340px;
+				min-height: 340px;
+				display: block;
+				overflow: visible;
+			}
+
+			.analytics-line-chart .traffic-chart-tooltip {
+				position: absolute;
+				z-index: 12;
+				display: grid;
+				gap: 2px;
+				min-width: 112px;
+				max-width: min(210px, calc(100% - 18px));
+				padding: 9px 11px;
+				border: 1px solid rgba(148, 163, 184, 0.22);
+				border-radius: 14px;
+				background: rgba(255, 255, 255, 0.98);
+				box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14), 0 4px 14px rgba(37, 99, 235, 0.08);
+				color: #0f172a;
+				pointer-events: none;
+				opacity: 0;
+				transform: translateY(3px);
+				transition: opacity 160ms ease, transform 160ms ease;
+			}
+
+			.analytics-line-chart .traffic-chart-tooltip::after {
+				content: "";
+				position: absolute;
+				left: 50%;
+				bottom: -6px;
+				width: 12px;
+				height: 12px;
+				border-right: 1px solid rgba(148, 163, 184, 0.2);
+				border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+				background: rgba(255, 255, 255, 0.98);
+				transform: translateX(-50%) rotate(45deg);
+			}
+
+			.analytics-line-chart .traffic-chart-tooltip[hidden] {
+				display: none;
+			}
+
+			.analytics-line-chart .traffic-chart-tooltip.is-visible {
+				opacity: 1;
+				transform: translateY(0);
+			}
+
+			.analytics-line-chart .traffic-chart-tooltip span {
+				color: #64748b;
+				font-size: 11px;
+				line-height: 1.15;
+				font-weight: 850;
+				letter-spacing: 0;
+			}
+
+			.analytics-line-chart .traffic-chart-tooltip strong {
+				color: #0f172a;
+				font-size: 13px;
+				line-height: 1.2;
+				font-weight: 1000;
+			}
+
+			.analytics-line-chart .traffic-chart-point {
+				cursor: pointer;
+				outline: none;
+			}
+
+			.analytics-line-chart .traffic-chart-point-hit {
+				fill: transparent;
+				stroke: transparent;
+				pointer-events: all;
+			}
+
+			.analytics-line-chart .traffic-chart-point-dot {
+				pointer-events: none;
+				transform-box: fill-box;
+				transform-origin: center;
+				transition: opacity 160ms ease, transform 160ms ease, stroke-width 160ms ease, filter 160ms ease;
+			}
+
+			.analytics-line-chart .traffic-chart-point-ring {
+				opacity: 0;
+				pointer-events: none;
+				transform-box: fill-box;
+				transform-origin: center;
+				transition: opacity 160ms ease, transform 160ms ease;
+			}
+
+			.analytics-line-chart .traffic-chart-point:hover .traffic-chart-point-dot,
+			.analytics-line-chart .traffic-chart-point:focus .traffic-chart-point-dot,
+			.analytics-line-chart .traffic-chart-point.is-active .traffic-chart-point-dot {
+				opacity: 1;
+				filter: drop-shadow(0 2px 5px rgba(37, 99, 235, 0.16));
+				stroke-width: 2.6px;
+				transform: scale(1.08);
+			}
+
+			.analytics-line-chart .traffic-chart-point:hover .traffic-chart-point-ring,
+			.analytics-line-chart .traffic-chart-point:focus .traffic-chart-point-ring,
+			.analytics-line-chart .traffic-chart-point.is-active .traffic-chart-point-ring,
+			.analytics-line-chart .traffic-chart-point:focus-visible .traffic-chart-point-ring {
+				opacity: 1;
+				transform: scale(1.03);
+			}
+
+			.analytics-line-chart .traffic-empty-state {
+				min-height: 340px;
+				align-content: center;
+				gap: 7px;
+				border-color: rgba(148, 163, 184, 0.24);
+				border-radius: 16px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(248, 250, 252, 0.94)),
+					repeating-linear-gradient(0deg, rgba(226, 232, 240, 0.5) 0 1px, transparent 1px 48px);
+				color: #64748b;
+			}
+
+			.analytics-line-chart .traffic-empty-state strong {
+				color: #0f172a;
+				font-size: 14px;
+				font-weight: 950;
+			}
+
+			.analytics-line-chart .traffic-empty-state small {
+				max-width: 320px;
+				color: #64748b;
+				font-size: 12px;
+				line-height: 1.45;
+				font-weight: 750;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.analytics-line-chart .traffic-chart-tooltip,
+				.analytics-line-chart .traffic-chart-point-dot,
+				.analytics-line-chart .traffic-chart-point-ring {
+					transition: none;
+				}
+			}
+
+			@media (max-width: 720px) {
+				.analytics-line-chart .traffic-chart-svg {
+					height: 276px;
+					min-height: 276px;
+				}
+
+				.analytics-line-chart .traffic-chart-tooltip {
+					min-width: 108px;
+					max-width: calc(100% - 14px);
+					padding: 8px 10px;
+					border-radius: 13px;
+				}
+
+				.analytics-line-chart .traffic-chart-tooltip strong {
+					font-size: 12.5px;
+				}
+
+				.analytics-line-chart .traffic-empty-state {
+					min-height: 274px;
+				}
+			}
+
 			/* PZ-ADMIN-ACTIVITY-TEXT-LIST-FIX-003 */
 			.activity-text-list,
 			.recent-list {
@@ -5445,6 +5730,32 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				};
 			}
 
+			function getTrafficChartMetricText(field, value) {
+				const count = Number(value || 0);
+				const labels = {
+					uniqueVisitors: count === 1 ? 'visitante' : 'visitantes',
+					recurrentVisitors: count === 1 ? 'recurrente' : 'recurrentes',
+					pageViews: count === 1 ? 'página vista' : 'páginas vistas',
+					landingQrViews: count === 1 ? 'visita' : 'visitas',
+					landingQrClicks: count === 1 ? 'clic' : 'clics',
+				};
+
+				return labels[field] || 'visitas';
+			}
+
+			function formatTrafficChartValue(value) {
+				return Number(value || 0).toLocaleString('es-US');
+			}
+
+			function createTrafficChartTooltipMarkup() {
+				return `
+					<div class="traffic-chart-tooltip" data-chart-tooltip hidden role="status" aria-live="polite">
+						<span data-chart-tooltip-label></span>
+						<strong data-chart-tooltip-value></strong>
+					</div>
+				`;
+			}
+
 			function createTrafficChartMarkup(points, field, strokeColor, fillColor) {
 				if (!points.length || points.every((point) => Number(point[field] || 0) === 0)) {
 					return `
@@ -5452,14 +5763,15 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 							<strong>Sin actividad visible todavía</strong>
 							<small>Cuando haya visitas en este periodo, la tendencia aparecerá aquí.</small>
 						</div>
+						${createTrafficChartTooltipMarkup()}
 					`;
 				}
 
 				const width = 900;
-				const height = 300;
-				const paddingX = 58;
-				const paddingTop = 26;
-				const paddingBottom = 56;
+				const height = 340;
+				const paddingX = 46;
+				const paddingTop = 50;
+				const paddingBottom = 44;
 				const innerWidth = width - paddingX * 2;
 				const innerHeight = height - paddingTop - paddingBottom;
 				const values = points.map((point) => Number(point[field] || 0));
@@ -5507,6 +5819,37 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					if (point.value > previousValue && point.value >= nextValue) return true;
 					return false;
 				});
+				const visiblePointIndexes = new Set(visiblePoints.map((point) => point.index));
+				const pointGroups = coords.map((point) => {
+					const isLast = point.index === coords.length - 1;
+					const isVisible = visiblePointIndexes.has(point.index);
+					const radius = isLast ? 5.2 : point.value > 0 ? 4.6 : 4;
+					const ringRadius = radius + 3.8;
+					const opacity = isVisible ? (isLast || point.value > 0 ? 1 : 0.52) : 0;
+					const strokeWidth = isVisible ? 2 : 0;
+					const metricText = getTrafficChartMetricText(field, point.value);
+					const valueText = `${formatTrafficChartValue(point.value)} ${metricText}`;
+
+					return `
+						<g
+							class="traffic-chart-point${isVisible ? '' : ' is-quiet'}"
+							tabindex="0"
+							role="button"
+							data-chart-point
+							data-chart-label="${escapeHtml(point.label)}"
+							data-chart-value="${point.value}"
+							data-chart-field="${escapeHtml(field)}"
+							data-chart-metric="${escapeHtml(metricText)}"
+							data-chart-x="${point.x.toFixed(2)}"
+							data-chart-y="${point.y.toFixed(2)}"
+							aria-label="${escapeHtml(point.label)} &middot; ${escapeHtml(valueText)}"
+						>
+							<circle class="traffic-chart-point-hit" cx="${point.x}" cy="${point.y}" r="16" fill="transparent" stroke="transparent" />
+							<circle class="traffic-chart-point-ring" cx="${point.x}" cy="${point.y}" r="${ringRadius}" fill="none" stroke="${strokeColor}" stroke-opacity="0.3" stroke-width="1.8" opacity="0" />
+							<circle class="traffic-chart-point-dot" cx="${point.x}" cy="${point.y}" r="${radius}" fill="${strokeColor}" opacity="${opacity}" stroke="#ffffff" stroke-width="${strokeWidth}" />
+						</g>
+					`;
+				}).join('');
 
 				return `
 					<svg class="traffic-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gráfico de analítica de tienda">
@@ -5525,19 +5868,207 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						${coords.length ? `
 							<circle cx="${coords[coords.length - 1].x}" cy="${coords[coords.length - 1].y}" r="10" fill="${strokeColor}" fill-opacity="0.12" />
 						` : ''}
-						${visiblePoints.map((point) => {
-							const isLast = point.index === coords.length - 1;
-							const radius = isLast ? 6.4 : point.value > 0 ? 4.4 : 3.2;
-							const opacity = isLast || point.value > 0 ? 1 : 0.52;
-							return `
-								<circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${strokeColor}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="${isLast ? 3 : 2}" />
-							`;
-						}).join('')}
+						${pointGroups}
 						${visibleLabels.map((point) => `
-							<text x="${point.x}" y="${height - 16}" text-anchor="middle" font-size="11" font-weight="800" fill="#475569">${escapeHtml(point.label)}</text>
+							<text x="${point.x}" y="${height - 12}" text-anchor="middle" font-size="10.5" font-weight="800" fill="#475569">${escapeHtml(point.label)}</text>
 						`).join('')}
 					</svg>
+					${createTrafficChartTooltipMarkup()}
 				`;
+			}
+
+			let activeTrafficChart = null;
+			let activeTrafficChartPoint = null;
+			let trafficChartDocumentEventsReady = false;
+
+			function ensureTrafficChartTooltip(chart) {
+				let tooltip = chart.querySelector('[data-chart-tooltip]');
+
+				if (!tooltip) {
+					tooltip = document.createElement('div');
+					tooltip.className = 'traffic-chart-tooltip';
+					tooltip.dataset.chartTooltip = '';
+					tooltip.hidden = true;
+					tooltip.setAttribute('role', 'status');
+					tooltip.setAttribute('aria-live', 'polite');
+					tooltip.innerHTML = '<span data-chart-tooltip-label></span><strong data-chart-tooltip-value></strong>';
+					chart.appendChild(tooltip);
+				}
+
+				return tooltip;
+			}
+
+			function getTrafficChartPointPosition(chart, point) {
+				const chartRect = chart.getBoundingClientRect();
+				const x = Number(point.dataset.chartX || 0);
+				const y = Number(point.dataset.chartY || 0);
+				const svg = point.closest('svg') || chart.querySelector('.traffic-chart-svg');
+
+				if (svg && Number.isFinite(x) && Number.isFinite(y) && typeof svg.createSVGPoint === 'function') {
+					const matrix = svg.getScreenCTM();
+
+					if (matrix) {
+						const svgPoint = svg.createSVGPoint();
+						svgPoint.x = x;
+						svgPoint.y = y;
+						const screenPoint = svgPoint.matrixTransform(matrix);
+						return {
+							x: screenPoint.x - chartRect.left,
+							y: screenPoint.y - chartRect.top,
+						};
+					}
+				}
+
+				const pointRect = point.getBoundingClientRect();
+				return {
+					x: pointRect.left - chartRect.left + pointRect.width / 2,
+					y: pointRect.top - chartRect.top + pointRect.height / 2,
+				};
+			}
+
+			function positionTrafficChartTooltip(chart, point, tooltip) {
+				const chartRect = chart.getBoundingClientRect();
+				const pointPosition = getTrafficChartPointPosition(chart, point);
+				const margin = 8;
+
+				tooltip.hidden = false;
+				tooltip.classList.add('is-visible');
+				tooltip.style.left = '0px';
+				tooltip.style.top = '0px';
+
+				const tooltipRect = tooltip.getBoundingClientRect();
+				const maxLeft = Math.max(margin, chartRect.width - tooltipRect.width - margin);
+				const left = Math.min(Math.max(pointPosition.x - tooltipRect.width / 2, margin), maxLeft);
+				let top = pointPosition.y - tooltipRect.height - 16;
+
+				if (top + tooltipRect.height > chartRect.height - margin) {
+					top = Math.max(margin, chartRect.height - tooltipRect.height - margin);
+				}
+				if (top < margin) top = margin;
+
+				tooltip.style.left = `${Math.round(left)}px`;
+				tooltip.style.top = `${Math.round(top)}px`;
+			}
+
+			function hideTrafficChartTooltip(chart) {
+				if (!chart) return;
+
+				const tooltip = chart.querySelector('[data-chart-tooltip]');
+				if (tooltip) {
+					tooltip.hidden = true;
+					tooltip.classList.remove('is-visible');
+				}
+
+				chart.querySelectorAll('[data-chart-point].is-active').forEach((point) => {
+					point.classList.remove('is-active');
+				});
+
+				if (activeTrafficChart === chart) {
+					activeTrafficChart = null;
+					activeTrafficChartPoint = null;
+				}
+			}
+
+			function hideAllTrafficChartTooltips() {
+				document.querySelectorAll('.analytics-line-chart').forEach((chart) => {
+					hideTrafficChartTooltip(chart);
+				});
+			}
+
+			function showTrafficChartTooltip(chart, point) {
+				if (!chart || !point) return;
+
+				const tooltip = ensureTrafficChartTooltip(chart);
+				const tooltipLabel = tooltip.querySelector('[data-chart-tooltip-label]');
+				const tooltipValue = tooltip.querySelector('[data-chart-tooltip-value]');
+				const value = Number(point.dataset.chartValue || 0);
+				const metric = point.dataset.chartMetric || getTrafficChartMetricText(point.dataset.chartField || '', value);
+
+				document.querySelectorAll('.analytics-line-chart').forEach((item) => {
+					if (item !== chart) hideTrafficChartTooltip(item);
+				});
+
+				chart.querySelectorAll('[data-chart-point].is-active').forEach((item) => {
+					item.classList.toggle('is-active', item === point);
+				});
+				point.classList.add('is-active');
+
+				if (tooltipLabel) tooltipLabel.textContent = point.dataset.chartLabel || '';
+				if (tooltipValue) tooltipValue.textContent = `${formatTrafficChartValue(value)} ${metric}`;
+
+				activeTrafficChart = chart;
+				activeTrafficChartPoint = point;
+				positionTrafficChartTooltip(chart, point, tooltip);
+			}
+
+			function initializeTrafficChartTooltips() {
+				const charts = Array.from(document.querySelectorAll('.analytics-line-chart'));
+
+				charts.forEach((chart) => {
+					const points = Array.from(chart.querySelectorAll('[data-chart-point]'));
+
+					if (!points.length) {
+						hideTrafficChartTooltip(chart);
+						return;
+					}
+
+					ensureTrafficChartTooltip(chart);
+
+					points.forEach((point) => {
+						if (point.dataset.chartTooltipReady === 'true') return;
+						point.dataset.chartTooltipReady = 'true';
+
+						point.addEventListener('pointerenter', () => {
+							showTrafficChartTooltip(chart, point);
+						});
+						point.addEventListener('pointermove', () => {
+							showTrafficChartTooltip(chart, point);
+						});
+						point.addEventListener('pointerleave', (event) => {
+							if (event.pointerType !== 'touch' && event.pointerType !== 'pen') {
+								hideTrafficChartTooltip(chart);
+							}
+						});
+						point.addEventListener('pointerdown', (event) => {
+							event.stopPropagation();
+							showTrafficChartTooltip(chart, point);
+						});
+						point.addEventListener('click', (event) => {
+							event.stopPropagation();
+							showTrafficChartTooltip(chart, point);
+						});
+						point.addEventListener('focus', () => {
+							showTrafficChartTooltip(chart, point);
+						});
+						point.addEventListener('blur', () => {
+							hideTrafficChartTooltip(chart);
+						});
+						point.addEventListener('keydown', (event) => {
+							if (event.key !== 'Enter' && event.key !== ' ') return;
+							event.preventDefault();
+							showTrafficChartTooltip(chart, point);
+						});
+					});
+				});
+
+				if (trafficChartDocumentEventsReady) return;
+
+				document.addEventListener('pointerdown', (event) => {
+					const target = event.target;
+					if (target instanceof Element && (target.closest('[data-chart-point]') || target.closest('[data-chart-tooltip]'))) return;
+					hideAllTrafficChartTooltips();
+				});
+				document.addEventListener('keydown', (event) => {
+					if (event.key === 'Escape') hideAllTrafficChartTooltips();
+				});
+				window.addEventListener('resize', () => {
+					if (!activeTrafficChart || !activeTrafficChartPoint) return;
+					const tooltip = activeTrafficChart.querySelector('[data-chart-tooltip]');
+					if (!tooltip || tooltip.hidden) return;
+					positionTrafficChartTooltip(activeTrafficChart, activeTrafficChartPoint, tooltip);
+				});
+
+				trafficChartDocumentEventsReady = true;
 			}
 
 			function renderTrafficAnalytics() {
@@ -5552,6 +6083,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				if (trafficVisitsChart) trafficVisitsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'uniqueVisitors', '#2563eb', '#60a5fa');
 				if (trafficVisitorsChart) trafficVisitorsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'recurrentVisitors', '#0f172a', '#64748b');
 				if (trafficPageviewsChart) trafficPageviewsChart.innerHTML = createTrafficChartMarkup(traffic.series, 'pageViews', '#2563eb', '#60a5fa');
+				initializeTrafficChartTooltips();
 			}
 
 			function isLandingQrViewEvent(event) {
@@ -5636,10 +6168,10 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}
 
 				const width = 900;
-				const height = 300;
-				const paddingX = 58;
-				const paddingTop = 24;
-				const paddingBottom = 54;
+				const height = 340;
+				const paddingX = 46;
+				const paddingTop = 50;
+				const paddingBottom = 44;
 				const innerWidth = width - paddingX * 2;
 				const innerHeight = height - paddingTop - paddingBottom;
 				const values = points.flatMap((point) => [Number(point.views || 0), Number(point.clicks || 0)]);
@@ -5696,12 +6228,38 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				});
 				const visibleLabels = viewCoords.filter((point) => shouldShowAnalyticsTickLabel(point.index, viewCoords.length));
 
-				function renderPoints(coords, color) {
-					return getVisiblePoints(coords).map((point) => {
+				function renderPoints(coords, color, field) {
+					const visiblePointIndexes = new Set(getVisiblePoints(coords).map((point) => point.index));
+
+					return coords.map((point) => {
 						const isLast = point.index === coords.length - 1;
-						const radius = isLast ? 6.2 : point.value > 0 ? 4.2 : 3;
-						const opacity = isLast || point.value > 0 ? 1 : 0.44;
-						return `<circle cx="${point.x}" cy="${point.y}" r="${radius}" fill="${color}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="${isLast ? 3 : 2}" />`;
+						const isVisible = visiblePointIndexes.has(point.index);
+						const radius = isLast ? 5.2 : point.value > 0 ? 4.6 : 4;
+						const ringRadius = radius + 3.8;
+						const opacity = isVisible ? (isLast || point.value > 0 ? 1 : 0.52) : 0;
+						const strokeWidth = isVisible ? 2 : 0;
+						const metricText = getTrafficChartMetricText(field, point.value);
+						const valueText = `${formatTrafficChartValue(point.value)} ${metricText}`;
+
+						return `
+							<g
+								class="traffic-chart-point${isVisible ? '' : ' is-quiet'}"
+								tabindex="0"
+								role="button"
+								data-chart-point
+								data-chart-label="${escapeHtml(point.label)}"
+								data-chart-value="${point.value}"
+								data-chart-field="${escapeHtml(field)}"
+								data-chart-metric="${escapeHtml(metricText)}"
+								data-chart-x="${point.x.toFixed(2)}"
+								data-chart-y="${point.y.toFixed(2)}"
+								aria-label="${escapeHtml(point.label)} &middot; ${escapeHtml(valueText)}"
+							>
+								<circle class="traffic-chart-point-hit" cx="${point.x}" cy="${point.y}" r="16" fill="transparent" stroke="transparent" />
+								<circle class="traffic-chart-point-ring" cx="${point.x}" cy="${point.y}" r="${ringRadius}" fill="none" stroke="${color}" stroke-opacity="0.3" stroke-width="1.8" opacity="0" />
+								<circle class="traffic-chart-point-dot" cx="${point.x}" cy="${point.y}" r="${radius}" fill="${color}" opacity="${opacity}" stroke="#ffffff" stroke-width="${strokeWidth}" />
+							</g>
+						`;
 					}).join('');
 				}
 
@@ -5720,12 +6278,13 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<path d="${viewAreaPath}" fill="url(#${gradientId})"></path>
 						<path d="${viewPath}" fill="none" stroke="#16a34a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
 						<path d="${clickPath}" fill="none" stroke="#2563eb" stroke-width="3.6" stroke-dasharray="4 8" stroke-linecap="round" stroke-linejoin="round"></path>
-						${renderPoints(viewCoords, '#16a34a')}
-						${renderPoints(clickCoords, '#2563eb')}
+						${renderPoints(viewCoords, '#16a34a', 'landingQrViews')}
+						${renderPoints(clickCoords, '#2563eb', 'landingQrClicks')}
 						${visibleLabels.map((point) => `
-							<text x="${point.x}" y="${height - 16}" text-anchor="middle" font-size="12" font-weight="850" fill="#475569">${escapeHtml(point.label)}</text>
+							<text x="${point.x}" y="${height - 12}" text-anchor="middle" font-size="10.5" font-weight="850" fill="#475569">${escapeHtml(point.label)}</text>
 						`).join('')}
 					</svg>
+					${createTrafficChartTooltipMarkup()}
 				`;
 			}
 
@@ -5802,6 +6361,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					trafficLandingTopButtonIcon.innerHTML = getLandingQrIconSvg(topButtonType);
 				}
 				if (trafficLandingChart) trafficLandingChart.innerHTML = createLandingQrChartMarkup(metrics.series);
+				initializeTrafficChartTooltips();
 
 				if (trafficLandingClicksMeta) {
 					trafficLandingClicksMeta.textContent = metrics.clicks
