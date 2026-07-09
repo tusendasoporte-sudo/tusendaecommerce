@@ -1749,6 +1749,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           return new Date(date.getTime() - offset).toISOString().slice(0, 16);
         }
 
+        function datetimeLocalToIso(value) {
+          if (!value) return '';
+          const date = new Date(value);
+          if (Number.isNaN(date.getTime())) return '';
+          return date.toISOString();
+        }
+
         function dateLabel(value) {
           if (!value) return 'Sin fecha';
           const date = new Date(value);
@@ -2419,9 +2426,9 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             return;
           }
           data.append('access_code', accessCode);
-          data.append('starts_at', fields.starts.value);
-          data.append('closes_at', fields.closes.value);
-          data.append('draw_at', fields.draw.value);
+          data.append('starts_at', datetimeLocalToIso(fields.starts.value));
+          data.append('closes_at', datetimeLocalToIso(fields.closes.value));
+          data.append('draw_at', datetimeLocalToIso(fields.draw.value));
           data.append('link_enabled', fields.linkEnabled.checked ? 'true' : 'false');
           data.append('show_in_store', fields.showInStore.checked ? 'true' : 'false');
           data.append('description', fields.description.value.trim());
@@ -2684,7 +2691,10 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             }
             return;
           }
-          closeDateModal({ closes_at: closesAt, draw_at: drawAt });
+          closeDateModal({
+            closes_at: datetimeLocalToIso(closesAt),
+            draw_at: datetimeLocalToIso(drawAt),
+          });
         }
 
         function closeWinnerModal() {

@@ -95,6 +95,10 @@ function normalizeWinnerMessage(value: unknown) {
   return text || DEFAULT_RAFFLE_WINNER_MESSAGE;
 }
 
+function isIsoWithTimezone(value: string) {
+  return /(?:Z|[+-]\d{2}:\d{2})$/i.test(value);
+}
+
 function cleanPrizeText(value: unknown, max: number) {
   return String(value ?? '')
     .replace(/<[^>]*>/g, ' ')
@@ -154,7 +158,10 @@ async function optimizeRafflePrizeUpload(file: File): Promise<File> {
 function normalizeDateField(value: unknown, label: string) {
   const text = cleanText(value, 40);
   if (!text) return '';
-  const date = new Date(text);
+  const dateText = isIsoWithTimezone(text)
+    ? text
+    : text.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/, '$1T$2');
+  const date = new Date(dateText);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`${label} no tiene una fecha válida.`);
   }
