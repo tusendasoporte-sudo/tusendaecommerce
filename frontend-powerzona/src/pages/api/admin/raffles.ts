@@ -1,4 +1,6 @@
 import type { APIRoute } from 'astro';
+import { Buffer } from 'node:buffer';
+import sharp from 'sharp';
 import { refreshAuthFromCookie } from '../../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
 import {
@@ -29,6 +31,9 @@ const ALLOWED_STATUSES = new Set([
 ]);
 const ALLOWED_PRIZE_DISPLAY_MODES = new Set(['fixed', 'carousel']);
 const RESULT_LOCKED_STATUSES = new Set(['winner_published', 'no_winner_published', 'finalized']);
+const RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const RAFFLE_PRIZE_IMAGE_MAX_SIZE = 900;
+const RAFFLE_PRIZE_WEBP_QUALITY = 86;
 const ADMIN_RAFFLE_PERMISSION_MESSAGE = 'No se pudo guardar la rifa. Revisa los permisos de la colección o tu sesión de administrador.';
 const ADMIN_RAFFLE_SCHEMA_MESSAGE = 'La estructura de Rifas en PocketBase no está actualizada. Ejecuta la migración nueva de Rifas.';
 
@@ -96,6 +101,54 @@ function cleanPrizeText(value: unknown, max: number) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, max);
+}
+
+function cleanRafflePrizeWebpName(name: unknown) {
+  const cleanBaseName = String(name || 'premio-rifa')
+    .replace(/\.[^.]+$/, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 90);
+
+  return `${cleanBaseName || 'premio-rifa'}.webp`;
+}
+
+async function optimizeRafflePrizeUpload(file: File): Promise<File> {
+  const type = String(file?.type || '').toLowerCase();
+  if (!(file instanceof File) || file.size <= 0) {
+    throw new Error('Selecciona una imagen valida para el premio.');
+  }
+  if (!RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES.has(type)) {
+    throw new Error('Solo se aceptan imagenes JPG, PNG o WebP para premios de rifa.');
+  }
+
+  try {
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const webpBuffer = await sharp(inputBuffer)
+      .rotate()
+      .resize({
+        width: RAFFLE_PRIZE_IMAGE_MAX_SIZE,
+        height: RAFFLE_PRIZE_IMAGE_MAX_SIZE,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .webp({ quality: RAFFLE_PRIZE_WEBP_QUALITY })
+      .toBuffer();
+
+    if (!webpBuffer.length) throw new Error('No se pudo crear el WebP del premio.');
+
+    return new File([new Uint8Array(webpBuffer)], cleanRafflePrizeWebpName(file.name), {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    });
+  } catch (_) {
+    throw new Error('No se pudo optimizar la imagen del premio. Sube un JPG, PNG o WebP valido.');
+  }
 }
 
 function normalizeDateField(value: unknown, label: string) {
@@ -359,13 +412,14 @@ export const POST: APIRoute = async ({ request }) => {
     payload.append('access_code', accessCode);
 
     const uploadedPrizeIds: string[] = [];
-    prizes.forEach((prize) => {
+    for (const prize of prizes) {
       const file = formData.get(`prize_image_${prize.uploadKey}`);
       if (file instanceof File && file.size > 0) {
-        payload.append('images', file);
+        const optimizedFile = await optimizeRafflePrizeUpload(file);
+        payload.append('images', optimizedFile);
         uploadedPrizeIds.push(prize.id);
       }
-    });
+    }
 
     const record = await authPb.collection('raffles').update(id, payload);
 

@@ -329,6 +329,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
       .prize-photo-preview { width: 100%; aspect-ratio: 1; border-radius: 14px; border: 1px solid #dbeafe; background: #eff6ff; display: grid; place-items: center; overflow: hidden; color: #1d4ed8; font-size: 12px; font-weight: 1000; text-align: center; }
       .prize-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
       .prize-photo-box input { padding: 8px; font-size: 11px; border-radius: 12px; }
+      .prize-image-help { font-size: 11px; }
       .prize-fields { display: grid; gap: 9px; }
       .prize-fields input,
       .prize-fields textarea { width: 100%; }
@@ -1314,6 +1315,13 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         let pendingWinner = null;
         let resultCheck = null;
         const alertTimers = new WeakMap();
+        const RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+        const RAFFLE_PRIZE_IMAGE_MAX_SIZE = 900;
+        const RAFFLE_PRIZE_WEBP_QUALITY = 0.86;
+        const optimizedPrizeFiles = new WeakMap();
+        const pendingPrizeOptimizations = new WeakMap();
+        const prizePreviewUrls = new WeakMap();
+        const prizePreviewRows = new Set();
 
         function openSidebar() {
           document.body.classList.add('sidebar-open');
@@ -1362,6 +1370,209 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             .replace(/^-+|-+$/g, '')
             .replace(/-{2,}/g, '-')
             .slice(0, 90);
+        }
+
+        function rafflePrizeImageTypeError() {
+          return 'Solo se aceptan imagenes JPG, PNG o WebP para premios de rifa.';
+        }
+
+        function isAllowedRafflePrizeImageType(file) {
+          return file instanceof File && RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES.has(String(file.type || '').toLowerCase());
+        }
+
+        function cleanRafflePrizeWebpName(name) {
+          const cleanBaseName = String(name || '').replace(/\.[^.]+$/, '');
+          return `${slugify(cleanBaseName) || 'premio-rifa'}.webp`;
+        }
+
+        function canvasToWebpBlob(canvas) {
+          return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+              if (!blob || blob.size <= 0 || blob.type !== 'image/webp') {
+                reject(new Error('No se pudo crear el WebP del premio.'));
+                return;
+              }
+              resolve(blob);
+            }, 'image/webp', RAFFLE_PRIZE_WEBP_QUALITY);
+          });
+        }
+
+        async function decodeRafflePrizeImage(file) {
+          if (typeof window.createImageBitmap === 'function') {
+            const bitmap = await window.createImageBitmap(file);
+            return {
+              source: bitmap,
+              width: bitmap.width,
+              height: bitmap.height,
+              close: () => bitmap.close?.(),
+            };
+          }
+
+          return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const image = new Image();
+            image.onload = () => {
+              URL.revokeObjectURL(url);
+              resolve({
+                source: image,
+                width: image.naturalWidth || image.width,
+                height: image.naturalHeight || image.height,
+                close: () => {},
+              });
+            };
+            image.onerror = () => {
+              URL.revokeObjectURL(url);
+              reject(new Error('No se pudo leer la imagen del premio.'));
+            };
+            image.src = url;
+          });
+        }
+
+        async function optimizeRafflePrizeImageFile(file) {
+          if (!(file instanceof File) || file.size <= 0) {
+            throw new Error('Selecciona una imagen valida para el premio.');
+          }
+          if (!isAllowedRafflePrizeImageType(file)) {
+            throw new Error(rafflePrizeImageTypeError());
+          }
+
+          let decoded = null;
+          try {
+            decoded = await decodeRafflePrizeImage(file);
+            const width = Number(decoded.width || 0);
+            const height = Number(decoded.height || 0);
+            if (!width || !height) throw new Error('La imagen del premio no tiene dimensiones validas.');
+
+            const scale = Math.min(1, RAFFLE_PRIZE_IMAGE_MAX_SIZE / width, RAFFLE_PRIZE_IMAGE_MAX_SIZE / height);
+            const targetWidth = Math.max(1, Math.round(width * scale));
+            const targetHeight = Math.max(1, Math.round(height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('No se pudo preparar la imagen del premio.');
+
+            context.drawImage(decoded.source, 0, 0, targetWidth, targetHeight);
+            const blob = await canvasToWebpBlob(canvas);
+            return new File([blob], cleanRafflePrizeWebpName(file.name), {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            });
+          } catch (_) {
+            throw new Error('No se pudo optimizar la imagen del premio. Usa un JPG, PNG o WebP valido.');
+          } finally {
+            decoded?.close?.();
+          }
+        }
+
+        function revokePrizePreviewUrl(row) {
+          const url = prizePreviewUrls.get(row);
+          if (url) URL.revokeObjectURL(url);
+          prizePreviewUrls.delete(row);
+          prizePreviewRows.delete(row);
+        }
+
+        function clearPrizePreviewUrls() {
+          Array.from(prizePreviewRows).forEach((row) => revokePrizePreviewUrl(row));
+        }
+
+        function clearPrizeRowUpload(row, clearInput = false) {
+          if (!row) return;
+          optimizedPrizeFiles.delete(row);
+          pendingPrizeOptimizations.delete(row);
+          revokePrizePreviewUrl(row);
+          if (clearInput) {
+            const input = row.querySelector('.js-prize-file');
+            if (input) input.value = '';
+          }
+        }
+
+        function restoreRafflePrizePreview(row) {
+          const preview = row?.querySelector('.js-prize-preview');
+          if (!preview) return;
+          const image = row.dataset.image || '';
+          if (image && fields.id?.value) {
+            preview.innerHTML = `<img src="${escapeHtml(fileUrl({ id: fields.id.value }, image))}" alt="">`;
+            return;
+          }
+          const index = Math.max(0, currentPrizeRows().indexOf(row)) + 1;
+          preview.innerHTML = `<span>Foto<br>Premio ${index}</span>`;
+        }
+
+        function setRafflePrizePreview(row, file) {
+          const preview = row?.querySelector('.js-prize-preview');
+          if (!preview || !(file instanceof File)) return;
+          revokePrizePreviewUrl(row);
+          const url = URL.createObjectURL(file);
+          prizePreviewUrls.set(row, url);
+          prizePreviewRows.add(row);
+          preview.innerHTML = `<img src="${url}" alt="">`;
+        }
+
+        function getPrizeUploadFile(row) {
+          if (!row) return null;
+          return optimizedPrizeFiles.get(row) || row.querySelector('.js-prize-file')?.files?.[0] || null;
+        }
+
+        function getPrizeUploadSignature(row) {
+          const file = getPrizeUploadFile(row);
+          return file ? `${row.dataset.prizeId || ''}:${file.name}:${file.size}` : '';
+        }
+
+        async function getOptimizedPrizeFileForRow(row) {
+          if (!row) return null;
+          const pending = pendingPrizeOptimizations.get(row);
+          if (pending) return pending;
+
+          const optimized = optimizedPrizeFiles.get(row);
+          if (optimized) return optimized;
+
+          const file = row.querySelector('.js-prize-file')?.files?.[0];
+          if (!file) return null;
+
+          const optimization = optimizeRafflePrizeImageFile(file);
+          pendingPrizeOptimizations.set(row, optimization);
+          try {
+            const nextFile = await optimization;
+            optimizedPrizeFiles.set(row, nextFile);
+            return nextFile;
+          } finally {
+            if (pendingPrizeOptimizations.get(row) === optimization) pendingPrizeOptimizations.delete(row);
+          }
+        }
+
+        async function handleRafflePrizeFileChange(input) {
+          const row = input?.closest('[data-prize-id]');
+          if (!row) return;
+          clearPrizeRowUpload(row);
+
+          const file = input.files?.[0];
+          if (!file) return;
+
+          if (!isAllowedRafflePrizeImageType(file)) {
+            input.value = '';
+            restoreRafflePrizePreview(row);
+            show(formAlert, rafflePrizeImageTypeError(), 'error');
+            return;
+          }
+
+          const optimization = optimizeRafflePrizeImageFile(file);
+          pendingPrizeOptimizations.set(row, optimization);
+          try {
+            const optimizedFile = await optimization;
+            if (pendingPrizeOptimizations.get(row) !== optimization) return;
+            optimizedPrizeFiles.set(row, optimizedFile);
+            setRafflePrizePreview(row, optimizedFile);
+            show(formAlert, '');
+          } catch (error) {
+            if (pendingPrizeOptimizations.get(row) !== optimization) return;
+            optimizedPrizeFiles.delete(row);
+            input.value = '';
+            restoreRafflePrizePreview(row);
+            show(formAlert, error?.message || 'No se pudo optimizar la imagen del premio.', 'error');
+          } finally {
+            if (pendingPrizeOptimizations.get(row) === optimization) pendingPrizeOptimizations.delete(row);
+          }
         }
 
         function parseJsonArray(value) {
@@ -1485,7 +1696,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             uploadKey: row.dataset.prizeId || '',
           })).filter((prize) => {
             const row = fields.prizesList?.querySelector(`[data-prize-id="${CSS.escape(prize.id)}"]`);
-            const file = row?.querySelector('.js-prize-file')?.files?.[0];
+            const file = getPrizeUploadFile(row);
             return prize.name || prize.description || prize.image || file;
           });
         }
@@ -1500,7 +1711,8 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             <article class="prize-editor-card" data-prize-id="${escapeHtml(prize.id)}" data-image="${escapeHtml(prize.image || '')}">
               <div class="prize-photo-box">
                 <div class="prize-photo-preview js-prize-preview">${preview}</div>
-                <input class="js-prize-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                <input class="js-prize-file" type="file" accept="image/jpeg,image/png,image/webp" />
+                <p class="form-help prize-image-help">JPG, PNG o WebP. Se optimiza automaticamente a WebP 900 x 900 px.</p>
               </div>
               <div class="prize-fields">
                 <input class="js-prize-name" type="text" maxlength="80" placeholder="Nombre del regalo" value="${escapeHtml(prize.name || '')}" />
@@ -1513,6 +1725,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
 
         function renderPrizeEditor() {
           if (!fields.prizesList) return;
+          clearPrizePreviewUrls();
           if (!prizeState.length) {
             fields.prizesList.innerHTML = '<div class="empty-state">Agrega al menos un regalo para mostrarlo en la página pública.</div>';
             updatePrizeDisplayModeAvailability();
@@ -1943,10 +2156,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
             winnerMessage: fields.winnerMessage.value,
             displayMode: getPrizeDisplayMode(),
             prizes: readPrizeRows().map(({ id, name, description, image }) => ({ id, name, description, image })),
-            files: currentPrizeRows().map((row) => {
-              const file = row.querySelector('.js-prize-file')?.files?.[0];
-              return file ? `${row.dataset.prizeId || ''}:${file.name}:${file.size}` : '';
-            }),
+            files: currentPrizeRows().map((row) => getPrizeUploadSignature(row)),
           });
         }
 
@@ -2221,11 +2431,11 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const prizesDisplayMode = prizes.length > PRIZE_FIXED_LIMIT ? 'carousel' : getPrizeDisplayMode();
           data.append('prizes_display_mode', prizesDisplayMode);
           data.append('prizes_json', JSON.stringify(prizes));
-          currentPrizeRows().forEach((row) => {
-            const file = row.querySelector('.js-prize-file')?.files?.[0];
+          for (const row of currentPrizeRows()) {
+            const file = await getOptimizedPrizeFileForRow(row);
             const id = row.dataset.prizeId || '';
             if (file && id) data.append(`prize_image_${id}`, file);
-          });
+          }
           await adminRequest('/api/admin/raffles', { method: 'POST', body: data });
           closeForm();
           show(alertBox, 'Rifa guardada correctamente.', 'success');
@@ -2742,6 +2952,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
           const removeButton = event.target.closest('.js-prize-remove');
           if (!removeButton) return;
           const row = removeButton.closest('[data-prize-id]');
+          clearPrizeRowUpload(row);
           row?.remove();
           if (!currentPrizeRows().length) {
             prizeState = [];
@@ -2753,11 +2964,7 @@ const publicStorePath = getPublicStorePath(currentStoreSlug);
         fields.prizesList?.addEventListener('change', (event) => {
           const input = event.target.closest('.js-prize-file');
           if (!input) return;
-          const file = input.files?.[0];
-          const preview = input.closest('[data-prize-id]')?.querySelector('.js-prize-preview');
-          if (file && preview) {
-            preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`;
-          }
+          handleRafflePrizeFileChange(input).catch((error) => show(formAlert, error?.message || 'No se pudo optimizar la imagen del premio.', 'error'));
         });
         winnerMessageToggle?.addEventListener('click', () => {
           setWinnerMessagePanel(winnerMessagePanel?.hidden !== false);

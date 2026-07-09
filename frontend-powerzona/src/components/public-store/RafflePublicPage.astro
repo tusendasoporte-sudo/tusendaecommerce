@@ -109,7 +109,8 @@ const countdownCaption = calculatedStatus === RAFFLE_STATUSES.SCHEDULED
 const closesAt = raffle?.closes_at || '';
 const drawAt = raffle?.draw_at || '';
 const startsAt = raffle?.starts_at || '';
-const seoDescription = description || `Rifa gratis exclusiva para miembros del grupo de WhatsApp de ${storeName}.`;
+const defaultRafflePreviewPath = '/images/raffles/raffle-preview-default-v1.jpg';
+const seoDescription = description || 'Participa en esta rifa especial y descubre si ganaste.';
 const initialWhatsappReceipt = raffle ? buildRaffleWhatsappReceiptHref({
   whatsapp,
   storeName,
@@ -138,7 +139,10 @@ const faviconVersion = '2';
       canonical={canonicalPath || raffleUrl}
       siteName={storeName}
       type="website"
-      image={prizeCards[0]?.imageUrl || store?.bannerUrl || store?.logoUrl || '/brand/tusenda84-bazzar-logo.webp'}
+      image={defaultRafflePreviewPath}
+      imageAlt="Rifa especial: participa y gana"
+      imageWidth={1200}
+      imageHeight={630}
     />
     {shouldNoindex && <meta name="robots" content="noindex,nofollow" />}
   </head>
@@ -1590,12 +1594,14 @@ const faviconVersion = '2';
 
       .pz-prize-card {
         position: relative;
-        min-height: 282px;
+        min-height: 356px;
         border: 1px solid #dfe8fb;
         border-radius: 13px;
         background: #fff;
         padding: 15px;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
         transition: transform 0.18s ease, box-shadow 0.18s ease;
       }
 
@@ -1621,15 +1627,19 @@ const faviconVersion = '2';
       }
 
       .pz-prize-image-wrap {
-        height: 178px;
+        width: 100%;
+        min-height: clamp(220px, 18vw, 260px);
         display: grid;
         place-items: center;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
+        padding: 26px 4px 4px;
       }
 
       .pz-prize-image-wrap img {
-        max-width: 100%;
-        max-height: 174px;
+        width: auto;
+        height: auto;
+        max-width: 94%;
+        max-height: clamp(220px, 17vw, 250px);
         object-fit: contain;
         filter: drop-shadow(0 18px 16px rgba(6, 22, 66, 0.12));
       }
@@ -2556,8 +2566,8 @@ const faviconVersion = '2';
         }
 
         .pz-prize-card {
-          min-height: 204px;
-          padding: 10px;
+          min-height: 304px;
+          padding: 12px;
           border-radius: 11px;
         }
 
@@ -2568,11 +2578,15 @@ const faviconVersion = '2';
         }
 
         .pz-prize-image-wrap {
-          height: 104px;
-          margin-bottom: 8px;
+          min-height: 220px;
+          margin-bottom: 10px;
+          padding: 24px 3px 4px;
         }
 
-        .pz-prize-image-wrap img { max-height: 100px; }
+        .pz-prize-image-wrap img {
+          max-width: 95%;
+          max-height: 212px;
+        }
 
         .pz-prize-card h3 {
           font-size: 12px;
