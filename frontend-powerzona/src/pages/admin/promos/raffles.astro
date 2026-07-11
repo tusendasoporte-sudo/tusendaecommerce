@@ -136,6 +136,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         backdrop-filter: blur(4px);
       }
       .raffle-modal-card {
+        position: relative;
+        isolation: isolate;
         width: min(900px, 100%);
         max-height: min(88vh, 920px);
         overflow: auto;
@@ -167,6 +169,17 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         background: rgba(255,255,255,.96);
         backdrop-filter: blur(10px);
       }
+      .raffle-modal-card .raffle-modal-head {
+        z-index: 40;
+        background: #ffffff;
+        backdrop-filter: none;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+      }
+      .raffle-modal-card .raffle-modal-head .raffle-icon-btn {
+        position: relative;
+        z-index: 2;
+        flex: 0 0 auto;
+      }
       .raffle-modal-head h2 { margin: 0; color: #0f172a; font-size: 22px; font-weight: 1000; letter-spacing: 0; }
       .raffle-form { display: grid; gap: 14px; }
       .raffle-form.hidden { display: none !important; }
@@ -176,14 +189,14 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       .raffle-form > .raffle-actions {
         position: sticky;
         bottom: 0;
-        z-index: 2;
+        z-index: 40;
         margin: 0;
         padding: 14px 20px 20px;
         border-top: 1px solid #e2e8f0;
-        background: rgba(255,255,255,.96);
-        backdrop-filter: blur(10px);
+        background: #ffffff;
+        box-shadow: 0 -8px 20px rgba(15, 23, 42, .05);
       }
-      .raffle-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .raffle-form-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .raffle-form-grid .full { grid-column: 1 / -1; }
       .field { display: grid; gap: 7px; }
       .field label { color: #334155; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: 0; }
@@ -601,6 +614,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         gap: 9px;
       }
       .store-featured-card {
+        position: relative;
+        z-index: 1;
         min-width: 0;
         display: grid;
         grid-template-columns: 34px 56px minmax(0, 1fr) auto;
@@ -714,6 +729,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       .prize-editor-list { display: grid; gap: 10px; }
       .prize-compact-card {
         position: relative;
+        z-index: 1;
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
@@ -731,7 +747,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         box-shadow: 0 14px 30px rgba(37, 99, 235, .11);
       }
       .prize-compact-card.is-menu-open {
-        z-index: 45;
+        z-index: 8;
       }
       .prize-compact-main {
         min-width: 0;
@@ -880,7 +896,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         position: absolute;
         right: 0;
         top: calc(100% + 8px);
-        z-index: 120;
+        z-index: 10;
         width: min(230px, calc(100vw - 36px));
         padding: 7px;
         border: 1px solid #e2e8f0;
@@ -2169,6 +2185,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         const modalTitle = document.getElementById('raffle-modal-title');
         const modalKicker = document.getElementById('raffle-modal-kicker');
         const modalCloseBtn = document.getElementById('raffle-modal-close-btn');
+        const raffleModalCard = modal?.querySelector('.raffle-modal-card');
         const dateModal = document.getElementById('raffle-date-modal');
         const dateModalTitle = document.getElementById('raffle-date-modal-title');
         const dateClosesInput = document.getElementById('raffle-date-closes');
@@ -2947,6 +2964,12 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             menu?.closest('.prize-compact-card')?.classList.remove('is-menu-open');
           });
           return closed;
+        }
+
+        function bindPrizeMenuScrollClose() {
+          if (!raffleModalCard || raffleModalCard.dataset.prizeMenuScrollBound === 'true') return;
+          raffleModalCard.dataset.prizeMenuScrollBound = 'true';
+          raffleModalCard.addEventListener('scroll', () => closePrizeMenus(), { passive: true });
         }
 
         function togglePrizeMenu(button) {
@@ -4640,6 +4663,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           renderList();
         }
 
+        bindPrizeMenuScrollClose();
         sidebarOpenBtn?.addEventListener('click', openSidebar);
         sidebarOverlay?.addEventListener('click', closeSidebar);
         document.addEventListener('click', (event) => {
