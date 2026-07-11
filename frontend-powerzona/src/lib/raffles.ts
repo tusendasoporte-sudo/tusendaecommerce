@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { pb, getPocketBaseFileUrl } from './pocketbase';
 
+export const RAFFLE_TIME_ZONE = 'America/Havana';
+
 export const CUBAN_PHONE_ERROR_ES = 'Escribe un número cubano válido de 8 dígitos.';
 export const NUMBER_TAKEN_ERROR = 'Este número acaba de ser reservado. Escoge otro número disponible.';
 
@@ -32,6 +34,162 @@ export const RAFFLE_PRIZE_DISPLAY_MODES = {
 } as const;
 
 export const RAFFLE_FIXED_PRIZE_LIMIT = 3;
+
+type RaffleLocalDateTimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+const RAFFLE_ZONED_PARTS_FORMATTER = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+  timeZone: RAFFLE_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+const RAFFLE_DISPLAY_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('es', {
+  timeZone: RAFFLE_TIME_ZONE,
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+function cleanRaffleDateLabel(value: string) {
+  return value.replace(/\./g, '').replace(/\s+/g, ' ').trim();
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, '0');
+}
+
+function readRaffleZonedParts(date: Date): RaffleLocalDateTimeParts | null {
+  if (Number.isNaN(date.getTime())) return null;
+  const mapped = Object.fromEntries(
+    RAFFLE_ZONED_PARTS_FORMATTER
+      .formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, Number(part.value)])
+  );
+
+  return {
+    year: Number(mapped.year || 0),
+    month: Number(mapped.month || 0),
+    day: Number(mapped.day || 0),
+    hour: Number(mapped.hour || 0),
+    minute: Number(mapped.minute || 0),
+    second: Number(mapped.second || 0),
+  };
+}
+
+function localPartsToUtcMs(parts: RaffleLocalDateTimeParts) {
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second || 0, 0);
+}
+
+function isRealLocalDateTime(parts: RaffleLocalDateTimeParts) {
+  const exact = new Date(localPartsToUtcMs(parts));
+  return exact.getUTCFullYear() === parts.year
+    && exact.getUTCMonth() === parts.month - 1
+    && exact.getUTCDate() === parts.day
+    && exact.getUTCHours() === parts.hour
+    && exact.getUTCMinutes() === parts.minute
+    && exact.getUTCSeconds() === (parts.second || 0);
+}
+
+function raffleZonedPartsMatch(date: Date, expected: RaffleLocalDateTimeParts) {
+  const actual = readRaffleZonedParts(date);
+  return Boolean(actual
+    && actual.year === expected.year
+    && actual.month === expected.month
+    && actual.day === expected.day
+    && actual.hour === expected.hour
+    && actual.minute === expected.minute
+    && actual.second === (expected.second || 0));
+}
+
+function getRaffleTimeZoneOffsetMinutes(date: Date) {
+  const parts = readRaffleZonedParts(date);
+  if (!parts) return 0;
+  return Math.round((localPartsToUtcMs(parts) - date.getTime()) / 60000);
+}
+
+function parseRaffleDatetimeLocalParts(value: unknown): RaffleLocalDateTimeParts | null {
+  const text = String(value ?? '').trim().replace(' ', 'T');
+  if (!text) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(text);
+  if (!match) throw new Error('Usa una fecha y hora valida.');
+
+  const parts = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] || 0),
+  };
+
+  if (
+    parts.month < 1 || parts.month > 12
+    || parts.day < 1 || parts.day > 31
+    || parts.hour < 0 || parts.hour > 23
+    || parts.minute < 0 || parts.minute > 59
+    || parts.second < 0 || parts.second > 59
+    || !isRealLocalDateTime(parts)
+  ) {
+    throw new Error('Usa una fecha y hora valida.');
+  }
+
+  return parts;
+}
+
+export function formatRaffleDateTime(value: unknown, fallback = 'Por anunciar') {
+  if (!value) return fallback;
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return fallback;
+  return cleanRaffleDateLabel(RAFFLE_DISPLAY_DATE_TIME_FORMATTER.format(date));
+}
+
+export function raffleIsoToDatetimeLocal(value: unknown) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(String(value));
+  const parts = readRaffleZonedParts(date);
+  if (!parts) return '';
+  return `${parts.year}-${padDatePart(parts.month)}-${padDatePart(parts.day)}T${padDatePart(parts.hour)}:${padDatePart(parts.minute)}`;
+}
+
+export function raffleDatetimeLocalToIso(value: unknown) {
+  const parts = parseRaffleDatetimeLocalParts(value);
+  if (!parts) return '';
+
+  const localUtcMs = localPartsToUtcMs(parts);
+  const offsets = new Set<number>();
+  for (let hours = -48; hours <= 48; hours += 6) {
+    offsets.add(getRaffleTimeZoneOffsetMinutes(new Date(localUtcMs + hours * 60 * 60 * 1000)));
+  }
+  offsets.add(getRaffleTimeZoneOffsetMinutes(new Date(localUtcMs)));
+
+  const candidates = Array.from(offsets)
+    .map((offset) => localUtcMs - offset * 60 * 1000)
+    .filter((timestamp, index, list) => list.indexOf(timestamp) === index)
+    .filter((timestamp) => raffleZonedPartsMatch(new Date(timestamp), parts))
+    .sort((a, b) => a - b);
+
+  if (!candidates.length) {
+    throw new Error('Esa hora no existe en el horario de Cuba por un cambio de horario.');
+  }
+
+  return new Date(candidates[0]).toISOString();
+}
 
 export const DEFAULT_RAFFLE_WINNER_MESSAGE = [
   'Felicidades {nombre_cliente}',
@@ -416,15 +574,21 @@ export async function getVisibleRaffleBySlug(storeId: string, raffleSlug: string
 export async function getFirstVisibleRaffle(storeId: string, client = pb) {
   if (!storeId) return null;
 
+  const visibleRaffles = await getVisibleRafflesForStore(storeId, client);
+  return visibleRaffles[0] || null;
+}
+
+export async function getVisibleRafflesForStore(storeId: string, client = pb) {
+  if (!storeId) return [];
+
   try {
-    const result = await client.collection('raffles').getList(1, 1, {
+    const result = await client.collection('raffles').getList(1, 3, {
       filter: `store="${escapePocketBaseValue(storeId)}" && is_configured=true && link_enabled=true && show_in_store=true && status!="archived" && (slug="rifa-1" || slug="rifa-2" || slug="rifa-3")`,
-      sort: 'slot_number,-updated,-created',
+      sort: 'slot_number,created,updated',
     });
-    return (result.items?.[0] || null) as RaffleRecord | null;
+    return (result.items || []) as RaffleRecord[];
   } catch (error: any) {
-    if (error?.status === 404) return null;
-    throw error;
+    return [];
   }
 }
 

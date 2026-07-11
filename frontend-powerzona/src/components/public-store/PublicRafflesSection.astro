@@ -1,0 +1,309 @@
+---
+import {
+  RAFFLE_STATUSES,
+  formatRaffleDateTime,
+  getCalculatedRaffleStatus,
+  rafflePrizeCards,
+  type RaffleRecord,
+} from '../../lib/raffles';
+
+interface Props {
+  store: any;
+  settings?: any;
+  raffles?: RaffleRecord[];
+}
+
+const {
+  store,
+  settings = null,
+  raffles = [],
+} = Astro.props;
+
+const storeSlug = String(store?.slug || '').trim().toLowerCase();
+const storeName = String(settings?.store_name || store?.name || 'Tu tienda').trim();
+const fallbackImage = '/images/raffles/raffle-preview-default-v1.jpg';
+
+function publicRaffleState(raffle: RaffleRecord) {
+  const status = getCalculatedRaffleStatus(raffle);
+  if (status === RAFFLE_STATUSES.SCHEDULED) {
+    return {
+      status,
+      label: 'Próximamente',
+      detail: `Comienza el ${formatRaffleDateTime(raffle.starts_at, 'Por anunciar')}`,
+      className: 'is-scheduled',
+    };
+  }
+  if (status === RAFFLE_STATUSES.ACTIVE) {
+    return {
+      status,
+      label: 'Participa ahora',
+      detail: `Selección disponible hasta ${formatRaffleDateTime(raffle.closes_at, 'Por anunciar')}`,
+      className: 'is-active',
+    };
+  }
+  if (status === RAFFLE_STATUSES.SELECTION_CLOSED) {
+    return {
+      status,
+      label: 'Selección cerrada',
+      detail: `Sorteo el ${formatRaffleDateTime(raffle.draw_at, 'Por anunciar')}`,
+      className: 'is-closed',
+    };
+  }
+  if (status === RAFFLE_STATUSES.RESULT_PENDING) {
+    return {
+      status,
+      label: 'Resultado pendiente',
+      detail: `Sorteo realizado el ${formatRaffleDateTime(raffle.draw_at, 'Por anunciar')}`,
+      className: 'is-pending',
+    };
+  }
+  if (status === RAFFLE_STATUSES.WINNER_PUBLISHED || status === RAFFLE_STATUSES.NO_WINNER_PUBLISHED) {
+    return {
+      status,
+      label: 'Resultado publicado',
+      detail: 'Consulta el resultado',
+      className: 'is-result',
+    };
+  }
+  return null;
+}
+
+const raffleCards = raffles
+  .map((raffle) => {
+    const state = publicRaffleState(raffle);
+    if (!state) return null;
+    const prize = rafflePrizeCards(raffle, storeName)[0] || null;
+    const imageUrl = prize?.imageUrl || fallbackImage;
+    const title = String(raffle.title || 'Rifa activa').trim();
+    const prizeName = String(prize?.name || '').trim();
+    const href = `/t/${encodeURIComponent(storeSlug)}/rifa/${encodeURIComponent(raffle.slug || '')}`;
+
+    return {
+      raffle,
+      state,
+      href,
+      imageUrl,
+      title,
+      alt: prizeName ? `${prizeName} - ${title}` : title,
+    };
+  })
+  .filter(Boolean)
+  .slice(0, 3);
+---
+
+{raffleCards.length > 0 && (
+  <section class="public-raffles-section" aria-labelledby="public-raffles-title">
+    <div class="public-raffles-head">
+      <h2 id="public-raffles-title">Rifas activas</h2>
+    </div>
+
+    <div class="public-raffles-grid" data-count={raffleCards.length}>
+      {raffleCards.map((item: any) => (
+        <a class="public-raffle-card" href={item.href} aria-label={`Ver rifa ${item.title}`}>
+          <span class="public-raffle-media">
+            <img src={item.imageUrl} alt={item.alt} loading="lazy" />
+          </span>
+          <span class="public-raffle-copy">
+            <span class={`public-raffle-status ${item.state.className}`}>{item.state.label}</span>
+            <strong>{item.title}</strong>
+            <span class="public-raffle-date">{item.state.detail}</span>
+          </span>
+          <span class="public-raffle-cta">Ver rifa</span>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .public-raffles-section {
+    margin: 0 0 24px;
+    max-width: 100%;
+  }
+
+  .public-raffles-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 2px 12px;
+  }
+
+  .public-raffles-head h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 22px;
+    line-height: 1.1;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .public-raffles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+    gap: 14px;
+    max-width: 100%;
+  }
+
+  .public-raffle-card {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid rgba(203, 213, 225, .9);
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, .08);
+    text-decoration: none;
+    scroll-snap-align: start;
+  }
+
+  .public-raffle-card:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .22);
+    outline-offset: 3px;
+  }
+
+  .public-raffle-media {
+    grid-row: 1 / 3;
+    width: 112px;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+  }
+
+  .public-raffle-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .public-raffle-copy {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+  }
+
+  .public-raffle-status {
+    width: max-content;
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 5px 8px;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 1000;
+    color: #1d4ed8;
+    background: #dbeafe;
+  }
+
+  .public-raffle-status.is-active {
+    color: #166534;
+    background: #dcfce7;
+  }
+
+  .public-raffle-status.is-closed,
+  .public-raffle-status.is-pending {
+    color: #92400e;
+    background: #fef3c7;
+  }
+
+  .public-raffle-status.is-result {
+    color: #581c87;
+    background: #f3e8ff;
+  }
+
+  .public-raffle-copy strong {
+    min-width: 0;
+    color: #0f172a;
+    font-size: 16px;
+    line-height: 1.15;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
+  }
+
+  .public-raffle-date {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+
+  .public-raffle-cta {
+    justify-self: start;
+    align-self: end;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    border-radius: 8px;
+    padding: 7px 11px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 1000;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, .16);
+  }
+
+  @media (min-width: 860px) {
+    .public-raffles-grid[data-count="1"] {
+      grid-template-columns: minmax(0, 560px);
+    }
+
+    .public-raffles-grid[data-count="2"] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .public-raffles-grid[data-count="3"] {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .public-raffles-section {
+      margin-bottom: 22px;
+    }
+
+    .public-raffles-grid {
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(252px, 82%);
+      grid-template-columns: none;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, .55) transparent;
+      padding: 2px 2px 14px;
+    }
+
+    .public-raffles-grid::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .public-raffles-grid::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .public-raffles-grid::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, .45);
+      border-radius: 999px;
+    }
+
+    .public-raffle-card {
+      grid-template-columns: 96px minmax(0, 1fr);
+    }
+
+    .public-raffle-media {
+      width: 96px;
+    }
+  }
+</style>

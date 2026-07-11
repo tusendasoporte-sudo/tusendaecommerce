@@ -2,8 +2,10 @@
 import SocialMeta from '../SocialMeta.astro';
 import {
   RAFFLE_STATUSES,
+  RAFFLE_TIME_ZONE,
   buildRaffleWhatsappReceiptHref,
   cleanWhatsappNumber,
+  formatRaffleDateTime,
   formatRaffleNumber,
   getCalculatedRaffleStatus,
   getEffectiveRafflePrizeDisplayMode,
@@ -87,12 +89,8 @@ const prizesDisplayMode = getEffectiveRafflePrizeDisplayMode(raffle?.prizes_disp
 const usePrizeCarousel = prizesDisplayMode === 'carousel';
 const showPrizeCarouselControls = usePrizeCarousel && prizeCards.length > 1;
 const prizeLayoutClass = usePrizeCarousel ? 'is-carousel' : 'is-fixed';
-const drawLabel = raffle?.draw_at
-  ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(raffle.draw_at))
-  : 'Por anunciar';
-const startsLabel = raffle?.starts_at
-  ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(raffle.starts_at))
-  : 'Por anunciar';
+const drawLabel = formatRaffleDateTime(raffle?.draw_at, 'Por anunciar');
+const startsLabel = formatRaffleDateTime(raffle?.starts_at, 'Por anunciar');
 const countdownCaption = calculatedStatus === RAFFLE_STATUSES.SCHEDULED
   ? 'para comenzar la selección de números'
   : calculatedStatus === RAFFLE_STATUSES.SELECTION_CLOSED
@@ -2837,7 +2835,7 @@ const faviconVersion = '2';
       }
     </style>
 
-    <script define:vars={{ storeSlug, raffleSlug, fullRaffleUrl, storeName, contactHref, winnerNumberDisplay, isPublishedResult, isPublishedWinnerResult }}>
+    <script define:vars={{ storeSlug, raffleSlug, fullRaffleUrl, storeName, contactHref, winnerNumberDisplay, isPublishedResult, isPublishedWinnerResult, raffleTimeZone: RAFFLE_TIME_ZONE }}>
       (() => {
         const root = document.querySelector('[data-raffle-root]');
         if (!root) return;
@@ -2847,6 +2845,16 @@ const faviconVersion = '2';
         const startsAt = root.dataset.startsAt ? new Date(root.dataset.startsAt) : null;
         const closesAt = root.dataset.closesAt ? new Date(root.dataset.closesAt) : null;
         const drawAt = root.dataset.drawAt ? new Date(root.dataset.drawAt) : null;
+        const receiptDateFormatter = new Intl.DateTimeFormat('es', {
+          timeZone: String(raffleTimeZone || 'America/Havana'),
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        });
+        const formatReceiptDate = (date) => String(receiptDateFormatter.format(date)).replace(/\./g, '').replace(/\s+/g, ' ').trim();
 
         const daysNode = root.querySelector('[data-days]');
         const hoursNode = root.querySelector('[data-hours]');
@@ -3181,7 +3189,7 @@ const faviconVersion = '2';
             const date = receipt.created ? new Date(receipt.created) : new Date();
             receiptDate.textContent = Number.isNaN(date.getTime())
               ? '--'
-              : new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+              : formatReceiptDate(date);
           }
           currentWhatsappUrl = receipt.whatsapp_url || currentWhatsappUrl || '';
           if (receiptWhatsapp && currentWhatsappUrl) receiptWhatsapp.href = currentWhatsappUrl;

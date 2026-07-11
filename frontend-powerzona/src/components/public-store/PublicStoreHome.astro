@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import ProductCard from '../ProductCard.astro';
 import PublicFooter from '../PublicFooter.astro';
 import PublicConfirm from './PublicConfirm.astro';
+import PublicRafflesSection from './PublicRafflesSection.astro';
 import PromoBar from '../PromoBar.astro';
 import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
@@ -10,6 +11,7 @@ import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessH
 import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
+import { getVisibleRafflesForStore } from '../../lib/raffles';
 
 const currentStore = Astro.props.currentStore || await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
@@ -25,6 +27,7 @@ const products = isTemporarilyClosed ? [] : await getProducts(storeQuery);
 const featuredProducts = isTemporarilyClosed ? [] : await getFeaturedProducts(storeQuery);
 const visualItems = isTemporarilyClosed ? [] : await getStoreVisualItems(storeQuery);
 const gifts = isTemporarilyClosed ? [] : await getPublicGifts(storeQuery);
+const visibleRaffles = isTemporarilyClosed ? [] : await getVisibleRafflesForStore(currentStoreId);
 const automaticPromotions = isTemporarilyClosed ? [] : await getAutomaticPromotions(storeQuery);
 const reviewsEnabled = settings?.reviews_enabled !== false;
 const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;
@@ -2208,6 +2211,8 @@ function getProductOfferView(product: any) {
       <span class="public-whatsapp-inline-card__arrow" aria-hidden="true">&rsaquo;</span>
     </a>
   </section>
+
+  <PublicRafflesSection store={currentStore} settings={settings} raffles={visibleRaffles} />
 
   <div id="store-info-overlay" class="store-info-overlay" hidden>
     <section id="store-info-modal" class="store-info-card" role="dialog" aria-modal="true" aria-labelledby="store-info-title">

@@ -17,6 +17,7 @@ import {
   normalizeFileList,
   normalizeAccessCode,
   normalizeRaffleSlug,
+  raffleDatetimeLocalToIso,
 } from '../../../lib/raffles';
 
 const ALLOWED_STATUSES = new Set([
@@ -160,7 +161,7 @@ function normalizeDateField(value: unknown, label: string) {
   if (!text) return '';
   const dateText = isIsoWithTimezone(text)
     ? text
-    : text.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/, '$1T$2');
+    : raffleDatetimeLocalToIso(text.replace(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/, '$1T$2'));
   const date = new Date(dateText);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`${label} no tiene una fecha válida.`);
