@@ -234,6 +234,8 @@ export type RaffleRecord = {
   prizes_json?: RafflePrize[] | string;
   prizes_display_mode?: RafflePrizeDisplayMode | string;
   winner_message?: string;
+  whatsapp_group_invite_enabled?: boolean;
+  whatsapp_group_invite_url?: string;
   starts_at?: string;
   closes_at?: string;
   draw_at?: string;
@@ -311,6 +313,38 @@ export function isRaffleConfigured(raffle: Partial<RaffleRecord> | null | undefi
 
 export function normalizeAccessCode(value: unknown) {
   return String(value ?? '').trim().toUpperCase();
+}
+
+export function normalizeWhatsAppGroupInviteUrl(value: unknown) {
+  let raw = String(value || '').trim();
+
+  if (!raw) return '';
+
+  if (/^chat\.whatsapp\.com\//i.test(raw)) {
+    raw = `https://${raw}`;
+  }
+
+  try {
+    const url = new URL(raw);
+
+    if (url.protocol !== 'https:') return '';
+    if (url.hostname.toLowerCase() !== 'chat.whatsapp.com') return '';
+
+    const segments = url.pathname
+      .split('/')
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+
+    const code = segments[0]?.toLowerCase() === 'invite'
+      ? segments[1] || ''
+      : segments[0] || '';
+
+    if (!/^[a-z0-9_-]{8,160}$/i.test(code)) return '';
+
+    return `https://chat.whatsapp.com/${code}`;
+  } catch (_) {
+    return '';
+  }
 }
 
 export function normalizeCubanPhone(value: unknown) {
@@ -685,6 +719,8 @@ export async function ensureRaffleSlotsForStore(storeId: string, client = pb) {
       description: '',
       conditions: '',
       winner_message: DEFAULT_RAFFLE_WINNER_MESSAGE,
+      whatsapp_group_invite_enabled: false,
+      whatsapp_group_invite_url: '',
       starts_at: '',
       closes_at: '',
       draw_at: '',

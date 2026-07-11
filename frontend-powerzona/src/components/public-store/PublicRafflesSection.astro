@@ -29,40 +29,50 @@ function publicRaffleState(raffle: RaffleRecord) {
     return {
       status,
       label: 'Próximamente',
-      detail: `Comienza el ${formatRaffleDateTime(raffle.starts_at, 'Por anunciar')}`,
+      dateLabel: 'Comienza el',
+      dateValue: formatRaffleDateTime(raffle.starts_at, 'Por anunciar'),
       className: 'is-scheduled',
+      celebratory: false,
     };
   }
   if (status === RAFFLE_STATUSES.ACTIVE) {
     return {
       status,
       label: 'Participa ahora',
-      detail: `Selección disponible hasta ${formatRaffleDateTime(raffle.closes_at, 'Por anunciar')}`,
+      dateLabel: 'Selección disponible hasta',
+      dateValue: formatRaffleDateTime(raffle.closes_at, 'Por anunciar'),
       className: 'is-active',
+      celebratory: true,
     };
   }
   if (status === RAFFLE_STATUSES.SELECTION_CLOSED) {
     return {
       status,
       label: 'Selección cerrada',
-      detail: `Sorteo el ${formatRaffleDateTime(raffle.draw_at, 'Por anunciar')}`,
+      dateLabel: 'Sorteo el',
+      dateValue: formatRaffleDateTime(raffle.draw_at, 'Por anunciar'),
       className: 'is-closed',
+      celebratory: false,
     };
   }
   if (status === RAFFLE_STATUSES.RESULT_PENDING) {
     return {
       status,
       label: 'Resultado pendiente',
-      detail: `Sorteo realizado el ${formatRaffleDateTime(raffle.draw_at, 'Por anunciar')}`,
+      dateLabel: 'Sorteo realizado el',
+      dateValue: formatRaffleDateTime(raffle.draw_at, 'Por anunciar'),
       className: 'is-pending',
+      celebratory: false,
     };
   }
   if (status === RAFFLE_STATUSES.WINNER_PUBLISHED || status === RAFFLE_STATUSES.NO_WINNER_PUBLISHED) {
     return {
       status,
       label: 'Resultado publicado',
-      detail: 'Consulta el resultado',
+      dateLabel: 'Sorteo realizado el',
+      dateValue: formatRaffleDateTime(raffle.draw_at, 'Por anunciar'),
       className: 'is-result',
+      celebratory: false,
     };
   }
   return null;
@@ -89,6 +99,26 @@ const raffleCards = raffles
   })
   .filter(Boolean)
   .slice(0, 3);
+
+const confettiPieces = [
+  { x: 7, drift: 32, delay: 90, color: '#2563eb', start: '-18deg', end: '156deg' },
+  { x: 16, drift: -24, delay: 260, color: '#93c5fd', start: '24deg', end: '210deg' },
+  { x: 27, drift: 18, delay: 430, color: '#f7c948', start: '-38deg', end: '176deg' },
+  { x: 73, drift: -22, delay: 170, color: '#ffffff', start: '16deg', end: '190deg' },
+  { x: 86, drift: 26, delay: 340, color: '#38bdf8', start: '-12deg', end: '168deg' },
+  { x: 94, drift: -30, delay: 520, color: '#bbf7d0', start: '34deg', end: '220deg' },
+];
+
+const streamers = [
+  { x: 10, delay: 120, color: '#2563eb' },
+  { x: 88, delay: 300, color: '#f7c948' },
+];
+
+const stars = [
+  { x: 18, delay: 220, color: '#f7c948' },
+  { x: 80, delay: 420, color: '#ffffff' },
+  { x: 92, delay: 620, color: '#93c5fd' },
+];
 ---
 
 {raffleCards.length > 0 && (
@@ -99,16 +129,63 @@ const raffleCards = raffles
 
     <div class="public-raffles-grid" data-count={raffleCards.length}>
       {raffleCards.map((item: any) => (
-        <a class="public-raffle-card" href={item.href} aria-label={`Ver rifa ${item.title}`}>
+        <a
+          class:list={[
+            'public-raffle-card',
+            item.state.celebratory && 'is-celebratory',
+          ]}
+          href={item.href}
+          aria-label={`Ver rifa ${item.title}`}
+          data-public-raffle-card
+        >
+          {raffleCards.length === 1 && (
+            <svg class="public-raffle-ticket-bg" viewBox="0 0 180 120" aria-hidden="true">
+              <path d="M16 34a18 18 0 0 0 18-18h112a18 18 0 0 0 18 18v52a18 18 0 0 0-18 18H34a18 18 0 0 0-18-18V34Z"></path>
+              <path d="M68 17v86"></path>
+              <circle cx="91" cy="60" r="20"></circle>
+            </svg>
+          )}
+
           <span class="public-raffle-media">
-            <img src={item.imageUrl} alt={item.alt} loading="lazy" />
+            <img src={item.imageUrl} alt={item.alt} loading="lazy" decoding="async" />
+            {item.state.celebratory && (
+              <span class="public-raffle-celebration" aria-hidden="true">
+                {confettiPieces.map((piece) => (
+                  <span
+                    class="public-raffle-confetti"
+                    style={`--x:${piece.x}%; --drift:${piece.drift}px; --delay:${piece.delay}ms; --confetti-color:${piece.color}; --start-rotation:${piece.start}; --end-rotation:${piece.end};`}
+                  ></span>
+                ))}
+                {streamers.map((streamer) => (
+                  <span
+                    class="public-raffle-streamer"
+                    style={`--x:${streamer.x}%; --delay:${streamer.delay}ms; --streamer-color:${streamer.color};`}
+                  ></span>
+                ))}
+                {stars.map((star) => (
+                  <span
+                    class="public-raffle-star"
+                    style={`--x:${star.x}%; --delay:${star.delay}ms; --star-color:${star.color};`}
+                  ></span>
+                ))}
+              </span>
+            )}
           </span>
+
           <span class="public-raffle-copy">
             <span class={`public-raffle-status ${item.state.className}`}>{item.state.label}</span>
             <strong>{item.title}</strong>
-            <span class="public-raffle-date">{item.state.detail}</span>
+            <span class="public-raffle-tagline">Rifa exclusiva para miembros del grupo</span>
+            <span class="public-raffle-date">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 8H4v10h16V10ZM6 6v2h12V6H6Z"></path></svg>
+              <span>{item.state.dateLabel}</span>
+              <time>{item.state.dateValue}</time>
+            </span>
+            <span class="public-raffle-cta">
+              Ver rifa
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+            </span>
           </span>
-          <span class="public-raffle-cta">Ver rifa</span>
         </a>
       ))}
     </div>
@@ -117,7 +194,7 @@ const raffleCards = raffles
 
 <style>
   .public-raffles-section {
-    margin: 0 0 24px;
+    margin: 0 0 26px;
     max-width: 100%;
   }
 
@@ -126,13 +203,13 @@ const raffleCards = raffles
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin: 0 2px 12px;
+    margin: 0 2px 14px;
   }
 
   .public-raffles-head h2 {
     margin: 0;
-    color: #111827;
-    font-size: 22px;
+    color: #0f172a;
+    font-size: 23px;
     line-height: 1.1;
     font-weight: 1000;
     letter-spacing: 0;
@@ -140,26 +217,37 @@ const raffleCards = raffles
 
   .public-raffles-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+    gap: 16px;
     max-width: 100%;
   }
 
   .public-raffle-card {
+    position: relative;
     min-width: 0;
+    overflow: hidden;
     display: grid;
-    grid-template-columns: 112px minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    gap: 12px;
-    align-items: center;
-    padding: 10px;
-    border: 1px solid rgba(203, 213, 225, .9);
-    border-radius: 8px;
-    background: #fff;
-    color: #111827;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, .08);
+    grid-template-columns: minmax(220px, 36%) minmax(0, 1fr);
+    gap: 20px;
+    align-items: stretch;
+    min-height: 270px;
+    padding: 16px;
+    border: 1px solid rgba(37, 99, 235, .45);
+    border-radius: 24px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 54%, #edf5ff 100%);
+    color: #0f172a;
+    box-shadow: 0 20px 48px rgba(15, 23, 42, .10);
     text-decoration: none;
     scroll-snap-align: start;
+    transition:
+      transform .3s ease,
+      border-color .3s ease,
+      box-shadow .3s ease;
+    isolation: isolate;
+  }
+
+  .public-raffle-card:active {
+    transform: scale(.992);
   }
 
   .public-raffle-card:focus-visible {
@@ -167,27 +255,143 @@ const raffleCards = raffles
     outline-offset: 3px;
   }
 
+  .public-raffle-card.is-motion-ready {
+    opacity: 0;
+    transform: translateY(14px) scale(.992);
+  }
+
+  .public-raffle-card.is-revealed {
+    animation: publicRaffleReveal 580ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .public-raffle-ticket-bg {
+    position: absolute;
+    right: -18px;
+    bottom: -18px;
+    width: min(210px, 32%);
+    color: #075bea;
+    opacity: .065;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .public-raffle-ticket-bg path,
+  .public-raffle-ticket-bg circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
   .public-raffle-media {
-    grid-row: 1 / 3;
-    width: 112px;
-    aspect-ratio: 1 / 1;
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
-    border-radius: 8px;
-    background: #eff6ff;
-    border: 1px solid #dbeafe;
+    display: block;
+    border-radius: 18px;
+    background: linear-gradient(145deg, #dbeafe, #eff6ff);
+    border: 1px solid rgba(191, 219, 254, .9);
   }
 
   .public-raffle-media img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    min-height: 100%;
+    object-fit: contain;
     display: block;
+    padding: 10px;
+    transition: transform .55s cubic-bezier(.22, 1, .36, 1);
+  }
+
+  .public-raffle-celebration {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .public-raffle-card.is-celebrating .public-raffle-celebration {
+    opacity: 1;
+  }
+
+  .public-raffle-card.is-celebration-complete .public-raffle-celebration {
+    display: none;
+  }
+
+  .public-raffle-confetti,
+  .public-raffle-streamer,
+  .public-raffle-star {
+    position: absolute;
+    top: 0;
+    left: var(--x);
+    animation-fill-mode: both;
+    animation-iteration-count: 1;
+    will-change: transform, opacity;
+  }
+
+  .public-raffle-confetti {
+    width: 5px;
+    height: 15px;
+    border-radius: 999px;
+    background: var(--confetti-color);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .22);
+  }
+
+  .public-raffle-streamer {
+    width: 13px;
+    height: 46px;
+    border-radius: 999px 999px 4px 4px;
+    background:
+      repeating-linear-gradient(
+        180deg,
+        var(--streamer-color) 0 8px,
+        rgba(255, 255, 255, .82) 8px 13px
+      );
+    opacity: 0;
+  }
+
+  .public-raffle-star {
+    width: 18px;
+    height: 18px;
+    background: var(--star-color);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 35%);
+    filter: drop-shadow(0 4px 8px rgba(15, 23, 42, .12));
+    opacity: 0;
+  }
+
+  .public-raffle-card.is-celebrating .public-raffle-confetti {
+    animation-name: publicRaffleConfettiFall;
+    animation-duration: 3600ms;
+    animation-delay: var(--delay);
+    animation-timing-function: cubic-bezier(.2, .8, .22, 1);
+  }
+
+  .public-raffle-card.is-celebrating .public-raffle-streamer {
+    animation-name: publicRaffleStreamerFall;
+    animation-duration: 3600ms;
+    animation-delay: var(--delay);
+    animation-timing-function: cubic-bezier(.22, .7, .22, 1);
+  }
+
+  .public-raffle-card.is-celebrating .public-raffle-star {
+    animation-name: publicRaffleStarFall;
+    animation-duration: 3600ms;
+    animation-delay: var(--delay);
+    animation-timing-function: cubic-bezier(.22, .72, .28, 1);
   }
 
   .public-raffle-copy {
+    position: relative;
+    z-index: 1;
     min-width: 0;
     display: grid;
-    gap: 6px;
+    align-content: center;
+    gap: 12px;
+    padding: 12px 4px;
   }
 
   .public-raffle-status {
@@ -196,66 +400,144 @@ const raffleCards = raffles
     display: inline-flex;
     align-items: center;
     border-radius: 999px;
-    padding: 5px 8px;
+    padding: 7px 10px;
     font-size: 11px;
     line-height: 1;
     font-weight: 1000;
     color: #1d4ed8;
     background: #dbeafe;
+    border: 1px solid #bfdbfe;
   }
 
   .public-raffle-status.is-active {
     color: #166534;
     background: #dcfce7;
+    border-color: #bbf7d0;
   }
 
   .public-raffle-status.is-closed,
   .public-raffle-status.is-pending {
     color: #92400e;
     background: #fef3c7;
+    border-color: #fde68a;
   }
 
   .public-raffle-status.is-result {
     color: #581c87;
     background: #f3e8ff;
+    border-color: #e9d5ff;
   }
 
   .public-raffle-copy strong {
     min-width: 0;
     color: #0f172a;
-    font-size: 16px;
-    line-height: 1.15;
+    font-size: 28px;
+    line-height: 1.08;
     font-weight: 1000;
+    letter-spacing: 0;
     overflow-wrap: anywhere;
   }
 
-  .public-raffle-date {
-    color: #475569;
-    font-size: 12px;
+  .public-raffle-tagline {
+    color: #334155;
+    font-size: 14px;
     line-height: 1.35;
     font-weight: 850;
   }
 
+  .public-raffle-date {
+    width: fit-content;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, auto);
+    gap: 3px 8px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 14px;
+    color: #334155;
+    background: rgba(255, 255, 255, .72);
+    border: 1px solid rgba(219, 231, 255, .95);
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+
+  .public-raffle-date svg {
+    grid-row: 1 / 3;
+    width: 18px;
+    height: 18px;
+    fill: #2563eb;
+  }
+
+  .public-raffle-date span {
+    color: #64748b;
+  }
+
+  .public-raffle-date time {
+    color: #0f172a;
+    font-weight: 1000;
+  }
+
   .public-raffle-cta {
     justify-self: start;
-    align-self: end;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 32px;
-    border-radius: 8px;
-    padding: 7px 11px;
-    background: #2563eb;
+    gap: 9px;
+    min-height: 44px;
+    border-radius: 12px;
+    padding: 12px 15px;
+    background: linear-gradient(180deg, #126cff, #0057e6);
     color: #fff;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1;
     font-weight: 1000;
-    box-shadow: 0 10px 20px rgba(37, 99, 235, .16);
+    box-shadow: 0 14px 24px rgba(37, 99, 235, .18);
+  }
+
+  .public-raffle-cta svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform .3s ease;
+  }
+
+  .public-raffles-grid[data-count="2"] .public-raffle-card {
+    grid-template-columns: minmax(150px, 42%) minmax(0, 1fr);
+    min-height: 240px;
+    gap: 16px;
+  }
+
+  .public-raffles-grid[data-count="2"] .public-raffle-copy strong {
+    font-size: 21px;
+  }
+
+  .public-raffles-grid[data-count="3"] .public-raffle-card {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  .public-raffles-grid[data-count="3"] .public-raffle-media {
+    aspect-ratio: 16 / 10;
+  }
+
+  .public-raffles-grid[data-count="3"] .public-raffle-copy {
+    align-content: start;
+    padding: 0 2px 2px;
+  }
+
+  .public-raffles-grid[data-count="3"] .public-raffle-copy strong {
+    font-size: 20px;
   }
 
   @media (min-width: 860px) {
     .public-raffles-grid[data-count="1"] {
-      grid-template-columns: minmax(0, 560px);
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .public-raffles-grid[data-count="2"] {
@@ -267,22 +549,48 @@ const raffleCards = raffles
     }
   }
 
+  @media (hover: hover) and (pointer: fine) {
+    .public-raffle-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(37, 99, 235, .82);
+      box-shadow: 0 28px 64px rgba(37, 99, 235, .16);
+    }
+
+    .public-raffle-card:hover .public-raffle-media img {
+      transform: scale(1.035);
+    }
+
+    .public-raffle-card:hover .public-raffle-cta svg {
+      transform: translateX(4px);
+    }
+  }
+
   @media (max-width: 720px) {
     .public-raffles-section {
       margin-bottom: 22px;
+      overflow: hidden;
     }
 
-    .public-raffles-grid {
+    .public-raffles-head h2 {
+      font-size: 21px;
+    }
+
+    .public-raffles-grid,
+    .public-raffles-grid[data-count="1"],
+    .public-raffles-grid[data-count="2"],
+    .public-raffles-grid[data-count="3"] {
       display: grid;
       grid-auto-flow: column;
-      grid-auto-columns: minmax(252px, 82%);
+      grid-auto-columns: min(88vw, 370px);
       grid-template-columns: none;
       overflow-x: auto;
+      overflow-y: hidden;
       overscroll-behavior-x: contain;
       scroll-snap-type: x mandatory;
       scrollbar-width: thin;
       scrollbar-color: rgba(148, 163, 184, .55) transparent;
-      padding: 2px 2px 14px;
+      padding: 2px 10vw 14px 2px;
+      margin-right: -10vw;
     }
 
     .public-raffles-grid::-webkit-scrollbar {
@@ -298,12 +606,223 @@ const raffleCards = raffles
       border-radius: 999px;
     }
 
-    .public-raffle-card {
-      grid-template-columns: 96px minmax(0, 1fr);
+    .public-raffle-card,
+    .public-raffles-grid[data-count="2"] .public-raffle-card,
+    .public-raffles-grid[data-count="3"] .public-raffle-card {
+      grid-template-columns: 1fr;
+      min-height: 0;
+      gap: 13px;
+      padding: 13px;
+      border-radius: 20px;
     }
 
-    .public-raffle-media {
-      width: 96px;
+    .public-raffle-media,
+    .public-raffles-grid[data-count="3"] .public-raffle-media {
+      aspect-ratio: 16 / 10;
+      border-radius: 16px;
+    }
+
+    .public-raffle-ticket-bg {
+      display: none;
+    }
+
+    .public-raffle-copy,
+    .public-raffles-grid[data-count="3"] .public-raffle-copy {
+      align-content: start;
+      gap: 9px;
+      padding: 0 1px 1px;
+    }
+
+    .public-raffle-copy strong,
+    .public-raffles-grid[data-count="2"] .public-raffle-copy strong,
+    .public-raffles-grid[data-count="3"] .public-raffle-copy strong {
+      font-size: 20px;
+    }
+
+    .public-raffle-date {
+      width: 100%;
+    }
+
+    .public-raffle-cta {
+      width: 100%;
+      min-height: 42px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .public-raffle-card,
+    .public-raffle-media img,
+    .public-raffle-cta svg {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+
+    .public-raffle-celebration {
+      display: none !important;
+    }
+  }
+
+  @keyframes publicRaffleReveal {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(.992);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes publicRaffleConfettiFall {
+    0% {
+      opacity: 0;
+      transform:
+        translate3d(0, -42px, 0)
+        rotate(var(--start-rotation));
+    }
+
+    12% {
+      opacity: .96;
+    }
+
+    82% {
+      opacity: .92;
+    }
+
+    100% {
+      opacity: 0;
+      transform:
+        translate3d(var(--drift), 340px, 0)
+        rotate(var(--end-rotation));
+    }
+  }
+
+  @keyframes publicRaffleStarFall {
+    0% {
+      opacity: 0;
+      transform:
+        translateY(-30px)
+        scale(.45)
+        rotate(-20deg);
+    }
+
+    24% {
+      opacity: 1;
+      transform:
+        translateY(30px)
+        scale(1.12)
+        rotate(8deg);
+    }
+
+    80% {
+      opacity: .88;
+    }
+
+    100% {
+      opacity: 0;
+      transform:
+        translateY(260px)
+        scale(.72)
+        rotate(120deg);
+    }
+  }
+
+  @keyframes publicRaffleStreamerFall {
+    0% {
+      opacity: 0;
+      transform:
+        translateY(-64px)
+        rotate(-14deg);
+    }
+
+    10% {
+      opacity: .9;
+    }
+
+    100% {
+      opacity: 0;
+      transform:
+        translateY(330px)
+        rotate(48deg);
     }
   }
 </style>
+
+<script>
+  const initPublicRaffleMotion = () => {
+    const cards = Array.from(
+      document.querySelectorAll('[data-public-raffle-card]')
+    );
+
+    if (!cards.length) return;
+
+    const reduceMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    ).matches;
+
+    if (reduceMotion) {
+      cards.forEach((card) => {
+        card.classList.add(
+          'is-revealed',
+          'is-celebration-complete'
+        );
+      });
+
+      return;
+    }
+
+    const playCard = (card) => {
+      if (card.dataset.motionPlayed === 'true') return;
+
+      card.dataset.motionPlayed = 'true';
+      card.classList.add('is-revealed');
+
+      if (card.classList.contains('is-celebratory')) {
+        card.classList.add('is-celebrating');
+
+        window.setTimeout(() => {
+          card.classList.remove('is-celebrating');
+          card.classList.add('is-celebration-complete');
+        }, 3900);
+      }
+    };
+
+    if (!('IntersectionObserver' in window)) {
+      cards.forEach(playCard);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          playCard(entry.target);
+          observer.unobserve(entry.target);
+        });
+      },
+      {
+        threshold: 0.34,
+      }
+    );
+
+    cards.forEach((card) => {
+      if (card.dataset.motionPlayed === 'true') return;
+
+      card.classList.add('is-motion-ready');
+      observer.observe(card);
+    });
+  };
+
+  initPublicRaffleMotion();
+
+  if (!window.__publicRaffleMotionBound) {
+    window.__publicRaffleMotionBound = true;
+    document.addEventListener(
+      'astro:page-load',
+      initPublicRaffleMotion
+    );
+  }
+</script>

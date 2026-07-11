@@ -17,6 +17,7 @@ import {
   normalizeFileList,
   normalizeAccessCode,
   normalizeRaffleSlug,
+  normalizeWhatsAppGroupInviteUrl,
   raffleDatetimeLocalToIso,
 } from '../../../lib/raffles';
 
@@ -59,7 +60,7 @@ function getAdminRaffleError(error: any, fallback: string) {
   if (statusCode === 401 || statusCode === 403 || /forbidden|unauthori[sz]ed|permission|permiso|auth/i.test(rawMessage)) {
     return { message: ADMIN_RAFFLE_PERMISSION_MESSAGE, status: 403 };
   }
-  if (/access_code_hash|winner_message/i.test(combinedMessage) || (/access_code/i.test(combinedMessage) && /unknown|schema|field/i.test(combinedMessage))) {
+  if (/access_code_hash|winner_message|whatsapp_group_invite_enabled|whatsapp_group_invite_url/i.test(combinedMessage) || (/access_code/i.test(combinedMessage) && /unknown|schema|field/i.test(combinedMessage))) {
     return { message: ADMIN_RAFFLE_SCHEMA_MESSAGE, status: 500 };
   }
   if (/failed to (create|update|delete) record/i.test(rawMessage)) {
@@ -330,6 +331,8 @@ async function resetRaffleContent(client: any, raffle: any) {
     description: '',
     conditions: '',
     winner_message: '',
+    whatsapp_group_invite_enabled: false,
+    whatsapp_group_invite_url: '',
     access_code: '',
     images: [],
     prizes_json: [],
@@ -363,6 +366,9 @@ export const POST: APIRoute = async ({ request }) => {
     const drawAt = normalizeDateField(formData.get('draw_at'), 'El sorteo');
     const linkEnabled = formData.get('link_enabled') === 'true';
     const showInStore = formData.get('show_in_store') === 'true';
+    const whatsappGroupInviteEnabled = formData.get('whatsapp_group_invite_enabled') === 'true';
+    const whatsappGroupInviteRaw = cleanText(formData.get('whatsapp_group_invite_url'), 500);
+    const whatsappGroupInviteUrl = normalizeWhatsAppGroupInviteUrl(whatsappGroupInviteRaw);
     const winnerMessage = normalizeWinnerMessage(formData.get('winner_message'));
     const prizes = parsePrizePayload(formData);
     const requestedPrizeDisplayMode = cleanText(formData.get('prizes_display_mode'), 40);
@@ -374,6 +380,12 @@ export const POST: APIRoute = async ({ request }) => {
     if (!id) return json({ ok: false, message: 'Selecciona uno de los 3 espacios de rifa.' }, 400);
     if (!accessCode) return json({ ok: false, message: 'El código del grupo es obligatorio para guardar la rifa.' }, 400);
     if (!title) return json({ ok: false, message: 'Escribe el título de la rifa.' }, 400);
+    if (whatsappGroupInviteRaw && !whatsappGroupInviteUrl) {
+      return json({ ok: false, message: 'Introduce un enlace válido de invitación al grupo de WhatsApp.' }, 400);
+    }
+    if (whatsappGroupInviteEnabled && !whatsappGroupInviteUrl) {
+      return json({ ok: false, message: 'Agrega el enlace del grupo de WhatsApp para mostrar la invitación.' }, 400);
+    }
 
     await ensureRaffleSlotsForStore(adminContext.storeId, authPb);
     const existingRaffle = await assertRaffleBelongsToStore(authPb, id, adminContext.storeId);
@@ -403,6 +415,8 @@ export const POST: APIRoute = async ({ request }) => {
     appendIfPresent(payload, 'description', cleanLongText(formData.get('description'), 0));
     appendIfPresent(payload, 'conditions', cleanLongText(formData.get('conditions'), 0));
     appendIfPresent(payload, 'winner_message', winnerMessage);
+    payload.append('whatsapp_group_invite_enabled', String(whatsappGroupInviteEnabled));
+    appendIfPresent(payload, 'whatsapp_group_invite_url', whatsappGroupInviteUrl);
     appendIfPresent(payload, 'starts_at', startsAt);
     appendIfPresent(payload, 'closes_at', closesAt);
     appendIfPresent(payload, 'draw_at', drawAt);

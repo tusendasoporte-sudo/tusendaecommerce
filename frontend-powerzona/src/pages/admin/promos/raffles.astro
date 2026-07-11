@@ -290,6 +290,172 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       .winner-message-panel textarea {
         min-height: 118px;
       }
+      .group-invite-field { gap: 10px; }
+      .group-invite-toggle {
+        width: 100%;
+        min-height: 78px;
+        border: 1px solid #bbf7d0;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fffb 56%, #ecfdf3 100%);
+        color: #0f172a;
+        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        box-shadow: 0 14px 30px rgba(22, 163, 74, .08);
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      }
+      .group-invite-toggle:hover {
+        border-color: #86efac;
+        box-shadow: 0 18px 34px rgba(22, 163, 74, .12);
+        transform: translateY(-1px);
+      }
+      .group-invite-toggle:focus-visible {
+        outline: none;
+        border-color: #16a34a;
+        box-shadow: 0 0 0 4px rgba(22,163,74,.12), 0 18px 34px rgba(22, 163, 74, .12);
+      }
+      .group-invite-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 999px;
+        color: #15803d;
+        background: #dcfce7;
+        border: 1px solid #bbf7d0;
+      }
+      .group-invite-icon svg,
+      .group-invite-preview-icon svg,
+      .group-invite-preview-cta svg {
+        width: 19px;
+        height: 19px;
+      }
+      .group-invite-toggle-copy { display: grid; gap: 4px; min-width: 0; }
+      .group-invite-title { color: #0f172a; font-size: 15px; font-weight: 1000; line-height: 1.18; }
+      .group-invite-description { color: #64748b; font-size: 12px; font-weight: 800; line-height: 1.35; }
+      .group-invite-badge {
+        min-height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 1000;
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+      .group-invite-chevron {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: inline-grid;
+        place-items: center;
+        background: #ffffff;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+        box-shadow: 0 8px 18px rgba(22, 163, 74, .08);
+      }
+      .group-invite-chevron svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: transform .18s ease;
+      }
+      .group-invite-field.is-open .group-invite-chevron svg {
+        transform: rotate(180deg);
+      }
+      .group-invite-panel {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid #bbf7d0;
+        border-radius: 16px;
+        background: #ffffff;
+      }
+      .group-invite-panel[hidden] { display: none; }
+      .group-invite-url-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+      }
+      .group-invite-url-row .field > span {
+        color: #334155;
+        font-size: 12px;
+        font-weight: 950;
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+      .group-invite-preview {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 13px;
+        border: 1px solid #bbf7d0;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fffb 100%);
+      }
+      .group-invite-preview.is-disabled {
+        opacity: .62;
+      }
+      .group-invite-preview-icon {
+        width: 38px;
+        height: 38px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 14px;
+        color: #15803d;
+        background: #dcfce7;
+        border: 1px solid #bbf7d0;
+      }
+      .group-invite-preview-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .group-invite-preview-copy strong {
+        color: #0f172a;
+        font-size: 14px;
+        line-height: 1.2;
+        font-weight: 1000;
+      }
+      .group-invite-preview-copy span,
+      .group-invite-preview-copy small {
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 800;
+      }
+      .group-invite-preview-cta {
+        grid-column: 1 / -1;
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        min-height: 36px;
+        border-radius: 12px;
+        padding: 9px 11px;
+        background: #16a34a;
+        color: #ffffff;
+        font-size: 12px;
+        line-height: 1;
+        font-weight: 1000;
+      }
+      .group-invite-preview-cta.is-disabled {
+        background: #94a3b8;
+      }
       .switch-row { display: inline-flex; align-items: center; gap: 9px; color: #334155; font-size: 13px; font-weight: 900; }
       .switch-row input { width: 18px; height: 18px; accent-color: #2563eb; }
       .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -710,6 +876,12 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         .result-number-row {
           grid-template-columns: 1fr;
         }
+        .group-invite-url-row {
+          grid-template-columns: 1fr;
+        }
+        .group-invite-url-row .raffle-btn {
+          width: 100%;
+        }
         .result-start-check-btn {
           width: 100%;
           min-width: 0;
@@ -784,6 +956,25 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           min-height: 86px;
           grid-template-columns: minmax(0, 1fr) auto;
           padding: 13px;
+        }
+        .group-invite-toggle {
+          min-height: 86px;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          padding: 13px;
+        }
+        .group-invite-badge {
+          grid-column: 2;
+          justify-self: start;
+        }
+        .group-invite-chevron {
+          grid-column: 3;
+          grid-row: 1 / span 2;
+        }
+        .group-invite-preview {
+          grid-template-columns: 1fr;
+        }
+        .group-invite-preview-cta {
+          width: 100%;
         }
         .winner-message-badge,
         .winner-message-toggle-label {
@@ -956,6 +1147,86 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
                 <div class="field full">
                   <label for="raffle-conditions">Condiciones adicionales</label>
                   <textarea id="raffle-conditions"></textarea>
+                </div>
+                <div class="field full group-invite-field" id="raffle-group-invite-field">
+                  <button
+                    id="raffle-group-invite-toggle"
+                    class="group-invite-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="raffle-group-invite-panel"
+                  >
+                    <span class="group-invite-icon" aria-hidden="true">
+                      <AdminIcon name="whatsapp" />
+                    </span>
+
+                    <span class="group-invite-toggle-copy">
+                      <span class="group-invite-title">Invitación al grupo de WhatsApp</span>
+                      <span class="group-invite-description">Invita a las personas a unirse a tu grupo para participar en próximas rifas.</span>
+                    </span>
+
+                    <span id="raffle-group-invite-badge" class="group-invite-badge hidden">Configurado</span>
+
+                    <span class="group-invite-chevron" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
+                    </span>
+                  </button>
+
+                  <div id="raffle-group-invite-panel" class="group-invite-panel" hidden>
+                    <label class="switch-row">
+                      <input id="raffle-group-invite-enabled" type="checkbox" />
+                      Mostrar invitación en la página pública
+                    </label>
+
+                    <p class="form-help">
+                      Si está activado, se mostrará una sección invitando a las personas a unirse al grupo.
+                    </p>
+
+                    <div class="group-invite-url-row">
+                      <label class="field">
+                        <span>Enlace de invitación al grupo</span>
+
+                        <input
+                          id="raffle-group-invite-url"
+                          type="url"
+                          maxlength="500"
+                          inputmode="url"
+                          autocomplete="url"
+                          placeholder="https://chat.whatsapp.com/..."
+                        />
+                      </label>
+
+                      <button id="raffle-group-invite-test" class="raffle-btn pz-admin-action-btn" type="button" disabled>
+                        <AdminIcon name="link" class="pz-admin-action-icon" />
+                        <span>Probar enlace</span>
+                      </button>
+                    </div>
+
+                    <p class="form-help">
+                      Usa un enlace oficial de invitación de WhatsApp: https://chat.whatsapp.com/...
+                    </p>
+
+                    <div
+                      id="raffle-group-invite-preview"
+                      class="group-invite-preview"
+                      aria-label="Vista previa de la invitación pública"
+                    >
+                      <span class="group-invite-preview-icon" aria-hidden="true">
+                        <AdminIcon name="users" />
+                      </span>
+
+                      <span class="group-invite-preview-copy">
+                        <strong>¿Aún no eres miembro?</strong>
+                        <span>Únete a nuestro grupo de WhatsApp y prepárate para participar en la próxima rifa cuando cumplas los requisitos.</span>
+                        <small>La participación está sujeta a las condiciones de cada rifa.</small>
+                      </span>
+
+                      <span id="raffle-group-invite-preview-cta" class="group-invite-preview-cta">
+                        <AdminIcon name="whatsapp" />
+                        Unirme al grupo de WhatsApp
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div class="field full winner-message-field" id="raffle-winner-message-field">
                   <button
@@ -1287,6 +1558,13 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         const winnerMessagePanel = document.getElementById('raffle-winner-message-panel');
         const winnerMessageBadge = document.getElementById('raffle-winner-message-badge');
         const winnerMessageToggleLabel = document.getElementById('raffle-winner-message-toggle-label');
+        const groupInviteField = document.getElementById('raffle-group-invite-field');
+        const groupInviteToggle = document.getElementById('raffle-group-invite-toggle');
+        const groupInvitePanel = document.getElementById('raffle-group-invite-panel');
+        const groupInviteBadge = document.getElementById('raffle-group-invite-badge');
+        const groupInviteTest = document.getElementById('raffle-group-invite-test');
+        const groupInvitePreview = document.getElementById('raffle-group-invite-preview');
+        const groupInvitePreviewCta = document.getElementById('raffle-group-invite-preview-cta');
         const fields = {
           id: document.getElementById('raffle-id'),
           title: document.getElementById('raffle-title'),
@@ -1298,6 +1576,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           showInStore: document.getElementById('raffle-show-in-store'),
           description: document.getElementById('raffle-description'),
           conditions: document.getElementById('raffle-conditions'),
+          groupInviteEnabled: document.getElementById('raffle-group-invite-enabled'),
+          groupInviteUrl: document.getElementById('raffle-group-invite-url'),
           winnerMessage: document.getElementById('raffle-winner-message'),
           prizesList: document.getElementById('raffle-prizes-list'),
           addPrize: document.getElementById('raffle-add-prize-btn'),
@@ -2280,6 +2560,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             showInStore: fields.showInStore.checked,
             description: fields.description.value,
             conditions: fields.conditions.value,
+            groupInviteEnabled: fields.groupInviteEnabled.checked,
+            groupInviteUrl: fields.groupInviteUrl.value,
             winnerMessage: fields.winnerMessage.value,
             displayMode: getPrizeDisplayMode(),
             prizes: readPrizeRows().map(({ id, name, description, image }) => ({ id, name, description, image })),
@@ -2307,6 +2589,59 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           if (winnerMessagePanel) winnerMessagePanel.hidden = !isOpen;
           if (winnerMessageToggleLabel) winnerMessageToggleLabel.textContent = isOpen ? 'Ocultar mensaje' : 'Editar mensaje';
           updateWinnerMessageBadge();
+        }
+
+        function normalizeGroupInviteUrl(value) {
+          let raw = String(value || '').trim();
+
+          if (!raw) return '';
+
+          if (/^chat\.whatsapp\.com\//i.test(raw)) {
+            raw = `https://${raw}`;
+          }
+
+          try {
+            const url = new URL(raw);
+
+            if (url.protocol !== 'https:') return '';
+            if (url.hostname.toLowerCase() !== 'chat.whatsapp.com') return '';
+
+            const segments = url.pathname
+              .split('/')
+              .map((segment) => segment.trim())
+              .filter(Boolean);
+
+            const code = segments[0]?.toLowerCase() === 'invite'
+              ? segments[1] || ''
+              : segments[0] || '';
+
+            if (!/^[a-z0-9_-]{8,160}$/i.test(code)) return '';
+
+            return `https://chat.whatsapp.com/${code}`;
+          } catch (_) {
+            return '';
+          }
+        }
+
+        function setGroupInvitePanel(open) {
+          const isOpen = Boolean(open);
+          groupInviteField?.classList.toggle('is-open', isOpen);
+          groupInviteToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (groupInvitePanel) groupInvitePanel.hidden = !isOpen;
+        }
+
+        function getNormalizedGroupInviteUrl() {
+          return normalizeGroupInviteUrl(fields.groupInviteUrl?.value || '');
+        }
+
+        function updateGroupInviteUi() {
+          const normalizedUrl = getNormalizedGroupInviteUrl();
+          const configured = Boolean(fields.groupInviteEnabled?.checked && normalizedUrl);
+
+          groupInviteBadge?.classList.toggle('hidden', !configured);
+          if (groupInviteTest) groupInviteTest.disabled = !normalizedUrl;
+          groupInvitePreview?.classList.toggle('is-disabled', !configured);
+          groupInvitePreviewCta?.classList.toggle('is-disabled', !configured);
         }
 
         function closeOpenMenus(except = null) {
@@ -2483,7 +2818,11 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           fields.showInStore.checked = configured ? raffle.show_in_store === true : false;
           fields.description.value = raffle?.description || '';
           fields.conditions.value = raffle?.conditions || '';
+          fields.groupInviteEnabled.checked = configured ? raffle?.whatsapp_group_invite_enabled === true : false;
+          fields.groupInviteUrl.value = raffle?.whatsapp_group_invite_url || '';
           fields.winnerMessage.value = raffle?.winner_message || DEFAULT_WINNER_MESSAGE;
+          setGroupInvitePanel(false);
+          updateGroupInviteUi();
           setWinnerMessagePanel(false);
           setPrizeDisplayMode(raffle?.prizes_display_mode || 'fixed');
           prizeState = raffle ? prizesFromRaffle(raffle) : [{
@@ -2510,6 +2849,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           modal?.setAttribute('aria-hidden', 'true');
           form?.reset();
           fields.id.value = '';
+          fields.groupInviteEnabled.checked = false;
+          fields.groupInviteUrl.value = '';
+          setGroupInvitePanel(false);
+          updateGroupInviteUi();
           fields.winnerMessage.value = DEFAULT_WINNER_MESSAGE;
           setWinnerMessagePanel(false);
           prizeState = [];
@@ -2546,6 +2889,27 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             return;
           }
           data.append('access_code', accessCode);
+          const groupInviteRaw = fields.groupInviteUrl.value.trim();
+          const groupInviteUrl = normalizeGroupInviteUrl(groupInviteRaw);
+
+          if (groupInviteRaw && !groupInviteUrl) {
+            setGroupInvitePanel(true);
+            show(formAlert, 'Introduce un enlace válido de invitación al grupo de WhatsApp.', 'error');
+            fields.groupInviteUrl.focus();
+            return;
+          }
+
+          if (fields.groupInviteEnabled.checked && !groupInviteUrl) {
+            setGroupInvitePanel(true);
+            show(formAlert, 'Agrega el enlace del grupo de WhatsApp para mostrar la invitación.', 'error');
+            fields.groupInviteUrl.focus();
+            return;
+          }
+
+          if (groupInviteUrl) {
+            fields.groupInviteUrl.value = groupInviteUrl;
+          }
+
           data.append('starts_at', datetimeLocalToIso(fields.starts.value));
           data.append('closes_at', datetimeLocalToIso(fields.closes.value));
           data.append('draw_at', datetimeLocalToIso(fields.draw.value));
@@ -2553,6 +2917,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           data.append('show_in_store', fields.showInStore.checked ? 'true' : 'false');
           data.append('description', fields.description.value.trim());
           data.append('conditions', fields.conditions.value.trim());
+          data.append('whatsapp_group_invite_enabled', fields.groupInviteEnabled.checked ? 'true' : 'false');
+          data.append('whatsapp_group_invite_url', groupInviteUrl);
           data.append('winner_message', fields.winnerMessage.value.trim() || DEFAULT_WINNER_MESSAGE);
           const prizes = readPrizeRows();
           const prizesDisplayMode = prizes.length > PRIZE_FIXED_LIMIT ? 'carousel' : getPrizeDisplayMode();
@@ -3110,6 +3476,29 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         });
         winnerMessageToggle?.addEventListener('click', () => {
           setWinnerMessagePanel(winnerMessagePanel?.hidden !== false);
+        });
+        groupInviteToggle?.addEventListener('click', () => {
+          setGroupInvitePanel(groupInvitePanel?.hidden !== false);
+        });
+        fields.groupInviteEnabled?.addEventListener('change', updateGroupInviteUi);
+        fields.groupInviteUrl?.addEventListener('input', updateGroupInviteUi);
+        fields.groupInviteUrl?.addEventListener('blur', () => {
+          const normalizedUrl = getNormalizedGroupInviteUrl();
+          if (normalizedUrl) fields.groupInviteUrl.value = normalizedUrl;
+          updateGroupInviteUi();
+        });
+        groupInviteTest?.addEventListener('click', () => {
+          const normalizedUrl = getNormalizedGroupInviteUrl();
+
+          if (!normalizedUrl) {
+            setGroupInvitePanel(true);
+            show(formAlert, 'Introduce un enlace válido de invitación al grupo de WhatsApp.', 'error');
+            fields.groupInviteUrl.focus();
+            return;
+          }
+
+          const opened = window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+          if (opened) opened.opener = null;
         });
         fields.winnerMessage?.addEventListener('input', updateWinnerMessageBadge);
         form?.addEventListener('submit', (event) => saveRaffle(event).catch((error) => show(formAlert, error.message || 'No se pudo guardar la rifa.', 'error')));

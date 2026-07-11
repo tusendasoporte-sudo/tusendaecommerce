@@ -1,5 +1,6 @@
 ---
 import SocialMeta from '../SocialMeta.astro';
+import RaffleGroupInviteCard from './RaffleGroupInviteCard.astro';
 import {
   RAFFLE_STATUSES,
   RAFFLE_TIME_ZONE,
@@ -13,6 +14,7 @@ import {
   isRaffleLinkEnabled,
   isRaffleShownInStore,
   isValidRaffleNumber,
+  normalizeWhatsAppGroupInviteUrl,
   raffleAcceptsEntries,
   rafflePrizeCards,
   type RaffleRecord,
@@ -66,6 +68,12 @@ const linkEnabled = Boolean(raffle && isRaffleLinkEnabled(raffle));
 const showInStore = Boolean(raffle && isRaffleShownInStore(raffle));
 const configured = Boolean(raffle && isRaffleConfigured(raffle));
 const hasAvailableRaffle = Boolean(raffle && configured && linkEnabled);
+const whatsappGroupInviteUrl = normalizeWhatsAppGroupInviteUrl(raffle?.whatsapp_group_invite_url);
+const showWhatsappGroupInvite = Boolean(
+  raffle?.whatsapp_group_invite_enabled
+  && whatsappGroupInviteUrl
+  && hasAvailableRaffle
+);
 const shouldNoindex = Boolean(!hasAvailableRaffle || !showInStore);
 const isActive = Boolean(raffle && raffleAcceptsEntries(raffle));
 const isScheduled = calculatedStatus === RAFFLE_STATUSES.SCHEDULED;
@@ -455,6 +463,13 @@ const faviconVersion = '2';
                 )}
               </article>
 
+              {showWhatsappGroupInvite && isPublishedResult && (
+                <RaffleGroupInviteCard
+                  href={whatsappGroupInviteUrl}
+                  wide
+                />
+              )}
+
               {!isPublishedResult && (
                 <article class="pz-raffle-card pz-numbers-card" data-participation-panel>
                   <div class="pz-numbers-head">
@@ -547,6 +562,10 @@ const faviconVersion = '2';
                       </button>
                     </form>
                   </article>
+                )}
+
+                {showWhatsappGroupInvite && (
+                  <RaffleGroupInviteCard href={whatsappGroupInviteUrl} />
                 )}
 
               </aside>
