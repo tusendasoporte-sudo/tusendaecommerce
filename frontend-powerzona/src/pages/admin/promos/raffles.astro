@@ -616,6 +616,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         background: #eff6ff;
         box-shadow: 0 12px 24px rgba(37, 99, 235, .08);
       }
+      .store-featured-card.is-just-moved {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .10), 0 12px 24px rgba(37, 99, 235, .08);
+      }
       .store-featured-position {
         min-width: 0;
         display: inline-flex;
@@ -1356,6 +1360,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       .image-strip img { width: 64px; height: 48px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; }
 
       @media (prefers-reduced-motion: reduce) {
+        .store-featured-card,
         .prize-compact-card,
         .raffle-prize-editor-modal,
         .raffle-prize-editor-card {
@@ -2283,6 +2288,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         let prizeEditorReturnFocus = null;
         let recentPrizeTimer = 0;
         let prizeEditorIsOptimizing = false;
+        let storeFeaturedMoveTimer = 0;
         const alertTimers = new WeakMap();
         const RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
         const RAFFLE_PRIZE_IMAGE_MAX_SIZE = 900;
@@ -3056,6 +3062,32 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           show(storeFeaturedAlert, message, type);
         }
 
+        function focusStoreFeaturedCard(prizeId, preferredAction = 'toggle') {
+          const id = slugify(prizeId || '');
+          if (!id || !storeFeaturedList) return;
+
+          window.requestAnimationFrame(() => {
+            const card = storeFeaturedList.querySelector(`[data-store-featured-prize-id="${CSS.escape(id)}"]`);
+            if (!card) return;
+
+            storeFeaturedList.querySelectorAll('.store-featured-card.is-just-moved').forEach((item) => item.classList.remove('is-just-moved'));
+            card.classList.add('is-just-moved');
+            card.scrollIntoView({
+              behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+              block: 'nearest',
+            });
+
+            const preferredButton = card.querySelector(`[data-store-featured-action="${CSS.escape(preferredAction)}"]:not(:disabled)`);
+            const fallbackButton = card.querySelector('[data-store-featured-action="toggle"]');
+            (preferredButton || fallbackButton)?.focus({ preventScroll: true });
+
+            if (storeFeaturedMoveTimer) window.clearTimeout(storeFeaturedMoveTimer);
+            storeFeaturedMoveTimer = window.setTimeout(() => {
+              card.classList.remove('is-just-moved');
+            }, prefersReducedMotion() ? 0 : 700);
+          });
+        }
+
         function renderStoreFeaturedPrizeSelector() {
           syncStoreFeaturedPrizeIds();
           if (!storeFeaturedList) return;
@@ -3065,12 +3097,25 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             return;
           }
 
-          storeFeaturedList.innerHTML = prizeState.map((prize, index) => {
-            const id = slugify(prize.id || '') || `premio-${index + 1}`;
+          const sourceEntries = prizeState.map((prize, originalIndex) => ({
+            id: slugify(prize.id || '') || `premio-${originalIndex + 1}`,
+            prize,
+            originalIndex,
+          }));
+          const entriesById = new Map(sourceEntries.map((entry) => [entry.id, entry]));
+          const selectedEntries = storeFeaturedPrizeIds
+            .map((id) => entriesById.get(id))
+            .filter(Boolean);
+          const selectedIds = new Set(storeFeaturedPrizeIds);
+          const unselectedEntries = sourceEntries.filter((entry) => !selectedIds.has(entry.id));
+          const orderedEntries = [...selectedEntries, ...unselectedEntries];
+
+          storeFeaturedList.innerHTML = orderedEntries.map((entry) => {
+            const { id, prize, originalIndex } = entry;
             const selectedIndex = storeFeaturedPrizeIds.indexOf(id);
             const selected = selectedIndex >= 0;
             const hasImage = prizeHasStoreImage(prize);
-            const name = storeFeaturedPrizeLabel(prize, index);
+            const name = storeFeaturedPrizeLabel(prize, originalIndex);
             const position = selected ? String(selectedIndex + 1) : '';
             const state = hasImage
               ? (selected ? `Destacado ${selectedIndex + 1}` : 'Disponible para destacar')
@@ -3079,7 +3124,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             return `
               <article class="store-featured-card ${selected ? 'is-selected' : ''}" data-store-featured-prize-id="${escapeHtml(id)}">
                 <span class="store-featured-position">${selected ? escapeHtml(position) : ''}</span>
-                <span class="store-featured-thumb">${storeFeaturedPreviewHtml(prize, index)}</span>
+                <span class="store-featured-thumb">${storeFeaturedPreviewHtml(prize, originalIndex)}</span>
                 <span class="store-featured-copy">
                   <span class="store-featured-name">${escapeHtml(name)}</span>
                   <span class="store-featured-state">${escapeHtml(state)}</span>
@@ -3124,6 +3169,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             showStoreFeaturedAlert('');
             renderStoreFeaturedPrizeSelector();
             renderPrizeEditor();
+            focusStoreFeaturedCard(prizeId, 'toggle');
             return;
           }
 
@@ -3142,6 +3188,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           showStoreFeaturedAlert('');
           renderStoreFeaturedPrizeSelector();
           renderPrizeEditor();
+          focusStoreFeaturedCard(prizeId, 'toggle');
         }
 
         function moveStoreFeaturedPrize(id, direction) {
@@ -3158,6 +3205,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           storeFeaturedPrizeIds = nextIds;
           showStoreFeaturedAlert('');
           renderStoreFeaturedPrizeSelector();
+          focusStoreFeaturedCard(prizeId, direction);
         }
 
         function selectedStoreFeaturedPrizesHaveImages() {
