@@ -3,7 +3,8 @@ import {
   RAFFLE_STATUSES,
   formatRaffleDateTime,
   getCalculatedRaffleStatus,
-  rafflePrizeCards,
+  getStoreFeaturedPrizeCards,
+  parseRafflePrizes,
   type RaffleRecord,
 } from '../../lib/raffles';
 
@@ -82,19 +83,39 @@ const raffleCards = raffles
   .map((raffle) => {
     const state = publicRaffleState(raffle);
     if (!state) return null;
-    const prize = rafflePrizeCards(raffle, storeName)[0] || null;
-    const imageUrl = prize?.imageUrl || fallbackImage;
+    const allPrizes = parseRafflePrizes(raffle, storeName);
+    const featuredPrizes = getStoreFeaturedPrizeCards(raffle, storeName);
+    const totalPrizeCount = Math.max(allPrizes.length, 1);
+    const featuredPrizeCount = featuredPrizes.length;
+    const carouselSlides = [
+      {
+        type: 'preview',
+        imageUrl: fallbackImage,
+        badge: 'Rifa especial',
+        label: 'Rifa especial',
+        alt: `Portada promocional - ${String(raffle.title || 'Rifa activa').trim()}`,
+      },
+      ...featuredPrizes.map((prize, index) => ({
+        type: 'prize',
+        imageUrl: prize.imageUrl || fallbackImage,
+        badge: `Destacado ${index + 1} de ${featuredPrizes.length}`,
+        label: prize.name || prize.label || `Destacado ${index + 1}`,
+        alt: `${prize.name || prize.label} - ${String(raffle.title || 'Rifa activa').trim()}`,
+      })),
+    ];
     const title = String(raffle.title || 'Rifa activa').trim();
-    const prizeName = String(prize?.name || '').trim();
     const href = `/t/${encodeURIComponent(storeSlug)}/rifa/${encodeURIComponent(raffle.slug || '')}`;
 
     return {
       raffle,
       state,
       href,
-      imageUrl,
+      featuredPrizes,
+      featuredPrizeCount,
+      carouselSlides,
+      carouselSlideCount: carouselSlides.length,
+      totalPrizeCount,
       title,
-      alt: prizeName ? `${prizeName} - ${title}` : title,
     };
   })
   .filter(Boolean)
@@ -129,14 +150,15 @@ const stars = [
 
     <div class="public-raffles-grid" data-count={raffleCards.length}>
       {raffleCards.map((item: any) => (
-        <a
+        <article
           class:list={[
             'public-raffle-card',
             item.state.celebratory && 'is-celebratory',
           ]}
-          href={item.href}
-          aria-label={`Ver rifa ${item.title}`}
           data-public-raffle-card
+          data-raffle-carousel-count={item.carouselSlideCount}
+          data-raffle-featured-count={item.featuredPrizeCount}
+          data-raffle-fallback-image={fallbackImage}
         >
           {raffleCards.length === 1 && (
             <svg class="public-raffle-ticket-bg" viewBox="0 0 180 120" aria-hidden="true">
@@ -147,7 +169,104 @@ const stars = [
           )}
 
           <span class="public-raffle-media">
-            <img src={item.imageUrl} alt={item.alt} loading="lazy" decoding="async" />
+            <a
+              class="public-raffle-media-link"
+              href={item.href}
+              aria-label={`Ver rifa ${item.title}`}
+            >
+              {item.carouselSlides.map((slide: any, index: number) => (
+                <span
+                  class:list={[
+                    'public-raffle-slide',
+                    slide.type === 'preview' && 'is-preview',
+                    index === 0 && 'is-active',
+                  ]}
+                  data-raffle-slide
+                  data-slide-index={index}
+                  data-slide-type={slide.type}
+                  data-slide-badge={slide.badge}
+                  data-slide-live-label={slide.label}
+                  aria-hidden={index === 0 ? 'false' : 'true'}
+                >
+                  <img
+                    src={index === 0 ? slide.imageUrl || fallbackImage : undefined}
+                    data-src={index > 0 ? slide.imageUrl || fallbackImage : undefined}
+                    alt={slide.alt}
+                    loading="lazy"
+                    decoding="async"
+                  />
+
+                  {slide.type === 'preview' && (
+                    <span class="public-raffle-preview-label">
+                      Rifa especial
+                    </span>
+                  )}
+
+                  {slide.type === 'prize' && slide.label && (
+                    <span class="public-raffle-prize-name">
+                      {slide.label}
+                    </span>
+                  )}
+                </span>
+              ))}
+            </a>
+
+            {item.carouselSlideCount > 1 && (
+              <span
+                class="public-raffle-featured-badge"
+                data-raffle-featured-position
+              >
+                Rifa especial
+              </span>
+            )}
+
+            {item.carouselSlideCount > 1 && (
+              <span class="public-raffle-arrows" aria-hidden="false">
+                <button
+                  class="public-raffle-arrow is-prev"
+                  type="button"
+                  data-raffle-prev
+                  aria-label="Mostrar destacado anterior"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+                </button>
+                <button
+                  class="public-raffle-arrow is-next"
+                  type="button"
+                  data-raffle-next
+                  aria-label="Mostrar destacado siguiente"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+                </button>
+              </span>
+            )}
+
+            {item.carouselSlideCount > 1 && (
+              <span class="public-raffle-dots" role="tablist" aria-label="Premios destacados">
+                {item.carouselSlides.map((slide: any, index: number) => (
+                  <button
+                    class:list={[
+                      'public-raffle-dot',
+                      index === 0 && 'is-active',
+                    ]}
+                    type="button"
+                    data-raffle-dot
+                    data-slide-index={index}
+                    aria-label={slide.type === 'preview'
+                      ? 'Mostrar portada de la rifa'
+                      : `Mostrar ${slide.badge}`}
+                    aria-current={index === 0 ? 'true' : 'false'}
+                  ></button>
+                ))}
+              </span>
+            )}
+
+            <span
+              class="sr-only"
+              aria-live="polite"
+              data-raffle-carousel-live
+            ></span>
+
             {item.state.celebratory && (
               <span class="public-raffle-celebration" aria-hidden="true">
                 {confettiPieces.map((piece) => (
@@ -172,10 +291,28 @@ const stars = [
             )}
           </span>
 
-          <span class="public-raffle-copy">
+          <a
+            class="public-raffle-copy"
+            href={item.href}
+          >
             <span class={`public-raffle-status ${item.state.className}`}>{item.state.label}</span>
-            <strong>{item.title}</strong>
+            <strong class="public-raffle-title">{item.title}</strong>
             <span class="public-raffle-tagline">Rifa exclusiva para miembros del grupo</span>
+            <span class="public-raffle-prize-total">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7"></path>
+                <path d="M3 8h18v4H3z"></path>
+                <path d="M12 8v13"></path>
+                <path d="M12 8H8.5a2.5 2.5 0 1 1 2.5-2.5V8Z"></path>
+                <path d="M12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z"></path>
+              </svg>
+
+              <span>
+                El ganador recibe
+                <strong>{item.totalPrizeCount}</strong>
+                {item.totalPrizeCount === 1 ? 'premio' : 'premios'}
+              </span>
+            </span>
             <span class="public-raffle-date">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2Zm13 8H4v10h16V10ZM6 6v2h12V6H6Z"></path></svg>
               <span>{item.state.dateLabel}</span>
@@ -185,8 +322,8 @@ const stars = [
               Ver rifa
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
             </span>
-          </span>
-        </a>
+          </a>
+        </article>
       ))}
     </div>
   </section>
@@ -213,6 +350,18 @@ const stars = [
     line-height: 1.1;
     font-weight: 1000;
     letter-spacing: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .public-raffles-grid {
@@ -250,7 +399,10 @@ const stars = [
     transform: scale(.992);
   }
 
-  .public-raffle-card:focus-visible {
+  .public-raffle-media-link:focus-visible,
+  .public-raffle-copy:focus-visible,
+  .public-raffle-arrow:focus-visible,
+  .public-raffle-dot:focus-visible {
     outline: 3px solid rgba(37, 99, 235, .22);
     outline-offset: 3px;
   }
@@ -296,7 +448,36 @@ const stars = [
     border: 1px solid rgba(191, 219, 254, .9);
   }
 
-  .public-raffle-media img {
+  .public-raffle-media-link {
+    position: absolute;
+    inset: 0;
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    border-radius: inherit;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  .public-raffle-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transform: translateX(14px) scale(.992);
+    transition:
+      opacity .46s ease,
+      transform .46s cubic-bezier(.22, 1, .36, 1);
+    pointer-events: none;
+  }
+
+  .public-raffle-slide.is-active {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    pointer-events: auto;
+    z-index: 1;
+  }
+
+  .public-raffle-slide img {
     width: 100%;
     height: 100%;
     min-height: 100%;
@@ -306,9 +487,144 @@ const stars = [
     transition: transform .55s cubic-bezier(.22, 1, .36, 1);
   }
 
+  .public-raffle-prize-name,
+  .public-raffle-preview-label {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: fit-content;
+    max-width: calc(100% - 24px);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    border-radius: 999px;
+    padding: 7px 10px;
+    color: #0f172a;
+    background: rgba(255, 255, 255, .82);
+    border: 1px solid rgba(219, 231, 255, .95);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, .10);
+    backdrop-filter: blur(8px);
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 950;
+  }
+
+  .public-raffle-preview-label {
+    color: #1e3a8a;
+    background: rgba(239, 246, 255, .88);
+    border-color: rgba(147, 197, 253, .95);
+  }
+
+  .public-raffle-card[data-raffle-carousel-count="2"] .public-raffle-prize-name,
+  .public-raffle-card[data-raffle-carousel-count="3"] .public-raffle-prize-name,
+  .public-raffle-card[data-raffle-carousel-count="4"] .public-raffle-prize-name,
+  .public-raffle-card[data-raffle-carousel-count="5"] .public-raffle-prize-name,
+  .public-raffle-card[data-raffle-carousel-count="2"] .public-raffle-preview-label,
+  .public-raffle-card[data-raffle-carousel-count="3"] .public-raffle-preview-label,
+  .public-raffle-card[data-raffle-carousel-count="4"] .public-raffle-preview-label,
+  .public-raffle-card[data-raffle-carousel-count="5"] .public-raffle-preview-label {
+    bottom: 50px;
+  }
+
+  .public-raffle-featured-badge {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    border-radius: 999px;
+    padding: 7px 10px;
+    color: #1d4ed8;
+    background: rgba(255, 255, 255, .86);
+    border: 1px solid rgba(191, 219, 254, .95);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .10);
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 1000;
+  }
+
+  .public-raffle-arrows {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+  }
+
+  .public-raffle-arrow {
+    position: absolute;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(191, 219, 254, .88);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .78);
+    color: #1d4ed8;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, .13);
+    opacity: 0;
+    transform: translateY(-50%) scale(.96);
+    pointer-events: auto;
+    transition: opacity .2s ease, transform .2s ease, background .2s ease;
+  }
+
+  .public-raffle-arrow.is-prev {
+    left: 10px;
+  }
+
+  .public-raffle-arrow.is-next {
+    right: 10px;
+  }
+
+  .public-raffle-arrow svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .public-raffle-dots {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    z-index: 7;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .82);
+    border: 1px solid rgba(219, 231, 255, .9);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .10);
+    transform: translateX(-50%);
+  }
+
+  .public-raffle-dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: #93c5fd;
+  }
+
+  .public-raffle-dot.is-active,
+  .public-raffle-dot[aria-current="true"] {
+    width: 20px;
+    background: #2563eb;
+  }
+
   .public-raffle-celebration {
     position: absolute;
     inset: 0;
+    z-index: 8;
     overflow: hidden;
     pointer-events: none;
     opacity: 0;
@@ -392,6 +708,8 @@ const stars = [
     align-content: center;
     gap: 12px;
     padding: 12px 4px;
+    color: inherit;
+    text-decoration: none;
   }
 
   .public-raffle-status {
@@ -428,7 +746,7 @@ const stars = [
     border-color: #e9d5ff;
   }
 
-  .public-raffle-copy strong {
+  .public-raffle-title {
     min-width: 0;
     color: #0f172a;
     font-size: 28px;
@@ -443,6 +761,40 @@ const stars = [
     font-size: 14px;
     line-height: 1.35;
     font-weight: 850;
+  }
+
+  .public-raffle-prize-total {
+    width: fit-content;
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 11px;
+    border-radius: 14px;
+    color: #1e3a8a;
+    background: rgba(239, 246, 255, .86);
+    border: 1px solid rgba(191, 219, 254, .95);
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 900;
+  }
+
+  .public-raffle-prize-total svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    fill: none;
+    stroke: #2563eb;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .public-raffle-prize-total strong {
+    color: #0f172a;
+    font-size: inherit;
+    line-height: inherit;
+    font-weight: 1000;
   }
 
   .public-raffle-date {
@@ -512,7 +864,7 @@ const stars = [
     gap: 16px;
   }
 
-  .public-raffles-grid[data-count="2"] .public-raffle-copy strong {
+  .public-raffles-grid[data-count="2"] .public-raffle-title {
     font-size: 21px;
   }
 
@@ -531,7 +883,7 @@ const stars = [
     padding: 0 2px 2px;
   }
 
-  .public-raffles-grid[data-count="3"] .public-raffle-copy strong {
+  .public-raffles-grid[data-count="3"] .public-raffle-title {
     font-size: 20px;
   }
 
@@ -556,8 +908,14 @@ const stars = [
       box-shadow: 0 28px 64px rgba(37, 99, 235, .16);
     }
 
-    .public-raffle-card:hover .public-raffle-media img {
+    .public-raffle-card:hover .public-raffle-slide.is-active img {
       transform: scale(1.035);
+    }
+
+    .public-raffle-card:hover .public-raffle-arrow,
+    .public-raffle-card:focus-within .public-raffle-arrow {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
     }
 
     .public-raffle-card:hover .public-raffle-cta svg {
@@ -633,10 +991,18 @@ const stars = [
       padding: 0 1px 1px;
     }
 
-    .public-raffle-copy strong,
-    .public-raffles-grid[data-count="2"] .public-raffle-copy strong,
-    .public-raffles-grid[data-count="3"] .public-raffle-copy strong {
+    .public-raffle-title,
+    .public-raffles-grid[data-count="2"] .public-raffle-title,
+    .public-raffles-grid[data-count="3"] .public-raffle-title {
       font-size: 20px;
+    }
+
+    .public-raffle-arrows {
+      display: none;
+    }
+
+    .public-raffle-dots {
+      bottom: 10px;
     }
 
     .public-raffle-date {
@@ -651,7 +1017,8 @@ const stars = [
 
   @media (prefers-reduced-motion: reduce) {
     .public-raffle-card,
-    .public-raffle-media img,
+    .public-raffle-slide,
+    .public-raffle-slide img,
     .public-raffle-cta svg {
       animation: none !important;
       transition: none !important;
@@ -751,7 +1118,15 @@ const stars = [
 </style>
 
 <script>
+  const cleanupPublicRaffleMotion = () => {
+    const controllers = window.__publicRaffleCarouselControllers || [];
+    controllers.forEach((controller) => controller?.destroy?.());
+    window.__publicRaffleCarouselControllers = [];
+  };
+
   const initPublicRaffleMotion = () => {
+    cleanupPublicRaffleMotion();
+
     const cards = Array.from(
       document.querySelectorAll('[data-public-raffle-card]')
     );
@@ -762,16 +1137,7 @@ const stars = [
       '(prefers-reduced-motion: reduce)'
     ).matches;
 
-    if (reduceMotion) {
-      cards.forEach((card) => {
-        card.classList.add(
-          'is-revealed',
-          'is-celebration-complete'
-        );
-      });
-
-      return;
-    }
+    const controllers = [];
 
     const playCard = (card) => {
       if (card.dataset.motionPlayed === 'true') return;
@@ -789,31 +1155,278 @@ const stars = [
       }
     };
 
-    if (!('IntersectionObserver' in window)) {
-      cards.forEach(playCard);
-      return;
-    }
+    const setupCarousel = (card) => {
+      const slides = Array.from(card.querySelectorAll('[data-raffle-slide]'));
+      const dots = Array.from(card.querySelectorAll('[data-raffle-dot]'));
+      const prevButton = card.querySelector('[data-raffle-prev]');
+      const nextButton = card.querySelector('[data-raffle-next]');
+      const badge = card.querySelector('[data-raffle-featured-position]');
+      const live = card.querySelector('[data-raffle-carousel-live]');
+      const fallbackImage = card.dataset.raffleFallbackImage || '';
+      const slideCount = slides.length;
+      let activeIndex = 0;
+      let timer = 0;
+      let observer = null;
+      let visible = false;
+      let hovering = false;
+      let focusing = false;
+      let destroyed = false;
+      let changeToken = 0;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+      const stopTimer = () => {
+        if (!timer) return;
+        window.clearTimeout(timer);
+        timer = 0;
+      };
 
-          playCard(entry.target);
-          observer.unobserve(entry.target);
+      const canAutoplay = () => (
+        !destroyed
+        && !reduceMotion
+        && slideCount > 1
+        && visible
+        && !document.hidden
+        && !hovering
+        && !focusing
+      );
+
+      const imageForSlide = (index) => slides[index]?.querySelector('img');
+
+      const ensureSlideImage = (index) => new Promise((resolve) => {
+        const image = imageForSlide(index);
+        if (!image) {
+          resolve();
+          return;
+        }
+
+        if (!image.getAttribute('src')) {
+          const nextSrc = image.dataset.src || fallbackImage;
+          if (nextSrc) image.src = nextSrc;
+        }
+
+        if (image.complete) {
+          if (!image.naturalWidth && fallbackImage && image.src !== fallbackImage) {
+            image.src = fallbackImage;
+          }
+          resolve();
+          return;
+        }
+
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+
+        image.addEventListener('load', finish, { once: true });
+        image.addEventListener('error', () => {
+          if (fallbackImage && image.src !== fallbackImage) image.src = fallbackImage;
+          finish();
+        }, { once: true });
+
+        if (typeof image.decode === 'function') {
+          image.decode().then(finish).catch(() => {});
+        }
+
+        window.setTimeout(finish, 1100);
+      });
+
+      const prepareNextSlide = () => {
+        if (slideCount <= 1) return;
+        const nextIndex = (activeIndex + 1) % slideCount;
+        ensureSlideImage(nextIndex);
+      };
+
+      const updateLiveRegion = (index) => {
+        if (!live || slideCount <= 1) return;
+        const slide = slides[index];
+        const label = slide?.dataset?.slideLiveLabel || 'rifa especial';
+        const badgeLabel = slide?.dataset?.slideBadge || 'Rifa especial';
+        live.textContent = slide?.dataset?.slideType === 'preview'
+          ? `Mostrando portada de la rifa: ${label}`
+          : `Mostrando ${badgeLabel}: ${label}`;
+      };
+
+      const showSlide = async (nextIndex, announce = false) => {
+        if (slideCount <= 0) return;
+        const normalizedIndex = (nextIndex + slideCount) % slideCount;
+        const token = ++changeToken;
+        await ensureSlideImage(normalizedIndex);
+        if (destroyed || token !== changeToken) return;
+
+        slides.forEach((slide, index) => {
+          const active = index === normalizedIndex;
+          slide.classList.toggle('is-active', active);
+          slide.setAttribute('aria-hidden', active ? 'false' : 'true');
         });
-      },
-      {
-        threshold: 0.34,
+
+        dots.forEach((dot, index) => {
+          const active = index === normalizedIndex;
+          dot.classList.toggle('is-active', active);
+          dot.setAttribute('aria-current', active ? 'true' : 'false');
+        });
+
+        if (badge) {
+          badge.textContent = slides[normalizedIndex]?.dataset?.slideBadge || 'Rifa especial';
+        }
+
+        activeIndex = normalizedIndex;
+        if (announce) updateLiveRegion(normalizedIndex);
+        prepareNextSlide();
+      };
+
+      const schedule = (delay = 4000) => {
+        stopTimer();
+        if (!canAutoplay()) return;
+
+        timer = window.setTimeout(async () => {
+          await showSlide(activeIndex + 1, false);
+          schedule(4000);
+        }, delay);
+      };
+
+      const restart = (delay = 4000) => {
+        if (!canAutoplay()) {
+          stopTimer();
+          return;
+        }
+        schedule(delay);
+      };
+
+      const goTo = async (index) => {
+        stopTimer();
+        await showSlide(index, true);
+        restart(4000);
+      };
+
+      const handlePrev = () => goTo(activeIndex - 1);
+      const handleNext = () => goTo(activeIndex + 1);
+      const handleDotClick = (event) => {
+        const index = Number(event.currentTarget?.dataset?.slideIndex || 0);
+        goTo(index);
+      };
+      const handleMouseEnter = () => {
+        hovering = true;
+        stopTimer();
+      };
+      const handleMouseLeave = () => {
+        hovering = false;
+        restart(4000);
+      };
+      const handleFocusIn = () => {
+        focusing = true;
+        stopTimer();
+      };
+      const handleFocusOut = () => {
+        focusing = false;
+        restart(4000);
+      };
+      const handleVisibility = () => {
+        if (document.hidden) {
+          stopTimer();
+          return;
+        }
+        restart(1200);
+      };
+
+      prevButton?.addEventListener('click', handlePrev);
+      nextButton?.addEventListener('click', handleNext);
+      dots.forEach((dot) => dot.addEventListener('click', handleDotClick));
+      card.addEventListener('mouseenter', handleMouseEnter);
+      card.addEventListener('mouseleave', handleMouseLeave);
+      card.addEventListener('focusin', handleFocusIn);
+      card.addEventListener('focusout', handleFocusOut);
+      document.addEventListener('visibilitychange', handleVisibility);
+      ensureSlideImage(0);
+
+      if (reduceMotion) {
+        visible = true;
+        playCard(card);
+        return {
+          destroy() {
+            destroyed = true;
+            stopTimer();
+            prevButton?.removeEventListener('click', handlePrev);
+            nextButton?.removeEventListener('click', handleNext);
+            dots.forEach((dot) => dot.removeEventListener('click', handleDotClick));
+            card.removeEventListener('mouseenter', handleMouseEnter);
+            card.removeEventListener('mouseleave', handleMouseLeave);
+            card.removeEventListener('focusin', handleFocusIn);
+            card.removeEventListener('focusout', handleFocusOut);
+            document.removeEventListener('visibilitychange', handleVisibility);
+          },
+        };
       }
-    );
+
+      if ('IntersectionObserver' in window) {
+        observer = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              if (entry.target !== card) return;
+
+              visible = entry.isIntersecting && entry.intersectionRatio >= 0.3;
+
+              if (!visible) {
+                stopTimer();
+                return;
+              }
+
+              playCard(card);
+              prepareNextSlide();
+              const firstDelay = card.dataset.carouselStarted === 'true'
+                ? 1200
+                : card.classList.contains('is-celebratory')
+                  ? 4200
+                  : 1200;
+              card.dataset.carouselStarted = 'true';
+              schedule(firstDelay);
+            });
+          },
+          {
+            threshold: [0, 0.3, 0.34, 0.6],
+          }
+        );
+
+        card.classList.add('is-motion-ready');
+        observer.observe(card);
+      } else {
+        visible = true;
+        playCard(card);
+        prepareNextSlide();
+        schedule(card.classList.contains('is-celebratory') ? 4200 : 1200);
+      }
+
+      return {
+        destroy() {
+          destroyed = true;
+          stopTimer();
+          observer?.disconnect();
+          prevButton?.removeEventListener('click', handlePrev);
+          nextButton?.removeEventListener('click', handleNext);
+          dots.forEach((dot) => dot.removeEventListener('click', handleDotClick));
+          card.removeEventListener('mouseenter', handleMouseEnter);
+          card.removeEventListener('mouseleave', handleMouseLeave);
+          card.removeEventListener('focusin', handleFocusIn);
+          card.removeEventListener('focusout', handleFocusOut);
+          document.removeEventListener('visibilitychange', handleVisibility);
+        },
+      };
+    };
 
     cards.forEach((card) => {
-      if (card.dataset.motionPlayed === 'true') return;
-
-      card.classList.add('is-motion-ready');
-      observer.observe(card);
+      controllers.push(setupCarousel(card));
     });
+
+    window.__publicRaffleCarouselControllers = controllers;
+
+    if (reduceMotion) {
+      cards.forEach((card) => {
+        card.classList.add(
+          'is-revealed',
+          'is-celebration-complete'
+        );
+      });
+    }
   };
 
   initPublicRaffleMotion();
@@ -823,6 +1436,10 @@ const stars = [
     document.addEventListener(
       'astro:page-load',
       initPublicRaffleMotion
+    );
+    document.addEventListener(
+      'astro:before-swap',
+      cleanupPublicRaffleMotion
     );
   }
 </script>

@@ -480,6 +480,231 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         border-radius: 12px;
         padding: 9px 11px;
       }
+      .store-featured-field[hidden] {
+        display: none !important;
+      }
+      .store-featured-toggle {
+        width: 100%;
+        border: 1px solid #bfdbfe;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+        color: inherit;
+        padding: 14px 16px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+        align-items: center;
+        gap: 12px;
+        text-align: left;
+        box-shadow: 0 14px 30px rgba(37, 99, 235, .08);
+        transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+      }
+      .store-featured-toggle:hover {
+        border-color: #93c5fd;
+        box-shadow: 0 18px 34px rgba(37, 99, 235, .12);
+        transform: translateY(-1px);
+      }
+      .store-featured-toggle:focus-visible {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37,99,235,.12), 0 18px 34px rgba(37, 99, 235, .12);
+      }
+      .store-featured-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-grid;
+        place-items: center;
+        border-radius: 999px;
+        color: #1d4ed8;
+        background: #dbeafe;
+        border: 1px solid #bfdbfe;
+      }
+      .store-featured-icon svg,
+      .store-featured-chevron svg,
+      .store-featured-order-btn svg {
+        width: 19px;
+        height: 19px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .store-featured-toggle-copy {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+      .store-featured-title {
+        color: #0f172a;
+        font-size: 15px;
+        font-weight: 1000;
+        line-height: 1.18;
+      }
+      .store-featured-description {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+      .store-featured-badge,
+      .store-featured-note {
+        min-height: 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .store-featured-badge {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+      }
+      .store-featured-note {
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+      }
+      .store-featured-chevron {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        display: inline-grid;
+        place-items: center;
+        background: #ffffff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, .08);
+      }
+      .store-featured-chevron svg {
+        transition: transform .18s ease;
+      }
+      .store-featured-field.is-open .store-featured-chevron svg {
+        transform: rotate(180deg);
+      }
+      .store-featured-panel {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid #bfdbfe;
+        border-radius: 16px;
+        background: #ffffff;
+      }
+      .store-featured-panel[hidden] {
+        display: none;
+      }
+      .store-featured-list {
+        display: grid;
+        gap: 9px;
+      }
+      .store-featured-card {
+        min-width: 0;
+        display: grid;
+        grid-template-columns: 34px 56px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #f8fafc;
+      }
+      .store-featured-card.is-selected {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, .08);
+      }
+      .store-featured-position {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        border-radius: 999px;
+        color: #1d4ed8;
+        background: #dbeafe;
+        border: 1px solid #bfdbfe;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .store-featured-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #dbeafe;
+        font-size: 11px;
+        line-height: 1.05;
+        font-weight: 1000;
+        text-align: center;
+      }
+      .store-featured-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .store-featured-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .store-featured-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #0f172a;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+      .store-featured-state {
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.25;
+        font-weight: 850;
+      }
+      .store-featured-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+      }
+      .store-featured-select-btn,
+      .store-featured-order-btn {
+        min-height: 36px;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .store-featured-select-btn {
+        padding: 8px 11px;
+      }
+      .store-featured-select-btn.is-selected {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #ffffff;
+      }
+      .store-featured-select-btn:disabled,
+      .store-featured-order-btn:disabled {
+        opacity: .48;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+      .store-featured-order-btn {
+        width: 36px;
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
+      }
       .prize-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
       .prize-editor-head h3 { margin: 0; color: #0f172a; font-size: 17px; font-weight: 1000; letter-spacing: 0; }
       .prize-editor-list { display: grid; gap: 10px; }
@@ -882,6 +1107,27 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         .group-invite-url-row .raffle-btn {
           width: 100%;
         }
+        .store-featured-toggle {
+          grid-template-columns: auto minmax(0, 1fr) auto;
+        }
+        .store-featured-note {
+          display: none;
+        }
+        .store-featured-chevron {
+          grid-column: 3;
+        }
+        .store-featured-card {
+          grid-template-columns: 32px 50px minmax(0, 1fr);
+        }
+        .store-featured-actions {
+          grid-column: 1 / -1;
+          justify-content: stretch;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 40px 40px;
+        }
+        .store-featured-select-btn {
+          width: 100%;
+        }
         .result-start-check-btn {
           width: 100%;
           min-width: 0;
@@ -1274,6 +1520,42 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
                   <p class="form-help">Si agregas más de 3 regalos, se recomienda carrusel para mantener una vista cómoda.</p>
                   <p id="raffle-prizes-display-limit-note" class="form-help prize-display-limit-note hidden">Con más de 3 premios, la presentación debe ser carrusel para mantener una vista cómoda.</p>
                 </div>
+                <div class="field full store-featured-field" id="raffle-store-featured-field" hidden>
+                  <button
+                    id="raffle-store-featured-toggle"
+                    class="store-featured-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="raffle-store-featured-panel"
+                  >
+                    <span class="store-featured-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7"></path>
+                        <path d="M3 8h18v4H3z"></path>
+                        <path d="M12 8v13"></path>
+                        <path d="M12 8H8.5a2.5 2.5 0 1 1 2.5-2.5V8Z"></path>
+                        <path d="M12 8h3.5A2.5 2.5 0 1 0 13 5.5V8Z"></path>
+                      </svg>
+                    </span>
+
+                    <span class="store-featured-toggle-copy">
+                      <span class="store-featured-title">Premios destacados en la tienda</span>
+                      <span class="store-featured-description">Selecciona entre 1 y 4 premios para mostrarlos en el carrusel de la portada. El cliente seguirá viendo la cantidad total de premios que recibe el ganador.</span>
+                    </span>
+
+                    <span id="raffle-store-featured-badge" class="store-featured-badge">0 seleccionados</span>
+                    <span class="store-featured-note">Máximo 4</span>
+
+                    <span class="store-featured-chevron" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
+                    </span>
+                  </button>
+
+                  <div id="raffle-store-featured-panel" class="store-featured-panel" hidden>
+                    <div id="raffle-store-featured-alert" class="alert alert-info hidden"></div>
+                    <div id="raffle-store-featured-list" class="store-featured-list"></div>
+                  </div>
+                </div>
                 <div id="raffle-control-card" class="raffle-control-card full hidden">
                   <h3>Estado actual de la rifa</h3>
                   <div><span id="raffle-current-status" class="raffle-status-pill draft">Nueva rifa</span></div>
@@ -1565,6 +1847,12 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         const groupInviteTest = document.getElementById('raffle-group-invite-test');
         const groupInvitePreview = document.getElementById('raffle-group-invite-preview');
         const groupInvitePreviewCta = document.getElementById('raffle-group-invite-preview-cta');
+        const storeFeaturedField = document.getElementById('raffle-store-featured-field');
+        const storeFeaturedToggle = document.getElementById('raffle-store-featured-toggle');
+        const storeFeaturedPanel = document.getElementById('raffle-store-featured-panel');
+        const storeFeaturedBadge = document.getElementById('raffle-store-featured-badge');
+        const storeFeaturedList = document.getElementById('raffle-store-featured-list');
+        const storeFeaturedAlert = document.getElementById('raffle-store-featured-alert');
         const fields = {
           id: document.getElementById('raffle-id'),
           title: document.getElementById('raffle-title'),
@@ -1594,6 +1882,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         let entries = [];
         let selectedRaffleId = '';
         let prizeState = [];
+        let storeFeaturedPrizeIds = [];
         let formSnapshot = '';
         let pendingDateResolve = null;
         let pendingWinner = null;
@@ -2018,6 +2307,206 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
 
           fields.prizesList.innerHTML = prizeState.map(prizeEditorRowHtml).join('');
           updatePrizeDisplayModeAvailability();
+        }
+
+        function parseStoreFeaturedPrizeIds(value) {
+          let source = [];
+
+          if (Array.isArray(value)) {
+            source = value;
+          } else if (typeof value === 'string' && value.trim()) {
+            try {
+              const parsed = JSON.parse(value);
+              source = Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+              source = [];
+            }
+          }
+
+          return [...new Set(
+            source
+              .map((item) => slugify(String(item || '')))
+              .filter(Boolean)
+          )].slice(0, 4);
+        }
+
+        function updateStoreFeaturedBadge() {
+          if (storeFeaturedBadge) {
+            const count = storeFeaturedPrizeIds.length;
+            storeFeaturedBadge.textContent = `${count} ${count === 1 ? 'seleccionado' : 'seleccionados'}`;
+          }
+        }
+
+        function setStoreFeaturedPanel(open) {
+          const isOpen = Boolean(open);
+          storeFeaturedField?.classList.toggle('is-open', isOpen);
+          storeFeaturedToggle?.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+          if (storeFeaturedPanel) storeFeaturedPanel.hidden = !isOpen;
+          updateStoreFeaturedBadge();
+        }
+
+        function updateStoreFeaturedVisibility() {
+          const visible = fields.showInStore?.checked === true;
+          if (storeFeaturedField) storeFeaturedField.hidden = !visible;
+          if (!visible) setStoreFeaturedPanel(false);
+          updateStoreFeaturedBadge();
+        }
+
+        function prizeRowById(id) {
+          if (!fields.prizesList || !id) return null;
+          return fields.prizesList.querySelector(`[data-prize-id="${CSS.escape(id)}"]`);
+        }
+
+        function prizeRowHasStoreImage(row) {
+          return Boolean(row?.dataset?.image || getPrizeUploadFile(row));
+        }
+
+        function syncStoreFeaturedPrizeIds() {
+          const existingIds = new Set(
+            currentPrizeRows()
+              .map((row) => slugify(row.dataset.prizeId || ''))
+              .filter(Boolean)
+          );
+
+          storeFeaturedPrizeIds = [...new Set(
+            storeFeaturedPrizeIds
+              .map((id) => slugify(String(id || '')))
+              .filter((id) => id && existingIds.has(id))
+          )].slice(0, 4);
+
+          updateStoreFeaturedBadge();
+        }
+
+        function initializeDefaultStoreFeaturedPrizes() {
+          storeFeaturedPrizeIds = currentPrizeRows()
+            .filter((row) => prizeRowHasStoreImage(row))
+            .map((row) => slugify(row.dataset.prizeId || ''))
+            .filter(Boolean)
+            .slice(0, 4);
+          updateStoreFeaturedBadge();
+        }
+
+        function storeFeaturedPrizeLabel(row, index) {
+          return row?.querySelector('.js-prize-name')?.value?.trim()
+            || row?.querySelector('.js-prize-description')?.value?.trim()
+            || `Premio ${index + 1}`;
+        }
+
+        function storeFeaturedPreviewHtml(row, index) {
+          const imageSrc = row?.querySelector('.js-prize-preview img')?.getAttribute('src') || '';
+          if (imageSrc) return `<img src="${escapeHtml(imageSrc)}" alt="">`;
+          return `<span>Foto<br>Premio ${index + 1}</span>`;
+        }
+
+        function showStoreFeaturedAlert(message = '', type = 'error') {
+          show(storeFeaturedAlert, message, type);
+        }
+
+        function renderStoreFeaturedPrizeSelector() {
+          syncStoreFeaturedPrizeIds();
+          if (!storeFeaturedList) return;
+
+          const rows = currentPrizeRows();
+          if (!rows.length) {
+            storeFeaturedList.innerHTML = '<div class="empty-state">Agrega premios con imagen para destacarlos en la tienda.</div>';
+            return;
+          }
+
+          storeFeaturedList.innerHTML = rows.map((row, index) => {
+            const id = slugify(row.dataset.prizeId || '') || `premio-${index + 1}`;
+            const selectedIndex = storeFeaturedPrizeIds.indexOf(id);
+            const selected = selectedIndex >= 0;
+            const hasImage = prizeRowHasStoreImage(row);
+            const name = storeFeaturedPrizeLabel(row, index);
+            const position = selected ? String(selectedIndex + 1) : '';
+            const state = hasImage
+              ? (selected ? `Destacado ${selectedIndex + 1}` : 'Disponible para destacar')
+              : 'Agrega una imagen para poder destacarlo.';
+
+            return `
+              <article class="store-featured-card ${selected ? 'is-selected' : ''}" data-store-featured-prize-id="${escapeHtml(id)}">
+                <span class="store-featured-position">${selected ? escapeHtml(position) : ''}</span>
+                <span class="store-featured-thumb">${storeFeaturedPreviewHtml(row, index)}</span>
+                <span class="store-featured-copy">
+                  <span class="store-featured-name">${escapeHtml(name)}</span>
+                  <span class="store-featured-state">${escapeHtml(state)}</span>
+                </span>
+                <span class="store-featured-actions">
+                  <button
+                    class="store-featured-select-btn ${selected ? 'is-selected' : ''}"
+                    type="button"
+                    data-store-featured-action="toggle"
+                    data-prize-id="${escapeHtml(id)}"
+                    ${!hasImage && !selected ? 'disabled' : ''}
+                  >${selected ? 'Seleccionado' : 'Seleccionar'}</button>
+                  <button
+                    class="store-featured-order-btn"
+                    type="button"
+                    data-store-featured-action="up"
+                    data-prize-id="${escapeHtml(id)}"
+                    aria-label="Subir destacado"
+                    ${!selected || selectedIndex === 0 ? 'disabled' : ''}
+                  >${adminIconSvg('up', 'pz-admin-action-icon')}</button>
+                  <button
+                    class="store-featured-order-btn"
+                    type="button"
+                    data-store-featured-action="down"
+                    data-prize-id="${escapeHtml(id)}"
+                    aria-label="Bajar destacado"
+                    ${!selected || selectedIndex === storeFeaturedPrizeIds.length - 1 ? 'disabled' : ''}
+                  >${adminIconSvg('down', 'pz-admin-action-icon')}</button>
+                </span>
+              </article>
+            `;
+          }).join('');
+        }
+
+        function toggleStoreFeaturedPrize(id) {
+          const prizeId = slugify(id || '');
+          if (!prizeId) return;
+
+          const selected = storeFeaturedPrizeIds.includes(prizeId);
+          if (selected) {
+            storeFeaturedPrizeIds = storeFeaturedPrizeIds.filter((item) => item !== prizeId);
+            showStoreFeaturedAlert('');
+            renderStoreFeaturedPrizeSelector();
+            return;
+          }
+
+          const row = prizeRowById(prizeId);
+          if (!prizeRowHasStoreImage(row)) {
+            showStoreFeaturedAlert('Agrega una imagen a cada premio que quieras destacar en la tienda.');
+            return;
+          }
+
+          if (storeFeaturedPrizeIds.length >= 4) {
+            showStoreFeaturedAlert('No puedes mostrar más de 4 premios destacados en la tienda.');
+            return;
+          }
+
+          storeFeaturedPrizeIds = [...storeFeaturedPrizeIds, prizeId];
+          showStoreFeaturedAlert('');
+          renderStoreFeaturedPrizeSelector();
+        }
+
+        function moveStoreFeaturedPrize(id, direction) {
+          const prizeId = slugify(id || '');
+          const currentIndex = storeFeaturedPrizeIds.indexOf(prizeId);
+          if (currentIndex < 0) return;
+
+          const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+          if (nextIndex < 0 || nextIndex >= storeFeaturedPrizeIds.length) return;
+
+          const nextIds = [...storeFeaturedPrizeIds];
+          const [item] = nextIds.splice(currentIndex, 1);
+          nextIds.splice(nextIndex, 0, item);
+          storeFeaturedPrizeIds = nextIds;
+          showStoreFeaturedAlert('');
+          renderStoreFeaturedPrizeSelector();
+        }
+
+        function selectedStoreFeaturedPrizesHaveImages() {
+          return storeFeaturedPrizeIds.every((id) => prizeRowHasStoreImage(prizeRowById(id)));
         }
 
         function normalizeNumber(value) {
@@ -2564,6 +3053,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             groupInviteUrl: fields.groupInviteUrl.value,
             winnerMessage: fields.winnerMessage.value,
             displayMode: getPrizeDisplayMode(),
+            storeFeaturedPrizeIds,
             prizes: readPrizeRows().map(({ id, name, description, image }) => ({ id, name, description, image })),
             files: currentPrizeRows().map((row) => getPrizeUploadSignature(row)),
           });
@@ -2683,6 +3173,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             visible: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"></path><circle cx="12" cy="12" r="3"></circle>',
             save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path>',
             close: '<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>',
+            up: '<path d="m12 19V5"></path><path d="m5 12 7-7 7 7"></path>',
+            down: '<path d="m12 5v14"></path><path d="m19 12-7 7-7-7"></path>',
           };
           const icon = icons[name] || icons.view;
           return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>`;
@@ -2816,6 +3308,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           fields.draw.value = toDatetimeLocal(raffle?.draw_at);
           fields.linkEnabled.checked = configured ? isLinkEnabled(raffle) : false;
           fields.showInStore.checked = configured ? raffle.show_in_store === true : false;
+          storeFeaturedPrizeIds = parseStoreFeaturedPrizeIds(raffle?.store_featured_prize_ids);
           fields.description.value = raffle?.description || '';
           fields.conditions.value = raffle?.conditions || '';
           fields.groupInviteEnabled.checked = configured ? raffle?.whatsapp_group_invite_enabled === true : false;
@@ -2833,6 +3326,13 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             raffleId: '',
           }];
           renderPrizeEditor();
+          syncStoreFeaturedPrizeIds();
+          if (fields.showInStore.checked && storeFeaturedPrizeIds.length === 0) {
+            initializeDefaultStoreFeaturedPrizes();
+          }
+          renderStoreFeaturedPrizeSelector();
+          setStoreFeaturedPanel(false);
+          updateStoreFeaturedVisibility();
           const status = calculatedStatus(raffle);
           if (currentStatusBadge) {
             currentStatusBadge.className = `raffle-status-pill ${status}`;
@@ -2856,7 +3356,11 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           fields.winnerMessage.value = DEFAULT_WINNER_MESSAGE;
           setWinnerMessagePanel(false);
           prizeState = [];
+          storeFeaturedPrizeIds = [];
           renderPrizeEditor();
+          setStoreFeaturedPanel(false);
+          updateStoreFeaturedVisibility();
+          renderStoreFeaturedPrizeSelector();
           controlCard?.classList.add('hidden');
           show(formAlert, '');
           formSnapshot = '';
@@ -2921,8 +3425,30 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           data.append('whatsapp_group_invite_url', groupInviteUrl);
           data.append('winner_message', fields.winnerMessage.value.trim() || DEFAULT_WINNER_MESSAGE);
           const prizes = readPrizeRows();
+          syncStoreFeaturedPrizeIds();
+          if (fields.showInStore.checked && prizes.length === 0) {
+            setStoreFeaturedPanel(true);
+            show(formAlert, 'Agrega al menos un premio antes de mostrar la rifa en la tienda pública.', 'error');
+            return;
+          }
+          if (fields.showInStore.checked && storeFeaturedPrizeIds.length === 0) {
+            setStoreFeaturedPanel(true);
+            show(formAlert, 'Selecciona al menos un premio para mostrar la rifa en la tienda pública.', 'error');
+            return;
+          }
+          if (storeFeaturedPrizeIds.length > 4) {
+            setStoreFeaturedPanel(true);
+            show(formAlert, 'No puedes mostrar más de 4 premios destacados en la tienda.', 'error');
+            return;
+          }
+          if (fields.showInStore.checked && !selectedStoreFeaturedPrizesHaveImages()) {
+            setStoreFeaturedPanel(true);
+            show(formAlert, 'Agrega una imagen a cada premio que quieras destacar en la tienda.', 'error');
+            return;
+          }
           const prizesDisplayMode = prizes.length > PRIZE_FIXED_LIMIT ? 'carousel' : getPrizeDisplayMode();
           data.append('prizes_display_mode', prizesDisplayMode);
+          data.append('store_featured_prize_ids', JSON.stringify(storeFeaturedPrizeIds));
           data.append('prizes_json', JSON.stringify(prizes));
           for (const row of currentPrizeRows()) {
             const file = await getOptimizedPrizeFileForRow(row);
@@ -3455,6 +3981,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           if (!count) fields.prizesList.innerHTML = '';
           fields.prizesList.insertAdjacentHTML('beforeend', prizeEditorRowHtml(nextPrize, count));
           updatePrizeDisplayModeAvailability();
+          syncStoreFeaturedPrizeIds();
+          renderStoreFeaturedPrizeSelector();
         });
         fields.prizesList?.addEventListener('click', (event) => {
           const removeButton = event.target.closest('.js-prize-remove');
@@ -3468,17 +3996,56 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           } else {
             updatePrizeDisplayModeAvailability();
           }
+          syncStoreFeaturedPrizeIds();
+          renderStoreFeaturedPrizeSelector();
         });
         fields.prizesList?.addEventListener('change', (event) => {
           const input = event.target.closest('.js-prize-file');
           if (!input) return;
-          handleRafflePrizeFileChange(input).catch((error) => show(formAlert, error?.message || 'No se pudo optimizar la imagen del premio.', 'error'));
+          handleRafflePrizeFileChange(input)
+            .then(() => renderStoreFeaturedPrizeSelector())
+            .catch((error) => show(formAlert, error?.message || 'No se pudo optimizar la imagen del premio.', 'error'));
+        });
+        fields.prizesList?.addEventListener('input', (event) => {
+          if (!event.target.closest('.js-prize-name, .js-prize-description')) return;
+          renderStoreFeaturedPrizeSelector();
         });
         winnerMessageToggle?.addEventListener('click', () => {
           setWinnerMessagePanel(winnerMessagePanel?.hidden !== false);
         });
         groupInviteToggle?.addEventListener('click', () => {
           setGroupInvitePanel(groupInvitePanel?.hidden !== false);
+        });
+        storeFeaturedToggle?.addEventListener('click', () => {
+          setStoreFeaturedPanel(storeFeaturedPanel?.hidden !== false);
+        });
+        storeFeaturedList?.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-store-featured-action]');
+          if (!button) return;
+
+          const action = button.dataset.storeFeaturedAction || '';
+          const prizeId = button.dataset.prizeId || '';
+
+          if (action === 'toggle') {
+            toggleStoreFeaturedPrize(prizeId);
+            return;
+          }
+
+          if (action === 'up' || action === 'down') {
+            moveStoreFeaturedPrize(prizeId, action);
+          }
+        });
+        fields.showInStore?.addEventListener('change', () => {
+          updateStoreFeaturedVisibility();
+
+          if (
+            fields.showInStore.checked
+            && storeFeaturedPrizeIds.length === 0
+          ) {
+            initializeDefaultStoreFeaturedPrizes();
+          }
+
+          renderStoreFeaturedPrizeSelector();
         });
         fields.groupInviteEnabled?.addEventListener('change', updateGroupInviteUi);
         fields.groupInviteUrl?.addEventListener('input', updateGroupInviteUi);

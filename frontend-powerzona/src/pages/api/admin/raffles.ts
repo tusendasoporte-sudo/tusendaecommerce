@@ -17,6 +17,7 @@ import {
   normalizeFileList,
   normalizeAccessCode,
   normalizeRaffleSlug,
+  normalizeStoreFeaturedPrizeIds,
   normalizeWhatsAppGroupInviteUrl,
   raffleDatetimeLocalToIso,
 } from '../../../lib/raffles';
@@ -60,7 +61,7 @@ function getAdminRaffleError(error: any, fallback: string) {
   if (statusCode === 401 || statusCode === 403 || /forbidden|unauthori[sz]ed|permission|permiso|auth/i.test(rawMessage)) {
     return { message: ADMIN_RAFFLE_PERMISSION_MESSAGE, status: 403 };
   }
-  if (/access_code_hash|winner_message|whatsapp_group_invite_enabled|whatsapp_group_invite_url/i.test(combinedMessage) || (/access_code/i.test(combinedMessage) && /unknown|schema|field/i.test(combinedMessage))) {
+  if (/access_code_hash|winner_message|whatsapp_group_invite_enabled|whatsapp_group_invite_url|store_featured_prize_ids/i.test(combinedMessage) || (/access_code/i.test(combinedMessage) && /unknown|schema|field/i.test(combinedMessage))) {
     return { message: ADMIN_RAFFLE_SCHEMA_MESSAGE, status: 500 };
   }
   if (/failed to (create|update|delete) record/i.test(rawMessage)) {
@@ -337,6 +338,7 @@ async function resetRaffleContent(client: any, raffle: any) {
     images: [],
     prizes_json: [],
     prizes_display_mode: RAFFLE_PRIZE_DISPLAY_MODES.FIXED,
+    store_featured_prize_ids: [],
     starts_at: '',
     closes_at: '',
     draw_at: '',
@@ -371,6 +373,9 @@ export const POST: APIRoute = async ({ request }) => {
     const whatsappGroupInviteUrl = normalizeWhatsAppGroupInviteUrl(whatsappGroupInviteRaw);
     const winnerMessage = normalizeWinnerMessage(formData.get('winner_message'));
     const prizes = parsePrizePayload(formData);
+    const requestedStoreFeaturedPrizeIds = normalizeStoreFeaturedPrizeIds(
+      formData.get('store_featured_prize_ids')
+    );
     const requestedPrizeDisplayMode = cleanText(formData.get('prizes_display_mode'), 40);
     const prizesDisplayMode = getEffectiveRafflePrizeDisplayMode(
       ALLOWED_PRIZE_DISPLAY_MODES.has(requestedPrizeDisplayMode) ? requestedPrizeDisplayMode : 'fixed',
@@ -385,6 +390,36 @@ export const POST: APIRoute = async ({ request }) => {
     }
     if (whatsappGroupInviteEnabled && !whatsappGroupInviteUrl) {
       return json({ ok: false, message: 'Agrega el enlace del grupo de WhatsApp para mostrar la invitación.' }, 400);
+    }
+
+    if (requestedStoreFeaturedPrizeIds.length > 4) {
+      return json({ ok: false, message: 'No puedes mostrar más de 4 premios destacados en la tienda.' }, 400);
+    }
+
+    const submittedPrizeIds = new Set(prizes.map((prize) => prize.id));
+    const invalidStoreFeaturedPrizeIds = requestedStoreFeaturedPrizeIds.filter((id) => !submittedPrizeIds.has(id));
+    const validStoreFeaturedPrizeIds = requestedStoreFeaturedPrizeIds.filter((id) => submittedPrizeIds.has(id));
+    const prizesById = new Map(prizes.map((prize) => [prize.id, prize]));
+
+    if (showInStore && prizes.length === 0) {
+      return json({ ok: false, message: 'Agrega al menos un premio antes de mostrar la rifa en la tienda pública.' }, 400);
+    }
+    if (showInStore && invalidStoreFeaturedPrizeIds.length > 0) {
+      return json({ ok: false, message: 'Uno de los premios destacados ya no existe. Revisa la selección.' }, 400);
+    }
+    if (showInStore && validStoreFeaturedPrizeIds.length === 0) {
+      return json({ ok: false, message: 'Selecciona al menos un premio para mostrar la rifa en la tienda pública.' }, 400);
+    }
+    if (showInStore) {
+      const hasSelectedPrizeWithoutImage = validStoreFeaturedPrizeIds.some((id) => {
+        const prize = prizesById.get(id);
+        const file = prize ? formData.get(`prize_image_${prize.uploadKey}`) : null;
+        return !Boolean(prize?.image) && !(file instanceof File && file.size > 0);
+      });
+
+      if (hasSelectedPrizeWithoutImage) {
+        return json({ ok: false, message: 'Agrega una imagen a cada premio que quieras destacar en la tienda.' }, 400);
+      }
     }
 
     await ensureRaffleSlotsForStore(adminContext.storeId, authPb);
@@ -423,6 +458,7 @@ export const POST: APIRoute = async ({ request }) => {
     payload.append('status', String(status));
     payload.append('link_enabled', String(linkEnabled));
     payload.append('show_in_store', String(showInStore));
+    payload.append('store_featured_prize_ids', JSON.stringify(validStoreFeaturedPrizeIds));
     payload.append('visible', String(linkEnabled));
     payload.append('selection_manually_closed', String(Boolean(existingRaffle.selection_manually_closed)));
     if (status === 'finalized' && !existingRaffle?.finalized_at) {
@@ -464,6 +500,7 @@ export const POST: APIRoute = async ({ request }) => {
     const finalPayload: Record<string, unknown> = {
       prizes_json: JSON.stringify(finalPrizes),
       prizes_display_mode: prizesDisplayMode,
+      store_featured_prize_ids: JSON.stringify(validStoreFeaturedPrizeIds),
     };
     if (!finalPrizes.length) finalPayload.images = [];
 

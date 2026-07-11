@@ -233,6 +233,7 @@ export type RaffleRecord = {
   images?: string[] | string;
   prizes_json?: RafflePrize[] | string;
   prizes_display_mode?: RafflePrizeDisplayMode | string;
+  store_featured_prize_ids?: string[] | string;
   winner_message?: string;
   whatsapp_group_invite_enabled?: boolean;
   whatsapp_group_invite_url?: string;
@@ -412,6 +413,33 @@ export function getEffectiveRafflePrizeDisplayMode(value: unknown, prizeCount: u
     : normalizeRafflePrizeDisplayMode(value);
 }
 
+export function normalizeStoreFeaturedPrizeIds(value: unknown) {
+  let source: unknown[] = [];
+
+  if (Array.isArray(value)) {
+    source = value;
+  } else if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      source = Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      source = [];
+    }
+  }
+
+  const unique: string[] = [];
+
+  source.forEach((item) => {
+    const id = normalizeRaffleSlug(String(item || ''));
+
+    if (!id || unique.includes(id)) return;
+
+    unique.push(id);
+  });
+
+  return unique;
+}
+
 export function parseRafflePrizes(raffle: Partial<RaffleRecord> | null | undefined, storeName = 'PowerZona') {
   const structured = parseJsonArray(raffle?.prizes_json)
     .map((item, index) => {
@@ -458,6 +486,32 @@ export function rafflePrizeCards(raffle: RaffleRecord, storeName = 'PowerZona', 
     image: '',
     imageUrl: '',
   }];
+}
+
+export function getStoreFeaturedPrizeCards(
+  raffle: RaffleRecord,
+  storeName = 'PowerZona'
+): RafflePrizeCard[] {
+  const allCards = rafflePrizeCards(raffle, storeName);
+  const selectedIds = normalizeStoreFeaturedPrizeIds(raffle?.store_featured_prize_ids);
+
+  if (selectedIds.length) {
+    const byId = new Map(allCards.map((card) => [card.id, card]));
+    const selected = selectedIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .slice(0, 4) as RafflePrizeCard[];
+
+    if (selected.length) return selected;
+  }
+
+  const withImages = allCards
+    .filter((card) => card.imageUrl)
+    .slice(0, 4);
+
+  if (withImages.length) return withImages;
+
+  return allCards.slice(0, 1);
 }
 
 export function hasStarted(raffle: RaffleRecord, now = new Date()) {
@@ -735,6 +789,7 @@ export async function ensureRaffleSlotsForStore(storeId: string, client = pb) {
       selection_manually_closed: false,
       prizes_json: [],
       prizes_display_mode: RAFFLE_PRIZE_DISPLAY_MODES.FIXED,
+      store_featured_prize_ids: [],
       images: [],
     });
     slots.push(created as RaffleRecord);
