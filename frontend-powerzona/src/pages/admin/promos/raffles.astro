@@ -708,26 +708,292 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       .prize-editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
       .prize-editor-head h3 { margin: 0; color: #0f172a; font-size: 17px; font-weight: 1000; letter-spacing: 0; }
       .prize-editor-list { display: grid; gap: 10px; }
-      .prize-editor-card {
+      .prize-compact-card {
+        position: relative;
         display: grid;
-        grid-template-columns: 112px minmax(0, 1fr) auto;
-        gap: 12px;
-        align-items: start;
-        padding: 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
         border: 1px solid #dbeafe;
-        border-radius: 18px;
+        border-radius: 16px;
         background: #f8fbff;
+        transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
       }
-      .prize-photo-box { display: grid; gap: 8px; }
-      .prize-photo-preview { width: 100%; aspect-ratio: 1; border-radius: 14px; border: 1px solid #dbeafe; background: #eff6ff; display: grid; place-items: center; overflow: hidden; color: #1d4ed8; font-size: 12px; font-weight: 1000; text-align: center; }
-      .prize-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
-      .prize-photo-box input { padding: 8px; font-size: 11px; border-radius: 12px; }
-      .prize-image-help { font-size: 11px; }
-      .prize-fields { display: grid; gap: 9px; }
-      .prize-fields input,
-      .prize-fields textarea { width: 100%; }
-      .prize-fields textarea { min-height: 68px; }
-      .prize-remove-btn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; font-size: 20px; font-weight: 1000; line-height: 1; }
+      .prize-compact-card:hover,
+      .prize-compact-card.is-recently-updated {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        box-shadow: 0 14px 30px rgba(37, 99, 235, .11);
+      }
+      .prize-compact-card.is-menu-open {
+        z-index: 45;
+      }
+      .prize-compact-main {
+        min-width: 0;
+        width: 100%;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: inherit;
+        padding: 0;
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr);
+        gap: 11px;
+        align-items: center;
+        text-align: left;
+      }
+      .prize-compact-main:focus-visible,
+      .prize-compact-action:focus-visible,
+      .prize-compact-icon-btn:focus-visible,
+      .raffle-prize-editor-card button:focus-visible,
+      .raffle-prize-editor-card input:focus-visible,
+      .raffle-prize-editor-card textarea:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(37,99,235,.12);
+        border-color: #2563eb;
+      }
+      .prize-compact-thumb,
+      .raffle-prize-editor-preview {
+        overflow: hidden;
+        display: grid;
+        place-items: center;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        text-align: center;
+        font-weight: 1000;
+      }
+      .prize-compact-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        font-size: 11px;
+        line-height: 1.05;
+      }
+      .prize-compact-thumb img,
+      .raffle-prize-editor-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .prize-compact-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+      .prize-compact-kicker {
+        color: #2563eb;
+        font-size: 11px;
+        font-weight: 1000;
+        text-transform: uppercase;
+      }
+      .prize-compact-name,
+      .prize-compact-description {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .prize-compact-name {
+        color: #0f172a;
+        font-size: 14px;
+        font-weight: 1000;
+      }
+      .prize-compact-description {
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .prize-compact-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .prize-compact-pill {
+        min-height: 24px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid #dbeafe;
+        border-radius: 999px;
+        background: #ffffff;
+        color: #1d4ed8;
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+      .prize-compact-pill.is-muted {
+        color: #64748b;
+        border-color: #e2e8f0;
+        background: #f8fafc;
+      }
+      .prize-compact-pill.is-featured {
+        color: #166534;
+        border-color: #bbf7d0;
+        background: #dcfce7;
+      }
+      .prize-compact-actions {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+      }
+      .prize-compact-action,
+      .prize-compact-icon-btn {
+        min-height: 38px;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+      .prize-compact-action {
+        padding: 8px 11px;
+      }
+      .prize-compact-icon-btn {
+        width: 38px;
+        display: inline-grid;
+        place-items: center;
+        padding: 0;
+      }
+      .prize-compact-icon-btn svg {
+        width: 17px;
+        height: 17px;
+      }
+      .prize-compact-icon-btn:disabled {
+        opacity: .45;
+        box-shadow: none;
+      }
+      .prize-compact-menu {
+        position: relative;
+        width: 38px;
+        min-width: 38px;
+        overflow: visible;
+      }
+      .prize-compact-menu-panel {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 8px);
+        z-index: 120;
+        width: min(230px, calc(100vw - 36px));
+        padding: 7px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #ffffff;
+        box-shadow: 0 22px 52px rgba(15, 23, 42, .22);
+        display: grid;
+        gap: 4px;
+      }
+      .prize-compact-menu-panel[hidden] {
+        display: none;
+      }
+      .prize-compact-menu-panel button {
+        width: 100%;
+        min-height: 42px;
+        border: 0;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #991b1b;
+        display: grid;
+        grid-template-columns: 24px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        padding: 9px 10px;
+        text-align: left;
+        font-size: 13px;
+        font-weight: 950;
+      }
+      .prize-compact-menu-panel button:hover {
+        background: #fff1f2;
+      }
+      .raffle-prize-editor-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 115;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, .34);
+        backdrop-filter: blur(2px);
+      }
+      .raffle-prize-editor-card {
+        width: min(620px, 100%);
+        max-height: min(88vh, 760px);
+        overflow: auto;
+        border: 1px solid rgba(226,232,240,.96);
+        border-radius: 22px;
+        background: #ffffff;
+        box-shadow: 0 28px 84px rgba(15, 23, 42, .30);
+        display: grid;
+        gap: 0;
+      }
+      .raffle-prize-editor-head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 20px 13px;
+        border-bottom: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(10px);
+      }
+      .raffle-prize-editor-head h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 20px;
+        line-height: 1.15;
+        font-weight: 1000;
+      }
+      .raffle-prize-editor-body {
+        display: grid;
+        gap: 13px;
+        padding: 18px 20px 14px;
+      }
+      .raffle-prize-editor-preview {
+        width: 100%;
+        aspect-ratio: 16 / 10;
+        border-radius: 16px;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+      .raffle-prize-editor-grid {
+        display: grid;
+        grid-template-columns: 180px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .raffle-prize-editor-photo {
+        display: grid;
+        gap: 9px;
+      }
+      .raffle-prize-editor-photo input {
+        padding: 9px;
+        border-radius: 12px;
+      }
+      .raffle-prize-editor-fields {
+        display: grid;
+        gap: 11px;
+      }
+      .raffle-prize-editor-fields textarea {
+        min-height: 118px;
+      }
+      .raffle-prize-editor-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 14px 20px 18px;
+        border-top: 1px solid #e2e8f0;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(10px);
+      }
       .alert { position: relative; border-radius: 14px; padding: 11px 42px 11px 12px; font-size: 13px; font-weight: 850; line-height: 1.45; }
       .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
       .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
@@ -1089,6 +1355,15 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       .image-strip { display: flex; flex-wrap: wrap; gap: 8px; }
       .image-strip img { width: 64px; height: 48px; object-fit: cover; border-radius: 10px; border: 1px solid #e2e8f0; background: #f8fafc; }
 
+      @media (prefers-reduced-motion: reduce) {
+        .prize-compact-card,
+        .raffle-prize-editor-modal,
+        .raffle-prize-editor-card {
+          transition: none !important;
+          animation: none !important;
+        }
+      }
+
       @media (max-width: 1023px) {
         .app-shell { padding-top: 76px; padding-bottom: 104px; }
       }
@@ -1142,8 +1417,22 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         .result-check-copy dl {
           grid-template-columns: 1fr;
         }
-        .raffle-summary-card,
-        .prize-editor-card {
+        .raffle-summary-card {
+          grid-template-columns: 1fr;
+        }
+        .prize-compact-card,
+        .prize-compact-actions {
+          grid-template-columns: 1fr;
+        }
+        .prize-compact-actions {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 38px 38px 38px;
+          width: 100%;
+        }
+        .prize-compact-action {
+          width: 100%;
+        }
+        .raffle-prize-editor-grid {
           grid-template-columns: 1fr;
         }
         .raffle-summary-metrics {
@@ -1161,7 +1450,6 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           grid-column: auto;
           justify-content: end;
         }
-        .prize-remove-btn { width: 100%; }
       }
 
       @media (max-width: 720px) {
@@ -1183,6 +1471,37 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           width: 100%;
           max-height: 94vh;
           border-radius: 22px 22px 0 0;
+        }
+        .raffle-prize-editor-modal {
+          align-items: end;
+          padding: 0;
+        }
+        .raffle-prize-editor-card {
+          width: 100%;
+          max-height: 92vh;
+          border-radius: 22px 22px 0 0;
+        }
+        .raffle-prize-editor-body {
+          padding: 16px 14px 12px;
+        }
+        .raffle-prize-editor-head,
+        .raffle-prize-editor-actions {
+          padding-left: 14px;
+          padding-right: 14px;
+        }
+        .raffle-prize-editor-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .raffle-prize-editor-actions .raffle-btn {
+          width: 100%;
+        }
+        .prize-compact-main {
+          grid-template-columns: 52px minmax(0, 1fr);
+        }
+        .prize-compact-thumb {
+          width: 52px;
+          height: 52px;
         }
         .raffle-form > .raffle-form-grid,
         .raffle-form > .alert,
@@ -1581,6 +1900,63 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
               </div>
             </div>
 
+            <div id="raffle-prize-editor-modal" class="raffle-prize-editor-modal hidden" aria-hidden="true">
+              <div
+                id="raffle-prize-editor-card"
+                class="raffle-prize-editor-card"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="raffle-prize-editor-title"
+                tabindex="-1"
+              >
+                <div class="raffle-prize-editor-head">
+                  <div>
+                    <p class="raffle-row-slot">Regalo de la rifa</p>
+                    <h2 id="raffle-prize-editor-title">Nuevo regalo</h2>
+                  </div>
+                  <button id="raffle-prize-editor-close" class="raffle-icon-btn pz-admin-icon-btn" type="button" aria-label="Cerrar editor de regalo">
+                    <AdminIcon name="close" class="pz-admin-action-icon" />
+                  </button>
+                </div>
+
+                <div class="raffle-prize-editor-body">
+                  <div id="raffle-prize-editor-alert" class="alert alert-info hidden"></div>
+
+                  <div class="raffle-prize-editor-grid">
+                    <div class="raffle-prize-editor-photo">
+                      <div id="raffle-prize-editor-preview" class="raffle-prize-editor-preview">
+                        <span>Foto del regalo</span>
+                      </div>
+                      <label class="field" for="raffle-prize-editor-file">
+                        <span>Foto</span>
+                        <input id="raffle-prize-editor-file" type="file" accept="image/jpeg,image/png,image/webp" />
+                      </label>
+                      <p class="form-help">JPG, PNG o WebP. Se optimiza automaticamente a WebP 900 x 900 px.</p>
+                    </div>
+
+                    <div class="raffle-prize-editor-fields">
+                      <label class="field" for="raffle-prize-editor-name">
+                        <span>Nombre del regalo</span>
+                        <input id="raffle-prize-editor-name" type="text" maxlength="80" autocomplete="off" />
+                      </label>
+                      <label class="field" for="raffle-prize-editor-description">
+                        <span>Descripcion corta</span>
+                        <textarea id="raffle-prize-editor-description" maxlength="180"></textarea>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="raffle-prize-editor-actions">
+                  <button id="raffle-prize-editor-cancel" class="raffle-btn pz-admin-action-btn" type="button">Cancelar</button>
+                  <button id="raffle-prize-editor-submit" class="raffle-btn pz-admin-action-btn primary" type="button">
+                    <AdminIcon name="save" class="pz-admin-action-icon" />
+                    <span>Agregar regalo</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div id="raffle-list" class="raffle-list">
               <div class="empty-state">Cargando rifas...</div>
             </div>
@@ -1853,6 +2229,19 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         const storeFeaturedBadge = document.getElementById('raffle-store-featured-badge');
         const storeFeaturedList = document.getElementById('raffle-store-featured-list');
         const storeFeaturedAlert = document.getElementById('raffle-store-featured-alert');
+        const prizeEditor = {
+          modal: document.getElementById('raffle-prize-editor-modal'),
+          card: document.getElementById('raffle-prize-editor-card'),
+          title: document.getElementById('raffle-prize-editor-title'),
+          close: document.getElementById('raffle-prize-editor-close'),
+          alert: document.getElementById('raffle-prize-editor-alert'),
+          preview: document.getElementById('raffle-prize-editor-preview'),
+          file: document.getElementById('raffle-prize-editor-file'),
+          name: document.getElementById('raffle-prize-editor-name'),
+          description: document.getElementById('raffle-prize-editor-description'),
+          cancel: document.getElementById('raffle-prize-editor-cancel'),
+          submit: document.getElementById('raffle-prize-editor-submit'),
+        };
         const fields = {
           id: document.getElementById('raffle-id'),
           title: document.getElementById('raffle-title'),
@@ -1887,14 +2276,17 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         let pendingDateResolve = null;
         let pendingWinner = null;
         let resultCheck = null;
+        let prizeEditorDraft = null;
+        let prizeEditorDraftPreviewUrl = '';
+        let prizeEditorDraftOwnsPreviewUrl = false;
+        let prizeEditorOptimizationId = 0;
+        let prizeEditorReturnFocus = null;
+        let recentPrizeTimer = 0;
+        let prizeEditorIsOptimizing = false;
         const alertTimers = new WeakMap();
         const RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
         const RAFFLE_PRIZE_IMAGE_MAX_SIZE = 900;
         const RAFFLE_PRIZE_WEBP_QUALITY = 0.86;
-        const optimizedPrizeFiles = new WeakMap();
-        const pendingPrizeOptimizations = new WeakMap();
-        const prizePreviewUrls = new WeakMap();
-        const prizePreviewRows = new Set();
 
         function openSidebar() {
           document.body.classList.add('sidebar-open');
@@ -2038,114 +2430,42 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           }
         }
 
-        function revokePrizePreviewUrl(row) {
-          const url = prizePreviewUrls.get(row);
-          if (url) URL.revokeObjectURL(url);
-          prizePreviewUrls.delete(row);
-          prizePreviewRows.delete(row);
+        function isObjectUrl(value) {
+          return typeof value === 'string' && value.startsWith('blob:');
         }
 
-        function clearPrizePreviewUrls() {
-          Array.from(prizePreviewRows).forEach((row) => revokePrizePreviewUrl(row));
+        function revokeObjectUrl(value) {
+          if (isObjectUrl(value)) URL.revokeObjectURL(value);
         }
 
-        function clearPrizeRowUpload(row, clearInput = false) {
-          if (!row) return;
-          optimizedPrizeFiles.delete(row);
-          pendingPrizeOptimizations.delete(row);
-          revokePrizePreviewUrl(row);
-          if (clearInput) {
-            const input = row.querySelector('.js-prize-file');
-            if (input) input.value = '';
+        function clearPrizeEditorDraftPreview() {
+          if (prizeEditorDraftOwnsPreviewUrl && prizeEditorDraftPreviewUrl) {
+            revokeObjectUrl(prizeEditorDraftPreviewUrl);
           }
+          prizeEditorDraftPreviewUrl = '';
+          prizeEditorDraftOwnsPreviewUrl = false;
         }
 
-        function restoreRafflePrizePreview(row) {
-          const preview = row?.querySelector('.js-prize-preview');
-          if (!preview) return;
-          const image = row.dataset.image || '';
-          if (image && fields.id?.value) {
-            preview.innerHTML = `<img src="${escapeHtml(fileUrl({ id: fields.id.value }, image))}" alt="">`;
+        function clearPrizeStateResources() {
+          prizeState.forEach((prize) => revokeObjectUrl(prize.previewUrl || ''));
+        }
+
+        function showPrizeEditorAlert(message = '', type = 'error') {
+          if (!prizeEditor.alert) return;
+          if (!message) {
+            prizeEditor.alert.className = 'alert alert-info hidden';
+            prizeEditor.alert.innerHTML = '';
             return;
           }
-          const index = Math.max(0, currentPrizeRows().indexOf(row)) + 1;
-          preview.innerHTML = `<span>Foto<br>Premio ${index}</span>`;
+          prizeEditor.alert.className = `alert alert-${type}`;
+          prizeEditor.alert.innerHTML = `<span>${escapeHtml(message)}</span>`;
         }
 
-        function setRafflePrizePreview(row, file) {
-          const preview = row?.querySelector('.js-prize-preview');
-          if (!preview || !(file instanceof File)) return;
-          revokePrizePreviewUrl(row);
-          const url = URL.createObjectURL(file);
-          prizePreviewUrls.set(row, url);
-          prizePreviewRows.add(row);
-          preview.innerHTML = `<img src="${url}" alt="">`;
-        }
-
-        function getPrizeUploadFile(row) {
-          if (!row) return null;
-          return optimizedPrizeFiles.get(row) || row.querySelector('.js-prize-file')?.files?.[0] || null;
-        }
-
-        function getPrizeUploadSignature(row) {
-          const file = getPrizeUploadFile(row);
-          return file ? `${row.dataset.prizeId || ''}:${file.name}:${file.size}` : '';
-        }
-
-        async function getOptimizedPrizeFileForRow(row) {
-          if (!row) return null;
-          const pending = pendingPrizeOptimizations.get(row);
-          if (pending) return pending;
-
-          const optimized = optimizedPrizeFiles.get(row);
-          if (optimized) return optimized;
-
-          const file = row.querySelector('.js-prize-file')?.files?.[0];
-          if (!file) return null;
-
-          const optimization = optimizeRafflePrizeImageFile(file);
-          pendingPrizeOptimizations.set(row, optimization);
-          try {
-            const nextFile = await optimization;
-            optimizedPrizeFiles.set(row, nextFile);
-            return nextFile;
-          } finally {
-            if (pendingPrizeOptimizations.get(row) === optimization) pendingPrizeOptimizations.delete(row);
-          }
-        }
-
-        async function handleRafflePrizeFileChange(input) {
-          const row = input?.closest('[data-prize-id]');
-          if (!row) return;
-          clearPrizeRowUpload(row);
-
-          const file = input.files?.[0];
-          if (!file) return;
-
-          if (!isAllowedRafflePrizeImageType(file)) {
-            input.value = '';
-            restoreRafflePrizePreview(row);
-            show(formAlert, rafflePrizeImageTypeError(), 'error');
-            return;
-          }
-
-          const optimization = optimizeRafflePrizeImageFile(file);
-          pendingPrizeOptimizations.set(row, optimization);
-          try {
-            const optimizedFile = await optimization;
-            if (pendingPrizeOptimizations.get(row) !== optimization) return;
-            optimizedPrizeFiles.set(row, optimizedFile);
-            setRafflePrizePreview(row, optimizedFile);
-            show(formAlert, '');
-          } catch (error) {
-            if (pendingPrizeOptimizations.get(row) !== optimization) return;
-            optimizedPrizeFiles.delete(row);
-            input.value = '';
-            restoreRafflePrizePreview(row);
-            show(formAlert, error?.message || 'No se pudo optimizar la imagen del premio.', 'error');
-          } finally {
-            if (pendingPrizeOptimizations.get(row) === optimization) pendingPrizeOptimizations.delete(row);
-          }
+        function setPrizeEditorPreview(src = '', fallback = 'Foto del regalo') {
+          if (!prizeEditor.preview) return;
+          prizeEditor.preview.innerHTML = src
+            ? `<img src="${escapeHtml(src)}" alt="">`
+            : `<span>${escapeHtml(fallback)}</span>`;
         }
 
         function parseJsonArray(value) {
@@ -2207,7 +2527,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         }
 
         function shouldForcePrizeCarousel() {
-          return currentPrizeRows().length > PRIZE_FIXED_LIMIT;
+          return prizeState.length > PRIZE_FIXED_LIMIT;
         }
 
         function updatePrizeDisplayModeAvailability() {
@@ -2236,6 +2556,8 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             description: String(prize.description || '').trim().slice(0, 180),
             image: String(prize.image || '').trim(),
             raffleId: raffle?.id || '',
+            pendingFile: null,
+            previewUrl: '',
           };
         }
 
@@ -2253,60 +2575,400 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             description: raffle?.description || '',
             image,
             raffleId: raffle?.id || '',
+            pendingFile: null,
+            previewUrl: '',
           }));
         }
 
-        function currentPrizeRows() {
-          return Array.from(fields.prizesList?.querySelectorAll('[data-prize-id]') || []);
+        function prizeIndexById(id) {
+          const prizeId = slugify(id || '');
+          return prizeState.findIndex((prize) => slugify(prize.id || '') === prizeId);
+        }
+
+        function prizeById(id) {
+          const index = prizeIndexById(id);
+          return index >= 0 ? prizeState[index] : null;
+        }
+
+        function getPrizeDisplayImage(prize) {
+          if (!prize) return '';
+          if (prize.previewUrl) return prize.previewUrl;
+          const raffleId = prize.raffleId || fields.id?.value || '';
+          if (prize.image && raffleId) return fileUrl({ id: raffleId }, prize.image);
+          return '';
+        }
+
+        function prizeHasImage(prize) {
+          return Boolean(prize?.image || prize?.previewUrl || prize?.pendingFile);
+        }
+
+        function prizeHasStoreImage(prize) {
+          return Boolean(prize && (getPrizeDisplayImage(prize) || prize.pendingFile || prize.image));
+        }
+
+        function getPrizeUploadSignature(prize) {
+          const file = prize?.pendingFile;
+          return file instanceof File ? `${prize.id || ''}:${file.name}:${file.size}` : '';
         }
 
         function readPrizeRows() {
-          return currentPrizeRows().map((row) => ({
-            id: row.dataset.prizeId || makePrizeId(),
-            name: row.querySelector('.js-prize-name')?.value?.trim() || '',
-            description: row.querySelector('.js-prize-description')?.value?.trim() || '',
-            image: row.dataset.image || '',
-            uploadKey: row.dataset.prizeId || '',
-          })).filter((prize) => {
-            const row = fields.prizesList?.querySelector(`[data-prize-id="${CSS.escape(prize.id)}"]`);
-            const file = getPrizeUploadFile(row);
-            return prize.name || prize.description || prize.image || file;
+          return prizeState.map((prize) => {
+            const id = slugify(prize.id || '') || makePrizeId();
+            return {
+              id,
+              name: String(prize.name || '').trim().slice(0, 80),
+              description: String(prize.description || '').trim().slice(0, 180),
+              image: String(prize.image || '').trim(),
+              uploadKey: id,
+            };
+          }).filter((prize) => {
+            const source = prizeById(prize.id);
+            return prize.name || prize.description || prize.image || source?.pendingFile;
           });
         }
 
-        function prizeEditorRowHtml(prize, index) {
-          const image = prize.image && prize.raffleId ? fileUrl({ id: prize.raffleId }, prize.image) : '';
-          const preview = image
-            ? `<img src="${escapeHtml(image)}" alt="">`
-            : `<span>Foto<br>Premio ${index + 1}</span>`;
+        function prizePreviewHtml(prize, index) {
+          const image = getPrizeDisplayImage(prize);
+          if (image) return `<img src="${escapeHtml(image)}" alt="">`;
+          return `<span>Premio<br>${index + 1}</span>`;
+        }
+
+        function prizeCompactCardHtml(prize, index) {
+          const id = slugify(prize.id || '') || `premio-${index + 1}`;
+          const name = String(prize.name || '').trim();
+          const description = String(prize.description || '').trim();
+          const hasImage = prizeHasImage(prize);
+          const isFeatured = storeFeaturedPrizeIds.includes(id);
+          const nameText = name || 'Regalo sin nombre';
+          const descriptionText = description || 'Sin descripción';
 
           return `
-            <article class="prize-editor-card" data-prize-id="${escapeHtml(prize.id)}" data-image="${escapeHtml(prize.image || '')}">
-              <div class="prize-photo-box">
-                <div class="prize-photo-preview js-prize-preview">${preview}</div>
-                <input class="js-prize-file" type="file" accept="image/jpeg,image/png,image/webp" />
-                <p class="form-help prize-image-help">JPG, PNG o WebP. Se optimiza automaticamente a WebP 900 x 900 px.</p>
-              </div>
-              <div class="prize-fields">
-                <input class="js-prize-name" type="text" maxlength="80" placeholder="Nombre del regalo" value="${escapeHtml(prize.name || '')}" />
-                <textarea class="js-prize-description" maxlength="180" placeholder="Descripción corta">${escapeHtml(prize.description || '')}</textarea>
-              </div>
-              <button class="prize-remove-btn js-prize-remove" type="button" aria-label="Borrar regalo">&times;</button>
+            <article class="prize-compact-card" data-prize-id="${escapeHtml(id)}">
+              <button class="prize-compact-main js-prize-edit" type="button" data-prize-action="edit" data-prize-id="${escapeHtml(id)}">
+                <span class="prize-compact-thumb">${prizePreviewHtml(prize, index)}</span>
+                <span class="prize-compact-copy">
+                  <span class="prize-compact-kicker">Premio ${index + 1}</span>
+                  <span class="prize-compact-name">${escapeHtml(nameText)}</span>
+                  <span class="prize-compact-description">${escapeHtml(descriptionText)}</span>
+                  <span class="prize-compact-meta">
+                    <span class="prize-compact-pill ${hasImage ? '' : 'is-muted'}">${hasImage ? 'Con imagen' : 'Sin imagen'}</span>
+                    ${isFeatured ? '<span class="prize-compact-pill is-featured">Destacado en tienda</span>' : ''}
+                  </span>
+                </span>
+              </button>
+              <span class="prize-compact-actions">
+                <button class="prize-compact-action" type="button" data-prize-action="edit" data-prize-id="${escapeHtml(id)}">Editar</button>
+                <button class="prize-compact-icon-btn" type="button" data-prize-action="up" data-prize-id="${escapeHtml(id)}" aria-label="Subir regalo" ${index === 0 ? 'disabled' : ''}>${adminIconSvg('up', 'pz-admin-action-icon')}</button>
+                <button class="prize-compact-icon-btn" type="button" data-prize-action="down" data-prize-id="${escapeHtml(id)}" aria-label="Bajar regalo" ${index === prizeState.length - 1 ? 'disabled' : ''}>${adminIconSvg('down', 'pz-admin-action-icon')}</button>
+                <span class="prize-compact-menu">
+                  <button class="prize-compact-icon-btn pz-admin-kebab-btn" type="button" data-prize-menu-trigger data-prize-id="${escapeHtml(id)}" aria-label="Acciones del regalo" aria-expanded="false">
+                    <span class="pz-admin-kebab-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                  </button>
+                  <span class="prize-compact-menu-panel" hidden>
+                    <button type="button" data-prize-action="delete" data-prize-id="${escapeHtml(id)}">
+                      ${adminIconSvg('close', 'pz-admin-action-icon')}
+                      <span>Eliminar</span>
+                    </button>
+                  </span>
+                </span>
+              </span>
             </article>
           `;
         }
 
         function renderPrizeEditor() {
           if (!fields.prizesList) return;
-          clearPrizePreviewUrls();
+          syncStoreFeaturedPrizeIds();
           if (!prizeState.length) {
             fields.prizesList.innerHTML = '<div class="empty-state">Agrega al menos un regalo para mostrarlo en la página pública.</div>';
             updatePrizeDisplayModeAvailability();
             return;
           }
 
-          fields.prizesList.innerHTML = prizeState.map(prizeEditorRowHtml).join('');
+          fields.prizesList.innerHTML = prizeState.map(prizeCompactCardHtml).join('');
           updatePrizeDisplayModeAvailability();
+        }
+
+        function prefersReducedMotion() {
+          return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+        }
+
+        function highlightPrizeCard(prizeId) {
+          const id = slugify(prizeId || '');
+          if (!id || !fields.prizesList) return;
+          const card = fields.prizesList.querySelector(`[data-prize-id="${CSS.escape(id)}"]`);
+          if (!card) return;
+          fields.prizesList.querySelectorAll('.prize-compact-card.is-recently-updated').forEach((item) => item.classList.remove('is-recently-updated'));
+          card.classList.add('is-recently-updated');
+          card.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+          if (recentPrizeTimer) window.clearTimeout(recentPrizeTimer);
+          recentPrizeTimer = window.setTimeout(() => {
+            card.classList.remove('is-recently-updated');
+          }, 1700);
+        }
+
+        function refreshPrizeUi(highlightId = '') {
+          syncStoreFeaturedPrizeIds();
+          renderPrizeEditor();
+          renderStoreFeaturedPrizeSelector();
+          if (highlightId) highlightPrizeCard(highlightId);
+        }
+
+        function isPrizeEditorOpen() {
+          return Boolean(prizeEditor.modal && !prizeEditor.modal.classList.contains('hidden'));
+        }
+
+        function getPrizeEditorDraftDisplayImage() {
+          if (prizeEditorDraftPreviewUrl) return prizeEditorDraftPreviewUrl;
+          if (prizeEditorDraft?.mode === 'edit') return getPrizeDisplayImage(prizeById(prizeEditorDraft.id));
+          return '';
+        }
+
+        function closePrizeEditorWithoutCommit(restoreFocus = true) {
+          if (!prizeEditor.modal) return;
+          prizeEditorOptimizationId += 1;
+          prizeEditorIsOptimizing = false;
+          clearPrizeEditorDraftPreview();
+          prizeEditorDraft = null;
+          if (prizeEditor.file) prizeEditor.file.value = '';
+          if (prizeEditor.submit) prizeEditor.submit.disabled = false;
+          showPrizeEditorAlert('');
+          prizeEditor.modal.classList.add('hidden');
+          prizeEditor.modal.setAttribute('aria-hidden', 'true');
+          if (restoreFocus && prizeEditorReturnFocus instanceof HTMLElement && document.contains(prizeEditorReturnFocus)) {
+            prizeEditorReturnFocus.focus({ preventScroll: true });
+          }
+          prizeEditorReturnFocus = null;
+        }
+
+        function openPrizeEditor(draft, opener = null) {
+          if (!prizeEditor.modal || !draft) return;
+          closePrizeMenus();
+          prizeEditorOptimizationId += 1;
+          clearPrizeEditorDraftPreview();
+          prizeEditorDraft = draft;
+          prizeEditorReturnFocus = opener instanceof HTMLElement ? opener : document.activeElement;
+          const isEdit = draft.mode === 'edit';
+          if (prizeEditor.title) prizeEditor.title.textContent = isEdit ? 'Editar regalo' : 'Nuevo regalo';
+          if (prizeEditor.submit) {
+            const submitLabel = isEdit ? 'Guardar cambios' : 'Agregar regalo';
+            const label = prizeEditor.submit.querySelector('span');
+            if (label) label.textContent = submitLabel;
+            else prizeEditor.submit.textContent = submitLabel;
+          }
+          if (prizeEditor.name) prizeEditor.name.value = draft.name || '';
+          if (prizeEditor.description) prizeEditor.description.value = draft.description || '';
+          if (prizeEditor.file) prizeEditor.file.value = '';
+          if (prizeEditor.submit) prizeEditor.submit.disabled = false;
+          showPrizeEditorAlert('');
+          setPrizeEditorPreview(getPrizeEditorDraftDisplayImage(), 'Foto del regalo');
+          prizeEditor.modal.classList.remove('hidden');
+          prizeEditor.modal.setAttribute('aria-hidden', 'false');
+          window.setTimeout(() => prizeEditor.name?.focus(), 0);
+        }
+
+        function openPrizeEditorForCreate(opener = null) {
+          if (prizeState.length >= 12) {
+            show(formAlert, 'Puedes agregar hasta 12 regalos por rifa.', 'error');
+            return;
+          }
+          openPrizeEditor({
+            mode: 'create',
+            id: makePrizeId(),
+            name: '',
+            description: '',
+            image: '',
+            raffleId: fields.id?.value || '',
+            pendingFile: null,
+            previewUrl: '',
+          }, opener);
+        }
+
+        function openPrizeEditorForEdit(id, opener = null) {
+          const prize = prizeById(id);
+          if (!prize) return;
+          openPrizeEditor({
+            mode: 'edit',
+            id: prize.id,
+            name: prize.name || '',
+            description: prize.description || '',
+            image: prize.image || '',
+            raffleId: prize.raffleId || fields.id?.value || '',
+            pendingFile: prize.pendingFile || null,
+            previewUrl: prize.previewUrl || '',
+          }, opener);
+        }
+
+        async function handlePrizeEditorFileChange() {
+          if (!prizeEditorDraft || !prizeEditor.file) return;
+          const optimizationId = ++prizeEditorOptimizationId;
+          prizeEditorIsOptimizing = false;
+          if (prizeEditor.submit) prizeEditor.submit.disabled = false;
+          const file = prizeEditor.file.files?.[0];
+          if (!file) return;
+
+          if (!isAllowedRafflePrizeImageType(file)) {
+            prizeEditor.file.value = '';
+            showPrizeEditorAlert(rafflePrizeImageTypeError(), 'error');
+            setPrizeEditorPreview(getPrizeEditorDraftDisplayImage(), 'Foto del regalo');
+            return;
+          }
+
+          prizeEditorIsOptimizing = true;
+          if (prizeEditor.submit) prizeEditor.submit.disabled = true;
+          showPrizeEditorAlert('');
+          try {
+            const optimizedFile = await optimizeRafflePrizeImageFile(file);
+            if (optimizationId !== prizeEditorOptimizationId || !prizeEditorDraft) return;
+            const nextPreviewUrl = URL.createObjectURL(optimizedFile);
+            clearPrizeEditorDraftPreview();
+            prizeEditorDraft.pendingFile = optimizedFile;
+            prizeEditorDraftPreviewUrl = nextPreviewUrl;
+            prizeEditorDraftOwnsPreviewUrl = true;
+            setPrizeEditorPreview(nextPreviewUrl, 'Foto del regalo');
+          } catch (error) {
+            if (optimizationId !== prizeEditorOptimizationId) return;
+            prizeEditor.file.value = '';
+            showPrizeEditorAlert(error?.message || 'No se pudo optimizar la imagen del premio.', 'error');
+            setPrizeEditorPreview(getPrizeEditorDraftDisplayImage(), 'Foto del regalo');
+          } finally {
+            if (optimizationId === prizeEditorOptimizationId) {
+              prizeEditorIsOptimizing = false;
+              if (prizeEditor.submit) prizeEditor.submit.disabled = false;
+            }
+          }
+        }
+
+        function submitPrizeEditor() {
+          if (!prizeEditorDraft) return;
+          if (prizeEditorIsOptimizing) {
+            showPrizeEditorAlert('Espera a que termine la optimizacion de la imagen.', 'error');
+            return;
+          }
+          const name = String(prizeEditor.name?.value || '').trim().slice(0, 80);
+          const description = String(prizeEditor.description?.value || '').trim().slice(0, 180);
+          if (!name) {
+            showPrizeEditorAlert('Escribe el nombre del regalo.', 'error');
+            prizeEditor.name?.focus();
+            return;
+          }
+
+          if (prizeEditorDraft.mode === 'create') {
+            const id = slugify(prizeEditorDraft.id || '') || makePrizeId();
+            const nextPrize = {
+              id,
+              name,
+              description,
+              image: '',
+              raffleId: fields.id?.value || '',
+              pendingFile: prizeEditorDraft.pendingFile || null,
+              previewUrl: prizeEditorDraftPreviewUrl || '',
+            };
+            prizeEditorDraftPreviewUrl = '';
+            prizeEditorDraftOwnsPreviewUrl = false;
+            prizeState.push(nextPrize);
+            closePrizeEditorWithoutCommit();
+            refreshPrizeUi(id);
+            return;
+          }
+
+          const index = prizeIndexById(prizeEditorDraft.id);
+          if (index < 0) {
+            closePrizeEditorWithoutCommit();
+            return;
+          }
+
+          const currentPrize = prizeState[index];
+          const hasNewPreview = Boolean(prizeEditorDraftPreviewUrl);
+          if (hasNewPreview) {
+            revokeObjectUrl(currentPrize.previewUrl || '');
+          }
+          const nextPreviewUrl = hasNewPreview ? prizeEditorDraftPreviewUrl : (currentPrize.previewUrl || '');
+          const nextPendingFile = hasNewPreview ? (prizeEditorDraft.pendingFile || null) : (currentPrize.pendingFile || null);
+          prizeEditorDraftPreviewUrl = '';
+          prizeEditorDraftOwnsPreviewUrl = false;
+          prizeState[index] = {
+            ...currentPrize,
+            name,
+            description,
+            pendingFile: nextPendingFile,
+            previewUrl: nextPreviewUrl,
+          };
+          closePrizeEditorWithoutCommit();
+          refreshPrizeUi(currentPrize.id);
+        }
+
+        function movePrize(id, direction) {
+          const currentIndex = prizeIndexById(id);
+          if (currentIndex < 0) return;
+          const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+          if (nextIndex < 0 || nextIndex >= prizeState.length) return;
+          closePrizeMenus();
+          const nextState = [...prizeState];
+          const [item] = nextState.splice(currentIndex, 1);
+          nextState.splice(nextIndex, 0, item);
+          prizeState = nextState;
+          refreshPrizeUi(item.id);
+        }
+
+        async function deletePrize(id) {
+          const prizeId = slugify(id || '');
+          const index = prizeIndexById(prizeId);
+          if (index < 0) return;
+          closePrizeMenus();
+          const ok = await window.AdminDialog.confirm({
+            title: '¿Eliminar este regalo?',
+            message: 'El regalo se quitará de la rifa y también dejará de aparecer como destacado en la tienda.',
+            confirmText: 'Eliminar regalo',
+            cancelText: 'Cancelar',
+            tone: 'danger',
+          });
+          if (!ok) return;
+          const [removed] = prizeState.splice(index, 1);
+          revokeObjectUrl(removed?.previewUrl || '');
+          storeFeaturedPrizeIds = storeFeaturedPrizeIds.filter((item) => item !== prizeId);
+          refreshPrizeUi();
+        }
+
+        function closePrizeMenus(except = null) {
+          let closed = false;
+          document.querySelectorAll('.prize-compact-menu-panel:not([hidden])').forEach((panel) => {
+            if (panel === except) return;
+            panel.hidden = true;
+            closed = true;
+            const menu = panel.closest('.prize-compact-menu');
+            menu?.querySelector('[data-prize-menu-trigger]')?.setAttribute('aria-expanded', 'false');
+            menu?.closest('.prize-compact-card')?.classList.remove('is-menu-open');
+          });
+          return closed;
+        }
+
+        function togglePrizeMenu(button) {
+          const menu = button?.closest('.prize-compact-menu');
+          const panel = menu?.querySelector('.prize-compact-menu-panel');
+          const card = button?.closest('.prize-compact-card');
+          if (!panel) return;
+          const willOpen = panel.hidden;
+          closePrizeMenus(panel);
+          panel.hidden = !willOpen;
+          button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          card?.classList.toggle('is-menu-open', willOpen);
+        }
+
+        function trapPrizeEditorFocus(event) {
+          if (!isPrizeEditorOpen() || event.key !== 'Tab' || !prizeEditor.card) return;
+          const focusable = Array.from(prizeEditor.card.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])'))
+            .filter((element) => element instanceof HTMLElement && element.offsetParent !== null);
+          if (!focusable.length) return;
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
         }
 
         function parseStoreFeaturedPrizeIds(value) {
@@ -2352,19 +3014,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           updateStoreFeaturedBadge();
         }
 
-        function prizeRowById(id) {
-          if (!fields.prizesList || !id) return null;
-          return fields.prizesList.querySelector(`[data-prize-id="${CSS.escape(id)}"]`);
-        }
-
-        function prizeRowHasStoreImage(row) {
-          return Boolean(row?.dataset?.image || getPrizeUploadFile(row));
-        }
-
         function syncStoreFeaturedPrizeIds() {
           const existingIds = new Set(
-            currentPrizeRows()
-              .map((row) => slugify(row.dataset.prizeId || ''))
+            prizeState
+              .map((prize) => slugify(prize.id || ''))
               .filter(Boolean)
           );
 
@@ -2378,22 +3031,23 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         }
 
         function initializeDefaultStoreFeaturedPrizes() {
-          storeFeaturedPrizeIds = currentPrizeRows()
-            .filter((row) => prizeRowHasStoreImage(row))
-            .map((row) => slugify(row.dataset.prizeId || ''))
+          if (storeFeaturedPrizeIds.length) return;
+          storeFeaturedPrizeIds = prizeState
+            .filter((prize) => prizeHasImage(prize))
+            .map((prize) => slugify(prize.id || ''))
             .filter(Boolean)
             .slice(0, 4);
           updateStoreFeaturedBadge();
         }
 
-        function storeFeaturedPrizeLabel(row, index) {
-          return row?.querySelector('.js-prize-name')?.value?.trim()
-            || row?.querySelector('.js-prize-description')?.value?.trim()
+        function storeFeaturedPrizeLabel(prize, index) {
+          return String(prize?.name || '').trim()
+            || String(prize?.description || '').trim()
             || `Premio ${index + 1}`;
         }
 
-        function storeFeaturedPreviewHtml(row, index) {
-          const imageSrc = row?.querySelector('.js-prize-preview img')?.getAttribute('src') || '';
+        function storeFeaturedPreviewHtml(prize, index) {
+          const imageSrc = getPrizeDisplayImage(prize);
           if (imageSrc) return `<img src="${escapeHtml(imageSrc)}" alt="">`;
           return `<span>Foto<br>Premio ${index + 1}</span>`;
         }
@@ -2406,18 +3060,17 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           syncStoreFeaturedPrizeIds();
           if (!storeFeaturedList) return;
 
-          const rows = currentPrizeRows();
-          if (!rows.length) {
+          if (!prizeState.length) {
             storeFeaturedList.innerHTML = '<div class="empty-state">Agrega premios con imagen para destacarlos en la tienda.</div>';
             return;
           }
 
-          storeFeaturedList.innerHTML = rows.map((row, index) => {
-            const id = slugify(row.dataset.prizeId || '') || `premio-${index + 1}`;
+          storeFeaturedList.innerHTML = prizeState.map((prize, index) => {
+            const id = slugify(prize.id || '') || `premio-${index + 1}`;
             const selectedIndex = storeFeaturedPrizeIds.indexOf(id);
             const selected = selectedIndex >= 0;
-            const hasImage = prizeRowHasStoreImage(row);
-            const name = storeFeaturedPrizeLabel(row, index);
+            const hasImage = prizeHasStoreImage(prize);
+            const name = storeFeaturedPrizeLabel(prize, index);
             const position = selected ? String(selectedIndex + 1) : '';
             const state = hasImage
               ? (selected ? `Destacado ${selectedIndex + 1}` : 'Disponible para destacar')
@@ -2426,7 +3079,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             return `
               <article class="store-featured-card ${selected ? 'is-selected' : ''}" data-store-featured-prize-id="${escapeHtml(id)}">
                 <span class="store-featured-position">${selected ? escapeHtml(position) : ''}</span>
-                <span class="store-featured-thumb">${storeFeaturedPreviewHtml(row, index)}</span>
+                <span class="store-featured-thumb">${storeFeaturedPreviewHtml(prize, index)}</span>
                 <span class="store-featured-copy">
                   <span class="store-featured-name">${escapeHtml(name)}</span>
                   <span class="store-featured-state">${escapeHtml(state)}</span>
@@ -2470,11 +3123,12 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             storeFeaturedPrizeIds = storeFeaturedPrizeIds.filter((item) => item !== prizeId);
             showStoreFeaturedAlert('');
             renderStoreFeaturedPrizeSelector();
+            renderPrizeEditor();
             return;
           }
 
-          const row = prizeRowById(prizeId);
-          if (!prizeRowHasStoreImage(row)) {
+          const prize = prizeById(prizeId);
+          if (!prizeHasStoreImage(prize)) {
             showStoreFeaturedAlert('Agrega una imagen a cada premio que quieras destacar en la tienda.');
             return;
           }
@@ -2487,6 +3141,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           storeFeaturedPrizeIds = [...storeFeaturedPrizeIds, prizeId];
           showStoreFeaturedAlert('');
           renderStoreFeaturedPrizeSelector();
+          renderPrizeEditor();
         }
 
         function moveStoreFeaturedPrize(id, direction) {
@@ -2506,7 +3161,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         }
 
         function selectedStoreFeaturedPrizesHaveImages() {
-          return storeFeaturedPrizeIds.every((id) => prizeRowHasStoreImage(prizeRowById(id)));
+          return storeFeaturedPrizeIds.every((id) => prizeHasStoreImage(prizeById(id)));
         }
 
         function normalizeNumber(value) {
@@ -3054,8 +3709,13 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             winnerMessage: fields.winnerMessage.value,
             displayMode: getPrizeDisplayMode(),
             storeFeaturedPrizeIds,
-            prizes: readPrizeRows().map(({ id, name, description, image }) => ({ id, name, description, image })),
-            files: currentPrizeRows().map((row) => getPrizeUploadSignature(row)),
+            prizes: prizeState.map((prize) => ({
+              id: prize.id,
+              name: prize.name,
+              description: prize.description,
+              image: prize.image,
+              file: getPrizeUploadSignature(prize),
+            })),
           });
         }
 
@@ -3294,6 +3954,9 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         function openForm(raffle = null) {
           if (!raffle) return;
           closeOpenMenus();
+          closePrizeMenus();
+          closePrizeEditorWithoutCommit(false);
+          clearPrizeStateResources();
           modal?.classList.remove('hidden');
           modal?.setAttribute('aria-hidden', 'false');
           show(formAlert, '');
@@ -3318,18 +3981,13 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           updateGroupInviteUi();
           setWinnerMessagePanel(false);
           setPrizeDisplayMode(raffle?.prizes_display_mode || 'fixed');
-          prizeState = raffle ? prizesFromRaffle(raffle) : [{
-            id: makePrizeId(),
-            name: '',
-            description: '',
-            image: '',
-            raffleId: '',
-          }];
+          prizeState = raffle ? prizesFromRaffle(raffle) : [];
           renderPrizeEditor();
           syncStoreFeaturedPrizeIds();
           if (fields.showInStore.checked && storeFeaturedPrizeIds.length === 0) {
             initializeDefaultStoreFeaturedPrizes();
           }
+          renderPrizeEditor();
           renderStoreFeaturedPrizeSelector();
           setStoreFeaturedPanel(false);
           updateStoreFeaturedVisibility();
@@ -3345,6 +4003,9 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         }
 
         function closeForm() {
+          closePrizeMenus();
+          closePrizeEditorWithoutCommit(false);
+          clearPrizeStateResources();
           modal?.classList.add('hidden');
           modal?.setAttribute('aria-hidden', 'true');
           form?.reset();
@@ -3367,6 +4028,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         }
 
         async function requestCloseForm() {
+          if (isPrizeEditorOpen()) {
+            closePrizeEditorWithoutCommit();
+            return;
+          }
           if (hasUnsavedChanges()) {
             const ok = await window.AdminDialog.confirm({
               title: 'Cerrar sin guardar',
@@ -3450,10 +4115,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           data.append('prizes_display_mode', prizesDisplayMode);
           data.append('store_featured_prize_ids', JSON.stringify(storeFeaturedPrizeIds));
           data.append('prizes_json', JSON.stringify(prizes));
-          for (const row of currentPrizeRows()) {
-            const file = await getOptimizedPrizeFileForRow(row);
-            const id = row.dataset.prizeId || '';
-            if (file && id) data.append(`prize_image_${id}`, file);
+          for (const prize of prizeState) {
+            const id = slugify(prize.id || '');
+            const file = prize.pendingFile;
+            if (id && file instanceof File) data.append(`prize_image_${id}`, file);
           }
           await adminRequest('/api/admin/raffles', { method: 'POST', body: data });
           closeForm();
@@ -3931,9 +4596,20 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         sidebarOverlay?.addEventListener('click', closeSidebar);
         document.addEventListener('click', (event) => {
           if (!event.target.closest('.raffle-menu')) closeOpenMenus();
+          if (!event.target.closest('.prize-compact-menu')) closePrizeMenus();
         });
         document.addEventListener('keydown', (event) => {
+          trapPrizeEditorFocus(event);
           if (event.key !== 'Escape') return;
+          if (closePrizeMenus()) {
+            event.preventDefault();
+            return;
+          }
+          if (isPrizeEditorOpen()) {
+            event.preventDefault();
+            closePrizeEditorWithoutCommit();
+            return;
+          }
           if (winnerModal && !winnerModal.classList.contains('hidden')) {
             closeWinnerModal();
             return;
@@ -3974,41 +4650,49 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
             show(entriesAlert, 'No se pudo copiar el mensaje automáticamente.', 'error');
           }
         });
-        fields.addPrize?.addEventListener('click', () => {
-          if (!fields.prizesList) return;
-          const nextPrize = { id: makePrizeId(), name: '', description: '', image: '', raffleId: fields.id.value || '' };
-          const count = currentPrizeRows().length;
-          if (!count) fields.prizesList.innerHTML = '';
-          fields.prizesList.insertAdjacentHTML('beforeend', prizeEditorRowHtml(nextPrize, count));
-          updatePrizeDisplayModeAvailability();
-          syncStoreFeaturedPrizeIds();
-          renderStoreFeaturedPrizeSelector();
+        fields.addPrize?.addEventListener('click', (event) => {
+          openPrizeEditorForCreate(event.currentTarget);
         });
         fields.prizesList?.addEventListener('click', (event) => {
-          const removeButton = event.target.closest('.js-prize-remove');
-          if (!removeButton) return;
-          const row = removeButton.closest('[data-prize-id]');
-          clearPrizeRowUpload(row);
-          row?.remove();
-          if (!currentPrizeRows().length) {
-            prizeState = [];
-            renderPrizeEditor();
-          } else {
-            updatePrizeDisplayModeAvailability();
+          const menuButton = event.target.closest('[data-prize-menu-trigger]');
+          if (menuButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            togglePrizeMenu(menuButton);
+            return;
           }
-          syncStoreFeaturedPrizeIds();
-          renderStoreFeaturedPrizeSelector();
+
+          const actionButton = event.target.closest('[data-prize-action]');
+          if (!actionButton) return;
+          const action = actionButton.dataset.prizeAction || '';
+          const prizeId = actionButton.dataset.prizeId || actionButton.closest('[data-prize-id]')?.dataset.prizeId || '';
+
+          if (action === 'edit') {
+            openPrizeEditorForEdit(prizeId, actionButton);
+            return;
+          }
+
+          if (action === 'up' || action === 'down') {
+            event.preventDefault();
+            event.stopPropagation();
+            movePrize(prizeId, action);
+            return;
+          }
+
+          if (action === 'delete') {
+            event.preventDefault();
+            event.stopPropagation();
+            deletePrize(prizeId).catch((error) => show(formAlert, error?.message || 'No se pudo eliminar el regalo.', 'error'));
+          }
         });
-        fields.prizesList?.addEventListener('change', (event) => {
-          const input = event.target.closest('.js-prize-file');
-          if (!input) return;
-          handleRafflePrizeFileChange(input)
-            .then(() => renderStoreFeaturedPrizeSelector())
-            .catch((error) => show(formAlert, error?.message || 'No se pudo optimizar la imagen del premio.', 'error'));
+        prizeEditor.file?.addEventListener('change', () => {
+          handlePrizeEditorFileChange().catch((error) => showPrizeEditorAlert(error?.message || 'No se pudo optimizar la imagen del premio.', 'error'));
         });
-        fields.prizesList?.addEventListener('input', (event) => {
-          if (!event.target.closest('.js-prize-name, .js-prize-description')) return;
-          renderStoreFeaturedPrizeSelector();
+        prizeEditor.close?.addEventListener('click', () => closePrizeEditorWithoutCommit());
+        prizeEditor.cancel?.addEventListener('click', () => closePrizeEditorWithoutCommit());
+        prizeEditor.submit?.addEventListener('click', submitPrizeEditor);
+        prizeEditor.modal?.addEventListener('click', (event) => {
+          if (event.target === prizeEditor.modal) closePrizeEditorWithoutCommit();
         });
         winnerMessageToggle?.addEventListener('click', () => {
           setWinnerMessagePanel(winnerMessagePanel?.hidden !== false);
@@ -4046,6 +4730,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           }
 
           renderStoreFeaturedPrizeSelector();
+          renderPrizeEditor();
         });
         fields.groupInviteEnabled?.addEventListener('change', updateGroupInviteUi);
         fields.groupInviteUrl?.addEventListener('input', updateGroupInviteUi);
