@@ -20,51 +20,48 @@ cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt"
 
 ---
 
-## 2. Abrir PocketBase
+## 2. Abrir PowerZona local
 
-Abrir una terminal nueva en PowerShell y ejecutar:
-
-cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt\backend-powerzona"
-.\pocketbase.exe serve
+Usar el launcher unico desde la raiz del proyecto:
 
 ```powershell
-cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt\backend-powerzona"
-.\pocketbase.exe serve
+cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt"
+.\Start-PowerZonaLocal.ps1
 ```
 
-PocketBase debe mostrar algo parecido a:
+Tambien se puede ejecutar con doble clic:
 
 ```txt
-Server started at http://127.0.0.1:8090
-REST API:  http://127.0.0.1:8090/api/
-Dashboard: http://127.0.0.1:8090/_/
+Start-PowerZonaLocal.cmd
+```
+
+No usar `.\pocketbase.exe serve` como arranque local normal para M-017: ese comando no carga automaticamente los secretos externos de Seguridad.
+
+El launcher debe mostrar algo parecido a:
+
+```txt
+PocketBase listo en http://127.0.0.1:8091
+Backend de Seguridad listo.
+Frontend listo en http://localhost:4321
 ```
 
 Panel admin de PocketBase:
 
 ```txt
-http://127.0.0.1:8090/_/
+http://127.0.0.1:8091/_/
 ```
 
 API de PocketBase:
 
 ```txt
-http://127.0.0.1:8090/api/
+http://127.0.0.1:8091/api/
 ```
 
 ---
 
-## 3. Abrir el frontend local
+## 3. Frontend local
 
-Abrir otra terminal nueva en PowerShell y ejecutar:
-
-```powershell
-cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt\frontend-powerzona"
-npm run dev
-npm run dev -- --host 0.0.0.0
-```
-
-La web local debe abrir en:
+El launcher unico inicia Astro y fuerza `PUBLIC_POCKETBASE_URL=http://127.0.0.1:8091` para ese proceso. La web local debe abrir en:
 
 ```txt
 http://localhost:4321
@@ -101,7 +98,7 @@ http://localhost:4321/admin/orders
 PocketBase admin:
 
 ```txt
-http://127.0.0.1:8090/_/
+http://127.0.0.1:8091/_/
 ```
 
 ---
@@ -127,7 +124,7 @@ Revisar primero:
 
 ```txt
 1. Confirmar que PocketBase está abierto.
-2. Confirmar que PocketBase está en el puerto 8090.
+2. Confirmar que PocketBase está en el puerto 8091.
 3. Confirmar que el archivo .env del frontend apunta al puerto correcto.
 ```
 
@@ -140,10 +137,10 @@ frontend-powerzona\.env
 Debe tener:
 
 ```env
-PUBLIC_POCKETBASE_URL=http://127.0.0.1:8090
+PUBLIC_POCKETBASE_URL=http://127.0.0.1:8091
 ```
 
-Si aparece `8091`, cambiarlo a `8090`.
+Si aparece `8090`, cambiarlo a `8091`.
 
 Después reiniciar el frontend:
 
@@ -289,7 +286,7 @@ Después de abrir ambos servidores, probar:
 2. http://localhost:4321/checkout
 3. http://localhost:4321/admin
 4. http://localhost:4321/admin/orders
-5. http://127.0.0.1:8090/_/
+5. http://127.0.0.1:8091/_/
 ```
 
 ---
