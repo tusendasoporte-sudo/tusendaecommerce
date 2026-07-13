@@ -12,6 +12,7 @@ RUN apk add --no-cache ca-certificates unzip wget \
   && mkdir -p /app/pb_data
 
 COPY pb_migrations /app/pb_migrations
+COPY pb_hooks /app/pb_hooks
 
 EXPOSE 8080
 
