@@ -408,6 +408,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const PENDING_ORDER_KEY = `powerzona_pending_checkout_order_${COUPON_STORE_KEY}`;
 		const CART_STORAGE_KEY = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${CURRENT_STORE_ID || 'powerzona'}`;
 		const CHECKOUT_CART_STORAGE_KEY = window.PZ_CHECKOUT_CART_STORAGE_KEY || `${CART_STORAGE_KEY}_checkout`;
+		const SECURITY_DEVICE_COOKIE = 'pz_client_device';
+		const SECURITY_DEVICE_MAX_AGE = 60 * 60 * 24 * 365;
 		const ONE_TO_ONE_RATE_TOLERANCE = 0.000001;
 		const cartStorage = window.PZCartStorage || null;
 		const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
@@ -2033,6 +2035,87 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return `${origin}/orden/${encodeURIComponent(orderNumber)}/${encodeURIComponent(token)}`;
 		}
 
+		function base64UrlFromBytes(bytes) {
+			let binary = '';
+			bytes.forEach((byte) => {
+				binary += String.fromCharCode(byte);
+			});
+			return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+		}
+
+		function readCookie(name) {
+			const prefix = `${name}=`;
+			return document.cookie
+				.split(';')
+				.map((part) => part.trim())
+				.find((part) => part.startsWith(prefix))
+				?.slice(prefix.length) || '';
+		}
+
+		function writeSecurityDeviceCookie(token) {
+			const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+			document.cookie = `${SECURITY_DEVICE_COOKIE}=${token}; Path=/; SameSite=Lax; Max-Age=${SECURITY_DEVICE_MAX_AGE}${secureFlag}`;
+		}
+
+		function createSecurityDeviceToken() {
+			const bytes = new Uint8Array(32);
+			if (!window.crypto?.getRandomValues) return '';
+			window.crypto.getRandomValues(bytes);
+			return base64UrlFromBytes(bytes);
+		}
+
+		function getOrCreateSecurityDeviceToken() {
+			const existingToken = readCookie(SECURITY_DEVICE_COOKIE);
+			if (/^[A-Za-z0-9_-]{43}$/.test(existingToken)) return existingToken;
+
+			const token = createSecurityDeviceToken();
+			if (!token) return '';
+			writeSecurityDeviceCookie(token);
+			return token;
+		}
+
+		async function sha256Hex(value) {
+			if (!window.crypto?.subtle || typeof TextEncoder === 'undefined') return '';
+			const encoded = new TextEncoder().encode(value);
+			const digest = await window.crypto.subtle.digest('SHA-256', encoded);
+			return Array.from(new Uint8Array(digest))
+				.map((byte) => byte.toString(16).padStart(2, '0'))
+				.join('');
+		}
+
+		async function getSecurityBrowserTokenDigest() {
+			const token = getOrCreateSecurityDeviceToken();
+			if (!token) return '';
+			return sha256Hex(token);
+		}
+
+		async function registerOrderSecurityIdentity(createdOrder) {
+			try {
+				if (!POCKETBASE_URL || !createdOrder?.id || !createdOrder?.receipt_token) return;
+
+				const browserTokenDigest = await getSecurityBrowserTokenDigest();
+				if (!/^[a-f0-9]{64}$/.test(browserTokenDigest)) return;
+
+				const requestOptions = {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						order_id: createdOrder.id,
+						receipt_token: createdOrder.receipt_token,
+						browser_token_digest: browserTokenDigest,
+					}),
+					cache: 'no-store',
+				};
+
+				if (typeof Request !== 'undefined' && 'keepalive' in Request.prototype) {
+					requestOptions.keepalive = true;
+				}
+
+				await fetch(`${POCKETBASE_URL}/api/pz/security/register-order`, requestOptions);
+			} catch (error) {
+			}
+		}
+
 		function normalizeWhatsAppNumber(phone) {
 			return String(phone || '').replace(/\D/g, '');
 		}
@@ -2790,6 +2873,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				}
 				throw new Error(`No se pudo completar el pedido. Intente nuevamente.${detail}`);
 			}
+
+			void registerOrderSecurityIdentity(createdOrder);
 
 			if (totals.couponWinner === 'manual_coupon' && totals.manualCoupon?.id) {
 				await pocketbaseRequest('manual_coupon_usages', {

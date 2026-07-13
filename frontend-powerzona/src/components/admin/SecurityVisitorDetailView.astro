@@ -1,0 +1,501 @@
+---
+import {
+  formatDateTime,
+  formatNumber,
+  getIpDisplayValue,
+  getIpUnavailableNote,
+  getPageTypeLabel,
+  getVisitorDisplayName,
+  getVisitorPhone,
+  isSafeInternalPublicPath,
+  type PaginatedResult,
+  type SecuritySettingsView,
+  type SecurityVisitorPageviewRow,
+  type SecurityVisitorSessionRow,
+} from '../../lib/securityMonitoring';
+
+interface Props {
+  storeName: string;
+  basePath: string;
+  backHref?: string;
+  settings: SecuritySettingsView;
+  visitor: SecurityVisitorSessionRow;
+  pageviews: PaginatedResult<SecurityVisitorPageviewRow>;
+  viewError?: string;
+}
+
+const {
+  storeName,
+  basePath,
+  backHref = `${basePath}?section=visitors`,
+  settings,
+  visitor,
+  pageviews,
+  viewError = '',
+} = Astro.props;
+
+const showIp = String(settings.ip_visibility || 'hidden') !== 'hidden';
+
+function pageWindow(result: PaginatedResult<unknown>) {
+  const start = Math.max(1, Math.min(result.page - 2, result.totalPages - 4));
+  const end = Math.min(result.totalPages, start + 4);
+  const pages = [];
+  for (let page = start; page <= end; page += 1) pages.push(page);
+  return pages;
+}
+
+function pageLabel(result: PaginatedResult<unknown>) {
+  if (!result || result.totalItems === 0) return 'Sin resultados';
+  const from = (result.page - 1) * result.perPage + 1;
+  const to = Math.min(result.totalItems, result.page * result.perPage);
+  return `Mostrando ${formatNumber(from)}-${formatNumber(to)} de ${formatNumber(result.totalItems)}`;
+}
+
+function detailPageHref(page: number) {
+  const query = page > 1 ? `?page=${page}` : '';
+  return `${basePath}/visitors/${encodeURIComponent(visitor.id)}${query}`;
+}
+---
+
+<section class="visitor-detail" aria-label={`Detalle de visitante de ${storeName}`}>
+  <header class="detail-head">
+    <div>
+      <p class="detail-kicker">Visitantes de hoy</p>
+      <h2>{getVisitorDisplayName(visitor)}</h2>
+      <p>{storeName}</p>
+    </div>
+    <a class="secondary-action" href={backHref}>Volver a visitantes</a>
+  </header>
+
+  {viewError && <div class="detail-alert" role="alert">{viewError}</div>}
+
+  <section class="detail-card" aria-labelledby="visitor-summary-title">
+    <div class="section-head">
+      <div>
+        <h3 id="visitor-summary-title">Resumen</h3>
+        <p>Actividad registrada durante el dia actual de la tienda.</p>
+      </div>
+    </div>
+
+    <div class="fact-grid">
+      <div class="fact-box">
+        <span>Visitante</span>
+        <strong>{getVisitorDisplayName(visitor)}</strong>
+      </div>
+      <div class="fact-box">
+        <span>Cliente relacionado</span>
+        <strong>{visitor.relatedCustomer ? getVisitorDisplayName(visitor) : 'No relacionado'}</strong>
+      </div>
+      <div class="fact-box">
+        <span>Telefono</span>
+        <strong>{getVisitorPhone(visitor)}</strong>
+      </div>
+      {showIp && (
+        <div class="fact-box">
+          <span>IP actual</span>
+          <strong>{getIpDisplayValue(visitor)}</strong>
+          {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
+        </div>
+      )}
+      <div class="fact-box">
+        <span>Primera visita</span>
+        <strong>{formatDateTime(visitor.first_seen_at)}</strong>
+      </div>
+      <div class="fact-box">
+        <span>Ultima actividad</span>
+        <strong>{formatDateTime(visitor.last_seen_at)}</strong>
+      </div>
+      <div class="fact-box">
+        <span>Total de paginas</span>
+        <strong>{formatNumber(visitor.pageviews_count)}</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="detail-card" aria-labelledby="visitor-pages-title">
+    <div class="section-head">
+      <div>
+        <h3 id="visitor-pages-title">Paginas navegadas</h3>
+        <p>{pageLabel(pageviews)}</p>
+      </div>
+    </div>
+
+    {pageviews.items.length > 0 ? (
+      <>
+        <div class:list={['pages-table', { 'has-ip': showIp }]} role="table" aria-label="Paginas navegadas por visitante">
+          <div class="table-head" role="row">
+            <span role="columnheader">Hora</span>
+            <span role="columnheader">Tipo</span>
+            <span role="columnheader">Nombre</span>
+            <span role="columnheader">Ruta interna</span>
+            {showIp && <span role="columnheader">IP</span>}
+            <span role="columnheader">Accion</span>
+          </div>
+          <div class="table-body">
+            {pageviews.items.map((pageview) => {
+              const canOpen = isSafeInternalPublicPath(pageview.path);
+              return (
+                <article class="table-row" role="row">
+                  <div class="table-cell" role="cell" data-label="Hora">{formatDateTime(pageview.occurred_at || pageview.created)}</div>
+                  <div class="table-cell" role="cell" data-label="Tipo">{getPageTypeLabel(pageview.page_type)}</div>
+                  <div class="table-cell main-cell" role="cell" data-label="Nombre"><strong>{pageview.readableName}</strong></div>
+                  <div class="table-cell path-cell" role="cell" data-label="Ruta interna">{pageview.path || 'No disponible'}</div>
+                  {showIp && (
+                    <div class="table-cell ip-cell" role="cell" data-label="IP">
+                      <span>{getIpDisplayValue(pageview)}</span>
+                      {getIpUnavailableNote(pageview) && <small>{getIpUnavailableNote(pageview)}</small>}
+                    </div>
+                  )}
+                  <div class="table-cell action-cell" role="cell" data-label="Accion">
+                    {canOpen ? <a class="row-action" href={pageview.path} target="_blank" rel="noreferrer">Abrir pagina</a> : <span>No disponible</span>}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+
+        <div class="pagination-bar" aria-label="Paginacion de paginas navegadas">
+          <span>{pageLabel(pageviews)}</span>
+          <div class="pagination-actions">
+            <a class:list={['page-button', { disabled: pageviews.page <= 1 }]} href={detailPageHref(Math.max(1, pageviews.page - 1))}>Anterior</a>
+            {pageWindow(pageviews).map((page) => <a class:list={['page-button', { 'is-active': page === pageviews.page }]} href={detailPageHref(page)}>{page}</a>)}
+            <a class:list={['page-button', { disabled: pageviews.page >= pageviews.totalPages }]} href={detailPageHref(Math.min(pageviews.totalPages, pageviews.page + 1))}>Siguiente</a>
+          </div>
+        </div>
+      </>
+    ) : (
+      <div class="empty-state">No hay paginas registradas para este visitante.</div>
+    )}
+  </section>
+</section>
+
+<style>
+  .visitor-detail {
+    display: grid;
+    gap: 16px;
+    color: #0f172a;
+  }
+
+  .detail-head,
+  .detail-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+  }
+
+  .detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .detail-kicker {
+    margin: 0 0 8px;
+    width: max-content;
+    max-width: 100%;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 7px 11px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 1000;
+  }
+
+  .detail-head h2,
+  .detail-card h3 {
+    margin: 0;
+    color: #0f172a;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .detail-head h2 {
+    font-size: clamp(26px, 4vw, 42px);
+    line-height: 1.02;
+  }
+
+  .detail-head p:not(.detail-kicker),
+  .section-head p {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 780;
+  }
+
+  .detail-card {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .section-head,
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .fact-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .fact-box {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 14px;
+  }
+
+  .fact-box span,
+  .fact-box small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+
+  .fact-box small {
+    color: #9a3412;
+  }
+
+  .fact-box strong {
+    color: #0f172a;
+    font-size: 15px;
+    line-height: 1.3;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
+  }
+
+  .secondary-action,
+  .row-action,
+  .page-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 10px 13px;
+    border: 1px solid #dbeafe;
+    background: #ffffff;
+    color: #1d4ed8;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.1;
+    font-weight: 1000;
+    text-decoration: none;
+  }
+
+  .secondary-action {
+    color: #334155;
+    border-color: #e2e8f0;
+    background: #f8fafc;
+  }
+
+  .pages-table {
+    display: grid;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .table-head,
+  .table-row {
+    display: grid;
+    grid-template-columns: minmax(120px, .8fr) minmax(110px, .7fr) minmax(150px, 1fr) minmax(170px, 1.1fr) minmax(96px, .55fr);
+    gap: 10px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .pages-table.has-ip .table-head,
+  .pages-table.has-ip .table-row {
+    grid-template-columns: minmax(120px, .8fr) minmax(110px, .7fr) minmax(150px, 1fr) minmax(170px, 1.1fr) minmax(120px, .75fr) minmax(96px, .55fr);
+  }
+
+  .table-head {
+    padding: 12px 14px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.1;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+
+  .table-row {
+    padding: 14px;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+
+  .table-cell {
+    min-width: 0;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 820;
+    overflow-wrap: anywhere;
+  }
+
+  .main-cell strong {
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.2;
+    font-weight: 1000;
+  }
+
+  .path-cell {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+
+  .ip-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .ip-cell small {
+    color: #9a3412;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+
+  .action-cell,
+  .pagination-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .pagination-bar > span {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .page-button.disabled {
+    opacity: .45;
+    pointer-events: none;
+  }
+
+  .page-button.is-active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .detail-alert,
+  .empty-state {
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 900;
+  }
+
+  .detail-alert {
+    border: 1px solid #fecaca;
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .empty-state {
+    min-height: 118px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    text-align: center;
+  }
+
+  @media (max-width: 1120px) {
+    .fact-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 760px) {
+    .detail-head,
+    .section-head,
+    .pagination-bar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .secondary-action,
+    .row-action,
+    .page-button {
+      width: 100%;
+      min-height: 46px;
+    }
+
+    .fact-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .pages-table {
+      border: 0;
+      background: transparent;
+      overflow: visible;
+    }
+
+    .table-head {
+      display: none;
+    }
+
+    .table-body {
+      display: grid;
+      gap: 10px;
+    }
+
+    .table-row,
+    .pages-table.has-ip .table-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+    }
+
+    .table-cell {
+      display: grid;
+      grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .table-cell::before {
+      content: attr(data-label);
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 1000;
+      text-transform: uppercase;
+    }
+
+    .action-cell,
+    .pagination-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      justify-content: stretch;
+    }
+  }
+</style>

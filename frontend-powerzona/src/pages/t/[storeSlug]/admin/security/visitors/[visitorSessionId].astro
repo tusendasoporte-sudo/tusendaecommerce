@@ -1,0 +1,150 @@
+---
+export const prerender = false;
+
+import { getStoreAdminPath } from '../../../../../../lib/adminRoutes';
+import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../../../../../lib/auth';
+import { getStoreSecuritySettings, isStoreSecurityEnabled } from '../../../../../../lib/security';
+import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../../../../lib/storeContext';
+import {
+  getSecurityVisitorPageviewsPage,
+  getSecurityVisitorSessionById,
+  isValidRecordId,
+  normalizePage,
+  type PaginatedResult,
+  type SecurityVisitorPageviewRow,
+  type SecurityVisitorSessionRow,
+} from '../../../../../../lib/securityMonitoring';
+import AdminSidebar from '../../../../../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../../../../../components/admin/AdminSectionHeader.astro';
+import SecurityVisitorDetailView from '../../../../../../components/admin/SecurityVisitorDetailView.astro';
+import '../../../../../../styles/global.css';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+
+let adminContext;
+try {
+  adminContext = await requireCurrentStoreForAdmin(authPb);
+} catch (error) {
+  if (isMasterAdmin(authPb.authStore.record as any)) return Astro.redirect('/master');
+  if (error instanceof StoreContextError && error.code === STORE_CONTEXT_ERRORS.MASTER_ADMIN) return Astro.redirect('/master');
+  return Astro.redirect('/login');
+}
+
+const currentStoreId = adminContext.storeId;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminSecurityPath = getStoreAdminPath(currentStoreSlug, 'security');
+const adminAuthToken = authPb.authStore.token;
+
+const pathStoreSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+if (pathStoreSlug && pathStoreSlug !== String(currentStoreSlug || '').trim().toLowerCase()) {
+  return Astro.redirect(adminBasePath);
+}
+
+if (!isStoreAdmin(adminContext.user)) {
+  return Astro.redirect(adminBasePath);
+}
+
+const securitySettings = await getStoreSecuritySettings(currentStoreId, authPb);
+if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {
+  return Astro.redirect(adminBasePath);
+}
+
+const visitorSessionId = String(Astro.params.visitorSessionId || '').trim();
+if (!isValidRecordId(visitorSessionId)) {
+  return Astro.redirect(`${adminSecurityPath}?section=visitors`);
+}
+
+const page = normalizePage(Astro.url.searchParams.get('page'));
+let visitor: SecurityVisitorSessionRow | null = null;
+let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
+let viewError = '';
+
+try {
+  visitor = await getSecurityVisitorSessionById(authPb, currentStoreId, visitorSessionId, securitySettings);
+  if (!visitor) return Astro.redirect(`${adminSecurityPath}?section=visitors`);
+  pageviews = await getSecurityVisitorPageviewsPage(authPb, currentStoreId, visitor.id, page, securitySettings);
+} catch (_) {
+  viewError = 'No se pudo cargar el detalle de este visitante en este momento.';
+}
+
+if (!visitor || !pageviews) {
+  return Astro.redirect(`${adminSecurityPath}?section=visitors`);
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visitante | Seguridad</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --page: #eef3f9;
+        --text: #0f172a;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        color: var(--text);
+        background: linear-gradient(180deg, #f8fbff 0%, var(--page) 52%, #e8eef7 100%);
+      }
+
+      a { color: inherit; text-decoration: none; }
+      .app-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .main-wrap { min-width: 0; padding: 2px 0 96px; }
+
+      @media (min-width: 1024px) {
+        body { padding-left: calc(var(--pz-admin-sidebar-width, 278px) + var(--pz-admin-content-gap, 30px)); }
+        .app-shell { padding: var(--pz-admin-content-top, 28px) var(--pz-admin-content-right, 32px) var(--pz-admin-content-bottom, 48px) 0; }
+      }
+
+      @media (max-width: 760px) {
+        .app-shell { padding: 14px 14px 110px; }
+      }
+    </style>
+  </head>
+  <body>
+    <AdminSidebar
+      storeSlug={currentStoreSlug}
+      storeName={currentStoreName}
+      activeSection="security"
+      mobileTitle="Seguridad"
+      storeId={currentStoreId}
+      pocketbaseUrl={pocketbaseUrl}
+      authToken={adminAuthToken}
+    />
+
+    <div class="app-shell admin-view">
+      <main class="main-wrap">
+        <AdminSectionHeader
+          kicker="Control de tienda"
+          title="Detalle de visitante"
+          description={`Paginas navegadas hoy en ${currentStoreName}.`}
+          bellId="security-visitor-bell"
+        />
+
+        <SecurityVisitorDetailView
+          storeName={currentStoreName}
+          basePath={adminSecurityPath}
+          settings={securitySettings}
+          visitor={visitor}
+          pageviews={pageviews}
+          viewError={viewError}
+        />
+      </main>
+    </div>
+  </body>
+</html>

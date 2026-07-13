@@ -55,6 +55,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const sessionKey = 'pz_session_id';
         const lastActivityKey = 'pz_last_activity_at';
         const sessionTimeoutMs = 30 * 60 * 1000;
+        const securityDeviceCookie = 'pz_client_device';
+        const securityDeviceMaxAge = 60 * 60 * 24 * 365;
 
         const makeId = (prefix) => {
           if (window.crypto?.randomUUID) return `${prefix}_${window.crypto.randomUUID()}`;
@@ -87,6 +89,69 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           .slice(0, 10);
 
         const endpoint = `${POCKETBASE_URL}/api/collections/store_analytics_events/records`;
+        const securityEndpoint = `${POCKETBASE_URL}/api/pz/security/track-navigation`;
+
+        function base64UrlFromBytes(bytes) {
+          let binary = '';
+          bytes.forEach((byte) => {
+            binary += String.fromCharCode(byte);
+          });
+          return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+        }
+
+        function readCookie(name) {
+          const prefix = `${name}=`;
+          return document.cookie
+            .split(';')
+            .map((part) => part.trim())
+            .find((part) => part.startsWith(prefix))
+            ?.slice(prefix.length) || '';
+        }
+
+        function writeSecurityDeviceCookie(token) {
+          const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `${securityDeviceCookie}=${token}; Path=/; SameSite=Lax; Max-Age=${securityDeviceMaxAge}${secureFlag}`;
+        }
+
+        function createSecurityDeviceToken() {
+          if (!window.crypto?.getRandomValues) return '';
+          const bytes = new Uint8Array(32);
+          window.crypto.getRandomValues(bytes);
+          return base64UrlFromBytes(bytes);
+        }
+
+        function getOrCreateSecurityDeviceToken() {
+          const existingToken = readCookie(securityDeviceCookie);
+          if (/^[A-Za-z0-9_-]{43}$/.test(existingToken)) return existingToken;
+
+          const token = createSecurityDeviceToken();
+          if (!token) return '';
+          writeSecurityDeviceCookie(token);
+          return token;
+        }
+
+        async function sha256Hex(value) {
+          if (!window.crypto?.subtle || typeof TextEncoder === 'undefined') return '';
+          const encoded = new TextEncoder().encode(value);
+          const digest = await window.crypto.subtle.digest('SHA-256', encoded);
+          return Array.from(new Uint8Array(digest))
+            .map((byte) => byte.toString(16).padStart(2, '0'))
+            .join('');
+        }
+
+        async function getSecurityBrowserTokenDigest() {
+          const token = getOrCreateSecurityDeviceToken();
+          if (!token) return '';
+          return sha256Hex(token);
+        }
+
+        function makeSecurityEventId() {
+          if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+          if (!window.crypto?.getRandomValues) return '';
+          const bytes = new Uint8Array(16);
+          window.crypto.getRandomValues(bytes);
+          return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+        }
 
         function buildPayload(eventType = 'pageview') {
           return {
@@ -104,6 +169,23 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           };
         }
 
+        async function buildSecurityPayload() {
+          const eventId = makeSecurityEventId();
+          if (!eventId) return null;
+
+          return {
+            store_id: STORE_ID,
+            event_id: eventId,
+            visitor_id: visitorId || '',
+            session_id: sessionId || '',
+            browser_token_digest: await getSecurityBrowserTokenDigest(),
+            page_type: PAGE_TYPE,
+            entity_type: entityType || '',
+            entity_id: entityId || '',
+            path: window.location.pathname.slice(0, 240),
+          };
+        }
+
         async function sendAnalyticsEvent(eventType = 'pageview') {
           const payload = buildPayload(eventType);
 
@@ -118,6 +200,25 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
             if (!response.ok) return false;
 
             return true;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        async function sendSecurityNavigationEvent() {
+          try {
+            const payload = await buildSecurityPayload();
+            if (!payload) return false;
+
+            const response = await fetch(securityEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              keepalive: true,
+              cache: 'no-store',
+            });
+
+            return response.ok;
           } catch (_) {
             return false;
           }
@@ -151,7 +252,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         async function sendInitialAnalyticsEvent() {
           if (shouldSkipLandingQrView()) return;
 
-          const sent = await sendAnalyticsEvent(INITIAL_EVENT_TYPE);
+          const [sent] = await Promise.all([
+            sendAnalyticsEvent(INITIAL_EVENT_TYPE),
+            sendSecurityNavigationEvent(),
+          ]);
 
           if (sent && INITIAL_EVENT_TYPE === 'landing_qr_view') {
             markLandingQrViewSent();

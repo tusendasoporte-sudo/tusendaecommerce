@@ -1,0 +1,3201 @@
+---
+import {
+  CAPTURE_STATUS_LABELS,
+  CUSTOMER_STATUS_FILTERS,
+  CUSTOMER_STATUS_LABELS,
+  DELIVERY_METHOD_LABELS,
+  EVENT_DECISION_FILTERS,
+  EVENT_DECISION_LABELS,
+  EVENT_RISK_FILTERS,
+  EVENT_RISK_LABELS,
+  EVENT_TYPE_FILTERS,
+  EVENT_TYPE_LABELS,
+  MODE_AT_EVENT_LABELS,
+  ORDER_STATUS_LABELS,
+  formatDateTime,
+  formatMoneyUsd,
+  formatNumber,
+  getDisplayCustomerName,
+  getIpDisplayValue,
+  getIpUnavailableNote,
+  getOrderTotal,
+  getVisitorDisplayName,
+  getVisitorPhone,
+  labelFromMap,
+  type CustomerStatusFilter,
+  type EventDecisionFilter,
+  type EventRiskFilter,
+  type EventTypeFilter,
+  type PaginatedResult,
+  type SecurityAvailableSignals,
+  type SecurityBlock,
+  type SecurityBlockCapabilities,
+  type SecurityBlockHistorySummary,
+  type SecurityBlocksMetrics,
+  type SecurityCustomer,
+  type SecurityCustomerDevice,
+  type SecurityCustomerLifecycleCounts,
+  type SecurityCustomerLinksSummary,
+  type SecurityCustomerPhone,
+  type SecurityEventRow,
+  type SecurityMonitoringParams,
+  type SecurityOrder,
+  type SecuritySettingsView,
+  type SecuritySummary,
+  type SecurityVisitorSessionRow,
+} from '../../lib/securityMonitoring';
+import { getSecurityIpVisibilityLabel, getSecurityModeLabel } from '../../lib/security';
+
+interface Props {
+  context: 'store' | 'master';
+  storeName: string;
+  basePath: string;
+  adminOrdersPath: string;
+  backHref?: string;
+  backLabel?: string;
+  params: SecurityMonitoringParams;
+  settings: SecuritySettingsView;
+  summary: SecuritySummary | null;
+  summaryError?: boolean;
+  viewNotice?: string;
+  viewError?: string;
+  customerUnavailable?: boolean;
+  customersResult?: PaginatedResult<SecurityCustomer> | null;
+  activityResult?: PaginatedResult<SecurityEventRow> | null;
+  visitorsResult?: PaginatedResult<SecurityVisitorSessionRow> | null;
+  blocksResult?: PaginatedResult<SecurityBlock> | null;
+  blocksMetrics?: SecurityBlocksMetrics | null;
+  selectedCustomer?: SecurityCustomer | null;
+  customerOrders?: PaginatedResult<SecurityOrder> | null;
+  customerEvents?: PaginatedResult<SecurityEventRow> | null;
+  customerPhones?: SecurityCustomerPhone[];
+  customerDevices?: SecurityCustomerDevice[];
+  customerLinksSummary?: SecurityCustomerLinksSummary | null;
+  customerLifecycleCounts?: SecurityCustomerLifecycleCounts | null;
+  activeBlocks?: SecurityBlock[];
+  blockHistorySummary?: SecurityBlockHistorySummary | null;
+  blockCapabilities?: SecurityBlockCapabilities | null;
+  availableSignals?: SecurityAvailableSignals | null;
+  customerIdentityWarnings?: string[];
+  mergeCandidates?: SecurityCustomer[];
+  customerOrdersError?: boolean;
+  customerEventsError?: boolean;
+}
+
+const {
+  context,
+  storeName,
+  basePath,
+  adminOrdersPath,
+  backHref = '',
+  backLabel = 'Volver',
+  params,
+  settings,
+  summary,
+  summaryError = false,
+  viewNotice = '',
+  viewError = '',
+  customerUnavailable = false,
+  customersResult = null,
+  activityResult = null,
+  visitorsResult = null,
+  blocksResult = null,
+  blocksMetrics = null,
+  selectedCustomer = null,
+  customerOrders = null,
+  customerEvents = null,
+  customerPhones = [],
+  customerDevices = [],
+  customerLinksSummary = null,
+  customerLifecycleCounts = null,
+  activeBlocks = [],
+  blockHistorySummary = null,
+  blockCapabilities = null,
+  availableSignals = null,
+  customerIdentityWarnings = [],
+  mergeCandidates = [],
+  customerOrdersError = false,
+  customerEventsError = false,
+} = Astro.props;
+
+const ipVisibility = String(settings.ip_visibility || 'hidden');
+const showIp = ipVisibility !== 'hidden';
+const isFullIp = ipVisibility === 'full';
+const titlePrefix = context === 'master' ? 'Monitoreo Master' : 'Seguridad';
+const modeLabel = getSecurityModeLabel(settings.mode);
+const ipLabel = getSecurityIpVisibilityLabel(settings.ip_visibility);
+const statusOptions = [
+  ['all', 'Todos'],
+  ['normal', CUSTOMER_STATUS_LABELS.normal],
+  ['watch', CUSTOMER_STATUS_LABELS.watch],
+  ['blocked', CUSTOMER_STATUS_LABELS.blocked],
+  ['archived', 'Archivados'],
+] as const;
+const blockStatusOptions = [
+  ['active', 'Activos'],
+  ['expired', 'Vencidos'],
+  ['revoked', 'Revocados'],
+  ['all', 'Todos'],
+] as const;
+const blockScopeOptions = [
+  ['all', 'Todos los alcances'],
+  ['orders', 'Pedidos'],
+  ['reviews', 'Resenas'],
+  ['raffles', 'Rifas'],
+  ['all_interactions', 'Todas las interacciones'],
+  ['full_access', 'Acceso completo'],
+] as const;
+const blockScopeCreateOptions = [
+  ['orders', 'Pedidos'],
+  ['reviews', 'Resenas'],
+  ['raffles', 'Rifas'],
+  ['all_interactions', 'Todas las interacciones'],
+  ['full_access', 'Acceso completo'],
+] as const;
+const blockDurationOptions = [
+  ['hours_24', '24 horas'],
+  ['days_7', '7 dias'],
+  ['days_30', '30 dias'],
+  ['permanent', 'Permanente'],
+] as const;
+
+function queryString(entries: Record<string, string | number | undefined>) {
+  const query = new URLSearchParams();
+  Object.entries(entries).forEach(([key, value]) => {
+    const text = String(value ?? '').trim();
+    if (!text || text === 'all' || text === '1') return;
+    query.set(key, text);
+  });
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : '';
+}
+
+function sectionHref(section: string, extra: Record<string, string | number | undefined> = {}) {
+  return `${basePath}${queryString({ section, ...extra })}`;
+}
+
+function customersHref(page = 1, extra: Record<string, string | number | undefined> = {}) {
+  return sectionHref('customers', {
+    customer_status: params.customerStatus,
+    customers_page: page,
+    customer: params.customerId,
+    ...extra,
+  });
+}
+
+function activityHref(page = 1, extra: Record<string, string | number | undefined> = {}) {
+  return sectionHref('activity', {
+    activity_page: page,
+    event_type: params.eventType,
+    decision: params.eventDecision,
+    risk: params.eventRisk,
+    ...extra,
+  });
+}
+
+function blockedHref(page = 1, extra: Record<string, string | number | undefined> = {}) {
+  return sectionHref('blocked', {
+    blocked_page: page,
+    blocked_status: params.blockedStatus,
+    blocked_scope: params.blockedScope,
+    ...extra,
+  });
+}
+
+function customerDetailHref(customerId: string, extra: Record<string, string | number | undefined> = {}) {
+  return sectionHref('customers', {
+    customer: customerId,
+    customer_status: params.customerStatus,
+    orders_page: params.customerOrdersPage,
+    events_page: params.customerEventsPage,
+    ...extra,
+  });
+}
+
+function pageWindow(result: PaginatedResult<unknown> | null) {
+  if (!result) return [];
+  const start = Math.max(1, Math.min(result.page - 2, result.totalPages - 4));
+  const end = Math.min(result.totalPages, start + 4);
+  const pages = [];
+  for (let page = start; page <= end; page += 1) pages.push(page);
+  return pages;
+}
+
+function customerPageLabel(result: PaginatedResult<unknown> | null) {
+  if (!result || result.totalItems === 0) return 'Sin resultados';
+  const from = (result.page - 1) * result.perPage + 1;
+  const to = Math.min(result.totalItems, result.page * result.perPage);
+  return `Mostrando ${formatNumber(from)}-${formatNumber(to)} de ${formatNumber(result.totalItems)}`;
+}
+
+function isActiveSection(section: string) {
+  return params.section === section;
+}
+
+function isActiveCustomerStatus(status: CustomerStatusFilter) {
+  return params.customerStatus === status;
+}
+
+function isActiveEventType(value: EventTypeFilter) {
+  return params.eventType === value;
+}
+
+function isActiveEventDecision(value: EventDecisionFilter) {
+  return params.eventDecision === value;
+}
+
+function isActiveEventRisk(value: EventRiskFilter) {
+  return params.eventRisk === value;
+}
+
+function isActiveBlockStatus(value: string) {
+  return params.blockedStatus === value;
+}
+
+function isActiveBlockScope(value: string) {
+  return params.blockedScope === value;
+}
+
+function paginationHref(kind: 'customers' | 'activity' | 'visitors' | 'blocked' | 'orders' | 'events', page: number) {
+  if (kind === 'customers') return customersHref(page, { customer: params.customerId });
+  if (kind === 'activity') return activityHref(page);
+  if (kind === 'visitors') return sectionHref('visitors', { visitors_page: page });
+  if (kind === 'blocked') return blockedHref(page);
+  if (kind === 'orders') return customerDetailHref(params.customerId, { orders_page: page, events_page: params.customerEventsPage });
+  return customerDetailHref(params.customerId, { events_page: page, orders_page: params.customerOrdersPage });
+}
+
+function orderHref(order: Pick<SecurityOrder, 'id'> | { id: string } | null | undefined) {
+  return order?.id && adminOrdersPath ? `${adminOrdersPath}?order=${encodeURIComponent(order.id)}` : '';
+}
+
+function renderSummaryValue(value: number | undefined) {
+  return summaryError ? 'No disponible' : formatNumber(value || 0);
+}
+
+function eventCustomerName(row: SecurityEventRow) {
+  return getDisplayCustomerName(row.relatedCustomer);
+}
+
+function eventCustomerPhone(row: SecurityEventRow) {
+  return String(row.relatedCustomer?.phone_normalized || '').trim() || 'No disponible';
+}
+
+function customerPrimaryPhone(customer: SecurityCustomer | null | undefined) {
+  return String(customer?.primary_phone || customer?.phone_normalized || '').trim() || 'No disponible';
+}
+
+function pluralLabel(count: number, singular: string, plural: string) {
+  return `${formatNumber(count)} ${count === 1 ? singular : plural}`;
+}
+
+function customerIdentitySummary(customer: SecurityCustomer) {
+  return [
+    pluralLabel(customer.orders_count, 'pedido', 'pedidos'),
+    pluralLabel(customer.phones_count, 'telefono', 'telefonos'),
+    pluralLabel(customer.devices_count, 'dispositivo', 'dispositivos'),
+  ].join(' · ');
+}
+
+function visitorDetailHref(visitorSessionId: string) {
+  return `${basePath}/visitors/${encodeURIComponent(visitorSessionId)}`;
+}
+
+function lifecycleCounts(customer: SecurityCustomer | null | undefined) {
+  return customer?.lifecycle_counts || {
+    orders_affected: customer?.orders_count || 0,
+    events_affected: 0,
+    phones_affected: customer?.phones_count || 0,
+    devices_affected: customer?.devices_count || 0,
+    sessions_affected: 0,
+    pageviews_affected: 0,
+  };
+}
+
+function selectedLifecycleCounts() {
+  return customerLifecycleCounts || lifecycleCounts(selectedCustomer);
+}
+
+function lifecycleActionLabel(customer: SecurityCustomer) {
+  return customer.archived ? 'Restaurar cliente' : 'Archivar cliente';
+}
+
+function lifecycleActionValue(customer: SecurityCustomer) {
+  return customer.archived ? 'restore' : 'archive';
+}
+
+function lifecycleActionDescription(customer: SecurityCustomer) {
+  return customer.archived ? 'La ficha volvera a la lista activa.' : 'El cliente dejara de aparecer en la lista activa y podra restaurarse despues.';
+}
+
+function lifecycleNoticeText(_customer: SecurityCustomer) {
+  return 'Sus pedidos y datos de Seguridad se conservaran.';
+}
+
+const BLOCK_SCOPE_LABELS: Record<string, string> = {
+  orders: 'Pedidos',
+  reviews: 'Resenas',
+  raffles: 'Rifas',
+  all_interactions: 'Todas las interacciones',
+  full_access: 'Acceso completo',
+};
+
+const BLOCK_SCOPE_ACTION_LABELS: Record<string, string> = {
+  orders: 'Bloquear pedidos',
+  reviews: 'Bloquear resenas',
+  raffles: 'Bloquear rifas',
+  all_interactions: 'Bloquear todas las interacciones',
+  full_access: 'Bloquear acceso completo',
+};
+
+const BLOCK_DURATION_LABELS: Record<string, string> = {
+  hours_24: '24 horas',
+  days_7: '7 dias',
+  days_30: '30 dias',
+  permanent: 'Permanente',
+};
+
+const BLOCK_STATUS_LABELS: Record<string, string> = {
+  active: 'Activo',
+  expired: 'Vencido',
+  revoked: 'Revocado',
+};
+
+function blockScopeLabel(scope: string) {
+  return BLOCK_SCOPE_LABELS[scope] || scope || 'No disponible';
+}
+
+function blockDurationLabel(duration: string) {
+  return BLOCK_DURATION_LABELS[duration] || duration || 'No disponible';
+}
+
+function blockStatusLabel(status: string) {
+  return BLOCK_STATUS_LABELS[status] || status || 'No disponible';
+}
+
+function blockSignalsLabel(block: SecurityBlock) {
+  const signals = [];
+  if (block.signal_summary.phone) signals.push('Telefono');
+  if (block.signal_summary.device) signals.push('Dispositivo');
+  if (block.signal_summary.ip) signals.push('IP');
+  const mode = block.signal_summary.mode === 'all' ? 'todas' : 'cualquiera';
+  return signals.length ? `${signals.join(' + ')} (${mode})` : 'Sin senales';
+}
+
+function blockCustomerTitle(block: SecurityBlock) {
+  const name = String(block.customer_name || '').trim();
+  const phone = String(block.primary_phone || '').trim();
+  return name || phone || 'Cliente sin nombre';
+}
+
+function blockCustomerSubtitle(block: SecurityBlock) {
+  return String(block.primary_phone || '').trim() || 'Telefono no disponible';
+}
+
+function selectedBlocksMetrics() {
+  return blocksMetrics || {
+    active_blocks: 0,
+    affected_customers: 0,
+    expires_today: 0,
+    permanent_blocks: 0,
+  };
+}
+
+function selectedBlockCapabilities() {
+  return blockCapabilities || {
+    can_observe: false,
+    can_block: false,
+    can_full_access: false,
+    can_permanent: false,
+    mode: settings.mode,
+  };
+}
+
+function selectedAvailableSignals() {
+  return availableSignals || { phone_count: 0, device_count: 0, ip_count: 0 };
+}
+
+function selectedBlockHistorySummary() {
+  return blockHistorySummary || { active: 0, expired: 0, revoked: 0 };
+}
+
+function observationActionLabel(customer: SecurityCustomer) {
+  if (customer.status === 'watch') return 'Quitar de observacion';
+  return 'Poner en observacion';
+}
+
+function observationActionValue(customer: SecurityCustomer) {
+  return customer.status === 'watch' ? 'disable' : 'enable';
+}
+---
+
+<section class="security-monitoring" aria-label={`Monitoreo de seguridad de ${storeName}`}>
+  <header class="monitoring-head">
+    <div>
+      <p class="monitoring-kicker">{titlePrefix}</p>
+      <h2>{storeName}</h2>
+      <p>Consulta privada de clientes, actividad y visitantes registrados hoy.</p>
+    </div>
+    {backHref && <a class="monitoring-back" href={backHref}>{backLabel}</a>}
+  </header>
+
+  <nav class="monitoring-tabs" aria-label="Secciones de seguridad">
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('summary') }]} href={sectionHref('summary')}>Resumen</a>
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('activity') }]} href={sectionHref('activity')}>Actividad</a>
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('customers') }]} href={sectionHref('customers')}>Clientes</a>
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('visitors') }]} href={sectionHref('visitors')}>Visitantes de hoy</a>
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('blocked') }]} href={sectionHref('blocked')}>Clientes bloqueados</a>
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('rules') }]} href={sectionHref('rules')}>Reglas</a>
+  </nav>
+
+  {viewNotice && <div class="monitoring-alert is-success" role="status">{viewNotice}</div>}
+  {viewError && <div class="monitoring-alert" role="alert">{viewError}</div>}
+  {customerUnavailable && <div class="monitoring-alert is-soft" role="status">Cliente no disponible.</div>}
+
+  <section class="metrics-grid" aria-label="Metricas de seguridad">
+    <article class="metric-card">
+      <span>Clientes registrados</span>
+      <strong>{renderSummaryValue(summary?.customersCount)}</strong>
+    </article>
+    <article class="metric-card">
+      <span>Clientes archivados</span>
+      <strong>{renderSummaryValue(summary?.archivedCustomersCount)}</strong>
+    </article>
+    <article class="metric-card">
+      <span>Eventos registrados</span>
+      <strong>{renderSummaryValue(summary?.eventsCount)}</strong>
+    </article>
+    <article class="metric-card">
+      <span>Visitantes registrados hoy</span>
+      <strong>{renderSummaryValue(summary?.visitorsTodayCount)}</strong>
+    </article>
+    <article class="metric-card">
+      <span>Clientes en observacion</span>
+      <strong>{renderSummaryValue(summary?.watchCustomersCount)}</strong>
+    </article>
+    <article class="metric-card">
+      <span>Clientes con estado bloqueado</span>
+      <strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong>
+    </article>
+  </section>
+
+  {(params.section === 'summary' || params.section === 'rules') && (
+    <section class="info-grid" aria-label="Configuracion actual">
+      <article class="monitoring-card">
+        <h3>Resumen</h3>
+        <div class="fact-grid">
+          <div class="fact-box">
+            <span>Modo actual</span>
+            <strong>{modeLabel}</strong>
+          </div>
+          <div class="fact-box">
+            <span>Retencion</span>
+            <strong>{settings.retention_days} dias</strong>
+          </div>
+          <div class="fact-box">
+            <span>Politica de IP</span>
+            <strong>{ipLabel}</strong>
+          </div>
+        </div>
+        {isFullIp && <p class="monitoring-note">La IP completa se muestra directamente en las vistas privadas de Seguridad para usuarios autorizados.</p>}
+      </article>
+
+      <article class="monitoring-card">
+        <h3>Capacidades administradas</h3>
+        <div class="capability-list">
+          <div class="capability-row"><span>Bloqueo manual</span><strong>{settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Bloqueo de acceso completo</span><strong>{settings.full_access_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Bloqueos permanentes</span><strong>{settings.permanent_blocks_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Notificar intentos bloqueados</span><strong>{settings.notify_blocked_attempts ? 'Habilitada' : 'No habilitada'}</strong></div>
+        </div>
+      </article>
+
+      {params.section === 'rules' && (
+        <article class="monitoring-card">
+          <h3>Bloqueos privados</h3>
+          <div class="capability-list">
+            <div class="capability-row"><span>Clientes con bloqueo activo</span><strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong></div>
+            <div class="capability-row"><span>Observacion privada</span><strong>{settings.mode === 'monitoring' || settings.mode === 'protection' ? 'Habilitada' : 'No habilitada'}</strong></div>
+            <div class="capability-row"><span>Gestion de bloqueos</span><strong>{settings.mode === 'protection' && settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          </div>
+        </article>
+      )}
+    </section>
+  )}
+
+  {params.section === 'customers' && (
+    <section class="monitoring-card" aria-labelledby="customers-title">
+      <div class="section-head">
+        <div>
+          <h3 id="customers-title">Clientes</h3>
+          <p>{customerPageLabel(customersResult)}</p>
+        </div>
+      </div>
+
+      <form class="customer-search" method="POST" action={sectionHref('customers')}>
+        <input type="hidden" name="section" value="customers" />
+        <input type="hidden" name="customers_page" value="1" />
+        <div class="field">
+          <label for="customer-search">Buscar por nombre o telefono</label>
+          <input id="customer-search" name="customer_search" type="search" maxlength="80" value={params.customerSearch} autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="customer-status">Estado</label>
+          <select id="customer-status" name="customer_status">
+            {statusOptions.map(([value, label]) => <option value={value} selected={isActiveCustomerStatus(value)}>{label}</option>)}
+          </select>
+        </div>
+        <button class="primary-action" type="submit">Buscar</button>
+        <a class="secondary-action" href={sectionHref('customers')}>Limpiar</a>
+      </form>
+
+      {!params.customerSearch && (
+        <div class="filter-row" aria-label="Filtros rapidos de estado">
+          {CUSTOMER_STATUS_FILTERS.map((status) => (
+            <a class:list={['filter-chip', { 'is-active': isActiveCustomerStatus(status) }]} href={customersHref(1, { customer_status: status, customer: '' })}>
+              {status === 'all' ? 'Todos' : labelFromMap(CUSTOMER_STATUS_LABELS, status)}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {customersResult && customersResult.items.length > 0 ? (
+        <>
+          <div class="monitoring-table customers-table" role="table" aria-label="Clientes registrados">
+            <div class="table-head" role="row">
+              <span role="columnheader">Cliente</span>
+              <span role="columnheader">Telefono principal</span>
+              <span role="columnheader">Pedidos</span>
+              <span role="columnheader">Telefonos</span>
+              <span role="columnheader">Dispositivos</span>
+              <span role="columnheader">Ultima actividad</span>
+              <span role="columnheader">Total confirmado</span>
+              <span role="columnheader">Estado</span>
+              <span role="columnheader">Accion</span>
+            </div>
+            <div class="table-body">
+              {customersResult.items.map((customer) => (
+                <article class="table-row" role="row">
+                  <div class="table-cell main-cell" role="cell" data-label="Cliente">
+                    <strong>{getDisplayCustomerName(customer)}</strong>
+                    <span>{customerIdentitySummary(customer)}</span>
+                  </div>
+                  <div class="table-cell sensitive-cell" role="cell" data-label="Telefono principal">{customerPrimaryPhone(customer)}</div>
+                  <div class="table-cell" role="cell" data-label="Pedidos">{formatNumber(customer.orders_count)}</div>
+                  <div class="table-cell" role="cell" data-label="Telefonos">{formatNumber(customer.phones_count)}</div>
+                  <div class="table-cell" role="cell" data-label="Dispositivos">{formatNumber(customer.devices_count)}</div>
+                  <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(customer.last_order_at || customer.updated)}</div>
+                  <div class="table-cell" role="cell" data-label="Total confirmado">{formatMoneyUsd(customer.confirmed_total_usd)}</div>
+                  <div class="table-cell" role="cell" data-label="Estado"><span class={`status-pill status-${customer.archived ? 'archived' : customer.status}`}>{customer.archived ? 'Archivado' : labelFromMap(CUSTOMER_STATUS_LABELS, customer.status)}</span></div>
+                  <div class="table-cell action-cell" role="cell" data-label="Accion">
+                    <a class="row-action" href={customerDetailHref(customer.id, { orders_page: 1, events_page: 1 })}>Ver ficha</a>
+                    <button
+                      class="icon-action customer-menu-trigger"
+                      type="button"
+                      aria-label="Acciones"
+                      aria-haspopup="menu"
+                      aria-controls="security-customer-actions-menu"
+                      aria-expanded="false"
+                      data-customer-id={customer.id}
+                      data-customer-archived={customer.archived ? 'true' : 'false'}
+                      data-lifecycle-label={lifecycleActionLabel(customer)}
+                      data-lifecycle-action={lifecycleActionValue(customer)}
+                      data-lifecycle-description={lifecycleActionDescription(customer)}
+                      data-lifecycle-notice={lifecycleNoticeText(customer)}
+                      data-orders-count={lifecycleCounts(customer).orders_affected}
+                      data-phones-count={lifecycleCounts(customer).phones_affected}
+                      data-devices-count={lifecycleCounts(customer).devices_affected}
+                      data-events-count={lifecycleCounts(customer).events_affected}
+                      data-sessions-count={lifecycleCounts(customer).sessions_affected}
+                      data-pageviews-count={lifecycleCounts(customer).pageviews_affected}
+                    >...</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div class="pagination-bar" aria-label="Paginacion de clientes">
+            <span>{customerPageLabel(customersResult)}</span>
+            <div class="pagination-actions">
+              {params.customerSearch ? (
+                <>
+                  <form method="POST" action={sectionHref('customers')}>
+                    <input type="hidden" name="section" value="customers" />
+                    <input type="hidden" name="customer_search" value={params.customerSearch} />
+                    <input type="hidden" name="customer_status" value={params.customerStatus} />
+                    <input type="hidden" name="customers_page" value={Math.max(1, customersResult.page - 1)} />
+                    <button class="page-button" type="submit" disabled={customersResult.page <= 1}>Anterior</button>
+                  </form>
+                  <form method="POST" action={sectionHref('customers')}>
+                    <input type="hidden" name="section" value="customers" />
+                    <input type="hidden" name="customer_search" value={params.customerSearch} />
+                    <input type="hidden" name="customer_status" value={params.customerStatus} />
+                    <input type="hidden" name="customers_page" value={Math.min(customersResult.totalPages, customersResult.page + 1)} />
+                    <button class="page-button" type="submit" disabled={customersResult.page >= customersResult.totalPages}>Siguiente</button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <a class:list={['page-button', { disabled: customersResult.page <= 1 }]} href={paginationHref('customers', Math.max(1, customersResult.page - 1))}>Anterior</a>
+                  {pageWindow(customersResult).map((page) => <a class:list={['page-button', { 'is-active': page === customersResult.page }]} href={paginationHref('customers', page)}>{page}</a>)}
+                  <a class:list={['page-button', { disabled: customersResult.page >= customersResult.totalPages }]} href={paginationHref('customers', Math.min(customersResult.totalPages, customersResult.page + 1))}>Siguiente</a>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div class="empty-state">No hay clientes registrados para los filtros actuales.</div>
+      )}
+    </section>
+  )}
+
+  {params.section === 'customers' && selectedCustomer && (
+    <section class="monitoring-card detail-card" aria-labelledby="customer-detail-title">
+      <div class="section-head">
+        <div>
+          <h3 id="customer-detail-title">Ficha de cliente</h3>
+          <p>{getDisplayCustomerName(selectedCustomer)}</p>
+        </div>
+        <a class="secondary-action" href={sectionHref('customers')}>Volver a clientes</a>
+      </div>
+
+      <section class="admin-customer-panel" aria-labelledby="admin-customer-title">
+        <div>
+          <h4 id="admin-customer-title">Administrar cliente</h4>
+          <p>{selectedCustomer.archived ? 'Esta ficha esta archivada.' : 'Acciones privadas sobre la ficha de Seguridad.'}</p>
+        </div>
+        <div class="admin-customer-actions">
+          <button
+            class="secondary-action customer-observation-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="security-observation-dialog"
+            data-customer-id={selectedCustomer.id}
+            data-observation-action={observationActionValue(selectedCustomer)}
+            data-observation-label={observationActionLabel(selectedCustomer)}
+            data-observation-disabled={selectedCustomer.status === 'blocked' || !selectedBlockCapabilities().can_observe ? 'true' : 'false'}
+            disabled={selectedCustomer.status === 'blocked' || !selectedBlockCapabilities().can_observe}
+          >{observationActionLabel(selectedCustomer)}</button>
+          <button
+            class="primary-action customer-block-create-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="security-block-create-dialog"
+            data-customer-id={selectedCustomer.id}
+            data-can-full-access={selectedBlockCapabilities().can_full_access ? 'true' : 'false'}
+            data-can-permanent={selectedBlockCapabilities().can_permanent ? 'true' : 'false'}
+            data-phone-count={selectedAvailableSignals().phone_count}
+            data-device-count={selectedAvailableSignals().device_count}
+            data-ip-count={selectedAvailableSignals().ip_count}
+            disabled={!selectedBlockCapabilities().can_block || selectedCustomer.archived || (selectedAvailableSignals().phone_count + selectedAvailableSignals().device_count + selectedAvailableSignals().ip_count) === 0}
+          >Crear bloqueo</button>
+          <button
+            class="secondary-action customer-dialog-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="security-lifecycle-dialog"
+            data-dialog-action="lifecycle"
+            data-customer-id={selectedCustomer.id}
+            data-customer-archived={selectedCustomer.archived ? 'true' : 'false'}
+            data-lifecycle-label={lifecycleActionLabel(selectedCustomer)}
+            data-lifecycle-action={lifecycleActionValue(selectedCustomer)}
+            data-lifecycle-description={lifecycleActionDescription(selectedCustomer)}
+            data-lifecycle-notice={lifecycleNoticeText(selectedCustomer)}
+            data-orders-count={selectedLifecycleCounts().orders_affected}
+            data-phones-count={selectedLifecycleCounts().phones_affected}
+            data-devices-count={selectedLifecycleCounts().devices_affected}
+            data-events-count={selectedLifecycleCounts().events_affected}
+            data-sessions-count={selectedLifecycleCounts().sessions_affected}
+            data-pageviews-count={selectedLifecycleCounts().pageviews_affected}
+          >{lifecycleActionLabel(selectedCustomer)}</button>
+          <button
+            class="danger-action customer-dialog-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-controls="security-delete-dialog"
+            data-dialog-action="delete"
+            data-customer-id={selectedCustomer.id}
+            data-customer-archived={selectedCustomer.archived ? 'true' : 'false'}
+            data-lifecycle-label={lifecycleActionLabel(selectedCustomer)}
+            data-lifecycle-action={lifecycleActionValue(selectedCustomer)}
+            data-lifecycle-description={lifecycleActionDescription(selectedCustomer)}
+            data-lifecycle-notice={lifecycleNoticeText(selectedCustomer)}
+            data-orders-count={selectedLifecycleCounts().orders_affected}
+            data-phones-count={selectedLifecycleCounts().phones_affected}
+            data-devices-count={selectedLifecycleCounts().devices_affected}
+            data-events-count={selectedLifecycleCounts().events_affected}
+            data-sessions-count={selectedLifecycleCounts().sessions_affected}
+            data-pageviews-count={selectedLifecycleCounts().pageviews_affected}
+          >Eliminar ficha de Seguridad</button>
+        </div>
+      </section>
+
+      <section class="block-management-panel" aria-labelledby="active-blocks-title">
+        <div class="block-management-head">
+          <div>
+            <h4 id="active-blocks-title">Bloqueos activos</h4>
+            <p>{pluralLabel(activeBlocks.length, 'bloqueo activo', 'bloqueos activos')} · Historial: {formatNumber(selectedBlockHistorySummary().expired)} vencidos · {formatNumber(selectedBlockHistorySummary().revoked)} revocados</p>
+          </div>
+          <span class={`status-pill status-${selectedCustomer.status}`}>{selectedCustomer.status === 'blocked' ? 'Cliente bloqueado' : labelFromMap(CUSTOMER_STATUS_LABELS, selectedCustomer.status)}</span>
+        </div>
+        {activeBlocks.length > 0 ? (
+          <div class="active-block-grid">
+            {activeBlocks.map((block) => (
+              <article class="active-block-card">
+                <div>
+                  <strong>{blockScopeLabel(block.scope)}</strong>
+                  <span>{blockSignalsLabel(block)}</span>
+                </div>
+                <dl>
+                  <div><dt>Duracion</dt><dd>{blockDurationLabel(block.duration)}</dd></div>
+                  <div><dt>Inicio</dt><dd>{formatDateTime(block.starts_at)}</dd></div>
+                  <div><dt>Vencimiento</dt><dd>{block.expires_at ? formatDateTime(block.expires_at) : 'Permanente'}</dd></div>
+                  <div><dt>Estado</dt><dd>{blockStatusLabel(block.status)}</dd></div>
+                </dl>
+                <button
+                  class="danger-action block-revoke-trigger"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-controls="security-block-revoke-dialog"
+                  data-block-id={block.id}
+                  data-customer-id={selectedCustomer.id}
+                  data-block-scope={blockScopeLabel(block.scope)}
+                  data-return-section="customers"
+                >Desbloquear</button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div class="empty-state compact-empty">No hay bloqueos activos para esta ficha.</div>
+        )}
+      </section>
+
+      <section class="merge-panel" aria-labelledby="merge-customer-title">
+        <div>
+          <h4 id="merge-customer-title">Unir con otro cliente</h4>
+          <p>Unir clientes consolida sus pedidos, telefonos, dispositivos y actividad dentro de una sola ficha. La IP por si sola no se usa para unir clientes.</p>
+        </div>
+        <form class="merge-search" method="POST" action={sectionHref('customers')}>
+          <input type="hidden" name="section" value="customers" />
+          <input type="hidden" name="customer" value={selectedCustomer.id} />
+          <input type="hidden" name="customer_status" value={params.customerStatus} />
+          <input type="hidden" name="orders_page" value={params.customerOrdersPage} />
+          <input type="hidden" name="events_page" value={params.customerEventsPage} />
+          <label class="field" for="merge-search-input">
+            <span>Buscar cliente</span>
+            <input id="merge-search-input" name="merge_search" type="search" value={params.mergeSearch} placeholder="Nombre o telefono" />
+          </label>
+          <button class="secondary-action" type="submit">Buscar</button>
+        </form>
+        {params.mergeSearch && (
+          <form class="merge-confirm" method="POST" action={sectionHref('customers')}>
+            <input type="hidden" name="section" value="customers" />
+            <input type="hidden" name="customer" value={selectedCustomer.id} />
+            <input type="hidden" name="security_action" value="merge_customers" />
+            <input type="hidden" name="merge_search" value={params.mergeSearch} />
+            <label class="field" for="source-customer-id">
+              <span>Cliente a unir</span>
+              <select id="source-customer-id" name="source_customer_id" required>
+                <option value="">Selecciona un cliente</option>
+                {mergeCandidates.map((candidate) => (
+                  <option value={candidate.id}>{getDisplayCustomerName(candidate)} · {customerPrimaryPhone(candidate)}</option>
+                ))}
+              </select>
+            </label>
+            <label class="field" for="merge-reason">
+              <span>Motivo interno</span>
+              <textarea id="merge-reason" name="merge_reason" maxlength="500" required placeholder="Motivo privado de la union"></textarea>
+            </label>
+            <button class="primary-action" type="submit" disabled={mergeCandidates.length === 0}>Confirmar union</button>
+            {mergeCandidates.length === 0 && <p class="merge-note">No hay candidatos canónicos para esa busqueda.</p>}
+          </form>
+        )}
+      </section>
+
+      <div class="detail-grid">
+        <div class="fact-box">
+          <span>Nombre mas reciente</span>
+          <strong>{getDisplayCustomerName(selectedCustomer)}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Telefono principal</span>
+          <strong>{customerPrimaryPhone(selectedCustomer)}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Primera compra</span>
+          <strong>{formatDateTime(selectedCustomer.first_order_at)}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Ultima compra</span>
+          <strong>{formatDateTime(selectedCustomer.last_order_at)}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Ultima direccion</span>
+          <strong>{selectedCustomer.last_address || 'No disponible'}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Municipio</span>
+          <strong>{selectedCustomer.last_municipality || 'No disponible'}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Estado</span>
+          <strong>{labelFromMap(CUSTOMER_STATUS_LABELS, selectedCustomer.status)}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Telefonos usados</span>
+          <strong>{formatNumber(selectedCustomer.phones_count)}</strong>
+        </div>
+        <div class="fact-box">
+          <span>Dispositivos conocidos</span>
+          <strong>{formatNumber(selectedCustomer.devices_count)}</strong>
+        </div>
+      </div>
+
+      <div class="metrics-grid compact" aria-label="Historial comercial">
+        <article class="metric-card"><span>Pedidos totales</span><strong>{formatNumber(selectedCustomer.orders_count)}</strong></article>
+        <article class="metric-card"><span>Pendientes</span><strong>{formatNumber(selectedCustomer.pending_orders_count)}</strong></article>
+        <article class="metric-card"><span>Confirmados</span><strong>{formatNumber(selectedCustomer.confirmed_orders_count)}</strong></article>
+        <article class="metric-card"><span>Preparando</span><strong>{formatNumber(selectedCustomer.preparing_orders_count)}</strong></article>
+        <article class="metric-card"><span>Entregados</span><strong>{formatNumber(selectedCustomer.delivered_orders_count)}</strong></article>
+        <article class="metric-card"><span>Cancelados</span><strong>{formatNumber(selectedCustomer.cancelled_orders_count)}</strong></article>
+        <article class="metric-card"><span>Total confirmado</span><strong>{formatMoneyUsd(selectedCustomer.confirmed_total_usd)}</strong></article>
+      </div>
+
+      <section class="subsection" aria-labelledby="customer-phones-title">
+        <div class="section-head">
+          <div>
+            <h4 id="customer-phones-title">Telefonos utilizados</h4>
+            <p>{customerPhones.length ? pluralLabel(customerPhones.length, 'telefono registrado', 'telefonos registrados') : 'Sin telefonos registrados'}</p>
+          </div>
+        </div>
+        {customerPhones.length > 0 ? (
+          <div class="compact-list">
+            {customerPhones.map((phone) => (
+              <article class="compact-row">
+                <div>
+                  <strong>{phone.phone_normalized}</strong>
+                  <span>Primera vez: {formatDateTime(phone.first_seen_at)} | Ultima vez: {formatDateTime(phone.last_seen_at)}</span>
+                </div>
+                <div class="compact-actions">
+                  <span>{pluralLabel(phone.orders_count, 'pedido', 'pedidos')}</span>
+                  {phone.is_primary && <span class="status-pill">Principal</span>}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div class="empty-state">No hay telefonos vinculados a este cliente.</div>
+        )}
+      </section>
+
+      <section class="subsection" aria-labelledby="customer-devices-title">
+        <div class="section-head">
+          <div>
+            <h4 id="customer-devices-title">Dispositivos conocidos</h4>
+            <p>{customerDevices.length ? pluralLabel(customerDevices.length, 'dispositivo registrado', 'dispositivos registrados') : 'Sin dispositivos registrados'}</p>
+          </div>
+        </div>
+        {customerDevices.length > 0 ? (
+          <div class="compact-list">
+            {customerDevices.map((device) => (
+              <article class="compact-row">
+                <div>
+                  <strong>{device.label}</strong>
+                  <span>Primera actividad: {formatDateTime(device.first_seen_at)} | Ultima actividad: {formatDateTime(device.last_seen_at)}</span>
+                  {showIp && <span>IP reciente: {getIpDisplayValue({ ip_masked: device.ip_display, resolved_ip: device.ip_resolution_status === 'full' ? device.ip_display : '', ip_resolution_status: device.ip_resolution_status })}</span>}
+                </div>
+                <div class="compact-actions">
+                  <span>{pluralLabel(device.orders_count, 'pedido', 'pedidos')}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div class="empty-state">No hay dispositivos conocidos vinculados a este cliente.</div>
+        )}
+      </section>
+
+      <section class="subsection" aria-labelledby="identity-warnings-title">
+        <div class="section-head">
+          <div>
+            <h4 id="identity-warnings-title">Coincidencias de identidad</h4>
+            <p>{customerLinksSummary?.active_links ? pluralLabel(customerLinksSummary.active_links, 'consolidacion registrada', 'consolidaciones registradas') : 'Señales sanitizadas'}</p>
+          </div>
+        </div>
+        <div class="warning-list">
+          {(customerIdentityWarnings.length ? customerIdentityWarnings : ['La IP es una señal de red y no confirma identidad.']).map((warning) => (
+            <p>{warning}</p>
+          ))}
+        </div>
+      </section>
+
+      <section class="subsection" aria-labelledby="customer-orders-title">
+        <div class="section-head">
+          <div>
+            <h4 id="customer-orders-title">Pedidos</h4>
+            <p>{customerOrdersError ? 'No disponible' : customerPageLabel(customerOrders)}</p>
+          </div>
+        </div>
+        {customerOrdersError ? (
+          <div class="empty-state">No se pudieron cargar los pedidos de este cliente en este momento.</div>
+        ) : customerOrders && customerOrders.items.length > 0 ? (
+          <>
+            <div class="compact-list">
+              {customerOrders.items.map((order) => (
+                <article class="compact-row">
+                  <div>
+                    <strong>{order.order_number || 'Orden sin numero'}</strong>
+                    <span>{formatDateTime(order.created)} | {labelFromMap(ORDER_STATUS_LABELS, order.status)} | {labelFromMap(DELIVERY_METHOD_LABELS, order.delivery_method)}</span>
+                  </div>
+                  <div class="compact-actions">
+                    <span>{formatMoneyUsd(getOrderTotal(order))}</span>
+                    {orderHref(order) && <a class="row-action" href={orderHref(order)}>Ver orden</a>}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div class="pagination-bar">
+              <span>{customerPageLabel(customerOrders)}</span>
+              <div class="pagination-actions">
+                <a class:list={['page-button', { disabled: customerOrders.page <= 1 }]} href={paginationHref('orders', Math.max(1, customerOrders.page - 1))}>Anterior</a>
+                {pageWindow(customerOrders).map((page) => <a class:list={['page-button', { 'is-active': page === customerOrders.page }]} href={paginationHref('orders', page)}>{page}</a>)}
+                <a class:list={['page-button', { disabled: customerOrders.page >= customerOrders.totalPages }]} href={paginationHref('orders', Math.min(customerOrders.totalPages, customerOrders.page + 1))}>Siguiente</a>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div class="empty-state">No hay pedidos vinculados a este cliente.</div>
+        )}
+      </section>
+
+      <section class="subsection" aria-labelledby="customer-events-title">
+        <div class="section-head">
+          <div>
+            <h4 id="customer-events-title">Seguridad</h4>
+            <p>{customerEventsError ? 'No disponible' : customerPageLabel(customerEvents)}</p>
+          </div>
+        </div>
+        {customerEventsError ? (
+          <div class="empty-state">No se pudo cargar la actividad de seguridad de este cliente en este momento.</div>
+        ) : customerEvents && customerEvents.items.length > 0 ? (
+          <>
+            <div class="compact-list">
+              {customerEvents.items.map((event) => (
+                <article class="compact-row">
+                  <div>
+                    <strong>{labelFromMap(EVENT_TYPE_LABELS, event.event_type)}</strong>
+                    <span>{formatDateTime(event.occurred_at || event.created)} | {labelFromMap(EVENT_DECISION_LABELS, event.decision)} | {labelFromMap(EVENT_RISK_LABELS, event.risk_level)}</span>
+                    <span>Modo: {labelFromMap(MODE_AT_EVENT_LABELS, event.mode_at_event)} | Captura: {labelFromMap(CAPTURE_STATUS_LABELS, event.capture_status)}</span>
+                    {event.relatedOrder && <span>Orden: {event.relatedOrder.order_number || event.relatedOrder.id}</span>}
+                    {showIp && (
+                      <span>
+                        IP: {getIpDisplayValue(event)}
+                        {getIpUnavailableNote(event) && ` | ${getIpUnavailableNote(event)}`}
+                      </span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div class="pagination-bar">
+              <span>{customerPageLabel(customerEvents)}</span>
+              <div class="pagination-actions">
+                <a class:list={['page-button', { disabled: customerEvents.page <= 1 }]} href={paginationHref('events', Math.max(1, customerEvents.page - 1))}>Anterior</a>
+                {pageWindow(customerEvents).map((page) => <a class:list={['page-button', { 'is-active': page === customerEvents.page }]} href={paginationHref('events', page)}>{page}</a>)}
+                <a class:list={['page-button', { disabled: customerEvents.page >= customerEvents.totalPages }]} href={paginationHref('events', Math.min(customerEvents.totalPages, customerEvents.page + 1))}>Siguiente</a>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div class="empty-state">No hay actividad de seguridad registrada para este cliente.</div>
+        )}
+      </section>
+    </section>
+  )}
+
+  {params.section === 'visitors' && (
+    <section class="monitoring-card" aria-labelledby="visitors-title">
+      <div class="section-head">
+        <div>
+          <h3 id="visitors-title">Visitantes de hoy</h3>
+          <p>Personas registradas navegando por la tienda durante el día, hayan comprado o no.</p>
+        </div>
+      </div>
+
+      {visitorsResult && visitorsResult.items.length > 0 ? (
+        <>
+          <div class:list={['monitoring-table', 'visitors-table', { 'has-ip': showIp }]} role="table" aria-label="Visitantes de hoy">
+            <div class="table-head" role="row">
+              <span role="columnheader">Visitante</span>
+              <span role="columnheader">Telefono</span>
+              {showIp && <span role="columnheader">IP</span>}
+              <span role="columnheader">Primera visita</span>
+              <span role="columnheader">Ultima actividad</span>
+              <span role="columnheader">Paginas</span>
+              <span role="columnheader">Accion</span>
+            </div>
+            <div class="table-body">
+              {visitorsResult.items.map((visitor) => (
+                <article class="table-row" role="row">
+                  <div class="table-cell main-cell" role="cell" data-label="Visitante">
+                    <strong>{getVisitorDisplayName(visitor)}</strong>
+                    <span>{visitor.entry_path || 'Ruta inicial no disponible'}</span>
+                  </div>
+                  <div class="table-cell sensitive-cell" role="cell" data-label="Telefono">{getVisitorPhone(visitor)}</div>
+                  {showIp && (
+                    <div class="table-cell ip-cell" role="cell" data-label="IP">
+                      <span>{getIpDisplayValue(visitor)}</span>
+                      {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
+                    </div>
+                  )}
+                  <div class="table-cell" role="cell" data-label="Primera visita">{formatDateTime(visitor.first_seen_at)}</div>
+                  <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(visitor.last_seen_at)}</div>
+                  <div class="table-cell" role="cell" data-label="Paginas">{formatNumber(visitor.pageviews_count)}</div>
+                  <div class="table-cell action-cell" role="cell" data-label="Accion"><a class="row-action" href={visitorDetailHref(visitor.id)}>Ver</a></div>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div class="pagination-bar" aria-label="Paginacion de visitantes">
+            <span>{customerPageLabel(visitorsResult)}</span>
+            <div class="pagination-actions">
+              <a class:list={['page-button', { disabled: visitorsResult.page <= 1 }]} href={paginationHref('visitors', Math.max(1, visitorsResult.page - 1))}>Anterior</a>
+              {pageWindow(visitorsResult).map((page) => <a class:list={['page-button', { 'is-active': page === visitorsResult.page }]} href={paginationHref('visitors', page)}>{page}</a>)}
+              <a class:list={['page-button', { disabled: visitorsResult.page >= visitorsResult.totalPages }]} href={paginationHref('visitors', Math.min(visitorsResult.totalPages, visitorsResult.page + 1))}>Siguiente</a>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div class="empty-state">No hay visitantes registrados hoy.</div>
+      )}
+    </section>
+  )}
+
+  {params.section === 'activity' && (
+    <section class="monitoring-card" aria-labelledby="activity-title">
+      <div class="section-head">
+        <div>
+          <h3 id="activity-title">Actividad</h3>
+          <p>{customerPageLabel(activityResult)}</p>
+        </div>
+      </div>
+
+      <div class="filter-row" aria-label="Filtros de actividad">
+        {EVENT_TYPE_FILTERS.map((value) => (
+          <a class:list={['filter-chip', { 'is-active': isActiveEventType(value) }]} href={activityHref(1, { event_type: value })}>
+            {value === 'all' ? 'Todos' : labelFromMap(EVENT_TYPE_LABELS, value)}
+          </a>
+        ))}
+      </div>
+      <div class="filter-row compact-filters" aria-label="Filtros de decision y riesgo">
+        {EVENT_DECISION_FILTERS.map((value) => (
+          <a class:list={['filter-chip', { 'is-active': isActiveEventDecision(value) }]} href={activityHref(1, { decision: value })}>
+            {value === 'all' ? 'Decision: todas' : labelFromMap(EVENT_DECISION_LABELS, value)}
+          </a>
+        ))}
+        {EVENT_RISK_FILTERS.map((value) => (
+          <a class:list={['filter-chip', { 'is-active': isActiveEventRisk(value) }]} href={activityHref(1, { risk: value })}>
+            {value === 'all' ? 'Riesgo: todos' : labelFromMap(EVENT_RISK_LABELS, value)}
+          </a>
+        ))}
+      </div>
+
+      {activityResult && activityResult.items.length > 0 ? (
+        <>
+          <div class:list={['monitoring-table', 'activity-table', { 'has-ip': showIp }]} role="table" aria-label="Eventos de seguridad">
+            <div class="table-head" role="row">
+              <span role="columnheader">Evento</span>
+              <span role="columnheader">Cliente</span>
+              <span role="columnheader">Pedido</span>
+              <span role="columnheader">Decision</span>
+              <span role="columnheader">Riesgo</span>
+              <span role="columnheader">Modo</span>
+              <span role="columnheader">Captura</span>
+              {showIp && <span role="columnheader">IP</span>}
+            </div>
+            <div class="table-body">
+              {activityResult.items.map((event) => (
+                <article class="table-row" role="row">
+                  <div class="table-cell main-cell" role="cell" data-label="Evento">
+                    <strong>{labelFromMap(EVENT_TYPE_LABELS, event.event_type)}</strong>
+                    <span>{formatDateTime(event.occurred_at || event.created)}</span>
+                  </div>
+                  <div class="table-cell sensitive-cell" role="cell" data-label="Cliente">
+                    <strong>{eventCustomerName(event)}</strong>
+                    <span>{eventCustomerPhone(event)}</span>
+                  </div>
+                  <div class="table-cell" role="cell" data-label="Pedido">
+                    {event.relatedOrder ? (
+                      orderHref(event.relatedOrder) ? <a class="inline-link" href={orderHref(event.relatedOrder)}>{event.relatedOrder.order_number || event.relatedOrder.id}</a> : <span>{event.relatedOrder.order_number || event.relatedOrder.id}</span>
+                    ) : 'No disponible'}
+                  </div>
+                  <div class="table-cell" role="cell" data-label="Decision">{labelFromMap(EVENT_DECISION_LABELS, event.decision)}</div>
+                  <div class="table-cell" role="cell" data-label="Riesgo">{labelFromMap(EVENT_RISK_LABELS, event.risk_level)}</div>
+                  <div class="table-cell" role="cell" data-label="Modo">{labelFromMap(MODE_AT_EVENT_LABELS, event.mode_at_event)}</div>
+                  <div class="table-cell" role="cell" data-label="Captura">{labelFromMap(CAPTURE_STATUS_LABELS, event.capture_status)}</div>
+                  {showIp && (
+                    <div class="table-cell ip-cell" role="cell" data-label="IP">
+                      <span>{getIpDisplayValue(event)}</span>
+                      {getIpUnavailableNote(event) && <small>{getIpUnavailableNote(event)}</small>}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </div>
+          <div class="pagination-bar" aria-label="Paginacion de actividad">
+            <span>{customerPageLabel(activityResult)}</span>
+            <div class="pagination-actions">
+              <a class:list={['page-button', { disabled: activityResult.page <= 1 }]} href={paginationHref('activity', Math.max(1, activityResult.page - 1))}>Anterior</a>
+              {pageWindow(activityResult).map((page) => <a class:list={['page-button', { 'is-active': page === activityResult.page }]} href={paginationHref('activity', page)}>{page}</a>)}
+              <a class:list={['page-button', { disabled: activityResult.page >= activityResult.totalPages }]} href={paginationHref('activity', Math.min(activityResult.totalPages, activityResult.page + 1))}>Siguiente</a>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div class="empty-state">No hay actividad de seguridad registrada.</div>
+      )}
+    </section>
+  )}
+
+  {params.section === 'blocked' && (
+    <section class="monitoring-card" aria-labelledby="blocked-title">
+      <div class="section-head">
+        <div>
+          <h3 id="blocked-title">Clientes bloqueados</h3>
+          <p>{customerPageLabel(blocksResult)}</p>
+        </div>
+      </div>
+
+      <section class="metrics-grid block-metrics" aria-label="Metricas de bloqueos">
+        <article class="metric-card">
+          <span>Bloqueos activos</span>
+          <strong>{formatNumber(selectedBlocksMetrics().active_blocks)}</strong>
+        </article>
+        <article class="metric-card">
+          <span>Clientes afectados</span>
+          <strong>{formatNumber(selectedBlocksMetrics().affected_customers)}</strong>
+        </article>
+        <article class="metric-card">
+          <span>Vencen hoy</span>
+          <strong>{formatNumber(selectedBlocksMetrics().expires_today)}</strong>
+        </article>
+        <article class="metric-card">
+          <span>Permanentes</span>
+          <strong>{formatNumber(selectedBlocksMetrics().permanent_blocks)}</strong>
+        </article>
+      </section>
+
+      <form class="block-filter-form" method="POST" action={sectionHref('blocked')}>
+        <input type="hidden" name="section" value="blocked" />
+        <input type="hidden" name="blocked_page" value="1" />
+        <div class="field">
+          <label for="blocked-search">Buscar bloqueo</label>
+          <input id="blocked-search" name="blocked_search" type="search" maxlength="80" value={params.blockedSearch} autocomplete="off" placeholder="Cliente, telefono o motivo" />
+        </div>
+        <div class="field">
+          <label for="blocked-status">Estado</label>
+          <select id="blocked-status" name="blocked_status">
+            {blockStatusOptions.map(([value, label]) => <option value={value} selected={isActiveBlockStatus(value)}>{label}</option>)}
+          </select>
+        </div>
+        <div class="field">
+          <label for="blocked-scope">Alcance</label>
+          <select id="blocked-scope" name="blocked_scope">
+            {blockScopeOptions.map(([value, label]) => <option value={value} selected={isActiveBlockScope(value)}>{label}</option>)}
+          </select>
+        </div>
+        <button class="primary-action" type="submit">Filtrar</button>
+        <a class="secondary-action" href={sectionHref('blocked')}>Limpiar</a>
+      </form>
+
+      {!params.blockedSearch && (
+        <div class="filter-row" aria-label="Filtros rapidos de bloqueos">
+          {blockStatusOptions.map(([value, label]) => (
+            <a class:list={['filter-chip', { 'is-active': isActiveBlockStatus(value) }]} href={blockedHref(1, { blocked_status: value })}>
+              {label}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {blocksResult && blocksResult.items.length > 0 ? (
+        <>
+          <div class="monitoring-table blocks-table" role="table" aria-label="Bloqueos de seguridad">
+            <div class="table-head" role="row">
+              <span role="columnheader">Cliente</span>
+              <span role="columnheader">Alcance</span>
+              <span role="columnheader">Senales</span>
+              <span role="columnheader">Creado</span>
+              <span role="columnheader">Vencimiento</span>
+              <span role="columnheader">Estado</span>
+              <span role="columnheader">Accion</span>
+            </div>
+            <div class="table-body">
+              {blocksResult.items.map((block) => (
+                <article class="table-row" role="row">
+                  <div class="table-cell main-cell" role="cell" data-label="Cliente">
+                    <strong>{blockCustomerTitle(block)}</strong>
+                    <span>{blockCustomerSubtitle(block)}</span>
+                  </div>
+                  <div class="table-cell" role="cell" data-label="Alcance">{blockScopeLabel(block.scope)}</div>
+                  <div class="table-cell" role="cell" data-label="Senales">{blockSignalsLabel(block)}</div>
+                  <div class="table-cell" role="cell" data-label="Creado">{formatDateTime(block.created || block.starts_at)}</div>
+                  <div class="table-cell" role="cell" data-label="Vencimiento">{block.expires_at ? formatDateTime(block.expires_at) : 'Permanente'}</div>
+                  <div class="table-cell" role="cell" data-label="Estado"><span class={`status-pill status-${block.status}`}>{blockStatusLabel(block.status)}</span></div>
+                  <div class="table-cell action-cell" role="cell" data-label="Accion">
+                    {block.customer_id && <a class="row-action" href={customerDetailHref(block.customer_id, { orders_page: 1, events_page: 1 })}>Ver ficha</a>}
+                    {block.status === 'active' ? (
+                      <button
+                        class="danger-action block-revoke-trigger"
+                        type="button"
+                        aria-haspopup="dialog"
+                        aria-controls="security-block-revoke-dialog"
+                        data-block-id={block.id}
+                        data-customer-id={block.customer_id}
+                        data-block-scope={blockScopeLabel(block.scope)}
+                        data-return-section="blocked"
+                      >Desbloquear</button>
+                    ) : (
+                      <span class="muted-cell">Sin accion</span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div class="pagination-bar" aria-label="Paginacion de bloqueos">
+            <span>{customerPageLabel(blocksResult)}</span>
+            <div class="pagination-actions">
+              {params.blockedSearch ? (
+                <>
+                  <form method="POST" action={sectionHref('blocked')}>
+                    <input type="hidden" name="section" value="blocked" />
+                    <input type="hidden" name="blocked_search" value={params.blockedSearch} />
+                    <input type="hidden" name="blocked_status" value={params.blockedStatus} />
+                    <input type="hidden" name="blocked_scope" value={params.blockedScope} />
+                    <input type="hidden" name="blocked_page" value={Math.max(1, blocksResult.page - 1)} />
+                    <button class="page-button" type="submit" disabled={blocksResult.page <= 1}>Anterior</button>
+                  </form>
+                  <form method="POST" action={sectionHref('blocked')}>
+                    <input type="hidden" name="section" value="blocked" />
+                    <input type="hidden" name="blocked_search" value={params.blockedSearch} />
+                    <input type="hidden" name="blocked_status" value={params.blockedStatus} />
+                    <input type="hidden" name="blocked_scope" value={params.blockedScope} />
+                    <input type="hidden" name="blocked_page" value={Math.min(blocksResult.totalPages, blocksResult.page + 1)} />
+                    <button class="page-button" type="submit" disabled={blocksResult.page >= blocksResult.totalPages}>Siguiente</button>
+                  </form>
+                </>
+              ) : (
+                <>
+                  <a class:list={['page-button', { disabled: blocksResult.page <= 1 }]} href={paginationHref('blocked', Math.max(1, blocksResult.page - 1))}>Anterior</a>
+                  {pageWindow(blocksResult).map((page) => <a class:list={['page-button', { 'is-active': page === blocksResult.page }]} href={paginationHref('blocked', page)}>{page}</a>)}
+                  <a class:list={['page-button', { disabled: blocksResult.page >= blocksResult.totalPages }]} href={paginationHref('blocked', Math.min(blocksResult.totalPages, blocksResult.page + 1))}>Siguiente</a>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      ) : (
+        <div class="empty-state">No hay bloqueos para los filtros actuales.</div>
+      )}
+    </section>
+  )}
+</section>
+
+<div id="security-customer-actions-menu" class="floating-actions-menu" data-customer-menu role="menu" aria-label="Acciones de cliente" aria-hidden="true" hidden>
+  <button class="floating-menu-item" type="button" data-menu-action="lifecycle" role="menuitem">Archivar cliente</button>
+  <button class="floating-menu-item danger" type="button" data-menu-action="delete" role="menuitem">Eliminar ficha de Seguridad</button>
+</div>
+
+<dialog id="security-lifecycle-dialog" class="security-modal security-lifecycle-modal" data-lifecycle-dialog aria-labelledby="security-lifecycle-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-lifecycle-title" data-lifecycle-title>Archivar cliente</h3>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('customers')} data-lifecycle-form>
+      <div class="security-modal-body">
+        <p data-lifecycle-description>El cliente dejara de aparecer en la lista activa y podra restaurarse despues.</p>
+        <p data-lifecycle-notice>Sus pedidos y datos de Seguridad se conservaran.</p>
+        <input type="hidden" name="section" value="customers" />
+        <input type="hidden" name="customer" value="" data-lifecycle-customer />
+        <input type="hidden" name="security_action" value="customer_lifecycle" />
+        <input type="hidden" name="lifecycle_action" value="archive" data-lifecycle-action-input />
+        <label class="field" for="security-lifecycle-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-lifecycle-reason" name="lifecycle_reason" maxlength="500" required data-dialog-focus></textarea>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="primary-action" type="submit" data-lifecycle-submit>Archivar cliente</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="security-delete-dialog" class="security-modal security-delete-modal" data-delete-dialog aria-labelledby="security-delete-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-delete-title">Eliminar ficha de Seguridad</h3>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('customers')} data-delete-form>
+      <div class="security-modal-body">
+        <div class="delete-counts" aria-label="Conteos vinculados">
+          <span data-delete-count="orders">0 pedidos vinculados</span>
+          <span data-delete-count="phones">0 telefonos</span>
+          <span data-delete-count="devices">0 dispositivos</span>
+          <span data-delete-count="events">0 eventos de Seguridad</span>
+          <span data-delete-count="sessions">0 sesiones</span>
+          <span data-delete-count="pageviews">0 paginas navegadas</span>
+        </div>
+        <p>Se eliminaran los telefonos, dispositivos, navegacion y asociaciones de Seguridad de este cliente.</p>
+        <p>Sus pedidos comerciales no seran eliminados.</p>
+        <input type="hidden" name="section" value="customers" />
+        <input type="hidden" name="customer" value="" data-delete-customer />
+        <input type="hidden" name="security_action" value="customer_lifecycle" />
+        <input type="hidden" name="lifecycle_action" value="delete_profile" />
+        <label class="field" for="security-delete-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-delete-reason" name="lifecycle_reason" maxlength="500" required data-dialog-focus></textarea>
+        </label>
+        <label class="confirm-check" for="security-delete-confirm">
+          <input id="security-delete-confirm" type="checkbox" required />
+          <span>Entiendo que esta accion no elimina los pedidos y que la ficha de Seguridad no se puede recuperar.</span>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="danger-action" type="submit">Eliminar ficha</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="security-observation-dialog" class="security-modal" data-observation-dialog aria-labelledby="security-observation-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-observation-title" data-observation-title>Poner en observacion</h3>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('customers')} data-observation-form>
+      <div class="security-modal-body">
+        <p data-observation-description>La ficha quedara marcada para revision interna sin afectar pedidos ni acceso publico.</p>
+        <input type="hidden" name="section" value="customers" />
+        <input type="hidden" name="customer" value="" data-observation-customer />
+        <input type="hidden" name="security_action" value="customer_observation" />
+        <input type="hidden" name="observation_action" value="enable" data-observation-action-input />
+        <label class="field" for="security-observation-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-observation-reason" name="observation_reason" maxlength="500" required data-dialog-focus></textarea>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="primary-action" type="submit" data-observation-submit>Poner en observacion</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="security-block-create-dialog" class="security-modal security-block-modal" data-block-create-dialog aria-labelledby="security-block-create-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-block-create-title">Crear bloqueo privado</h3>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('customers')} data-block-create-form>
+      <div class="security-modal-body">
+        <p>El bloqueo queda registrado para Seguridad y auditoria. En esta fase no cambia checkout, resenas, rifas ni formularios publicos.</p>
+        <input type="hidden" name="section" value="customers" />
+        <input type="hidden" name="customer" value="" data-block-create-customer />
+        <input type="hidden" name="security_action" value="security_block_create" />
+        <label class="field" for="security-block-scope">
+          <span>Alcance</span>
+          <select id="security-block-scope" name="block_scope" required data-block-scope-select data-dialog-focus>
+            {blockScopeCreateOptions.map(([value]) => <option value={value}>{BLOCK_SCOPE_ACTION_LABELS[value]}</option>)}
+          </select>
+        </label>
+        <label class="field" for="security-block-duration">
+          <span>Duracion</span>
+          <select id="security-block-duration" name="block_duration" required data-block-duration-select>
+            {blockDurationOptions.map(([value, label]) => <option value={value}>{label}</option>)}
+          </select>
+        </label>
+        <fieldset class="signal-fieldset">
+          <legend>Senales privadas</legend>
+          <div class="signal-grid">
+            <label class="signal-option" for="security-block-match-phone">
+              <input id="security-block-match-phone" type="checkbox" name="match_phone" data-signal-checkbox="phone" />
+              <span>
+                <strong>Telefono</strong>
+                <small data-signal-count="phone">0 disponibles</small>
+              </span>
+            </label>
+            <label class="signal-option" for="security-block-match-device">
+              <input id="security-block-match-device" type="checkbox" name="match_device" data-signal-checkbox="device" />
+              <span>
+                <strong>Dispositivo</strong>
+                <small data-signal-count="device">0 disponibles</small>
+              </span>
+            </label>
+            <label class="signal-option" for="security-block-match-ip">
+              <input id="security-block-match-ip" type="checkbox" name="match_ip" data-signal-checkbox="ip" />
+              <span>
+                <strong>IP</strong>
+                <small data-signal-count="ip">0 disponibles</small>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+        <label class="field" for="security-block-match-mode">
+          <span>Coincidencia</span>
+          <select id="security-block-match-mode" name="match_mode" required data-block-match-mode>
+            <option value="any">Cualquier senal seleccionada</option>
+            <option value="all">Todas las senales seleccionadas</option>
+          </select>
+        </label>
+        <p class="modal-warning" data-ip-warning hidden>La IP debe usarse con otra senal cuando sea posible. Es una senal volatil y privada.</p>
+        <label class="field" for="security-block-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-block-reason" name="block_reason" maxlength="500" required></textarea>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="danger-action" type="submit">Crear bloqueo</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="security-block-revoke-dialog" class="security-modal" data-block-revoke-dialog aria-labelledby="security-block-revoke-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-block-revoke-title" data-block-revoke-title>Desbloquear cliente</h3>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={basePath} data-block-revoke-form>
+      <div class="security-modal-body">
+        <p data-block-revoke-description>El bloqueo activo sera revocado y quedara visible en auditoria.</p>
+        <input type="hidden" name="section" value="customers" data-block-revoke-section />
+        <input type="hidden" name="customer" value="" data-block-revoke-customer />
+        <input type="hidden" name="block_id" value="" data-block-revoke-id />
+        <input type="hidden" name="return_section" value="customers" data-block-revoke-return />
+        <input type="hidden" name="security_action" value="security_block_revoke" />
+        <label class="field" for="security-block-revoke-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-block-revoke-reason" name="revoke_reason" maxlength="500" required data-dialog-focus></textarea>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="danger-action" type="submit">Revocar bloqueo</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<style>
+  .security-monitoring {
+    display: grid;
+    gap: 16px;
+    color: #0f172a;
+  }
+
+  .monitoring-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .94);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, .08);
+  }
+
+  .monitoring-kicker {
+    margin: 0 0 8px;
+    width: max-content;
+    max-width: 100%;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 7px 11px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 1000;
+  }
+
+  .monitoring-head h2,
+  .monitoring-card h3,
+  .monitoring-card h4 {
+    margin: 0;
+    color: #0f172a;
+    font-weight: 1000;
+    letter-spacing: 0;
+  }
+
+  .monitoring-head h2 {
+    font-size: clamp(26px, 4vw, 42px);
+    line-height: 1.02;
+  }
+
+  .monitoring-head p:not(.monitoring-kicker),
+  .section-head p {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 780;
+  }
+
+  .monitoring-back,
+  .primary-action,
+  .secondary-action,
+  .danger-action,
+  .row-action,
+  .icon-action,
+  .page-button,
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 8px;
+    padding: 10px 13px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.1;
+    font-weight: 1000;
+    text-decoration: none;
+    border: 1px solid #dbeafe;
+    background: #ffffff;
+    color: #1d4ed8;
+    cursor: pointer;
+  }
+
+  .primary-action {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  .secondary-action {
+    color: #334155;
+    border-color: #e2e8f0;
+    background: #f8fafc;
+  }
+
+  .danger-action {
+    border-color: #dc2626;
+    background: #dc2626;
+    color: #ffffff;
+  }
+
+  .icon-action {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+    color: #334155;
+    border-color: #e2e8f0;
+    background: #ffffff;
+    letter-spacing: 0;
+  }
+
+  .floating-actions-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10050;
+    display: grid;
+    gap: 4px;
+    min-width: 230px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 22px 60px rgba(15, 23, 42, .22), 0 2px 8px rgba(15, 23, 42, .08);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px) scale(.98);
+    transform-origin: top right;
+    transition: opacity .12s ease, transform .12s ease;
+  }
+
+  .floating-actions-menu.is-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+
+  .floating-actions-menu[hidden] {
+    display: none;
+  }
+
+  .floating-menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 40px;
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #0f172a;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 900;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .floating-menu-item:hover,
+  .floating-menu-item:focus-visible {
+    background: #f1f5f9;
+    outline: none;
+  }
+
+  .floating-menu-item.danger {
+    color: #b91c1c;
+  }
+
+  .floating-menu-item.danger:hover,
+  .floating-menu-item.danger:focus-visible {
+    background: #fef2f2;
+  }
+
+  dialog.security-modal {
+    position: fixed;
+    inset: 0;
+    width: min(520px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    max-height: calc(100dvh - 40px);
+    margin: auto;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #0f172a;
+    overflow: visible;
+  }
+
+  dialog.security-delete-modal,
+  dialog.security-block-modal {
+    width: min(620px, calc(100vw - 32px));
+  }
+
+  dialog.security-modal::backdrop {
+    background: rgba(15, 23, 42, .48);
+    backdrop-filter: blur(2px);
+  }
+
+  .security-modal-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    width: 100%;
+    max-height: inherit;
+    overflow: hidden;
+    border: 1px solid rgba(203, 213, 225, .95);
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 30px 90px rgba(15, 23, 42, .28), 0 2px 12px rgba(15, 23, 42, .08);
+  }
+
+  dialog.security-modal[open] .security-modal-card {
+    animation: securityModalIn .14s ease-out;
+  }
+
+  .security-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 20px 14px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .security-modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.15;
+    font-weight: 1000;
+  }
+
+  .modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #334155;
+    font: inherit;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .modal-close:hover,
+  .modal-close:focus-visible {
+    background: #f8fafc;
+  }
+
+  .security-modal-form {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    margin: 0;
+    gap: 0;
+  }
+
+  .security-modal-body {
+    display: grid;
+    gap: 14px;
+    min-height: 0;
+    overflow: auto;
+    padding: 18px 20px;
+  }
+
+  .security-modal-body p {
+    margin: 0;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 850;
+  }
+
+  .security-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px 20px;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+
+  .security-modal-footer .primary-action,
+  .security-modal-footer .secondary-action,
+  .security-modal-footer .danger-action {
+    min-width: 140px;
+  }
+
+  @keyframes securityModalIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .monitoring-tabs,
+  .filter-row,
+  .pagination-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .monitoring-tab,
+  .filter-chip {
+    min-height: 42px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334155;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 1000;
+  }
+
+  .monitoring-tab.is-active,
+  .filter-chip.is-active,
+  .page-button.is-active {
+    border-color: #2563eb;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .monitoring-alert {
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 900;
+  }
+
+  .monitoring-alert.is-soft {
+    border-color: #dbeafe;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .monitoring-alert.is-success {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+  }
+
+  .metrics-grid,
+  .info-grid,
+  .fact-grid,
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fact-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metrics-grid.compact {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .metrics-grid.block-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .metric-card,
+  .monitoring-card,
+  .fact-box {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .metric-card,
+  .fact-box {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .metric-card span,
+  .fact-box span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+
+  .metric-card strong,
+  .fact-box strong {
+    color: #0f172a;
+    font-size: 22px;
+    line-height: 1.05;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
+  }
+
+  .fact-box strong {
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .monitoring-card {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .06);
+  }
+
+  .monitoring-card h3 {
+    font-size: 22px;
+    line-height: 1.08;
+  }
+
+  .monitoring-card h4 {
+    font-size: 18px;
+  }
+
+  .monitoring-note {
+    margin: 0;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 850;
+  }
+
+  .capability-list,
+  .compact-list,
+  .subsection {
+    display: grid;
+    gap: 10px;
+  }
+
+  .capability-row,
+  .compact-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 12px;
+  }
+
+  .capability-row span,
+  .compact-row span {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 820;
+  }
+
+  .capability-row strong,
+  .compact-row strong {
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.25;
+    font-weight: 1000;
+    overflow-wrap: anywhere;
+  }
+
+  .compact-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .customer-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, .32fr) auto auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .block-filter-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .28fr) minmax(190px, .34fr) auto auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .merge-panel {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 14px;
+  }
+
+  .admin-customer-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 14px;
+  }
+
+  .admin-customer-panel p {
+    margin: 6px 0 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 850;
+  }
+
+  .admin-customer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .block-management-panel {
+    display: grid;
+    gap: 12px;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #fffafa;
+    padding: 14px;
+  }
+
+  .block-management-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .block-management-head p {
+    margin: 6px 0 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 850;
+  }
+
+  .active-block-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .active-block-card {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 12px;
+  }
+
+  .active-block-card > div:first-child {
+    display: grid;
+    gap: 4px;
+  }
+
+  .active-block-card strong {
+    color: #0f172a;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 1000;
+  }
+
+  .active-block-card span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 850;
+  }
+
+  .active-block-card dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+  }
+
+  .active-block-card dl div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .active-block-card dt {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+
+  .active-block-card dd {
+    margin: 0;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+  }
+
+  .lifecycle-form {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+  }
+
+  .delete-counts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+  }
+
+  .delete-counts span {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #334155;
+    padding: 9px 10px;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 900;
+  }
+
+  .confirm-check {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 9px;
+    align-items: start;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 850;
+  }
+
+  .confirm-check input {
+    margin-top: 3px;
+  }
+
+  .signal-fieldset {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    margin: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .signal-fieldset legend {
+    padding: 0 6px;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 1000;
+  }
+
+  .signal-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .signal-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 10px;
+    color: #334155;
+  }
+
+  .signal-option input {
+    margin-top: 2px;
+  }
+
+  .signal-option span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .signal-option strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 1000;
+  }
+
+  .signal-option small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+
+  .signal-option:has(input:disabled) {
+    opacity: .58;
+  }
+
+  .modal-warning {
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412 !important;
+    padding: 10px 12px;
+  }
+
+  .merge-panel p,
+  .merge-note {
+    margin: 6px 0 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 850;
+  }
+
+  .merge-search,
+  .merge-confirm {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .merge-confirm {
+    grid-template-columns: minmax(190px, .45fr) minmax(0, 1fr) auto;
+  }
+
+  .field {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .field label,
+  .field span {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 1000;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    outline: none;
+  }
+
+  .field textarea {
+    min-height: 88px;
+    resize: vertical;
+  }
+
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus,
+  .monitoring-back:focus-visible,
+  .primary-action:focus-visible,
+  .secondary-action:focus-visible,
+  .danger-action:focus-visible,
+  .row-action:focus-visible,
+  .icon-action:focus-visible,
+  .modal-close:focus-visible,
+  .page-button:focus-visible,
+  .filter-chip:focus-visible,
+  .monitoring-tab:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .22);
+    outline-offset: 2px;
+  }
+
+  .section-head,
+  .pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .pagination-bar > span {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 850;
+  }
+
+  .page-button.disabled,
+  .page-button:disabled {
+    opacity: .45;
+    pointer-events: none;
+  }
+
+  .monitoring-table {
+    display: grid;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .table-head,
+  .table-row {
+    display: grid;
+    gap: 10px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .customers-table .table-head,
+  .customers-table .table-row {
+    grid-template-columns: minmax(150px, 1.25fr) minmax(120px, .8fr) minmax(70px, .45fr) minmax(80px, .5fr) minmax(90px, .58fr) minmax(140px, .9fr) minmax(110px, .7fr) minmax(110px, .7fr) minmax(138px, .74fr);
+  }
+
+  .activity-table .table-head,
+  .activity-table .table-row {
+    grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) minmax(100px, .7fr) minmax(90px, .6fr) minmax(90px, .55fr) minmax(90px, .55fr) minmax(90px, .55fr);
+  }
+
+  .activity-table.has-ip .table-head,
+  .activity-table.has-ip .table-row {
+    grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) minmax(100px, .7fr) minmax(90px, .6fr) minmax(90px, .55fr) minmax(90px, .55fr) minmax(90px, .55fr) minmax(100px, .7fr);
+  }
+
+  .visitors-table .table-head,
+  .visitors-table .table-row {
+    grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .78fr) minmax(130px, .86fr) minmax(130px, .86fr) minmax(80px, .48fr) minmax(86px, .52fr);
+  }
+
+  .visitors-table.has-ip .table-head,
+  .visitors-table.has-ip .table-row {
+    grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .78fr) minmax(110px, .76fr) minmax(130px, .86fr) minmax(130px, .86fr) minmax(80px, .48fr) minmax(86px, .52fr);
+  }
+
+  .blocks-table .table-head,
+  .blocks-table .table-row {
+    grid-template-columns: minmax(160px, 1.15fr) minmax(120px, .72fr) minmax(130px, .82fr) minmax(130px, .82fr) minmax(130px, .82fr) minmax(92px, .5fr) minmax(160px, .92fr);
+  }
+
+  .table-head {
+    padding: 12px 14px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.1;
+    font-weight: 1000;
+    text-transform: uppercase;
+  }
+
+  .table-row {
+    padding: 14px;
+    border-top: 1px solid #e2e8f0;
+    background: #ffffff;
+  }
+
+  .table-cell {
+    min-width: 0;
+    color: #334155;
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 820;
+    overflow-wrap: anywhere;
+  }
+
+  .main-cell,
+  .sensitive-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .main-cell strong,
+  .sensitive-cell strong {
+    color: #0f172a;
+    font-size: 14px;
+    line-height: 1.2;
+    font-weight: 1000;
+  }
+
+  .main-cell span,
+  .sensitive-cell span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 800;
+  }
+
+  .ip-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .ip-cell small {
+    color: #9a3412;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    width: max-content;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 1000;
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  .status-watch {
+    background: #fff7ed;
+    color: #9a3412;
+  }
+
+  .status-blocked {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .status-archived {
+    background: #e2e8f0;
+    color: #334155;
+  }
+
+  .status-active {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .status-expired {
+    background: #e0f2fe;
+    color: #075985;
+  }
+
+  .status-revoked {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .action-cell {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .muted-cell {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 900;
+  }
+
+  .inline-link {
+    color: #1d4ed8;
+    font-weight: 1000;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .empty-state {
+    min-height: 118px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #64748b;
+    text-align: center;
+    padding: 18px;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 900;
+  }
+
+  .warning-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .warning-list p {
+    margin: 0;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 850;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .floating-actions-menu {
+      transition: none;
+    }
+
+    dialog.security-modal[open] .security-modal-card {
+      animation: none;
+    }
+  }
+
+  @media (max-width: 1120px) {
+    .metrics-grid,
+    .metrics-grid.compact,
+    .metrics-grid.block-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .info-grid,
+    .fact-grid,
+    .detail-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .customer-search,
+    .block-filter-form {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .merge-search,
+    .merge-confirm,
+    .admin-customer-panel {
+      grid-template-columns: 1fr;
+    }
+
+    .admin-customer-actions {
+      justify-content: stretch;
+    }
+
+    .active-block-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .monitoring-head,
+    .section-head,
+    .pagination-bar,
+    .capability-row,
+    .compact-row {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .monitoring-back,
+    .primary-action,
+    .secondary-action,
+    .danger-action,
+    .row-action,
+    .icon-action,
+    .filter-chip,
+    .page-button {
+      width: 100%;
+      min-height: 46px;
+    }
+
+    .monitoring-tabs,
+    .filter-row,
+    .pagination-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .metrics-grid,
+    .metrics-grid.compact,
+    .metrics-grid.block-metrics,
+    .customer-search,
+    .block-filter-form,
+    .signal-grid,
+    .active-block-card dl {
+      grid-template-columns: 1fr;
+    }
+
+    .monitoring-card {
+      padding: 14px;
+    }
+
+    dialog.security-modal,
+    dialog.security-delete-modal,
+    dialog.security-block-modal {
+      width: calc(100vw - 24px);
+      max-width: calc(100vw - 24px);
+      max-height: calc(100dvh - 24px);
+    }
+
+    .security-modal-card {
+      border-radius: 18px;
+    }
+
+    .security-modal-header {
+      padding: 16px 16px 12px;
+    }
+
+    .security-modal-header h3 {
+      font-size: 18px;
+    }
+
+    .security-modal-body {
+      padding: 16px;
+    }
+
+    .security-modal-footer {
+      display: grid;
+      grid-template-columns: 1fr;
+      padding: 12px 16px 16px;
+    }
+
+    .security-modal-footer .primary-action,
+    .security-modal-footer .secondary-action,
+    .security-modal-footer .danger-action {
+      min-width: 0;
+      min-height: 46px;
+    }
+
+    .delete-counts {
+      grid-template-columns: 1fr;
+    }
+
+    .monitoring-table {
+      border: 0;
+      background: transparent;
+      overflow: visible;
+    }
+
+    .table-head {
+      display: none;
+    }
+
+    .table-body {
+      display: grid;
+      gap: 10px;
+    }
+
+    .customers-table .table-row,
+    .activity-table .table-row,
+    .activity-table.has-ip .table-row,
+    .visitors-table .table-row,
+    .visitors-table.has-ip .table-row,
+    .blocks-table .table-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+    }
+
+    .table-cell {
+      display: grid;
+      grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .table-cell::before {
+      content: attr(data-label);
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 1000;
+      text-transform: uppercase;
+    }
+
+    .main-cell,
+    .sensitive-cell {
+      grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+    }
+
+    .main-cell strong,
+    .main-cell span,
+    .sensitive-cell strong,
+    .sensitive-cell span {
+      grid-column: 2;
+    }
+
+    .main-cell::before,
+    .sensitive-cell::before {
+      grid-row: 1 / span 2;
+    }
+
+    .action-cell {
+      justify-content: stretch;
+      grid-template-columns: 1fr;
+    }
+
+    .compact-actions {
+      justify-content: stretch;
+    }
+  }
+</style>
+
+<script>
+  const customerMenu = document.querySelector('[data-customer-menu]');
+  const lifecycleDialog = document.querySelector('[data-lifecycle-dialog]');
+  const deleteDialog = document.querySelector('[data-delete-dialog]');
+  const observationDialog = document.querySelector('[data-observation-dialog]');
+  const blockCreateDialog = document.querySelector('[data-block-create-dialog]');
+  const blockRevokeDialog = document.querySelector('[data-block-revoke-dialog]');
+  const securityDialogs = [lifecycleDialog, deleteDialog, observationDialog, blockCreateDialog, blockRevokeDialog].filter(isDialogElement);
+  const countFormatter = new Intl.NumberFormat('es-US');
+  let activeCustomerMenuTrigger = null;
+  let lastDialogTrigger = null;
+
+  function isDialogElement(value) {
+    return typeof HTMLDialogElement !== 'undefined' && value instanceof HTMLDialogElement;
+  }
+
+  function closeCustomerMenu() {
+    if (!(customerMenu instanceof HTMLElement)) return;
+    customerMenu.classList.remove('is-open');
+    customerMenu.setAttribute('aria-hidden', 'true');
+    if (activeCustomerMenuTrigger instanceof HTMLElement) {
+      activeCustomerMenuTrigger.setAttribute('aria-expanded', 'false');
+    }
+    activeCustomerMenuTrigger = null;
+    customerMenu.hidden = true;
+  }
+
+  function clampMenuPosition(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function positionCustomerMenu(trigger) {
+    if (!(customerMenu instanceof HTMLElement)) return;
+    const gap = 8;
+    const edge = 12;
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = customerMenu.offsetWidth || 230;
+    const menuHeight = customerMenu.offsetHeight || 88;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    let left = rect.right - menuWidth;
+    let top = rect.bottom + gap;
+
+    if (top + menuHeight > viewportHeight - edge) {
+      top = rect.top - menuHeight - gap;
+    }
+    if (left < edge) {
+      left = rect.left;
+    }
+    if (left + menuWidth > viewportWidth - edge) {
+      left = viewportWidth - menuWidth - edge;
+    }
+
+    customerMenu.style.left = `${clampMenuPosition(left, edge, Math.max(edge, viewportWidth - menuWidth - edge))}px`;
+    customerMenu.style.top = `${clampMenuPosition(top, edge, Math.max(edge, viewportHeight - menuHeight - edge))}px`;
+  }
+
+  function openCustomerMenu(trigger) {
+    if (!(customerMenu instanceof HTMLElement)) return;
+    const lifecycleItem = customerMenu.querySelector('[data-menu-action="lifecycle"]');
+    if (lifecycleItem instanceof HTMLButtonElement) {
+      lifecycleItem.textContent = trigger.dataset.lifecycleLabel || 'Archivar cliente';
+    }
+    if (activeCustomerMenuTrigger && activeCustomerMenuTrigger !== trigger) {
+      activeCustomerMenuTrigger.setAttribute('aria-expanded', 'false');
+    }
+    activeCustomerMenuTrigger = trigger;
+    trigger.setAttribute('aria-expanded', 'true');
+    customerMenu.hidden = false;
+    customerMenu.classList.add('is-open');
+    customerMenu.setAttribute('aria-hidden', 'false');
+    positionCustomerMenu(trigger);
+    const firstItem = customerMenu.querySelector('.floating-menu-item');
+    if (firstItem instanceof HTMLButtonElement) firstItem.focus();
+  }
+
+  function numericData(value) {
+    const parsed = Number.parseInt(String(value || '0'), 10);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+
+  function customerPayloadFromTrigger(trigger) {
+    const archived = trigger.dataset.customerArchived === 'true';
+    return {
+      customerId: trigger.dataset.customerId || '',
+      lifecycleLabel: trigger.dataset.lifecycleLabel || (archived ? 'Restaurar cliente' : 'Archivar cliente'),
+      lifecycleAction: trigger.dataset.lifecycleAction || (archived ? 'restore' : 'archive'),
+      lifecycleDescription: trigger.dataset.lifecycleDescription || (archived ? 'La ficha volvera a la lista activa.' : 'El cliente dejara de aparecer en la lista activa y podra restaurarse despues.'),
+      lifecycleNotice: trigger.dataset.lifecycleNotice || 'Sus pedidos y datos de Seguridad se conservaran.',
+      counts: {
+        orders: numericData(trigger.dataset.ordersCount),
+        phones: numericData(trigger.dataset.phonesCount),
+        devices: numericData(trigger.dataset.devicesCount),
+        events: numericData(trigger.dataset.eventsCount),
+        sessions: numericData(trigger.dataset.sessionsCount),
+        pageviews: numericData(trigger.dataset.pageviewsCount),
+      },
+    };
+  }
+
+  function setText(root, selector, value) {
+    const element = root.querySelector(selector);
+    if (element instanceof HTMLElement) element.textContent = value;
+  }
+
+  function setInputValue(root, selector, value) {
+    const element = root.querySelector(selector);
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      element.value = value;
+    }
+  }
+
+  function setSelectValue(root, selector, value) {
+    const element = root.querySelector(selector);
+    if (element instanceof HTMLSelectElement) element.value = value;
+  }
+
+  function setOptionDisabled(root, selector, value, disabled) {
+    const select = root.querySelector(selector);
+    if (!(select instanceof HTMLSelectElement)) return;
+    const option = Array.from(select.options).find((item) => item.value === value);
+    if (option) option.disabled = disabled;
+    if (select.value === value && disabled) {
+      const fallback = Array.from(select.options).find((item) => !item.disabled);
+      if (fallback) select.value = fallback.value;
+    }
+  }
+
+  function countLabel(count, singular, plural) {
+    return `${countFormatter.format(count)} ${count === 1 ? singular : plural}`;
+  }
+
+  function updateDeleteCount(root, key, count, singular, plural) {
+    const element = root.querySelector(`[data-delete-count="${key}"]`);
+    if (element instanceof HTMLElement) element.textContent = countLabel(count, singular, plural);
+  }
+
+  function closeDialog(dialog, restoreFocus = true) {
+    if (!isDialogElement(dialog) || !dialog.open) return;
+    if (!restoreFocus) dialog.dataset.skipFocusRestore = 'true';
+    dialog.close();
+  }
+
+  function closeOpenDialogs(exceptDialog = null) {
+    securityDialogs.forEach((dialog) => {
+      if (dialog !== exceptDialog) closeDialog(dialog, false);
+    });
+  }
+
+  function focusDialogField(dialog) {
+    const field = dialog.querySelector('[data-dialog-focus]');
+    if (field instanceof HTMLElement) {
+      window.requestAnimationFrame(() => field.focus());
+    }
+  }
+
+  function showSecurityDialog(dialog, trigger) {
+    if (!isDialogElement(dialog)) return;
+    lastDialogTrigger = trigger instanceof HTMLElement ? trigger : null;
+    if (typeof dialog.showModal === 'function') {
+      dialog.showModal();
+    } else {
+      dialog.setAttribute('open', '');
+    }
+    focusDialogField(dialog);
+  }
+
+  function openLifecycleDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(lifecycleDialog)) return;
+    const payload = customerPayloadFromTrigger(trigger);
+    if (!payload.customerId) return;
+    closeCustomerMenu();
+    closeOpenDialogs(lifecycleDialog);
+    setText(lifecycleDialog, '[data-lifecycle-title]', payload.lifecycleLabel);
+    setText(lifecycleDialog, '[data-lifecycle-description]', payload.lifecycleDescription);
+    setText(lifecycleDialog, '[data-lifecycle-notice]', payload.lifecycleNotice);
+    setInputValue(lifecycleDialog, '[data-lifecycle-customer]', payload.customerId);
+    setInputValue(lifecycleDialog, '[data-lifecycle-action-input]', payload.lifecycleAction);
+    setText(lifecycleDialog, '[data-lifecycle-submit]', payload.lifecycleLabel);
+    showSecurityDialog(lifecycleDialog, trigger);
+  }
+
+  function openDeleteDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(deleteDialog)) return;
+    const payload = customerPayloadFromTrigger(trigger);
+    if (!payload.customerId) return;
+    closeCustomerMenu();
+    closeOpenDialogs(deleteDialog);
+    setInputValue(deleteDialog, '[data-delete-customer]', payload.customerId);
+    updateDeleteCount(deleteDialog, 'orders', payload.counts.orders, 'pedido vinculado', 'pedidos vinculados');
+    updateDeleteCount(deleteDialog, 'phones', payload.counts.phones, 'telefono', 'telefonos');
+    updateDeleteCount(deleteDialog, 'devices', payload.counts.devices, 'dispositivo', 'dispositivos');
+    updateDeleteCount(deleteDialog, 'events', payload.counts.events, 'evento de Seguridad', 'eventos de Seguridad');
+    updateDeleteCount(deleteDialog, 'sessions', payload.counts.sessions, 'sesion', 'sesiones');
+    updateDeleteCount(deleteDialog, 'pageviews', payload.counts.pageviews, 'pagina navegada', 'paginas navegadas');
+    showSecurityDialog(deleteDialog, trigger);
+  }
+
+  function truthyDataset(value) {
+    return String(value || '') === 'true';
+  }
+
+  function setSignalState(dialog, signal, count, checked) {
+    const checkbox = dialog.querySelector(`[data-signal-checkbox="${signal}"]`);
+    const label = dialog.querySelector(`[data-signal-count="${signal}"]`);
+    const available = count > 0;
+    if (checkbox instanceof HTMLInputElement) {
+      checkbox.disabled = !available;
+      checkbox.checked = available && checked;
+      checkbox.setCustomValidity('');
+    }
+    if (label instanceof HTMLElement) {
+      label.textContent = countLabel(count, 'disponible', 'disponibles');
+    }
+  }
+
+  function updateIpWarning(dialog) {
+    const checkbox = dialog.querySelector('[data-signal-checkbox="ip"]');
+    const warning = dialog.querySelector('[data-ip-warning]');
+    if (!(warning instanceof HTMLElement)) return;
+    warning.hidden = !(checkbox instanceof HTMLInputElement && checkbox.checked);
+  }
+
+  function openObservationDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(observationDialog)) return;
+    const customerId = trigger.dataset.customerId || '';
+    const action = trigger.dataset.observationAction === 'disable' ? 'disable' : 'enable';
+    const label = trigger.dataset.observationLabel || (action === 'disable' ? 'Quitar de observacion' : 'Poner en observacion');
+    if (!customerId) return;
+    closeCustomerMenu();
+    closeOpenDialogs(observationDialog);
+    setText(observationDialog, '[data-observation-title]', label);
+    setText(
+      observationDialog,
+      '[data-observation-description]',
+      action === 'disable'
+        ? 'La ficha dejara de estar marcada para revision interna.'
+        : 'La ficha quedara marcada para revision interna sin afectar pedidos ni acceso publico.'
+    );
+    setText(observationDialog, '[data-observation-submit]', label);
+    setInputValue(observationDialog, '[data-observation-customer]', customerId);
+    setInputValue(observationDialog, '[data-observation-action-input]', action);
+    showSecurityDialog(observationDialog, trigger);
+  }
+
+  function openBlockCreateDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(blockCreateDialog)) return;
+    const customerId = trigger.dataset.customerId || '';
+    if (!customerId) return;
+    const phoneCount = numericData(trigger.dataset.phoneCount);
+    const deviceCount = numericData(trigger.dataset.deviceCount);
+    const ipCount = numericData(trigger.dataset.ipCount);
+    closeCustomerMenu();
+    closeOpenDialogs(blockCreateDialog);
+    setInputValue(blockCreateDialog, '[data-block-create-customer]', customerId);
+    setOptionDisabled(blockCreateDialog, '[data-block-scope-select]', 'full_access', !truthyDataset(trigger.dataset.canFullAccess));
+    setOptionDisabled(blockCreateDialog, '[data-block-duration-select]', 'permanent', !truthyDataset(trigger.dataset.canPermanent));
+    setSelectValue(blockCreateDialog, '[data-block-scope-select]', 'orders');
+    setSelectValue(blockCreateDialog, '[data-block-duration-select]', 'days_7');
+    setSelectValue(blockCreateDialog, '[data-block-match-mode]', 'any');
+    setSignalState(blockCreateDialog, 'phone', phoneCount, phoneCount > 0);
+    setSignalState(blockCreateDialog, 'device', deviceCount, phoneCount === 0 && deviceCount > 0);
+    setSignalState(blockCreateDialog, 'ip', ipCount, phoneCount === 0 && deviceCount === 0 && ipCount > 0);
+    updateIpWarning(blockCreateDialog);
+    showSecurityDialog(blockCreateDialog, trigger);
+  }
+
+  function openBlockRevokeDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(blockRevokeDialog)) return;
+    const blockId = trigger.dataset.blockId || '';
+    const customerId = trigger.dataset.customerId || '';
+    const returnSection = trigger.dataset.returnSection === 'blocked' ? 'blocked' : 'customers';
+    const scope = trigger.dataset.blockScope || 'bloqueo activo';
+    if (!blockId) return;
+    closeCustomerMenu();
+    closeOpenDialogs(blockRevokeDialog);
+    setText(blockRevokeDialog, '[data-block-revoke-title]', `Revocar ${scope}`);
+    setText(blockRevokeDialog, '[data-block-revoke-description]', 'El bloqueo activo sera revocado y quedara visible en auditoria.');
+    setInputValue(blockRevokeDialog, '[data-block-revoke-id]', blockId);
+    setInputValue(blockRevokeDialog, '[data-block-revoke-customer]', customerId);
+    setInputValue(blockRevokeDialog, '[data-block-revoke-section]', returnSection);
+    setInputValue(blockRevokeDialog, '[data-block-revoke-return]', returnSection);
+    showSecurityDialog(blockRevokeDialog, trigger);
+  }
+
+  function openCustomerDialog(action, trigger) {
+    if (action === 'delete') {
+      openDeleteDialog(trigger);
+      return;
+    }
+    openLifecycleDialog(trigger);
+  }
+
+  function resetDialogForm(dialog) {
+    const form = dialog.querySelector('form');
+    if (!(form instanceof HTMLFormElement)) return;
+    form.reset();
+    delete form.dataset.submitting;
+    form.querySelectorAll('button[disabled]').forEach((button) => {
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const modalClose = target.closest('[data-modal-close], [data-modal-cancel]');
+    if (modalClose instanceof HTMLButtonElement) {
+      const dialog = modalClose.closest('dialog');
+      closeDialog(dialog);
+      return;
+    }
+
+    const trigger = target.closest('.customer-menu-trigger');
+    if (trigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      if (activeCustomerMenuTrigger === trigger && customerMenu instanceof HTMLElement && customerMenu.classList.contains('is-open')) {
+        closeCustomerMenu();
+      } else {
+        openCustomerMenu(trigger);
+      }
+      return;
+    }
+
+    const dialogTrigger = target.closest('.customer-dialog-trigger');
+    if (dialogTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openCustomerDialog(dialogTrigger.dataset.dialogAction || 'lifecycle', dialogTrigger);
+      return;
+    }
+
+    const observationTrigger = target.closest('.customer-observation-trigger');
+    if (observationTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openObservationDialog(observationTrigger);
+      return;
+    }
+
+    const blockCreateTrigger = target.closest('.customer-block-create-trigger');
+    if (blockCreateTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openBlockCreateDialog(blockCreateTrigger);
+      return;
+    }
+
+    const blockRevokeTrigger = target.closest('.block-revoke-trigger');
+    if (blockRevokeTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openBlockRevokeDialog(blockRevokeTrigger);
+      return;
+    }
+
+    const menuAction = target.closest('[data-menu-action]');
+    if (menuAction instanceof HTMLButtonElement && activeCustomerMenuTrigger instanceof HTMLElement) {
+      const action = menuAction.dataset.menuAction || '';
+      const triggerForDialog = activeCustomerMenuTrigger;
+      openCustomerDialog(action, triggerForDialog);
+      return;
+    }
+
+    if (customerMenu instanceof HTMLElement && customerMenu.contains(target)) return;
+    closeCustomerMenu();
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeCustomerMenu();
+      return;
+    }
+
+    const target = event.target;
+    if (
+      event.key === 'ArrowDown'
+      && target instanceof HTMLButtonElement
+      && target.classList.contains('customer-menu-trigger')
+    ) {
+      event.preventDefault();
+      openCustomerMenu(target);
+    }
+  });
+
+  window.addEventListener('resize', closeCustomerMenu);
+  window.addEventListener('scroll', closeCustomerMenu, true);
+
+  document.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const checkbox = target.closest('[data-signal-checkbox="ip"]');
+    if (!(checkbox instanceof HTMLInputElement)) return;
+    const dialog = checkbox.closest('dialog');
+    if (isDialogElement(dialog)) updateIpWarning(dialog);
+  });
+
+  securityDialogs.forEach((dialog) => {
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) closeDialog(dialog);
+    });
+
+    dialog.addEventListener('close', () => {
+      const shouldRestoreFocus = dialog.dataset.skipFocusRestore !== 'true';
+      delete dialog.dataset.skipFocusRestore;
+      resetDialogForm(dialog);
+      if (shouldRestoreFocus && lastDialogTrigger instanceof HTMLElement && document.contains(lastDialogTrigger)) {
+        lastDialogTrigger.focus();
+      }
+      lastDialogTrigger = null;
+    });
+  });
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.classList.contains('lifecycle-form')) return;
+    if (form.hasAttribute('data-block-create-form')) {
+      const checkboxes = Array.from(form.querySelectorAll('[data-signal-checkbox]')).filter((checkbox) => checkbox instanceof HTMLInputElement);
+      const enabledCheckboxes = checkboxes.filter((checkbox) => checkbox instanceof HTMLInputElement && !checkbox.disabled);
+      const hasSignal = enabledCheckboxes.some((checkbox) => checkbox instanceof HTMLInputElement && checkbox.checked);
+      enabledCheckboxes.forEach((checkbox) => {
+        if (checkbox instanceof HTMLInputElement) checkbox.setCustomValidity('');
+      });
+      if (!hasSignal) {
+        event.preventDefault();
+        const firstCheckbox = enabledCheckboxes[0];
+        if (firstCheckbox instanceof HTMLInputElement) {
+          firstCheckbox.setCustomValidity('Selecciona al menos una senal privada.');
+          firstCheckbox.reportValidity();
+        }
+        return;
+      }
+    }
+    if (form.dataset.submitting === 'true') {
+      event.preventDefault();
+      return;
+    }
+    form.dataset.submitting = 'true';
+    const submitter = event.submitter;
+    form.querySelectorAll('button[type="submit"]').forEach((button) => {
+      if (button instanceof HTMLButtonElement) button.disabled = true;
+    });
+    if (submitter instanceof HTMLButtonElement) {
+      submitter.disabled = true;
+      submitter.setAttribute('aria-busy', 'true');
+    }
+  });
+</script>

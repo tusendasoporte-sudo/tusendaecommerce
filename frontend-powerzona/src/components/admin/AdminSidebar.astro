@@ -1,6 +1,7 @@
 ---
 import AdminDialog from './AdminDialog.astro';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { getStoreSecuritySettingsForToken, isStoreSecurityEnabled } from '../../lib/security';
 
 interface Props {
   storeSlug?: string;
@@ -52,6 +53,7 @@ const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
 const adminRafflesPath = getStoreAdminPath(storeSlug, 'promos/raffles');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
+const adminSecurityPath = getStoreAdminPath(storeSlug, 'security');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
 const notificationsAdminProductsPath = adminProductsPath;
@@ -65,6 +67,7 @@ const defaultMobileTitleBySection: Record<string, string> = {
   products: 'Productos',
   gifts: 'Regalos',
   shipping: 'Envíos',
+  security: 'Seguridad',
   settings: 'Ajustes',
   marketing: 'Promociones',
 };
@@ -93,7 +96,7 @@ const mobileBottomClass = (target: 'overview' | 'orders' | 'shipping' | 'setting
 
   const fallbackSettingsActive =
     target === 'settings' &&
-    !['overview', 'orders', 'shipping'].includes(activeSection || '');
+    !['overview', 'orders', 'shipping', 'security'].includes(activeSection || '');
 
   return `pz-admin-mobile-bottom-nav__link${directMatch || fallbackSettingsActive ? ' is-active' : ''}`;
 };
@@ -107,6 +110,16 @@ const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el admin
 const masterSupportHref = supportWhatsapp
   ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
   : (supportEmail ? `mailto:${supportEmail}?subject=${encodeURIComponent('Soporte Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
+
+let canShowSecurityNav = false;
+try {
+  const securitySettings = await getStoreSecuritySettingsForToken(storeId, pocketbaseUrl, authToken, {
+    fields: 'id,store,enabled,mode',
+  });
+  canShowSecurityNav = securitySettings.exists && isStoreSecurityEnabled(securitySettings);
+} catch (_) {
+  canShowSecurityNav = false;
+}
 
 const navClass = (section: string) => `pz-admin-sidebar__nav-item${activeSection === section ? ' is-active' : ''}`;
 const settingsToggleClass = `pz-admin-sidebar__nav-item pz-admin-sidebar__settings-toggle${isSettingsActive ? ' is-active' : ''}`;
@@ -161,6 +174,9 @@ const marketingVisualSubClass = (subsection: string) => {
       <a class={navClass('products')} href={adminProductsPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
       <a class={navClass('gifts')} href={adminGiftsPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
       <a class={navClass('shipping')} href={adminShippingPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+      {canShowSecurityNav && (
+        <a class={navClass('security')} href={adminSecurityPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.4 2.9 8.5 7 9.9 4.1-1.4 7-5.5 7-9.9V5l-7-3Zm0 2.2 5 2.2V11c0 3.3-2 6.5-5 7.7-3-1.2-5-4.4-5-7.7V6.4l5-2.2Zm-1 4.8h2v3.1l2.2 2.2-1.4 1.4-2.8-2.8V9Z"/></svg></span><span>Seguridad</span></a>
+      )}
 
       <div class="pz-admin-sidebar__settings-group">
         <button class={settingsToggleClass} type="button" aria-expanded={isSettingsActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-settings-subnav" data-settings-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
@@ -345,11 +361,10 @@ const marketingVisualSubClass = (subsection: string) => {
 
 <AdminDialog />
 
-<script define:vars={{ storeId, pocketbaseUrl, authToken, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath }}>
+<script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
-    authToken: String(authToken || ''),
     ordersPath: String(notificationsAdminOrdersPath || ''),
     productsPath: String(notificationsAdminProductsPath || ''),
     rafflesPath: String(adminRafflesPath || ''),
@@ -379,10 +394,31 @@ const marketingVisualSubClass = (subsection: string) => {
     if (window.__pzAdminNotificationsReady) return;
     window.__pzAdminNotificationsReady = true;
 
+    function readCookieValue(name) {
+      const prefix = `${name}=`;
+      const cookies = String(document.cookie || '').split(';');
+      for (const cookie of cookies) {
+        const value = cookie.trim();
+        if (value.startsWith(prefix)) return value.slice(prefix.length);
+      }
+      return '';
+    }
+
+    function readAuthTokenFromCookie() {
+      const raw = readCookieValue('pb_auth');
+      if (!raw) return '';
+      try {
+        const parsed = JSON.parse(decodeURIComponent(raw));
+        return typeof parsed?.token === 'string' ? parsed.token : '';
+      } catch (error) {
+        return '';
+      }
+    }
+
     const config = window.PZ_ADMIN_NOTIFICATIONS_CONFIG || {};
     const storeId = String(config.storeId || '');
     const baseUrl = String(config.pocketbaseUrl || '').replace(/\/$/, '');
-    const token = String(config.authToken || '');
+    const token = readAuthTokenFromCookie();
     const ordersPath = String(config.ordersPath || '');
     const productsPath = String(config.productsPath || '');
     const rafflesPath = String(config.rafflesPath || '');

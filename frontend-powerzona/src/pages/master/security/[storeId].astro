@@ -1,0 +1,340 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import {
+  getStoreSecuritySettings,
+  isStoreSecurityEnabled,
+} from '../../../lib/security';
+import {
+  getMonitoringParams,
+  getSecurityActivityPage,
+  getSecurityBlocksPage,
+  getSecurityCustomerDetail,
+  getSecurityCustomersPage,
+  getSecurityMergeCandidates,
+  getSecurityMonitoringSummary,
+  getSecurityVisitorsTodayPage,
+  isValidRecordId,
+  mergeSecurityCustomers,
+  runSecurityBlockCreate,
+  runSecurityBlockRevoke,
+  runSecurityCustomerObservation,
+  runSecurityCustomerLifecycle,
+  type PaginatedResult,
+  type SecurityAvailableSignals,
+  type SecurityBlock,
+  type SecurityBlockCapabilities,
+  type SecurityBlockHistorySummary,
+  type SecurityBlocksMetrics,
+  type SecurityCustomer,
+  type SecurityCustomerDevice,
+  type SecurityCustomerLifecycleCounts,
+  type SecurityCustomerLinksSummary,
+  type SecurityCustomerPhone,
+  type SecurityEventRow,
+  type SecurityOrder,
+  type SecuritySummary,
+  type SecurityVisitorSessionRow,
+} from '../../../lib/securityMonitoring';
+import SecurityMonitoringView from '../../../components/admin/SecurityMonitoringView.astro';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+
+if (!authPb.authStore.isValid || !authPb.authStore.record) {
+  return Astro.redirect('/master-login');
+}
+
+if (!masterUser) {
+  return Astro.redirect('/master');
+}
+
+const storeId = String(Astro.params.storeId || '').trim();
+if (!isValidRecordId(storeId)) {
+  return Astro.redirect('/master');
+}
+
+let storeRecord: any = null;
+try {
+  storeRecord = await authPb.collection('stores').getOne(storeId, {
+    fields: 'id,name,slug,status',
+  });
+} catch (error: any) {
+  return Astro.redirect('/master');
+}
+
+const securitySettings = await getStoreSecuritySettings(storeId, authPb);
+if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {
+  return Astro.redirect('/master');
+}
+
+const requestMethod = Astro.request.method.toUpperCase();
+let formData: FormData | null = null;
+let viewError = '';
+
+if (requestMethod === 'POST') {
+  const contentType = String(Astro.request.headers.get('content-type') || '').toLowerCase();
+  const isFormRequest = contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data');
+  if (isFormRequest) {
+    formData = await Astro.request.formData();
+  } else {
+    viewError = 'No se pudo procesar la busqueda enviada.';
+  }
+}
+
+const params = getMonitoringParams(Astro.url, formData);
+const storeName = String(storeRecord?.name || storeRecord?.slug || 'Tienda').trim();
+const basePath = `/master/security/${encodeURIComponent(storeId)}`;
+const notice = String(Astro.url.searchParams.get('notice') || '').trim();
+const noticeMessages: Record<string, string> = {
+  customer_archived: 'Cliente archivado.',
+  customer_restored: 'Cliente restaurado.',
+  profile_deleted: 'Ficha de Seguridad eliminada. Los pedidos comerciales se conservaron.',
+  observation_updated: 'Observacion actualizada.',
+  block_created: 'Bloqueo creado.',
+  block_revoked: 'Bloqueo revocado.',
+};
+const viewNotice = noticeMessages[notice] || '';
+let summary: SecuritySummary | null = null;
+let summaryError = false;
+let customerUnavailable = false;
+let customersResult: PaginatedResult<SecurityCustomer> | null = null;
+let activityResult: PaginatedResult<SecurityEventRow> | null = null;
+let visitorsResult: PaginatedResult<SecurityVisitorSessionRow> | null = null;
+let blocksResult: PaginatedResult<SecurityBlock> | null = null;
+let blocksMetrics: SecurityBlocksMetrics | null = null;
+let selectedCustomer: SecurityCustomer | null = null;
+let customerOrders: PaginatedResult<SecurityOrder> | null = null;
+let customerEvents: PaginatedResult<SecurityEventRow> | null = null;
+let customerPhones: SecurityCustomerPhone[] = [];
+let customerDevices: SecurityCustomerDevice[] = [];
+let customerLinksSummary: SecurityCustomerLinksSummary | null = null;
+let customerLifecycleCounts: SecurityCustomerLifecycleCounts | null = null;
+let activeBlocks: SecurityBlock[] = [];
+let blockHistorySummary: SecurityBlockHistorySummary | null = null;
+let blockCapabilities: SecurityBlockCapabilities | null = null;
+let availableSignals: SecurityAvailableSignals | null = null;
+let customerIdentityWarnings: string[] = [];
+let mergeCandidates: SecurityCustomer[] = [];
+let customerOrdersError = false;
+let customerEventsError = false;
+
+try {
+  summary = await getSecurityMonitoringSummary(authPb, storeId);
+} catch (_) {
+  summaryError = true;
+}
+
+try {
+  if (formData && String(formData.get('security_action') || '') === 'customer_observation') {
+    const targetCustomerId = String(formData.get('customer') || '').trim();
+    const observationAction = String(formData.get('observation_action') || '').trim() === 'disable' ? 'disable' : 'enable';
+    const reason = String(formData.get('observation_reason') || '').trim();
+    try {
+      await runSecurityCustomerObservation(authPb, storeId, targetCustomerId, observationAction, reason);
+      return Astro.redirect(`${basePath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=observation_updated`);
+    } catch (_) {
+      viewError = 'No se pudo actualizar la observacion. Revisa el motivo, estado y permisos.';
+    }
+  }
+
+  if (formData && String(formData.get('security_action') || '') === 'security_block_create') {
+    const targetCustomerId = String(formData.get('customer') || '').trim();
+    try {
+      await runSecurityBlockCreate(authPb, storeId, targetCustomerId, {
+        scope: String(formData.get('block_scope') || 'orders') as any,
+        duration: String(formData.get('block_duration') || 'days_7') as any,
+        matchPhone: formData.get('match_phone') === 'on',
+        matchDevice: formData.get('match_device') === 'on',
+        matchIp: formData.get('match_ip') === 'on',
+        matchMode: String(formData.get('match_mode') || 'any') as any,
+        reason: String(formData.get('block_reason') || '').trim(),
+      });
+      return Astro.redirect(`${basePath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=block_created`);
+    } catch (_) {
+      viewError = 'No se pudo crear el bloqueo. Revisa capacidades, solapamientos, senales disponibles y motivo.';
+    }
+  }
+
+  if (formData && String(formData.get('security_action') || '') === 'security_block_revoke') {
+    const blockId = String(formData.get('block_id') || '').trim();
+    const targetCustomerId = String(formData.get('customer') || '').trim();
+    const returnSection = String(formData.get('return_section') || '').trim() === 'blocked' ? 'blocked' : 'customers';
+    try {
+      await runSecurityBlockRevoke(authPb, storeId, blockId, String(formData.get('revoke_reason') || '').trim());
+      if (returnSection === 'blocked') return Astro.redirect(`${basePath}?section=blocked&notice=block_revoked`);
+      return Astro.redirect(`${basePath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=block_revoked`);
+    } catch (_) {
+      viewError = 'No se pudo desbloquear al cliente. Revisa el motivo, estado y permisos.';
+    }
+  }
+
+  if (formData && String(formData.get('security_action') || '') === 'customer_lifecycle') {
+    const targetCustomerId = String(formData.get('customer') || '').trim();
+    const lifecycleAction = String(formData.get('lifecycle_action') || '').trim() as any;
+    const reason = String(formData.get('lifecycle_reason') || '').trim();
+    try {
+      await runSecurityCustomerLifecycle(authPb, storeId, targetCustomerId, lifecycleAction, reason);
+      if (lifecycleAction === 'delete_profile') {
+        return Astro.redirect(`${basePath}?section=customers&notice=profile_deleted`);
+      }
+      if (lifecycleAction === 'archive') {
+        return Astro.redirect(`${basePath}?section=customers&customer_status=archived&customer=${encodeURIComponent(targetCustomerId)}&notice=customer_archived`);
+      }
+      return Astro.redirect(`${basePath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=customer_restored`);
+    } catch (_) {
+      viewError = 'No se pudo completar la accion sobre el cliente. Revisa el motivo y los permisos.';
+    }
+  }
+
+  if (formData && String(formData.get('security_action') || '') === 'merge_customers') {
+    const sourceCustomerId = String(formData.get('source_customer_id') || '').trim();
+    const reason = String(formData.get('merge_reason') || '').trim();
+    try {
+      const canonicalId = await mergeSecurityCustomers(authPb, storeId, params.customerId, sourceCustomerId, reason);
+      return Astro.redirect(`${basePath}?section=customers&customer=${encodeURIComponent(canonicalId)}`);
+    } catch (_) {
+      viewError = 'No se pudo unir estos clientes. Revisa el cliente seleccionado y el motivo interno.';
+    }
+  }
+
+  if (params.section === 'customers') {
+    customersResult = await getSecurityCustomersPage(
+      authPb,
+      storeId,
+      params.customersPage,
+      params.customerStatus,
+      params.customerSearch
+    );
+
+    if (params.customerId) {
+      try {
+        const customerDetail = await getSecurityCustomerDetail(
+          authPb,
+          storeId,
+          params.customerId,
+          params.customerOrdersPage,
+          params.customerEventsPage
+        );
+        selectedCustomer = customerDetail.customer;
+        if (selectedCustomer) {
+          customerOrders = customerDetail.orders;
+          customerEvents = customerDetail.events;
+          customerPhones = customerDetail.phones;
+          customerDevices = customerDetail.devices;
+          customerLinksSummary = customerDetail.linksSummary;
+          customerLifecycleCounts = customerDetail.lifecycleCounts;
+          activeBlocks = customerDetail.activeBlocks;
+          blockHistorySummary = customerDetail.blockHistorySummary;
+          blockCapabilities = customerDetail.blockCapabilities;
+          availableSignals = customerDetail.availableSignals;
+          customerIdentityWarnings = customerDetail.identityWarnings;
+          customerOrdersError = customerDetail.ordersError;
+          customerEventsError = customerDetail.eventsError;
+          if (params.mergeSearch) {
+            mergeCandidates = await getSecurityMergeCandidates(authPb, storeId, selectedCustomer.id, params.mergeSearch);
+          }
+        } else {
+          customerUnavailable = true;
+        }
+      } catch (error: any) {
+        if (error?.status === 404) {
+          customerUnavailable = true;
+        } else {
+          viewError = viewError || 'No se pudo cargar la ficha de cliente en este momento.';
+        }
+      }
+      if (!selectedCustomer && !customerUnavailable) {
+        customerUnavailable = true;
+      }
+    }
+  }
+
+  if (params.section === 'activity') {
+    activityResult = await getSecurityActivityPage(
+      authPb,
+      storeId,
+      params.activityPage,
+      securitySettings,
+      params.eventType,
+      params.eventDecision,
+      params.eventRisk
+    );
+  }
+
+  if (params.section === 'visitors') {
+    visitorsResult = await getSecurityVisitorsTodayPage(authPb, storeId, params.visitorsPage, securitySettings);
+  }
+
+  if (params.section === 'blocked') {
+    const blocksPage = await getSecurityBlocksPage(
+      authPb,
+      storeId,
+      params.blockedPage,
+      params.blockedStatus,
+      params.blockedScope,
+      params.blockedSearch
+    );
+    blocksResult = blocksPage.blocks;
+    blocksMetrics = blocksPage.metrics;
+  }
+} catch (_) {
+  viewError = viewError || 'No se pudieron cargar los datos de seguridad en este momento.';
+}
+---
+
+<Layout isMaster={true}>
+  <style>
+    .master-security-shell {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+      padding: 6px 0 32px;
+    }
+  </style>
+
+  <main class="master-security-shell">
+    <SecurityMonitoringView
+      context="master"
+      storeName={storeName}
+      basePath={basePath}
+      adminOrdersPath=""
+      backHref="/master"
+      backLabel="Volver al Master"
+      params={params}
+      settings={securitySettings}
+      summary={summary}
+      summaryError={summaryError}
+      viewNotice={viewNotice}
+      viewError={viewError}
+      customerUnavailable={customerUnavailable}
+      customersResult={customersResult}
+      activityResult={activityResult}
+      visitorsResult={visitorsResult}
+      blocksResult={blocksResult}
+      blocksMetrics={blocksMetrics}
+      selectedCustomer={selectedCustomer}
+      customerOrders={customerOrders}
+      customerEvents={customerEvents}
+      customerPhones={customerPhones}
+      customerDevices={customerDevices}
+      customerLinksSummary={customerLinksSummary}
+      customerLifecycleCounts={customerLifecycleCounts}
+      activeBlocks={activeBlocks}
+      blockHistorySummary={blockHistorySummary}
+      blockCapabilities={blockCapabilities}
+      availableSignals={availableSignals}
+      customerIdentityWarnings={customerIdentityWarnings}
+      mergeCandidates={mergeCandidates}
+      customerOrdersError={customerOrdersError}
+      customerEventsError={customerEventsError}
+    />
+  </main>
+</Layout>

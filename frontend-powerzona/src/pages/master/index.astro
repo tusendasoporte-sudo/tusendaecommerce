@@ -2,6 +2,15 @@
 import Layout from '../../layouts/Layout.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
 import { getStoreUsersForMaster } from '../../lib/masterUsers';
+import {
+  getDefaultSecurityBackendHealth,
+  getDefaultSecuritySettings,
+  getMasterSecuritySettingsMap,
+  getSecurityBackendHealthForToken,
+  getSecurityStatusLabel,
+  isStoreSecurityEnabled,
+  type SecurityBackendHealth,
+} from '../../lib/security';
 import { ACTIVE_STORE_STATUS, DEFAULT_STORE_SLUG, getAllStoresForMaster } from '../../lib/stores';
 
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
@@ -14,6 +23,16 @@ if (!authPb.authStore.isValid || !authPb.authStore.record) {
 const isUnauthorized = !masterUser;
 const stores = isUnauthorized ? [] : await getAllStoresForMaster(authPb);
 const storeUsers = isUnauthorized ? [] : await getStoreUsersForMaster(authPb);
+const securitySettingsMap = isUnauthorized ? new Map() : await getMasterSecuritySettingsMap(authPb);
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const securityBackendHealth = isUnauthorized
+  ? getDefaultSecurityBackendHealth()
+  : await getSecurityBackendHealthForToken(pocketbaseUrl, authPb.authStore.token);
+const securitySettingsByStore = stores.reduce((acc, store) => {
+  const settings = securitySettingsMap.get(store.id) || getDefaultSecuritySettings(store.id);
+  acc[store.id] = settings;
+  return acc;
+}, {} as Record<string, ReturnType<typeof getDefaultSecuritySettings>>);
 const usersByStore = storeUsers.reduce((acc, user) => {
   if (!user.store) return acc;
   acc[user.store] = (acc[user.store] || 0) + 1;
@@ -53,6 +72,80 @@ function storeUserCount(storeId: string) {
   return usersByStore[storeId] || 0;
 }
 
+function getStoreSecurity(storeId: string) {
+  return securitySettingsByStore[storeId] || getDefaultSecuritySettings(storeId);
+}
+
+function securityStatusClass(storeId: string) {
+  const settings = getStoreSecurity(storeId);
+  if (!settings.enabled || settings.mode === 'disabled') return 'is-disabled';
+  return settings.mode === 'protection' ? 'is-protection' : 'is-monitoring';
+}
+
+function masterSecurityHref(storeId: string) {
+  return `/master/security/${encodeURIComponent(storeId)}`;
+}
+
+function isSecuritySchemaReady(health: SecurityBackendHealth) {
+  return Boolean(
+    health.security_settings_ready
+    && health.customers_ready
+    && health.security_events_ready
+    && health.visitor_sessions_ready
+    && health.visitor_pageviews_ready
+    && health.orders_identity_fields_ready
+  );
+}
+
+function isSecurityHmacReady(health: SecurityBackendHealth) {
+  return Boolean(health.hmac_identity_ready && health.hmac_monitoring_ready);
+}
+
+function isSecurityAesReady(health: SecurityBackendHealth) {
+  return Boolean(health.aes_identity_ready && health.aes_monitoring_ready && health.full_ip_ready);
+}
+
+function getSecurityBackendHealthView(health: SecurityBackendHealth) {
+  if (!health.available) {
+    return {
+      state: 'unavailable',
+      title: 'No se pudo verificar el backend de Seguridad',
+      detail: 'Comprueba que PocketBase esté iniciado con los hooks correctos.',
+    };
+  }
+
+  if (!isSecuritySchemaReady(health)) {
+    return {
+      state: 'schema',
+      title: 'Backend de Seguridad incompleto',
+      detail: 'Faltan migraciones o colecciones requeridas.',
+    };
+  }
+
+  if (!isSecurityHmacReady(health)) {
+    return {
+      state: 'hmac',
+      title: 'Seguridad no está registrando actividad',
+      detail: 'Falta la configuración HMAC del backend.',
+    };
+  }
+
+  if (!isSecurityAesReady(health)) {
+    return {
+      state: 'aes',
+      title: 'Registro activo, pero IP completa no disponible',
+      detail: 'Configura la clave AES del backend para tiendas con IP completa.',
+    };
+  }
+
+  return {
+    state: 'ready',
+    title: 'Backend de Seguridad listo',
+    detail: 'HMAC, AES, hooks y colecciones están disponibles.',
+  };
+}
+
+const securityBackendHealthView = getSecurityBackendHealthView(securityBackendHealth);
 const displayName = String(masterUser?.display_name || masterUser?.name || masterUser?.email || '').trim();
 ---
 
@@ -79,7 +172,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     .store-panel-text { margin: 6px 0 0; color: #64748b; font-size: 14px; line-height: 1.4; font-weight: 750; }
     .store-count { flex: 0 0 auto; border-radius: 999px; border: 1px solid #bbf7d0; background: #ecfdf5; color: #166534; padding: 8px 12px; font-size: 12px; font-weight: 1000; }
     .store-list { display: grid; }
-    .store-row { display: grid; grid-template-columns: minmax(180px, 1.35fr) 112px minmax(130px, .9fr) 130px minmax(240px, 1fr); gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
+    .store-row { display: grid; grid-template-columns: minmax(180px, 1.35fr) 112px minmax(130px, .9fr) minmax(150px, .9fr) minmax(260px, 1fr); gap: 14px; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eef2f7; }
     .store-row:last-child { border-bottom: 0; }
     .store-row.is-head { background: #fff; color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; }
     .store-name { display: grid; gap: 5px; min-width: 0; }
@@ -89,10 +182,29 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     .status-pill.is-active { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
     .status-pill.is-suspended { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
     .slug-text { color: #334155; font-size: 13px; font-weight: 900; overflow-wrap: anywhere; }
-    .metric-text { color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .store-metrics { display: grid; gap: 7px; color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .security-pill { width: max-content; max-width: 100%; border-radius: 999px; padding: 7px 10px; font-size: 12px; line-height: 1; font-weight: 1000; }
+    .security-pill.is-disabled { background: #f1f5f9; border: 1px solid #e2e8f0; color: #475569; }
+    .security-pill.is-monitoring { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+    .security-pill.is-protection { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
+    .security-health-card { display: grid; gap: 6px; border-radius: 8px; border: 1px solid #cbd5e1; background: #fff; padding: 14px 16px; box-shadow: 0 12px 32px rgba(15, 23, 42, .06); }
+    .security-health-card strong { color: #0f172a; font-size: 15px; line-height: 1.2; font-weight: 1000; }
+    .security-health-card span { color: #475569; font-size: 13px; line-height: 1.4; font-weight: 800; }
+    .security-health-card.is-ready { border-color: #86efac; background: #f0fdf4; }
+    .security-health-card.is-ready strong { color: #166534; }
+    .security-health-card.is-hmac,
+    .security-health-card.is-aes,
+    .security-health-card.is-schema,
+    .security-health-card.is-unavailable { border-color: #fed7aa; background: #fff7ed; }
+    .security-health-card.is-hmac strong,
+    .security-health-card.is-aes strong,
+    .security-health-card.is-schema strong,
+    .security-health-card.is-unavailable strong { color: #9a3412; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
     .action-link { border: 1px solid #0f172a; background: #0f172a; color: #fff; }
     .action-button { border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; }
+    .action-button.security-action,
+    .action-button.security-monitor-action { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
     .action-button.status-danger { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
     .action-button.user-action { border-color: #bbf7d0; background: #ecfdf5; color: #166534; }
     .empty-master { padding: 22px; color: #64748b; font-size: 14px; font-weight: 800; }
@@ -113,18 +225,39 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     .field input:focus, .field select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, .14); }
     .form-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
     .form-alert.is-visible { display: block; }
+    .form-alert.is-success { border-color: #bbf7d0; background: #dcfce7; color: #166534; }
     .master-notice { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 12px 14px; font-size: 13px; line-height: 1.45; font-weight: 850; }
     .master-notice.is-visible { display: block; }
     .form-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
     .secondary-button { min-height: 42px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; color: #334155; padding: 11px 14px; font-size: 13px; line-height: 1; font-weight: 1000; cursor: pointer; }
     .save-button { min-height: 42px; border-radius: 8px; border: 1px solid #0f172a; background: #0f172a; color: #fff; padding: 11px 14px; font-size: 13px; line-height: 1; font-weight: 1000; cursor: pointer; }
     .save-button:disabled, .action-button:disabled { opacity: .62; cursor: wait; }
+    .security-dialog { width: min(680px, calc(100vw - 28px)); }
+    .security-form { gap: 18px; }
+    .security-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 13px; background: #f8fafc; }
+    .security-switch-copy { display: grid; gap: 4px; min-width: 0; }
+    .security-switch-copy strong { color: #0f172a; font-size: 14px; font-weight: 1000; }
+    .security-switch-copy span { color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .security-switch { display: inline-flex; align-items: center; gap: 9px; color: #334155; font-size: 12px; font-weight: 1000; }
+    .security-switch input { width: 18px; height: 18px; accent-color: #2563eb; }
+    .security-fieldset { display: grid; gap: 10px; margin: 0; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+    .security-fieldset legend { padding: 0 5px; color: #334155; font-size: 12px; font-weight: 1000; text-transform: uppercase; }
+    .security-option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .security-option { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: start; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #fff; cursor: pointer; }
+    .security-option:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+    .security-option input { margin-top: 2px; accent-color: #2563eb; }
+    .security-option strong { display: block; color: #0f172a; font-size: 13px; font-weight: 1000; }
+    .security-option span { display: block; margin-top: 3px; color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .security-control-list { display: grid; gap: 10px; }
+    .security-select-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .security-warning { border: 1px solid #fed7aa; border-radius: 8px; background: #fff7ed; color: #9a3412; padding: 11px 12px; font-size: 12px; line-height: 1.45; font-weight: 850; }
+    .security-warning[hidden] { display: none; }
 
     @media (max-width: 1120px) {
       .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .store-row { grid-template-columns: minmax(180px, 1fr) 110px 130px; }
       .store-row.is-head { display: none; }
-      .metric-text { grid-column: 1 / -1; }
+      .store-metrics { grid-column: 1 / -1; }
       .actions { grid-column: 1 / -1; justify-content: flex-start; }
     }
 
@@ -139,6 +272,8 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
       .store-row { grid-template-columns: 1fr; gap: 10px; padding: 16px; }
       .actions, .form-actions { display: grid; grid-template-columns: 1fr; }
       .action-link, .action-button, .secondary-button, .save-button { width: 100%; min-height: 42px; }
+      .security-option-grid, .security-select-grid { grid-template-columns: 1fr; }
+      .security-switch-row { align-items: flex-start; }
     }
   </style>
 
@@ -166,6 +301,11 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
             <p class="master-subtitle">Gestion general de tiendas</p>
           </div>
         </header>
+
+        <section class={`security-health-card is-${securityBackendHealthView.state}`} aria-label="Estado del backend de Seguridad">
+          <strong>{securityBackendHealthView.title}</strong>
+          <span>{securityBackendHealthView.detail}</span>
+        </section>
 
         <section class="summary-grid" aria-label="Resumen de tiendas">
           <article class="summary-card">
@@ -207,6 +347,7 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
               {stores.map((store) => {
                 const active = String(store.status || '').toLowerCase() === ACTIVE_STORE_STATUS;
                 const href = storeHref(store);
+                const securitySettings = getStoreSecurity(store.id);
                 return (
                   <article
                     class="store-row"
@@ -223,11 +364,16 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
                     </div>
                     <span class={`status-pill ${statusClass(store.status)}`}>{normalizeStatus(store.status)}</span>
                     <span class="slug-text">/{store.slug || 'sin-slug'}</span>
-                    <span class="metric-text">
-                      {formatNumber(store.views_count)} visitas | {formatNumber(store.orders_count)} pedidos | {formatNumber(storeUserCount(store.id))} usuarios | {store.featured ? 'Destacada' : 'No destacada'}
+                    <span class="store-metrics">
+                      <span>{formatNumber(store.views_count)} visitas | {formatNumber(store.orders_count)} pedidos | {formatNumber(storeUserCount(store.id))} usuarios | {store.featured ? 'Destacada' : 'No destacada'}</span>
+                      <span class={`security-pill ${securityStatusClass(store.id)}`} data-security-pill>{getSecurityStatusLabel(securitySettings)}</span>
                     </span>
                     <div class="actions">
                       {href && <a class="action-link" href={href}>Ver tienda</a>}
+                      {isStoreSecurityEnabled(securitySettings) && (
+                        <a class="action-button security-monitor-action" href={masterSecurityHref(store.id)} data-security-monitor-link>Ver clientes y actividad</a>
+                      )}
+                      <button class="action-button security-action configure-security" type="button">Seguridad</button>
                       <button class="action-button toggle-featured" type="button" data-next-featured={store.featured ? 'false' : 'true'}>{store.featured ? 'Quitar destacada' : 'Destacar'}</button>
                       <button class="action-button user-action create-user" type="button">Crear usuario</button>
                       <button class="action-button edit-store" type="button">Editar</button>
@@ -342,9 +488,145 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     </form>
   </dialog>
 
+  <dialog id="security-dialog" class="store-dialog security-dialog">
+    <form id="security-form" class="store-form security-form" method="dialog">
+      <input id="security-store-id" name="store_id" type="hidden" />
+      <div class="dialog-head">
+        <div>
+          <h2 id="security-dialog-title" class="dialog-title">Seguridad</h2>
+          <p id="security-dialog-subtitle" class="dialog-subtitle">Configuración base administrada desde Master.</p>
+        </div>
+        <button id="close-security-dialog" class="close-button" type="button" aria-label="Cerrar">x</button>
+      </div>
+
+      <label class="security-switch-row" for="security-enabled">
+        <span class="security-switch-copy">
+          <strong>Seguridad habilitada</strong>
+          <span>Controla si la tienda puede ver la sección Seguridad.</span>
+        </span>
+        <span class="security-switch">
+          <input id="security-enabled" name="enabled" type="checkbox" />
+          <span>Activa</span>
+        </span>
+      </label>
+
+      <fieldset class="security-fieldset" data-security-dependent>
+        <legend>Modo</legend>
+        <div class="security-option-grid">
+          <label class="security-option">
+            <input id="security-mode-monitoring" name="mode" type="radio" value="monitoring" />
+            <span>
+              <strong>Solo monitoreo</strong>
+              <span>Base visible sin aplicar bloqueos.</span>
+            </span>
+          </label>
+          <label class="security-option">
+            <input id="security-mode-protection" name="mode" type="radio" value="protection" />
+            <span>
+              <strong>Protección activa</strong>
+              <span>Prepara capacidades de protección para fases siguientes.</span>
+            </span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="security-control-list" data-security-dependent>
+        <label class="security-switch-row" for="security-manual-blocking">
+          <span class="security-switch-copy">
+            <strong>Permitir bloqueo manual</strong>
+            <span>Habilita la capacidad maestra de bloqueo manual.</span>
+          </span>
+          <span class="security-switch">
+            <input id="security-manual-blocking" name="manual_blocking_enabled" type="checkbox" />
+            <span>Permitir</span>
+          </span>
+        </label>
+
+        <label class="security-switch-row" for="security-full-access-blocking">
+          <span class="security-switch-copy">
+            <strong>Permitir bloqueo de acceso completo</strong>
+            <span>Depende del bloqueo manual.</span>
+          </span>
+          <span class="security-switch">
+            <input id="security-full-access-blocking" name="full_access_blocking_enabled" type="checkbox" data-manual-dependent />
+            <span>Permitir</span>
+          </span>
+        </label>
+
+        <label class="security-switch-row" for="security-permanent-blocks">
+          <span class="security-switch-copy">
+            <strong>Permitir bloqueos permanentes</strong>
+            <span>Depende del bloqueo manual.</span>
+          </span>
+          <span class="security-switch">
+            <input id="security-permanent-blocks" name="permanent_blocks_enabled" type="checkbox" data-manual-dependent />
+            <span>Permitir</span>
+          </span>
+        </label>
+
+        <label class="security-switch-row" for="security-notify-blocked">
+          <span class="security-switch-copy">
+            <strong>Notificar intentos bloqueados</strong>
+            <span>Solo configura la preferencia; no dispara notificaciones en esta fase.</span>
+          </span>
+          <span class="security-switch">
+            <input id="security-notify-blocked" name="notify_blocked_attempts" type="checkbox" />
+            <span>Notificar</span>
+          </span>
+        </label>
+      </div>
+
+      <div class="security-select-grid" data-security-dependent>
+        <div class="field">
+          <label for="security-retention-days">Retención</label>
+          <select id="security-retention-days" name="retention_days">
+            <option value="30">30 días</option>
+            <option value="60">60 días</option>
+            <option value="90">90 días</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="security-ip-visibility">Visibilidad de IP</label>
+          <select id="security-ip-visibility" name="ip_visibility">
+            <option value="hidden">Oculta — No mostrar IP al administrador de la tienda.</option>
+            <option value="partial">Parcial — Mostrar una versión protegida como 181.225.***.42.</option>
+            <option value="full">Completa — Mostrar siempre la IP completa en las vistas privadas de Seguridad.</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="security-ip-warning" class="security-warning" hidden>
+        La IP completa se mostrará directamente al administrador de esta tienda dentro de Seguridad. Solo debe habilitarse para personal autorizado.
+      </div>
+
+      <div id="security-aes-warning" class="security-warning" hidden>
+        Registro activo, pero IP completa no disponible. Configura la clave AES del backend para tiendas con IP completa.
+      </div>
+
+      <div id="security-alert" class="form-alert" role="alert"></div>
+
+      <div class="form-actions">
+        <button id="cancel-security-dialog" class="secondary-button" type="button">Cancelar</button>
+        <button id="save-security" class="save-button" type="submit">Guardar seguridad</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script define:vars={{ securitySettingsByStore, securityBackendHealth }}>
+    window.PZ_MASTER_SECURITY_SETTINGS = securitySettingsByStore;
+    window.PZ_MASTER_SECURITY_HEALTH = securityBackendHealth;
+  </script>
+
   <script>
     import { logout } from '../../lib/auth';
     import { createStoreUserFromMaster, getStoreUserCreateErrorMessage } from '../../lib/masterUsers';
+    import {
+      getDefaultSecuritySettings,
+      getSecurityStatusLabel,
+      isStoreSecurityEnabled,
+      normalizeSecuritySettingsPayload,
+      upsertStoreSecuritySettings,
+    } from '../../lib/security';
     import {
       createStoreFromMaster,
       normalizeStoreSlug,
@@ -378,8 +660,28 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     const saveUserButton = document.getElementById('save-user') as HTMLButtonElement | null;
     const userAlertBox = document.getElementById('user-alert');
     const masterNotice = document.getElementById('master-notice');
+    const securityDialog = document.getElementById('security-dialog') as HTMLDialogElement | null;
+    const securityForm = document.getElementById('security-form') as HTMLFormElement | null;
+    const securityStoreInput = document.getElementById('security-store-id') as HTMLInputElement | null;
+    const securityTitle = document.getElementById('security-dialog-title');
+    const securitySubtitle = document.getElementById('security-dialog-subtitle');
+    const securityEnabledInput = document.getElementById('security-enabled') as HTMLInputElement | null;
+    const securityModeInputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="mode"]'));
+    const securityManualInput = document.getElementById('security-manual-blocking') as HTMLInputElement | null;
+    const securityFullInput = document.getElementById('security-full-access-blocking') as HTMLInputElement | null;
+    const securityPermanentInput = document.getElementById('security-permanent-blocks') as HTMLInputElement | null;
+    const securityNotifyInput = document.getElementById('security-notify-blocked') as HTMLInputElement | null;
+    const securityRetentionInput = document.getElementById('security-retention-days') as HTMLSelectElement | null;
+    const securityIpVisibilityInput = document.getElementById('security-ip-visibility') as HTMLSelectElement | null;
+    const securityIpWarning = document.getElementById('security-ip-warning');
+    const securityAesWarning = document.getElementById('security-aes-warning');
+    const saveSecurityButton = document.getElementById('save-security') as HTMLButtonElement | null;
+    const securityAlertBox = document.getElementById('security-alert');
+    const securitySettingsState: Record<string, any> = { ...((window as any).PZ_MASTER_SECURITY_SETTINGS || {}) };
+    const securityBackendHealthState: Record<string, any> = { ...((window as any).PZ_MASTER_SECURITY_HEALTH || {}) };
 
     let slugWasManuallyEdited = false;
+    let securitySaving = false;
 
     function showMasterNotice(message: string, detail = '') {
       if (!masterNotice) return;
@@ -423,6 +725,150 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
       if (!saveUserButton) return;
       saveUserButton.disabled = isSaving;
       saveUserButton.textContent = isSaving ? 'Creando...' : 'Crear usuario';
+    }
+
+    function showSecurityMessage(message: string, tone: 'error' | 'success' = 'error') {
+      if (!securityAlertBox) return;
+      securityAlertBox.textContent = message;
+      securityAlertBox.classList.add('is-visible');
+      securityAlertBox.classList.toggle('is-success', tone === 'success');
+    }
+
+    function clearSecurityMessage() {
+      if (!securityAlertBox) return;
+      securityAlertBox.textContent = '';
+      securityAlertBox.classList.remove('is-visible', 'is-success');
+    }
+
+    function setSecuritySaving(isSaving: boolean) {
+      securitySaving = isSaving;
+      if (!saveSecurityButton) return;
+      saveSecurityButton.disabled = isSaving;
+      saveSecurityButton.textContent = isSaving ? 'Guardando...' : 'Guardar seguridad';
+    }
+
+    function getSecurityStatusClass(settings: any) {
+      if (!settings?.enabled || settings.mode === 'disabled') return 'is-disabled';
+      return settings.mode === 'protection' ? 'is-protection' : 'is-monitoring';
+    }
+
+    function getSecurityMonitoringHref(storeId: string) {
+      return `/master/security/${encodeURIComponent(storeId)}`;
+    }
+
+    function syncSecurityMonitoringLink(storeId: string, settings: any) {
+      const row = document.querySelector<HTMLElement>(`.store-row[data-store-id="${CSS.escape(storeId)}"]`);
+      const actions = row?.querySelector<HTMLElement>('.actions');
+      if (!row || !actions) return;
+
+      const existing = row.querySelector<HTMLAnchorElement>('[data-security-monitor-link]');
+      const enabled = isStoreSecurityEnabled(settings);
+
+      if (!enabled) {
+        existing?.remove();
+        return;
+      }
+
+      if (existing) {
+        existing.href = getSecurityMonitoringHref(storeId);
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.className = 'action-button security-monitor-action';
+      link.href = getSecurityMonitoringHref(storeId);
+      link.textContent = 'Ver clientes y actividad';
+      link.setAttribute('data-security-monitor-link', '');
+      const securityButton = actions.querySelector('.configure-security');
+      actions.insertBefore(link, securityButton || actions.firstChild);
+    }
+
+    function updateSecurityIndicator(storeId: string, settings: any) {
+      const row = document.querySelector<HTMLElement>(`.store-row[data-store-id="${CSS.escape(storeId)}"]`);
+      const pill = row?.querySelector<HTMLElement>('[data-security-pill]');
+      if (!pill) return;
+
+      pill.textContent = getSecurityStatusLabel(settings);
+      pill.classList.remove('is-disabled', 'is-monitoring', 'is-protection');
+      pill.classList.add(getSecurityStatusClass(settings));
+      syncSecurityMonitoringLink(storeId, settings);
+    }
+
+    function getSelectedSecurityMode() {
+      return securityModeInputs.find((input) => input.checked)?.value || 'monitoring';
+    }
+
+    function isSecurityBackendAesReady() {
+      return securityBackendHealthState.aes_identity_ready === true
+        && securityBackendHealthState.aes_monitoring_ready === true
+        && securityBackendHealthState.full_ip_ready === true;
+    }
+
+    function syncSecurityControls() {
+      const enabled = securityEnabledInput?.checked === true;
+      const manualEnabled = enabled && securityManualInput?.checked === true;
+      const fullIpSelected = enabled && securityIpVisibilityInput?.value === 'full';
+
+      document.querySelectorAll<HTMLElement>('[data-security-dependent]').forEach((group) => {
+        group.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach((control) => {
+          control.disabled = !enabled;
+        });
+      });
+
+      if (!enabled) {
+        securityModeInputs.forEach((input) => {
+          input.checked = input.value === 'monitoring';
+        });
+      }
+
+      if (!manualEnabled) {
+        if (securityFullInput) securityFullInput.checked = false;
+        if (securityPermanentInput) securityPermanentInput.checked = false;
+      }
+
+      [securityFullInput, securityPermanentInput].forEach((input) => {
+        if (input) input.disabled = !manualEnabled;
+      });
+
+      if (securityIpWarning) {
+        securityIpWarning.hidden = !fullIpSelected;
+      }
+      if (securityAesWarning) {
+        securityAesWarning.hidden = !(fullIpSelected && !isSecurityBackendAesReady());
+      }
+    }
+
+    function readSecurityPayload() {
+      return normalizeSecuritySettingsPayload({
+        store: securityStoreInput?.value || '',
+        enabled: securityEnabledInput?.checked === true,
+        mode: getSelectedSecurityMode(),
+        manual_blocking_enabled: securityManualInput?.checked === true,
+        full_access_blocking_enabled: securityFullInput?.checked === true,
+        permanent_blocks_enabled: securityPermanentInput?.checked === true,
+        retention_days: Number(securityRetentionInput?.value || 30),
+        ip_visibility: securityIpVisibilityInput?.value || 'hidden',
+        notify_blocked_attempts: securityNotifyInput?.checked === true,
+      });
+    }
+
+    function setSecurityFormValues(settings: any) {
+      const normalized = normalizeSecuritySettingsPayload(settings || {});
+      if (securityEnabledInput) securityEnabledInput.checked = normalized.enabled === true;
+
+      const radioMode = normalized.enabled && normalized.mode === 'protection' ? 'protection' : 'monitoring';
+      securityModeInputs.forEach((input) => {
+        input.checked = input.value === radioMode;
+      });
+
+      if (securityManualInput) securityManualInput.checked = normalized.manual_blocking_enabled === true;
+      if (securityFullInput) securityFullInput.checked = normalized.full_access_blocking_enabled === true;
+      if (securityPermanentInput) securityPermanentInput.checked = normalized.permanent_blocks_enabled === true;
+      if (securityNotifyInput) securityNotifyInput.checked = normalized.notify_blocked_attempts === true;
+      if (securityRetentionInput) securityRetentionInput.value = String(normalized.retention_days || 30);
+      if (securityIpVisibilityInput) securityIpVisibilityInput.value = normalized.ip_visibility || 'hidden';
+
+      syncSecurityControls();
     }
 
     function openStoreDialog(store?: HTMLElement) {
@@ -469,9 +915,34 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
       userNameInput.focus();
     }
 
+    function openSecurityDialog(store: HTMLElement) {
+      if (!securityDialog || !securityForm || !securityStoreInput) return;
+      clearSecurityMessage();
+      securityForm.reset();
+
+      const storeId = store.dataset.storeId || '';
+      const storeName = store.dataset.storeName || 'esta tienda';
+      securityStoreInput.value = storeId;
+
+      if (securityTitle) securityTitle.textContent = `Seguridad`;
+      if (securitySubtitle) securitySubtitle.textContent = `Configuración base para ${storeName}.`;
+
+      const settings = securitySettingsState[storeId] || getDefaultSecuritySettings(storeId);
+      setSecurityFormValues(settings);
+      setSecuritySaving(false);
+
+      securityDialog.showModal();
+      securityEnabledInput?.focus();
+    }
+
     function closeUserDialog() {
       clearUserError();
       userDialog?.close();
+    }
+
+    function closeSecurityDialog() {
+      clearSecurityMessage();
+      securityDialog?.close();
     }
 
     logoutButton?.addEventListener('click', () => {
@@ -485,6 +956,8 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
     document.getElementById('cancel-dialog')?.addEventListener('click', closeStoreDialog);
     document.getElementById('close-user-dialog')?.addEventListener('click', closeUserDialog);
     document.getElementById('cancel-user-dialog')?.addEventListener('click', closeUserDialog);
+    document.getElementById('close-security-dialog')?.addEventListener('click', closeSecurityDialog);
+    document.getElementById('cancel-security-dialog')?.addEventListener('click', closeSecurityDialog);
 
     nameInput?.addEventListener('input', () => {
       if (!slugInput || slugWasManuallyEdited) return;
@@ -508,6 +981,26 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
         const store = button.closest<HTMLElement>('.store-row');
         if (store) openUserDialog(store);
       });
+    });
+
+    document.querySelectorAll<HTMLElement>('.configure-security').forEach((button) => {
+      button.addEventListener('click', () => {
+        const store = button.closest<HTMLElement>('.store-row');
+        if (store) openSecurityDialog(store);
+      });
+    });
+
+    [
+      securityEnabledInput,
+      securityManualInput,
+      securityFullInput,
+      securityPermanentInput,
+      securityNotifyInput,
+      securityRetentionInput,
+      securityIpVisibilityInput,
+      ...securityModeInputs,
+    ].forEach((control) => {
+      control?.addEventListener('change', syncSecurityControls);
     });
 
     document.querySelectorAll<HTMLButtonElement>('.toggle-status').forEach((button) => {
@@ -603,6 +1096,29 @@ const displayName = String(masterUser?.display_name || masterUser?.name || maste
       } catch (error: any) {
         showUserError(getStoreUserCreateErrorMessage(error));
         setUserSaving(false);
+      }
+    });
+
+    securityForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (securitySaving || !securityStoreInput) return;
+
+      const storeId = securityStoreInput.value;
+      if (!storeId) return;
+
+      clearSecurityMessage();
+      setSecuritySaving(true);
+
+      try {
+        const saved = await upsertStoreSecuritySettings(storeId, readSecurityPayload());
+        securitySettingsState[storeId] = saved;
+        setSecurityFormValues(saved);
+        updateSecurityIndicator(storeId, saved);
+        showSecurityMessage('Configuración de seguridad guardada correctamente.', 'success');
+      } catch (error: any) {
+        showSecurityMessage(error?.message || 'No se pudo guardar la configuración de seguridad.');
+      } finally {
+        setSecuritySaving(false);
       }
     });
   </script>

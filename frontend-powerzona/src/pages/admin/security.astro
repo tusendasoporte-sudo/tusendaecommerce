@@ -1,0 +1,44 @@
+---
+export const prerender = false;
+
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../lib/storeContext';
+import {
+  getStoreSecuritySettings,
+  isStoreSecurityEnabled,
+} from '../../lib/security';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+
+let adminContext;
+try {
+  adminContext = await requireCurrentStoreForAdmin(authPb);
+} catch (error) {
+  if (isMasterAdmin(authPb.authStore.record as any)) return Astro.redirect('/master');
+  if (error instanceof StoreContextError && error.code === STORE_CONTEXT_ERRORS.MASTER_ADMIN) return Astro.redirect('/master');
+  return Astro.redirect('/login');
+}
+
+const currentStoreSlug = adminContext.store.slug || '';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+
+if (!isStoreAdmin(adminContext.user)) {
+  return Astro.redirect(adminBasePath);
+}
+
+const securitySettings = await getStoreSecuritySettings(adminContext.storeId, authPb, {
+  fields: 'id,store,enabled,mode',
+});
+
+if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {
+  return Astro.redirect(adminBasePath);
+}
+
+return Astro.redirect(getStoreAdminPath(currentStoreSlug, 'security'));
+---
