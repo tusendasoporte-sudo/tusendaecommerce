@@ -1,0 +1,146 @@
+---
+import MasterIcon from './MasterIcon.astro';
+
+export interface MasterSidebarStoreContext {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+}
+
+interface Props {
+  currentPath: string;
+  displayName: string;
+  currentStore?: MasterSidebarStoreContext | null;
+  priceWatchStoreId?: string;
+}
+
+const {
+  currentPath,
+  displayName,
+  currentStore = null,
+  priceWatchStoreId = '',
+} = Astro.props;
+
+const normalizedPath = currentPath.replace(/\/+$/, '') || '/master';
+
+function isActive(href: string) {
+  const normalizedHref = href.replace(/\/+$/, '') || '/master';
+  if (normalizedHref === '/master') return normalizedPath === '/master';
+  return normalizedPath === normalizedHref || normalizedPath.startsWith(`${normalizedHref}/`);
+}
+
+function initials(value: string, fallback: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || fallback;
+}
+---
+
+<aside class="master-sidebar" data-master-sidebar aria-label="Navegación Master">
+  <div class="master-sidebar__brand">
+    <img
+      src="/master-samurai-mark.png"
+      width="42"
+      height="42"
+      alt=""
+      aria-hidden="true"
+      class="master-sidebar__brand-mark"
+    />
+    <div class="master-sidebar__brand-copy">
+      <strong>Tu Senda 84</strong>
+      <span>MASTER ADMIN</span>
+    </div>
+    <button class="master-sidebar__mobile-close" type="button" aria-label="Cerrar menú" data-master-sidebar-close>
+      <MasterIcon name="close" size={20} />
+    </button>
+  </div>
+
+  <nav class="master-sidebar__nav">
+    <section class="master-sidebar__section">
+      <p class="master-sidebar__label">PRINCIPAL</p>
+      <a class:list={['master-sidebar__link', { 'is-active': isActive('/master') }]} href="/master">
+        <MasterIcon name="home" /><span>Resumen</span>
+      </a>
+      <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/stores') }]} href="/master/stores">
+        <MasterIcon name="stores" /><span>Tiendas</span>
+      </a>
+      <a
+        class:list={['master-sidebar__link', { 'is-active': isActive('/master/price-watch') && !priceWatchStoreId }]}
+        href="/master/price-watch"
+      >
+        <MasterIcon name="price" /><span>Seguimiento de precios</span>
+      </a>
+      <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/notifications') }]} href="/master/notifications">
+        <MasterIcon name="bell" /><span>Notificaciones</span>
+        <span class="master-sidebar__notification-dot" data-master-sidebar-unread hidden></span>
+      </a>
+    </section>
+
+    {currentStore && (
+      <section class="master-sidebar__section master-sidebar__section--store">
+        <p class="master-sidebar__label">TIENDA ACTUAL</p>
+        <div class="master-sidebar__store-card">
+          <span class="master-sidebar__store-avatar" aria-hidden="true">{initials(currentStore.name, 'TS')}</span>
+          <span class="master-sidebar__store-copy">
+            <strong>{currentStore.name}</strong>
+            <span class:list={['master-sidebar__store-status', {
+              'is-active': currentStore.status === 'active',
+              'is-suspended': currentStore.status !== 'active',
+            }]}>{currentStore.status === 'active' ? 'Activa' : 'Suspendida'}</span>
+          </span>
+        </div>
+
+        <a
+          class:list={['master-sidebar__link', { 'is-active': normalizedPath === `/master/stores/${currentStore.id}` }]}
+          href={`/master/stores/${encodeURIComponent(currentStore.id)}`}
+        >
+          <MasterIcon name="home" /><span>Resumen de tienda</span>
+        </a>
+        <a
+          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/analytics/${currentStore.id}`) }]}
+          href={`/master/analytics/${encodeURIComponent(currentStore.id)}`}
+        >
+          <MasterIcon name="analytics" /><span>Analíticas</span>
+        </a>
+        <a
+          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/products/${currentStore.id}`) }]}
+          href={`/master/products/${encodeURIComponent(currentStore.id)}`}
+        >
+          <MasterIcon name="products" /><span>Productos</span>
+        </a>
+        <a
+          class:list={['master-sidebar__link', {
+            'is-active': normalizedPath === '/master/price-watch' && priceWatchStoreId === currentStore.id,
+          }]}
+          href={`/master/price-watch?store_id=${encodeURIComponent(currentStore.id)}`}
+        >
+          <MasterIcon name="price" /><span>Seguimiento de precios</span>
+        </a>
+        <a
+          class:list={['master-sidebar__link', { 'is-active': isActive(`/master/security/${currentStore.id}`) }]}
+          href={`/master/security/${encodeURIComponent(currentStore.id)}`}
+        >
+          <MasterIcon name="security" /><span>Seguridad</span>
+        </a>
+        <a class="master-sidebar__link master-sidebar__link--back" href="/master/stores">
+          <MasterIcon name="back" /><span>Volver a tiendas</span>
+        </a>
+      </section>
+    )}
+  </nav>
+
+  <div class="master-sidebar__profile">
+    <span class="master-sidebar__profile-avatar" aria-hidden="true">{initials(displayName, 'MA')}</span>
+    <span class="master-sidebar__profile-copy">
+      <strong>{displayName || 'Master Admin'}</strong>
+      <span>Administrador</span>
+    </span>
+    <MasterIcon name="chevron-right" size={16} />
+  </div>
+</aside>
+
+<div class="master-sidebar-overlay" data-master-sidebar-overlay></div>

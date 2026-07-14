@@ -6,8 +6,7 @@ import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../../../
 import { getStoreSecuritySettings, isStoreSecurityEnabled } from '../../../../../../lib/security';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../../../../lib/storeContext';
 import {
-  getSecurityVisitorPageviewsPage,
-  getSecurityVisitorSessionById,
+  getSecurityVisitorDetail,
   isValidRecordId,
   normalizePage,
   type PaginatedResult,
@@ -68,9 +67,10 @@ let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
 let viewError = '';
 
 try {
-  visitor = await getSecurityVisitorSessionById(authPb, currentStoreId, visitorSessionId, securitySettings);
+  const detail = await getSecurityVisitorDetail(authPb, currentStoreId, visitorSessionId, page);
+  visitor = detail.visitor;
   if (!visitor) return Astro.redirect(`${adminSecurityPath}?section=visitors`);
-  pageviews = await getSecurityVisitorPageviewsPage(authPb, currentStoreId, visitor.id, page, securitySettings);
+  pageviews = detail.pageviews;
 } catch (_) {
   viewError = 'No se pudo cargar el detalle de este visitante en este momento.';
 }

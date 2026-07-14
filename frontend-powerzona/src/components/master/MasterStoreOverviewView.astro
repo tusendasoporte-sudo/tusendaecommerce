@@ -1,0 +1,199 @@
+---
+import MasterIcon from './MasterIcon.astro';
+import type { MasterIconName } from '../../lib/masterIcons';
+import type { MasterStoreOverview } from '../../lib/masterStoreOverview';
+
+interface Props {
+  overview: MasterStoreOverview;
+  protectedStore: boolean;
+  updated: string;
+  securityExists: boolean;
+}
+
+const { overview, protectedStore, updated, securityExists } = Astro.props;
+const { store, metrics, activity, recent_orders: recentOrders, attention, security, team } = overview;
+
+function number(value: unknown) {
+  return new Intl.NumberFormat('es').format(Math.max(0, Number(value || 0)));
+}
+
+function usd(value: unknown) {
+  return new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(Number(value || 0));
+}
+
+function date(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short' }).format(parsed)
+    : 'Sin fecha';
+}
+
+function relative(value: string) {
+  const parsed = new Date(value).getTime();
+  if (!Number.isFinite(parsed)) return 'Sin fecha';
+  const minutes = Math.max(0, Math.floor((Date.now() - parsed) / 60000));
+  if (minutes < 1) return 'Ahora';
+  if (minutes < 60) return `Hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Hace ${hours} h`;
+  return `Hace ${Math.floor(hours / 24)} d`;
+}
+
+function initials(value: string) {
+  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'TS';
+}
+
+function activityIcon(type: string): MasterIconName {
+  if (type === 'order_created') return 'cart';
+  if (type === 'price_changed') return 'price';
+  if (type === 'security_event') return 'security';
+  if (type === 'user_created') return 'user-plus';
+  return 'clock';
+}
+
+function orderTone(status: string) {
+  const normalized = status.toLowerCase();
+  if (['completed', 'delivered', 'confirmed'].includes(normalized)) return 'master-pill--success';
+  if (['cancelled', 'rejected'].includes(normalized)) return 'master-pill--danger';
+  if (['pending', 'preparing'].includes(normalized)) return 'master-pill--warning';
+  return 'master-pill--info';
+}
+
+const kpis = [
+  ['Pedidos totales', metrics.orders_total, 'Histórico'],
+  ['Pedidos recientes', metrics.orders_recent, 'Últimos 30 días'],
+  ['Visitantes (30 días)', metrics.visitors_30d, 'Visitantes registrados'],
+  ['Páginas vistas (30 días)', metrics.pageviews_30d, 'Solo páginas vistas'],
+  ['Productos activos', metrics.products_active, 'Visibles al público'],
+  ['Productos ocultos', metrics.products_hidden, 'Requieren revisión'],
+  ['Productos agotados', metrics.products_out_of_stock, 'Sin stock real'],
+  ['Productos en seguimiento', metrics.products_watched, 'Seguimiento activo'],
+] as const;
+
+const pending = [
+  { label: 'Productos agotados', value: attention.out_of_stock, detail: 'Sin stock disponible', url: `/master/products/${store.id}?status=out_of_stock`, action: 'Ver productos', icon: 'products' as MasterIconName, tone: 'is-red' },
+  { label: 'Productos ocultos', value: attention.hidden, detail: 'Fuera del catálogo público', url: `/master/products/${store.id}?status=hidden`, action: 'Ver productos', icon: 'eye' as MasterIconName, tone: 'is-orange' },
+  { label: 'Productos con poco stock', value: attention.low_stock, detail: 'Según el umbral de la tienda', url: `/master/products/${store.id}?status=low_stock`, action: 'Ver productos', icon: 'alert' as MasterIconName, tone: 'is-orange' },
+  { label: 'Cambios de precio sin revisar', value: attention.unread_price_notifications, detail: 'Notificaciones de producto pendientes', url: `/master/price-watch?store_id=${store.id}`, action: 'Ver seguimiento', icon: 'price' as MasterIconName, tone: '' },
+  { label: 'Notificaciones de Seguridad pendientes', value: attention.unread_security_notifications, detail: 'Revisión privada del Master', url: `/master/security/${store.id}`, action: 'Ver seguridad', icon: 'security' as MasterIconName, tone: 'is-purple' },
+];
+---
+
+<section
+  class="master-store-page"
+  data-store-context
+  data-store-overview="true"
+  data-store-id={store.id}
+  data-store-name={store.name}
+  data-store-slug={store.slug}
+  data-store-status={store.status}
+  data-store-featured={store.featured ? 'true' : 'false'}
+  data-store-protected={protectedStore ? 'true' : 'false'}
+  data-store-updated={updated}
+  data-store-security-exists={securityExists ? 'true' : 'false'}
+>
+  <header class="master-store-heading">
+    <div class="master-store-heading__identity">
+      <span class="master-store-heading__avatar" aria-hidden="true">{initials(store.name)}</span>
+      <div class="master-store-heading__copy">
+        <div class="master-store-heading__title-row">
+          <h2>{store.name}</h2>
+          <span class:list={['master-pill', store.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{store.status === 'active' ? 'Activa' : 'Suspendida'}</span>
+          {store.featured && <span class="master-pill master-pill--warning">Destacada</span>}
+          <span class:list={['master-pill', store.security_label === 'Protección activa' ? 'master-pill--info' : '']}>{store.security_label}</span>
+        </div>
+      </div>
+    </div>
+    <div class="master-store-heading__actions">
+      <a class="master-btn master-btn--secondary" href={`/t/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer"><MasterIcon name="external" size={17} /> Ver tienda pública</a>
+      <button class="master-btn master-btn--secondary" type="button" data-action-edit-store><MasterIcon name="edit" size={17} /> Editar tienda</button>
+      <button class="master-btn master-btn--secondary" type="button" data-action-create-user><MasterIcon name="user-plus" size={17} /> Crear usuario</button>
+      <button class="master-icon-btn" type="button" data-action-more aria-label="Más acciones" aria-haspopup="menu" aria-expanded="false"><MasterIcon name="more" size={19} /></button>
+    </div>
+  </header>
+
+  <div class="master-store-kpis" aria-label="Indicadores de la tienda">
+    {kpis.map(([label, value, meta]) => (
+      <article class="master-store-kpi">
+        <span class="master-store-kpi__label">{label}</span>
+        <strong class="master-store-kpi__value">{number(value)}</strong>
+        <span class="master-store-kpi__meta">{meta}</span>
+      </article>
+    ))}
+  </div>
+
+  <div class="master-store-overview-grid">
+    <div class="master-store-overview-column">
+      <section class="master-card">
+        <header class="master-card-header"><h3 class="master-card-title">Actividad reciente</h3></header>
+        <div class="master-card-body master-activity-list">
+          {activity.length ? activity.map((item) => (
+            <article class="master-activity-item">
+              <span class="master-activity-icon"><MasterIcon name={activityIcon(item.type)} size={18} /></span>
+              <div class="master-activity-copy"><time datetime={item.created}>{relative(item.created)}</time><strong>{item.label}</strong><span>{item.detail}</span></div>
+              <a class="master-btn master-btn--secondary" href={item.action_url}>{item.action_label || 'Abrir'}</a>
+            </article>
+          )) : <p class="master-empty">No hay actividad reciente.</p>}
+        </div>
+      </section>
+
+      <section class="master-card">
+        <header class="master-card-header">
+          <h3 class="master-card-title">Pedidos recientes</h3>
+          <a class="master-btn master-btn--secondary" href={`/master/analytics/${store.id}`}>Ver todos en analíticas</a>
+        </header>
+        {recentOrders.length ? (
+          <>
+            <div class="master-table-wrap master-orders-desktop">
+              <table class="master-table">
+                <thead><tr><th>Pedido</th><th>Cliente</th><th>Fecha</th><th>Estado</th><th>Total</th><th>Ver</th></tr></thead>
+                <tbody>{recentOrders.map((order) => (
+                  <tr><td>{order.order_number || `#${order.id}`}</td><td>{order.customer_name}</td><td>{date(order.created)}</td><td><span class:list={['master-pill', orderTone(order.status)]}>{order.status || 'Pendiente'}</span></td><td>{usd(order.usd_total)}</td><td><a class="master-icon-btn" href={order.action_url} aria-label={`Ver pedido ${order.order_number}`}><MasterIcon name="eye" size={17} /></a></td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div class="master-card-body master-orders-mobile">{recentOrders.map((order) => (
+              <article class="master-order-card">
+                <div class="master-order-card__row"><strong>{order.order_number || `#${order.id}`}</strong><span class:list={['master-pill', orderTone(order.status)]}>{order.status || 'Pendiente'}</span></div>
+                <span>{order.customer_name} · {date(order.created)}</span>
+                <div class="master-order-card__row"><strong>{usd(order.usd_total)}</strong><a class="master-btn master-btn--secondary" href={order.action_url}><MasterIcon name="eye" size={16} /> Ver</a></div>
+              </article>
+            ))}</div>
+          </>
+        ) : <p class="master-empty">No hay pedidos recientes.</p>}
+      </section>
+    </div>
+
+    <div class="master-store-overview-column">
+      <section class="master-card">
+        <header class="master-card-header"><h3 class="master-card-title">Pendientes de la tienda</h3></header>
+        <div class="master-card-body master-pending-list">{pending.map((item) => (
+          <article class="master-pending-item">
+            <span class:list={['master-pending-icon', item.tone]}><MasterIcon name={item.icon} size={18} /></span>
+            <div class="master-pending-copy"><strong>{number(item.value)} {item.label.toLowerCase()}</strong><span>{item.detail}</span></div>
+            <a class="master-btn master-btn--secondary" href={item.url}>{item.action}</a>
+          </article>
+        ))}</div>
+      </section>
+
+      <section class="master-card">
+        <header class="master-card-header"><h3 class="master-card-title">Resumen de Seguridad</h3><a class="master-btn master-btn--secondary" href={`/master/security/${store.id}`}>Ver seguridad completa</a></header>
+        <div class="master-card-body master-security-grid">
+          <article class="master-mini-stat"><span>Clientes bloqueados</span><strong>{number(security.blocked_customers)}</strong></article>
+          <article class="master-mini-stat"><span>Visitantes bloqueados</span><strong>{number(security.blocked_visitors)}</strong></article>
+          <article class="master-mini-stat"><span>Bloqueos activos</span><strong>{number(security.active_blocks)}</strong></article>
+          <article class="master-mini-stat"><span>Estado actual</span><strong>{security.status_label}</strong></article>
+        </div>
+      </section>
+
+      <section class="master-card">
+        <header class="master-card-header"><h3 class="master-card-title">Equipo de la tienda</h3><button class="master-btn master-btn--secondary" type="button" data-action-create-user>Gestionar usuarios</button></header>
+        <div class="master-card-body master-team-grid">
+          <article class="master-mini-stat"><span>Usuarios activos</span><strong>{number(team.active_users)}</strong></article>
+          <article class="master-mini-stat"><span>Administrador</span><strong>{number(team.admins)}</strong></article>
+          <article class="master-mini-stat"><span>Empleado</span><strong>{number(team.staff)}</strong></article>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

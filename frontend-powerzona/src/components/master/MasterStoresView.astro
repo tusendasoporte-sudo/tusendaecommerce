@@ -1,0 +1,154 @@
+---
+import MasterIcon from './MasterIcon.astro';
+
+export type MasterStoresViewItem = {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  featured: boolean;
+  protected: boolean;
+  updated: string;
+  userCount: number;
+  securityExists: boolean;
+  securityLabel: string;
+  activity: {
+    orders_total: number;
+    visitors_30d: number;
+    pageviews_30d: number;
+  } | null;
+};
+
+interface Props {
+  stores: MasterStoresViewItem[];
+  counts: { total: number; active: number; suspended: number; users: number };
+  page: { page: number; perPage: number; totalItems: number; totalPages: number };
+  securityHealth?: { state: string; title: string; detail: string } | null;
+}
+
+const { stores, counts, page, securityHealth = null } = Astro.props;
+
+function number(value: unknown) {
+  return new Intl.NumberFormat('es').format(Math.max(0, Number(value || 0)));
+}
+
+function pageHref(value: number) {
+  return `/master/stores?stores_page=${Math.max(1, Math.floor(value))}#tiendas-registradas`;
+}
+
+function visiblePages(current: number, total: number): Array<number | 'ellipsis'> {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  const values = [...new Set([1, total, current - 1, current, current + 1])]
+    .filter((value) => value >= 1 && value <= total)
+    .sort((a, b) => a - b);
+  const output: Array<number | 'ellipsis'> = [];
+  values.forEach((value, index) => {
+    if (index > 0 && value - values[index - 1] > 1) output.push('ellipsis');
+    output.push(value);
+  });
+  return output;
+}
+
+const first = counts.total > 0 ? ((page.page - 1) * page.perPage) + 1 : 0;
+const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1) : 0;
+---
+
+<section class="master-page" aria-label="Gestión de tiendas">
+  <header class="master-overview-heading">
+    <div>
+      <h2>Tiendas</h2>
+      <p>Gestión comercial, usuarios y Seguridad de las tiendas registradas.</p>
+    </div>
+  </header>
+
+  {securityHealth && securityHealth.state !== 'ready' && (
+    <div class="master-notice" role="status">
+      <strong>{securityHealth.title}</strong><br />{securityHealth.detail}
+    </div>
+  )}
+
+  <div class="master-kpi-grid" aria-label="Resumen de tiendas">
+    <article class="master-kpi"><span class="master-kpi__label">Tiendas totales</span><strong class="master-kpi__value">{number(counts.total)}</strong><span class="master-kpi__meta">Todas las tiendas registradas</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Tiendas activas</span><strong class="master-kpi__value">{number(counts.active)}</strong><span class="master-kpi__meta">Disponibles al público</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Tiendas suspendidas</span><strong class="master-kpi__value">{number(counts.suspended)}</strong><span class="master-kpi__meta">Acceso público detenido</span></article>
+    <article class="master-kpi"><span class="master-kpi__label">Usuarios de tienda</span><strong class="master-kpi__value">{number(counts.users)}</strong><span class="master-kpi__meta">Administradores y empleados</span></article>
+  </div>
+
+  <section id="tiendas-registradas" class="master-card" aria-label="Tiendas registradas">
+    <header class="master-card-header">
+      <div>
+        <h3 class="master-card-title">Tiendas registradas</h3>
+        <span class="master-muted">{number(counts.total)} tiendas</span>
+      </div>
+    </header>
+
+    {stores.length ? (
+      <div class="master-store-list">
+        <div class="master-store-row master-store-row--head" aria-hidden="true">
+          <span>Tienda</span><span>Estado</span><span>Actividad reciente</span><span>Acciones</span>
+        </div>
+        {stores.map((store) => (
+          <article
+            class="master-store-row"
+            data-store-context
+            data-store-id={store.id}
+            data-store-name={store.name}
+            data-store-slug={store.slug}
+            data-store-status={store.status === 'active' ? 'active' : 'suspended'}
+            data-store-featured={store.featured ? 'true' : 'false'}
+            data-store-protected={store.protected ? 'true' : 'false'}
+            data-store-updated={store.updated}
+            data-store-security-exists={store.securityExists ? 'true' : 'false'}
+          >
+            <div class="master-store-row__identity">
+              <a href={`/master/stores/${encodeURIComponent(store.id)}`}>{store.name || 'Tienda sin nombre'}</a>
+              <span>/{store.slug || 'sin-slug'} · {store.featured ? 'Destacada' : 'No destacada'}</span>
+            </div>
+            <span class:list={['master-pill', store.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>
+              {store.status === 'active' ? 'Activa' : 'Suspendida'}
+            </span>
+            <div class="master-store-row__activity">
+              {store.activity ? (
+                <>
+                  <strong>{number(store.activity.orders_total)} pedidos · {number(store.userCount)} usuarios</strong><br />
+                  {number(store.activity.visitors_30d)} visitantes · {number(store.activity.pageviews_30d)} páginas vistas (30 días)<br />
+                  <span>{store.securityLabel}</span>
+                </>
+              ) : (
+                <>Actividad no disponible · {number(store.userCount)} usuarios<br /><span>{store.securityLabel}</span></>
+              )}
+            </div>
+            <div class="master-store-row__actions">
+              <a class="master-btn master-btn--secondary" href={`/t/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer">
+                <MasterIcon name="external" size={16} /> Ver tienda
+              </a>
+              <a class="master-btn master-btn--secondary" href={`/master/analytics/${encodeURIComponent(store.id)}`}>
+                <MasterIcon name="analytics" size={16} /> Analíticas
+              </a>
+              <button class="master-btn master-btn--secondary" type="button" data-action-security aria-haspopup="menu" aria-expanded="false">
+                <MasterIcon name="security" size={16} /> Seguridad
+              </button>
+              <button class="master-icon-btn" type="button" data-action-more aria-label={`Más acciones para ${store.name}`} aria-haspopup="menu" aria-expanded="false">
+                <MasterIcon name="more" size={19} />
+              </button>
+              <a class="master-btn master-btn--primary" href={`/master/stores/${encodeURIComponent(store.id)}`}>Abrir panel</a>
+            </div>
+          </article>
+        ))}
+      </div>
+    ) : <p class="master-empty">Aún no hay tiendas registradas.</p>}
+
+    <footer class="master-store-footer">
+      <p>Mostrando {number(first)} a {number(last)} de {number(counts.total)} tiendas</p>
+      {page.totalPages > 1 && (
+        <nav class="master-pagination" aria-label="Paginación de tiendas">
+          {page.page > 1 ? <a href={pageHref(page.page - 1)}>Anterior</a> : <span class="is-disabled">Anterior</span>}
+          {visiblePages(page.page, page.totalPages).map((item) => item === 'ellipsis'
+            ? <span class="is-disabled" aria-hidden="true">…</span>
+            : <a href={pageHref(item)} aria-current={item === page.page ? 'page' : undefined}>{item}</a>)}
+          {page.page < page.totalPages ? <a href={pageHref(page.page + 1)}>Siguiente</a> : <span class="is-disabled">Siguiente</span>}
+        </nav>
+      )}
+    </footer>
+  </section>
+</section>

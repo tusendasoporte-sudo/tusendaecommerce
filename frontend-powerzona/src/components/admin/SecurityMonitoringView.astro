@@ -4,7 +4,6 @@ import {
   CUSTOMER_STATUS_FILTERS,
   CUSTOMER_STATUS_LABELS,
   DELIVERY_METHOD_LABELS,
-  EVENT_DECISION_FILTERS,
   EVENT_DECISION_LABELS,
   EVENT_RISK_FILTERS,
   EVENT_RISK_LABELS,
@@ -23,7 +22,6 @@ import {
   getVisitorPhone,
   labelFromMap,
   type CustomerStatusFilter,
-  type EventDecisionFilter,
   type EventRiskFilter,
   type EventTypeFilter,
   type PaginatedResult,
@@ -80,6 +78,7 @@ interface Props {
   mergeCandidates?: SecurityCustomer[];
   customerOrdersError?: boolean;
   customerEventsError?: boolean;
+  actionsEnabled?: boolean;
 }
 
 const {
@@ -116,6 +115,7 @@ const {
   mergeCandidates = [],
   customerOrdersError = false,
   customerEventsError = false,
+  actionsEnabled = true,
 } = Astro.props;
 
 const ipVisibility = String(settings.ip_visibility || 'hidden');
@@ -187,7 +187,6 @@ function activityHref(page = 1, extra: Record<string, string | number | undefine
   return sectionHref('activity', {
     activity_page: page,
     event_type: params.eventType,
-    decision: params.eventDecision,
     risk: params.eventRisk,
     ...extra,
   });
@@ -238,10 +237,6 @@ function isActiveCustomerStatus(status: CustomerStatusFilter) {
 
 function isActiveEventType(value: EventTypeFilter) {
   return params.eventType === value;
-}
-
-function isActiveEventDecision(value: EventDecisionFilter) {
-  return params.eventDecision === value;
 }
 
 function isActiveEventRisk(value: EventRiskFilter) {
@@ -451,6 +446,9 @@ function observationActionValue(customer: SecurityCustomer) {
   {viewNotice && <div class="monitoring-alert is-success" role="status">{viewNotice}</div>}
   {viewError && <div class="monitoring-alert" role="alert">{viewError}</div>}
   {customerUnavailable && <div class="monitoring-alert is-soft" role="status">Cliente no disponible.</div>}
+  {!actionsEnabled && context === 'master' && (
+    <div class="monitoring-alert is-soft" role="status">Seguridad está desactivada para esta tienda. El Master puede revisar el historial, pero no realizar acciones de protección.</div>
+  )}
 
   <section class="metrics-grid" aria-label="Metricas de seguridad">
     <article class="metric-card">
@@ -600,6 +598,7 @@ function observationActionValue(customer: SecurityCustomer) {
                       data-customer-archived={customer.archived ? 'true' : 'false'}
                       data-lifecycle-label={lifecycleActionLabel(customer)}
                       data-lifecycle-action={lifecycleActionValue(customer)}
+                      data-lifecycle-disabled={!customer.archived && customer.status === 'blocked' ? 'true' : 'false'}
                       data-lifecycle-description={lifecycleActionDescription(customer)}
                       data-lifecycle-notice={lifecycleNoticeText(customer)}
                       data-orders-count={lifecycleCounts(customer).orders_affected}
@@ -608,6 +607,7 @@ function observationActionValue(customer: SecurityCustomer) {
                       data-events-count={lifecycleCounts(customer).events_affected}
                       data-sessions-count={lifecycleCounts(customer).sessions_affected}
                       data-pageviews-count={lifecycleCounts(customer).pageviews_affected}
+                      disabled={!actionsEnabled}
                     >...</button>
                   </div>
                 </article>
@@ -709,6 +709,7 @@ function observationActionValue(customer: SecurityCustomer) {
             data-events-count={selectedLifecycleCounts().events_affected}
             data-sessions-count={selectedLifecycleCounts().sessions_affected}
             data-pageviews-count={selectedLifecycleCounts().pageviews_affected}
+            disabled={!actionsEnabled || (!selectedCustomer.archived && activeBlocks.length > 0)}
           >{lifecycleActionLabel(selectedCustomer)}</button>
           <button
             class="danger-action customer-dialog-trigger"
@@ -728,8 +729,10 @@ function observationActionValue(customer: SecurityCustomer) {
             data-events-count={selectedLifecycleCounts().events_affected}
             data-sessions-count={selectedLifecycleCounts().sessions_affected}
             data-pageviews-count={selectedLifecycleCounts().pageviews_affected}
+            disabled={!actionsEnabled}
           >Eliminar ficha de Seguridad</button>
         </div>
+        {!selectedCustomer.archived && activeBlocks.length > 0 && <p class="action-unavailable-note">Desbloquea al cliente antes de archivarlo.</p>}
       </section>
 
       <section class="block-management-panel" aria-labelledby="active-blocks-title">
@@ -763,6 +766,7 @@ function observationActionValue(customer: SecurityCustomer) {
                   data-customer-id={selectedCustomer.id}
                   data-block-scope={blockScopeLabel(block.scope)}
                   data-return-section="customers"
+                  disabled={!actionsEnabled}
                 >Desbloquear</button>
               </article>
             ))}
@@ -785,9 +789,9 @@ function observationActionValue(customer: SecurityCustomer) {
           <input type="hidden" name="events_page" value={params.customerEventsPage} />
           <label class="field" for="merge-search-input">
             <span>Buscar cliente</span>
-            <input id="merge-search-input" name="merge_search" type="search" value={params.mergeSearch} placeholder="Nombre o telefono" />
+            <input id="merge-search-input" name="merge_search" type="search" value={params.mergeSearch} placeholder="Nombre o telefono" disabled={!actionsEnabled} />
           </label>
-          <button class="secondary-action" type="submit">Buscar</button>
+          <button class="secondary-action" type="submit" disabled={!actionsEnabled}>Buscar</button>
         </form>
         {params.mergeSearch && (
           <form class="merge-confirm" method="POST" action={sectionHref('customers')}>
@@ -797,7 +801,7 @@ function observationActionValue(customer: SecurityCustomer) {
             <input type="hidden" name="merge_search" value={params.mergeSearch} />
             <label class="field" for="source-customer-id">
               <span>Cliente a unir</span>
-              <select id="source-customer-id" name="source_customer_id" required>
+              <select id="source-customer-id" name="source_customer_id" required disabled={!actionsEnabled}>
                 <option value="">Selecciona un cliente</option>
                 {mergeCandidates.map((candidate) => (
                   <option value={candidate.id}>{getDisplayCustomerName(candidate)} · {customerPrimaryPhone(candidate)}</option>
@@ -806,9 +810,9 @@ function observationActionValue(customer: SecurityCustomer) {
             </label>
             <label class="field" for="merge-reason">
               <span>Motivo interno</span>
-              <textarea id="merge-reason" name="merge_reason" maxlength="500" required placeholder="Motivo privado de la union"></textarea>
+              <textarea id="merge-reason" name="merge_reason" maxlength="500" required placeholder="Motivo privado de la union" disabled={!actionsEnabled}></textarea>
             </label>
-            <button class="primary-action" type="submit" disabled={mergeCandidates.length === 0}>Confirmar union</button>
+            <button class="primary-action" type="submit" disabled={!actionsEnabled || mergeCandidates.length === 0}>Confirmar union</button>
             {mergeCandidates.length === 0 && <p class="merge-note">No hay candidatos canónicos para esa busqueda.</p>}
           </form>
         )}
@@ -1089,12 +1093,7 @@ function observationActionValue(customer: SecurityCustomer) {
           </a>
         ))}
       </div>
-      <div class="filter-row compact-filters" aria-label="Filtros de decision y riesgo">
-        {EVENT_DECISION_FILTERS.map((value) => (
-          <a class:list={['filter-chip', { 'is-active': isActiveEventDecision(value) }]} href={activityHref(1, { decision: value })}>
-            {value === 'all' ? 'Decision: todas' : labelFromMap(EVENT_DECISION_LABELS, value)}
-          </a>
-        ))}
+      <div class="filter-row compact-filters" aria-label="Filtros de riesgo">
         {EVENT_RISK_FILTERS.map((value) => (
           <a class:list={['filter-chip', { 'is-active': isActiveEventRisk(value) }]} href={activityHref(1, { risk: value })}>
             {value === 'all' ? 'Riesgo: todos' : labelFromMap(EVENT_RISK_LABELS, value)}
@@ -1257,6 +1256,7 @@ function observationActionValue(customer: SecurityCustomer) {
                         data-customer-id={block.customer_id}
                         data-block-scope={blockScopeLabel(block.scope)}
                         data-return-section="blocked"
+                        disabled={!actionsEnabled}
                       >Desbloquear</button>
                     ) : (
                       <span class="muted-cell">Sin accion</span>
@@ -1307,8 +1307,8 @@ function observationActionValue(customer: SecurityCustomer) {
 </section>
 
 <div id="security-customer-actions-menu" class="floating-actions-menu" data-customer-menu role="menu" aria-label="Acciones de cliente" aria-hidden="true" hidden>
-  <button class="floating-menu-item" type="button" data-menu-action="lifecycle" role="menuitem">Archivar cliente</button>
-  <button class="floating-menu-item danger" type="button" data-menu-action="delete" role="menuitem">Eliminar ficha de Seguridad</button>
+  <button class="floating-menu-item" type="button" data-menu-action="lifecycle" role="menuitem" disabled={!actionsEnabled}>Archivar cliente</button>
+  <button class="floating-menu-item danger" type="button" data-menu-action="delete" role="menuitem" disabled={!actionsEnabled}>Eliminar ficha de Seguridad</button>
 </div>
 
 <dialog id="security-lifecycle-dialog" class="security-modal security-lifecycle-modal" data-lifecycle-dialog aria-labelledby="security-lifecycle-title">
@@ -2046,6 +2046,12 @@ function observationActionValue(customer: SecurityCustomer) {
     font-size: 13px;
     line-height: 1.4;
     font-weight: 850;
+  }
+
+  .admin-customer-panel .action-unavailable-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: #9a3412;
   }
 
   .admin-customer-actions {
@@ -2813,6 +2819,8 @@ function observationActionValue(customer: SecurityCustomer) {
     const lifecycleItem = customerMenu.querySelector('[data-menu-action="lifecycle"]');
     if (lifecycleItem instanceof HTMLButtonElement) {
       lifecycleItem.textContent = trigger.dataset.lifecycleLabel || 'Archivar cliente';
+      lifecycleItem.disabled = trigger.dataset.lifecycleDisabled === 'true';
+      lifecycleItem.title = lifecycleItem.disabled ? 'Desbloquea al cliente antes de archivarlo.' : '';
     }
     if (activeCustomerMenuTrigger && activeCustomerMenuTrigger !== trigger) {
       activeCustomerMenuTrigger.setAttribute('aria-expanded', 'false');
@@ -2823,7 +2831,7 @@ function observationActionValue(customer: SecurityCustomer) {
     customerMenu.classList.add('is-open');
     customerMenu.setAttribute('aria-hidden', 'false');
     positionCustomerMenu(trigger);
-    const firstItem = customerMenu.querySelector('.floating-menu-item');
+    const firstItem = customerMenu.querySelector('.floating-menu-item:not(:disabled)');
     if (firstItem instanceof HTMLButtonElement) firstItem.focus();
   }
 

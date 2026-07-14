@@ -1,0 +1,88 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import MasterStoreAnalyticsView from '../../../components/master/MasterStoreAnalyticsView.astro';
+import MasterShell from '../../../components/master/MasterShell.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import {
+  getMasterStoreAnalytics,
+  isValidRecordId,
+  normalizeMasterAnalyticsPage,
+  normalizeMasterAnalyticsRange,
+  type MasterAnalyticsStore,
+} from '../../../lib/masterStoreAnalytics';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+
+if (!authPb.authStore.isValid || !authPb.authStore.record) {
+  return Astro.redirect('/master-login');
+}
+if (!masterUser) {
+  return Astro.redirect('/master');
+}
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+
+const storeId = String(Astro.params.storeId || '').trim();
+if (!isValidRecordId(storeId)) {
+  return Astro.redirect('/master/stores');
+}
+
+let storeRecord: any = null;
+try {
+  storeRecord = await authPb.collection('stores').getOne(storeId, {
+    fields: 'id,name,slug,status',
+    requestKey: null,
+  });
+} catch (_) {
+  return Astro.redirect('/master/stores');
+}
+
+const currentRange = normalizeMasterAnalyticsRange(Astro.url.searchParams.get('range'));
+const pagesPage = normalizeMasterAnalyticsPage(Astro.url.searchParams.get('pages_page'));
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const result = await getMasterStoreAnalytics(
+  pocketbaseUrl,
+  authPb.authStore.token,
+  storeId,
+  currentRange,
+  pagesPage,
+);
+
+if (result.status === 404 && result.error === 'store_not_found') {
+  return Astro.redirect('/master/stores');
+}
+
+const fallbackStore: MasterAnalyticsStore = {
+  id: storeId,
+  name: String(storeRecord?.name || storeRecord?.slug || 'Tienda').trim(),
+  slug: String(storeRecord?.slug || '').trim().toLowerCase(),
+  status: String(storeRecord?.status || '').trim().toLowerCase() === 'active' ? 'active' : 'suspended',
+};
+const analytics = result.data;
+const store = analytics?.store || fallbackStore;
+const basePath = `/master/analytics/${encodeURIComponent(storeId)}`;
+const viewError = result.available
+  ? ''
+  : result.status === 403
+    ? 'La sesión Master no pudo autorizar esta consulta privada.'
+    : 'No fue posible consultar el endpoint privado de analíticas. No se muestran datos estimados ni parciales.';
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Analíticas" currentStore={store}>
+    <MasterStoreAnalyticsView
+      analytics={analytics}
+      store={store}
+      currentRange={currentRange}
+      basePath={basePath}
+      viewError={viewError}
+    />
+  </MasterShell>
+</Layout>

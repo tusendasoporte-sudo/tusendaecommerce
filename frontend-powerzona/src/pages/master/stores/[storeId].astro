@@ -1,0 +1,71 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import MasterShell from '../../../components/master/MasterShell.astro';
+import MasterStoreOverviewView from '../../../components/master/MasterStoreOverviewView.astro';
+import MasterStoreActionsController from '../../../components/master/MasterStoreActionsController.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { getStoreSecuritySettings } from '../../../lib/security';
+import { getMasterStoreOverview } from '../../../lib/masterStoreOverview';
+import { DEFAULT_STORE_SLUG } from '../../../lib/stores';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const storeId = String(Astro.params.storeId || '').trim();
+if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
+
+let storeRecord: any;
+try {
+  storeRecord = await authPb.collection('stores').getOne(storeId, {
+    fields: 'id,name,slug,status,featured,protected,updated',
+    requestKey: null,
+  });
+} catch (_) {
+  return Astro.redirect('/master/stores');
+}
+
+const [result, securitySettings] = await Promise.all([
+  getMasterStoreOverview(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, storeId),
+  getStoreSecuritySettings(storeId, authPb),
+]);
+if (result.status === 404) return Astro.redirect('/master/stores');
+
+const currentStore = {
+  id: storeId,
+  name: String(storeRecord.name || storeRecord.slug || 'Tienda').trim(),
+  slug: String(storeRecord.slug || '').trim(),
+  status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
+};
+const protectedStore = storeRecord.protected === true || currentStore.slug === DEFAULT_STORE_SLUG;
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title={currentStore.name} currentStore={currentStore}>
+    {result.data ? (
+      <>
+        <MasterStoreOverviewView
+          overview={result.data}
+          protectedStore={protectedStore}
+          updated={String(storeRecord.updated || '')}
+          securityExists={securitySettings.exists}
+        />
+        <MasterStoreActionsController />
+      </>
+    ) : (
+      <section class="master-error" role="alert">
+        <strong>Resumen temporalmente no disponible.</strong><br />
+        No se muestran datos parciales ni estimados. Revisa que PocketBase tenga cargado el endpoint privado M7UI1.
+      </section>
+    )}
+  </MasterShell>
+</Layout>

@@ -793,6 +793,16 @@ function getActiveSecuritySettings(app, storeId) {
   return settings;
 }
 
+function getSecuritySettingsRecord(app, storeId) {
+  if (!storeId) return null;
+  return findFirstByFilter(app, SECURITY_SETTINGS_COLLECTION, "store = {:store}", { store: storeId });
+}
+
+function hasReadableSecuritySettings(app, storeId, role) {
+  if (role === "master_admin") return Boolean(getSecuritySettingsRecord(app, storeId));
+  return Boolean(getActiveSecuritySettings(app, storeId));
+}
+
 function hasOrderItems(app, orderId) {
   try {
     const items = app.findRecordsByFilter(
@@ -1995,7 +2005,7 @@ function handleCustomersPage(e) {
     const parsed = parseCustomersPagePayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
     if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
-    if (!getActiveSecuritySettings($app, parsed.storeId)) return e.json(403, { ok: false, error: "security_disabled" });
+    if (!hasReadableSecuritySettings($app, parsed.storeId, role)) return e.json(403, { ok: false, error: "security_disabled" });
 
     const page = buildCustomersPage($app, parsed.storeId, parsed.page, parsed.status, parsed.search);
     return e.json(200, { ok: true, customers: page });
@@ -2035,6 +2045,7 @@ function handleMergeCustomers(e) {
     const parsed = parseMergePayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
     if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!getActiveSecuritySettings($app, parsed.storeId)) return e.json(403, { ok: false, error: "security_disabled" });
     if (!hasCanonicalIdentitySchema($app)) return e.json(400, { ok: false, error: "schema_unavailable" });
 
     let result = null;

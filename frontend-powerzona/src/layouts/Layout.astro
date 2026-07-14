@@ -19,6 +19,9 @@ const currentStoreSlug = currentStore.slug || 'powerzona';
 const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
 const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
+const contentContainerClass = isMaster
+	? 'w-full min-w-0'
+	: 'w-full max-w-7xl mx-auto p-4 sm:p-6';
 ---
 
 <!doctype html>
@@ -126,7 +129,7 @@ const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro
 		{!hideStoreFloatingUi && <script is:inline src="/cart-live-validator.js"></script>}
 		
 		<main class="flex flex-col min-h-screen w-full min-w-0">
-			<div class="w-full max-w-7xl mx-auto p-4 sm:p-6">
+			<div class={contentContainerClass}>
 				<slot />
 			</div>
 		</main>

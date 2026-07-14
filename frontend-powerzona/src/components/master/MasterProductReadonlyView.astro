@@ -1,0 +1,540 @@
+---
+import type { MasterProductDetailResult, MasterProductVariation } from '../../lib/masterStoreProducts';
+import type { MasterPriceHistory } from '../../lib/masterProductWatches';
+
+interface Props {
+  detail: MasterProductDetailResult;
+  productsPath: string;
+  history: MasterPriceHistory | null;
+  historyError?: string;
+}
+
+const { detail, productsPath, history, historyError = '' } = Astro.props;
+const { store, product, variations, related_products: relatedProducts } = detail;
+const visibilityLabels: Record<string, string> = {
+  visible: 'Visible',
+  product_hidden: 'Oculto por producto',
+  category_hidden: 'Oculto por categoría',
+  subcategory_hidden: 'Oculto por subcategoría',
+  store_suspended: 'Tienda suspendida',
+};
+const deliveryLabels: Record<string, string> = {
+  delivery: 'Solo domicilio',
+  pickup: 'Solo recogida',
+  both: 'Domicilio y recogida',
+};
+const inventoryLabels: Record<string, string> = {
+  available: 'Disponible',
+  out_of_stock: 'Agotada',
+  preorder: 'Agotada · Preventa',
+};
+
+function formatNumber(value: unknown) {
+  return new Intl.NumberFormat('es-US', { maximumFractionDigits: 2 }).format(Number(value || 0));
+}
+
+function formatUsd(value: unknown) {
+  return new Intl.NumberFormat('es-US', { style: 'currency', currency: 'USD' }).format(Number(value || 0));
+}
+
+function formatDate(value: string, withTime = false) {
+  if (!value) return 'No definida';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'No definida';
+  return new Intl.DateTimeFormat('es', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
+  }).format(date).replace(/\./g, '');
+}
+
+function publicProductPath() {
+  return store.status === 'active' && product.publicly_visible && store.slug && product.slug
+    ? `/t/${encodeURIComponent(store.slug)}/producto/${encodeURIComponent(product.slug)}`
+    : '';
+}
+
+function variationDetailPath(id: string) {
+  return `${productsPath}/${encodeURIComponent(id)}`;
+}
+
+function variationPrice(variation: MasterProductVariation) {
+  return variation.is_offer
+    ? `${formatUsd(variation.current_price_usd)} (regular ${formatUsd(variation.price_usd)})`
+    : formatUsd(variation.current_price_usd);
+}
+
+function historyHref(page: number) {
+  const path = `${productsPath}/${encodeURIComponent(product.id)}`;
+  return page > 1 ? `${path}?history_page=${page}#seguimiento-precio` : `${path}#seguimiento-precio`;
+}
+
+function eventLabel(value: string) {
+  const labels: Record<string, string> = {
+    product_regular_price_changed: 'Precio normal',
+    product_offer_activated: 'Oferta activada',
+    product_offer_changed: 'Oferta modificada',
+    product_offer_disabled: 'Oferta desactivada',
+    variation_regular_price_changed: 'Precio de variación',
+    variation_offer_activated: 'Oferta de variación activada',
+    variation_offer_changed: 'Oferta de variación modificada',
+    variation_offer_disabled: 'Oferta de variación desactivada',
+    variation_added: 'Variación agregada',
+    variation_removed: 'Variación eliminada',
+    product_range_changed: 'Rango comercial',
+    product_deleted: 'Producto eliminado',
+  };
+  return labels[value] || 'Cambio de precio';
+}
+
+const activeVariationStock = variations
+  .filter((variation) => variation.active)
+  .reduce((total, variation) => total + Math.max(0, variation.stock), 0);
+const activeVariationCount = variations.filter((variation) => variation.active).length;
+const hiddenVariationCount = variations.filter((variation) => !variation.active).length;
+const mainImage = product.image_urls[0] || '';
+const publicPath = publicProductPath();
+const watch = history?.watch || { status: 'none', started_at: '', paused_at: '', deleted_at: '' };
+const historyItems = history?.page.items || [];
+---
+
+<main class="detail-shell" data-watch-detail data-store-id={store.id} data-product-id={product.id}>
+  <header class="detail-hero">
+    <div>
+      <span class="hero-kicker">Producto</span>
+      <div class="title-line">
+        <h1>{product.name}</h1>
+        <span class="readonly-badge">Solo lectura</span>
+      </div>
+      <p>{product.internal_ref ? `Referencia ${product.internal_ref}` : product.slug || 'Sin referencia interna'}</p>
+    </div>
+    <nav class="hero-actions" aria-label="Acciones de producto">
+      <a class="secondary-action" href={productsPath}>Volver a Productos</a>
+      <a class="secondary-action" href={`/master/analytics/${encodeURIComponent(store.id)}`}>Ver Analíticas</a>
+      {publicPath ? (
+        <a class="primary-action" href={publicPath}>Abrir producto público</a>
+      ) : (
+        <span class="public-unavailable">No disponible públicamente</span>
+      )}
+    </nav>
+  </header>
+
+  <section class="overview-grid">
+    <article class="gallery-card">
+      <div class="main-image">
+        {mainImage ? <img src={mainImage} alt={product.name} width="900" height="900" /> : <span aria-hidden="true">Sin imágenes</span>}
+      </div>
+      {product.image_urls.length > 1 && (
+        <div class="thumbnails" aria-label="Imágenes adicionales del producto">
+          {product.image_urls.map((url, index) => (
+            <a href={url} aria-label={`Abrir imagen ${index + 1} de ${product.name}`}>
+              <img src={url} alt="" width="120" height="120" loading={index === 0 ? undefined : 'lazy'} />
+            </a>
+          ))}
+        </div>
+      )}
+    </article>
+
+    <article class="summary-card">
+      <header>
+        <div>
+          <span>Información general</span>
+          <h2>{formatUsd(product.current_price_usd)}</h2>
+          {product.is_offer && <small>Precio regular {formatUsd(product.regular_price_usd)}</small>}
+        </div>
+        <span class:list={['visibility-badge', `is-${product.visibility_reason}`]}>{visibilityLabels[product.visibility_reason]}</span>
+      </header>
+      <div class="product-badges">
+        {product.featured && <span>Destacado · orden {formatNumber(product.featured_order)}</span>}
+        {product.only_usd && <span>Solo USD</span>}
+        {product.allow_preorder && <span class="is-preorder">Preventa permitida</span>}
+        {product.is_offer && <span class="is-offer">Oferta activa</span>}
+        {product.has_variations && <span>{detail.variations_total} variaciones</span>}
+      </div>
+      <dl class="facts-grid">
+        <div><dt>Slug</dt><dd>{product.slug || 'Sin slug'}</dd></div>
+        <div><dt>Referencia interna</dt><dd>{product.internal_ref || 'Sin referencia'}</dd></div>
+        <div><dt>Categoría</dt><dd>{product.category?.name || 'Sin categoría'}{product.category && !product.category.active ? ' · Oculta' : ''}</dd></div>
+        <div><dt>Subcategoría</dt><dd>{product.subcategory?.name || 'Sin subcategoría'}{product.subcategory && !product.subcategory.active ? ' · Oculta' : ''}</dd></div>
+        <div><dt>Entrega</dt><dd>{deliveryLabels[product.delivery_mode]}</dd></div>
+        <div><dt>Vencimiento</dt><dd>{formatDate(product.expiration_date)}</dd></div>
+        <div><dt>Creado</dt><dd>{formatDate(product.created, true)}</dd></div>
+        <div><dt>Actualizado</dt><dd>{formatDate(product.updated, true)}</dd></div>
+      </dl>
+      <div class="inventory-summary">
+        <span>Inventario</span>
+        {!product.track_stock ? (
+          <strong>Sin control de stock</strong>
+        ) : product.has_variations ? (
+          <><strong>{formatNumber(activeVariationStock)} unidades en variaciones activas</strong><small>{activeVariationCount} activas · {hiddenVariationCount} ocultas</small></>
+        ) : (
+          <strong>{formatNumber(product.stock)} unidades registradas</strong>
+        )}
+      </div>
+    </article>
+  </section>
+
+  <section class="content-grid">
+    <article class="section-card description-card">
+      <header><span>Contenido</span><h2>Descripción</h2></header>
+      {product.description_text ? <p>{product.description_text}</p> : <p class="empty-copy">Este producto no tiene descripción.</p>}
+    </article>
+    <article class="section-card extra-card">
+      <header><span>Ficha</span><h2>Datos adicionales</h2></header>
+      {product.extra_info.length ? (
+        <dl>
+          {product.extra_info.map((item) => <div><dt>{item.label}</dt><dd>{item.value}</dd></div>)}
+        </dl>
+      ) : <p class="empty-copy">No hay datos adicionales registrados.</p>}
+    </article>
+  </section>
+
+  <section class="section-card variations-card">
+    <header class="section-heading">
+      <div><span>Inventario interno</span><h2>Variaciones</h2><p>Incluye variaciones activas, ocultas, agotadas y con preventa.</p></div>
+      <span>{formatNumber(detail.variations_total)} total</span>
+    </header>
+    {detail.variations_truncated && (
+      <p class="truncated-notice" role="status">Se muestran las primeras 500 variaciones en el orden interno.</p>
+    )}
+    {variations.length ? (
+      <>
+        <div class="variations-table">
+          <div class="variation-row variation-head" aria-hidden="true">
+            <span>Variación</span><span>Estado</span><span>Precio</span><span>Oferta</span><span>Stock</span><span>Preventa</span><span>Vencimiento</span><span>Referencia</span>
+          </div>
+          {variations.map((variation) => (
+            <article class="variation-row">
+              <div class="variation-name">
+                {variation.image_url ? <img src={variation.image_url} alt="" width="42" height="42" loading="lazy" /> : <span aria-hidden="true">V</span>}
+                <div><strong>{variation.label}</strong><small>Orden {formatNumber(variation.sort_order)}</small></div>
+              </div>
+              <div><span class:list={['variation-status', variation.active ? 'is-active' : 'is-hidden']}>{variation.active ? 'Activa' : 'Oculta'}</span></div>
+              <div><strong>{formatUsd(variation.current_price_usd)}</strong>{variation.is_offer && <small>Regular {formatUsd(variation.price_usd)}</small>}</div>
+              <div>{variation.is_offer ? <span class="offer-badge">En oferta</span> : <span class="muted">Sin oferta</span>}</div>
+              <div><span class:list={['stock-state', `is-${variation.inventory_state}`]}>{inventoryLabels[variation.inventory_state]}</span><small>{formatNumber(variation.stock)} unidades</small></div>
+              <div>{variation.allow_preorder ? 'Permitida' : 'No'}</div>
+              <div>{formatDate(variation.expiration_date)}</div>
+              <div>{variation.internal_ref || 'Sin referencia'}</div>
+            </article>
+          ))}
+        </div>
+
+        <div class="mobile-variations">
+          {variations.map((variation) => (
+            <article class="variation-card">
+              <header>
+                {variation.image_url ? <img src={variation.image_url} alt="" width="54" height="54" loading="lazy" /> : <span class="variation-placeholder" aria-hidden="true">V</span>}
+                <div><strong>{variation.label}</strong><small>{variation.internal_ref || 'Sin referencia'}</small></div>
+                <span class:list={['variation-status', variation.active ? 'is-active' : 'is-hidden']}>{variation.active ? 'Activa' : 'Oculta'}</span>
+              </header>
+              <div class="variation-flags">
+                <span class:list={['stock-state', `is-${variation.inventory_state}`]}>{inventoryLabels[variation.inventory_state]}</span>
+                {variation.is_offer && <span class="offer-badge">Oferta</span>}
+                {variation.allow_preorder && <span class="preorder-badge">Preventa</span>}
+              </div>
+              <dl>
+                <div><dt>Precio</dt><dd>{variationPrice(variation)}</dd></div>
+                <div><dt>Stock</dt><dd>{formatNumber(variation.stock)}</dd></div>
+                <div><dt>Vencimiento</dt><dd>{formatDate(variation.expiration_date)}</dd></div>
+                <div><dt>Orden</dt><dd>{formatNumber(variation.sort_order)}</dd></div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </>
+    ) : (
+      <p class="empty-copy padded">Este producto no tiene variaciones registradas.</p>
+    )}
+  </section>
+
+  <section id="seguimiento-precio" class="section-card watch-section">
+    <header class="section-heading">
+      <div><span>Control Master</span><h2>Seguimiento de precio</h2><p>La línea base usa precios comerciales en USD.</p></div>
+      {watch.status === 'active' && <span class="watch-status is-active">Precio en seguimiento</span>}
+      {watch.status === 'paused' && <span class="watch-status is-paused">Seguimiento pausado</span>}
+    </header>
+
+    {historyError ? (
+      <p class="watch-error" role="alert">{historyError}</p>
+    ) : watch.status === 'none' ? (
+      <div class="watch-state-card">
+        <div><strong>Este producto no está en seguimiento.</strong><p>Actívalo para conservar una línea base y registrar cambios posteriores.</p></div>
+        <button type="button" data-watch-action="enable">Seguir precio</button>
+      </div>
+    ) : watch.status === 'active' ? (
+      <div class="watch-state-card is-active">
+        <div><strong>Precio en seguimiento</strong><p>Desde: {formatDate(watch.started_at, true)}</p></div>
+        <button type="button" data-watch-action="pause">Pausar seguimiento</button>
+      </div>
+    ) : (
+      <div class="watch-state-card is-paused">
+        <div><strong>Seguimiento pausado</strong><p>El historial se conserva; los cambios durante la pausa no se registran.</p></div>
+        <button type="button" data-watch-action="resume">Reanudar seguimiento</button>
+      </div>
+    )}
+
+    <div class="history-heading">
+      <div><span>Registro permanente</span><h3>Historial de precios</h3></div>
+      <span>{formatNumber(history?.page.total_items || 0)} eventos</span>
+    </div>
+
+    {historyItems.length ? (
+      <>
+        <div class="history-table">
+          <div class="history-row history-head" aria-hidden="true">
+            <span>Cambio</span><span>Detalle</span><span>Antes</span><span>Después</span><span>Actor</span><span>Fecha</span>
+          </div>
+          {historyItems.map((item) => (
+            <article class="history-row">
+              <div><strong>{eventLabel(item.change_type)}</strong>{item.variation_label && <small>{item.variation_label}</small>}</div>
+              <div>{item.summary}</div>
+              <div><strong>{formatUsd(item.before_effective_price_usd)}</strong><small>Normal {formatUsd(item.before_regular_price_usd)}</small></div>
+              <div><strong>{formatUsd(item.after_effective_price_usd)}</strong><small>Normal {formatUsd(item.after_regular_price_usd)}</small></div>
+              <div><strong>{item.actor_name}</strong><small>{item.actor_role}</small></div>
+              <div>{formatDate(item.created, true)}</div>
+            </article>
+          ))}
+        </div>
+        <div class="history-mobile">
+          {historyItems.map((item) => (
+            <article>
+              <header><div><strong>{eventLabel(item.change_type)}</strong><small>{item.variation_label}</small></div><time>{formatDate(item.created, true)}</time></header>
+              <p>{item.summary}</p>
+              <dl>
+                <div><dt>Antes</dt><dd>{formatUsd(item.before_effective_price_usd)}</dd></div>
+                <div><dt>Después</dt><dd>{formatUsd(item.after_effective_price_usd)}</dd></div>
+                <div><dt>Actor</dt><dd>{item.actor_name}</dd></div>
+                <div><dt>Rol</dt><dd>{item.actor_role}</dd></div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </>
+    ) : (
+      <p class="empty-copy padded">Todavía no hay cambios de precio registrados.</p>
+    )}
+
+    {history && history.page.total_pages > 1 && (
+      <nav class="history-pagination" aria-label="Paginación del historial de precios">
+        {history.page.page > 1 ? <a href={historyHref(history.page.page - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
+        <strong>Página {history.page.page} de {history.page.total_pages}</strong>
+        {history.page.page < history.page.total_pages ? <a href={historyHref(history.page.page + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
+      </nav>
+    )}
+  </section>
+
+  <section class="section-card related-card">
+    <header class="section-heading">
+      <div><span>Misma tienda</span><h2>Productos relacionados</h2><p>Relaciones internas válidas del catálogo.</p></div>
+      <span>{relatedProducts.length} disponibles</span>
+    </header>
+    {relatedProducts.length ? (
+      <div class="related-grid">
+        {relatedProducts.map((related) => (
+          <article>
+            <div class="related-image">
+              {related.primary_image_url ? <img src={related.primary_image_url} alt="" width="180" height="180" loading="lazy" /> : <span aria-hidden="true">PZ</span>}
+            </div>
+            <div>
+              <strong>{related.name}</strong>
+              <span class:list={['visibility-badge', related.publicly_visible ? 'is-visible' : 'is-product_hidden']}>
+                {related.publicly_visible ? 'Visible' : 'No público'}
+              </span>
+            </div>
+            <a href={variationDetailPath(related.id)}>Ver detalle</a>
+          </article>
+        ))}
+      </div>
+    ) : <p class="empty-copy padded">No hay productos relacionados válidos para esta tienda.</p>}
+  </section>
+</main>
+
+<style>
+  .detail-shell { display: grid; gap: 18px; padding: 12px 0 46px; color: #0f172a; }
+  .detail-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; border: 1px solid #ddd6fe; border-radius: 20px; background: linear-gradient(135deg, #f5f3ff, #fff 55%, #eff6ff); padding: clamp(22px, 4vw, 36px); }
+  .hero-kicker, .summary-card header > div > span, .section-card header > span, .section-heading > div > span, .inventory-summary > span { color: #6d28d9; font-size: 10px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .title-line h1 { margin: 5px 0 0; max-width: 800px; overflow-wrap: anywhere; font-size: clamp(28px, 5vw, 45px); line-height: 1; font-weight: 1000; }
+  .detail-hero p { margin: 9px 0 0; color: #475569; font-size: 12px; font-weight: 800; }
+  .readonly-badge, .public-unavailable, .visibility-badge, .product-badges span, .variation-status, .offer-badge, .stock-state, .preorder-badge { display: inline-flex; align-items: center; width: max-content; max-width: 100%; border: 1px solid #cbd5e1; border-radius: 999px; padding: 5px 8px; font-size: 9px; line-height: 1.15; font-weight: 950; }
+  .readonly-badge { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
+  .public-unavailable { background: #f8fafc; color: #64748b; }
+  .hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+  .primary-action, .secondary-action { display: inline-flex; align-items: center; justify-content: center; min-height: 39px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155; padding: 9px 12px; font-size: 12px; line-height: 1; font-weight: 950; text-decoration: none; }
+  .primary-action { border-color: #6d28d9; background: #6d28d9; color: #fff; }
+  .overview-grid { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(0, 1.4fr); gap: 16px; }
+  .gallery-card, .summary-card, .section-card { min-width: 0; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 17px; }
+  .main-image { display: grid; place-items: center; aspect-ratio: 1; overflow: hidden; border-radius: 14px; background: #f1f5f9; color: #94a3b8; font-size: 13px; font-weight: 900; }
+  .main-image img { width: 100%; height: 100%; object-fit: contain; }
+  .thumbnails { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding-top: 10px; }
+  .thumbnails a { overflow: hidden; aspect-ratio: 1; border: 2px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+  .thumbnails a:first-child { border-color: #8b5cf6; }
+  .thumbnails img { width: 100%; height: 100%; object-fit: cover; }
+  .summary-card { display: grid; align-content: start; gap: 16px; }
+  .summary-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .summary-card h2 { margin: 5px 0 0; font-size: 31px; line-height: 1; font-weight: 1000; }
+  .summary-card header small { display: block; margin-top: 6px; color: #64748b; font-size: 10px; font-weight: 800; }
+  .visibility-badge.is-visible, .variation-status.is-active, .stock-state.is-available { border-color: #a7f3d0; background: #ecfdf5; color: #047857; }
+  .visibility-badge.is-store_suspended, .stock-state.is-preorder, .preorder-badge { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+  .visibility-badge.is-product_hidden, .visibility-badge.is-category_hidden, .visibility-badge.is-subcategory_hidden, .variation-status.is-hidden { background: #f1f5f9; color: #475569; }
+  .stock-state.is-out_of_stock { border-color: #fecaca; background: #fff1f2; color: #be123c; }
+  .offer-badge, .product-badges .is-offer { border-color: #fecaca; background: #fff1f2; color: #be123c; }
+  .product-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .product-badges span { border-color: #dbeafe; background: #eff6ff; color: #1d4ed8; }
+  .product-badges .is-preorder { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+  .facts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+  .facts-grid > div { display: grid; gap: 4px; min-width: 0; border-radius: 10px; background: #f8fafc; padding: 10px; }
+  .facts-grid dt, .variation-card dt { color: #64748b; font-size: 8px; font-weight: 950; letter-spacing: .04em; text-transform: uppercase; }
+  .facts-grid dd, .variation-card dd { margin: 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 900; }
+  .inventory-summary { display: grid; gap: 5px; border: 1px solid #dbeafe; border-radius: 12px; background: #eff6ff; padding: 13px; }
+  .inventory-summary strong { font-size: 15px; font-weight: 1000; }
+  .inventory-summary small { color: #475569; font-size: 10px; font-weight: 750; }
+  .content-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, .7fr); gap: 16px; }
+  .section-card > header h2, .section-heading h2 { margin: 4px 0 0; font-size: 21px; font-weight: 1000; }
+  .description-card > p { margin: 15px 0 0; color: #334155; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.65; font-weight: 650; }
+  .extra-card dl { display: grid; gap: 8px; margin: 15px 0 0; }
+  .extra-card dl > div { display: grid; gap: 3px; border-radius: 10px; background: #f8fafc; padding: 10px; }
+  .extra-card dt { color: #64748b; font-size: 9px; font-weight: 950; text-transform: uppercase; }
+  .extra-card dd { margin: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 900; }
+  .empty-copy { margin: 14px 0 0; color: #64748b; font-size: 12px; line-height: 1.5; font-weight: 700; }
+  .empty-copy.padded { border-radius: 12px; background: #f8fafc; padding: 22px; text-align: center; }
+  .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 14px; }
+  .section-heading p { margin: 5px 0 0; color: #64748b; font-size: 11px; font-weight: 700; }
+  .section-heading > span { border-radius: 999px; background: #f1f5f9; color: #475569; padding: 7px 10px; font-size: 10px; font-weight: 950; white-space: nowrap; }
+  .truncated-notice { margin: 0 0 12px; border-radius: 10px; background: #fff7ed; color: #9a3412; padding: 10px; font-size: 11px; font-weight: 800; }
+  .variations-table { border: 1px solid #e2e8f0; border-radius: 13px; overflow: hidden; }
+  .variation-row { display: grid; grid-template-columns: minmax(190px, 1.3fr) 75px 110px 80px 120px 75px 100px minmax(100px, .7fr); align-items: center; gap: 10px; border-bottom: 1px solid #eef2f7; padding: 11px; font-size: 10px; font-weight: 800; }
+  .variation-row:last-child { border-bottom: 0; }
+  .variation-head { background: #f8fafc; color: #64748b; font-size: 8px; font-weight: 1000; letter-spacing: .04em; text-transform: uppercase; }
+  .variation-row > div { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+  .variation-row small { color: #64748b; font-size: 8px; font-weight: 700; }
+  .variation-name { grid-template-columns: 42px minmax(0, 1fr); align-items: center; }
+  .variation-name > img, .variation-name > span { width: 42px; height: 42px; border-radius: 8px; background: #f1f5f9; object-fit: cover; }
+  .variation-name > span { display: grid; place-items: center; color: #94a3b8; font-weight: 1000; }
+  .variation-name > div { display: grid; gap: 3px; min-width: 0; }
+  .variation-name strong { overflow-wrap: anywhere; font-size: 11px; font-weight: 950; }
+  .muted { color: #94a3b8; font-size: 9px; }
+  .mobile-variations { display: none; }
+  .related-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .related-grid article { display: grid; grid-template-columns: 62px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; }
+  .related-image { display: grid; place-items: center; width: 62px; height: 62px; overflow: hidden; border-radius: 9px; background: #f1f5f9; color: #94a3b8; font-size: 9px; font-weight: 1000; }
+  .related-image img { width: 100%; height: 100%; object-fit: cover; }
+  .related-grid article > div:nth-child(2) { display: grid; justify-items: start; gap: 6px; min-width: 0; }
+  .related-grid strong { overflow-wrap: anywhere; font-size: 11px; font-weight: 950; }
+  .related-grid a { grid-column: 1 / -1; display: inline-flex; justify-content: center; border: 1px solid #cbd5e1; border-radius: 9px; color: #334155; padding: 8px; font-size: 10px; font-weight: 950; text-decoration: none; }
+  .watch-section { scroll-margin-top: 16px; }
+  .watch-status { border: 1px solid #a7f3d0 !important; background: #ecfdf5 !important; color: #047857 !important; }
+  .watch-status.is-paused { border-color: #fed7aa !important; background: #fff7ed !important; color: #c2410c !important; }
+  .watch-state-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid #e2e8f0; border-radius: 13px; background: #f8fafc; padding: 15px; }
+  .watch-state-card.is-active { border-color: #a7f3d0; background: #ecfdf5; }
+  .watch-state-card.is-paused { border-color: #fed7aa; background: #fff7ed; }
+  .watch-state-card > div { display: grid; gap: 4px; }
+  .watch-state-card strong { font-size: 13px; font-weight: 1000; }
+  .watch-state-card p { margin: 0; color: #475569; font-size: 10px; line-height: 1.45; font-weight: 750; }
+  .watch-state-card button { min-height: 39px; border: 1px solid #6d28d9; border-radius: 10px; background: #6d28d9; color: #fff; padding: 9px 12px; font: inherit; font-size: 11px; font-weight: 1000; white-space: nowrap; cursor: pointer; }
+  .watch-state-card button:disabled { opacity: .65; cursor: wait; }
+  .watch-error { border-radius: 11px; background: #fff7ed; color: #9a3412; padding: 13px; font-size: 11px; font-weight: 800; }
+  .history-heading { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-top: 20px; padding: 0 2px 10px; }
+  .history-heading > div { display: grid; gap: 3px; }
+  .history-heading span { color: #64748b; font-size: 9px; font-weight: 950; text-transform: uppercase; }
+  .history-heading h3 { margin: 0; font-size: 18px; font-weight: 1000; }
+  .history-table { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; }
+  .history-row { display: grid; grid-template-columns: minmax(130px, .8fr) minmax(180px, 1.4fr) 100px 100px 110px 110px; align-items: center; gap: 10px; border-bottom: 1px solid #eef2f7; padding: 11px; font-size: 9px; line-height: 1.35; font-weight: 750; }
+  .history-row:last-child { border-bottom: 0; }
+  .history-row > div { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+  .history-row strong { font-size: 10px; font-weight: 950; }
+  .history-row small { color: #64748b; font-size: 8px; font-weight: 750; }
+  .history-head { background: #f8fafc; color: #64748b; font-size: 8px; font-weight: 1000; text-transform: uppercase; }
+  .history-mobile { display: none; }
+  .history-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 14px; }
+  .history-pagination a, .history-pagination span { border: 1px solid #cbd5e1; border-radius: 9px; color: #334155; padding: 8px 10px; font-size: 10px; font-weight: 950; text-decoration: none; }
+  .history-pagination span { opacity: .45; }
+  .history-pagination strong { color: #475569; font-size: 10px; }
+
+  @media (max-width: 1100px) {
+    .variations-table { display: none; }
+    .mobile-variations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .variation-card { display: grid; gap: 11px; min-width: 0; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; }
+    .variation-card header { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: center; gap: 9px; }
+    .variation-card header img, .variation-placeholder { width: 54px; height: 54px; border-radius: 9px; background: #f1f5f9; object-fit: cover; }
+    .variation-placeholder { display: grid; place-items: center; color: #94a3b8; font-size: 10px; font-weight: 1000; }
+    .variation-card header > div { display: grid; gap: 3px; min-width: 0; }
+    .variation-card header strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 950; }
+    .variation-card header small { overflow: hidden; color: #64748b; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    .variation-card header .variation-status { grid-column: 2; }
+    .variation-flags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .variation-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 0; }
+    .variation-card dl > div { display: grid; gap: 3px; border-radius: 8px; background: #f8fafc; padding: 8px; }
+    .related-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .history-table { display: none; }
+    .history-mobile { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .history-mobile > article { display: grid; gap: 9px; border: 1px solid #e2e8f0; border-radius: 11px; padding: 11px; }
+    .history-mobile header { display: flex; align-items: start; justify-content: space-between; gap: 9px; }
+    .history-mobile header > div { display: grid; gap: 3px; }
+    .history-mobile header strong { font-size: 11px; font-weight: 1000; }
+    .history-mobile header small, .history-mobile time { color: #64748b; font-size: 8px; font-weight: 750; }
+    .history-mobile p { margin: 0; color: #334155; font-size: 10px; line-height: 1.45; font-weight: 750; }
+    .history-mobile dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+    .history-mobile dl > div { display: grid; gap: 2px; border-radius: 8px; background: #f8fafc; padding: 7px; }
+    .history-mobile dt { color: #64748b; font-size: 7px; font-weight: 950; text-transform: uppercase; }
+    .history-mobile dd { margin: 0; overflow-wrap: anywhere; font-size: 9px; font-weight: 900; }
+  }
+
+  @media (max-width: 760px) {
+    .detail-hero { align-items: stretch; flex-direction: column; }
+    .hero-actions { justify-content: flex-start; }
+    .overview-grid, .content-grid { grid-template-columns: 1fr; }
+    .gallery-card { max-width: none; }
+    .watch-state-card { align-items: stretch; flex-direction: column; }
+  }
+
+  @media (max-width: 540px) {
+    .detail-shell { gap: 13px; }
+    .detail-hero { padding: 20px 17px; }
+    .hero-actions { display: grid; grid-template-columns: 1fr; }
+    .hero-actions > * { width: 100%; }
+    .gallery-card, .summary-card, .section-card { padding: 12px; }
+    .facts-grid { grid-template-columns: 1fr; }
+    .summary-card > header, .section-heading { align-items: flex-start; flex-direction: column; }
+    .mobile-variations, .related-grid { grid-template-columns: 1fr; }
+    .variation-card dl { grid-template-columns: 1fr; }
+    .history-mobile { grid-template-columns: 1fr; }
+    .history-pagination { justify-content: space-between; }
+  }
+</style>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { runMasterProductWatchAction } from '../../lib/masterProductWatches';
+
+  const watchDetail = document.querySelector<HTMLElement>('[data-watch-detail]');
+  const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+  if (watchDetail && pocketbaseUrl) {
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    watchDetail.querySelectorAll<HTMLButtonElement>('[data-watch-action]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const action = String(button.dataset.watchAction || '') as 'enable' | 'pause' | 'resume';
+        if (!pb.authStore.isValid || !pb.authStore.token || !['enable', 'pause', 'resume'].includes(action)) return;
+        button.disabled = true;
+        const previousText = button.textContent || '';
+        button.textContent = 'Procesando…';
+        const result = await runMasterProductWatchAction(
+          pocketbaseUrl,
+          pb.authStore.token,
+          String(watchDetail.dataset.storeId || ''),
+          String(watchDetail.dataset.productId || ''),
+          action,
+        );
+        if (result.available) {
+          window.location.hash = 'seguimiento-precio';
+          window.location.reload();
+        } else {
+          button.disabled = false;
+          button.textContent = previousText;
+        }
+      });
+    });
+  }
+</script>

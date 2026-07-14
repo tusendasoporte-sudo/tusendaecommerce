@@ -194,8 +194,10 @@ try {
         return Astro.redirect(`${adminSecurityPath}?section=customers&customer_status=archived&customer=${encodeURIComponent(targetCustomerId)}&notice=customer_archived`);
       }
       return Astro.redirect(`${adminSecurityPath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=customer_restored`);
-    } catch (_) {
-      viewError = 'No se pudo completar la accion sobre el cliente. Revisa el motivo y los permisos.';
+    } catch (error: any) {
+      viewError = lifecycleAction === 'archive' && String(error?.response?.error || '') === 'active_blocks'
+        ? 'Desbloquea al cliente antes de archivarlo.'
+        : 'No se pudo completar la accion sobre el cliente. Revisa el motivo y los permisos.';
     }
   }
 
@@ -267,15 +269,13 @@ try {
       authPb,
       currentStoreId,
       params.activityPage,
-      securitySettings,
       params.eventType,
-      params.eventDecision,
       params.eventRisk
     );
   }
 
   if (params.section === 'visitors') {
-    visitorsResult = await getSecurityVisitorsTodayPage(authPb, currentStoreId, params.visitorsPage, securitySettings);
+    visitorsResult = await getSecurityVisitorsTodayPage(authPb, currentStoreId, params.visitorsPage);
   }
 
   if (params.section === 'blocked') {

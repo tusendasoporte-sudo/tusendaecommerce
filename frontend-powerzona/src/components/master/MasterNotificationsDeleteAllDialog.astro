@@ -1,0 +1,79 @@
+---
+import MasterDialog from './MasterDialog.astro';
+import MasterIcon from './MasterIcon.astro';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+<MasterDialog
+  id="master-notifications-delete-all-dialog"
+  title="Borrar todas las notificaciones"
+  description="Esta acción es irreversible. El historial de precios y los seguimientos permanecerán."
+  tone="danger"
+  size="sm"
+  closeOnBackdrop={false}
+>
+  <div data-notifications-delete-all-body data-pocketbase-url={pocketbaseUrl}>
+    <p class="master-form-alert" data-delete-all-error role="alert" hidden></p>
+    <p class="master-muted">Se eliminarán definitivamente todas tus notificaciones del Master.</p>
+  </div>
+  <div slot="footer">
+    <button class="master-btn master-btn--secondary" type="button" data-delete-all-cancel data-master-dialog-close>Cancelar</button>
+    <button class="master-btn master-btn--danger-solid" type="button" data-delete-all-confirm>
+      <MasterIcon name="trash" size={17} />
+      Borrar todo
+    </button>
+  </div>
+</MasterDialog>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { runMasterNotificationAction } from '../../lib/masterNotifications';
+
+  const dialog = document.getElementById('master-notifications-delete-all-dialog') as HTMLDialogElement | null;
+  const body = dialog?.querySelector<HTMLElement>('[data-notifications-delete-all-body]');
+  if (dialog && body && dialog.dataset.deleteAllBound !== 'true') {
+    dialog.dataset.deleteAllBound = 'true';
+    const pocketbaseUrl = String(body.dataset.pocketbaseUrl || '').replace(/\/$/, '');
+    const cancelButton = dialog.querySelector<HTMLButtonElement>('[data-delete-all-cancel]');
+    const confirmButton = dialog.querySelector<HTMLButtonElement>('[data-delete-all-confirm]');
+    const errorBox = dialog.querySelector<HTMLElement>('[data-delete-all-error]');
+
+    function clearError() {
+      if (!errorBox) return;
+      errorBox.hidden = true;
+      errorBox.textContent = '';
+    }
+
+    window.addEventListener('pz:request-delete-all-notifications', () => {
+      if (dialog.open) return;
+      clearError();
+      window.PZMasterDialog?.open(dialog.id);
+      if (!dialog.open) dialog.showModal();
+      window.setTimeout(() => cancelButton?.focus(), 0);
+    });
+
+    confirmButton?.addEventListener('click', async () => {
+      if (!pocketbaseUrl || !confirmButton) return;
+      if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+      if (!pb.authStore.isValid || !pb.authStore.token) return;
+      confirmButton.disabled = true;
+      if (cancelButton) cancelButton.disabled = true;
+      confirmButton.textContent = 'Borrando...';
+      const result = await runMasterNotificationAction(pocketbaseUrl, pb.authStore.token, 'delete_all');
+      confirmButton.disabled = false;
+      if (cancelButton) cancelButton.disabled = false;
+      confirmButton.textContent = 'Borrar todo';
+      if (!result.available) {
+        if (errorBox) {
+          errorBox.textContent = 'No se pudieron borrar las notificaciones. Inténtalo nuevamente.';
+          errorBox.hidden = false;
+        }
+        return;
+      }
+      dialog.close();
+      window.dispatchEvent(new CustomEvent('pz:notifications-deleted-all', { detail: { updated: result.updated } }));
+      window.dispatchEvent(new CustomEvent('pz:master-notifications-count', { detail: { unreadCount: 0 } }));
+    });
+  }
+</script>

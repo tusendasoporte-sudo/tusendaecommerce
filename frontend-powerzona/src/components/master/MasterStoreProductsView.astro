@@ -1,0 +1,490 @@
+---
+import type {
+  MasterProductListItem,
+  MasterProductSort,
+  MasterProductStatus,
+  MasterProductWatchFilter,
+  MasterProductsResult,
+  MasterProductsStore,
+} from '../../lib/masterStoreProducts';
+
+interface Props {
+  products: MasterProductsResult | null;
+  store: MasterProductsStore;
+  basePath: string;
+  currentStatus: MasterProductStatus;
+  currentSort: MasterProductSort;
+  currentWatch: MasterProductWatchFilter;
+  currentSearch: string;
+  currentCategory: string;
+  currentSubcategory: string;
+  viewError?: string;
+}
+
+const {
+  products,
+  store,
+  basePath,
+  currentStatus,
+  currentSort,
+  currentWatch,
+  currentSearch,
+  currentCategory,
+  currentSubcategory,
+  viewError = '',
+} = Astro.props;
+
+const statusOptions: Array<[MasterProductStatus, string]> = [
+  ['all', 'Todos'],
+  ['visible', 'Visibles'],
+  ['hidden', 'Ocultos'],
+  ['out_of_stock', 'Agotados'],
+  ['low_stock', 'Poco stock'],
+  ['with_variations', 'Con variaciones'],
+  ['without_variations', 'Sin variaciones'],
+  ['featured', 'Destacados'],
+  ['offer', 'En oferta'],
+  ['preorder', 'Con preventa'],
+];
+const sortOptions: Array<[MasterProductSort, string]> = [
+  ['updated_desc', 'Actualizados recientemente'],
+  ['created_desc', 'Creados recientemente'],
+  ['name_asc', 'Nombre A–Z'],
+  ['name_desc', 'Nombre Z–A'],
+  ['stock_asc', 'Menor stock'],
+  ['stock_desc', 'Mayor stock'],
+  ['price_asc', 'Menor precio'],
+  ['price_desc', 'Mayor precio'],
+];
+const watchOptions: Array<[MasterProductWatchFilter, string]> = [
+  ['all', 'Todos'],
+  ['active', 'Activos'],
+  ['paused', 'Pausados'],
+  ['none', 'Sin seguimiento'],
+];
+const visibilityLabels: Record<string, string> = {
+  visible: 'Visible',
+  product_hidden: 'Oculto por producto',
+  category_hidden: 'Oculto por categoría',
+  subcategory_hidden: 'Oculto por subcategoría',
+  store_suspended: 'Tienda suspendida',
+};
+const inventoryLabels: Record<string, string> = {
+  untracked: 'Sin control',
+  available: 'Disponible',
+  out_of_stock: 'Agotado',
+  preorder: 'Agotado · Preventa permitida',
+};
+
+function formatNumber(value: unknown) {
+  return new Intl.NumberFormat('es-US', { maximumFractionDigits: 2 }).format(Number(value || 0));
+}
+
+function formatUsd(value: unknown) {
+  return new Intl.NumberFormat('es-US', { style: 'currency', currency: 'USD' }).format(Number(value || 0));
+}
+
+function formatDate(value: string) {
+  if (!value) return 'Sin fecha';
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return 'Sin fecha';
+  return new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short', year: 'numeric' })
+    .format(date)
+    .replace(/\./g, '');
+}
+
+function publicStorePath() {
+  return store.slug ? `/t/${encodeURIComponent(store.slug)}` : '';
+}
+
+function detailPath(item: MasterProductListItem) {
+  return `${basePath}/${encodeURIComponent(item.id)}`;
+}
+
+function productPrice(item: MasterProductListItem) {
+  if (!item.has_variations || item.min_variation_price_usd === null) return formatUsd(item.current_price_usd);
+  const min = item.min_variation_price_usd;
+  const max = item.max_variation_price_usd ?? min;
+  return Math.abs(max - min) < 0.0001 ? formatUsd(min) : `${formatUsd(min)} – ${formatUsd(max)}`;
+}
+
+function inventoryDetail(item: MasterProductListItem) {
+  if (!item.track_stock) return 'Inventario no controlado';
+  if (item.has_variations) {
+    return `${formatNumber(item.active_variations_stock)} en activas · ${item.active_variation_count}/${item.variation_count} variaciones activas`;
+  }
+  return `${formatNumber(item.stored_stock)} unidades registradas`;
+}
+
+function pageHref(page: number) {
+  const params = new URLSearchParams();
+  if (currentSearch) params.set('q', currentSearch);
+  if (currentStatus !== 'all') params.set('status', currentStatus);
+  if (currentCategory) params.set('category', currentCategory);
+  if (currentSubcategory) params.set('subcategory', currentSubcategory);
+  if (currentSort !== 'updated_desc') params.set('sort', currentSort);
+  if (currentWatch !== 'all') params.set('watch', currentWatch);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+const summary = products?.summary;
+const items = products?.page.items || [];
+const categories = products?.filters.categories || [];
+const subcategories = products?.filters.subcategories || [];
+const currentPage = products?.page.page || 1;
+const totalPages = products?.page.total_pages || 1;
+---
+
+<main class="products-shell" data-master-products-store={store.id}>
+  <header class="products-hero">
+    <div>
+      <span class="hero-kicker">Productos</span>
+      <div class="title-line">
+        <h1>{store.name}</h1>
+        <span class:list={['store-status', store.status === 'active' ? 'is-active' : 'is-suspended']}>
+          {store.status === 'active' ? 'Activa' : 'Suspendida'}
+        </span>
+      </div>
+      <p>Catálogo interno completo · Solo lectura</p>
+    </div>
+    <nav class="hero-actions" aria-label="Acciones de catálogo">
+      <a class="secondary-action" href={`/master/stores/${encodeURIComponent(store.id)}`}>Volver al resumen</a>
+      <a class="secondary-action" href={`/master/analytics/${encodeURIComponent(store.id)}`}>Ver Analíticas</a>
+      {publicStorePath() && <a class="primary-action" href={publicStorePath()}>Ver tienda</a>}
+    </nav>
+  </header>
+
+  {viewError && (
+    <section class="products-error" role="alert">
+      <strong>Catálogo temporalmente no disponible</strong>
+      <p>{viewError}</p>
+    </section>
+  )}
+
+  {summary && (
+    <section class="kpi-grid" aria-label="Resumen del catálogo">
+      <article><span>Total</span><strong>{formatNumber(summary.total)}</strong></article>
+      <article class="is-green"><span>Visibles</span><strong>{formatNumber(summary.publicly_visible)}</strong></article>
+      <article class="is-slate"><span>Ocultos</span><strong>{formatNumber(summary.hidden)}</strong></article>
+      <article class="is-orange"><span>Agotados</span><strong>{formatNumber(summary.out_of_stock)}</strong></article>
+      <article class="is-violet"><span>Con variaciones</span><strong>{formatNumber(summary.with_variations)}</strong></article>
+      <article class="is-small"><span>Destacados</span><strong>{formatNumber(summary.featured)}</strong></article>
+      <article class="is-small"><span>En oferta</span><strong>{formatNumber(summary.offers)}</strong></article>
+      <article class="is-small"><span>Preventa</span><strong>{formatNumber(summary.preorder)}</strong></article>
+    </section>
+  )}
+
+  <form class="filters-card" method="get" action={basePath}>
+    <label class="search-field">
+      <span>Buscar producto</span>
+      <input name="q" type="search" value={currentSearch} maxlength="100" placeholder="Nombre, slug o referencia" autocomplete="off" />
+    </label>
+    <label>
+      <span>Estado</span>
+      <select name="status">
+        {statusOptions.map(([value, label]) => <option value={value} selected={value === currentStatus}>{label}</option>)}
+      </select>
+    </label>
+    <label>
+      <span>Categoría</span>
+      <select name="category">
+        <option value="">Todas</option>
+        {categories.map((category) => (
+          <option value={category.id} selected={category.id === currentCategory}>
+            {category.name}{category.active ? '' : ' · Oculta'}
+          </option>
+        ))}
+      </select>
+    </label>
+    <label>
+      <span>Subcategoría</span>
+      <select name="subcategory">
+        <option value="">Todas</option>
+        {subcategories.map((subcategory) => (
+          <option value={subcategory.id} selected={subcategory.id === currentSubcategory}>
+            {subcategory.name}{subcategory.active ? '' : ' · Oculta'}
+          </option>
+        ))}
+      </select>
+    </label>
+    <label>
+      <span>Ordenar</span>
+      <select name="sort">
+        {sortOptions.map(([value, label]) => <option value={value} selected={value === currentSort}>{label}</option>)}
+      </select>
+    </label>
+    <label>
+      <span>Seguimiento</span>
+      <select name="watch">
+        {watchOptions.map(([value, label]) => <option value={value} selected={value === currentWatch}>{label}</option>)}
+      </select>
+    </label>
+    <button type="submit">Aplicar filtros</button>
+    <a href={basePath}>Limpiar</a>
+  </form>
+
+  {products && (
+    <section class="catalog-card" aria-label="Productos de la tienda">
+      <header class="catalog-head">
+        <div>
+          <span>Resultados</span>
+          <h2>{formatNumber(products.page.total_items)} productos</h2>
+        </div>
+        <span>Página {currentPage} de {totalPages}</span>
+      </header>
+
+      {items.length ? (
+        <>
+          <div class="products-table">
+            <div class="table-row table-head" aria-hidden="true">
+              <span>Producto</span><span>Categoría</span><span>Precio</span><span>Inventario</span><span>Estado</span><span>Actualizado</span><span>Acción</span>
+            </div>
+            {items.map((item) => (
+              <article class="table-row">
+                <div class="product-cell">
+                  <div class="product-thumb">
+                    {item.primary_image_url ? <img src={item.primary_image_url} alt="" width="58" height="58" loading="lazy" /> : <span aria-hidden="true">PZ</span>}
+                  </div>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <small>{item.slug || 'Sin slug público'}</small>
+                    <div class="badges">
+                      {item.featured && <span>Destacado</span>}
+                      {item.is_offer && <span class="is-offer">Oferta</span>}
+                      {item.has_variations && <span>{item.variation_count} variaciones</span>}
+                      {item.only_usd && <span>Solo USD</span>}
+                      {item.allow_preorder && <span class="is-preorder">Preventa</span>}
+                    </div>
+                  </div>
+                </div>
+                <div class="category-cell">
+                  <strong>{item.category?.name || 'Sin categoría'}</strong>
+                  <small>{item.subcategory?.name || 'Sin subcategoría'}</small>
+                </div>
+                <div class="price-cell">
+                  <strong>{productPrice(item)}</strong>
+                  {item.is_offer && item.regular_price_usd > item.current_price_usd && <small>Regular {formatUsd(item.regular_price_usd)}</small>}
+                  {item.variation_price_fallback && <small>Referencia de variaciones ocultas</small>}
+                </div>
+                <div class="inventory-cell">
+                  <span class={`inventory-state is-${item.inventory_state}`}>{inventoryLabels[item.inventory_state]}</span>
+                  <small>{inventoryDetail(item)}</small>
+                </div>
+                <div><span class={`visibility-state is-${item.visibility_reason}`}>{visibilityLabels[item.visibility_reason]}</span></div>
+                <div class="date-cell"><strong>{formatDate(item.updated)}</strong><small>{item.internal_ref ? `Ref. ${item.internal_ref}` : 'Sin referencia'}</small></div>
+                <div class="watch-actions">
+                  <a class="detail-action" href={detailPath(item)}>Ver detalle</a>
+                  {item.watch_status === 'none' ? (
+                    <button class="watch-action" type="button" data-watch-enable={item.id}>Seguir precio</button>
+                  ) : (
+                    <>
+                      <span class:list={['watch-badge', item.watch_status === 'active' ? 'is-active' : 'is-paused']}>
+                        {item.watch_status === 'active' ? 'En seguimiento' : 'Seguimiento pausado'}
+                      </span>
+                      <a class="watch-link" href={`${detailPath(item)}#seguimiento-precio`}>Ver seguimiento</a>
+                    </>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div class="mobile-products">
+            {items.map((item) => (
+              <article class="product-card">
+                <header>
+                  <div class="product-thumb">
+                    {item.primary_image_url ? <img src={item.primary_image_url} alt="" width="64" height="64" loading="lazy" /> : <span aria-hidden="true">PZ</span>}
+                  </div>
+                  <div><strong>{item.name}</strong><small>{item.internal_ref || item.slug || 'Sin referencia'}</small></div>
+                  <span class={`visibility-state is-${item.visibility_reason}`}>{visibilityLabels[item.visibility_reason]}</span>
+                </header>
+                <div class="badges">
+                  {item.featured && <span>Destacado</span>}
+                  {item.is_offer && <span class="is-offer">Oferta</span>}
+                  {item.has_variations && <span>{item.variation_count} variaciones</span>}
+                  {item.only_usd && <span>Solo USD</span>}
+                  {item.allow_preorder && <span class="is-preorder">Preventa</span>}
+                </div>
+                <dl>
+                  <div><dt>Categoría</dt><dd>{item.category?.name || 'Sin categoría'}{item.subcategory ? ` · ${item.subcategory.name}` : ''}</dd></div>
+                  <div><dt>Precio</dt><dd>{productPrice(item)}</dd></div>
+                  <div><dt>Inventario</dt><dd>{inventoryLabels[item.inventory_state]}<small>{inventoryDetail(item)}</small></dd></div>
+                  <div><dt>Actualizado</dt><dd>{formatDate(item.updated)}</dd></div>
+                </dl>
+                <div class="mobile-card-actions">
+                  <a class="detail-action" href={detailPath(item)}>Ver detalle</a>
+                  {item.watch_status === 'none' ? (
+                    <button class="watch-action" type="button" data-watch-enable={item.id}>Seguir precio</button>
+                  ) : (
+                    <a class="watch-link" href={`${detailPath(item)}#seguimiento-precio`}>
+                      {item.watch_status === 'active' ? 'En seguimiento · Ver' : 'Seguimiento pausado · Ver'}
+                    </a>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div class="empty-state">
+          <strong>No hay productos para estos filtros</strong>
+          <p>Prueba otra búsqueda o limpia los filtros del catálogo.</p>
+          <a href={basePath}>Ver todos los productos</a>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <nav class="pagination" aria-label="Paginación del catálogo">
+          {currentPage > 1 ? <a href={pageHref(currentPage - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
+          <strong>Página {currentPage} de {totalPages}</strong>
+          {currentPage < totalPages ? <a href={pageHref(currentPage + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
+        </nav>
+      )}
+    </section>
+  )}
+</main>
+
+<style>
+  .products-shell { display: grid; gap: 18px; padding: 12px 0 46px; color: #0f172a; }
+  .products-hero { display: flex; align-items: center; justify-content: space-between; gap: 24px; border: 1px solid #dbeafe; border-radius: 20px; background: linear-gradient(135deg, #eff6ff, #fff 55%, #eef2ff); padding: clamp(22px, 4vw, 36px); }
+  .hero-kicker, .catalog-head > div > span { color: #2563eb; font-size: 10px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .title-line h1 { margin: 5px 0 0; font-size: clamp(29px, 5vw, 46px); line-height: 1; font-weight: 1000; overflow-wrap: anywhere; }
+  .products-hero p { margin: 9px 0 0; color: #475569; font-size: 13px; font-weight: 800; }
+  .store-status, .visibility-state, .inventory-state, .badges span { display: inline-flex; align-items: center; width: max-content; max-width: 100%; border: 1px solid #cbd5e1; border-radius: 999px; padding: 5px 8px; font-size: 9px; line-height: 1.15; font-weight: 950; }
+  .store-status.is-active, .visibility-state.is-visible, .inventory-state.is-available { border-color: #a7f3d0; background: #ecfdf5; color: #047857; }
+  .store-status.is-suspended, .visibility-state.is-store_suspended { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+  .visibility-state.is-product_hidden, .visibility-state.is-category_hidden, .visibility-state.is-subcategory_hidden { background: #f1f5f9; color: #475569; }
+  .inventory-state.is-out_of_stock { border-color: #fecaca; background: #fff1f2; color: #be123c; }
+  .inventory-state.is-preorder { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+  .inventory-state.is-untracked { background: #f8fafc; color: #64748b; }
+  .hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+  .primary-action, .secondary-action, .detail-action, .watch-action, .watch-link, .filters-card button, .filters-card > a, .pagination a, .pagination > span { display: inline-flex; align-items: center; justify-content: center; min-height: 39px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155; padding: 9px 12px; font: inherit; font-size: 12px; line-height: 1; font-weight: 950; text-decoration: none; }
+  .primary-action, .filters-card button { border-color: #1d4ed8; background: #1d4ed8; color: #fff; }
+  .products-error { border: 1px solid #fed7aa; border-radius: 14px; background: #fff7ed; color: #9a3412; padding: 17px; }
+  .products-error p { margin: 5px 0 0; font-size: 12px; line-height: 1.45; font-weight: 700; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 11px; }
+  .kpi-grid article { display: grid; gap: 8px; min-height: 120px; border: 1px solid #dbeafe; border-radius: 15px; background: #eff6ff; padding: 17px; }
+  .kpi-grid article.is-green { border-color: #a7f3d0; background: #ecfdf5; }
+  .kpi-grid article.is-slate { border-color: #e2e8f0; background: #f8fafc; }
+  .kpi-grid article.is-orange { border-color: #fed7aa; background: #fff7ed; }
+  .kpi-grid article.is-violet { border-color: #ddd6fe; background: #f5f3ff; }
+  .kpi-grid article.is-small { min-height: 88px; background: #fff; }
+  .kpi-grid span { color: #64748b; font-size: 10px; font-weight: 950; text-transform: uppercase; }
+  .kpi-grid strong { align-self: end; font-size: 30px; line-height: 1; font-weight: 1000; }
+  .filters-card { display: grid; grid-template-columns: minmax(200px, 1.5fr) repeat(5, minmax(135px, 1fr)) auto auto; align-items: end; gap: 10px; border: 1px solid #e2e8f0; border-radius: 17px; background: #fff; padding: 15px; }
+  .filters-card label { display: grid; gap: 6px; min-width: 0; }
+  .filters-card label > span { color: #475569; font-size: 10px; font-weight: 950; }
+  .filters-card input, .filters-card select { width: 100%; min-width: 0; min-height: 41px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #0f172a; padding: 9px 10px; font: inherit; font-size: 12px; font-weight: 750; }
+  .catalog-card { min-width: 0; border: 1px solid #e2e8f0; border-radius: 18px; background: #fff; padding: 17px; }
+  .catalog-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 2px 2px 15px; }
+  .catalog-head h2 { margin: 4px 0 0; font-size: 22px; font-weight: 1000; }
+  .catalog-head > span { border-radius: 999px; background: #f1f5f9; color: #475569; padding: 7px 10px; font-size: 10px; font-weight: 900; }
+  .products-table { border: 1px solid #e2e8f0; border-radius: 13px; overflow: hidden; }
+  .table-row { display: grid; grid-template-columns: minmax(220px, 1.5fr) minmax(130px, .8fr) minmax(110px, .65fr) minmax(155px, 1fr) minmax(125px, .8fr) minmax(105px, .65fr) minmax(130px, .8fr); align-items: center; gap: 12px; border-bottom: 1px solid #eef2f7; padding: 12px; }
+  .table-row:last-child { border-bottom: 0; }
+  .table-head { background: #f8fafc; color: #64748b; font-size: 9px; font-weight: 1000; text-transform: uppercase; }
+  .table-row > div { min-width: 0; }
+  .product-cell { display: grid; grid-template-columns: 58px minmax(0, 1fr); align-items: center; gap: 10px; }
+  .product-cell > div:last-child, .category-cell, .price-cell, .inventory-cell, .date-cell { display: grid; gap: 4px; min-width: 0; }
+  .product-cell strong, .category-cell strong, .price-cell strong, .date-cell strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 950; }
+  .product-cell small, .category-cell small, .price-cell small, .inventory-cell small, .date-cell small { overflow-wrap: anywhere; color: #64748b; font-size: 9px; line-height: 1.35; font-weight: 700; }
+  .product-thumb { display: grid; place-items: center; width: 58px; height: 58px; overflow: hidden; border-radius: 11px; background: #f1f5f9; color: #94a3b8; font-size: 11px; font-weight: 1000; }
+  .product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 2px; }
+  .badges span { border-color: #dbeafe; background: #eff6ff; color: #1d4ed8; padding: 3px 6px; font-size: 8px; }
+  .badges span.is-offer { border-color: #fecaca; background: #fff1f2; color: #be123c; }
+  .badges span.is-preorder { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+  .detail-action { min-height: 34px; padding: 8px 10px; white-space: nowrap; }
+  .watch-actions { display: grid; gap: 6px; }
+  .watch-action { min-height: 34px; border-color: #c7d2fe; background: #eef2ff; color: #4338ca; padding: 8px; cursor: pointer; }
+  .watch-action:disabled { opacity: .6; cursor: wait; }
+  .watch-link { min-height: 30px; border: 0; color: #4338ca; padding: 4px; font-size: 9px; }
+  .watch-badge { display: inline-flex; justify-content: center; border: 1px solid #a7f3d0; border-radius: 999px; background: #ecfdf5; color: #047857; padding: 5px 7px; text-align: center; font-size: 8px; font-weight: 950; }
+  .watch-badge.is-paused { border-color: #fed7aa; background: #fff7ed; color: #c2410c; }
+  .mobile-card-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  .mobile-products { display: none; }
+  .empty-state { display: grid; justify-items: center; gap: 8px; border-radius: 13px; background: #f8fafc; color: #475569; padding: 36px 20px; text-align: center; }
+  .empty-state p { margin: 0; font-size: 12px; }
+  .empty-state a { color: #1d4ed8; font-size: 12px; font-weight: 950; }
+  .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding-top: 17px; }
+  .pagination > span { opacity: .45; }
+  .pagination strong { color: #475569; font-size: 11px; }
+
+  @media (max-width: 1180px) {
+    .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .filters-card { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .search-field { grid-column: span 2; }
+    .products-table { display: none; }
+    .mobile-products { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+    .product-card { display: grid; align-content: start; gap: 12px; min-width: 0; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; }
+    .product-card header { display: grid; grid-template-columns: 64px minmax(0, 1fr); align-items: center; gap: 10px; }
+    .product-card header .product-thumb { width: 64px; height: 64px; grid-row: span 2; }
+    .product-card header > div:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
+    .product-card header strong { overflow-wrap: anywhere; font-size: 14px; font-weight: 1000; }
+    .product-card header small { overflow: hidden; color: #64748b; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    .product-card header .visibility-state { grid-column: 2; }
+    .product-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+    .product-card dl > div { display: grid; align-content: start; gap: 3px; border-radius: 9px; background: #f8fafc; padding: 9px; }
+    .product-card dt { color: #64748b; font-size: 8px; font-weight: 950; text-transform: uppercase; }
+    .product-card dd { display: grid; gap: 3px; margin: 0; overflow-wrap: anywhere; font-size: 11px; font-weight: 900; }
+    .product-card dd small { color: #64748b; font-size: 9px; font-weight: 700; }
+  }
+
+  @media (max-width: 760px) {
+    .products-hero { align-items: stretch; flex-direction: column; }
+    .hero-actions { justify-content: flex-start; }
+    .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filters-card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mobile-products { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 520px) {
+    .products-shell { gap: 13px; }
+    .products-hero { padding: 20px 17px; }
+    .hero-actions { display: grid; grid-template-columns: 1fr; }
+    .hero-actions a { width: 100%; }
+    .kpi-grid { gap: 8px; }
+    .kpi-grid article { min-height: 98px; padding: 13px; }
+    .kpi-grid article.is-small { min-height: 80px; }
+    .kpi-grid strong { font-size: 25px; }
+    .filters-card { grid-template-columns: 1fr; }
+    .search-field { grid-column: auto; }
+    .filters-card button, .filters-card > a { width: 100%; }
+    .catalog-card { padding: 11px; }
+    .catalog-head { align-items: flex-start; }
+    .product-card dl { grid-template-columns: 1fr; }
+    .mobile-card-actions { grid-template-columns: 1fr; }
+    .pagination { justify-content: space-between; gap: 7px; }
+    .pagination strong { text-align: center; }
+  }
+</style>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { runMasterProductWatchAction } from '../../lib/masterProductWatches';
+
+  const shell = document.querySelector<HTMLElement>('[data-master-products-store]');
+  const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+  if (shell && pocketbaseUrl) {
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    shell.querySelectorAll<HTMLButtonElement>('[data-watch-enable]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const productId = String(button.dataset.watchEnable || '');
+        const storeId = String(shell.dataset.masterProductsStore || '');
+        if (!pb.authStore.isValid || !pb.authStore.token) return;
+        button.disabled = true;
+        button.textContent = 'Activando…';
+        const result = await runMasterProductWatchAction(pocketbaseUrl, pb.authStore.token, storeId, productId, 'enable');
+        if (result.available) window.location.reload();
+        else {
+          button.disabled = false;
+          button.textContent = 'Seguir precio';
+        }
+      });
+    });
+  }
+</script>

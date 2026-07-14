@@ -1,0 +1,342 @@
+---
+import MasterIcon from './MasterIcon.astro';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+<dialog
+  class="store-delete-dialog"
+  data-master-store-delete-dialog
+  data-pocketbase-url={pocketbaseUrl}
+  aria-labelledby="master-store-delete-title"
+  aria-describedby="master-store-delete-critical"
+>
+  <div class="store-delete-card">
+    <div class="store-delete-head">
+      <div>
+        <span class="store-delete-kicker">Acción irreversible</span>
+        <h2 id="master-store-delete-title" data-delete-title>Eliminar definitivamente la tienda</h2>
+      </div>
+      <button class="store-delete-close" type="button" data-delete-close aria-label="Cerrar"><MasterIcon name="close" size={20} /></button>
+    </div>
+
+    <div class="store-delete-loading" data-delete-loading role="status">
+      <span class="store-delete-spinner" aria-hidden="true"></span>
+      <p>Estamos calculando todos los datos asociados a esta tienda…</p>
+    </div>
+
+    <div class="store-delete-preview" data-delete-preview hidden>
+      <dl class="store-delete-counts" aria-label="Datos que se eliminarán">
+        <div><dt>Usuarios de tienda</dt><dd data-delete-count="store_users">0</dd></div>
+        <div><dt>Productos y variaciones</dt><dd data-delete-count="products_and_variations">0</dd></div>
+        <div><dt>Pedidos y artículos</dt><dd data-delete-count="orders_and_items">0</dd></div>
+        <div><dt>Promociones, cupones y regalos</dt><dd data-delete-count="commerce_rules">0</dd></div>
+        <div><dt>Rifas y participantes</dt><dd data-delete-count="raffles_and_entries">0</dd></div>
+        <div><dt>Reseñas</dt><dd data-delete-count="reviews">0</dd></div>
+        <div><dt>Analíticas y notificaciones</dt><dd data-delete-count="analytics_and_notifications">0</dd></div>
+        <div><dt>Clientes y datos de Seguridad</dt><dd data-delete-count="customers_and_security">0</dd></div>
+        <div><dt>Configuración y archivos</dt><dd data-delete-count="configuration_and_files">0</dd></div>
+        <div class="is-total"><dt>Total de registros</dt><dd data-delete-count="total_records">0</dd></div>
+      </dl>
+
+      <div id="master-store-delete-critical" class="store-delete-critical">
+        <strong>Esta acción no se puede deshacer.</strong>
+        <p>Los datos, pedidos, imágenes y archivos de esta tienda se eliminarán definitivamente.</p>
+      </div>
+
+      <div class="store-delete-warnings" data-delete-warnings hidden></div>
+
+      <label class="store-delete-confirmation">
+        <span>Escribe exactamente <strong data-delete-phrase>ELIMINAR slug</strong></span>
+        <input
+          type="text"
+          maxlength="110"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          data-delete-confirmation
+        />
+      </label>
+    </div>
+
+    <p class="store-delete-error" data-delete-error role="alert" hidden></p>
+    <button class="store-delete-retry master-btn master-btn--warning" type="button" data-delete-retry hidden>Obtener preview nuevo</button>
+
+    <div class="store-delete-actions">
+      <button class="store-delete-cancel master-btn master-btn--secondary" type="button" data-delete-cancel>Cancelar</button>
+      <button class="store-delete-submit master-btn master-btn--danger-solid" type="button" data-delete-submit disabled><MasterIcon name="trash" size={17} /> Eliminar definitivamente</button>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .store-delete-dialog { width: min(720px, calc(100vw - 28px)); max-height: min(860px, calc(100dvh - 28px)); overflow: auto; border: 0; border-radius: var(--master-radius-lg); background: transparent; padding: 0; color: var(--master-text); box-shadow: var(--master-shadow-dialog); }
+  .store-delete-dialog::backdrop { background: rgba(15, 23, 42, .62); backdrop-filter: blur(3px); }
+  .store-delete-card { display: grid; gap: 18px; border: 1px solid #fecaca; border-radius: var(--master-radius-lg); background: var(--master-card); padding: clamp(19px, 4vw, 28px); }
+  .store-delete-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .store-delete-head > div { display: grid; gap: 6px; min-width: 0; }
+  .store-delete-kicker { color: #b91c1c; font-size: 10px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .store-delete-head h2 { margin: 0; color: #7f1d1d; font-size: clamp(22px, 4vw, 29px); line-height: 1.12; font-weight: 1000; overflow-wrap: anywhere; }
+  .store-delete-close { width: 38px; height: 38px; flex: 0 0 38px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 22px; line-height: 1; cursor: pointer; }
+  .store-delete-loading { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; padding: 15px; }
+  .store-delete-loading p { margin: 0; color: #475569; font-size: 13px; line-height: 1.45; font-weight: 850; }
+  .store-delete-spinner { width: 20px; height: 20px; flex: 0 0 20px; border: 3px solid #fecaca; border-top-color: #b91c1c; border-radius: 999px; animation: store-delete-spin .8s linear infinite; }
+  .store-delete-preview { display: grid; gap: 18px; }
+  .store-delete-preview[hidden], .store-delete-loading[hidden], .store-delete-warnings[hidden], .store-delete-error[hidden], .store-delete-retry[hidden] { display: none; }
+  .store-delete-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+  .store-delete-counts > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; border: 1px solid #e2e8f0; border-radius: 11px; background: #f8fafc; padding: 11px 12px; }
+  .store-delete-counts dt { min-width: 0; color: #475569; font-size: 11px; line-height: 1.3; font-weight: 850; }
+  .store-delete-counts dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; }
+  .store-delete-counts .is-total { grid-column: 1 / -1; border-color: #fecaca; background: #fff1f2; }
+  .store-delete-counts .is-total dt, .store-delete-counts .is-total dd { color: #991b1b; }
+  .store-delete-critical { display: grid; gap: 5px; border-left: 4px solid #dc2626; background: #fff1f2; padding: 13px 14px; }
+  .store-delete-critical strong { color: #991b1b; font-size: 14px; font-weight: 1000; }
+  .store-delete-critical p { margin: 0; color: #7f1d1d; font-size: 12px; line-height: 1.5; font-weight: 800; }
+  .store-delete-warnings, .store-delete-error { margin: 0; border: 1px solid #fed7aa; border-radius: 11px; background: #fff7ed; color: #9a3412; padding: 11px 12px; font-size: 12px; line-height: 1.45; font-weight: 850; }
+  .store-delete-error { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
+  .store-delete-confirmation { display: grid; gap: 8px; color: #334155; font-size: 12px; line-height: 1.4; font-weight: 850; }
+  .store-delete-confirmation strong { color: #991b1b; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .store-delete-confirmation input { width: 100%; border: 1px solid #cbd5e1; border-radius: 11px; background: #fff; color: #0f172a; padding: 13px 14px; outline: none; font: inherit; font-size: 14px; font-weight: 900; }
+  .store-delete-confirmation input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .13); }
+  .store-delete-retry { width: max-content; max-width: 100%; min-height: 40px; border: 1px solid #f59e0b; border-radius: 10px; background: #fff7ed; color: #9a3412; padding: 9px 12px; font: inherit; font-size: 12px; font-weight: 1000; cursor: pointer; }
+  .store-delete-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+  .store-delete-actions button { min-height: 44px; }
+  .store-delete-actions button:disabled, .store-delete-close:disabled, .store-delete-confirmation input:disabled { opacity: .55; cursor: not-allowed; }
+  @keyframes store-delete-spin { to { transform: rotate(360deg); } }
+  @media (max-width: 600px) {
+    .store-delete-dialog { width: min(100% - 20px, 720px); max-height: calc(100dvh - 20px); }
+    .store-delete-card { border-radius: 15px; padding: 18px; }
+    .store-delete-counts { grid-template-columns: 1fr; }
+    .store-delete-counts .is-total { grid-column: auto; }
+    .store-delete-actions { display: grid; grid-template-columns: 1fr; }
+    .store-delete-actions button, .store-delete-retry { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .store-delete-spinner { animation-duration: 1.5s; }
+  }
+</style>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import {
+    executeMasterStoreDeletion,
+    getMasterStoreDeletePreview,
+    isValidRecordId,
+    type MasterStoreDeleteCounts,
+    type MasterStoreDeletePreview,
+  } from '../../lib/masterStoreDeletion';
+
+  type DeleteDialogRequest = {
+    storeId?: string;
+    storeName?: string;
+    protected?: boolean;
+    trigger?: HTMLElement | null;
+  };
+
+  const dialog = document.querySelector<HTMLDialogElement>('[data-master-store-delete-dialog]');
+  if (dialog && dialog.dataset.initialized !== 'true') {
+    dialog.dataset.initialized = 'true';
+    const pocketbaseUrl = String(dialog.dataset.pocketbaseUrl || '').replace(/\/$/, '');
+    const title = dialog.querySelector<HTMLElement>('[data-delete-title]');
+    const loading = dialog.querySelector<HTMLElement>('[data-delete-loading]');
+    const previewPanel = dialog.querySelector<HTMLElement>('[data-delete-preview]');
+    const phrase = dialog.querySelector<HTMLElement>('[data-delete-phrase]');
+    const warnings = dialog.querySelector<HTMLElement>('[data-delete-warnings]');
+    const errorBox = dialog.querySelector<HTMLElement>('[data-delete-error]');
+    const confirmationInput = dialog.querySelector<HTMLInputElement>('[data-delete-confirmation]');
+    const closeButton = dialog.querySelector<HTMLButtonElement>('[data-delete-close]');
+    const cancelButton = dialog.querySelector<HTMLButtonElement>('[data-delete-cancel]');
+    const submitButton = dialog.querySelector<HTMLButtonElement>('[data-delete-submit]');
+    const retryButton = dialog.querySelector<HTMLButtonElement>('[data-delete-retry]');
+    const formatter = new Intl.NumberFormat('es-VE');
+    let preview: MasterStoreDeletePreview | null = null;
+    let requestedStoreId = '';
+    let executing = false;
+    let requestSequence = 0;
+    let restoreFocus: HTMLElement | null = null;
+
+    function setError(message = '', retry = false) {
+      if (errorBox) {
+        errorBox.textContent = message;
+        errorBox.hidden = !message;
+      }
+      if (retryButton) retryButton.hidden = !retry;
+    }
+
+    function setLoading(isLoading: boolean) {
+      if (loading) loading.hidden = !isLoading;
+      if (previewPanel) previewPanel.hidden = isLoading || !preview;
+    }
+
+    function sum(counts: MasterStoreDeleteCounts, keys: Array<keyof MasterStoreDeleteCounts>) {
+      return keys.reduce((total, key) => total + counts[key], 0);
+    }
+
+    function countGroups(counts: MasterStoreDeleteCounts) {
+      return {
+        store_users: counts.store_users,
+        products_and_variations: sum(counts, ['products', 'product_variations']),
+        orders_and_items: sum(counts, ['orders', 'order_items']),
+        commerce_rules: sum(counts, ['promotions', 'coupons', 'coupon_usages', 'gifts']),
+        raffles_and_entries: sum(counts, ['raffles', 'raffle_entries']),
+        reviews: counts.reviews,
+        analytics_and_notifications: sum(counts, ['analytics_events', 'store_notifications', 'master_notifications', 'price_watches', 'price_events']),
+        customers_and_security: sum(counts, ['customers', 'customer_phones', 'customer_devices', 'customer_links', 'visitor_sessions', 'visitor_pageviews', 'security_events', 'security_blocks', 'security_audit', 'security_settings']),
+        configuration_and_files: sum(counts, ['settings', 'categories', 'subcategories', 'currencies', 'shipping_zones', 'visual_items']),
+        total_records: counts.total_records,
+      };
+    }
+
+    function renderPreview(nextPreview: MasterStoreDeletePreview) {
+      preview = nextPreview;
+      if (title) title.textContent = `Eliminar definitivamente ${nextPreview.store.name}`;
+      if (phrase) phrase.textContent = nextPreview.confirmation_phrase;
+      const groups = countGroups(nextPreview.counts);
+      Object.entries(groups).forEach(([key, value]) => {
+        const target = dialog.querySelector<HTMLElement>(`[data-delete-count="${key}"]`);
+        if (target) target.textContent = formatter.format(value);
+      });
+      if (warnings) {
+        warnings.hidden = nextPreview.warnings.length === 0;
+        warnings.textContent = nextPreview.warnings.join(' ');
+      }
+      if (confirmationInput) {
+        confirmationInput.value = '';
+        confirmationInput.disabled = false;
+      }
+      setLoading(false);
+      syncSubmitState();
+      window.setTimeout(() => confirmationInput?.focus(), 0);
+    }
+
+    function syncSubmitState() {
+      if (!submitButton) return;
+      const exact = preview !== null && confirmationInput?.value === preview.confirmation_phrase;
+      submitButton.disabled = executing || !preview || preview.store.protected || preview.warnings.length > 0 || !exact;
+    }
+
+    function getErrorMessage(error: string) {
+      if (error === 'cross_store_reference_detected') {
+        return 'No se puede eliminar la tienda porque existen relaciones inconsistentes con otra tienda. Revisa la integridad antes de continuar.';
+      }
+      if (error === 'store_protected') return 'Esta tienda está protegida y no se puede eliminar.';
+      if (error === 'unsafe_related_user_role') return 'La tienda tiene un usuario con un rol no seguro. Revisa la integridad antes de continuar.';
+      if (error === 'store_not_found') return 'La tienda ya no existe o no está disponible.';
+      if (error === 'unauthorized') return 'Tu sesión Master ya no tiene autorización para esta operación.';
+      if (error === 'invalid_response') return 'El servidor devolvió una respuesta no válida. No se eliminó la tienda.';
+      return 'No se pudo preparar la eliminación. Inténtalo nuevamente.';
+    }
+
+    async function loadPreview() {
+      const sequence = ++requestSequence;
+      preview = null;
+      setError();
+      if (confirmationInput) {
+        confirmationInput.value = '';
+        confirmationInput.disabled = true;
+      }
+      setLoading(true);
+      syncSubmitState();
+      if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+      if (!pocketbaseUrl || !pb.authStore.isValid || !pb.authStore.token) {
+        if (sequence !== requestSequence) return;
+        setLoading(false);
+        setError('Tu sesión Master no está disponible. Recarga la página e inténtalo nuevamente.');
+        return;
+      }
+      const result = await getMasterStoreDeletePreview(pocketbaseUrl, pb.authStore.token, requestedStoreId);
+      if (sequence !== requestSequence || !dialog.open) return;
+      if (!result.available || !result.data) {
+        setLoading(false);
+        setError(getErrorMessage(result.error), result.error !== 'store_protected' && result.error !== 'cross_store_reference_detected');
+        return;
+      }
+      renderPreview(result.data);
+    }
+
+    function closeDialog() {
+      if (!dialog.open || executing) return;
+      requestSequence += 1;
+      dialog.close();
+    }
+
+    window.addEventListener('pz:master-store-delete-open', (event) => {
+      const detail = (event as CustomEvent<DeleteDialogRequest>).detail || {};
+      const storeId = String(detail.storeId || '');
+      if (!isValidRecordId(storeId) || detail.protected === true || dialog.open) return;
+      requestedStoreId = storeId;
+      restoreFocus = detail.trigger instanceof HTMLElement ? detail.trigger : null;
+      executing = false;
+      if (title) title.textContent = `Eliminar definitivamente ${String(detail.storeName || 'la tienda').trim()}`;
+      if (cancelButton) cancelButton.disabled = false;
+      if (closeButton) closeButton.disabled = false;
+      if (submitButton) {
+        submitButton.textContent = 'Eliminar definitivamente';
+        submitButton.disabled = true;
+      }
+      dialog.showModal();
+      loadPreview();
+    });
+
+    confirmationInput?.addEventListener('input', syncSubmitState);
+    closeButton?.addEventListener('click', closeDialog);
+    cancelButton?.addEventListener('click', closeDialog);
+    retryButton?.addEventListener('click', loadPreview);
+    dialog.addEventListener('cancel', (event) => {
+      event.preventDefault();
+      closeDialog();
+    });
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) closeDialog();
+    });
+    dialog.addEventListener('close', () => {
+      const target = restoreFocus;
+      restoreFocus = null;
+      requestedStoreId = '';
+      preview = null;
+      if (target?.isConnected) window.setTimeout(() => target.focus(), 0);
+    });
+
+    submitButton?.addEventListener('click', async () => {
+      if (executing || !preview || !confirmationInput || confirmationInput.value !== preview.confirmation_phrase) return;
+      if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+      if (!pb.authStore.isValid || !pb.authStore.token) {
+        setError('Tu sesión Master ya no está disponible. No se eliminó la tienda.');
+        return;
+      }
+      executing = true;
+      setError();
+      submitButton.disabled = true;
+      submitButton.textContent = 'Eliminando tienda…';
+      confirmationInput.disabled = true;
+      if (cancelButton) cancelButton.disabled = true;
+      if (closeButton) closeButton.disabled = true;
+      const result = await executeMasterStoreDeletion(
+        pocketbaseUrl,
+        pb.authStore.token,
+        preview,
+        confirmationInput.value,
+      );
+      if (result.available && result.data) {
+        const requestedPage = Math.max(1, Math.floor(Number(new URL(window.location.href).searchParams.get('stores_page')) || 1));
+        const targetPage = Math.max(1, Math.min(requestedPage, result.data.suggested_page));
+        window.location.assign(`/master/stores?stores_page=${targetPage}#tiendas-registradas`);
+        return;
+      }
+      executing = false;
+      submitButton.textContent = 'Eliminar definitivamente';
+      confirmationInput.disabled = false;
+      if (cancelButton) cancelButton.disabled = false;
+      if (closeButton) closeButton.disabled = false;
+      if (result.error === 'store_changed') {
+        preview = null;
+        confirmationInput.value = '';
+        if (previewPanel) previewPanel.hidden = true;
+        setError('La tienda cambió después del preview. Obtén un preview nuevo antes de continuar.', true);
+      } else {
+        setError(getErrorMessage(result.error), result.error !== 'store_protected' && result.error !== 'cross_store_reference_detected');
+      }
+      syncSubmitState();
+    });
+  }
+</script>

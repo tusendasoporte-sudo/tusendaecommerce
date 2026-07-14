@@ -1,0 +1,97 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import MasterShell from '../../../components/master/MasterShell.astro';
+import MasterStoresView, { type MasterStoresViewItem } from '../../../components/master/MasterStoresView.astro';
+import MasterStoreActionsController from '../../../components/master/MasterStoreActionsController.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import { getMasterStoreUserCount, getStoreUsersForMasterStoreIds } from '../../../lib/masterUsers';
+import { getMasterStoreActivitySummary } from '../../../lib/masterStoreActivity';
+import {
+  getDefaultSecurityBackendHealth,
+  getDefaultSecuritySettings,
+  getMasterSecuritySettingsMap,
+  getSecurityBackendHealthForToken,
+  getSecurityStatusLabel,
+} from '../../../lib/security';
+import {
+  DEFAULT_STORE_SLUG,
+  getMasterStoreCounts,
+  getStoresPageForMaster,
+  normalizeMasterStoresPage,
+} from '../../../lib/stores';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const requestedPage = normalizeMasterStoresPage(Astro.url.searchParams.get('stores_page'));
+const storesPage = await getStoresPageForMaster(authPb, requestedPage, 10);
+const storeCounts = await getMasterStoreCounts(authPb);
+const storeUsers = await getStoreUsersForMasterStoreIds(authPb, storesPage.items.map((store) => store.id));
+const totalUsers = await getMasterStoreUserCount(authPb);
+const securityMap = await getMasterSecuritySettingsMap(authPb);
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const [activity, securityHealth] = await Promise.all([
+  getMasterStoreActivitySummary(pocketbaseUrl, authPb.authStore.token),
+  getSecurityBackendHealthForToken(pocketbaseUrl, authPb.authStore.token).catch(() => getDefaultSecurityBackendHealth()),
+]);
+
+const usersByStore = storeUsers.reduce((map, user) => {
+  if (user.store) map.set(user.store, (map.get(user.store) || 0) + 1);
+  return map;
+}, new Map<string, number>());
+
+const stores: MasterStoresViewItem[] = storesPage.items.map((store) => {
+  const settings = securityMap.get(store.id) || getDefaultSecuritySettings(store.id);
+  const summary = activity.map.get(store.id);
+  return {
+    id: store.id,
+    name: store.name,
+    slug: store.slug,
+    status: store.status,
+    featured: store.featured,
+    protected: store.protected === true || store.slug === DEFAULT_STORE_SLUG,
+    updated: store.updated,
+    userCount: usersByStore.get(store.id) || 0,
+    securityExists: settings.exists,
+    securityLabel: getSecurityStatusLabel(settings),
+    activity: summary ? {
+      orders_total: summary.orders_total,
+      visitors_30d: summary.visitors_30d,
+      pageviews_30d: summary.pageviews_30d,
+    } : null,
+  };
+});
+
+const schemaReady = securityHealth.security_settings_ready
+  && securityHealth.customers_ready
+  && securityHealth.security_events_ready
+  && securityHealth.visitor_sessions_ready
+  && securityHealth.visitor_pageviews_ready
+  && securityHealth.orders_identity_fields_ready;
+const hmacReady = securityHealth.hmac_identity_ready && securityHealth.hmac_monitoring_ready;
+const securityHealthView = securityHealth.available && schemaReady && hmacReady
+  ? { state: 'ready', title: 'Backend de Seguridad listo', detail: 'La gestión privada de Seguridad está disponible.' }
+  : { state: 'warning', title: 'Seguridad requiere revisión', detail: 'Comprueba el backend y las claves locales antes de cambiar la configuración.' };
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Tiendas" showCreateStore={true}>
+    <MasterStoresView
+      stores={stores}
+      counts={{ total: storeCounts.total, active: storeCounts.active, suspended: storeCounts.suspended, users: totalUsers }}
+      page={storesPage}
+      securityHealth={securityHealthView}
+    />
+    <MasterStoreActionsController />
+  </MasterShell>
+</Layout>

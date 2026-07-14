@@ -1,0 +1,48 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import MasterNotificationsView from '../../components/master/MasterNotificationsView.astro';
+import MasterShell from '../../components/master/MasterShell.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import {
+  getMasterNotificationsPage,
+  normalizeNotificationCategory,
+  normalizeNotificationsPage,
+  normalizeNotificationStatus,
+} from '../../lib/masterNotifications';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+const currentPage = normalizeNotificationsPage(Astro.url.searchParams.get('page'));
+const currentStatus = normalizeNotificationStatus(Astro.url.searchParams.get('status'));
+const currentCategory = normalizeNotificationCategory(Astro.url.searchParams.get('category'));
+const result = await getMasterNotificationsPage(
+  import.meta.env.PUBLIC_POCKETBASE_URL,
+  authPb.authStore.token,
+  currentPage,
+  currentStatus,
+  currentCategory,
+);
+const viewError = result.available ? '' : 'No fue posible consultar las notificaciones privadas del Master.';
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Notificaciones">
+    <MasterNotificationsView
+      notifications={result.data}
+      currentStatus={currentStatus}
+      currentCategory={currentCategory}
+      viewError={viewError}
+    />
+  </MasterShell>
+</Layout>

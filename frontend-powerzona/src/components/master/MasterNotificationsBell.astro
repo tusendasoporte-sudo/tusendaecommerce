@@ -1,0 +1,298 @@
+---
+import MasterIcon from './MasterIcon.astro';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+---
+
+<div class="master-notifications-bell" data-master-notifications-bell data-pocketbase-url={pocketbaseUrl}>
+  <button
+    class="bell-trigger"
+    type="button"
+    aria-label="Notificaciones del Master"
+    title="Notificaciones del Master"
+    aria-expanded="false"
+    data-bell-trigger
+  >
+    <MasterIcon name="bell" size={21} />
+    <span class="bell-badge" data-bell-badge hidden></span>
+  </button>
+
+  <section class="bell-panel" data-bell-panel hidden aria-label="Notificaciones recientes">
+    <header>
+      <div><span>Centro Master</span><h2>Notificaciones</h2></div>
+      <button type="button" data-bell-close aria-label="Cerrar notificaciones"><MasterIcon name="close" size={18} /></button>
+    </header>
+    <div class="bell-panel-meta">
+      <span>Últimas 10</span>
+      <div>
+        <button type="button" data-mark-all>Marcar todas como leídas</button>
+        <button class="bell-delete-all" type="button" data-delete-all>Borrar todo</button>
+      </div>
+    </div>
+    <div class="bell-items" data-bell-items aria-live="polite">
+      <p>No hay notificaciones pendientes.</p>
+    </div>
+    <a class="bell-all-link" href="/master/notifications">Ver todas</a>
+  </section>
+
+  <div class="bell-toast" data-bell-toast role="status" aria-live="polite" hidden></div>
+</div>
+
+<style>
+  .master-notifications-bell { position: relative; }
+  .bell-trigger { position: relative; display: inline-grid; place-items: center; width: 42px; height: 42px; border: 1px solid #cbd5e1; border-radius: 11px; background: #fff; color: #334155; cursor: pointer; }
+  .bell-trigger:hover, .bell-trigger:focus-visible { border-color: #818cf8; color: #4338ca; outline: 0; box-shadow: 0 0 0 3px rgba(99, 102, 241, .14); }
+  .bell-badge { position: absolute; top: -6px; right: -7px; display: grid; place-items: center; min-width: 20px; height: 20px; border: 2px solid #fff; border-radius: 999px; background: #dc2626; color: #fff; padding: 0 4px; font-size: 9px; line-height: 1; font-weight: 1000; }
+  .bell-panel { position: fixed; z-index: 1000; display: grid; width: min(390px, calc(100vw - 24px)); max-height: min(620px, calc(100vh - 24px)); overflow: hidden; border: 1px solid #cbd5e1; border-radius: 16px; background: #fff; color: #0f172a; box-shadow: 0 24px 70px rgba(15, 23, 42, .24); }
+  .bell-panel[hidden] { display: none; }
+  .bell-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #e2e8f0; padding: 15px 16px; }
+  .bell-panel > header div { display: grid; gap: 2px; }
+  .bell-panel > header span { color: #6366f1; font-size: 9px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .bell-panel h2 { margin: 0; font-size: 18px; line-height: 1.1; font-weight: 1000; }
+  .bell-panel > header button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: #f1f5f9; color: #475569; font: inherit; font-size: 20px; cursor: pointer; }
+  .bell-panel-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #f8fafc; padding: 9px 14px; }
+  .bell-panel-meta span { color: #64748b; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+  .bell-panel-meta > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .bell-panel-meta button { border: 0; background: transparent; color: #4338ca; padding: 4px; font: inherit; font-size: 10px; font-weight: 950; cursor: pointer; }
+  .bell-panel-meta .bell-delete-all { color: #b91c1c; }
+  .bell-panel-meta button:disabled { color: #94a3b8; cursor: default; }
+  .bell-items { display: grid; gap: 8px; min-height: 96px; overflow-y: auto; padding: 10px; overscroll-behavior: contain; }
+  .bell-items > p { margin: 0; border-radius: 11px; background: #f8fafc; color: #64748b; padding: 28px 15px; text-align: center; font-size: 12px; font-weight: 750; }
+  .bell-item { display: grid; gap: 9px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; padding: 10px; }
+  .bell-item.is-unread { border-color: #c7d2fe; background: #eef2ff; }
+  .bell-item-copy { display: grid; gap: 4px; min-width: 0; }
+  .bell-item-copy strong, .bell-item-copy span, .bell-item-copy small { overflow-wrap: anywhere; }
+  .bell-item-copy strong { font-size: 11px; font-weight: 1000; }
+  .bell-item-copy span { color: #475569; font-size: 10px; line-height: 1.35; font-weight: 700; }
+  .bell-item-copy small { color: #64748b; font-size: 8px; font-weight: 800; }
+  .bell-item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .bell-item-actions button { border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #475569; padding: 6px 8px; font: inherit; font-size: 8px; font-weight: 950; cursor: pointer; }
+  .bell-item-actions .bell-item-open { border-color: #4f46e5; background: #4f46e5; color: #fff; }
+  .bell-item-actions .bell-item-delete { border-color: #fecaca; color: #b91c1c; }
+  .bell-item-actions button:disabled { opacity: .6; cursor: wait; }
+  .bell-all-link { display: flex; justify-content: center; border-top: 1px solid #e2e8f0; color: #4338ca; padding: 13px; font-size: 11px; font-weight: 1000; text-decoration: none; }
+  .bell-toast { position: fixed; z-index: 1100; right: 16px; bottom: 16px; width: min(340px, calc(100vw - 32px)); border: 1px solid #c7d2fe; border-radius: 13px; background: #eef2ff; color: #312e81; padding: 13px 15px; box-shadow: 0 18px 48px rgba(30, 41, 59, .2); font-size: 11px; line-height: 1.45; font-weight: 850; }
+  @media (max-width: 520px) {
+    .bell-panel { width: calc(100vw - 16px); max-height: calc(100vh - 16px); }
+    .bell-toast { right: 10px; bottom: 10px; width: calc(100vw - 20px); }
+    .bell-panel-meta { align-items: flex-start; flex-direction: column; }
+    .bell-panel-meta > div, .bell-item-actions { width: 100%; justify-content: stretch; }
+    .bell-item-actions button { flex: 1 1 auto; min-height: 34px; }
+  }
+</style>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { getMasterNotificationsFeed, runMasterNotificationAction, type MasterNotification } from '../../lib/masterNotifications';
+
+  function initializeBell(root: HTMLElement) {
+    if (root.dataset.initialized === 'true') return;
+    root.dataset.initialized = 'true';
+    const pocketbaseUrl = String(root.dataset.pocketbaseUrl || '').replace(/\/$/, '');
+    const trigger = root.querySelector<HTMLElement>('[data-bell-trigger]');
+    const panel = root.querySelector<HTMLElement>('[data-bell-panel]');
+    const badge = root.querySelector<HTMLElement>('[data-bell-badge]');
+    const itemsRoot = root.querySelector<HTMLElement>('[data-bell-items]');
+    const markAllButton = root.querySelector<HTMLButtonElement>('[data-mark-all]');
+    const deleteAllButton = root.querySelector<HTMLButtonElement>('[data-delete-all]');
+    const toast = root.querySelector<HTMLElement>('[data-bell-toast]');
+    if (!pocketbaseUrl || !trigger || !panel || !badge || !itemsRoot || !markAllButton || !deleteAllButton || !toast) return;
+
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    let unreadCount = 0;
+    let initialLoadComplete = false;
+    let refreshTimer = 0;
+    let toastTimer = 0;
+    const baseTitle = document.title.replace(/^\(\d+\)\s*/, '') || 'Tu Senda 84';
+
+    function updateTitle(count: number) {
+      document.title = count > 0 ? `(${count}) ${baseTitle}` : baseTitle;
+    }
+
+    function publishUnreadCount() {
+      window.dispatchEvent(new CustomEvent('pz:master-notifications-count', {
+        detail: { unreadCount },
+      }));
+    }
+
+    function closePanel() {
+      if (panel.hidden) return;
+      panel.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+    }
+
+    function positionPanel() {
+      const rect = trigger.getBoundingClientRect();
+      const margin = 8;
+      const width = Math.min(390, window.innerWidth - (margin * 2));
+      const left = Math.max(margin, Math.min(window.innerWidth - width - margin, rect.right - width));
+      const availableBelow = window.innerHeight - rect.bottom - margin;
+      const top = availableBelow >= 260
+        ? rect.bottom + margin
+        : Math.max(margin, rect.top - Math.min(620, window.innerHeight - (margin * 2)) - margin);
+      panel.style.width = `${width}px`;
+      panel.style.left = `${left}px`;
+      panel.style.top = `${Math.max(margin, top)}px`;
+    }
+
+    function showToast(notification: MasterNotification | undefined) {
+      if (!notification) return;
+      window.clearTimeout(toastTimer);
+      toast.textContent = `${notification.title}${notification.message ? ` · ${notification.message}` : ''}`;
+      toast.hidden = false;
+      toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4200);
+    }
+
+    async function runAction(action: 'mark_read' | 'archive' | 'delete' | 'mark_all_read', notificationId = '') {
+      if (!pb.authStore.isValid || !pb.authStore.token) return false;
+      const result = await runMasterNotificationAction(pocketbaseUrl, pb.authStore.token, action, notificationId);
+      return result.available;
+    }
+
+    function renderItems(items: MasterNotification[]) {
+      itemsRoot.replaceChildren();
+      if (!items.length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No hay notificaciones pendientes.';
+        itemsRoot.append(empty);
+        return;
+      }
+      items.forEach((item) => {
+        const article = document.createElement('article');
+        article.className = `bell-item${item.status === 'unread' ? ' is-unread' : ''}`;
+        const copy = document.createElement('div');
+        copy.className = 'bell-item-copy';
+        const title = document.createElement('strong');
+        title.textContent = item.title;
+        const message = document.createElement('span');
+        message.textContent = item.message;
+        const meta = document.createElement('small');
+        const date = item.last_event_at ? new Date(item.last_event_at) : null;
+        meta.textContent = `${item.store_name || 'Master'}${date && Number.isFinite(date.getTime()) ? ` · ${date.toLocaleString('es')}` : ''}`;
+        copy.append(title, message, meta);
+        const actions = document.createElement('div');
+        actions.className = 'bell-item-actions';
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'bell-item-open';
+        open.textContent = 'Abrir';
+        open.addEventListener('click', async () => {
+          if (item.status === 'unread') await runAction('mark_read', item.id);
+          window.location.assign(item.action_url);
+        });
+        const archive = document.createElement('button');
+        archive.type = 'button';
+        archive.className = 'bell-item-archive';
+        archive.textContent = 'Archivar';
+        archive.addEventListener('click', async () => {
+          archive.disabled = true;
+          await runAction('archive', item.id);
+          await refreshFeed(false);
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'bell-item-delete';
+        remove.textContent = 'Eliminar';
+        remove.addEventListener('click', async () => {
+          remove.disabled = true;
+          const deleted = await runAction('delete', item.id);
+          if (deleted) await refreshFeed(false);
+          else remove.disabled = false;
+        });
+        actions.append(open, archive, remove);
+        article.append(copy, actions);
+        itemsRoot.append(article);
+      });
+    }
+
+    async function refreshFeed(allowToast = true) {
+      if (!pb.authStore.isValid || !pb.authStore.token || document.visibilityState !== 'visible') return;
+      const result = await getMasterNotificationsFeed(pocketbaseUrl, pb.authStore.token, 10);
+      if (!result.available) return;
+      const previousUnread = unreadCount;
+      unreadCount = result.unread_count;
+      badge.hidden = unreadCount === 0;
+      badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+      markAllButton.disabled = unreadCount === 0;
+      renderItems(result.items);
+      updateTitle(unreadCount);
+      publishUnreadCount();
+      if (initialLoadComplete && allowToast && unreadCount > previousUnread) {
+        showToast(result.items.find((item) => item.status === 'unread'));
+      }
+      initialLoadComplete = true;
+    }
+
+    function scheduleRefresh() {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => refreshFeed(true), 350);
+    }
+
+    trigger.addEventListener('click', () => {
+      if (!panel.hidden) {
+        closePanel();
+        return;
+      }
+      positionPanel();
+      panel.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      void refreshFeed(false);
+      window.setTimeout(() => panel.querySelector<HTMLElement>('button, a')?.focus(), 0);
+    });
+    root.querySelector('[data-bell-close]')?.addEventListener('click', closePanel);
+    markAllButton.addEventListener('click', async () => {
+      markAllButton.disabled = true;
+      if (await runAction('mark_all_read')) {
+        unreadCount = 0;
+        badge.hidden = true;
+        badge.textContent = '';
+        updateTitle(0);
+        publishUnreadCount();
+        await refreshFeed(false);
+      } else {
+        markAllButton.disabled = false;
+      }
+    });
+    deleteAllButton.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('pz:request-delete-all-notifications'));
+    });
+    window.addEventListener('pz:notifications-deleted-all', () => {
+      unreadCount = 0;
+      badge.hidden = true;
+      badge.textContent = '';
+      markAllButton.disabled = true;
+      renderItems([]);
+      updateTitle(0);
+      publishUnreadCount();
+    });
+    document.addEventListener('click', (event) => {
+      if (!root.contains(event.target as Node)) closePanel();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !panel.hidden) {
+        closePanel();
+        trigger.focus();
+      }
+    });
+    window.addEventListener('scroll', closePanel, { passive: true, capture: true });
+    window.addEventListener('resize', closePanel, { passive: true });
+    window.addEventListener('pagehide', closePanel);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void refreshFeed(false);
+      else closePanel();
+    });
+
+    const pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshFeed(false);
+    }, 30000);
+    window.addEventListener('pagehide', () => window.clearInterval(pollTimer), { once: true });
+
+    if (pb.authStore.isValid) {
+      void pb.collection('master_notifications').subscribe('*', scheduleRefresh).catch(() => undefined);
+      window.addEventListener('pagehide', () => { void pb.collection('master_notifications').unsubscribe('*'); }, { once: true });
+    }
+    void refreshFeed(false);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-master-notifications-bell]').forEach(initializeBell);
+</script>

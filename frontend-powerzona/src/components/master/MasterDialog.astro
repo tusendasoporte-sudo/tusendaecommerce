@@ -1,0 +1,43 @@
+---
+import MasterIcon from './MasterIcon.astro';
+
+interface Props {
+  id: string;
+  title: string;
+  description?: string;
+  tone?: 'info' | 'primary' | 'warning' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  closeOnBackdrop?: boolean;
+}
+
+const {
+  id,
+  title,
+  description = '',
+  tone = 'info',
+  size = 'md',
+  closeOnBackdrop = true,
+} = Astro.props;
+---
+
+<dialog
+  id={id}
+  class:list={['master-dialog', `master-dialog--${tone}`, `master-dialog--${size}`]}
+  data-master-dialog
+  data-close-on-backdrop={closeOnBackdrop ? 'true' : 'false'}
+  aria-labelledby={`${id}-title`}
+>
+  <div class="master-dialog__surface">
+    <header class="master-dialog__header">
+      <div class="master-dialog__heading">
+        <h2 id={`${id}-title`}>{title}</h2>
+        {description && <p>{description}</p>}
+      </div>
+      <button class="master-dialog__close" type="button" aria-label="Cerrar" data-master-dialog-close>
+        <MasterIcon name="close" size={20} />
+      </button>
+    </header>
+    <div class="master-dialog__body"><slot /></div>
+    <footer class="master-dialog__footer"><slot name="footer" /></footer>
+  </div>
+</dialog>

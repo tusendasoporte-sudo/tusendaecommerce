@@ -1,0 +1,123 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import MasterShell from '../../components/master/MasterShell.astro';
+import MasterIcon from '../../components/master/MasterIcon.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import {
+  getMasterPriceWatchPage,
+  normalizePriceWatchPage,
+  normalizePriceWatchStatus,
+  type MasterPriceWatchStatus,
+} from '../../lib/masterStoreOverview';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const currentPage = normalizePriceWatchPage(Astro.url.searchParams.get('page'));
+const currentStatus = normalizePriceWatchStatus(Astro.url.searchParams.get('status'));
+const currentSearch = String(Astro.url.searchParams.get('q') || '').trim().slice(0, 100);
+const rawStoreId = String(Astro.url.searchParams.get('store_id') || '').trim();
+const currentStoreId = /^[a-z0-9]{15}$/.test(rawStoreId) ? rawStoreId : '';
+let currentStore: { id: string; name: string; slug: string; status: string } | null = null;
+if (currentStoreId) {
+  try {
+    const record = await authPb.collection('stores').getOne(currentStoreId, { fields: 'id,name,slug,status', requestKey: null });
+    currentStore = { id: record.id, name: String(record.name || 'Tienda'), slug: String(record.slug || ''), status: record.status === 'active' ? 'active' : 'suspended' };
+  } catch (_) {
+    return Astro.redirect('/master/stores');
+  }
+}
+
+const result = await getMasterPriceWatchPage(import.meta.env.PUBLIC_POCKETBASE_URL, authPb.authStore.token, {
+  page: currentPage,
+  status: currentStatus,
+  store_id: currentStoreId,
+  search: currentSearch,
+});
+if (result.status === 404) return Astro.redirect('/master/stores');
+const data = result.data;
+
+const statusTabs: Array<[MasterPriceWatchStatus, string]> = [
+  ['active', 'Activos'], ['paused', 'Pausados'], ['deleted', 'Eliminados'], ['all', 'Todos'],
+];
+
+function pageUrl(page: number, status = currentStatus) {
+  const params = new URLSearchParams();
+  if (page > 1) params.set('page', String(page));
+  if (status !== 'active') params.set('status', status);
+  if (currentStoreId) params.set('store_id', currentStoreId);
+  if (currentSearch) params.set('q', currentSearch);
+  const query = params.toString();
+  return `/master/price-watch${query ? `?${query}` : ''}`;
+}
+
+function date(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short' }).format(parsed) : 'Sin cambios';
+}
+
+function usd(value: unknown) {
+  return new Intl.NumberFormat('es', { style: 'currency', currency: 'USD' }).format(Number(value || 0));
+}
+
+function statusLabel(value: string) {
+  return value === 'active' ? 'Activo' : value === 'paused' ? 'Pausado' : 'Eliminado';
+}
+
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Seguimiento de precios" currentStore={currentStore}>
+    <section class="master-page">
+      <header class="master-overview-heading"><div><h2>Seguimiento de precios</h2><p>{currentStore ? `Productos monitorizados en ${currentStore.name}.` : 'Vista global de productos monitorizados en todas las tiendas.'}</p></div></header>
+
+      {!result.available && <div class="master-error" role="alert">No fue posible consultar el seguimiento privado. No se muestran snapshots ni datos parciales.</div>}
+
+      <section class="master-card">
+        <div class="master-card-body master-filter-tabs" aria-label="Estado de seguimiento">
+          {statusTabs.map(([value, label]) => <a class:list={['master-filter-tab', { 'is-active': currentStatus === value }]} href={pageUrl(1, value)}>{label}</a>)}
+        </div>
+        <form class="master-filter-bar" method="get" action="/master/price-watch">
+          <div class="master-field"><label for="watch-search">Buscar producto</label><input id="watch-search" type="search" name="q" maxlength="100" value={currentSearch} placeholder="Nombre del producto" /></div>
+          <div class="master-field"><label for="watch-store">Tienda</label><select id="watch-store" name="store_id"><option value="">Todas</option>{currentStore && !data?.stores.some((store) => store.id === currentStore?.id) && <option value={currentStore.id} selected>{currentStore.name}</option>}{data?.stores.map((store) => <option value={store.id} selected={store.id === currentStoreId}>{store.name}</option>)}</select></div>
+          <input type="hidden" name="status" value={currentStatus} />
+          <button class="master-btn master-btn--primary" type="submit"><MasterIcon name="search" size={17} /> Buscar</button>
+          {(currentStoreId || currentSearch || currentStatus !== 'active') && <a class="master-btn master-btn--secondary" href="/master/price-watch">Limpiar</a>}
+        </form>
+      </section>
+
+      <section class="master-card">
+        <header class="master-card-header"><h3 class="master-card-title">Productos monitorizados</h3><span class="master-muted">{data?.page.total_items || 0} resultados</span></header>
+        {data?.page.items.length ? (
+          <div class="master-table-wrap">
+            <table class="master-table">
+              <thead><tr><th>Tienda</th><th>Producto</th><th>Estado</th><th>Precio actual</th><th>Último cambio</th><th>Fecha</th><th>Abrir</th></tr></thead>
+              <tbody>{data.page.items.map((item) => (
+                <tr>
+                  <td>{item.store.name}</td><td>{item.product.name}</td>
+                  <td><span class:list={['master-pill', item.status === 'active' ? 'master-pill--success' : item.status === 'paused' ? 'master-pill--warning' : 'master-pill--danger']}>{statusLabel(item.status)}</span></td>
+                  <td>{item.product.id ? usd(item.current_price_usd) : 'No disponible'}</td>
+                  <td>{item.last_change || 'Sin cambios registrados'}</td><td>{date(item.last_change_at)}</td>
+                  <td><a class="master-icon-btn" href={item.action_url} aria-label={`Abrir ${item.product.name}`}><MasterIcon name="external" size={17} /></a></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <p class="master-empty">No hay productos para estos filtros.</p>}
+        {data && data.page.total_pages > 1 && (
+          <footer class="master-store-footer"><p>Página {data.page.page} de {data.page.total_pages}</p><nav class="master-pagination" aria-label="Paginación">{data.page.page > 1 ? <a href={pageUrl(data.page.page - 1)}>Anterior</a> : <span class="is-disabled">Anterior</span>}<span>{data.page.page}</span>{data.page.page < data.page.total_pages ? <a href={pageUrl(data.page.page + 1)}>Siguiente</a> : <span class="is-disabled">Siguiente</span>}</nav></footer>
+        )}
+      </section>
+    </section>
+  </MasterShell>
+</Layout>

@@ -7,7 +7,6 @@ import {
   getPageTypeLabel,
   getVisitorDisplayName,
   getVisitorPhone,
-  isSafeInternalPublicPath,
   type PaginatedResult,
   type SecuritySettingsView,
   type SecurityVisitorPageviewRow,
@@ -133,7 +132,7 @@ function detailPageHref(page: number) {
           </div>
           <div class="table-body">
             {pageviews.items.map((pageview) => {
-              const canOpen = isSafeInternalPublicPath(pageview.path);
+              const canOpen = pageview.canOpen && Boolean(pageview.openPath);
               return (
                 <article class="table-row" role="row">
                   <div class="table-cell" role="cell" data-label="Hora">{formatDateTime(pageview.occurred_at || pageview.created)}</div>
@@ -147,7 +146,7 @@ function detailPageHref(page: number) {
                     </div>
                   )}
                   <div class="table-cell action-cell" role="cell" data-label="Accion">
-                    {canOpen ? <a class="row-action" href={pageview.path} target="_blank" rel="noreferrer">Abrir pagina</a> : <span>No disponible</span>}
+                    {canOpen ? <a class="row-action" href={pageview.openPath} target="_blank" rel="noreferrer">Abrir pagina</a> : <span>No disponible</span>}
                   </div>
                 </article>
               );

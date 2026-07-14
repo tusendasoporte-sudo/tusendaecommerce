@@ -39,6 +39,20 @@ export type MasterStoreInput = {
   owner_phone?: string;
 };
 
+export type MasterStoresPage = {
+  items: MasterStoreSummary[];
+  page: number;
+  perPage: number;
+  totalItems: number;
+  totalPages: number;
+};
+
+export type MasterStoreCounts = {
+  total: number;
+  active: number;
+  suspended: number;
+};
+
 function normalizeStoreFileValue(value: any) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return value ? [value] : [];
@@ -243,6 +257,67 @@ export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSum
     created: store.created || '',
     updated: store.updated || '',
   }));
+}
+
+function mapMasterStore(store: any): MasterStoreSummary {
+  return {
+    id: store.id || '',
+    name: store.name || '',
+    slug: store.slug || '',
+    status: store.status || '',
+    plan: store.plan || '',
+    featured: store.featured === true,
+    featured_order: Number(store.featured_order || 0),
+    protected: store.protected === true,
+    owner_phone: store.owner_phone || '',
+    views_count: Number(store.views_count || 0),
+    orders_count: Number(store.orders_count || 0),
+    created: store.created || '',
+    updated: store.updated || '',
+  };
+}
+
+export function normalizeMasterStoresPage(value: unknown) {
+  const page = Number(value);
+  return Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+}
+
+export async function getStoresPageForMaster(client: PocketBase, page: unknown, perPage = 10): Promise<MasterStoresPage> {
+  requireMasterClient(client);
+  const requestedPage = normalizeMasterStoresPage(page);
+  const normalizedPerPage = Math.min(100, Math.max(1, Math.floor(Number(perPage) || 10)));
+  const options = {
+    fields: 'id,name,slug,status,plan,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    sort: '-featured,featured_order,status,name',
+  };
+  let result = await client.collection('stores').getList(requestedPage, normalizedPerPage, options);
+  const totalItems = Math.max(0, Number(result.totalItems || 0));
+  const totalPages = Math.max(1, Number(result.totalPages || 0));
+  const normalizedPage = Math.min(requestedPage, totalPages);
+
+  if (totalItems > 0 && normalizedPage !== requestedPage) {
+    result = await client.collection('stores').getList(normalizedPage, normalizedPerPage, options);
+  }
+
+  return {
+    items: result.items.map(mapMasterStore),
+    page: normalizedPage,
+    perPage: normalizedPerPage,
+    totalItems,
+    totalPages,
+  };
+}
+
+export async function getMasterStoreCounts(client: PocketBase): Promise<MasterStoreCounts> {
+  requireMasterClient(client);
+  const fields = 'id';
+  const [allStores, activeStores] = await Promise.all([
+    client.collection('stores').getList(1, 1, { fields }),
+    client.collection('stores').getList(1, 1, { fields, filter: `status="${ACTIVE_STORE_STATUS}"` }),
+  ]);
+  const total = Math.max(0, Number(allStores.totalItems || 0));
+  const active = Math.min(total, Math.max(0, Number(activeStores.totalItems || 0)));
+  return { total, active, suspended: Math.max(0, total - active) };
 }
 
 export async function createStoreFromMaster(input: MasterStoreInput, client = pb) {

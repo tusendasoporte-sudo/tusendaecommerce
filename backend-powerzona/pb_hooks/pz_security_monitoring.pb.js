@@ -18,6 +18,30 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/security/activity-page",
+  (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleSecurityActivityPage(e),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/security/visitors-page",
+  (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleSecurityVisitorsPage(e),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/security/visitor-detail",
+  (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleSecurityVisitorDetail(e),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/security/customer-detail",
   (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleCustomerDetail(e),
   $apis.bodyLimit(2048),

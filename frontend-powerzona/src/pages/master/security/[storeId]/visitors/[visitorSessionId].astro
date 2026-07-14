@@ -3,10 +3,9 @@ export const prerender = false;
 
 import Layout from '../../../../../layouts/Layout.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../../lib/auth';
-import { getStoreSecuritySettings, isStoreSecurityEnabled } from '../../../../../lib/security';
+import { getStoreSecuritySettings } from '../../../../../lib/security';
 import {
-  getSecurityVisitorPageviewsPage,
-  getSecurityVisitorSessionById,
+  getSecurityVisitorDetail,
   isValidRecordId,
   normalizePage,
   type PaginatedResult,
@@ -14,6 +13,7 @@ import {
   type SecurityVisitorSessionRow,
 } from '../../../../../lib/securityMonitoring';
 import SecurityVisitorDetailView from '../../../../../components/admin/SecurityVisitorDetailView.astro';
+import MasterShell from '../../../../../components/master/MasterShell.astro';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -30,12 +30,13 @@ if (!authPb.authStore.isValid || !authPb.authStore.record) {
 if (!masterUser) {
   return Astro.redirect('/master');
 }
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
 
 const storeId = String(Astro.params.storeId || '').trim();
 const visitorSessionId = String(Astro.params.visitorSessionId || '').trim();
 
 if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId)) {
-  return Astro.redirect('/master');
+  return Astro.redirect('/master/stores');
 }
 
 let storeRecord: any = null;
@@ -44,25 +45,32 @@ try {
     fields: 'id,name,slug,status',
   });
 } catch (_) {
-  return Astro.redirect('/master');
+  return Astro.redirect('/master/stores');
 }
 
 const securitySettings = await getStoreSecuritySettings(storeId, authPb);
-if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {
-  return Astro.redirect('/master');
+if (!securitySettings.exists) {
+  return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}`);
 }
 
 const page = normalizePage(Astro.url.searchParams.get('page'));
 const storeName = String(storeRecord?.name || storeRecord?.slug || 'Tienda').trim();
+const currentStore = {
+  id: storeId,
+  name: storeName,
+  slug: String(storeRecord?.slug || ''),
+  status: String(storeRecord?.status || '') === 'active' ? 'active' : 'suspended',
+};
 const basePath = `/master/security/${encodeURIComponent(storeId)}`;
 let visitor: SecurityVisitorSessionRow | null = null;
 let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
 let viewError = '';
 
 try {
-  visitor = await getSecurityVisitorSessionById(authPb, storeId, visitorSessionId, securitySettings);
+  const detail = await getSecurityVisitorDetail(authPb, storeId, visitorSessionId, page);
+  visitor = detail.visitor;
   if (!visitor) return Astro.redirect(`${basePath}?section=visitors`);
-  pageviews = await getSecurityVisitorPageviewsPage(authPb, storeId, visitor.id, page, securitySettings);
+  pageviews = detail.pageviews;
 } catch (_) {
   viewError = 'No se pudo cargar el detalle de este visitante en este momento.';
 }
@@ -73,24 +81,20 @@ if (!visitor || !pageviews) {
 ---
 
 <Layout isMaster={true}>
-  <style>
-    .master-security-shell {
-      display: grid;
-      gap: 18px;
-      min-width: 0;
-      padding: 6px 0 32px;
-    }
-  </style>
-
-  <main class="master-security-shell">
-    <SecurityVisitorDetailView
-      storeName={storeName}
-      basePath={basePath}
-      backHref={`${basePath}?section=visitors`}
-      settings={securitySettings}
-      visitor={visitor}
-      pageviews={pageviews}
-      viewError={viewError}
-    />
-  </main>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Detalle de visitante" currentStore={currentStore}>
+    <style>
+      .master-security-shell { display: grid; gap: 18px; min-width: 0; padding: 6px 0 32px; }
+    </style>
+    <main class="master-security-shell">
+      <SecurityVisitorDetailView
+        storeName={storeName}
+        basePath={basePath}
+        backHref={`${basePath}?section=visitors`}
+        settings={securitySettings}
+        visitor={visitor}
+        pageviews={pageviews}
+        viewError={viewError}
+      />
+    </main>
+  </MasterShell>
 </Layout>

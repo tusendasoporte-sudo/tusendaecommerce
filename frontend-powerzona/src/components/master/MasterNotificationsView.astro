@@ -1,0 +1,236 @@
+---
+import type { MasterNotificationPage } from '../../lib/masterNotifications';
+
+interface Props {
+  notifications: MasterNotificationPage | null;
+  currentStatus: 'all' | 'unread' | 'read' | 'archived';
+  currentCategory: 'all' | 'products' | 'security' | 'stores' | 'system';
+  viewError?: string;
+}
+
+const { notifications, currentStatus, currentCategory, viewError = '' } = Astro.props;
+const statusOptions = [
+  ['all', 'Todas'], ['unread', 'No leídas'], ['read', 'Leídas'], ['archived', 'Archivadas'],
+] as const;
+const categoryOptions = [
+  ['all', 'Todas'], ['products', 'Productos'], ['security', 'Seguridad'], ['stores', 'Tiendas'], ['system', 'Sistema'],
+] as const;
+const categoryLabels: Record<string, string> = {
+  products: 'Productos', security: 'Seguridad', stores: 'Tiendas', system: 'Sistema',
+};
+
+function formatDate(value: string) {
+  if (!value) return 'Sin fecha';
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+    : 'Sin fecha';
+}
+
+function pageHref(page: number) {
+  const params = new URLSearchParams();
+  if (currentStatus !== 'all') params.set('status', currentStatus);
+  if (currentCategory !== 'all') params.set('category', currentCategory);
+  if (page > 1) params.set('page', String(page));
+  const query = params.toString();
+  return query ? `/master/notifications?${query}` : '/master/notifications';
+}
+
+const items = notifications?.items || [];
+const resultPage = notifications?.page || 1;
+const firstResult = notifications && notifications.total_items > 0 ? ((resultPage - 1) * notifications.per_page) + 1 : 0;
+const lastResult = notifications && notifications.total_items > 0
+  ? Math.min(notifications.total_items, firstResult + items.length - 1)
+  : 0;
+const firstPageHref = pageHref(1);
+---
+
+<main class="notifications-shell" data-notifications-view data-first-page-href={firstPageHref} data-current-page={resultPage}>
+  <header class="notifications-hero">
+    <div><span>Centro global</span><h1>Notificaciones del Master</h1><p>Productos, Seguridad, Tiendas y Sistema en un solo lugar.</p></div>
+    <div class="notifications-hero-actions">
+      <button type="button" data-mark-all-notifications>Marcar todas como leídas</button>
+      <button class="delete-all-button" type="button" data-delete-all-notifications>Borrar todo</button>
+      <a href="/master">Volver al Panel Master</a>
+    </div>
+  </header>
+
+  <form class="notification-filters" method="get" action="/master/notifications">
+    <label><span>Estado</span><select name="status">{statusOptions.map(([value, label]) => <option value={value} selected={value === currentStatus}>{label}</option>)}</select></label>
+    <label><span>Categoría</span><select name="category">{categoryOptions.map(([value, label]) => <option value={value} selected={value === currentCategory}>{label}</option>)}</select></label>
+    <button type="submit">Aplicar filtros</button>
+    <a href="/master/notifications">Limpiar</a>
+  </form>
+
+  {viewError && <p class="notifications-error" role="alert">{viewError}</p>}
+
+  <section class="notifications-card" aria-label="Notificaciones del Master">
+    <header>
+      <div><span>Resultados</span><h2>{notifications?.total_items || 0} notificaciones</h2><p>Mostrando {firstResult} a {lastResult} de {notifications?.total_items || 0} notificaciones</p></div>
+      <span>Página {notifications?.page || 1} de {notifications?.total_pages || 1}</span>
+    </header>
+    {items.length ? (
+      <div class="notification-list">
+        {items.map((item) => (
+          <article class:list={['notification-row', item.status === 'unread' && 'is-unread']}>
+            <div class="notification-copy">
+              <div class="notification-meta">
+                <span>{categoryLabels[item.category]}</span>
+                {item.store_name && <span>{item.store_name}</span>}
+                <span class={`status is-${item.status}`}>{item.status === 'unread' ? 'No leída' : item.status === 'read' ? 'Leída' : 'Archivada'}</span>
+                {item.event_count > 1 && <span>{item.event_count} eventos</span>}
+              </div>
+              <h3>{item.title}</h3>
+              <p>{item.message}</p>
+              <time>{formatDate(item.last_event_at || item.created)}</time>
+            </div>
+            <div class="notification-actions">
+              <a href={item.action_url} data-notification-open data-notification-id={item.id} data-notification-unread={item.status === 'unread' ? 'true' : 'false'}>Abrir</a>
+              {item.status === 'unread' && <button type="button" data-notification-action="mark_read" data-notification-id={item.id}>Marcar leída</button>}
+              {item.status !== 'archived' && <button type="button" data-notification-action="archive" data-notification-id={item.id}>Archivar</button>}
+              <button class="delete-notification-button" type="button" data-notification-action="delete" data-notification-id={item.id}>Eliminar</button>
+            </div>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <p class="notifications-empty">No hay notificaciones para estos filtros.</p>
+    )}
+
+    {notifications && notifications.total_pages > 1 && (
+      <nav class="notifications-pagination" aria-label="Paginación de notificaciones">
+        {notifications.page > 1 ? <a href={pageHref(notifications.page - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
+        <strong>Página {notifications.page} de {notifications.total_pages}</strong>
+        {notifications.page < notifications.total_pages ? <a href={pageHref(notifications.page + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
+      </nav>
+    )}
+  </section>
+
+  <p class="retention-note">Las notificaciones se eliminan automáticamente después de 60 días.</p>
+</main>
+
+<style>
+  .notifications-shell { display: grid; gap: 17px; min-width: 0; padding: 0 0 44px; color: #0f172a; }
+  .notifications-hero { display: flex; align-items: end; justify-content: space-between; gap: 20px; border: 1px solid #c7d2fe; border-radius: 19px; background: linear-gradient(135deg, #eef2ff, #fff 60%, #f5f3ff); padding: clamp(22px, 5vw, 36px); }
+  .notifications-hero > div { display: grid; gap: 5px; }
+  .notifications-hero span, .notifications-card > header > div > span { color: #4f46e5; font-size: 9px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .notifications-hero h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1; font-weight: 1000; }
+  .notifications-hero p { margin: 3px 0 0; color: #475569; font-size: 12px; font-weight: 750; }
+  .notifications-hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .notifications-hero-actions a, .notifications-hero-actions button, .notification-filters button, .notification-filters > a, .notifications-pagination a, .notifications-pagination span { display: inline-flex; align-items: center; justify-content: center; min-height: 39px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #334155; padding: 9px 12px; font: inherit; font-size: 11px; font-weight: 950; text-decoration: none; white-space: nowrap; cursor: pointer; }
+  .notifications-hero-actions button { border-color: #c7d2fe; color: #4338ca; }
+  .notifications-hero-actions .delete-all-button { border-color: #fecaca; background: #fff1f2; color: #b91c1c; }
+  .notification-filters { display: grid; grid-template-columns: repeat(2, minmax(160px, 1fr)) auto auto; align-items: end; gap: 10px; border: 1px solid #e2e8f0; border-radius: 15px; background: #fff; padding: 14px; }
+  .notification-filters label { display: grid; gap: 6px; }
+  .notification-filters label > span { color: #64748b; font-size: 9px; font-weight: 950; text-transform: uppercase; }
+  .notification-filters select { min-height: 40px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; padding: 8px 10px; font: inherit; font-size: 11px; font-weight: 800; }
+  .notification-filters button { border-color: #4f46e5; background: #4f46e5; color: #fff; cursor: pointer; }
+  .notifications-error { margin: 0; border: 1px solid #fed7aa; border-radius: 12px; background: #fff7ed; color: #9a3412; padding: 14px; font-size: 11px; font-weight: 800; }
+  .notifications-card { min-width: 0; border: 1px solid #e2e8f0; border-radius: 17px; background: #fff; padding: 16px; }
+  .notifications-card > header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 1px 2px 14px; }
+  .notifications-card h2 { margin: 4px 0 0; font-size: 20px; font-weight: 1000; }
+  .notifications-card > header > div > p { margin: 5px 0 0; color: #64748b; font-size: 10px; font-weight: 800; }
+  .notifications-card > header > span { border-radius: 999px; background: #f1f5f9; color: #475569; padding: 6px 9px; font-size: 9px; font-weight: 900; }
+  .notification-list { display: grid; gap: 9px; }
+  .notification-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; border: 1px solid #e2e8f0; border-radius: 13px; padding: 14px; }
+  .notification-row.is-unread { border-color: #c7d2fe; background: #eef2ff; }
+  .notification-copy { display: grid; gap: 5px; min-width: 0; }
+  .notification-meta { display: flex; flex-wrap: wrap; gap: 5px; }
+  .notification-meta span { border-radius: 999px; background: #f1f5f9; color: #475569; padding: 4px 6px; font-size: 8px; font-weight: 950; }
+  .notification-meta .status.is-unread { background: #dbeafe; color: #1d4ed8; }
+  .notification-meta .status.is-read { background: #dcfce7; color: #047857; }
+  .notification-meta .status.is-archived { background: #e2e8f0; color: #475569; }
+  .notification-copy h3 { margin: 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 1000; }
+  .notification-copy p { margin: 0; overflow-wrap: anywhere; color: #475569; font-size: 11px; line-height: 1.5; font-weight: 700; }
+  .notification-copy time { color: #64748b; font-size: 9px; font-weight: 750; }
+  .notification-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; max-width: 330px; }
+  .notification-actions a, .notification-actions button { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #334155; padding: 7px 9px; font: inherit; font-size: 9px; font-weight: 950; text-decoration: none; cursor: pointer; }
+  .notification-actions a { border-color: #4f46e5; background: #4f46e5; color: #fff; }
+  .notification-actions .delete-notification-button { border-color: #fecaca; color: #b91c1c; }
+  .notification-actions button:disabled { opacity: .6; cursor: wait; }
+  .notifications-empty { margin: 0; border-radius: 12px; background: #f8fafc; color: #64748b; padding: 34px 18px; text-align: center; font-size: 12px; font-weight: 750; }
+  .notifications-pagination { display: flex; align-items: center; justify-content: center; gap: 10px; padding-top: 15px; }
+  .notifications-pagination span { opacity: .45; }
+  .notifications-pagination strong { color: #475569; font-size: 10px; }
+  .retention-note { margin: 0; border: 1px solid #dbeafe; border-radius: 12px; background: #eff6ff; color: #1e40af; padding: 13px 15px; font-size: 11px; font-weight: 800; }
+  @media (max-width: 760px) {
+    .notifications-hero { align-items: stretch; flex-direction: column; }
+    .notifications-hero-actions { justify-content: stretch; }
+    .notifications-hero-actions > * { flex: 1 1 auto; }
+    .notification-row { align-items: stretch; grid-template-columns: 1fr; }
+    .notification-actions { justify-content: stretch; max-width: none; }
+    .notification-actions > * { flex: 1 1 auto; }
+  }
+  @media (max-width: 520px) {
+    .notification-filters { grid-template-columns: 1fr; }
+    .notification-filters button, .notification-filters > a { width: 100%; }
+    .notifications-card { padding: 11px; }
+    .notifications-card > header { align-items: flex-start; flex-direction: column; }
+    .notifications-hero-actions { display: grid; grid-template-columns: 1fr; width: 100%; }
+    .notification-actions { display: grid; grid-template-columns: 1fr; }
+    .notifications-pagination { justify-content: space-between; gap: 5px; }
+    .notifications-pagination strong { text-align: center; }
+  }
+</style>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { runMasterNotificationAction } from '../../lib/masterNotifications';
+
+  const notificationsView = document.querySelector<HTMLElement>('[data-notifications-view]');
+  const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+  if (notificationsView && pocketbaseUrl) {
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    const currentPage = Math.max(1, Number(notificationsView.dataset.currentPage || 1));
+    const firstPageHref = String(notificationsView.dataset.firstPageHref || '/master/notifications');
+
+    notificationsView.querySelectorAll<HTMLAnchorElement>('[data-notification-open]').forEach((link) => {
+      link.addEventListener('click', async (event) => {
+        if (link.dataset.notificationUnread !== 'true' || !pb.authStore.isValid || !pb.authStore.token) return;
+        event.preventDefault();
+        await runMasterNotificationAction(pocketbaseUrl, pb.authStore.token, 'mark_read', String(link.dataset.notificationId || ''));
+        window.location.assign(link.href);
+      });
+    });
+
+    notificationsView.querySelectorAll<HTMLButtonElement>('[data-notification-action]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const action = String(button.dataset.notificationAction || '') as 'mark_read' | 'archive' | 'delete';
+        if (!pb.authStore.isValid || !pb.authStore.token || !['mark_read', 'archive', 'delete'].includes(action)) return;
+        button.disabled = true;
+        const result = await runMasterNotificationAction(
+          pocketbaseUrl,
+          pb.authStore.token,
+          action,
+          String(button.dataset.notificationId || ''),
+        );
+        if (result.available) {
+          const remainingRows = notificationsView.querySelectorAll('.notification-row').length;
+          if (action === 'delete' && currentPage > 1 && remainingRows === 1) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', String(currentPage - 1));
+            window.location.assign(`${url.pathname}?${url.searchParams.toString()}`);
+          } else {
+            window.location.reload();
+          }
+        }
+        else button.disabled = false;
+      });
+    });
+
+    notificationsView.querySelector<HTMLButtonElement>('[data-mark-all-notifications]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      if (!pb.authStore.isValid || !pb.authStore.token) return;
+      button.disabled = true;
+      const result = await runMasterNotificationAction(pocketbaseUrl, pb.authStore.token, 'mark_all_read');
+      if (result.available) window.location.reload();
+      else button.disabled = false;
+    });
+    notificationsView.querySelector<HTMLButtonElement>('[data-delete-all-notifications]')?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('pz:request-delete-all-notifications'));
+    });
+    window.addEventListener('pz:notifications-deleted-all', () => {
+      window.location.assign(firstPageHref);
+    });
+  }
+</script>

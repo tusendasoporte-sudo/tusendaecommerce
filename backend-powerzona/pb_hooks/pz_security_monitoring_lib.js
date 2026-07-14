@@ -19,8 +19,11 @@ const ORDERS_COLLECTION = "orders";
 const CUSTOMER_DETAIL_PER_PAGE = 10;
 const CUSTOMER_DETAIL_MAX_PAGE = 1000;
 const SECURITY_BLOCKS_PER_PAGE = 10;
+const SECURITY_MONITORING_PAGE_SIZE = 10;
 
 const ALLOWED_PAGE_TYPES = ["store_home", "category", "subcategory", "product", "gifts", "search", "checkout", "landing_qr", "other"];
+const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "admin_action"];
+const SECURITY_ACTIVITY_RISK_LEVELS = ["all", "normal", "suspicious", "blocked"];
 const RESOLVE_SOURCES = ["security_event", "visitor_session", "visitor_pageview"];
 const SECURITY_BLOCK_SCOPES = ["orders", "reviews", "raffles", "all_interactions", "full_access"];
 const SECURITY_BLOCK_DURATIONS = ["hours_24", "days_7", "days_30", "permanent"];
@@ -46,6 +49,9 @@ const LOG_MESSAGES = {
   PZ_SEC_BLOCK_EXPIRE_FAILED: "PowerZona security block expiry failed safely.",
   PZ_SEC_BLOCK_LIST_FAILED: "PowerZona security block list failed safely.",
   PZ_SEC_WATCH_UPDATE_FAILED: "PowerZona security customer watch update failed safely.",
+  PZ_SEC_ACTIVITY_PAGE_FAILED: "PowerZona security activity page failed safely.",
+  PZ_SEC_VISITORS_PAGE_FAILED: "PowerZona security visitors page failed safely.",
+  PZ_SEC_VISITOR_DETAIL_FAILED: "PowerZona security visitor detail failed safely.",
 };
 
 function logSecurity(level, code, key, value) {
@@ -231,6 +237,13 @@ function getActiveSecuritySettings(app, storeId) {
 function getSecuritySettingsRecord(app, storeId) {
   if (!storeId) return null;
   return findFirstByFilter(app, SECURITY_SETTINGS_COLLECTION, "store = {:store}", { store: storeId });
+}
+
+function getReadableSecuritySettings(app, storeId, role) {
+  const settings = getSecuritySettingsRecord(app, storeId);
+  if (!settings) return null;
+  if (role === "master_admin") return settings;
+  return canObserveWithSettings(settings) ? settings : null;
 }
 
 function securityMode(settings) {
@@ -857,9 +870,9 @@ function buildOrderMap(app, storeId, ids) {
   return map;
 }
 
-function getRecordIpDisplay(record, settings) {
+function getRecordIpDisplayFromFields(record, settings, maskedField, encryptedField) {
   const visibility = getString(settings, "ip_visibility") || "hidden";
-  const masked = getString(record, "ip_masked");
+  const masked = getString(record, maskedField);
 
   if (visibility === "hidden") {
     return { ip_display: "", ip_resolution_status: "hidden" };
@@ -873,7 +886,7 @@ function getRecordIpDisplay(record, settings) {
   }
 
   if (visibility === "full") {
-    const fullIp = decryptIp(getString(record, "ip_encrypted"));
+    const fullIp = decryptIp(getString(record, encryptedField));
     if (fullIp) {
       return { ip_display: fullIp, ip_resolution_status: "full" };
     }
@@ -885,6 +898,14 @@ function getRecordIpDisplay(record, settings) {
   }
 
   return { ip_display: "", ip_resolution_status: "hidden" };
+}
+
+function getRecordIpDisplay(record, settings) {
+  return getRecordIpDisplayFromFields(record, settings, "ip_masked", "ip_encrypted");
+}
+
+function getVisitorSessionIpDisplay(record, settings) {
+  return getRecordIpDisplayFromFields(record, settings, "latest_ip_masked", "latest_ip_encrypted");
 }
 
 function serializeEvent(event, settings, orderMap) {
@@ -922,6 +943,336 @@ function canReadStore(role, authStoreId, storeId) {
   if (role === "master_admin") return true;
   if (role === "store_admin" && authStoreId && authStoreId === storeId) return true;
   return false;
+}
+
+function getAuthorizedSecuritySettings(info, storeId) {
+  const auth = info && info.auth;
+  const role = authRole(auth);
+  const authStoreId = authStore(auth);
+  if (!canReadStore(role, authStoreId, storeId)) return null;
+  const settings = getReadableSecuritySettings($app, storeId, role);
+  if (!settings) return null;
+  return { role, settings };
+}
+
+function hasExactKeys(body, allowed) {
+  const keys = getBodyKeys(body);
+  return keys.length === allowed.length && keys.every((key) => allowed.includes(key));
+}
+
+function normalizeSecurityDay(value) {
+  const day = String(value || "").trim();
+  if (!day) return getHavanaDay(new Date());
+  const match = day.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return "";
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const date = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, date, 12, 0, 0));
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month || parsed.getUTCDate() !== date) return "";
+  return day;
+}
+
+function parseActivityPagePayload(body) {
+  const allowed = ["store_id", "page", "event_type", "risk_level"];
+  if (!hasExactKeys(body, allowed)) return null;
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const page = normalizePositivePage(getBodyValue(body, "page"));
+  const eventType = String(getBodyValue(body, "event_type") || "").trim();
+  const riskLevel = String(getBodyValue(body, "risk_level") || "").trim();
+  if (!isValidRecordId(storeId) || !page) return null;
+  if (!SECURITY_ACTIVITY_EVENT_TYPES.includes(eventType)) return null;
+  if (!SECURITY_ACTIVITY_RISK_LEVELS.includes(riskLevel)) return null;
+  return { storeId, page, eventType, riskLevel };
+}
+
+function parseVisitorsPagePayload(body) {
+  const allowed = ["store_id", "page", "day"];
+  if (!hasExactKeys(body, allowed)) return null;
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const page = normalizePositivePage(getBodyValue(body, "page"));
+  const day = normalizeSecurityDay(getBodyValue(body, "day"));
+  if (!isValidRecordId(storeId) || !page || !day) return null;
+  return { storeId, page, day };
+}
+
+function parseVisitorDetailPayload(body) {
+  const allowed = ["store_id", "visitor_session_id", "page"];
+  if (!hasExactKeys(body, allowed)) return null;
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
+  const page = normalizePositivePage(getBodyValue(body, "page"));
+  if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId) || !page) return null;
+  return { storeId, visitorSessionId, page };
+}
+
+function listSecurityPage(app, collection, filter, sort, page, params) {
+  const totalItems = countRecordsByFilter(app, collection, filter, params);
+  const totalPages = Math.max(1, Math.ceil(totalItems / SECURITY_MONITORING_PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const offset = (safePage - 1) * SECURITY_MONITORING_PAGE_SIZE;
+  const items = totalItems > 0
+    ? app.findRecordsByFilter(collection, filter, sort, SECURITY_MONITORING_PAGE_SIZE, offset, params || {}) || []
+    : [];
+  return {
+    page: safePage,
+    perPage: SECURITY_MONITORING_PAGE_SIZE,
+    totalItems,
+    totalPages,
+    items,
+  };
+}
+
+function buildSanitizedCustomerMap(app, storeId, customerIds) {
+  const customers = getStoreRecordsByIds(app, STORE_CUSTOMERS_COLLECTION, storeId, uniqueIds(customerIds));
+  const customerMap = {};
+  const primaryPhones = {};
+  listByStoreRelation(
+    app,
+    STORE_CUSTOMER_PHONES_COLLECTION,
+    storeId,
+    "customer",
+    customers.map((customer) => customer.id),
+    "-is_primary,-updated"
+  ).forEach((phone) => {
+    const customerId = getRelationId(phone, "customer");
+    if (!primaryPhones[customerId] && getBoolean(phone, "is_primary")) {
+      primaryPhones[customerId] = getString(phone, "phone_normalized");
+    }
+  });
+
+  customers.forEach((customer) => {
+    customerMap[customer.id] = {
+      id: customer.id,
+      display_name: getString(customer, "display_name"),
+      primary_phone: primaryPhones[customer.id] || getString(customer, "phone_normalized"),
+    };
+  });
+  return customerMap;
+}
+
+function buildSanitizedOrderMap(app, storeId, orderIds) {
+  const orderMap = {};
+  getStoreRecordsByIds(app, ORDERS_COLLECTION, storeId, uniqueIds(orderIds)).forEach((order) => {
+    orderMap[order.id] = {
+      id: order.id,
+      order_number: getString(order, "order_number"),
+    };
+  });
+  return orderMap;
+}
+
+function serializeActivityEvent(event, settings, customerMap, orderMap) {
+  const customerId = getRelationId(event, "customer");
+  const orderId = getRelationId(event, "order");
+  const ip = getRecordIpDisplay(event, settings);
+  return {
+    id: event.id,
+    event_type: getString(event, "event_type"),
+    source_type: getString(event, "source_type"),
+    risk_level: getString(event, "risk_level"),
+    decision: getString(event, "decision"),
+    mode_at_event: getString(event, "mode_at_event"),
+    occurred_at: getString(event, "occurred_at"),
+    created: getString(event, "created"),
+    customer: customerMap[customerId] || null,
+    order: orderMap[orderId] || null,
+    ip_display: ip.ip_display,
+    ip_resolution_status: ip.ip_resolution_status,
+  };
+}
+
+function serializeVisitorSession(session, settings, customerMap) {
+  const customerId = getRelationId(session, "customer");
+  const ip = getVisitorSessionIpDisplay(session, settings);
+  return {
+    id: session.id,
+    day: getString(session, "day"),
+    first_seen_at: getString(session, "first_seen_at"),
+    last_seen_at: getString(session, "last_seen_at"),
+    pageviews_count: Math.max(0, getNumber(session, "pageviews_count")),
+    entry_path: getString(session, "entry_path"),
+    last_path: getString(session, "last_path"),
+    customer: customerMap[customerId] || null,
+    ip_display: ip.ip_display,
+    ip_resolution_status: ip.ip_resolution_status,
+  };
+}
+
+function entityName(record) {
+  return getString(record, "name") || getString(record, "title") || getString(record, "slug");
+}
+
+function buildPageviewLabelMaps(app, storeId, pageviews) {
+  const requested = { product: [], category: [], subcategory: [] };
+  pageviews.forEach((pageview) => {
+    const pageType = getString(pageview, "page_type");
+    const entityId = getString(pageview, "entity_id");
+    if (requested[pageType] && isValidRecordId(entityId)) requested[pageType].push(entityId);
+  });
+
+  const labels = { product: {}, category: {}, subcategory: {} };
+  [
+    ["product", "products"],
+    ["category", "categories"],
+    ["subcategory", "subcategories"],
+  ].forEach((entry) => {
+    const kind = entry[0];
+    const collection = entry[1];
+    getStoreRecordsByIds(app, collection, storeId, uniqueIds(requested[kind])).forEach((record) => {
+      const name = entityName(record);
+      if (name) labels[kind][record.id] = name;
+    });
+  });
+  return labels;
+}
+
+function pageviewResolvedLabel(pageview, labels) {
+  const pageType = getString(pageview, "page_type");
+  const entityId = getString(pageview, "entity_id");
+  if (pageType === "store_home") return "Inicio de tienda";
+  if (pageType === "product") return labels.product[entityId] || "Producto";
+  if (pageType === "category") return labels.category[entityId] || "Categoria";
+  if (pageType === "subcategory") return labels.subcategory[entityId] || "Subcategoria";
+  if (pageType === "gifts") return "Regalos";
+  if (pageType === "search") return "Buscar";
+  if (pageType === "checkout") return "Checkout";
+  if (pageType === "landing_qr") return "Landing QR";
+  return getString(pageview, "path") || "Otra pagina publica";
+}
+
+function serializeVisitorPageview(pageview, settings, labels) {
+  const ip = getRecordIpDisplay(pageview, settings);
+  const path = getString(pageview, "path");
+  const openPath = normalizePath(path);
+  return {
+    id: pageview.id,
+    page_type: getString(pageview, "page_type"),
+    entity_type: getString(pageview, "entity_type"),
+    entity_id: getString(pageview, "entity_id"),
+    path,
+    occurred_at: getString(pageview, "occurred_at"),
+    ip_display: ip.ip_display,
+    ip_resolution_status: ip.ip_resolution_status,
+    resolved_label: pageviewResolvedLabel(pageview, labels),
+    can_open: Boolean(openPath),
+    open_path: openPath,
+  };
+}
+
+function handleSecurityActivityPage(e) {
+  setNoStore(e, true);
+  try {
+    const info = e.requestInfo();
+    const payload = parseActivityPagePayload(info.body || {});
+    if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
+    const access = getAuthorizedSecuritySettings(info, payload.storeId);
+    if (!access) return e.json(403, { ok: false, error: "unauthorized" });
+
+    const filters = ["store = {:store}"];
+    const params = { store: payload.storeId };
+    if (payload.eventType !== "all") {
+      filters.push("event_type = {:eventType}");
+      params.eventType = payload.eventType;
+    }
+    if (payload.riskLevel !== "all") {
+      filters.push("risk_level = {:riskLevel}");
+      params.riskLevel = payload.riskLevel;
+    }
+    const result = listSecurityPage(
+      $app,
+      SECURITY_EVENTS_COLLECTION,
+      filters.join(" && "),
+      "-occurred_at,-id",
+      payload.page,
+      params
+    );
+    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, result.items.map((event) => getRelationId(event, "customer")));
+    const orderMap = buildSanitizedOrderMap($app, payload.storeId, result.items.map((event) => getRelationId(event, "order")));
+    return e.json(200, {
+      ok: true,
+      page: result.page,
+      perPage: result.perPage,
+      totalItems: result.totalItems,
+      totalPages: result.totalPages,
+      items: result.items.map((event) => serializeActivityEvent(event, access.settings, customerMap, orderMap)),
+    });
+  } catch (_) {
+    logSecurity("error", "PZ_SEC_ACTIVITY_PAGE_FAILED");
+    return e.json(500, { ok: false, error: "activity_page_failed" });
+  }
+}
+
+function handleSecurityVisitorsPage(e) {
+  setNoStore(e, true);
+  try {
+    const info = e.requestInfo();
+    const payload = parseVisitorsPagePayload(info.body || {});
+    if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
+    const access = getAuthorizedSecuritySettings(info, payload.storeId);
+    if (!access) return e.json(403, { ok: false, error: "unauthorized" });
+
+    const result = listSecurityPage(
+      $app,
+      VISITOR_SESSIONS_COLLECTION,
+      "store = {:store} && day = {:day}",
+      "-last_seen_at,-id",
+      payload.page,
+      { store: payload.storeId, day: payload.day }
+    );
+    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, result.items.map((session) => getRelationId(session, "customer")));
+    return e.json(200, {
+      ok: true,
+      page: result.page,
+      perPage: result.perPage,
+      totalItems: result.totalItems,
+      totalPages: result.totalPages,
+      items: result.items.map((session) => serializeVisitorSession(session, access.settings, customerMap)),
+    });
+  } catch (_) {
+    logSecurity("error", "PZ_SEC_VISITORS_PAGE_FAILED");
+    return e.json(500, { ok: false, error: "visitors_page_failed" });
+  }
+}
+
+function handleSecurityVisitorDetail(e) {
+  setNoStore(e, true);
+  try {
+    const info = e.requestInfo();
+    const payload = parseVisitorDetailPayload(info.body || {});
+    if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
+    const access = getAuthorizedSecuritySettings(info, payload.storeId);
+    if (!access) return e.json(403, { ok: false, error: "unauthorized" });
+
+    const visitor = findRecordByIdSafe($app, VISITOR_SESSIONS_COLLECTION, payload.visitorSessionId);
+    if (!visitor || getRelationId(visitor, "store") !== payload.storeId) {
+      return e.json(404, { ok: false, error: "not_found" });
+    }
+    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, [getRelationId(visitor, "customer")]);
+    const pageviews = listSecurityPage(
+      $app,
+      VISITOR_PAGEVIEWS_COLLECTION,
+      "store = {:store} && visitor_session = {:visitorSession}",
+      "occurred_at,id",
+      payload.page,
+      { store: payload.storeId, visitorSession: visitor.id }
+    );
+    const labels = buildPageviewLabelMaps($app, payload.storeId, pageviews.items);
+    return e.json(200, {
+      ok: true,
+      visitor: serializeVisitorSession(visitor, access.settings, customerMap),
+      pageviews: {
+        page: pageviews.page,
+        perPage: pageviews.perPage,
+        totalItems: pageviews.totalItems,
+        totalPages: pageviews.totalPages,
+        items: pageviews.items.map((pageview) => serializeVisitorPageview(pageview, access.settings, labels)),
+      },
+    });
+  } catch (_) {
+    logSecurity("error", "PZ_SEC_VISITOR_DETAIL_FAILED");
+    return e.json(500, { ok: false, error: "visitor_detail_failed" });
+  }
 }
 
 function isAllowedSummaryPayload(body) {
@@ -1117,18 +1468,25 @@ function expireDueSecurityBlocks(app) {
     200
   );
 
-  activeBlocks.forEach((block) => {
-    if (!isDateDue(getString(block, "expires_at"), now)) return;
-    const storeId = getRelationId(block, "store");
-    const customerId = getRelationId(block, "customer");
-    const customer = findRecordByIdSafe(app, STORE_CUSTOMERS_COLLECTION, customerId);
-    block.set("status", "expired");
-    app.save(block);
-    createSecurityBlockAudit(app, storeId, "block_expired", "", block, "automatic expiration");
-    if (customer && getRelationId(customer, "store") === storeId) {
-      restoreCustomerBlockStateIfNeeded(app, storeId, customer);
-    }
-    expiredCount += 1;
+  activeBlocks.map((block) => block.id).forEach((blockId) => {
+    let expired = false;
+    app.runInTransaction((txApp) => {
+      const block = findRecordByIdSafe(txApp, STORE_SECURITY_BLOCKS_COLLECTION, blockId);
+      if (!block || getString(block, "status") !== "active") return;
+      if (!isDateDue(getString(block, "expires_at"), now)) return;
+
+      const storeId = getRelationId(block, "store");
+      const customerId = getRelationId(block, "customer");
+      const customer = findRecordByIdSafe(txApp, STORE_CUSTOMERS_COLLECTION, customerId);
+      block.set("status", "expired");
+      txApp.save(block);
+      createSecurityBlockAudit(txApp, storeId, "block_expired", "", block, "automatic expiration");
+      if (customer && getRelationId(customer, "store") === storeId) {
+        restoreCustomerBlockStateIfNeeded(txApp, storeId, customer);
+      }
+      expired = true;
+    });
+    if (expired) expiredCount += 1;
   });
 
   return { expired: expiredCount };
@@ -1208,12 +1566,12 @@ function handleMonitoringSummary(e) {
       return e.json(403, { ok: false, error: "unauthorized" });
     }
 
-    expireDueSecurityBlocks($app);
-
-    const settings = getActiveSecuritySettings($app, storeId);
+    const settings = getReadableSecuritySettings($app, storeId, role);
     if (!settings) {
       return e.json(403, { ok: false, error: "security_disabled" });
     }
+
+    expireDueSecurityBlocks($app);
 
     const today = getHavanaDay(new Date());
     const activeFilter = customerArchivedFilter(false);
@@ -1481,12 +1839,12 @@ function handleCustomerDetail(e) {
       return e.json(403, { ok: false, error: "unauthorized" });
     }
 
-    expireDueSecurityBlocks($app);
-
-    const settings = getActiveSecuritySettings($app, storeId);
+    const settings = getReadableSecuritySettings($app, storeId, role);
     if (!settings) {
       return e.json(403, { ok: false, error: "security_disabled" });
     }
+
+    expireDueSecurityBlocks($app);
 
     const requestedCustomer = findFirstByFilter(
       $app,
@@ -1907,13 +2265,16 @@ function handleCustomerObservation(e) {
         result = { status: 409, error: "customer_archived" };
         return;
       }
+      const actorId = getString(auth, "id");
+      const nextStatus = parsed.action === "enable" ? "watch" : "normal";
+      if (getString(customer, "status") === nextStatus) {
+        result = { status: 200, customerId: customer.id, customerStatus: nextStatus, changed: false };
+        return;
+      }
       if (hasActiveBlocksForCustomer(txApp, parsed.storeId, customer.id)) {
         result = { status: 409, error: "active_blocks" };
         return;
       }
-
-      const actorId = getString(auth, "id");
-      const nextStatus = parsed.action === "enable" ? "watch" : "normal";
       customer.set("status", nextStatus);
       customer.set("block_restore_status", "");
       txApp.save(customer);
@@ -1926,12 +2287,12 @@ function handleCustomerObservation(e) {
         parsed.reason,
         {}
       );
-      result = { status: 200, customerId: customer.id, customerStatus: nextStatus };
+      result = { status: 200, customerId: customer.id, customerStatus: nextStatus, changed: true };
     });
 
     if (!result || result.status === 404) return e.json(404, { ok: false, error: "not_found" });
     if (result.status === 409) return e.json(409, { ok: false, error: result.error || "conflict" });
-    return e.json(200, { ok: true, customer_id: result.customerId, status: result.customerStatus });
+    return e.json(200, { ok: true, customer_id: result.customerId, status: result.customerStatus, changed: result.changed });
   } catch (_) {
     logSecurity("error", "PZ_SEC_WATCH_UPDATE_FAILED");
     return e.json(500, { ok: false, error: "watch_update_failed" });
@@ -2115,12 +2476,10 @@ function buildActorMap(app, ids) {
   return map;
 }
 
-function blocksMetrics(blocks) {
+function blocksMetrics(blocks, nowValue) {
   const activeCustomerIds = [];
-  const now = new Date();
+  const now = nowValue instanceof Date ? nowValue : new Date();
   const today = getHavanaDay(now);
-  const tomorrow = addDaysToDay(today, 1);
-  const tomorrowStart = tomorrow ? Date.parse(`${tomorrow}T00:00:00.000Z`) : 0;
   const metrics = { active_blocks: 0, affected_customers: 0, expires_today: 0, permanent_blocks: 0 };
   blocks.forEach((block) => {
     if (getString(block, "status") !== "active") return;
@@ -2129,7 +2488,7 @@ function blocksMetrics(blocks) {
     if (customerId && !activeCustomerIds.includes(customerId)) activeCustomerIds.push(customerId);
     if (getString(block, "duration") === "permanent") metrics.permanent_blocks += 1;
     const expiresTime = Date.parse(getString(block, "expires_at"));
-    if (Number.isFinite(expiresTime) && tomorrowStart && expiresTime < tomorrowStart && expiresTime >= now.getTime()) {
+    if (Number.isFinite(expiresTime) && expiresTime >= now.getTime() && getHavanaDay(new Date(expiresTime)) === today) {
       metrics.expires_today += 1;
     }
   });
@@ -2148,6 +2507,9 @@ function handleSecurityBlocksPage(e) {
     const parsed = parseBlocksPagePayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
     if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+
+    const settings = getReadableSecuritySettings($app, parsed.storeId, role);
+    if (!settings) return e.json(403, { ok: false, error: "security_disabled" });
 
     expireDueSecurityBlocks($app);
     if (!findCollectionSafe($app, STORE_SECURITY_BLOCKS_COLLECTION)) {
@@ -2223,6 +2585,10 @@ function handleCustomerLifecycle(e) {
 
       const actorId = getString(auth, "id");
       if (parsed.action === "archive") {
+        if (hasActiveBlocksForCustomer(txApp, parsed.storeId, customer.id)) {
+          result = { status: 409, error: "active_blocks" };
+          return;
+        }
         archiveCustomer(txApp, parsed.storeId, customer, actorId, parsed.reason);
         result = { archived: true, customerId: customer.id };
         return;
@@ -2309,15 +2675,20 @@ function handleResolveIps(e) {
       recordMaps[source] = resolveSourceRecords($app, source, grouped[source]);
     });
 
+    const settingsByStore = {};
     for (const item of items) {
       const source = String(getBodyValue(item, "source") || "");
       const id = String(getBodyValue(item, "id") || "");
       const record = recordMaps[source] && recordMaps[source][id];
       if (!record) return e.json(404, { ok: false, error: "not_found" });
       const storeId = storeIdForRecord(record);
-      if (role === "store_admin" && (!userStore || storeId !== userStore)) {
+      if (!canReadStore(role, userStore, storeId)) {
         return e.json(403, { ok: false, error: "unauthorized" });
       }
+      if (!settingsByStore[storeId]) {
+        settingsByStore[storeId] = getReadableSecuritySettings($app, storeId, role);
+      }
+      if (!settingsByStore[storeId]) return e.json(403, { ok: false, error: "unauthorized" });
     }
 
     const resolved = [];
@@ -2326,7 +2697,7 @@ function handleResolveIps(e) {
       const id = String(getBodyValue(item, "id") || "");
       const record = recordMaps[source][id];
       const storeId = storeIdForRecord(record);
-      const settings = getActiveSecuritySettings($app, storeId);
+      const settings = settingsByStore[storeId];
       if (!settings || getString(settings, "ip_visibility") !== "full") return;
 
       const ip = decryptIp(getString(record, encryptedFieldForSource(source)));
@@ -2452,6 +2823,9 @@ function linkVisitorSessionToCustomerByBrowserToken(app, storeId, browserTokenHm
 module.exports = {
   handleTrackNavigation,
   handleResolveIps,
+  handleSecurityActivityPage,
+  handleSecurityVisitorsPage,
+  handleSecurityVisitorDetail,
   handleCustomerDetail,
   handleMonitoringSummary,
   handleCustomerLifecycle,
@@ -2465,6 +2839,7 @@ module.exports = {
   _test: {
     normalizeIpAddress,
     getHavanaDay,
+    blocksMetrics,
     parseNavigationPayload,
     normalizePath,
   },

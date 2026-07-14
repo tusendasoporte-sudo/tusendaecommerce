@@ -43,6 +43,28 @@ function normalizeUserStatus(value: string | undefined) {
   throw new Error('El estado seleccionado no es valido.');
 }
 
+function escapePocketBaseValue(value: string) {
+  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function storeUserRoleFilter() {
+  return `(role="${USER_ROLES.STORE_ADMIN}" || role="${USER_ROLES.STORE_STAFF}")`;
+}
+
+function mapMasterStoreUser(user: any): MasterStoreUser {
+  return {
+    id: user.id || '',
+    email: user.email || '',
+    display_name: user.display_name || '',
+    role: user.role || '',
+    store: Array.isArray(user.store) ? String(user.store[0] || '') : String(user.store || ''),
+    status: user.status || '',
+    phone: user.phone || '',
+    created: user.created || '',
+    updated: user.updated || '',
+  };
+}
+
 function getStoreUserPayload(input: MasterStoreUserInput) {
   const store = String(input.store || '').trim();
   const email = String(input.email || '').trim().toLowerCase();
@@ -110,21 +132,33 @@ export async function getStoreUsersForMaster(client = pb): Promise<MasterStoreUs
 
   const users = await client.collection('users').getFullList({
     fields: 'id,email,display_name,role,store,status,phone,created,updated',
-    filter: `role="${USER_ROLES.STORE_ADMIN}" || role="${USER_ROLES.STORE_STAFF}"`,
+    filter: storeUserRoleFilter(),
     sort: 'store,display_name,email',
   });
 
-  return users.map((user: any) => ({
-    id: user.id || '',
-    email: user.email || '',
-    display_name: user.display_name || '',
-    role: user.role || '',
-    store: Array.isArray(user.store) ? String(user.store[0] || '') : String(user.store || ''),
-    status: user.status || '',
-    phone: user.phone || '',
-    created: user.created || '',
-    updated: user.updated || '',
-  }));
+  return users.map(mapMasterStoreUser);
+}
+
+export async function getStoreUsersForMasterStoreIds(client: PocketBase, storeIds: string[]): Promise<MasterStoreUser[]> {
+  requireMasterClient(client);
+  const normalizedIds = [...new Set(storeIds.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 100);
+  if (!normalizedIds.length) return [];
+  const storesFilter = normalizedIds.map((id) => `store="${escapePocketBaseValue(id)}"`).join(' || ');
+  const users = await client.collection('users').getFullList({
+    fields: 'id,email,display_name,role,store,status,phone,created,updated',
+    filter: `${storeUserRoleFilter()} && (${storesFilter})`,
+    sort: 'store,display_name,email',
+  });
+  return users.map(mapMasterStoreUser);
+}
+
+export async function getMasterStoreUserCount(client: PocketBase) {
+  requireMasterClient(client);
+  const result = await client.collection('users').getList(1, 1, {
+    fields: 'id',
+    filter: storeUserRoleFilter(),
+  });
+  return Math.max(0, Number(result.totalItems || 0));
 }
 
 export async function createStoreUserFromMaster(input: MasterStoreUserInput, client = pb) {

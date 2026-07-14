@@ -1,0 +1,110 @@
+---
+export const prerender = false;
+
+import Layout from '../../../../layouts/Layout.astro';
+import MasterProductReadonlyView from '../../../../components/master/MasterProductReadonlyView.astro';
+import MasterShell from '../../../../components/master/MasterShell.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
+import { getMasterStoreProductDetail, isValidRecordId } from '../../../../lib/masterStoreProducts';
+import { getMasterProductPriceHistory, normalizeHistoryPage } from '../../../../lib/masterProductWatches';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+
+if (!authPb.authStore.isValid || !authPb.authStore.record) {
+  return Astro.redirect('/master-login');
+}
+if (!masterUser) {
+  return Astro.redirect('/master');
+}
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+
+const storeId = String(Astro.params.storeId || '').trim();
+const productId = String(Astro.params.productId || '').trim();
+if (!isValidRecordId(storeId)) {
+  return Astro.redirect('/master/stores');
+}
+
+const productsPath = `/master/products/${encodeURIComponent(storeId)}`;
+if (!isValidRecordId(productId)) {
+  return Astro.redirect(productsPath);
+}
+
+let storeRecord: any;
+try {
+  storeRecord = await authPb.collection('stores').getOne(storeId, {
+    fields: 'id,name,slug,status',
+    requestKey: null,
+  });
+} catch (_) {
+  return Astro.redirect('/master/stores');
+}
+
+const currentStore = {
+  id: storeId,
+  name: String(storeRecord.name || storeRecord.slug || 'Tienda'),
+  slug: String(storeRecord.slug || ''),
+  status: storeRecord.status === 'active' ? 'active' : 'suspended',
+};
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const result = await getMasterStoreProductDetail(
+  pocketbaseUrl,
+  authPb.authStore.token,
+  storeId,
+  productId,
+);
+
+const historyPage = normalizeHistoryPage(Astro.url.searchParams.get('history_page'));
+const historyResult = await getMasterProductPriceHistory(
+  pocketbaseUrl,
+  authPb.authStore.token,
+  storeId,
+  productId,
+  historyPage,
+);
+
+if (result.status === 404) {
+  return Astro.redirect(productsPath);
+}
+
+const detail = result.data;
+const viewError = result.status === 403
+  ? 'La sesión Master no pudo autorizar este producto.'
+  : 'No fue posible consultar el detalle privado. No se muestran datos parciales.';
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Detalle de producto" currentStore={currentStore}>
+    {detail ? (
+      <MasterProductReadonlyView
+        detail={detail}
+        productsPath={productsPath}
+        history={historyResult.data}
+        historyError={historyResult.available ? '' : 'No fue posible consultar el seguimiento de precio.'}
+      />
+    ) : (
+      <main class="product-error-shell">
+        <a href={productsPath}>Volver a Productos</a>
+        <section role="alert">
+          <span>Producto · Solo lectura</span>
+          <h1>Detalle temporalmente no disponible</h1>
+          <p>{viewError}</p>
+        </section>
+      </main>
+    )}
+  </MasterShell>
+  <style>
+    .product-error-shell { display: grid; gap: 16px; padding: 12px 0 42px; }
+    .product-error-shell > a { width: max-content; color: #6d28d9; font-size: 12px; font-weight: 900; text-decoration: none; }
+    .product-error-shell section { border: 1px solid #fed7aa; border-radius: 16px; background: #fff7ed; color: #9a3412; padding: clamp(22px, 5vw, 36px); }
+    .product-error-shell span { font-size: 10px; font-weight: 950; letter-spacing: .07em; text-transform: uppercase; }
+    .product-error-shell h1 { margin: 7px 0 0; font-size: clamp(28px, 5vw, 42px); line-height: 1; font-weight: 1000; }
+    .product-error-shell p { margin: 11px 0 0; font-size: 13px; line-height: 1.5; font-weight: 750; }
+  </style>
+</Layout>

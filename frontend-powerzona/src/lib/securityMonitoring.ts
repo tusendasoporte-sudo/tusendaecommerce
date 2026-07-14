@@ -4,7 +4,6 @@ import type { StoreSecuritySettings } from './security';
 export const SECURITY_MONITORING_SECTIONS = ['summary', 'activity', 'customers', 'visitors', 'blocked', 'rules'] as const;
 export const CUSTOMER_STATUS_FILTERS = ['all', 'normal', 'watch', 'blocked', 'archived'] as const;
 export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'admin_action'] as const;
-export const EVENT_DECISION_FILTERS = ['all', 'allowed', 'monitored', 'blocked'] as const;
 export const EVENT_RISK_FILTERS = ['all', 'normal', 'suspicious', 'blocked'] as const;
 export const SECURITY_BLOCK_STATUS_FILTERS = ['all', 'active', 'expired', 'revoked'] as const;
 export const SECURITY_BLOCK_SCOPE_FILTERS = ['all', 'orders', 'reviews', 'raffles', 'all_interactions', 'full_access'] as const;
@@ -13,11 +12,11 @@ export const SECURITY_BLOCK_DURATIONS = ['hours_24', 'days_7', 'days_30', 'perma
 export const SECURITY_BLOCK_MATCH_MODES = ['any', 'all'] as const;
 
 export const CUSTOMERS_PER_PAGE = 20;
-export const ACTIVITY_PER_PAGE = 20;
+export const ACTIVITY_PER_PAGE = 10;
 export const CUSTOMER_ORDERS_PER_PAGE = 10;
 export const CUSTOMER_EVENTS_PER_PAGE = 10;
-export const VISITORS_PER_PAGE = 20;
-export const VISITOR_PAGEVIEWS_PER_PAGE = 20;
+export const VISITORS_PER_PAGE = 10;
+export const VISITOR_PAGEVIEWS_PER_PAGE = 10;
 export const SECURITY_BLOCKS_PER_PAGE = 10;
 
 export const CUSTOMER_LIST_FIELDS = [
@@ -152,7 +151,6 @@ const VISITOR_PAGEVIEW_FIELDS_NO_IP = [
 export type SecurityMonitoringSection = (typeof SECURITY_MONITORING_SECTIONS)[number];
 export type CustomerStatusFilter = (typeof CUSTOMER_STATUS_FILTERS)[number];
 export type EventTypeFilter = (typeof EVENT_TYPE_FILTERS)[number];
-export type EventDecisionFilter = (typeof EVENT_DECISION_FILTERS)[number];
 export type EventRiskFilter = (typeof EVENT_RISK_FILTERS)[number];
 export type SecurityBlockStatusFilter = (typeof SECURITY_BLOCK_STATUS_FILTERS)[number];
 export type SecurityBlockScopeFilter = (typeof SECURITY_BLOCK_SCOPE_FILTERS)[number];
@@ -176,7 +174,6 @@ export type SecurityMonitoringParams = {
   blockedSearch: string;
   mergeSearch: string;
   eventType: EventTypeFilter;
-  eventDecision: EventDecisionFilter;
   eventRisk: EventRiskFilter;
   usedPostSearch: boolean;
 };
@@ -412,6 +409,13 @@ export type SecurityVisitorPageview = {
 
 export type SecurityVisitorPageviewRow = SecurityVisitorPageview & {
   readableName: string;
+  canOpen: boolean;
+  openPath: string;
+};
+
+export type SecurityVisitorDetailResult = {
+  visitor: SecurityVisitorSessionRow | null;
+  pageviews: PaginatedResult<SecurityVisitorPageviewRow>;
 };
 
 export type SecuritySettingsView = Pick<
@@ -449,10 +453,6 @@ export function normalizeCustomerStatusFilter(value: unknown): CustomerStatusFil
 
 export function normalizeEventTypeFilter(value: unknown): EventTypeFilter {
   return hasAllowedValue(EVENT_TYPE_FILTERS, value, 'all');
-}
-
-export function normalizeEventDecisionFilter(value: unknown): EventDecisionFilter {
-  return hasAllowedValue(EVENT_DECISION_FILTERS, value, 'all');
 }
 
 export function normalizeEventRiskFilter(value: unknown): EventRiskFilter {
@@ -506,7 +506,6 @@ export function getMonitoringParams(url: URL, formData?: FormData | null): Secur
     blockedSearch: normalizeSearchTerm(getFormValue(formData, 'blocked_search')),
     mergeSearch: normalizeSearchTerm(getFormValue(formData, 'merge_search') || url.searchParams.get('merge_search')),
     eventType: normalizeEventTypeFilter(url.searchParams.get('event_type')),
-    eventDecision: normalizeEventDecisionFilter(url.searchParams.get('decision')),
     eventRisk: normalizeEventRiskFilter(url.searchParams.get('risk')),
     usedPostSearch: Boolean(formData),
   };
@@ -531,86 +530,6 @@ export function getCubaDay(date = new Date()) {
     month: '2-digit',
     day: '2-digit',
   }).format(date);
-}
-
-function getIpMaskedValue(record: any) {
-  return String(record?.ip_masked || record?.latest_ip_masked || '').trim();
-}
-
-function applyIpPolicy<T extends { id: string; resolved_ip: string; ip_resolution_status: IpResolutionStatus }>(
-  records: T[],
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>,
-  resolvedIps: Map<string, string>
-) {
-  const visibility = String(settings.ip_visibility || 'hidden');
-
-  return records.map((record) => {
-    if (visibility === 'hidden') {
-      record.resolved_ip = '';
-      record.ip_resolution_status = 'hidden';
-      return record;
-    }
-
-    const fullIp = resolvedIps.get(record.id) || '';
-    const maskedIp = getIpMaskedValue(record);
-
-    if (visibility === 'full' && fullIp) {
-      record.resolved_ip = fullIp;
-      record.ip_resolution_status = 'full';
-      return record;
-    }
-
-    if (visibility === 'full' && maskedIp) {
-      record.resolved_ip = '';
-      record.ip_resolution_status = 'full_unavailable';
-      return record;
-    }
-
-    if (maskedIp) {
-      record.resolved_ip = '';
-      record.ip_resolution_status = 'masked';
-      return record;
-    }
-
-    record.resolved_ip = '';
-    record.ip_resolution_status = 'unavailable';
-    return record;
-  });
-}
-
-type ResolveIpSource = 'security_event' | 'visitor_session' | 'visitor_pageview';
-
-async function resolveFullIps(
-  client: PocketBase,
-  source: ResolveIpSource,
-  records: Array<{ id: string }>,
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>
-) {
-  const map = new Map<string, string>();
-  if (String(settings.ip_visibility || '') !== 'full') return map;
-
-  const items = Array.from(new Set(records.map((record) => record.id).filter(isValidRecordId)))
-    .slice(0, 100)
-    .map((id) => ({ source, id }));
-
-  if (!items.length) return map;
-
-  try {
-    const response = await (client as any).send('/api/pz/security/resolve-ips', {
-      method: 'POST',
-      body: { items },
-    });
-
-    const resolvedItems = Array.isArray(response?.items) ? response.items : [];
-    resolvedItems.forEach((item: any) => {
-      const id = String(item?.id || '');
-      const ip = String(item?.ip || '').trim();
-      if (isValidRecordId(id) && ip) map.set(id, ip);
-    });
-  } catch (_) {
-  }
-
-  return map;
 }
 
 function normalizeNumber(value: unknown) {
@@ -772,90 +691,6 @@ function normalizeEndpointPage<T>(result: any, items: T[], fallbackPage: number,
   };
 }
 
-function eventListFilter(
-  client: PocketBase,
-  storeId: string,
-  eventType: EventTypeFilter,
-  decision: EventDecisionFilter,
-  risk: EventRiskFilter,
-  customerId = ''
-) {
-  const parts = ['store = {:store}'];
-  const params: Record<string, string> = { store: storeId };
-
-  if (eventType !== 'all') {
-    parts.push('event_type = {:eventType}');
-    params.eventType = eventType;
-  }
-
-  if (decision !== 'all') {
-    parts.push('decision = {:decision}');
-    params.decision = decision;
-  }
-
-  if (risk !== 'all') {
-    parts.push('risk_level = {:risk}');
-    params.risk = risk;
-  }
-
-  if (customerId) {
-    parts.push('customer = {:customer}');
-    params.customer = customerId;
-  }
-
-  return client.filter(parts.join(' && '), params);
-}
-
-function idsFilter(client: PocketBase, storeId: string, ids: string[]) {
-  const uniqueIds = Array.from(new Set(ids.filter(isValidRecordId)));
-  if (!uniqueIds.length) return '';
-
-  const params: Record<string, string> = { store: storeId };
-  const idParts = uniqueIds.map((id, index) => {
-    const key = `id${index}`;
-    params[key] = id;
-    return `id = {:${key}}`;
-  });
-
-  return client.filter(`store = {:store} && (${idParts.join(' || ')})`, params);
-}
-
-async function getRelatedCustomers(client: PocketBase, storeId: string, ids: string[]) {
-  const filter = idsFilter(client, storeId, ids);
-  const map = new Map<string, RelatedCustomer>();
-  if (!filter) return map;
-
-  const result = await client.collection('store_customers').getList(1, Math.max(1, ids.length), {
-    filter,
-    fields: CUSTOMER_LOOKUP_FIELDS,
-  });
-
-  result.items.forEach((record: any) => {
-    const customer = normalizeCustomer(record);
-    if (customer.id) map.set(customer.id, customer);
-  });
-
-  return map;
-}
-
-async function getRelatedOrders(client: PocketBase, storeId: string, ids: string[]) {
-  const filter = idsFilter(client, storeId, ids);
-  const map = new Map<string, RelatedOrder>();
-  if (!filter) return map;
-
-  const result = await client.collection('orders').getList(1, Math.max(1, ids.length), {
-    filter,
-    fields: ORDER_LOOKUP_FIELDS,
-  });
-
-  result.items.forEach((record: any) => {
-    const order = normalizeOrder(record);
-    if (order.id) map.set(order.id, order);
-  });
-
-  return map;
-}
-
 export async function getSecurityMonitoringSummary(client: PocketBase, storeId: string): Promise<SecuritySummary> {
   const response = await (client as any).send('/api/pz/security/monitoring-summary', {
     method: 'POST',
@@ -995,6 +830,7 @@ export async function runSecurityCustomerObservation(
   return {
     customerId: String(response.customer_id || customerId),
     status: String(response.status || ''),
+    changed: response.changed === true,
   };
 }
 
@@ -1081,80 +917,87 @@ export async function getSecurityBlocksPage(
   };
 }
 
+function normalizeEndpointIp(record: any) {
+  const status = String(record?.ip_resolution_status || 'unavailable') as IpResolutionStatus;
+  const ipDisplay = String(record?.ip_display || '').trim();
+  return {
+    ip_masked: status === 'full' ? '' : ipDisplay,
+    resolved_ip: status === 'full' ? ipDisplay : '',
+    ip_resolution_status: status,
+  };
+}
+
+function normalizeEndpointCustomer(record: any): RelatedCustomer | null {
+  if (!record || !isValidRecordId(record.id)) return null;
+  return {
+    id: String(record.id),
+    store: '',
+    display_name: String(record.display_name || ''),
+    phone_normalized: String(record.primary_phone || ''),
+    status: '',
+  };
+}
+
+function normalizeEndpointOrder(record: any): RelatedOrder | null {
+  if (!record || !isValidRecordId(record.id)) return null;
+  return {
+    id: String(record.id),
+    store: '',
+    order_number: String(record.order_number || ''),
+    status: '',
+    total: 0,
+    usd_total: 0,
+    delivery_method: '',
+    created: '',
+  };
+}
+
+function normalizeActivityEndpointEvent(record: any): SecurityEventRow {
+  const relatedCustomer = normalizeEndpointCustomer(record?.customer);
+  const relatedOrder = normalizeEndpointOrder(record?.order);
+  const ip = normalizeEndpointIp(record);
+  return {
+    id: String(record?.id || ''),
+    store: '',
+    customer: relatedCustomer?.id || '',
+    order: relatedOrder?.id || '',
+    event_type: String(record?.event_type || ''),
+    source_type: String(record?.source_type || ''),
+    risk_level: String(record?.risk_level || ''),
+    decision: String(record?.decision || ''),
+    mode_at_event: String(record?.mode_at_event || ''),
+    ip_masked: ip.ip_masked,
+    ip_family: '',
+    capture_status: '',
+    occurred_at: String(record?.occurred_at || ''),
+    created: String(record?.created || ''),
+    resolved_ip: ip.resolved_ip,
+    ip_resolution_status: ip.ip_resolution_status,
+    relatedCustomer,
+    relatedOrder,
+  };
+}
+
 export async function getSecurityActivityPage(
   client: PocketBase,
   storeId: string,
   page: number,
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>,
   eventType: EventTypeFilter,
-  decision: EventDecisionFilter,
   risk: EventRiskFilter
 ): Promise<PaginatedResult<SecurityEventRow>> {
-  const result = await client.collection('store_security_events').getList(normalizePage(page), ACTIVITY_PER_PAGE, {
-    filter: eventListFilter(client, storeId, eventType, decision, risk),
-    fields: getEventFieldsForIpVisibility(settings.ip_visibility),
-    sort: '-occurred_at,-created',
+  const safePage = normalizePage(page);
+  const response = await (client as any).send('/api/pz/security/activity-page', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      page: safePage,
+      event_type: eventType,
+      risk_level: risk,
+    },
   });
-
-  const resolvedIps = await resolveFullIps(client, 'security_event', result.items, settings);
-  const events = applyIpPolicy(result.items.map(normalizeEvent), settings, resolvedIps);
-  const customerMap = await getRelatedCustomers(client, storeId, events.map((event) => event.customer));
-  const orderMap = await getRelatedOrders(client, storeId, events.map((event) => event.order));
-  const rows = events.map((event) => ({
-    ...event,
-    relatedCustomer: customerMap.get(event.customer) || null,
-    relatedOrder: orderMap.get(event.order) || null,
-  }));
-
-  return normalizeListResult(result, rows);
-}
-
-export async function getSecurityCustomerOrdersPage(
-  client: PocketBase,
-  storeId: string,
-  customerId: string,
-  page: number
-): Promise<PaginatedResult<SecurityOrder>> {
-  if (!isValidRecordId(customerId)) {
-    return { page: 1, perPage: CUSTOMER_ORDERS_PER_PAGE, totalItems: 0, totalPages: 1, items: [] };
-  }
-
-  const result = await client.collection('orders').getList(normalizePage(page), CUSTOMER_ORDERS_PER_PAGE, {
-    filter: client.filter('store = {:store} && customer = {:customer}', { store: storeId, customer: customerId }),
-    fields: CUSTOMER_ORDER_FIELDS,
-    sort: '-created',
-  });
-
-  return normalizeListResult(result, result.items.map(normalizeOrder));
-}
-
-export async function getSecurityCustomerEventsPage(
-  client: PocketBase,
-  storeId: string,
-  customerId: string,
-  page: number,
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>
-): Promise<PaginatedResult<SecurityEventRow>> {
-  if (!isValidRecordId(customerId)) {
-    return { page: 1, perPage: CUSTOMER_EVENTS_PER_PAGE, totalItems: 0, totalPages: 1, items: [] };
-  }
-
-  const result = await client.collection('store_security_events').getList(normalizePage(page), CUSTOMER_EVENTS_PER_PAGE, {
-    filter: eventListFilter(client, storeId, 'all', 'all', 'all', customerId),
-    fields: getEventFieldsForIpVisibility(settings.ip_visibility),
-    sort: '-occurred_at,-created',
-  });
-
-  const resolvedIps = await resolveFullIps(client, 'security_event', result.items, settings);
-  const events = applyIpPolicy(result.items.map(normalizeEvent), settings, resolvedIps);
-  const orderMap = await getRelatedOrders(client, storeId, events.map((event) => event.order));
-  const rows = events.map((event) => ({
-    ...event,
-    relatedCustomer: null,
-    relatedOrder: orderMap.get(event.order) || null,
-  }));
-
-  return normalizeListResult(result, rows);
+  if (!response?.ok) throw new Error(String(response?.error || 'activity_page_failed'));
+  const items = Array.isArray(response.items) ? response.items.map(normalizeActivityEndpointEvent) : [];
+  return normalizeEndpointPage(response, items, safePage, ACTIVITY_PER_PAGE);
 }
 
 function normalizeCustomerDetailOrder(record: any): SecurityOrder {
@@ -1382,141 +1225,133 @@ export async function getSecurityCustomerDetail(
 export async function getSecurityVisitorsTodayPage(
   client: PocketBase,
   storeId: string,
-  page: number,
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>
+  page: number
 ): Promise<PaginatedResult<SecurityVisitorSessionRow>> {
-  const today = getCubaDay();
-  const result = await client.collection('store_visitor_sessions').getList(normalizePage(page), VISITORS_PER_PAGE, {
-    filter: client.filter('store = {:store} && day = {:day}', { store: storeId, day: today }),
-    fields: getVisitorSessionFieldsForIpVisibility(settings.ip_visibility),
-    sort: '-last_seen_at,-updated,-created',
+  const safePage = normalizePage(page);
+  const response = await (client as any).send('/api/pz/security/visitors-page', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      page: safePage,
+      day: '',
+    },
   });
+  if (!response?.ok) throw new Error(String(response?.error || 'visitors_page_failed'));
+  const items = Array.isArray(response.items) ? response.items.map(normalizeVisitorEndpointSession) : [];
+  return normalizeEndpointPage(response, items, safePage, VISITORS_PER_PAGE);
+}
 
-  const resolvedIps = await resolveFullIps(client, 'visitor_session', result.items, settings);
-  const sessions = applyIpPolicy(result.items.map(normalizeVisitorSession), settings, resolvedIps);
-  const customerMap = await getRelatedCustomers(client, storeId, sessions.map((session) => session.customer));
-  const rows = sessions.map((session) => ({
-    ...session,
-    relatedCustomer: customerMap.get(session.customer) || null,
-  }));
+function normalizeVisitorEndpointSession(record: any): SecurityVisitorSessionRow {
+  const relatedCustomer = normalizeEndpointCustomer(record?.customer);
+  const ip = normalizeEndpointIp(record);
+  return {
+    id: String(record?.id || ''),
+    store: '',
+    day: String(record?.day || ''),
+    customer: relatedCustomer?.id || '',
+    first_seen_at: String(record?.first_seen_at || ''),
+    last_seen_at: String(record?.last_seen_at || ''),
+    pageviews_count: normalizeNumber(record?.pageviews_count),
+    entry_path: String(record?.entry_path || ''),
+    last_path: String(record?.last_path || ''),
+    latest_ip_masked: ip.ip_masked,
+    latest_ip_family: '',
+    latest_capture_status: '',
+    created: '',
+    updated: '',
+    resolved_ip: ip.resolved_ip,
+    ip_resolution_status: ip.ip_resolution_status,
+    relatedCustomer,
+  };
+}
 
-  return normalizeListResult(result, rows);
+function normalizeVisitorEndpointPageview(record: any): SecurityVisitorPageviewRow {
+  const ip = normalizeEndpointIp(record);
+  return {
+    id: String(record?.id || ''),
+    store: '',
+    visitor_session: '',
+    customer: '',
+    day: '',
+    page_type: String(record?.page_type || ''),
+    entity_type: String(record?.entity_type || ''),
+    entity_id: String(record?.entity_id || ''),
+    path: String(record?.path || ''),
+    ip_masked: ip.ip_masked,
+    ip_family: '',
+    capture_status: '',
+    occurred_at: String(record?.occurred_at || ''),
+    created: '',
+    resolved_ip: ip.resolved_ip,
+    ip_resolution_status: ip.ip_resolution_status,
+    readableName: String(record?.resolved_label || 'Otra pagina publica'),
+    canOpen: record?.can_open === true,
+    openPath: String(record?.open_path || ''),
+  };
+}
+
+function emptyVisitorDetail(page: number): SecurityVisitorDetailResult {
+  return {
+    visitor: null,
+    pageviews: {
+      page: normalizePage(page),
+      perPage: VISITOR_PAGEVIEWS_PER_PAGE,
+      totalItems: 0,
+      totalPages: 1,
+      items: [],
+    },
+  };
+}
+
+export async function getSecurityVisitorDetail(
+  client: PocketBase,
+  storeId: string,
+  visitorSessionId: string,
+  page: number
+): Promise<SecurityVisitorDetailResult> {
+  const safePage = normalizePage(page);
+  if (!isValidRecordId(visitorSessionId)) return emptyVisitorDetail(safePage);
+
+  try {
+    const response = await (client as any).send('/api/pz/security/visitor-detail', {
+      method: 'POST',
+      body: {
+        store_id: storeId,
+        visitor_session_id: visitorSessionId,
+        page: safePage,
+      },
+    });
+    if (!response?.ok) throw new Error(String(response?.error || 'visitor_detail_failed'));
+    const pageviewItems = Array.isArray(response?.pageviews?.items)
+      ? response.pageviews.items.map(normalizeVisitorEndpointPageview)
+      : [];
+    return {
+      visitor: response.visitor ? normalizeVisitorEndpointSession(response.visitor) : null,
+      pageviews: normalizeEndpointPage(response.pageviews, pageviewItems, safePage, VISITOR_PAGEVIEWS_PER_PAGE),
+    };
+  } catch (error: any) {
+    if (error?.status === 404) return emptyVisitorDetail(safePage);
+    throw error;
+  }
 }
 
 export async function getSecurityVisitorSessionById(
   client: PocketBase,
   storeId: string,
-  visitorSessionId: string,
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>
+  visitorSessionId: string
 ) {
-  if (!isValidRecordId(visitorSessionId)) return null;
-
-  const today = getCubaDay();
-
-  try {
-    const record = await client.collection('store_visitor_sessions').getFirstListItem(
-      client.filter('id = {:visitorSessionId} && store = {:store} && day = {:day}', {
-        visitorSessionId,
-        store: storeId,
-        day: today,
-      }),
-      { fields: getVisitorSessionFieldsForIpVisibility(settings.ip_visibility) }
-    );
-
-    const resolvedIps = await resolveFullIps(client, 'visitor_session', [record], settings);
-    const [session] = applyIpPolicy([normalizeVisitorSession(record)], settings, resolvedIps);
-    const customerMap = await getRelatedCustomers(client, storeId, [session.customer]);
-
-    return {
-      ...session,
-      relatedCustomer: customerMap.get(session.customer) || null,
-    };
-  } catch (error: any) {
-    if (error?.status === 404) return null;
-    throw error;
-  }
-}
-
-function idsOnly(values: string[]) {
-  return Array.from(new Set(values.filter(isValidRecordId)));
-}
-
-async function getEntityNameMap(client: PocketBase, collection: string, storeId: string, ids: string[]) {
-  const cleanIds = idsOnly(ids);
-  const map = new Map<string, string>();
-  const filter = idsFilter(client, storeId, cleanIds);
-  if (!filter) return map;
-
-  try {
-    const result = await client.collection(collection).getList(1, Math.max(1, cleanIds.length), {
-      filter,
-      fields: 'id,name,title,slug,store',
-      sort: 'name,title,slug',
-    });
-
-    result.items.forEach((record: any) => {
-      const id = String(record?.id || '');
-      const label = String(record?.name || record?.title || record?.slug || '').trim();
-      if (id && label) map.set(id, label);
-    });
-  } catch (_) {
-  }
-
-  return map;
-}
-
-async function getPageviewEntityLabels(client: PocketBase, storeId: string, pageviews: SecurityVisitorPageview[]) {
-  const productIds: string[] = [];
-  const categoryIds: string[] = [];
-  const subcategoryIds: string[] = [];
-
-  pageviews.forEach((pageview) => {
-    const pageType = normalizePageType(pageview.page_type);
-    if (pageType === 'product') productIds.push(pageview.entity_id);
-    if (pageType === 'category') categoryIds.push(pageview.entity_id);
-    if (pageType === 'subcategory') subcategoryIds.push(pageview.entity_id);
-  });
-
-  const [products, categories, subcategories] = await Promise.all([
-    getEntityNameMap(client, 'products', storeId, productIds),
-    getEntityNameMap(client, 'categories', storeId, categoryIds),
-    getEntityNameMap(client, 'subcategories', storeId, subcategoryIds),
-  ]);
-
-  return { products, categories, subcategories };
+  const detail = await getSecurityVisitorDetail(client, storeId, visitorSessionId, 1);
+  return detail.visitor;
 }
 
 export async function getSecurityVisitorPageviewsPage(
   client: PocketBase,
   storeId: string,
   visitorSessionId: string,
-  page: number,
-  settings: Pick<StoreSecuritySettings, 'ip_visibility'>
+  page: number
 ): Promise<PaginatedResult<SecurityVisitorPageviewRow>> {
-  if (!isValidRecordId(visitorSessionId)) {
-    return { page: 1, perPage: VISITOR_PAGEVIEWS_PER_PAGE, totalItems: 0, totalPages: 1, items: [] };
-  }
-
-  const today = getCubaDay();
-  const result = await client.collection('store_visitor_pageviews').getList(normalizePage(page), VISITOR_PAGEVIEWS_PER_PAGE, {
-    filter: client.filter('store = {:store} && visitor_session = {:visitorSessionId} && day = {:day}', {
-      store: storeId,
-      visitorSessionId,
-      day: today,
-    }),
-    fields: getVisitorPageviewFieldsForIpVisibility(settings.ip_visibility),
-    sort: 'occurred_at,created',
-  });
-
-  const resolvedIps = await resolveFullIps(client, 'visitor_pageview', result.items, settings);
-  const pageviews = applyIpPolicy(result.items.map(normalizeVisitorPageview), settings, resolvedIps);
-  const labels = await getPageviewEntityLabels(client, storeId, pageviews);
-  const rows = pageviews.map((pageview) => ({
-    ...pageview,
-    readableName: getPageviewReadableName(pageview, labels),
-  }));
-
-  return normalizeListResult(result, rows);
+  const detail = await getSecurityVisitorDetail(client, storeId, visitorSessionId, page);
+  return detail.pageviews;
 }
 
 export const CUSTOMER_STATUS_LABELS: Record<string, string> = {

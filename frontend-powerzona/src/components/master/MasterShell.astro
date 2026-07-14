@@ -1,0 +1,125 @@
+---
+import '../../styles/master-ui.css';
+import MasterSidebar from './MasterSidebar.astro';
+import MasterTopbar from './MasterTopbar.astro';
+
+export interface MasterShellStoreContext {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+}
+
+interface Props {
+  currentUrl: string;
+  displayName: string;
+  title: string;
+  currentStore?: MasterShellStoreContext | null;
+  showCreateStore?: boolean;
+}
+
+const {
+  currentUrl,
+  displayName,
+  title,
+  currentStore = null,
+  showCreateStore = false,
+} = Astro.props;
+
+const parsedUrl = new URL(currentUrl);
+const currentPath = parsedUrl.pathname;
+const rawPriceWatchStoreId = String(parsedUrl.searchParams.get('store_id') || '').trim();
+const priceWatchStoreId = /^[a-z0-9]{15}$/.test(rawPriceWatchStoreId) ? rawPriceWatchStoreId : '';
+---
+
+<div class="master-app">
+  <MasterSidebar
+    currentPath={currentPath}
+    displayName={displayName}
+    currentStore={currentStore}
+    priceWatchStoreId={priceWatchStoreId}
+  />
+  <div class="master-workspace">
+    <MasterTopbar displayName={displayName} title={title} showCreateStore={showCreateStore} />
+    <main class="master-content"><slot /></main>
+  </div>
+</div>
+
+<script>
+  declare global {
+    interface Window {
+      PZMasterDialog?: {
+        open: (id: string, returnFocus?: HTMLElement | null) => void;
+        close: (id: string) => void;
+      };
+    }
+  }
+
+  const root = document.documentElement;
+  const openButton = document.querySelector<HTMLButtonElement>('[data-master-sidebar-open]');
+  const closeButton = document.querySelector<HTMLButtonElement>('[data-master-sidebar-close]');
+  const overlay = document.querySelector<HTMLElement>('[data-master-sidebar-overlay]');
+  const unreadIndicator = document.querySelector<HTMLElement>('[data-master-sidebar-unread]');
+  const dialogReturnFocus = new Map<string, HTMLElement | null>();
+
+  function setDrawer(open: boolean) {
+    root.classList.toggle('master-drawer-open', open);
+    openButton?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function closeDrawer() {
+    setDrawer(false);
+  }
+
+  function updateSidebarUnread(count: number) {
+    if (!unreadIndicator) return;
+    const safeCount = Math.max(0, Math.floor(Number(count || 0)));
+    unreadIndicator.hidden = safeCount === 0;
+    unreadIndicator.textContent = safeCount > 99 ? '99+' : String(safeCount);
+  }
+
+  openButton?.addEventListener('click', () => setDrawer(true));
+  closeButton?.addEventListener('click', closeDrawer);
+  overlay?.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDrawer();
+  });
+  document.querySelectorAll<HTMLAnchorElement>('.master-sidebar a').forEach((link) => link.addEventListener('click', closeDrawer));
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 960) closeDrawer();
+  });
+  window.addEventListener('pz:master-notifications-count', (event) => {
+    const customEvent = event as CustomEvent<{ unreadCount?: number }>;
+    updateSidebarUnread(Number(customEvent.detail?.unreadCount || 0));
+  });
+
+  window.PZMasterDialog = {
+    open(id, returnFocus = document.activeElement as HTMLElement | null) {
+      const dialog = document.getElementById(id);
+      if (!(dialog instanceof HTMLDialogElement) || dialog.open) return;
+      dialogReturnFocus.set(id, returnFocus);
+      dialog.showModal();
+      root.classList.add('master-dialog-open');
+    },
+    close(id) {
+      const dialog = document.getElementById(id);
+      if (dialog instanceof HTMLDialogElement && dialog.open) dialog.close();
+    },
+  };
+
+  document.querySelectorAll<HTMLDialogElement>('[data-master-dialog]').forEach((dialog) => {
+    if (dialog.dataset.masterBound === 'true') return;
+    dialog.dataset.masterBound = 'true';
+    dialog.querySelectorAll<HTMLElement>('[data-master-dialog-close]').forEach((button) => {
+      button.addEventListener('click', () => dialog.close());
+    });
+    dialog.addEventListener('click', (event) => {
+      if (dialog.dataset.closeOnBackdrop === 'true' && event.target === dialog) dialog.close();
+    });
+    dialog.addEventListener('close', () => {
+      if (!document.querySelector('dialog[open][data-master-dialog]')) root.classList.remove('master-dialog-open');
+      dialogReturnFocus.get(dialog.id)?.focus();
+      dialogReturnFocus.delete(dialog.id);
+    });
+  });
+</script>
