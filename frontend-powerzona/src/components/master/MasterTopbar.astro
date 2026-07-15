@@ -19,50 +19,52 @@ const initials = displayName
 ---
 
 <header class="master-topbar" aria-label="Cabecera global del Master">
-  <div class="master-topbar__leading">
-    <button
-      class="master-topbar__menu"
-      type="button"
-      aria-label="Abrir menú"
-      aria-expanded="false"
-      data-master-sidebar-open
-    >
-      <MasterIcon name="menu" size={21} />
-    </button>
-    <h1 class="master-topbar__title">{title}</h1>
-  </div>
-
-  <div class="master-topbar__actions">
-    {showCreateStore && (
-      <button id="create-store" class="master-btn master-btn--primary" type="button">
-        <MasterIcon name="stores" size={17} />
-        <span>Crear tienda</span>
-      </button>
-    )}
-
-    <MasterNotificationsBell />
-
-    <div class="master-profile-menu">
+  <div class="master-topbar__inner">
+    <div class="master-topbar__leading">
       <button
-        class="master-profile-menu__trigger"
+        class="master-topbar__menu"
         type="button"
+        aria-label="Abrir menú"
         aria-expanded="false"
-        aria-haspopup="menu"
-        data-master-profile-trigger
+        data-master-sidebar-open
       >
-        <span class="master-profile-menu__avatar">{initials}</span>
-        <span class="master-profile-menu__copy">
-          <strong>{displayName || 'Master Admin'}</strong>
-          <span>Administrador</span>
-        </span>
-        <MasterIcon name="chevron-down" size={15} />
+        <MasterIcon name="menu" size={21} />
       </button>
+      <h1 class="master-topbar__title">{title}</h1>
+    </div>
 
-      <div class="master-profile-menu__panel" role="menu" hidden data-master-profile-panel>
-        <button type="button" role="menuitem" data-master-global-logout>
-          <MasterIcon name="logout" size={17} />
-          Cerrar sesión
+    <div class="master-topbar__actions">
+      {showCreateStore && (
+        <button id="create-store" class="master-btn master-btn--primary" type="button">
+          <MasterIcon name="stores" size={17} />
+          <span>Crear tienda</span>
         </button>
+      )}
+
+      <MasterNotificationsBell />
+
+      <div class="master-profile-menu">
+        <button
+          class="master-profile-menu__trigger"
+          type="button"
+          aria-expanded="false"
+          aria-haspopup="menu"
+          data-master-profile-trigger
+        >
+          <span class="master-profile-menu__avatar">{initials}</span>
+          <span class="master-profile-menu__copy">
+            <strong>{displayName || 'Master Admin'}</strong>
+            <span>Administrador</span>
+          </span>
+          <MasterIcon name="chevron-down" size={15} />
+        </button>
+
+        <div class="master-profile-menu__panel" role="menu" hidden data-master-profile-panel>
+          <button type="button" role="menuitem" data-master-global-logout>
+            <MasterIcon name="logout" size={17} />
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
   </div>

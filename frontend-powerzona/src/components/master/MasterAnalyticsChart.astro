@@ -176,10 +176,10 @@ function formatNumber(value: number) {
 <style>
   .master-chart-card { min-width: 0; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; box-shadow: 0 18px 44px rgba(15, 23, 42, .06); }
   .master-chart-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 20px 22px 12px; }
-  .master-chart-head h2 { margin: 0; color: #0f172a; font-size: 21px; line-height: 1.1; font-weight: 950; }
+  .master-chart-head h2 { margin: 0; color: #0f172a; font-size: var(--master-font-section-title); line-height: 1.1; font-weight: 950; }
   .master-chart-head p { margin: 6px 0 0; color: #64748b; font-size: 13px; line-height: 1.45; font-weight: 700; }
   .master-chart-tabs { display: flex; max-width: 100%; overflow-x: auto; gap: 6px; padding: 3px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; scrollbar-width: thin; }
-  .master-chart-tab { min-height: 36px; border: 0; border-radius: 9px; background: transparent; color: #64748b; padding: 8px 11px; font: inherit; font-size: 12px; font-weight: 900; white-space: nowrap; cursor: pointer; }
+  .master-chart-tab { min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: #64748b; padding: 8px 11px; font: inherit; font-size: 13px; font-weight: 900; white-space: nowrap; cursor: pointer; }
   .master-chart-tab.is-active { background: #fff; color: #1d4ed8; box-shadow: 0 4px 14px rgba(15, 23, 42, .09); }
   .master-chart-stage { position: relative; min-width: 0; padding: 0 10px 14px; }
   .master-chart-panel { min-width: 0; }
@@ -187,16 +187,16 @@ function formatNumber(value: number) {
   .master-chart-panel { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
   .master-chart-grid { stroke: #e2e8f0; stroke-width: 1; stroke-dasharray: 5 7; }
   .master-chart-line { stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
-  .master-chart-y-label, .master-chart-x-label { fill: #64748b; font-size: 10.5px; font-weight: 800; }
+  .master-chart-y-label, .master-chart-x-label { fill: #64748b; font-size: 12px; font-weight: 800; }
   .master-chart-point { cursor: pointer; outline: none; }
   .master-chart-point-ring { transform-box: fill-box; transform-origin: center; transition: transform .16s ease, opacity .16s ease; }
   .master-chart-point:hover .master-chart-point-ring,
   .master-chart-point:focus .master-chart-point-ring { transform: scale(1.45); opacity: .3; }
   .master-chart-tooltip { position: absolute; z-index: 5; display: grid; gap: 2px; min-width: 112px; max-width: min(210px, calc(100vw - 32px)); transform: translateX(-50%); border: 1px solid #cbd5e1; border-radius: 10px; background: #0f172a; color: #fff; padding: 9px 11px; box-shadow: 0 12px 28px rgba(15, 23, 42, .28); pointer-events: none; }
   .master-chart-tooltip[hidden] { display: none; }
-  .master-chart-tooltip span { color: #cbd5e1; font-size: 11px; font-weight: 800; }
-  .master-chart-tooltip strong { font-size: 13px; line-height: 1.2; font-weight: 950; }
-  .master-chart-empty { margin: -10px 18px 8px; border-radius: 10px; background: #f8fafc; color: #64748b; padding: 10px 12px; text-align: center; font-size: 12px; font-weight: 750; }
+  .master-chart-tooltip span { color: #cbd5e1; font-size: 13px; font-weight: 800; }
+  .master-chart-tooltip strong { font-size: 14px; line-height: 1.2; font-weight: 950; }
+  .master-chart-empty { margin: -10px 18px 8px; border-radius: 10px; background: #f8fafc; color: #64748b; padding: 10px 12px; text-align: center; font-size: 13px; font-weight: 750; }
 
   @media (max-width: 720px) {
     .master-chart-head { align-items: stretch; flex-direction: column; padding: 18px 16px 8px; }
