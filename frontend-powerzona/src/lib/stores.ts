@@ -11,6 +11,12 @@ export type PublicStore = {
   slug: string;
   status: string;
   plan?: string;
+  plan_started_at?: string;
+  plan_expires_at?: string;
+  plan_duration_months?: number;
+  free_trial_used?: boolean;
+  plan_updated_at?: string;
+  plan_updated_by?: string;
   featured?: boolean;
   protected?: boolean;
   [key: string]: any;
@@ -22,6 +28,12 @@ export type MasterStoreSummary = {
   slug: string;
   status: string;
   plan?: string;
+  plan_started_at?: string;
+  plan_expires_at?: string;
+  plan_duration_months?: number;
+  free_trial_used?: boolean;
+  plan_updated_at?: string;
+  plan_updated_by?: string;
   featured?: boolean;
   featured_order?: number;
   protected?: boolean;
@@ -238,7 +250,7 @@ export async function getFeaturedStores(): Promise<PublicStore[]> {
 
 export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSummary[]> {
   const stores = await client.collection('stores').getFullList({
-    fields: 'id,name,slug,status,plan,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
     sort: '-featured,featured_order,status,name',
   });
 
@@ -248,6 +260,12 @@ export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSum
     slug: store.slug || '',
     status: store.status || '',
     plan: store.plan || '',
+    plan_started_at: store.plan_started_at || '',
+    plan_expires_at: store.plan_expires_at || '',
+    plan_duration_months: Number(store.plan_duration_months || 0),
+    free_trial_used: store.free_trial_used === true,
+    plan_updated_at: store.plan_updated_at || '',
+    plan_updated_by: store.plan_updated_by || '',
     featured: store.featured === true,
     featured_order: Number(store.featured_order || 0),
     protected: store.protected === true,
@@ -266,6 +284,12 @@ function mapMasterStore(store: any): MasterStoreSummary {
     slug: store.slug || '',
     status: store.status || '',
     plan: store.plan || '',
+    plan_started_at: store.plan_started_at || '',
+    plan_expires_at: store.plan_expires_at || '',
+    plan_duration_months: Number(store.plan_duration_months || 0),
+    free_trial_used: store.free_trial_used === true,
+    plan_updated_at: store.plan_updated_at || '',
+    plan_updated_by: store.plan_updated_by || '',
     featured: store.featured === true,
     featured_order: Number(store.featured_order || 0),
     protected: store.protected === true,
@@ -287,7 +311,7 @@ export async function getStoresPageForMaster(client: PocketBase, page: unknown, 
   const requestedPage = normalizeMasterStoresPage(page);
   const normalizedPerPage = Math.min(100, Math.max(1, Math.floor(Number(perPage) || 10)));
   const options = {
-    fields: 'id,name,slug,status,plan,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
     sort: '-featured,featured_order,status,name',
   };
   let result = await client.collection('stores').getList(requestedPage, normalizedPerPage, options);
@@ -327,7 +351,7 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
 
   return client.collection('stores').create({
     ...payload,
-    plan: 'basic',
+    plan: 'free',
     featured: false,
     featured_order: 0,
     views_count: 0,
