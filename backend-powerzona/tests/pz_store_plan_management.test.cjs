@@ -5,6 +5,10 @@ const management = require('../pb_hooks/pz_store_plan_management_lib.js');
 
 const STORE_ID = 'storetestp7m200';
 
+function pocketBaseDateTime(value) {
+  return { string() { return value; } };
+}
+
 test('acepta un cambio temporal válido de 1 a 12 meses', () => {
   assert.deepEqual(management.parseChangePayload({
     store_id: STORE_ID,
@@ -64,4 +68,72 @@ test('la renovación exige de 1 a 12 meses y motivo acotado', () => {
   assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 0, reason: '' }), null);
   assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 13, reason: '' }), null);
   assert.equal(management.parseRenewPayload({ store_id: STORE_ID, months: 1, reason: 'x'.repeat(501) }), null);
+});
+
+test('el historial normaliza DateTime, actor vacío y valores anteriores vacíos', () => {
+  const values = {
+    action: 'plan_made_permanent',
+    actor_name_snapshot: '',
+    actor_role_snapshot: '',
+    previous_plan: '',
+    new_plan: 'premium',
+    previous_started_at: pocketBaseDateTime(''),
+    new_started_at: pocketBaseDateTime('2026-06-10 21:02:01.535Z'),
+    previous_expires_at: pocketBaseDateTime(''),
+    new_expires_at: pocketBaseDateTime(''),
+    previous_is_permanent: false,
+    new_is_permanent: true,
+    duration_months: 0,
+    reason: '',
+    created: pocketBaseDateTime('2026-07-15 18:00:00.000Z'),
+  };
+  const record = { id: 'audittestp7m2f1', get(key) { return values[key]; } };
+  assert.deepEqual(management.mapAudit(record), {
+    id: 'audittestp7m2f1',
+    action: 'plan_made_permanent',
+    action_label: 'Plan convertido a permanente',
+    actor_name: 'Sistema',
+    actor_role: 'system',
+    previous_plan: '',
+    new_plan: 'premium',
+    previous_started_at: '',
+    new_started_at: '2026-06-10T21:02:01.535Z',
+    previous_expires_at: '',
+    new_expires_at: '',
+    previous_is_permanent: false,
+    new_is_permanent: true,
+    duration_months: 0,
+    reason: '',
+    created: '2026-07-15T18:00:00.000Z',
+  });
+});
+
+test('las tres definiciones y precios informativos son exactos', () => {
+  const definitions = management.definitionsResponse();
+  assert.deepEqual(definitions.map(({ code, monthly_price_usd }) => ({ code, monthly_price_usd })), [
+    { code: 'free', monthly_price_usd: 0 },
+    { code: 'basic', monthly_price_usd: 5 },
+    { code: 'premium', monthly_price_usd: 10 },
+  ]);
+});
+
+test('uso vacío o inválido siempre devuelve enteros no negativos', () => {
+  assert.deepEqual(management.normalizeUsageRow(null), {
+    active_users: 0,
+    store_devices: 0,
+    max_devices_per_user: 0,
+  });
+  assert.deepEqual(management.normalizeUsageRow({
+    activeUsers: -2,
+    storeDevices: '3',
+    maxDevicesPerCustomer: undefined,
+  }), {
+    active_users: 0,
+    store_devices: 3,
+    max_devices_per_user: 0,
+  });
+});
+
+test('safeIsoDate rechaza DateTime inválido en vez de inventar una fecha', () => {
+  assert.throws(() => management.safeIsoDate(pocketBaseDateTime('inválida')), /invalid_date/);
 });

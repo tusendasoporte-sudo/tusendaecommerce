@@ -97,7 +97,26 @@ function parseDate(value, allowEmpty) {
     if (allowEmpty) return null;
     throw new TypeError("invalid_date");
   }
-  const date = value instanceof Date ? new Date(value.getTime()) : new Date(String(value));
+
+  if (value instanceof Date) {
+    if (!Number.isFinite(value.getTime())) throw new TypeError("invalid_date");
+    return new Date(value.getTime());
+  }
+
+  let raw = value;
+  if (typeof value === "object" && typeof value.string === "function") {
+    try {
+      raw = value.string();
+    } catch (_) {
+      throw new TypeError("invalid_date");
+    }
+  }
+  if (raw === null || raw === undefined || (typeof raw === "string" && !raw.trim())) {
+    if (allowEmpty) return null;
+    throw new TypeError("invalid_date");
+  }
+
+  const date = new Date(typeof raw === "string" ? raw.trim() : raw);
   if (!Number.isFinite(date.getTime())) {
     throw new TypeError("invalid_date");
   }
@@ -396,5 +415,7 @@ module.exports = {
   handleStoreCreateRequest,
   initializeNewStoreRecord,
   isValidPlanCode,
+  normalizedIso,
+  parseDate,
   resolvePlanState,
 };

@@ -31,6 +31,10 @@ function futureDate(days) {
   return new Date(NOW.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
+function pocketBaseDateTime(value) {
+  return { string() { return value; } };
+}
+
 test('la matriz de Free es exacta', () => {
   assert.deepEqual(plans.getPlanDefinition('free'), {
     code: 'free',
@@ -108,6 +112,44 @@ test('un plan permanente queda activo sin vencimiento ni días restantes', () =>
   assert.equal(state.plan_expires_at, null);
   assert.equal(state.days_remaining, null);
   assert.equal(state.isConfigured, true);
+  assert.equal(state.can_renew, false);
+});
+
+test('normaliza DateTime real de PocketBase mediante string()', () => {
+  const parsed = plans.parseDate(pocketBaseDateTime('2026-06-10 21:02:01.535Z'), false);
+  assert.equal(parsed.toISOString(), '2026-06-10T21:02:01.535Z');
+});
+
+test('DateTime vacío se trata como fecha vacía cuando está permitido', () => {
+  assert.equal(plans.parseDate(pocketBaseDateTime(''), true), null);
+  assert.equal(plans.normalizedIso(pocketBaseDateTime('')), null);
+  assert.throws(() => plans.parseDate(pocketBaseDateTime(''), false), /invalid_date/);
+});
+
+test('DateTime inválido se rechaza explícitamente', () => {
+  assert.throws(
+    () => plans.parseDate(pocketBaseDateTime('fecha-invalida'), true),
+    /invalid_date/
+  );
+});
+
+test('PowerZona permanente acepta fechas DateTime y vencimiento DateTime vacío', () => {
+  const values = {
+    plan: 'premium',
+    plan_started_at: pocketBaseDateTime('2026-06-10 21:02:01.535Z'),
+    plan_expires_at: pocketBaseDateTime(''),
+    plan_duration_months: 0,
+    plan_is_permanent: true,
+  };
+  const record = { get(key) { return values[key]; } };
+  const state = plans.resolvePlanState(record, NOW);
+  assert.equal(state.plan, 'premium');
+  assert.equal(state.plan_started_at, '2026-06-10T21:02:01.535Z');
+  assert.equal(state.plan_expires_at, null);
+  assert.equal(state.days_remaining, null);
+  assert.equal(state.state, 'active');
+  assert.equal(state.isConfigured, true);
+  assert.equal(state.isExpired, false);
   assert.equal(state.can_renew, false);
 });
 

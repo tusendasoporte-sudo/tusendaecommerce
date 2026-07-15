@@ -79,10 +79,11 @@ function boundedString(value, maxLength) {
 }
 
 function safeIsoDate(value) {
-  const raw = boundedString(value, 80);
-  if (!raw) return "";
-  const parsed = new Date(raw);
-  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : "";
+  return plans.normalizedIso(value) || "";
+}
+
+function recordDate(record, key) {
+  return safeIsoDate(recordValue(record, key));
 }
 
 function isMaster(info) {
@@ -136,11 +137,7 @@ function storeUsage(app, storeId) {
         GROUP BY customer
       )), 0) AS maxDevicesPerCustomer
   `, { storeId }, { activeUsers: 0, storeDevices: 0, maxDevicesPerCustomer: 0 }) || {};
-  return {
-    active_users: nonNegativeInteger(row.activeUsers),
-    store_devices: nonNegativeInteger(row.storeDevices),
-    max_devices_per_user: nonNegativeInteger(row.maxDevicesPerCustomer),
-  };
+  return normalizeUsageRow(row);
 }
 
 function mapAudit(record) {
@@ -153,15 +150,15 @@ function mapAudit(record) {
     actor_role: recordString(record, "actor_role_snapshot") || "system",
     previous_plan: recordString(record, "previous_plan"),
     new_plan: recordString(record, "new_plan"),
-    previous_started_at: safeIsoDate(recordString(record, "previous_started_at")),
-    new_started_at: safeIsoDate(recordString(record, "new_started_at")),
-    previous_expires_at: safeIsoDate(recordString(record, "previous_expires_at")),
-    new_expires_at: safeIsoDate(recordString(record, "new_expires_at")),
+    previous_started_at: recordDate(record, "previous_started_at"),
+    new_started_at: recordDate(record, "new_started_at"),
+    previous_expires_at: recordDate(record, "previous_expires_at"),
+    new_expires_at: recordDate(record, "new_expires_at"),
     previous_is_permanent: recordBool(record, "previous_is_permanent"),
     new_is_permanent: recordBool(record, "new_is_permanent"),
     duration_months: Math.max(0, Math.floor(recordNumber(record, "duration_months"))),
     reason: boundedString(recordString(record, "reason"), 500),
-    created: safeIsoDate(recordString(record, "created")),
+    created: recordDate(record, "created"),
   };
 }
 
@@ -179,8 +176,8 @@ function planHistory(app, storeId, limit) {
 function storeSnapshot(store) {
   return {
     plan: recordString(store, "plan"),
-    plan_started_at: safeIsoDate(recordString(store, "plan_started_at")),
-    plan_expires_at: safeIsoDate(recordString(store, "plan_expires_at")),
+    plan_started_at: recordDate(store, "plan_started_at"),
+    plan_expires_at: recordDate(store, "plan_expires_at"),
     plan_duration_months: Math.max(0, Math.floor(recordNumber(store, "plan_duration_months"))),
     plan_is_permanent: recordBool(store, "plan_is_permanent"),
   };
@@ -200,9 +197,29 @@ function definitionsResponse() {
   });
 }
 
+function normalizeUsageRow(row) {
+  const source = row || {};
+  return {
+    active_users: nonNegativeInteger(source.activeUsers),
+    store_devices: nonNegativeInteger(source.storeDevices),
+    max_devices_per_user: nonNegativeInteger(source.maxDevicesPerCustomer),
+  };
+}
+
+function runResponseStage(stage, callback) {
+  try {
+    return callback();
+  } catch (error) {
+    error.planStage = stage;
+    throw error;
+  }
+}
+
 function buildPlanResponse(app, store) {
-  const state = plans.resolvePlanState(store, new Date());
-  const history = planHistory(app, store.id, 20);
+  const state = runResponseStage("resolve_plan_state", () => plans.resolvePlanState(store, new Date()));
+  const history = runResponseStage("plan_history", () => planHistory(app, store.id, 20));
+  const usage = runResponseStage("store_usage", () => storeUsage(app, store.id));
+  const definitions = runResponseStage("definitions_response", definitionsResponse);
   return {
     ok: true,
     generated_at: new Date().toISOString(),
@@ -213,8 +230,8 @@ function buildPlanResponse(app, store) {
       status: recordString(store, "status") === "active" ? "active" : "suspended",
     },
     plan: state,
-    usage: storeUsage(app, store.id),
-    definitions: definitionsResponse(),
+    usage,
+    definitions,
     last_change: history.length ? history[0] : null,
     history,
   };
@@ -305,9 +322,32 @@ function knownErrorCode(error) {
   ].includes(message) ? message : "";
 }
 
-function logFailure(code) {
+function logFailure(code, error) {
   try {
-    $app.logger().error("PowerZona master plan management failed safely.", "code", code);
+    const allowedStages = [
+      "request_validation",
+      "management_ready",
+      "store_load",
+      "resolve_plan_state",
+      "plan_history",
+      "store_usage",
+      "definitions_response",
+      "response_serialization",
+      "unknown",
+    ];
+    const rawStage = boundedString(error && error.planStage, 40);
+    const stage = allowedStages.includes(rawStage) ? rawStage : "unknown";
+    const rawName = boundedString(error && error.name, 30);
+    const errorName = ["Error", "TypeError", "RangeError"].includes(rawName) ? rawName : "Error";
+    const rawMessage = boundedString(error && error.message, 80);
+    const safeMessage = ["invalid_date", "invalid_plan_code"].includes(rawMessage) ? rawMessage : "internal_error";
+    $app.logger().error(
+      "PowerZona master plan management failed safely.",
+      "code", code,
+      "stage", stage,
+      "error_name", errorName,
+      "safe_message", safeMessage
+    );
   } catch (_) {}
 }
 
@@ -321,9 +361,10 @@ function handlePlanDetail(e) {
     if (!planManagementReady($app)) return e.json(503, { ok: false, error: "plan_management_unavailable" });
     const store = findRecord($app, "stores", parsed.storeId);
     if (!store) return e.json(404, { ok: false, error: "store_not_found" });
-    return e.json(200, buildPlanResponse($app, store));
-  } catch (_) {
-    logFailure("PZ_MASTER_PLAN_DETAIL_FAILED");
+    const response = buildPlanResponse($app, store);
+    return runResponseStage("response_serialization", () => e.json(200, response));
+  } catch (error) {
+    logFailure("PZ_MASTER_PLAN_DETAIL_FAILED", error);
     return e.json(500, { ok: false, error: "plan_detail_failed" });
   }
 }
@@ -355,13 +396,13 @@ function handlePlanChange(e) {
       createAudit(txApp, store, actor, permanenceAction(previous, next), previous, next, parsed.durationMonths, parsed.reason);
       response = buildPlanResponse(txApp, store);
     });
-    return e.json(200, response);
+    return runResponseStage("response_serialization", () => e.json(200, response));
   } catch (error) {
     const code = knownErrorCode(error) || boundedString(error && error.message, 80);
     if (code === "unauthorized") return e.json(403, { ok: false, error: code });
     if (code === "store_not_found") return e.json(404, { ok: false, error: code });
     if (knownErrorCode(error)) return e.json(409, { ok: false, error: code });
-    logFailure("PZ_MASTER_PLAN_CHANGE_FAILED");
+    logFailure("PZ_MASTER_PLAN_CHANGE_FAILED", error);
     return e.json(500, { ok: false, error: "plan_change_failed" });
   }
 }
@@ -389,23 +430,27 @@ function handlePlanRenew(e) {
       createAudit(txApp, store, actor, "plan_renewed", previous, next, parsed.months, parsed.reason);
       response = buildPlanResponse(txApp, store);
     });
-    return e.json(200, response);
+    return runResponseStage("response_serialization", () => e.json(200, response));
   } catch (error) {
     const code = knownErrorCode(error) || boundedString(error && error.message, 80);
     if (code === "unauthorized") return e.json(403, { ok: false, error: code });
     if (code === "store_not_found") return e.json(404, { ok: false, error: code });
     if (knownErrorCode(error)) return e.json(409, { ok: false, error: code });
-    logFailure("PZ_MASTER_PLAN_RENEW_FAILED");
+    logFailure("PZ_MASTER_PLAN_RENEW_FAILED", error);
     return e.json(500, { ok: false, error: "plan_renew_failed" });
   }
 }
 
 module.exports = {
   buildPlanResponse,
+  definitionsResponse,
   handlePlanChange,
   handlePlanDetail,
   handlePlanRenew,
+  mapAudit,
+  normalizeUsageRow,
   parseChangePayload,
   parseRenewPayload,
   requireAuthenticatedUser,
+  safeIsoDate,
 };
