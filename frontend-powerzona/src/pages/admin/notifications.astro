@@ -155,6 +155,7 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
     <AdminSidebar
       storeSlug={currentStoreSlug}
       storeName={currentStoreName}
+      storePlanValues={adminContext.store}
       activeSection="notifications"
       mobileTitle="Notificaciones"
       storeId={currentStoreId}

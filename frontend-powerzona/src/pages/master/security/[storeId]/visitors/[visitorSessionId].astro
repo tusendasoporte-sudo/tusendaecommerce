@@ -14,6 +14,7 @@ import {
 } from '../../../../../lib/securityMonitoring';
 import SecurityVisitorDetailView from '../../../../../components/admin/SecurityVisitorDetailView.astro';
 import MasterShell from '../../../../../components/master/MasterShell.astro';
+import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -42,7 +43,7 @@ if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId)) {
 let storeRecord: any = null;
 try {
   storeRecord = await authPb.collection('stores').getOne(storeId, {
-    fields: 'id,name,slug,status',
+    fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent',
   });
 } catch (_) {
   return Astro.redirect('/master/stores');
@@ -60,6 +61,7 @@ const currentStore = {
   name: storeName,
   slug: String(storeRecord?.slug || ''),
   status: String(storeRecord?.status || '') === 'active' ? 'active' : 'suspended',
+  planPresentation: resolveStorePlanPresentation(storeRecord),
 };
 const basePath = `/master/security/${encodeURIComponent(storeId)}`;
 let visitor: SecurityVisitorSessionRow | null = null;

@@ -1130,7 +1130,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
   </head>
   <body>
     <section class="admin-view pz-admin-content">
-      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={currentStoreName} activeSection="overview" />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={currentStoreName} storePlanValues={adminContext.store} activeSection="overview" />
 
       <main class="pageviews-shell pz-admin-content-inner">
         <header class="pageviews-hero">

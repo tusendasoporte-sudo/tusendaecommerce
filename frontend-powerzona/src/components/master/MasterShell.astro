@@ -2,12 +2,14 @@
 import '../../styles/master-ui.css';
 import MasterSidebar from './MasterSidebar.astro';
 import MasterTopbar from './MasterTopbar.astro';
+import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
 export interface MasterShellStoreContext {
   id: string;
   name: string;
   slug: string;
   status: string;
+  planPresentation: StorePlanPresentation;
 }
 
 interface Props {

@@ -1,5 +1,7 @@
 ---
 import MasterIcon from './MasterIcon.astro';
+import StorePlanIndicator from '../shared/StorePlanIndicator.astro';
+import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
 interface Props {
   store: {
@@ -10,9 +12,10 @@ interface Props {
     featured: boolean;
     security_label: string;
   };
+  planPresentation: StorePlanPresentation;
 }
 
-const { store } = Astro.props;
+const { store, planPresentation } = Astro.props;
 
 function initials(value: string) {
   return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'TS';
@@ -32,6 +35,7 @@ function initials(value: string) {
         <span class:list={['master-pill', store.security_label === 'Protección activa' ? 'master-pill--info' : '']}>
           {store.security_label}
         </span>
+        <StorePlanIndicator presentation={planPresentation} variant="master-header" />
       </div>
     </div>
   </div>

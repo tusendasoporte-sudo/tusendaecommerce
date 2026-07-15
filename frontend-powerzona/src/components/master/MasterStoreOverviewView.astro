@@ -3,15 +3,17 @@ import MasterIcon from './MasterIcon.astro';
 import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
 import type { MasterIconName } from '../../lib/masterIcons';
 import type { MasterStoreOverview } from '../../lib/masterStoreOverview';
+import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
 
 interface Props {
   overview: MasterStoreOverview;
   protectedStore: boolean;
   updated: string;
   securityExists: boolean;
+  planPresentation: StorePlanPresentation;
 }
 
-const { overview, protectedStore, updated, securityExists } = Astro.props;
+const { overview, protectedStore, updated, securityExists, planPresentation } = Astro.props;
 const { store, metrics, activity, recent_orders: recentOrders, attention, security, team } = overview;
 
 function number(value: unknown) {
@@ -89,7 +91,7 @@ const pending = [
   data-store-updated={updated}
   data-store-security-exists={securityExists ? 'true' : 'false'}
 >
-  <MasterStoreContextHeader store={store} />
+  <MasterStoreContextHeader store={store} planPresentation={planPresentation} />
 
   <div class="master-store-kpis" aria-label="Indicadores de la tienda">
     {kpis.map(([label, value, meta]) => (

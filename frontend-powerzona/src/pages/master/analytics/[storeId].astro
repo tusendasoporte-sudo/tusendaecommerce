@@ -12,6 +12,7 @@ import {
   normalizeMasterAnalyticsRange,
   type MasterAnalyticsStore,
 } from '../../../lib/masterStoreAnalytics';
+import { resolveStorePlanPresentation } from '../../../lib/storePlanPresentation';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -37,7 +38,7 @@ if (!isValidRecordId(storeId)) {
 let storeRecord: any = null;
 try {
   storeRecord = await authPb.collection('stores').getOne(storeId, {
-    fields: 'id,name,slug,status',
+    fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent',
     requestKey: null,
   });
 } catch (_) {
@@ -67,6 +68,7 @@ const fallbackStore: MasterAnalyticsStore = {
 };
 const analytics = result.data;
 const store = analytics?.store || fallbackStore;
+const currentStore = { ...store, planPresentation: resolveStorePlanPresentation(storeRecord) };
 const basePath = `/master/analytics/${encodeURIComponent(storeId)}`;
 const viewError = result.available
   ? ''
@@ -76,7 +78,7 @@ const viewError = result.available
 ---
 
 <Layout isMaster={true}>
-  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Analíticas" currentStore={store}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Analíticas" currentStore={currentStore}>
     <MasterStoreAnalyticsView
       analytics={analytics}
       store={store}

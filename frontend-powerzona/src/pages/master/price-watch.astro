@@ -5,6 +5,7 @@ import Layout from '../../layouts/Layout.astro';
 import MasterShell from '../../components/master/MasterShell.astro';
 import MasterIcon from '../../components/master/MasterIcon.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../lib/auth';
+import { resolveStorePlanPresentation, type StorePlanPresentation } from '../../lib/storePlanPresentation';
 import {
   getMasterPriceWatchPage,
   normalizePriceWatchPage,
@@ -27,11 +28,17 @@ const currentStatus = normalizePriceWatchStatus(Astro.url.searchParams.get('stat
 const currentSearch = String(Astro.url.searchParams.get('q') || '').trim().slice(0, 100);
 const rawStoreId = String(Astro.url.searchParams.get('store_id') || '').trim();
 const currentStoreId = /^[a-z0-9]{15}$/.test(rawStoreId) ? rawStoreId : '';
-let currentStore: { id: string; name: string; slug: string; status: string } | null = null;
+let currentStore: { id: string; name: string; slug: string; status: string; planPresentation: StorePlanPresentation } | null = null;
 if (currentStoreId) {
   try {
-    const record = await authPb.collection('stores').getOne(currentStoreId, { fields: 'id,name,slug,status', requestKey: null });
-    currentStore = { id: record.id, name: String(record.name || 'Tienda'), slug: String(record.slug || ''), status: record.status === 'active' ? 'active' : 'suspended' };
+    const record = await authPb.collection('stores').getOne(currentStoreId, { fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent', requestKey: null });
+    currentStore = {
+      id: record.id,
+      name: String(record.name || 'Tienda'),
+      slug: String(record.slug || ''),
+      status: record.status === 'active' ? 'active' : 'suspended',
+      planPresentation: resolveStorePlanPresentation(record),
+    };
   } catch (_) {
     return Astro.redirect('/master/stores');
   }

@@ -8,6 +8,7 @@ import MasterStoreActionsController from '../../../components/master/MasterStore
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
 import { getStoreSecuritySettings } from '../../../lib/security';
 import { getMasterStoreOverview } from '../../../lib/masterStoreOverview';
+import { resolveStorePlanPresentation } from '../../../lib/storePlanPresentation';
 import { DEFAULT_STORE_SLUG } from '../../../lib/stores';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -26,7 +27,7 @@ if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
 let storeRecord: any;
 try {
   storeRecord = await authPb.collection('stores').getOne(storeId, {
-    fields: 'id,name,slug,status,featured,protected,updated',
+    fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent,featured,protected,updated',
     requestKey: null,
   });
 } catch (_) {
@@ -44,6 +45,7 @@ const currentStore = {
   name: String(storeRecord.name || storeRecord.slug || 'Tienda').trim(),
   slug: String(storeRecord.slug || '').trim(),
   status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
+  planPresentation: resolveStorePlanPresentation(storeRecord),
 };
 const protectedStore = storeRecord.protected === true || currentStore.slug === DEFAULT_STORE_SLUG;
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
@@ -58,6 +60,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
           protectedStore={protectedStore}
           updated={String(storeRecord.updated || '')}
           securityExists={securitySettings.exists}
+          planPresentation={currentStore.planPresentation}
         />
         <MasterStoreActionsController />
       </>

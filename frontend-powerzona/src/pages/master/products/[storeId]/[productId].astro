@@ -7,6 +7,7 @@ import MasterShell from '../../../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
 import { getMasterStoreProductDetail, isValidRecordId } from '../../../../lib/masterStoreProducts';
 import { getMasterProductPriceHistory, normalizeHistoryPage } from '../../../../lib/masterProductWatches';
+import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');
@@ -38,7 +39,7 @@ if (!isValidRecordId(productId)) {
 let storeRecord: any;
 try {
   storeRecord = await authPb.collection('stores').getOne(storeId, {
-    fields: 'id,name,slug,status',
+    fields: 'id,name,slug,status,plan,plan_expires_at,plan_is_permanent',
     requestKey: null,
   });
 } catch (_) {
@@ -50,6 +51,7 @@ const currentStore = {
   name: String(storeRecord.name || storeRecord.slug || 'Tienda'),
   slug: String(storeRecord.slug || ''),
   status: storeRecord.status === 'active' ? 'active' : 'suspended',
+  planPresentation: resolveStorePlanPresentation(storeRecord),
 };
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;

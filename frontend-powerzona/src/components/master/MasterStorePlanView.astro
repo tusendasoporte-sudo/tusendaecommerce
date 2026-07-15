@@ -3,6 +3,7 @@ import MasterDialog from './MasterDialog.astro';
 import MasterIcon from './MasterIcon.astro';
 import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
 import type { MasterPlanAudit, MasterPlanCode, MasterStorePlan } from '../../lib/masterStorePlans';
+import { resolveStorePlanPresentation } from '../../lib/storePlanPresentation';
 
 interface Props {
   data: MasterStorePlan;
@@ -18,6 +19,7 @@ interface Props {
 const { data, storeMeta } = Astro.props;
 const { store, plan, usage, definitions, last_change: lastChange, history } = data;
 const headerStore = { ...store, featured: storeMeta.featured, security_label: storeMeta.securityLabel };
+const planPresentation = resolveStorePlanPresentation(plan, data.generated_at || new Date());
 
 const planNames: Record<MasterPlanCode | '', string> = {
   '': 'Sin plan',
@@ -128,7 +130,7 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
   data-current-expiration={plan.plan_expires_at}
   data-current-monthly-price={plan.monthly_price_usd}
 >
-  <MasterStoreContextHeader store={headerStore} />
+  <MasterStoreContextHeader store={headerStore} planPresentation={planPresentation} />
 
   <header class="master-plan-heading">
     <div>

@@ -1,0 +1,163 @@
+---
+import type { StorePlanPresentation } from '../../lib/storePlanPresentation';
+
+interface Props {
+  presentation: StorePlanPresentation;
+  variant: 'store-sidebar' | 'master-sidebar' | 'master-header';
+}
+
+const { presentation, variant } = Astro.props;
+const title = variant === 'store-sidebar'
+  ? presentation.title
+  : variant === 'master-header'
+    ? presentation.contextTitle
+    : presentation.shortName;
+const detail = variant === 'store-sidebar'
+  ? presentation.detail
+  : variant === 'master-header'
+    ? presentation.contextDetail
+    : presentation.compactDetail;
+---
+
+<span
+  class:list={[
+    'store-plan-indicator',
+    `store-plan-indicator--${variant}`,
+    `store-plan-indicator--${presentation.tone}`,
+  ]}
+  aria-label={presentation.ariaLabel}
+>
+  <span class="store-plan-indicator__icon" aria-hidden="true">
+    {presentation.icon === 'crown' ? (
+      <svg viewBox="0 0 24 24"><path d="m4 7 4.1 3.1L12 4l3.9 6.1L20 7l-1.4 10H5.4L4 7Zm2.9 8h10.2l.6-4.1-2.4 1.8L12 7.5l-3.3 5.2-2.4-1.8.6 4.1ZM6 19h12v2H6v-2Z"/></svg>
+    ) : presentation.icon === 'badge' ? (
+      <svg viewBox="0 0 24 24"><path d="m12 2 3 2 3.6-.2.2 3.6 2 3-2 3 .2 3.6-3.6-.2-3 2-3-2-3.6.2-.2-3.6-2-3 2-3-.2-3.6 3.6.2 3-2Zm0 4.2-1.8 1.2-2.2-.1-.1 2.2-1.2 1.8 1.2 1.8.1 2.2 2.2-.1 1.8 1.2 1.8-1.2 2.2.1.1-2.2 1.2-1.8-1.2-1.8-.1-2.2-2.2.1L12 6.2Zm-1 3h2v5h-2v-5Z"/></svg>
+    ) : presentation.icon === 'clock' ? (
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-1 3h2v4.6l3.2 1.9-1 1.7-4.2-2.5V7Z"/></svg>
+    ) : presentation.icon === 'expired' ? (
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16ZM8.5 7.1 12 10.6l3.5-3.5 1.4 1.4-3.5 3.5 3.5 3.5-1.4 1.4-3.5-3.5-3.5 3.5-1.4-1.4 3.5-3.5-3.5-3.5 1.4-1.4Z"/></svg>
+    ) : (
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16Zm-1 6h2v7h-2v-7Zm0-3h2v2h-2V7Z"/></svg>
+    )}
+  </span>
+  <span class="store-plan-indicator__copy">
+    <span class="store-plan-indicator__title">{title}</span>
+    <span class="store-plan-indicator__detail">
+      {variant === 'store-sidebar' && <span class:list={['store-plan-indicator__dot', `is-${presentation.dotTone}`]} aria-hidden="true"></span>}
+      {detail}
+    </span>
+  </span>
+</span>
+
+<style>
+  .store-plan-indicator {
+    --plan-color: #475569;
+    --plan-border: #dbe3ef;
+    --plan-bg: #f8fafc;
+    box-sizing: border-box;
+    min-width: 0;
+    color: var(--plan-color);
+  }
+  .store-plan-indicator--trial { --plan-color: #b45309; --plan-border: #fed7aa; --plan-bg: #fff7ed; }
+  .store-plan-indicator--basic { --plan-color: #1d4ed8; --plan-border: #bfdbfe; --plan-bg: #eff6ff; }
+  .store-plan-indicator--premium { --plan-color: #5b21b6; --plan-border: #ddd6fe; --plan-bg: #f5f3ff; }
+  .store-plan-indicator--warning { --plan-color: #b45309; --plan-border: #fed7aa; --plan-bg: #fff7ed; }
+  .store-plan-indicator--danger { --plan-color: #b91c1c; --plan-border: #fecaca; --plan-bg: #fff1f2; }
+  .store-plan-indicator--store-sidebar {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 1px solid var(--plan-border);
+    border-radius: 12px;
+    background: var(--plan-bg);
+    padding: 9px 10px;
+  }
+  .store-plan-indicator__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 27px;
+    height: 27px;
+    border: 1px solid color-mix(in srgb, var(--plan-color) 48%, transparent);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--plan-bg) 60%, #fff);
+    color: var(--plan-color);
+  }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__icon { width: 34px; height: 34px; }
+  .store-plan-indicator__icon svg { width: 18px; height: 18px; fill: currentColor; }
+  .store-plan-indicator__copy { display: flex; min-width: 0; }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__copy { display: grid; gap: 3px; }
+  .store-plan-indicator__title,
+  .store-plan-indicator__detail { min-width: 0; }
+  .store-plan-indicator__title { color: var(--plan-color); font-weight: 950; }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__title {
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.15;
+    letter-spacing: .025em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .store-plan-indicator__detail { color: #475569; font-weight: 750; }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__detail {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    line-height: 1.25;
+  }
+  .store-plan-indicator__dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #94a3b8; }
+  .store-plan-indicator__dot.is-info { background: #3b82f6; }
+  .store-plan-indicator__dot.is-success { background: #22c55e; }
+  .store-plan-indicator__dot.is-warning { background: #f59e0b; }
+  .store-plan-indicator__dot.is-danger { background: #ef4444; }
+  .store-plan-indicator--master-sidebar {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    margin-top: 2px;
+  }
+  .store-plan-indicator--master-sidebar .store-plan-indicator__icon {
+    width: 22px;
+    height: 22px;
+    border-color: color-mix(in srgb, var(--plan-color) 55%, #fff 15%);
+    background: color-mix(in srgb, var(--plan-color) 18%, transparent);
+    color: color-mix(in srgb, var(--plan-color) 38%, #fff);
+  }
+  .store-plan-indicator--master-sidebar .store-plan-indicator__icon svg { width: 14px; height: 14px; }
+  .store-plan-indicator--master-sidebar .store-plan-indicator__copy {
+    align-items: baseline;
+    gap: 4px;
+    overflow: hidden;
+    color: #e2e8f0;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .store-plan-indicator--master-sidebar .store-plan-indicator__title { color: #f8fafc; }
+  .store-plan-indicator--master-sidebar .store-plan-indicator__detail { overflow: hidden; color: #cbd5e1; text-overflow: ellipsis; }
+  .store-plan-indicator--master-sidebar .store-plan-indicator__detail::before { content: '· '; }
+  .store-plan-indicator--master-header {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: max-content;
+    max-width: 100%;
+    min-height: 32px;
+    border: 1px solid var(--plan-border);
+    border-radius: 999px;
+    background: var(--plan-bg);
+    padding: 5px 10px 5px 6px;
+    font-size: 13px;
+    line-height: 1.1;
+  }
+  .store-plan-indicator--master-header .store-plan-indicator__icon { width: 22px; height: 22px; border: 0; background: transparent; }
+  .store-plan-indicator--master-header .store-plan-indicator__icon svg { width: 16px; height: 16px; }
+  .store-plan-indicator--master-header .store-plan-indicator__copy { align-items: center; gap: 5px; white-space: nowrap; }
+  .store-plan-indicator--master-header .store-plan-indicator__detail { color: var(--plan-color); }
+  .store-plan-indicator--master-header .store-plan-indicator__detail::before { content: '· '; opacity: .7; }
+</style>
