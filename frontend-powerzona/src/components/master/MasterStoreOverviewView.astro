@@ -1,5 +1,6 @@
 ---
 import MasterIcon from './MasterIcon.astro';
+import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
 import type { MasterIconName } from '../../lib/masterIcons';
 import type { MasterStoreOverview } from '../../lib/masterStoreOverview';
 
@@ -37,10 +38,6 @@ function relative(value: string) {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `Hace ${hours} h`;
   return `Hace ${Math.floor(hours / 24)} d`;
-}
-
-function initials(value: string) {
-  return value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() || '').join('') || 'TS';
 }
 
 function activityIcon(type: string): MasterIconName {
@@ -92,25 +89,7 @@ const pending = [
   data-store-updated={updated}
   data-store-security-exists={securityExists ? 'true' : 'false'}
 >
-  <header class="master-store-heading">
-    <div class="master-store-heading__identity">
-      <span class="master-store-heading__avatar" aria-hidden="true">{initials(store.name)}</span>
-      <div class="master-store-heading__copy">
-        <div class="master-store-heading__title-row">
-          <h2>{store.name}</h2>
-          <span class:list={['master-pill', store.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{store.status === 'active' ? 'Activa' : 'Suspendida'}</span>
-          {store.featured && <span class="master-pill master-pill--warning">Destacada</span>}
-          <span class:list={['master-pill', store.security_label === 'Protección activa' ? 'master-pill--info' : '']}>{store.security_label}</span>
-        </div>
-      </div>
-    </div>
-    <div class="master-store-heading__actions">
-      <a class="master-btn master-btn--secondary" href={`/t/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer"><MasterIcon name="external" size={19} /> Ver tienda pública</a>
-      <button class="master-btn master-btn--secondary" type="button" data-action-edit-store><MasterIcon name="edit" size={19} /> Editar tienda</button>
-      <button class="master-btn master-btn--secondary" type="button" data-action-create-user><MasterIcon name="user-plus" size={19} /> Crear usuario</button>
-      <button class="master-icon-btn" type="button" data-action-more aria-label="Más acciones" aria-haspopup="menu" aria-expanded="false"><MasterIcon name="more" size={21} /></button>
-    </div>
-  </header>
+  <MasterStoreContextHeader store={store} />
 
   <div class="master-store-kpis" aria-label="Indicadores de la tienda">
     {kpis.map(([label, value, meta]) => (

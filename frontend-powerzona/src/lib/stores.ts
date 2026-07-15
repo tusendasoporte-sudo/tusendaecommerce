@@ -14,6 +14,7 @@ export type PublicStore = {
   plan_started_at?: string;
   plan_expires_at?: string;
   plan_duration_months?: number;
+  plan_is_permanent?: boolean;
   free_trial_used?: boolean;
   plan_updated_at?: string;
   plan_updated_by?: string;
@@ -31,6 +32,7 @@ export type MasterStoreSummary = {
   plan_started_at?: string;
   plan_expires_at?: string;
   plan_duration_months?: number;
+  plan_is_permanent?: boolean;
   free_trial_used?: boolean;
   plan_updated_at?: string;
   plan_updated_by?: string;
@@ -250,7 +252,7 @@ export async function getFeaturedStores(): Promise<PublicStore[]> {
 
 export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSummary[]> {
   const stores = await client.collection('stores').getFullList({
-    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,plan_is_permanent,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
     sort: '-featured,featured_order,status,name',
   });
 
@@ -263,6 +265,7 @@ export async function getAllStoresForMaster(client = pb): Promise<MasterStoreSum
     plan_started_at: store.plan_started_at || '',
     plan_expires_at: store.plan_expires_at || '',
     plan_duration_months: Number(store.plan_duration_months || 0),
+    plan_is_permanent: store.plan_is_permanent === true,
     free_trial_used: store.free_trial_used === true,
     plan_updated_at: store.plan_updated_at || '',
     plan_updated_by: store.plan_updated_by || '',
@@ -287,6 +290,7 @@ function mapMasterStore(store: any): MasterStoreSummary {
     plan_started_at: store.plan_started_at || '',
     plan_expires_at: store.plan_expires_at || '',
     plan_duration_months: Number(store.plan_duration_months || 0),
+    plan_is_permanent: store.plan_is_permanent === true,
     free_trial_used: store.free_trial_used === true,
     plan_updated_at: store.plan_updated_at || '',
     plan_updated_by: store.plan_updated_by || '',
@@ -311,7 +315,7 @@ export async function getStoresPageForMaster(client: PocketBase, page: unknown, 
   const requestedPage = normalizeMasterStoresPage(page);
   const normalizedPerPage = Math.min(100, Math.max(1, Math.floor(Number(perPage) || 10)));
   const options = {
-    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
+    fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,plan_is_permanent,free_trial_used,plan_updated_at,plan_updated_by,featured,featured_order,protected,owner_phone,views_count,orders_count,created,updated',
     sort: '-featured,featured_order,status,name',
   };
   let result = await client.collection('stores').getList(requestedPage, normalizedPerPage, options);

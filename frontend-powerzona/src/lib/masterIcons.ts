@@ -6,6 +6,7 @@ export type MasterIconName =
   | 'analytics'
   | 'products'
   | 'security'
+  | 'plan'
   | 'back'
   | 'external'
   | 'edit'

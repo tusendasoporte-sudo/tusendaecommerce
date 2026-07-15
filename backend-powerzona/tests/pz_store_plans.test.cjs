@@ -96,6 +96,21 @@ test('una tienda heredada sin vencimiento queda unconfigured', () => {
   assert.equal(state.isExpired, false);
 });
 
+test('un plan permanente queda activo sin vencimiento ni días restantes', () => {
+  const state = plans.resolvePlanState({
+    plan: 'premium',
+    plan_started_at: NOW.toISOString(),
+    plan_expires_at: futureDate(8),
+    plan_is_permanent: true,
+  }, NOW);
+  assert.equal(state.state, 'active');
+  assert.equal(state.plan_is_permanent, true);
+  assert.equal(state.plan_expires_at, null);
+  assert.equal(state.days_remaining, null);
+  assert.equal(state.isConfigured, true);
+  assert.equal(state.can_renew, false);
+});
+
 test('más de siete días devuelve active', () => {
   assert.equal(plans.resolvePlanState({ plan: 'basic', plan_expires_at: futureDate(8) }, NOW).state, 'active');
 });
@@ -161,6 +176,7 @@ test('la inicialización de una tienda ignora plan y fechas suministrados', () =
     plan_started_at: '2000-01-01T00:00:00.000Z',
     plan_expires_at: '2099-01-01T00:00:00.000Z',
     plan_duration_months: 12,
+    plan_is_permanent: true,
     free_trial_used: false,
     plan_updated_at: '',
     plan_updated_by: '',
@@ -178,6 +194,7 @@ test('la inicialización de una tienda ignora plan y fechas suministrados', () =
     plan_started_at: '2026-07-15T12:00:00.000Z',
     plan_expires_at: '2026-08-14T12:00:00.000Z',
     plan_duration_months: 0,
+    plan_is_permanent: false,
     free_trial_used: true,
     plan_updated_by: 'mastertest00001',
     plan_updated_at: '2026-07-15T12:00:00.000Z',
@@ -200,7 +217,7 @@ test('un fallo de auditoría elimina compensatoriamente la tienda nueva', () => 
   const app = {
     findCollectionByNameOrId(name) {
       if (name === 'stores') {
-        return { fields: { getByName(field) { return field === 'plan_expires_at' ? {} : null; } } };
+        return { fields: { getByName(field) { return ['plan_expires_at', 'plan_is_permanent'].includes(field) ? {} : null; } } };
       }
       if (name === 'store_plan_audit') return { name };
       throw new Error('collection_not_found');
@@ -234,4 +251,67 @@ test('un fallo de auditoría elimina compensatoriamente la tienda nueva', () => 
   } finally {
     global.Record = NativeRecord;
   }
+});
+
+test('cambiar Premium a permanente limpia vencimiento y duración', () => {
+  const values = plans.buildPlanChangeValues({ free_trial_used: true }, {
+    plan: 'premium',
+    is_permanent: true,
+    duration_months: 0,
+  }, NOW, 'mastertest00001');
+  assert.deepEqual(values, {
+    plan: 'premium',
+    plan_started_at: NOW.toISOString(),
+    plan_expires_at: '',
+    plan_duration_months: 0,
+    plan_is_permanent: true,
+    free_trial_used: true,
+    plan_updated_by: 'mastertest00001',
+    plan_updated_at: NOW.toISOString(),
+  });
+});
+
+test('Free no puede configurarse como permanente', () => {
+  assert.throws(
+    () => plans.buildPlanChangeValues({}, {
+      plan: 'free',
+      is_permanent: true,
+      duration_months: 0,
+    }, NOW, 'mastertest00001'),
+    /invalid_plan_permanence/
+  );
+});
+
+test('renovar un plan vigente suma meses desde su vencimiento', () => {
+  const values = plans.buildPlanRenewalValues({
+    plan: 'basic',
+    plan_started_at: '2026-06-15T12:00:00.000Z',
+    plan_expires_at: '2026-07-31T12:00:00.000Z',
+    plan_is_permanent: false,
+    free_trial_used: true,
+  }, 2, NOW, 'mastertest00001');
+  assert.equal(values.plan_started_at, '2026-06-15T12:00:00.000Z');
+  assert.equal(values.plan_expires_at, '2026-09-30T12:00:00.000Z');
+  assert.equal(values.plan_duration_months, 2);
+});
+
+test('renovar un plan vencido inicia el nuevo período desde hoy', () => {
+  const values = plans.buildPlanRenewalValues({
+    plan: 'premium',
+    plan_started_at: '2026-01-01T12:00:00.000Z',
+    plan_expires_at: '2026-06-01T12:00:00.000Z',
+    plan_is_permanent: false,
+  }, 1, NOW, 'mastertest00001');
+  assert.equal(values.plan_started_at, NOW.toISOString());
+  assert.equal(values.plan_expires_at, '2026-08-15T12:00:00.000Z');
+});
+
+test('un plan permanente no admite renovación', () => {
+  assert.throws(
+    () => plans.buildPlanRenewalValues({
+      plan: 'premium',
+      plan_is_permanent: true,
+    }, 1, NOW, 'mastertest00001'),
+    /permanent_plan_not_renewable/
+  );
 });

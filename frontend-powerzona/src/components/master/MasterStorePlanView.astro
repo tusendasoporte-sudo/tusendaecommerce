@@ -1,0 +1,422 @@
+---
+import MasterDialog from './MasterDialog.astro';
+import MasterIcon from './MasterIcon.astro';
+import MasterStoreContextHeader from './MasterStoreContextHeader.astro';
+import type { MasterPlanAudit, MasterPlanCode, MasterStorePlan } from '../../lib/masterStorePlans';
+
+interface Props {
+  data: MasterStorePlan;
+  storeMeta: {
+    featured: boolean;
+    protected: boolean;
+    updated: string;
+    securityExists: boolean;
+    securityLabel: string;
+  };
+}
+
+const { data, storeMeta } = Astro.props;
+const { store, plan, usage, definitions, last_change: lastChange, history } = data;
+const headerStore = { ...store, featured: storeMeta.featured, security_label: storeMeta.securityLabel };
+
+const planNames: Record<MasterPlanCode | '', string> = {
+  '': 'Sin plan',
+  free: 'Free',
+  basic: 'Básico',
+  premium: 'Premium',
+};
+
+function date(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(parsed)
+    : 'Sin fecha';
+}
+
+function dateTime(value: string) {
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed)
+    : 'Sin fecha';
+}
+
+function stateLabel(value: string) {
+  if (value === 'active') return 'Activo';
+  if (value === 'expiring') return 'Próximo a vencer';
+  if (value === 'critical') return 'Vence pronto';
+  if (value === 'expired') return 'Vencido';
+  return 'No configurado';
+}
+
+function stateTone(value: string) {
+  if (value === 'active') return 'master-pill--success';
+  if (value === 'expired') return 'master-pill--danger';
+  if (value === 'expiring' || value === 'critical') return 'master-pill--warning';
+  return '';
+}
+
+function validityLabel(entry: MasterPlanAudit | null) {
+  if (!entry) return 'Sin registro';
+  if (entry.new_is_permanent) return 'Permanente';
+  if (entry.new_plan === 'free') return '30 días';
+  return entry.duration_months ? `${entry.duration_months} ${entry.duration_months === 1 ? 'mes' : 'meses'}` : 'Temporal';
+}
+
+const durationLabel = plan.plan_is_permanent
+  ? 'Permanente'
+  : plan.plan === 'free'
+    ? '30 días'
+    : plan.plan_duration_months
+      ? `${plan.plan_duration_months} ${plan.plan_duration_months === 1 ? 'mes' : 'meses'}`
+      : 'Sin configurar';
+const validityValue = plan.plan_is_permanent
+  ? 'Sin vencimiento'
+  : plan.days_remaining === null
+    ? 'Sin configurar'
+    : plan.days_remaining === 0
+      ? 'Vencido'
+      : `${plan.days_remaining} ${plan.days_remaining === 1 ? 'día' : 'días'}`;
+
+const capabilities = [
+  { label: 'Usuarios', value: `${usage.active_users} / ${plan.capabilities.max_active_users}`, icon: 'users' as const },
+  { label: 'Dispositivos por usuario', value: `${usage.max_devices_per_user} / ${plan.capabilities.max_devices_per_user}`, icon: 'security' as const },
+  { label: 'Dispositivos por tienda', value: `${usage.store_devices} / ${plan.capabilities.max_store_devices}`, icon: 'stores' as const },
+  { label: 'Fotos por producto', value: `${plan.capabilities.max_product_images} / ${plan.capabilities.max_product_images}`, icon: 'products' as const },
+  { label: 'Seguridad', included: plan.capabilities.security_enabled, icon: 'security' as const },
+  { label: 'Rifas', included: plan.capabilities.raffles_enabled, icon: 'check' as const },
+  { label: 'Landing QR', included: plan.capabilities.landing_qr_enabled, icon: 'external' as const },
+  { label: 'Productos vencidos y alertas', included: plan.capabilities.product_expiration_tools_enabled, icon: 'alert' as const },
+];
+
+const planCopy: Record<MasterPlanCode, { title: string; price: string; period: string; features: string[] }> = {
+  free: {
+    title: 'Free',
+    price: 'Prueba gratuita',
+    period: '30 días',
+    features: ['1 usuario', '2 fotos por producto', 'Sin funciones avanzadas'],
+  },
+  basic: {
+    title: 'Básico',
+    price: '$5 USD / mes',
+    period: '1–12 meses',
+    features: ['1 usuario', '2 fotos por producto', 'Sin funciones avanzadas'],
+  },
+  premium: {
+    title: 'Premium',
+    price: '$10 USD / mes',
+    period: '1–12 meses',
+    features: ['4 usuarios', '4 fotos por producto', 'Seguridad, Rifas y Landing QR', 'Vencimientos y alertas'],
+  },
+};
+---
+
+<section
+  class="master-store-page master-plan-page"
+  data-store-context
+  data-store-overview="true"
+  data-store-id={store.id}
+  data-store-name={store.name}
+  data-store-slug={store.slug}
+  data-store-status={store.status}
+  data-store-featured={storeMeta.featured ? 'true' : 'false'}
+  data-store-protected={storeMeta.protected ? 'true' : 'false'}
+  data-store-updated={storeMeta.updated}
+  data-store-security-exists={storeMeta.securityExists ? 'true' : 'false'}
+  data-plan-page
+  data-current-plan={plan.plan}
+  data-current-permanent={plan.plan_is_permanent ? 'true' : 'false'}
+  data-current-expiration={plan.plan_expires_at}
+  data-current-monthly-price={plan.monthly_price_usd}
+>
+  <MasterStoreContextHeader store={headerStore} />
+
+  <header class="master-plan-heading">
+    <div>
+      <h1>Plan y límites</h1>
+      <p>Gestiona el plan activo, duración, límites y funciones premium de tu tienda.</p>
+    </div>
+  </header>
+
+  <div class="master-plan-kpis" aria-label="Resumen del plan">
+    <article class="master-store-kpi">
+      <span class="master-store-kpi__label">Plan actual</span>
+      <strong class="master-store-kpi__value">{planNames[plan.plan]}</strong>
+      <span class="master-store-kpi__meta">{plan.plan_name}</span>
+    </article>
+    <article class="master-store-kpi">
+      <span class="master-store-kpi__label">Tipo de vigencia</span>
+      <strong class="master-store-kpi__value">{durationLabel}</strong>
+      <span class="master-store-kpi__meta">{plan.plan_is_permanent ? 'No requiere renovación' : 'Período actual'}</span>
+    </article>
+    <article class="master-store-kpi">
+      <span class="master-store-kpi__label">Vigencia</span>
+      <strong class="master-store-kpi__value">{validityValue}</strong>
+      <span class="master-store-kpi__meta">{plan.plan_is_permanent ? 'Sin fecha límite' : plan.plan_expires_at ? `Hasta ${date(plan.plan_expires_at)}` : 'Pendiente de configurar'}</span>
+    </article>
+    <article class="master-store-kpi">
+      <span class="master-store-kpi__label">Estado</span>
+      <strong class="master-store-kpi__value"><span class:list={['master-pill', stateTone(plan.state)]}>{stateLabel(plan.state)}</span></strong>
+      <span class="master-store-kpi__meta">{plan.plan_is_permanent ? 'Vigencia permanente' : 'Vigencia temporal'}</span>
+    </article>
+  </div>
+
+  <section class="master-card master-plan-summary">
+    <header class="master-card-header">
+      <div><h3 class="master-card-title">Resumen del plan</h3><p class="master-card-subtitle">Información vigente registrada para esta tienda.</p></div>
+      <div class="master-plan-summary__actions">
+        <button class="master-btn master-btn--secondary" type="button" data-open-plan-change><MasterIcon name="edit" size={19} /> Cambiar plan</button>
+        {plan.can_renew && <button class="master-btn master-btn--primary" type="button" data-open-plan-renew><MasterIcon name="clock" size={19} /> Renovar plan</button>}
+      </div>
+    </header>
+    <div class="master-card-body master-plan-summary__grid">
+      <div><span>Tienda</span><strong>{store.name}</strong></div>
+      <div><span>Plan actual</span><strong>{planNames[plan.plan]}</strong></div>
+      <div><span>Fecha de inicio</span><strong>{date(plan.plan_started_at)}</strong></div>
+      <div><span>{plan.plan_is_permanent ? 'Vigencia' : 'Fecha de vencimiento'}</span><strong>{plan.plan_is_permanent ? 'Sin vencimiento' : date(plan.plan_expires_at)}</strong></div>
+      <div><span>{plan.plan_is_permanent ? 'Estado temporal' : 'Días restantes'}</span><strong>{plan.plan_is_permanent ? 'No aplica' : validityValue}</strong></div>
+    </div>
+  </section>
+
+  <section class="master-card">
+    <header class="master-card-header"><div><h3 class="master-card-title">Capacidades y límites</h3><p class="master-card-subtitle">Uso actual y alcance del plan {planNames[plan.plan]}.</p></div></header>
+    <div class="master-card-body master-plan-capabilities">
+      {capabilities.map((item) => (
+        <article class="master-plan-capability">
+          <span class="master-plan-capability__icon"><MasterIcon name={item.icon} size={20} /></span>
+          <div><span>{item.label}</span>{'value' in item ? <strong>{item.value}</strong> : <span class:list={['master-pill', item.included ? 'master-pill--success' : '']}>{item.included ? 'Incluido' : 'No incluido'}</span>}</div>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <div class="master-plan-bottom-grid">
+    <section class="master-card">
+      <header class="master-card-header"><div><h3 class="master-card-title">Planes disponibles</h3><p class="master-card-subtitle">Precios informativos para asignación desde el Master.</p></div></header>
+      <div class="master-card-body master-plan-options">
+        {definitions.map((definition) => {
+          const copy = planCopy[definition.code];
+          const current = definition.code === plan.plan;
+          return (
+            <article class:list={['master-plan-option', { 'is-current': current }]}>
+              <div class="master-plan-option__heading">
+                <div><h4>{copy.title}</h4><strong>{copy.price}</strong><span>{copy.period}</span></div>
+                {current && <span class="master-pill master-pill--info">Actual</span>}
+              </div>
+              <ul>{copy.features.map((feature) => <li><MasterIcon name="check" size={17} /> {feature}</li>)}</ul>
+              <button class:list={['master-btn', current ? 'master-btn--secondary' : 'master-btn--primary']} type="button" data-plan-target={definition.code} disabled={current}>
+                {current ? (plan.plan_is_permanent ? 'Plan permanente actual' : 'Plan actual') : definition.code === 'premium' ? 'Cambiar a Premium' : `Asignar ${copy.title}`}
+              </button>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+
+    <section class="master-card master-plan-last-change">
+      <header class="master-card-header"><h3 class="master-card-title">Último cambio de plan</h3></header>
+      <div class="master-card-body">
+        {lastChange ? (
+          <dl class="master-plan-change-list">
+            <div><dt>Acción</dt><dd>{lastChange.action_label}</dd></div>
+            <div><dt>Cambiado por</dt><dd>{lastChange.actor_name}</dd></div>
+            <div><dt>Plan anterior</dt><dd>{planNames[lastChange.previous_plan]}</dd></div>
+            <div><dt>Nuevo plan</dt><dd>{planNames[lastChange.new_plan]}</dd></div>
+            <div><dt>Duración</dt><dd>{validityLabel(lastChange)}</dd></div>
+            <div><dt>Fecha</dt><dd>{dateTime(lastChange.created)}</dd></div>
+          </dl>
+        ) : <p class="master-empty">Todavía no hay cambios de plan registrados.</p>}
+      </div>
+      <footer class="master-plan-card-footer">
+        <button class="master-btn master-btn--secondary" type="button" data-open-plan-history disabled={!history.length}><MasterIcon name="clock" size={19} /> Ver historial completo</button>
+      </footer>
+    </section>
+  </div>
+
+  <MasterDialog id="master-plan-change-dialog" title="Cambiar plan" description="Asigna un plan y define si su vigencia será temporal o permanente." tone="primary" size="lg">
+    <form class="master-form" data-plan-change-form>
+      <div class="master-field-grid">
+        <div class="master-field master-field--full"><label for="master-plan-destination">Plan destino</label><select id="master-plan-destination" name="plan" required><option value="free">Free — 30 días</option><option value="basic">Básico — $5 USD / mes</option><option value="premium">Premium — $10 USD / mes</option></select></div>
+      </div>
+      <fieldset class="master-fieldset">
+        <legend>Tipo de vigencia</legend>
+        <div class="master-choice-grid">
+          <label class="master-choice"><input name="validity" type="radio" value="temporary" checked /><span><strong>Temporal</strong><br />Con fecha de inicio y vencimiento.</span></label>
+          <label class="master-choice" data-permanent-choice><input name="validity" type="radio" value="permanent" /><span><strong>Permanente</strong><br />Sin vencimiento ni renovación.</span></label>
+        </div>
+      </fieldset>
+      <div class="master-field" data-change-months-field><label for="master-plan-months">Duración</label><select id="master-plan-months" name="duration_months">{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option value={month}>{month} {month === 1 ? 'mes' : 'meses'}</option>)}</select></div>
+      <div class="master-field"><label for="master-plan-reason">Motivo interno (opcional)</label><textarea id="master-plan-reason" name="reason" maxlength="500" placeholder="Contexto para la auditoría del cambio"></textarea></div>
+      <aside class="master-plan-form-summary" data-change-summary aria-live="polite"></aside>
+      <p class="master-form-alert" data-plan-change-alert role="alert" hidden></p>
+    </form>
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--primary" type="button" data-plan-change-save><MasterIcon name="save" size={19} /> Confirmar cambio</button></div>
+  </MasterDialog>
+
+  {plan.can_renew && (
+    <MasterDialog id="master-plan-renew-dialog" title="Renovar plan" description="Agrega entre 1 y 12 meses al vencimiento del plan actual." tone="primary">
+      <form class="master-form" data-plan-renew-form>
+        <div class="master-plan-renew-current"><span>Plan actual</span><strong>{planNames[plan.plan]}</strong><span>Vencimiento actual: {date(plan.plan_expires_at)}</span></div>
+        <div class="master-field"><label for="master-renew-months">Meses a agregar</label><select id="master-renew-months" name="months">{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option value={month}>{month} {month === 1 ? 'mes' : 'meses'}</option>)}</select></div>
+        <div class="master-field"><label for="master-renew-reason">Motivo interno (opcional)</label><textarea id="master-renew-reason" name="reason" maxlength="500" placeholder="Contexto para la auditoría de la renovación"></textarea></div>
+        <aside class="master-plan-form-summary" data-renew-summary aria-live="polite"></aside>
+        <p class="master-form-alert" data-plan-renew-alert role="alert" hidden></p>
+      </form>
+      <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--primary" type="button" data-plan-renew-save><MasterIcon name="clock" size={19} /> Confirmar renovación</button></div>
+    </MasterDialog>
+  )}
+
+  <MasterDialog id="master-plan-history-dialog" title="Historial de planes" description="Últimos movimientos registrados para esta tienda." size="lg">
+    {history.length ? <div class="master-table-wrap"><table class="master-table master-plan-history-table"><thead><tr><th>Fecha</th><th>Acción</th><th>Cambio</th><th>Vigencia</th><th>Actor</th><th>Motivo</th></tr></thead><tbody>{history.map((entry) => <tr><td>{dateTime(entry.created)}</td><td>{entry.action_label}</td><td>{planNames[entry.previous_plan]} → {planNames[entry.new_plan]}</td><td>{validityLabel(entry)}</td><td>{entry.actor_name}</td><td>{entry.reason || 'Sin motivo'}</td></tr>)}</tbody></table></div> : <p class="master-empty">No hay movimientos registrados.</p>}
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cerrar</button></div>
+  </MasterDialog>
+</section>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { changeMasterStorePlan, getMasterPlanErrorMessage, renewMasterStorePlan, type MasterPlanCode } from '../../lib/masterStorePlans';
+
+  const root = document.querySelector<HTMLElement>('[data-plan-page]');
+  if (root && root.dataset.planInitialized !== 'true') {
+    root.dataset.planInitialized = 'true';
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+
+    const storeId = String(root.dataset.storeId || '');
+    const currentPlan = String(root.dataset.currentPlan || 'free') as MasterPlanCode;
+    const currentExpiration = String(root.dataset.currentExpiration || '');
+    const monthlyPrice = Math.max(0, Number(root.dataset.currentMonthlyPrice || 0));
+    const changeForm = root.querySelector<HTMLFormElement>('[data-plan-change-form]');
+    const changePlan = changeForm?.querySelector<HTMLSelectElement>('[name="plan"]');
+    const changeMonths = changeForm?.querySelector<HTMLSelectElement>('[name="duration_months"]');
+    const changeReason = changeForm?.querySelector<HTMLTextAreaElement>('[name="reason"]');
+    const changeMonthsField = changeForm?.querySelector<HTMLElement>('[data-change-months-field]');
+    const permanentInput = changeForm?.querySelector<HTMLInputElement>('[name="validity"][value="permanent"]');
+    const temporaryInput = changeForm?.querySelector<HTMLInputElement>('[name="validity"][value="temporary"]');
+    const permanentChoice = changeForm?.querySelector<HTMLElement>('[data-permanent-choice]');
+    const changeSummary = changeForm?.querySelector<HTMLElement>('[data-change-summary]');
+    const renewForm = root.querySelector<HTMLFormElement>('[data-plan-renew-form]');
+    const renewMonths = renewForm?.querySelector<HTMLSelectElement>('[name="months"]');
+    const renewReason = renewForm?.querySelector<HTMLTextAreaElement>('[name="reason"]');
+    const renewSummary = renewForm?.querySelector<HTMLElement>('[data-renew-summary]');
+
+    function setAlert(target: HTMLElement | null, message = '') {
+      if (!target) return;
+      target.textContent = message;
+      target.hidden = !message;
+    }
+
+    function addMonthsClamped(value: Date, months: number) {
+      const originalDay = value.getUTCDate();
+      const result = new Date(value.getTime());
+      result.setUTCDate(1);
+      result.setUTCMonth(result.getUTCMonth() + months);
+      const lastDay = new Date(result.getTime());
+      lastDay.setUTCMonth(lastDay.getUTCMonth() + 1);
+      lastDay.setUTCDate(0);
+      result.setUTCDate(Math.min(originalDay, lastDay.getUTCDate()));
+      return result;
+    }
+
+    function formatDate(value: Date) {
+      return new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(value);
+    }
+
+    function selectedPermanent() {
+      return permanentInput?.checked === true;
+    }
+
+    function updateChangeSummary() {
+      if (!changePlan || !changeMonths || !changeSummary) return;
+      const selected = changePlan.value as MasterPlanCode;
+      const isFree = selected === 'free';
+      if (permanentInput) permanentInput.disabled = isFree;
+      permanentChoice?.classList.toggle('is-disabled', isFree);
+      if (isFree && permanentInput?.checked && temporaryInput) temporaryInput.checked = true;
+      const permanent = selectedPermanent();
+      if (changeMonthsField) changeMonthsField.hidden = permanent || isFree;
+      const labels = { free: 'Free', basic: 'Básico', premium: 'Premium' };
+      const months = Math.max(1, Number(changeMonths.value || 1));
+      const expiration = isFree ? new Date(Date.now() + 30 * 86400000) : addMonthsClamped(new Date(), months);
+      changeSummary.innerHTML = `<span>Nuevo plan</span><strong>${labels[selected]}</strong><span>Vigencia</span><strong>${permanent ? 'Permanente · sin vencimiento' : isFree ? `30 días · hasta ${formatDate(expiration)}` : `${months} ${months === 1 ? 'mes' : 'meses'} · hasta ${formatDate(expiration)}`}</strong>`;
+    }
+
+    function updateRenewSummary() {
+      if (!renewMonths || !renewSummary) return;
+      const months = Math.max(1, Number(renewMonths.value || 1));
+      const now = new Date();
+      const expiration = new Date(currentExpiration);
+      const base = Number.isFinite(expiration.getTime()) && expiration.getTime() > now.getTime() ? expiration : now;
+      const next = addMonthsClamped(base, months);
+      renewSummary.innerHTML = `<span>Precio mensual</span><strong>$${monthlyPrice} USD</strong><span>Total estimado</span><strong>$${monthlyPrice * months} USD</strong><span>Nuevo vencimiento</span><strong>${formatDate(next)}</strong>`;
+    }
+
+    function openDialog(id: string, trigger: HTMLElement) {
+      setAlert(root.querySelector<HTMLElement>(id === 'master-plan-change-dialog' ? '[data-plan-change-alert]' : '[data-plan-renew-alert]'));
+      window.PZMasterDialog?.open(id, trigger);
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('[data-plan-target]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (changePlan) changePlan.value = String(button.dataset.planTarget || currentPlan);
+        updateChangeSummary();
+        openDialog('master-plan-change-dialog', button);
+      });
+    });
+    root.querySelector<HTMLButtonElement>('[data-open-plan-change]')?.addEventListener('click', (event) => {
+      if (changePlan) changePlan.value = currentPlan;
+      updateChangeSummary();
+      openDialog('master-plan-change-dialog', event.currentTarget as HTMLElement);
+    });
+    root.querySelector<HTMLButtonElement>('[data-open-plan-renew]')?.addEventListener('click', (event) => {
+      updateRenewSummary();
+      openDialog('master-plan-renew-dialog', event.currentTarget as HTMLElement);
+    });
+    root.querySelector<HTMLButtonElement>('[data-open-plan-history]')?.addEventListener('click', (event) => {
+      window.PZMasterDialog?.open('master-plan-history-dialog', event.currentTarget as HTMLElement);
+    });
+    changeForm?.addEventListener('change', updateChangeSummary);
+    renewMonths?.addEventListener('change', updateRenewSummary);
+
+    root.querySelector<HTMLButtonElement>('[data-plan-change-save]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const alert = root.querySelector<HTMLElement>('[data-plan-change-alert]');
+      if (!changePlan || !changeMonths || !changeReason) return;
+      button.disabled = true;
+      setAlert(alert);
+      const selected = changePlan.value as MasterPlanCode;
+      const permanent = selectedPermanent();
+      const result = await changeMasterStorePlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, {
+        store_id: storeId,
+        plan: selected,
+        is_permanent: permanent,
+        duration_months: permanent || selected === 'free' ? 0 : Number(changeMonths.value),
+        reason: changeReason.value.trim(),
+      });
+      if (result.available) window.location.reload();
+      else {
+        setAlert(alert, getMasterPlanErrorMessage(result.error));
+        button.disabled = false;
+      }
+    });
+
+    root.querySelector<HTMLButtonElement>('[data-plan-renew-save]')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      const alert = root.querySelector<HTMLElement>('[data-plan-renew-alert]');
+      if (!renewMonths || !renewReason) return;
+      button.disabled = true;
+      setAlert(alert);
+      const result = await renewMasterStorePlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, {
+        store_id: storeId,
+        months: Number(renewMonths.value),
+        reason: renewReason.value.trim(),
+      });
+      if (result.available) window.location.reload();
+      else {
+        setAlert(alert, getMasterPlanErrorMessage(result.error));
+        button.disabled = false;
+      }
+    });
+
+    updateChangeSummary();
+    updateRenewSummary();
+  }
+</script>

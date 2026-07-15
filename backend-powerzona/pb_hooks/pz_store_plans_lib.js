@@ -4,6 +4,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const FREE_TRIAL_DAYS = 30;
 const STORE_PLAN_AUDIT_COLLECTION = "store_plan_audit";
 const MASTER_ROLE = "master_admin";
+const PERMANENT_PLAN_CODES = Object.freeze(["basic", "premium"]);
+const MONTHLY_PRICES_USD = Object.freeze({ free: 0, basic: 5, premium: 10 });
 
 const BASIC_CAPABILITIES = Object.freeze({
   max_active_users: 1,
@@ -149,6 +151,10 @@ function recordValue(record, key) {
   return record[key];
 }
 
+function booleanValue(value) {
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
 function normalizedIso(value) {
   const date = parseDate(value, true);
   return date ? date.toISOString() : null;
@@ -159,10 +165,13 @@ function resolvePlanState(storeOrValues, now) {
   const definition = getPlanDefinition(plan);
   const startedAt = normalizedIso(recordValue(storeOrValues, "plan_started_at"));
   const expiresAt = normalizedIso(recordValue(storeOrValues, "plan_expires_at"));
-  const daysRemaining = getDaysRemaining(expiresAt, now);
+  const isPermanent = booleanValue(recordValue(storeOrValues, "plan_is_permanent"));
+  const daysRemaining = isPermanent ? null : getDaysRemaining(expiresAt, now);
 
   let state = "unconfigured";
-  if (expiresAt) {
+  if (isPermanent) {
+    state = "active";
+  } else if (expiresAt) {
     if (daysRemaining === 0) state = "expired";
     else if (daysRemaining <= 3) state = "critical";
     else if (daysRemaining <= 7) state = "expiring";
@@ -173,11 +182,15 @@ function resolvePlanState(storeOrValues, now) {
     plan: definition.code,
     plan_name: definition.name,
     plan_started_at: startedAt,
-    plan_expires_at: expiresAt,
+    plan_expires_at: isPermanent ? null : expiresAt,
+    plan_duration_months: Math.max(0, Number(recordValue(storeOrValues, "plan_duration_months") || 0)),
+    plan_is_permanent: isPermanent,
     days_remaining: daysRemaining,
     state,
-    isConfigured: !!expiresAt,
+    isConfigured: isPermanent || !!expiresAt,
     isExpired: state === "expired",
+    can_renew: !isPermanent && plan !== "free",
+    monthly_price_usd: MONTHLY_PRICES_USD[plan],
     capabilities: getPlanCapabilities(plan),
   };
 }
@@ -218,7 +231,7 @@ function planFoundationReady(app) {
   try {
     const stores = app.findCollectionByNameOrId("stores");
     app.findCollectionByNameOrId(STORE_PLAN_AUDIT_COLLECTION);
-    return !!stores.fields.getByName("plan_expires_at");
+    return !!stores.fields.getByName("plan_expires_at") && !!stores.fields.getByName("plan_is_permanent");
   } catch (_) {
     return false;
   }
@@ -231,9 +244,78 @@ function buildNewStoreTrialValues(now, actorId) {
     plan_started_at: startedAt.toISOString(),
     plan_expires_at: addFreeTrialDays(startedAt).toISOString(),
     plan_duration_months: 0,
+    plan_is_permanent: false,
     free_trial_used: true,
     plan_updated_by: String(actorId || "").trim(),
     plan_updated_at: startedAt.toISOString(),
+  };
+}
+
+function normalizeDurationMonths(value) {
+  const months = Number(value);
+  if (!Number.isInteger(months) || months < 1 || months > 12) {
+    throw new RangeError("invalid_plan_duration_months");
+  }
+  return months;
+}
+
+function getMonthlyPriceUsd(plan) {
+  getPlanDefinition(plan);
+  return MONTHLY_PRICES_USD[plan];
+}
+
+function buildPlanChangeValues(storeOrValues, input, now, actorId) {
+  const plan = String(input && input.plan || "").trim();
+  const isPermanent = !!(input && input.is_permanent);
+  const definition = getPlanDefinition(plan);
+  if (isPermanent && !PERMANENT_PLAN_CODES.includes(plan)) {
+    throw new RangeError("invalid_plan_permanence");
+  }
+
+  const changedAt = parseDate(now === undefined ? new Date() : now, false);
+  let durationMonths = 0;
+  let expiresAt = "";
+  if (!isPermanent && definition.duration.kind === "fixed_days") {
+    expiresAt = addFreeTrialDays(changedAt).toISOString();
+  } else if (!isPermanent) {
+    durationMonths = normalizeDurationMonths(input && input.duration_months);
+    expiresAt = addCalendarMonthsClamped(changedAt, durationMonths).toISOString();
+  }
+
+  return {
+    plan,
+    plan_started_at: changedAt.toISOString(),
+    plan_expires_at: expiresAt,
+    plan_duration_months: durationMonths,
+    plan_is_permanent: isPermanent,
+    free_trial_used: booleanValue(recordValue(storeOrValues, "free_trial_used")) || plan === "free",
+    plan_updated_by: String(actorId || "").trim(),
+    plan_updated_at: changedAt.toISOString(),
+  };
+}
+
+function buildPlanRenewalValues(storeOrValues, months, now, actorId) {
+  const current = resolvePlanState(storeOrValues, now);
+  if (current.plan_is_permanent) throw new RangeError("permanent_plan_not_renewable");
+  if (current.plan === "free") throw new RangeError("free_plan_not_renewable");
+
+  const durationMonths = normalizeDurationMonths(months);
+  const renewedAt = parseDate(now === undefined ? new Date() : now, false);
+  const currentExpiration = parseDate(current.plan_expires_at, true);
+  const hasActiveExpiration = currentExpiration && currentExpiration.getTime() > renewedAt.getTime();
+  const baseDate = hasActiveExpiration ? currentExpiration : renewedAt;
+
+  return {
+    plan: current.plan,
+    plan_started_at: hasActiveExpiration && current.plan_started_at
+      ? current.plan_started_at
+      : renewedAt.toISOString(),
+    plan_expires_at: addCalendarMonthsClamped(baseDate, durationMonths).toISOString(),
+    plan_duration_months: durationMonths,
+    plan_is_permanent: false,
+    free_trial_used: booleanValue(recordValue(storeOrValues, "free_trial_used")),
+    plan_updated_by: String(actorId || "").trim(),
+    plan_updated_at: renewedAt.toISOString(),
   };
 }
 
@@ -297,12 +379,17 @@ function handleStoreCreate(e) {
 }
 
 module.exports = {
+  MONTHLY_PRICES_USD,
+  PERMANENT_PLAN_CODES,
   PLAN_CODES,
   PLAN_DEFINITIONS,
   addCalendarMonthsClamped,
   addFreeTrialDays,
   buildNewStoreTrialValues,
+  buildPlanChangeValues,
+  buildPlanRenewalValues,
   getDaysRemaining,
+  getMonthlyPriceUsd,
   getPlanCapabilities,
   getPlanDefinition,
   handleStoreCreate,
