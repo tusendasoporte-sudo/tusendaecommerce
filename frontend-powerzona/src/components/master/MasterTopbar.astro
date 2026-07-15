@@ -28,7 +28,7 @@ const initials = displayName
         aria-expanded="false"
         data-master-sidebar-open
       >
-        <MasterIcon name="menu" size={21} />
+        <MasterIcon name="menu" size={23} />
       </button>
       <h1 class="master-topbar__title">{title}</h1>
     </div>
@@ -36,7 +36,7 @@ const initials = displayName
     <div class="master-topbar__actions">
       {showCreateStore && (
         <button id="create-store" class="master-btn master-btn--primary" type="button">
-          <MasterIcon name="stores" size={17} />
+          <MasterIcon name="stores" size={19} />
           <span>Crear tienda</span>
         </button>
       )}
@@ -56,12 +56,12 @@ const initials = displayName
             <strong>{displayName || 'Master Admin'}</strong>
             <span>Administrador</span>
           </span>
-          <MasterIcon name="chevron-down" size={15} />
+          <MasterIcon name="chevron-down" size={17} />
         </button>
 
         <div class="master-profile-menu__panel" role="menu" hidden data-master-profile-panel>
           <button type="button" role="menuitem" data-master-global-logout>
-            <MasterIcon name="logout" size={17} />
+            <MasterIcon name="logout" size={19} />
             Cerrar sesión
           </button>
         </div>

@@ -8,23 +8,23 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
 <div data-master-store-actions-controller>
   <MasterActionMenu id="master-security-actions" label="Acciones de Seguridad">
     <a class="master-action-menu__item" data-menu-security-view role="menuitem">
-      <MasterIcon name="security" size={17} /> Ver seguridad
+      <MasterIcon name="security" size={19} /> Ver seguridad
     </a>
     <button class="master-action-menu__item" type="button" data-menu-security-configure role="menuitem">
-      <MasterIcon name="settings" size={17} /> Configurar seguridad
+      <MasterIcon name="settings" size={19} /> Configurar seguridad
     </button>
   </MasterActionMenu>
 
   <MasterActionMenu id="master-store-actions" label="Acciones de tienda">
-    <a class="master-action-menu__item" data-menu-products data-list-only role="menuitem"><MasterIcon name="products" size={17} /> Ver productos</a>
-    <button class="master-action-menu__item" type="button" data-menu-create-user data-list-only role="menuitem"><MasterIcon name="user-plus" size={17} /> Crear usuario</button>
-    <button class="master-action-menu__item" type="button" data-menu-edit data-list-only role="menuitem"><MasterIcon name="edit" size={17} /> Editar</button>
-    <button class="master-action-menu__item" type="button" data-menu-configure-security data-overview-only role="menuitem"><MasterIcon name="settings" size={17} /> Configurar Seguridad</button>
-    <button class="master-action-menu__item" type="button" data-menu-featured role="menuitem"><MasterIcon name="check" size={17} /><span data-featured-label>Destacar</span></button>
-    <button class="master-action-menu__item" type="button" data-menu-status role="menuitem"><MasterIcon name="archive" size={17} /><span data-status-label>Suspender</span></button>
+    <a class="master-action-menu__item" data-menu-products data-list-only role="menuitem"><MasterIcon name="products" size={19} /> Ver productos</a>
+    <button class="master-action-menu__item" type="button" data-menu-create-user data-list-only role="menuitem"><MasterIcon name="user-plus" size={19} /> Crear usuario</button>
+    <button class="master-action-menu__item" type="button" data-menu-edit data-list-only role="menuitem"><MasterIcon name="edit" size={19} /> Editar</button>
+    <button class="master-action-menu__item" type="button" data-menu-configure-security data-overview-only role="menuitem"><MasterIcon name="settings" size={19} /> Configurar Seguridad</button>
+    <button class="master-action-menu__item" type="button" data-menu-featured role="menuitem"><MasterIcon name="check" size={19} /><span data-featured-label>Destacar</span></button>
+    <button class="master-action-menu__item" type="button" data-menu-status role="menuitem"><MasterIcon name="archive" size={19} /><span data-status-label>Suspender</span></button>
     <div class="master-action-menu__separator" aria-hidden="true"></div>
-    <button class="master-action-menu__item master-action-menu__item--danger" type="button" data-menu-delete role="menuitem"><MasterIcon name="trash" size={17} /> Eliminar tienda</button>
-    <span class="master-action-menu__item" data-menu-protected role="menuitem" aria-disabled="true" hidden><MasterIcon name="lock" size={17} /> Tienda protegida</span>
+    <button class="master-action-menu__item master-action-menu__item--danger" type="button" data-menu-delete role="menuitem"><MasterIcon name="trash" size={19} /> Eliminar tienda</button>
+    <span class="master-action-menu__item" data-menu-protected role="menuitem" aria-disabled="true" hidden><MasterIcon name="lock" size={19} /> Tienda protegida</span>
   </MasterActionMenu>
 
   <MasterDialog id="master-store-dialog" title="Crear tienda" description="Datos principales para publicar y administrar la tienda." tone="primary">
@@ -40,7 +40,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     </form>
     <div slot="footer">
       <button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button>
-      <button class="master-btn master-btn--primary" type="button" data-store-save><MasterIcon name="save" size={17} /> Guardar tienda</button>
+      <button class="master-btn master-btn--primary" type="button" data-store-save><MasterIcon name="save" size={19} /> Guardar tienda</button>
     </div>
   </MasterDialog>
 
@@ -59,7 +59,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     </form>
     <div slot="footer">
       <button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button>
-      <button class="master-btn master-btn--primary" type="button" data-user-save><MasterIcon name="user-plus" size={17} /> Crear usuario</button>
+      <button class="master-btn master-btn--primary" type="button" data-user-save><MasterIcon name="user-plus" size={19} /> Crear usuario</button>
     </div>
   </MasterDialog>
 
@@ -85,9 +85,9 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       <p class="master-form-alert" data-security-form-alert role="alert" hidden></p>
     </form>
     <div slot="footer">
-      <a class="master-btn master-btn--secondary" data-security-history hidden><MasterIcon name="security" size={17} /> Ver seguridad</a>
+      <a class="master-btn master-btn--secondary" data-security-history hidden><MasterIcon name="security" size={19} /> Ver seguridad</a>
       <button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button>
-      <button class="master-btn master-btn--primary" type="button" data-security-save><MasterIcon name="save" size={17} /> Guardar</button>
+      <button class="master-btn master-btn--primary" type="button" data-security-save><MasterIcon name="save" size={19} /> Guardar</button>
     </div>
   </MasterDialog>
 

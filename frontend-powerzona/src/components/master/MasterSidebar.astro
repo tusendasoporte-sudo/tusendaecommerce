@@ -44,8 +44,8 @@ function initials(value: string, fallback: string) {
   <div class="master-sidebar__brand">
     <img
       src="/master-samurai-mark.png"
-      width="42"
-      height="42"
+      width="46"
+      height="46"
       alt=""
       aria-hidden="true"
       class="master-sidebar__brand-mark"
@@ -55,7 +55,7 @@ function initials(value: string, fallback: string) {
       <span>MASTER ADMIN</span>
     </div>
     <button class="master-sidebar__mobile-close" type="button" aria-label="Cerrar menú" data-master-sidebar-close>
-      <MasterIcon name="close" size={20} />
+      <MasterIcon name="close" size={22} />
     </button>
   </div>
 
@@ -63,19 +63,19 @@ function initials(value: string, fallback: string) {
     <section class="master-sidebar__section">
       <p class="master-sidebar__label">PRINCIPAL</p>
       <a class:list={['master-sidebar__link', { 'is-active': isActive('/master') }]} href="/master">
-        <MasterIcon name="home" /><span>Resumen</span>
+        <MasterIcon name="home" size={20} /><span>Resumen</span>
       </a>
       <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/stores') }]} href="/master/stores">
-        <MasterIcon name="stores" /><span>Tiendas</span>
+        <MasterIcon name="stores" size={20} /><span>Tiendas</span>
       </a>
       <a
         class:list={['master-sidebar__link', { 'is-active': isActive('/master/price-watch') && !priceWatchStoreId }]}
         href="/master/price-watch"
       >
-        <MasterIcon name="price" /><span>Seguimiento de precios</span>
+        <MasterIcon name="price" size={20} /><span>Seguimiento de precios</span>
       </a>
       <a class:list={['master-sidebar__link', { 'is-active': isActive('/master/notifications') }]} href="/master/notifications">
-        <MasterIcon name="bell" /><span>Notificaciones</span>
+        <MasterIcon name="bell" size={20} /><span>Notificaciones</span>
         <span class="master-sidebar__notification-dot" data-master-sidebar-unread hidden></span>
       </a>
     </section>
@@ -98,19 +98,19 @@ function initials(value: string, fallback: string) {
           class:list={['master-sidebar__link', { 'is-active': normalizedPath === `/master/stores/${currentStore.id}` }]}
           href={`/master/stores/${encodeURIComponent(currentStore.id)}`}
         >
-          <MasterIcon name="home" /><span>Resumen de tienda</span>
+          <MasterIcon name="home" size={20} /><span>Resumen de tienda</span>
         </a>
         <a
           class:list={['master-sidebar__link', { 'is-active': isActive(`/master/analytics/${currentStore.id}`) }]}
           href={`/master/analytics/${encodeURIComponent(currentStore.id)}`}
         >
-          <MasterIcon name="analytics" /><span>Analíticas</span>
+          <MasterIcon name="analytics" size={20} /><span>Analíticas</span>
         </a>
         <a
           class:list={['master-sidebar__link', { 'is-active': isActive(`/master/products/${currentStore.id}`) }]}
           href={`/master/products/${encodeURIComponent(currentStore.id)}`}
         >
-          <MasterIcon name="products" /><span>Productos</span>
+          <MasterIcon name="products" size={20} /><span>Productos</span>
         </a>
         <a
           class:list={['master-sidebar__link', {
@@ -118,16 +118,16 @@ function initials(value: string, fallback: string) {
           }]}
           href={`/master/price-watch?store_id=${encodeURIComponent(currentStore.id)}`}
         >
-          <MasterIcon name="price" /><span>Seguimiento de precios</span>
+          <MasterIcon name="price" size={20} /><span>Seguimiento de precios</span>
         </a>
         <a
           class:list={['master-sidebar__link', { 'is-active': isActive(`/master/security/${currentStore.id}`) }]}
           href={`/master/security/${encodeURIComponent(currentStore.id)}`}
         >
-          <MasterIcon name="security" /><span>Seguridad</span>
+          <MasterIcon name="security" size={20} /><span>Seguridad</span>
         </a>
         <a class="master-sidebar__link master-sidebar__link--back" href="/master/stores">
-          <MasterIcon name="back" /><span>Volver a tiendas</span>
+          <MasterIcon name="back" size={20} /><span>Volver a tiendas</span>
         </a>
       </section>
     )}
@@ -139,7 +139,7 @@ function initials(value: string, fallback: string) {
       <strong>{displayName || 'Master Admin'}</strong>
       <span>Administrador</span>
     </span>
-    <MasterIcon name="chevron-right" size={16} />
+    <MasterIcon name="chevron-right" size={18} />
   </div>
 </aside>
 

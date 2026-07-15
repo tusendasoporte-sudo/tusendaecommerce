@@ -107,7 +107,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
             <header class="master-card-header"><h3 class="master-card-title">Actividad reciente de plataforma</h3></header>
             <div class="master-card-body master-activity-list">
               {overview?.recent_activity.length ? overview.recent_activity.map((item) => (
-                <article class="master-activity-item"><span class="master-activity-icon"><MasterIcon name={icon(item.type)} size={18} /></span><div class="master-activity-copy"><time datetime={item.created}>{relative(item.created)}</time><strong>{item.label}</strong><span>{item.detail}</span></div><a class="master-btn master-btn--secondary" href={item.action_url}>{item.action_label || 'Abrir'}</a></article>
+                <article class="master-activity-item"><span class="master-activity-icon"><MasterIcon name={icon(item.type)} size={20} /></span><div class="master-activity-copy"><time datetime={item.created}>{relative(item.created)}</time><strong>{item.label}</strong><span>{item.detail}</span></div><a class="master-btn master-btn--secondary" href={item.action_url}>{item.action_label || 'Abrir'}</a></article>
               )) : <p class="master-empty">No hay actividad reciente.</p>}
             </div>
           </section>
@@ -116,7 +116,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
             <header class="master-card-header"><h3 class="master-card-title">Tiendas con mayor actividad</h3><a class="master-btn master-btn--secondary" href="/master/stores">Ver todas las tiendas</a></header>
             <div class="master-card-body master-activity-list">
               {overview?.top_stores.length ? overview.top_stores.map((store) => (
-                <article class="master-activity-item"><span class="master-activity-icon"><MasterIcon name="stores" size={18} /></span><div class="master-activity-copy"><strong>{store.name}</strong><span>{number(store.orders_30d)} pedidos · {number(store.visitors_30d)} visitantes · {number(store.pageviews_30d)} páginas vistas</span><time datetime={store.last_activity_at}>{relative(store.last_activity_at)}</time></div><a class="master-btn master-btn--secondary" href={store.action_url}>Abrir panel</a></article>
+                <article class="master-activity-item"><span class="master-activity-icon"><MasterIcon name="stores" size={20} /></span><div class="master-activity-copy"><strong>{store.name}</strong><span>{number(store.orders_30d)} pedidos · {number(store.visitors_30d)} visitantes · {number(store.pageviews_30d)} páginas vistas</span><time datetime={store.last_activity_at}>{relative(store.last_activity_at)}</time></div><a class="master-btn master-btn--secondary" href={store.action_url}>Abrir panel</a></article>
               )) : <p class="master-empty">No hay actividad de tiendas en los últimos 30 días.</p>}
             </div>
           </section>
@@ -127,7 +127,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
             <header class="master-card-header"><h3 class="master-card-title">Notificaciones recientes</h3><a class="master-btn master-btn--secondary" href="/master/notifications">Ver todas</a></header>
             <div class="master-card-body master-activity-list">
               {notificationFeed.items.length ? notificationFeed.items.map((item) => (
-                <article class="master-activity-item"><span class="master-activity-icon"><MasterIcon name="bell" size={18} /></span><div class="master-activity-copy"><strong>{item.title}</strong><span>{item.message}</span><time datetime={item.last_event_at}>{relative(item.last_event_at)}</time></div><a class="master-btn master-btn--secondary" href={item.action_url}>Abrir</a></article>
+                <article class="master-activity-item"><span class="master-activity-icon"><MasterIcon name="bell" size={20} /></span><div class="master-activity-copy"><strong>{item.title}</strong><span>{item.message}</span><time datetime={item.last_event_at}>{relative(item.last_event_at)}</time></div><a class="master-btn master-btn--secondary" href={item.action_url}>Abrir</a></article>
               )) : <p class="master-empty">No hay notificaciones recientes.</p>}
             </div>
           </section>

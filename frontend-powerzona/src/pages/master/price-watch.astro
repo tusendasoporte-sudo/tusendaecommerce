@@ -91,7 +91,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
           <div class="master-field"><label for="watch-search">Buscar producto</label><input id="watch-search" type="search" name="q" maxlength="100" value={currentSearch} placeholder="Nombre del producto" /></div>
           <div class="master-field"><label for="watch-store">Tienda</label><select id="watch-store" name="store_id"><option value="">Todas</option>{currentStore && !data?.stores.some((store) => store.id === currentStore?.id) && <option value={currentStore.id} selected>{currentStore.name}</option>}{data?.stores.map((store) => <option value={store.id} selected={store.id === currentStoreId}>{store.name}</option>)}</select></div>
           <input type="hidden" name="status" value={currentStatus} />
-          <button class="master-btn master-btn--primary" type="submit"><MasterIcon name="search" size={17} /> Buscar</button>
+          <button class="master-btn master-btn--primary" type="submit"><MasterIcon name="search" size={19} /> Buscar</button>
           {(currentStoreId || currentSearch || currentStatus !== 'active') && <a class="master-btn master-btn--secondary" href="/master/price-watch">Limpiar</a>}
         </form>
       </section>
@@ -108,7 +108,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
                   <td><span class:list={['master-pill', item.status === 'active' ? 'master-pill--success' : item.status === 'paused' ? 'master-pill--warning' : 'master-pill--danger']}>{statusLabel(item.status)}</span></td>
                   <td>{item.product.id ? usd(item.current_price_usd) : 'No disponible'}</td>
                   <td>{item.last_change || 'Sin cambios registrados'}</td><td>{date(item.last_change_at)}</td>
-                  <td><a class="master-icon-btn" href={item.action_url} aria-label={`Abrir ${item.product.name}`}><MasterIcon name="external" size={17} /></a></td>
+                  <td><a class="master-icon-btn" href={item.action_url} aria-label={`Abrir ${item.product.name}`}><MasterIcon name="external" size={19} /></a></td>
                 </tr>
               ))}</tbody>
             </table>

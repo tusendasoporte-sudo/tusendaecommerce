@@ -17,7 +17,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         <span class="store-delete-kicker">Acción irreversible</span>
         <h2 id="master-store-delete-title" data-delete-title>Eliminar definitivamente la tienda</h2>
       </div>
-      <button class="store-delete-close" type="button" data-delete-close aria-label="Cerrar"><MasterIcon name="close" size={20} /></button>
+      <button class="store-delete-close" type="button" data-delete-close aria-label="Cerrar"><MasterIcon name="close" size={22} /></button>
     </div>
 
     <div class="store-delete-loading" data-delete-loading role="status">
@@ -64,7 +64,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
     <div class="store-delete-actions">
       <button class="store-delete-cancel master-btn master-btn--secondary" type="button" data-delete-cancel>Cancelar</button>
-      <button class="store-delete-submit master-btn master-btn--danger-solid" type="button" data-delete-submit disabled><MasterIcon name="trash" size={17} /> Eliminar definitivamente</button>
+      <button class="store-delete-submit master-btn master-btn--danger-solid" type="button" data-delete-submit disabled><MasterIcon name="trash" size={19} /> Eliminar definitivamente</button>
     </div>
   </div>
 </dialog>
@@ -75,30 +75,30 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   .store-delete-card { display: grid; gap: 18px; border: 1px solid #fecaca; border-radius: var(--master-radius-lg); background: var(--master-card); padding: clamp(19px, 4vw, 28px); }
   .store-delete-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
   .store-delete-head > div { display: grid; gap: 6px; min-width: 0; }
-  .store-delete-kicker { color: #b91c1c; font-size: 12px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+  .store-delete-kicker { color: #b91c1c; font-size: var(--master-font-caption); font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
   .store-delete-head h2 { margin: 0; color: #7f1d1d; font-size: var(--master-font-dialog-title); line-height: 1.12; font-weight: 1000; overflow-wrap: anywhere; }
   .store-delete-close { width: 38px; height: 38px; flex: 0 0 38px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; color: #475569; font-size: 22px; line-height: 1; cursor: pointer; }
   .store-delete-loading { display: flex; align-items: center; gap: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; padding: 15px; }
-  .store-delete-loading p { margin: 0; color: #475569; font-size: 13px; line-height: 1.45; font-weight: 850; }
+  .store-delete-loading p { margin: 0; color: #475569; font-size: var(--master-font-meta); line-height: var(--master-line-normal); font-weight: 850; }
   .store-delete-spinner { width: 20px; height: 20px; flex: 0 0 20px; border: 3px solid #fecaca; border-top-color: #b91c1c; border-radius: 999px; animation: store-delete-spin .8s linear infinite; }
   .store-delete-preview { display: grid; gap: 18px; }
   .store-delete-preview[hidden], .store-delete-loading[hidden], .store-delete-warnings[hidden], .store-delete-error[hidden], .store-delete-retry[hidden] { display: none; }
   .store-delete-counts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
   .store-delete-counts > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; border: 1px solid #e2e8f0; border-radius: 11px; background: #f8fafc; padding: 11px 12px; }
-  .store-delete-counts dt { min-width: 0; color: #475569; font-size: 13px; line-height: 1.3; font-weight: 850; }
-  .store-delete-counts dd { margin: 0; color: #0f172a; font-size: 14px; font-weight: 1000; }
+  .store-delete-counts dt { min-width: 0; color: #475569; font-size: var(--master-font-meta); line-height: 1.3; font-weight: 850; }
+  .store-delete-counts dd { margin: 0; color: #0f172a; font-size: var(--master-font-control); font-weight: 1000; }
   .store-delete-counts .is-total { grid-column: 1 / -1; border-color: #fecaca; background: #fff1f2; }
   .store-delete-counts .is-total dt, .store-delete-counts .is-total dd { color: #991b1b; }
   .store-delete-critical { display: grid; gap: 5px; border-left: 4px solid #dc2626; background: #fff1f2; padding: 13px 14px; }
-  .store-delete-critical strong { color: #991b1b; font-size: 14px; font-weight: 1000; }
-  .store-delete-critical p { margin: 0; color: #7f1d1d; font-size: 13px; line-height: 1.5; font-weight: 800; }
-  .store-delete-warnings, .store-delete-error { margin: 0; border: 1px solid #fed7aa; border-radius: 11px; background: #fff7ed; color: #9a3412; padding: 11px 12px; font-size: 13px; line-height: 1.45; font-weight: 850; }
+  .store-delete-critical strong { color: #991b1b; font-size: var(--master-font-control); font-weight: 1000; }
+  .store-delete-critical p { margin: 0; color: #7f1d1d; font-size: var(--master-font-meta); line-height: var(--master-line-normal); font-weight: 800; }
+  .store-delete-warnings, .store-delete-error { margin: 0; border: 1px solid #fed7aa; border-radius: 11px; background: #fff7ed; color: #9a3412; padding: 11px 12px; font-size: var(--master-font-meta); line-height: var(--master-line-normal); font-weight: 850; }
   .store-delete-error { border-color: #fecaca; background: #fff1f2; color: #991b1b; }
-  .store-delete-confirmation { display: grid; gap: 8px; color: #334155; font-size: 13px; line-height: 1.45; font-weight: 850; }
+  .store-delete-confirmation { display: grid; gap: 8px; color: #334155; font-size: var(--master-font-meta); line-height: var(--master-line-normal); font-weight: 850; }
   .store-delete-confirmation strong { color: #991b1b; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .store-delete-confirmation input { width: 100%; border: 1px solid #cbd5e1; border-radius: 11px; background: #fff; color: #0f172a; padding: 13px 14px; outline: none; font: inherit; font-size: 14px; font-weight: 900; }
+  .store-delete-confirmation input { width: 100%; min-height: 48px; border: 1px solid #cbd5e1; border-radius: 11px; background: #fff; color: #0f172a; padding: 13px 14px; outline: none; font: inherit; font-size: var(--master-font-control); font-weight: 900; }
   .store-delete-confirmation input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, .13); }
-  .store-delete-retry { width: max-content; max-width: 100%; min-height: 42px; border: 1px solid #f59e0b; border-radius: 10px; background: #fff7ed; color: #9a3412; padding: 9px 12px; font: inherit; font-size: 13px; font-weight: 1000; cursor: pointer; }
+  .store-delete-retry { width: max-content; max-width: 100%; min-height: 46px; border: 1px solid #f59e0b; border-radius: 10px; background: #fff7ed; color: #9a3412; padding: 10px 14px; font: inherit; font-size: var(--master-font-control); font-weight: 1000; cursor: pointer; }
   .store-delete-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
   .store-delete-actions button { min-height: 44px; }
   .store-delete-actions button:disabled, .store-delete-close:disabled, .store-delete-confirmation input:disabled { opacity: .55; cursor: not-allowed; }

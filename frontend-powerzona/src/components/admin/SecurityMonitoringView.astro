@@ -2755,6 +2755,118 @@ function observationActionValue(customer: SecurityCustomer) {
       justify-content: stretch;
     }
   }
+
+  /* Escala cómoda exclusiva del Master; Store Admin conserva su escala propia. */
+  :global(.master-app) .security-monitoring {
+    font-size: var(--master-font-body);
+    line-height: var(--master-line-normal);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-kicker,
+  :global(.master-app) .security-monitoring .metric-card span,
+  :global(.master-app) .security-monitoring .fact-box span,
+  :global(.master-app) .security-monitoring .active-block-card span,
+  :global(.master-app) .security-monitoring .active-block-card dt,
+  :global(.master-app) .security-monitoring .signal-fieldset legend,
+  :global(.master-app) .security-monitoring .signal-option small,
+  :global(.master-app) .security-monitoring .field label,
+  :global(.master-app) .security-monitoring .field span,
+  :global(.master-app) .security-monitoring .delete-counts span,
+  :global(.master-app) .security-monitoring .table-head,
+  :global(.master-app) .security-monitoring .main-cell span,
+  :global(.master-app) .security-monitoring .sensitive-cell span,
+  :global(.master-app) .security-monitoring .ip-cell small,
+  :global(.master-app) .security-monitoring .status-pill,
+  :global(.master-app) .security-monitoring .muted-cell,
+  :global(.master-app) .security-monitoring .table-cell::before {
+    font-size: var(--master-font-caption);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-head h2 {
+    font-size: var(--master-font-page-title);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-head p:not(.monitoring-kicker),
+  :global(.master-app) .security-monitoring .section-head p,
+  :global(.master-app) .security-monitoring .security-modal-body p,
+  :global(.master-app) .security-monitoring .monitoring-alert,
+  :global(.master-app) .security-monitoring .monitoring-note,
+  :global(.master-app) .security-monitoring .capability-row span,
+  :global(.master-app) .security-monitoring .compact-row span,
+  :global(.master-app) .security-monitoring .admin-customer-panel p,
+  :global(.master-app) .security-monitoring .block-management-head p,
+  :global(.master-app) .security-monitoring .active-block-card dd,
+  :global(.master-app) .security-monitoring .signal-option,
+  :global(.master-app) .security-monitoring .signal-option strong,
+  :global(.master-app) .security-monitoring .merge-note,
+  :global(.master-app) .security-monitoring .confirm-check,
+  :global(.master-app) .security-monitoring .pagination-bar > span,
+  :global(.master-app) .security-monitoring .table-cell,
+  :global(.master-app) .security-monitoring .warning-list p {
+    font-size: var(--master-font-meta);
+    line-height: var(--master-line-normal);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-back,
+  :global(.master-app) .security-monitoring .primary-action,
+  :global(.master-app) .security-monitoring .secondary-action,
+  :global(.master-app) .security-monitoring .danger-action,
+  :global(.master-app) .security-monitoring .row-action,
+  :global(.master-app) .security-monitoring .icon-action,
+  :global(.master-app) .security-monitoring .page-button,
+  :global(.master-app) .security-monitoring .filter-chip,
+  :global(.master-app) .security-monitoring .monitoring-tab,
+  :global(.master-app) .security-monitoring .floating-menu-item,
+  :global(.master-app) .security-monitoring .field input,
+  :global(.master-app) .security-monitoring .field select,
+  :global(.master-app) .security-monitoring .field textarea,
+  :global(.master-app) .security-monitoring .main-cell strong,
+  :global(.master-app) .security-monitoring .sensitive-cell strong,
+  :global(.master-app) .security-monitoring .empty-state {
+    font-size: var(--master-font-control);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-back,
+  :global(.master-app) .security-monitoring .primary-action,
+  :global(.master-app) .security-monitoring .secondary-action,
+  :global(.master-app) .security-monitoring .danger-action,
+  :global(.master-app) .security-monitoring .row-action,
+  :global(.master-app) .security-monitoring .icon-action,
+  :global(.master-app) .security-monitoring .page-button,
+  :global(.master-app) .security-monitoring .filter-chip {
+    min-height: 48px;
+    padding: 11px 15px;
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-tab {
+    min-height: 48px;
+    padding: 11px 15px;
+  }
+
+  :global(.master-app) .security-monitoring .floating-menu-item {
+    min-height: 46px;
+  }
+
+  :global(.master-app) .security-monitoring .security-modal-header h3 {
+    font-size: var(--master-font-dialog-title);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-card h3 {
+    font-size: var(--master-font-section-title);
+  }
+
+  :global(.master-app) .security-monitoring .monitoring-card h4 {
+    font-size: var(--master-font-card-title);
+  }
+
+  :global(.master-app) .security-monitoring .metric-card strong {
+    font-size: var(--master-font-kpi);
+  }
+
+  :global(.master-app) .security-monitoring .fact-box strong,
+  :global(.master-app) .security-monitoring .active-block-card strong {
+    font-size: var(--master-font-body);
+  }
 </style>
 
 <script>
