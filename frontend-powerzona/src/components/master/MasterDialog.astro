@@ -8,6 +8,7 @@ interface Props {
   tone?: 'info' | 'primary' | 'warning' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   closeOnBackdrop?: boolean;
+  describedBy?: string;
 }
 
 const {
@@ -17,6 +18,7 @@ const {
   tone = 'info',
   size = 'md',
   closeOnBackdrop = true,
+  describedBy,
 } = Astro.props;
 ---
 
@@ -26,6 +28,7 @@ const {
   data-master-dialog
   data-close-on-backdrop={closeOnBackdrop ? 'true' : 'false'}
   aria-labelledby={`${id}-title`}
+  aria-describedby={describedBy}
 >
   <div class="master-dialog__surface">
     <header class="master-dialog__header">

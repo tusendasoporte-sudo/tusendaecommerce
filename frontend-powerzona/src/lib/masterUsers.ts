@@ -70,6 +70,13 @@ export type MasterStoreUserAudit = {
   created: string;
 };
 
+export type DeleteMasterStoreUserResponse = {
+  ok: true;
+  user_deleted: true;
+  user_id: string;
+  sessions_revoked: true;
+};
+
 export type MasterStoreUserInput = {
   store: string;
   email: string;
@@ -296,6 +303,9 @@ export function getMasterStoreUserErrorMessage(error: unknown) {
     password_change_failed: 'No se pudo actualizar el acceso.',
     session_revocation_failed: 'No se pudieron cerrar las sesiones.',
     audit_load_failed: 'No se pudo cargar la auditoría.',
+    delete_confirmation_mismatch: 'El email de confirmación no coincide con el usuario.',
+    delete_reason_required: 'Escribe el motivo interno de la eliminación.',
+    user_delete_failed: 'No se pudo eliminar el usuario permanentemente.',
   };
   return messages[getMasterStoreUserErrorCode(error)] || 'No se pudo completar la operación.';
 }
@@ -380,6 +390,22 @@ export function revokeMasterStoreUserSessions(storeId: string, userId: string, r
   return postMasterStoreUsers<{ ok: true; user_id: string; sessions_revoked: true }>(client, 'revoke-sessions', {
     store_id: storeId,
     user_id: userId,
+    reason: String(reason || '').trim(),
+  });
+}
+
+export function deleteMasterStoreUser(
+  storeId: string,
+  userId: string,
+  confirmationEmail: string,
+  reason: string,
+  client = pb,
+) {
+  requireMasterClient(client);
+  return postMasterStoreUsers<DeleteMasterStoreUserResponse>(client, 'delete', {
+    store_id: String(storeId || '').trim(),
+    user_id: String(userId || '').trim(),
+    confirmation_email: String(confirmationEmail || '').trim().toLowerCase(),
     reason: String(reason || '').trim(),
   });
 }

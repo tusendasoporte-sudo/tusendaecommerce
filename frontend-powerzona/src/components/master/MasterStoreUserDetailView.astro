@@ -18,11 +18,29 @@ const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => par
 const exact = (value?: string) => { const date = new Date(value || ''); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date) : 'Nunca'; };
 const relative = (value?: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
 const accessLabel = user.temporary_password_state === 'expired' ? 'Contraseña temporal vencida' : user.temporary_password_state === 'pending' ? 'Cambio de contraseña pendiente' : 'Acceso normal';
-const auditLabels: Record<string, string> = { user_created: 'Usuario creado', user_updated: 'Información actualizada', password_changed: 'Evento histórico de contraseña Master', temporary_password_issued: 'Contraseña temporal emitida', forced_password_changed: 'Contraseña personal creada por el usuario', sessions_revoked: 'Sesiones cerradas', self_password_changed: 'Contraseña cambiada voluntariamente por el Admin', device_authorized: 'Dispositivo autorizado', device_revoked: 'Dispositivo revocado' };
-const combinedAudit = [...userAudit.audit, ...deviceAudit.audit].sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+const auditLabels: Record<string, string> = { user_created: 'Usuario creado', user_updated: 'Información actualizada', password_changed: 'Evento histórico de contraseña Master', temporary_password_issued: 'Contraseña temporal emitida', forced_password_changed: 'Contraseña personal creada por el usuario', sessions_revoked: 'Sesiones cerradas', self_password_changed: 'Contraseña cambiada voluntariamente por el Admin', user_deleted: 'Usuario eliminado permanentemente', device_authorized: 'Dispositivo autorizado', device_revoked: 'Dispositivo revocado' };
+const roleLabel = (value: string) => value === 'store_admin' ? 'Administrador' : value === 'store_staff' ? 'Personal' : value;
+const statusLabel = (value: string) => value === 'active' ? 'Activo' : value === 'suspended' ? 'Suspendido' : value;
+const auditChanges = (item: MasterStoreUserAudit | MasterDeviceAudit) => {
+  if (item.action !== 'user_updated') return '';
+  const audit = item as MasterStoreUserAudit;
+  const changes = [
+    ['Email', audit.previous_email, audit.new_email],
+    ['Nombre', audit.previous_display_name, audit.new_display_name],
+    ['Teléfono', audit.previous_phone, audit.new_phone],
+    ['Rol', roleLabel(audit.previous_role), roleLabel(audit.new_role)],
+    ['Estado', statusLabel(audit.previous_status), statusLabel(audit.new_status)],
+  ].filter(([, previous, next]) => previous !== next).map(([label, previous, next]) => `${label}: ${previous || 'Vacío'} → ${next || 'Vacío'}`);
+  return changes.join(' · ');
+};
+const combinedAudit = Array.from(new Map([
+  ...userAudit.audit.map((item) => [`user:${item.id}`, { ...item, auditNamespace: 'user' }]),
+  ...deviceAudit.audit.map((item) => [`device:${item.id}`, { ...item, auditNamespace: 'device' }]),
+]).values()).sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+const deleteBlocked = detail.protection.last_active_admin || detail.plan.active_admins < 1;
 ---
 
-<section class="master-users-page" data-master-user-detail data-store-id={store.id} data-user-id={user.id}>
+<section class="master-users-page" data-master-user-detail data-store-id={store.id} data-user-id={user.id} data-user-email={user.email} data-user-audit-pages={userAudit.pagination.total_pages} data-device-audit-pages={deviceAudit.pagination.total_pages}>
   <header class="master-users-heading">
     <div class="master-users-identity"><span class="master-users-avatar">{initials}</span><div><h1>{name}</h1><p>{user.email} · {user.phone || 'Sin teléfono'}</p><div class="master-users-heading__badges"><span class="master-pill master-pill--info">{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span><span class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel}</span></div></div></div>
     <div class="master-users-heading__actions"><a class="master-btn master-btn--secondary" href={`/master/stores/${encodeURIComponent(store.id)}/users`}><MasterIcon name="back" size={18} /> Volver a usuarios</a><button class="master-btn master-btn--primary" type="button" data-edit-user><MasterIcon name="edit" size={18} /> Editar</button></div>
@@ -46,7 +64,7 @@ const combinedAudit = [...userAudit.audit, ...deviceAudit.audit].sort((a, b) => 
       </details>
 
       <details class="master-card master-mobile-accordion" open>
-        <summary class="master-card-header"><div><h2 class="master-card-title">Dispositivos autorizados</h2><p class="master-card-subtitle">{devices.authorized_for_user} de {devices.user_limit} dispositivos</p></div></summary>
+        <summary class="master-card-header"><div><h2 class="master-card-title">Dispositivos autorizados</h2><p class="master-card-subtitle" data-devices-summary>{devices.authorized_for_user} de {devices.user_limit} dispositivos</p></div></summary>
         <div class="master-card-body"><div class="master-users-heading__badges"><button class="master-btn master-btn--secondary" type="button" data-device-filter="authorized">Autorizados</button><button class="master-btn master-btn--ghost" type="button" data-device-filter="revoked">Revocados</button><button class="master-btn master-btn--ghost" type="button" data-device-filter="all">Todos</button></div><div class="master-device-list" data-device-list>
           {devices.devices.length ? devices.devices.map((device, index) => <article class="master-device-item"><div class="master-device-item__head"><div><strong>{device.label}</strong><div class="master-users-heading__badges"><span class:list={['master-pill', device.status === 'authorized' ? 'master-pill--success' : 'master-pill--danger']}>{device.status === 'authorized' ? 'Autorizado' : 'Revocado'}</span><span class="master-pill">{device.device_type}</span></div></div>{device.status === 'authorized' && <button class="master-btn master-btn--danger" type="button" data-revoke-device-index={index}>Revocar</button>}</div><div class="master-device-item__meta"><span>{device.browser_name} · {device.os_name}</span><span>Primera actividad: {exact(device.first_seen_at)}</span><span>Última actividad: {exact(device.last_seen_at)}</span></div></article>) : <p class="master-empty">No hay dispositivos en este filtro.</p>}
         </div></div>
@@ -54,16 +72,21 @@ const combinedAudit = [...userAudit.audit, ...deviceAudit.audit].sort((a, b) => 
 
       <details class="master-card master-mobile-accordion" open>
         <summary class="master-card-header"><div><h2 class="master-card-title">Auditoría reciente</h2><p class="master-card-subtitle">Eventos sanitizados de usuario y dispositivos.</p></div></summary>
-        <div class="master-card-body"><div class="master-audit-list" data-audit-list>{combinedAudit.length ? combinedAudit.map((item) => <article class="master-audit-item"><div class="master-audit-item__head"><strong>{auditLabels[item.action] || 'Actividad administrativa'}</strong><time datetime={item.created} title={exact(item.created)}>{relative(item.created)}</time></div><p>Actor: {item.actor_name || 'Sistema'}{item.reason ? ` · Motivo: ${item.reason}` : ''}{item.sessions_revoked ? ' · Sesiones cerradas' : ''}</p></article>) : <p class="master-empty">No hay eventos recientes.</p>}</div><button class="master-btn master-btn--secondary" type="button" data-load-more-audit disabled={userAudit.pagination.total_pages <= 1 && deviceAudit.pagination.total_pages <= 1}>Cargar más</button></div>
+        <div class="master-card-body"><div class="master-audit-list" data-audit-list>{combinedAudit.length ? combinedAudit.map((item) => <article class="master-audit-item" data-audit-id={`${item.auditNamespace}:${item.id}`} data-audit-created={item.created}><div class="master-audit-item__head"><strong>{auditLabels[item.action] || 'Actividad administrativa'}</strong><time datetime={item.created} title={exact(item.created)}>{relative(item.created)}</time></div><p>Actor: {item.actor_name || 'Sistema'}{item.reason ? ` · Motivo: ${item.reason}` : ''}{item.sessions_revoked ? ' · Sesiones cerradas' : ''}</p>{auditChanges(item) && <p class="master-audit-changes">{auditChanges(item)}</p>}</article>) : <p class="master-empty">No hay eventos recientes.</p>}</div><button class="master-btn master-btn--secondary" type="button" data-load-more-audit disabled={userAudit.pagination.total_pages <= 1 && deviceAudit.pagination.total_pages <= 1}>Cargar más</button></div>
       </details>
     </div>
 
     <aside class="master-user-detail-stack">
       <section class="master-card"><header class="master-card-header"><div><h2 class="master-card-title">Restablecer acceso</h2><p class="master-card-subtitle">Genera una contraseña temporal.</p></div></header><div class="master-card-body"><p class="master-card-subtitle">La contraseña temporal vencerá en 72 horas y cerrará inmediatamente todas las sesiones activas.</p><button class="master-btn master-btn--primary" type="button" data-open-reset-access>{user.temporary_password_state === 'expired' ? 'Generar otra contraseña temporal' : 'Generar contraseña temporal'}</button></div></section>
       <section class="master-card"><header class="master-card-header"><div><h2 class="master-card-title">Sesiones</h2><p class="master-card-subtitle">Invalida todas las sesiones del usuario.</p></div></header><div class="master-card-body"><button class="master-btn master-btn--danger" type="button" data-open-revoke-sessions>Cerrar todas las sesiones</button></div></section>
-      <section class="master-card"><header class="master-card-header"><h2 class="master-card-title">Resumen</h2></header><div class="master-card-body"><div class="master-user-read-grid"><div class="master-user-read-field"><span>Dispositivos</span><strong>{devices.authorized_for_user} / {devices.user_limit}</strong></div><div class="master-user-read-field"><span>Último acceso</span><strong>{relative(user.last_admin_activity_at)}</strong></div><div class="master-user-read-field"><span>Plan</span><strong>{store.planPresentation.contextTitle}</strong></div><div class="master-user-read-field"><span>Cupo activo</span><strong>{detail.plan.active_users} / {detail.plan.max_active_users}</strong></div></div></div></section>
+      <section class="master-card"><header class="master-card-header"><h2 class="master-card-title">Resumen</h2></header><div class="master-card-body"><div class="master-user-read-grid"><div class="master-user-read-field"><span>Dispositivos</span><strong data-summary-device-count>{devices.authorized_for_user} / {devices.user_limit}</strong></div><div class="master-user-read-field"><span>Último acceso</span><strong data-summary-last-activity>{relative(user.last_admin_activity_at)}</strong></div><div class="master-user-read-field"><span>Plan</span><strong>{store.planPresentation.contextTitle}</strong></div><div class="master-user-read-field"><span>Cupo activo</span><strong data-summary-active-count>{detail.plan.active_users} / {detail.plan.max_active_users}</strong></div></div></div></section>
     </aside>
   </div>
+
+  <section class="master-card master-danger-zone" aria-labelledby="master-user-danger-title">
+    <header class="master-card-header"><div><h2 class="master-card-title" id="master-user-danger-title">Zona de peligro</h2><p class="master-card-subtitle">Eliminar usuario</p></div></header>
+    <div class="master-card-body"><p>Esta acción eliminará permanentemente la cuenta de PocketBase, sus sesiones y sus dispositivos administrativos. No se puede deshacer. Los datos comerciales de la tienda se conservarán.</p>{deleteBlocked && <p class="master-user-warning">Crea o activa otro Administrador antes de eliminar esta cuenta.</p>}<button class="master-btn master-btn--danger-solid" type="button" data-open-delete-user disabled={deleteBlocked}>Eliminar usuario</button></div>
+  </section>
 
   <MasterDialog id="master-user-reset-dialog" title="Restablecer acceso" description="Emite una contraseña temporal y cierra todas las sesiones." tone="warning" size="lg"><form class="master-users-form" data-reset-form><div class="master-users-field"><label for="reset-password">Contraseña temporal</label><div class="master-users-password-row"><input id="reset-password" class="master-users-control" name="password" type="password" autocomplete="new-password" required /><button class="master-btn master-btn--secondary" type="button" data-reset-generate>Generar</button><button class="master-btn master-btn--secondary" type="button" data-reset-toggle>Mostrar</button><button class="master-btn master-btn--secondary" type="button" data-reset-copy>Copiar</button></div></div><div class="master-users-field"><label for="reset-confirm">Confirmar contraseña temporal</label><input id="reset-confirm" class="master-users-control" name="confirm" type="password" autocomplete="new-password" required /></div><div class="master-users-field"><label for="reset-reason">Motivo interno</label><textarea id="reset-reason" class="master-users-control" name="reason" maxlength="500" required></textarea></div><label class="master-user-warning"><input type="checkbox" name="confirmed" required /> ¿Restablecer el acceso de este usuario? La contraseña anterior y todas las sesiones actuales dejarán de funcionar.</label><p class="master-card-subtitle">La contraseña actual no se puede ver. La nueva contraseña será temporal y vencerá en 72 horas. El usuario deberá cambiarla antes de entrar al panel. Al emitirla se cerrarán inmediatamente todas sus sesiones activas.</p><p class="master-users-message" data-reset-message aria-live="polite"></p><div class="master-users-secret" data-reset-result hidden><strong>Contraseña temporal emitida</strong><span data-reset-expiry></span><code data-reset-secret></code><button class="master-btn master-btn--secondary" type="button" data-reset-result-copy>Copiar contraseña</button></div></form><div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cerrar</button><button class="master-btn master-btn--primary" type="button" data-reset-submit>Emitir contraseña temporal</button></div></MasterDialog>
 
@@ -75,6 +98,17 @@ const combinedAudit = [...userAudit.audit, ...deviceAudit.audit].sort((a, b) => 
     <p class="master-users-message" data-edit-confirm-message aria-live="polite"></p>
     <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--primary" type="button" data-edit-confirm-submit>Confirmar y guardar</button></div>
   </MasterDialog>
+  <MasterDialog id="master-user-delete-dialog" title="Eliminar usuario permanentemente" description="Esta acción crítica no se puede deshacer." tone="danger" size="lg" closeOnBackdrop={false} describedBy="master-user-delete-warning">
+    <div class="master-delete-user-summary"><span>Nombre<strong>{name}</strong></span><span>Email<strong>{user.email}</strong></span><span>Rol<strong>{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</strong></span><span>Tienda<strong>{store.name}</strong></span></div>
+    <p class="master-user-warning" id="master-user-delete-warning">Esta acción eliminará permanentemente la cuenta de PocketBase, sus sesiones y sus dispositivos administrativos. No se puede deshacer. Los datos comerciales de la tienda se conservarán.</p>
+    <form class="master-users-form" data-delete-user-form>
+      <div class="master-users-field"><label for="delete-user-reason">Motivo interno obligatorio</label><textarea id="delete-user-reason" class="master-users-control" name="reason" maxlength="500" required data-delete-user-reason></textarea></div>
+      <div class="master-users-field"><label for="delete-user-email">Escribe el email exacto: {user.email}</label><input id="delete-user-email" class="master-users-control" name="confirmation_email" type="email" autocomplete="off" required data-delete-user-email /></div>
+      <label class="master-delete-user-confirm"><input type="checkbox" name="confirmed" data-delete-user-confirm /> <span>Entiendo que esta acción es permanente.</span></label>
+      <p class="master-users-message" data-delete-user-message aria-live="assertive"></p>
+    </form>
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close data-delete-user-cancel>Cancelar</button><button class="master-btn master-btn--danger-solid" type="button" data-delete-user-submit disabled>Eliminar usuario permanentemente</button></div>
+  </MasterDialog>
 </section>
 
 <script define:vars={{ initialDevices: devices.devices }}>
@@ -82,7 +116,7 @@ const combinedAudit = [...userAudit.audit, ...deviceAudit.audit].sort((a, b) => 
 </script>
 
 <script>
-  import { getMasterStoreUserAudit, getMasterStoreUserErrorMessage, issueMasterTemporaryPassword, revokeMasterStoreUserSessions, updateMasterStoreUser } from '../../lib/masterUsers';
+  import { deleteMasterStoreUser, getMasterStoreUserAudit, getMasterStoreUserDetail, getMasterStoreUserErrorMessage, issueMasterTemporaryPassword, revokeMasterStoreUserSessions, updateMasterStoreUser } from '../../lib/masterUsers';
   import { getMasterDeviceErrorMessage, getMasterUserDeviceAudit, listMasterUserDevices, revokeMasterUserDevice } from '../../lib/masterUserDevices';
   import { pb } from '../../lib/pocketbase';
   const root = document.querySelector<HTMLElement>('[data-master-user-detail]');
@@ -100,27 +134,278 @@ const combinedAudit = [...userAudit.audit, ...deviceAudit.audit].sort((a, b) => 
     editForm?.addEventListener('submit', (event) => { event.preventDefault(); const data = new FormData(editForm); const input = { display_name: String(data.get('display_name') || ''), email: String(data.get('email') || ''), phone: String(data.get('phone') || ''), role: String(data.get('role') || '') as any, status: String(data.get('status') || '') as any, reason: '' }; const critical = input.email !== initialEmail || input.role !== initialRole || input.status !== initialStatus; if (!critical) { void saveEdit(input); return; } pendingEditInput = input; const reason = document.getElementById('edit-critical-reason') as HTMLTextAreaElement | null; if (reason) reason.value = ''; const confirmMessage = root.querySelector<HTMLElement>('[data-edit-confirm-message]'); if (confirmMessage) confirmMessage.textContent = ''; window.PZMasterDialog?.open('master-user-edit-confirm-dialog', root.querySelector('[data-edit-submit]') as HTMLElement); });
     root.querySelector('[data-edit-confirm-submit]')?.addEventListener('click', () => { const reason = (document.getElementById('edit-critical-reason') as HTMLTextAreaElement | null)?.value.trim() || ''; const confirmMessage = root.querySelector<HTMLElement>('[data-edit-confirm-message]'); if (!reason) { if (confirmMessage) confirmMessage.textContent = 'Escribe el motivo interno.'; return; } if (!pendingEditInput) return; pendingEditInput.reason = reason; const input = pendingEditInput; pendingEditInput = null; window.PZMasterDialog?.close('master-user-edit-confirm-dialog'); void saveEdit(input); });
 
-    let transientSecret = ''; const resetDialog = document.getElementById('master-user-reset-dialog') as HTMLDialogElement | null; const resetForm = root.querySelector<HTMLFormElement>('[data-reset-form]'); const resetPassword = document.getElementById('reset-password') as HTMLInputElement | null; const resetConfirm = document.getElementById('reset-confirm') as HTMLInputElement | null; const resetMessage = root.querySelector<HTMLElement>('[data-reset-message]'); const resetResult = root.querySelector<HTMLElement>('[data-reset-result]'); const resetSecret = root.querySelector<HTMLElement>('[data-reset-secret]'); const resetExpiry = root.querySelector<HTMLElement>('[data-reset-expiry]'); const resetSubmit = root.querySelector<HTMLButtonElement>('[data-reset-submit]');
+    let transientSecret = '';
+    let issuedSecret = '';
+    let resetSucceeded = false;
+    const resetDialog = document.getElementById('master-user-reset-dialog') as HTMLDialogElement | null;
+    const resetForm = root.querySelector<HTMLFormElement>('[data-reset-form]');
+    const resetPassword = document.getElementById('reset-password') as HTMLInputElement | null;
+    const resetConfirm = document.getElementById('reset-confirm') as HTMLInputElement | null;
+    const resetMessage = root.querySelector<HTMLElement>('[data-reset-message]');
+    const resetResult = root.querySelector<HTMLElement>('[data-reset-result]');
+    const resetSecret = root.querySelector<HTMLElement>('[data-reset-secret]');
+    const resetExpiry = root.querySelector<HTMLElement>('[data-reset-expiry]');
+    const resetSubmit = root.querySelector<HTMLButtonElement>('[data-reset-submit]');
+    const resetEditableControls = () => Array.from(resetForm?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement>('input, textarea, [data-reset-generate], [data-reset-toggle], [data-reset-copy]') || []);
     const randomIndex = (max: number) => { const values = new Uint32Array(1); crypto.getRandomValues(values); return values[0] % max; };
     const generate = () => { const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ','abcdefghijkmnopqrstuvwxyz','23456789','!@#$%&*+-_']; const all = groups.join(''); const chars = groups.map((group) => group[randomIndex(group.length)]); while (chars.length < 18) chars.push(all[randomIndex(all.length)]); for (let i = chars.length - 1; i > 0; i--) { const j = randomIndex(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; } return chars.join(''); };
     root.querySelector('[data-open-reset-access]')?.addEventListener('click', (event) => window.PZMasterDialog?.open('master-user-reset-dialog', event.currentTarget as HTMLElement));
-    root.querySelector('[data-reset-generate]')?.addEventListener('click', () => { transientSecret = generate(); if (resetPassword) resetPassword.value = transientSecret; if (resetConfirm) resetConfirm.value = transientSecret; });
-    root.querySelector('[data-reset-toggle]')?.addEventListener('click', (event) => { if (!resetPassword || !resetConfirm) return; const hidden = resetPassword.type === 'password'; resetPassword.type = resetConfirm.type = hidden ? 'text' : 'password'; (event.currentTarget as HTMLButtonElement).textContent = hidden ? 'Ocultar' : 'Mostrar'; });
-    const copy = async () => { const value = transientSecret || resetPassword?.value || ''; if (value) await navigator.clipboard.writeText(value); }; root.querySelector('[data-reset-copy]')?.addEventListener('click', copy); root.querySelector('[data-reset-result-copy]')?.addEventListener('click', copy);
-    resetSubmit?.addEventListener('click', async () => { if (!resetForm || !resetPassword || !resetConfirm) return; const data = new FormData(resetForm); transientSecret = resetPassword.value; const reason = String(data.get('reason') || '').trim(); if (transientSecret.length < 8) { if (resetMessage) resetMessage.textContent = 'La contraseña temporal no cumple la política.'; return; } if (transientSecret !== resetConfirm.value) { if (resetMessage) resetMessage.textContent = 'Las contraseñas no coinciden.'; return; } if (!reason || data.get('confirmed') !== 'on') { if (resetMessage) resetMessage.textContent = 'Confirma el restablecimiento y escribe el motivo interno.'; return; } resetSubmit.disabled = true; try { const result = await issueMasterTemporaryPassword(storeId, userId, transientSecret, reason); Array.from(resetForm.elements).forEach((element) => { if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) element.disabled = true; }); if (resetSecret) resetSecret.textContent = transientSecret; if (resetExpiry) resetExpiry.textContent = `Vence: ${new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(result.temporary_password_expires_at))}`; if (resetResult) resetResult.hidden = false; resetSubmit.hidden = true; } catch (error) { if (resetMessage) resetMessage.textContent = getMasterStoreUserErrorMessage(error); } finally { resetSubmit.disabled = false; } });
-    resetDialog?.addEventListener('close', () => { transientSecret = ''; if (resetSecret) resetSecret.textContent = ''; if (resetExpiry) resetExpiry.textContent = ''; if (resetResult) resetResult.hidden = true; resetForm?.reset(); Array.from(resetForm?.elements || []).forEach((element) => { if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) element.disabled = false; }); if (resetSubmit) resetSubmit.hidden = false; if (resetMessage) resetMessage.textContent = ''; location.reload(); });
+    resetPassword?.addEventListener('input', () => { if (!issuedSecret) transientSecret = resetPassword.value; });
+    root.querySelector('[data-reset-generate]')?.addEventListener('click', () => { if (issuedSecret) return; transientSecret = generate(); if (resetPassword) resetPassword.value = transientSecret; if (resetConfirm) resetConfirm.value = transientSecret; });
+    root.querySelector('[data-reset-toggle]')?.addEventListener('click', (event) => { if (issuedSecret || !resetPassword || !resetConfirm) return; const hidden = resetPassword.type === 'password'; resetPassword.type = resetConfirm.type = hidden ? 'text' : 'password'; (event.currentTarget as HTMLButtonElement).textContent = hidden ? 'Ocultar' : 'Mostrar'; });
+    const copyTransientSecret = async () => { if (!issuedSecret && transientSecret) await navigator.clipboard.writeText(transientSecret); };
+    const copyIssuedSecret = async () => { if (issuedSecret) await navigator.clipboard.writeText(issuedSecret); };
+    root.querySelector('[data-reset-copy]')?.addEventListener('click', copyTransientSecret);
+    root.querySelector('[data-reset-result-copy]')?.addEventListener('click', copyIssuedSecret);
+    resetSubmit?.addEventListener('click', async () => {
+      if (!resetForm || !resetPassword || !resetConfirm || issuedSecret) return;
+      const data = new FormData(resetForm);
+      transientSecret = resetPassword.value;
+      const submittedSecret = transientSecret;
+      const reason = String(data.get('reason') || '').trim();
+      if (submittedSecret.length < 8) { if (resetMessage) resetMessage.textContent = 'La contraseña temporal no cumple la política.'; return; }
+      if (submittedSecret !== resetConfirm.value) { if (resetMessage) resetMessage.textContent = 'Las contraseñas no coinciden.'; return; }
+      if (!reason || data.get('confirmed') !== 'on') { if (resetMessage) resetMessage.textContent = 'Confirma el restablecimiento y escribe el motivo interno.'; return; }
+      resetSubmit.disabled = true;
+      try {
+        const result = await issueMasterTemporaryPassword(storeId, userId, submittedSecret, reason);
+        issuedSecret = submittedSecret;
+        transientSecret = '';
+        resetSucceeded = true;
+        resetEditableControls().forEach((element) => { element.disabled = true; });
+        if (resetSecret) resetSecret.textContent = issuedSecret;
+        if (resetExpiry) resetExpiry.textContent = `Vence: ${new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(result.temporary_password_expires_at))}`;
+        if (resetResult) resetResult.hidden = false;
+        resetSubmit.hidden = true;
+      } catch (error) {
+        if (resetMessage) resetMessage.textContent = getMasterStoreUserErrorMessage(error);
+      } finally {
+        resetSubmit.disabled = false;
+      }
+    });
+    resetDialog?.addEventListener('close', () => {
+      const shouldReload = resetSucceeded;
+      issuedSecret = '';
+      transientSecret = '';
+      resetSucceeded = false;
+      if (resetSecret) resetSecret.textContent = '';
+      if (resetExpiry) resetExpiry.textContent = '';
+      if (resetResult) resetResult.hidden = true;
+      resetForm?.reset();
+      resetEditableControls().forEach((element) => { element.disabled = false; });
+      if (resetPassword) { resetPassword.type = 'password'; resetPassword.value = ''; }
+      if (resetConfirm) { resetConfirm.type = 'password'; resetConfirm.value = ''; }
+      const resetToggle = root.querySelector<HTMLButtonElement>('[data-reset-toggle]');
+      if (resetToggle) resetToggle.textContent = 'Mostrar';
+      if (resetSubmit) { resetSubmit.hidden = false; resetSubmit.disabled = false; }
+      if (resetMessage) resetMessage.textContent = '';
+      if (shouldReload) location.reload();
+    });
 
     root.querySelector('[data-open-revoke-sessions]')?.addEventListener('click', (event) => window.PZMasterDialog?.open('master-user-sessions-dialog', event.currentTarget as HTMLElement));
     root.querySelector('[data-sessions-submit]')?.addEventListener('click', async () => { const reasonInput = document.getElementById('sessions-reason') as HTMLTextAreaElement | null; const message = root.querySelector<HTMLElement>('[data-sessions-message]'); const reason = reasonInput?.value.trim() || ''; if (!reason) { if (message) message.textContent = 'Escribe el motivo interno.'; return; } try { await revokeMasterStoreUserSessions(storeId, userId, reason); window.PZMasterDialog?.close('master-user-sessions-dialog'); location.reload(); } catch (error) { if (message) message.textContent = getMasterStoreUserErrorMessage(error); } });
 
-    let currentDevices: any[] = Array.isArray((window as any).__pzInitialMasterDevices) ? (window as any).__pzInitialMasterDevices : []; let selectedDevice: any = null; const deviceList = root.querySelector<HTMLElement>('[data-device-list]'); const escape = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[char] || char); const exact = (value: string) => { const date = new Date(value || ''); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle:'medium', timeStyle:'short' }).format(date) : 'Nunca'; };
+    let currentDevices: any[] = Array.isArray((window as any).__pzInitialMasterDevices) ? (window as any).__pzInitialMasterDevices : [];
+    let selectedDevice: any = null;
+    let currentDeviceFilter: 'authorized' | 'revoked' | 'all' = 'authorized';
+    const deviceList = root.querySelector<HTMLElement>('[data-device-list]');
+    const escape = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[char] || char);
+    const exact = (value: string) => { const date = new Date(value || ''); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle:'medium', timeStyle:'short' }).format(date) : 'Nunca'; };
+    const relativeClient = (value: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
     function renderDevices() { if (!deviceList) return; deviceList.innerHTML = currentDevices.length ? currentDevices.map((device,index) => `<article class="master-device-item"><div class="master-device-item__head"><div><strong>${escape(device.label)}</strong><div class="master-users-heading__badges"><span class="master-pill ${device.status === 'authorized' ? 'master-pill--success' : 'master-pill--danger'}">${device.status === 'authorized' ? 'Autorizado' : 'Revocado'}</span><span class="master-pill">${escape(device.device_type)}</span></div></div>${device.status === 'authorized' ? `<button class="master-btn master-btn--danger" type="button" data-revoke-device-index="${index}">Revocar</button>` : ''}</div><div class="master-device-item__meta"><span>${escape(device.browser_name)} · ${escape(device.os_name)}</span><span>Primera actividad: ${escape(exact(device.first_seen_at))}</span><span>Última actividad: ${escape(exact(device.last_seen_at))}</span></div></article>`).join('') : '<p class="master-empty">No hay dispositivos en este filtro.</p>'; }
-    async function loadDevices(filter: any) { if (deviceList) deviceList.innerHTML = '<div class="master-users-loading">Cargando dispositivos…</div>'; try { const result = await listMasterUserDevices(storeId, userId, { page:1, perPage:20, status:filter }); currentDevices = result.devices; renderDevices(); } catch (error) { if (deviceList) deviceList.innerHTML = `<p class="master-empty">${escape(getMasterDeviceErrorMessage(error))}</p>`; } }
-    root.querySelectorAll<HTMLElement>('[data-device-filter]').forEach((button) => button.addEventListener('click', () => loadDevices(button.dataset.deviceFilter || 'authorized')));
+    function updateSummary(detailResult: any, deviceResult: any) {
+      const devicesSummary = root.querySelector<HTMLElement>('[data-devices-summary]');
+      const deviceCount = root.querySelector<HTMLElement>('[data-summary-device-count]');
+      const lastActivity = root.querySelector<HTMLElement>('[data-summary-last-activity]');
+      const activeCount = root.querySelector<HTMLElement>('[data-summary-active-count]');
+      if (devicesSummary) devicesSummary.textContent = `${deviceResult.authorized_for_user} de ${deviceResult.user_limit} dispositivos`;
+      if (deviceCount) deviceCount.textContent = `${deviceResult.authorized_for_user} / ${deviceResult.user_limit}`;
+      if (lastActivity) lastActivity.textContent = relativeClient(detailResult.user.last_admin_activity_at || '');
+      if (activeCount) activeCount.textContent = `${detailResult.plan.active_users} / ${detailResult.plan.max_active_users}`;
+    }
+    async function loadDevices(filter: 'authorized' | 'revoked' | 'all') {
+      currentDeviceFilter = filter;
+      if (deviceList) deviceList.innerHTML = '<div class="master-users-loading">Cargando dispositivos…</div>';
+      try {
+        const result = await listMasterUserDevices(storeId, userId, { page:1, perPage:20, status:filter });
+        currentDevices = result.devices;
+        renderDevices();
+        const detailResult = await getMasterStoreUserDetail(storeId, userId);
+        updateSummary(detailResult, result);
+      } catch (error) {
+        if (deviceList) deviceList.innerHTML = `<p class="master-empty">${escape(getMasterDeviceErrorMessage(error))}</p>`;
+      }
+    }
+    root.querySelectorAll<HTMLElement>('[data-device-filter]').forEach((button) => button.addEventListener('click', () => void loadDevices((button.dataset.deviceFilter || 'authorized') as 'authorized' | 'revoked' | 'all')));
     deviceList?.addEventListener('click', (event) => { const button = (event.target as Element).closest<HTMLElement>('[data-revoke-device-index]'); if (!button) return; selectedDevice = currentDevices[Number(button.dataset.revokeDeviceIndex || 0)]; const nameNode = root.querySelector<HTMLElement>('[data-revoke-device-name]'); if (nameNode) nameNode.textContent = selectedDevice?.label || 'Dispositivo'; window.PZMasterDialog?.open('master-device-revoke-dialog', button); });
-    root.querySelector('[data-device-submit]')?.addEventListener('click', async () => { const reason = (document.getElementById('device-revoke-reason') as HTMLTextAreaElement | null)?.value.trim() || ''; const message = root.querySelector<HTMLElement>('[data-device-message]'); if (!reason) { if (message) message.textContent = 'Escribe el motivo interno.'; return; } if (!selectedDevice) return; try { await revokeMasterUserDevice(storeId, userId, selectedDevice.id, reason); window.PZMasterDialog?.close('master-device-revoke-dialog'); await loadDevices('authorized'); } catch (error) { if (message) message.textContent = getMasterDeviceErrorMessage(error); } });
 
-    const auditList = root.querySelector<HTMLElement>('[data-audit-list]'); let userAuditPage = 1; let deviceAuditPage = 1; const seenAudit = new Set(Array.from(auditList?.querySelectorAll<HTMLElement>('article') || []).map((item) => item.dataset.auditId).filter(Boolean)); const labels: Record<string,string> = { user_created:'Usuario creado',user_updated:'Información actualizada',password_changed:'Evento histórico de contraseña Master',temporary_password_issued:'Contraseña temporal emitida',forced_password_changed:'Contraseña personal creada por el usuario',sessions_revoked:'Sesiones cerradas',self_password_changed:'Contraseña cambiada voluntariamente por el Admin',device_authorized:'Dispositivo autorizado',device_revoked:'Dispositivo revocado' };
-    root.querySelector('[data-load-more-audit]')?.addEventListener('click', async (event) => { const button = event.currentTarget as HTMLButtonElement; button.disabled = true; try { const [users, devices] = await Promise.all([getMasterStoreUserAudit(storeId,userId,{page:++userAuditPage,perPage:20}),getMasterUserDeviceAudit(storeId,userId,{page:++deviceAuditPage,perPage:20})]); const items = [...users.audit,...devices.audit].filter((item:any) => !seenAudit.has(item.id)).sort((a:any,b:any) => new Date(b.created).getTime()-new Date(a.created).getTime()); items.forEach((item:any) => { seenAudit.add(item.id); const article = document.createElement('article'); article.className='master-audit-item'; const head=document.createElement('div'); head.className='master-audit-item__head'; const strong=document.createElement('strong'); strong.textContent=labels[item.action]||'Actividad administrativa'; const time=document.createElement('time'); time.dateTime=item.created; time.textContent=exact(item.created); head.append(strong,time); const p=document.createElement('p'); p.textContent=`Actor: ${item.actor_name||'Sistema'}${item.reason?` · Motivo: ${item.reason}`:''}${item.sessions_revoked?' · Sesiones cerradas':''}`; article.append(head,p); auditList?.append(article); }); button.disabled = userAuditPage >= users.pagination.total_pages && deviceAuditPage >= devices.pagination.total_pages; } catch (_) { button.disabled=false; } });
+    const auditList = root.querySelector<HTMLElement>('[data-audit-list]');
+    const auditMoreButton = root.querySelector<HTMLButtonElement>('[data-load-more-audit]');
+    let userAuditPage = 1;
+    let deviceAuditPage = 1;
+    let userAuditHasMore = Number(root.dataset.userAuditPages || 1) > 1;
+    let deviceAuditHasMore = Number(root.dataset.deviceAuditPages || 1) > 1;
+    const seenAudit = new Set<string>(Array.from(auditList?.querySelectorAll<HTMLElement>('[data-audit-id]') || []).map((item) => item.dataset.auditId || '').filter(Boolean));
+    const labels: Record<string,string> = { user_created:'Usuario creado',user_updated:'Información actualizada',password_changed:'Evento histórico de contraseña Master',temporary_password_issued:'Contraseña temporal emitida',forced_password_changed:'Contraseña personal creada por el usuario',sessions_revoked:'Sesiones cerradas',self_password_changed:'Contraseña cambiada voluntariamente por el Admin',user_deleted:'Usuario eliminado permanentemente',device_authorized:'Dispositivo autorizado',device_revoked:'Dispositivo revocado' };
+    const readableRole = (value: string) => value === 'store_admin' ? 'Administrador' : value === 'store_staff' ? 'Personal' : value;
+    const readableStatus = (value: string) => value === 'active' ? 'Activo' : value === 'suspended' ? 'Suspendido' : value;
+    function userUpdatedChanges(item: any) {
+      if (item.action !== 'user_updated') return '';
+      return [
+        ['Email', item.previous_email, item.new_email],
+        ['Nombre', item.previous_display_name, item.new_display_name],
+        ['Teléfono', item.previous_phone, item.new_phone],
+        ['Rol', readableRole(item.previous_role), readableRole(item.new_role)],
+        ['Estado', readableStatus(item.previous_status), readableStatus(item.new_status)],
+      ].filter((entry) => entry[1] !== entry[2]).map((entry) => `${entry[0]}: ${entry[1] || 'Vacío'} → ${entry[2] || 'Vacío'}`).join(' · ');
+    }
+    function createAuditNode(namespace: 'user' | 'device', item: any) {
+      const article = document.createElement('article');
+      article.className = 'master-audit-item';
+      article.dataset.auditId = `${namespace}:${item.id}`;
+      article.dataset.auditCreated = String(item.created || '');
+      const head = document.createElement('div');
+      head.className = 'master-audit-item__head';
+      const strong = document.createElement('strong');
+      strong.textContent = labels[item.action] || 'Actividad administrativa';
+      const time = document.createElement('time');
+      time.dateTime = String(item.created || '');
+      time.textContent = exact(item.created);
+      head.append(strong, time);
+      const description = document.createElement('p');
+      description.textContent = `Actor: ${item.actor_name || 'Sistema'}${item.reason ? ` · Motivo: ${item.reason}` : ''}${item.sessions_revoked ? ' · Sesiones cerradas' : ''}`;
+      article.append(head, description);
+      const changes = userUpdatedChanges(item);
+      if (changes) { const detail = document.createElement('p'); detail.className = 'master-audit-changes'; detail.textContent = changes; article.append(detail); }
+      return article;
+    }
+    function rebuildCombinedAudit(events: Array<{ namespace: 'user' | 'device'; item: any }>, replace = false) {
+      if (!auditList) return;
+      if (replace) { auditList.replaceChildren(); seenAudit.clear(); }
+      auditList.querySelector('.master-empty')?.remove();
+      events.forEach(({ namespace, item }) => {
+        const key = `${namespace}:${item.id}`;
+        if (!item.id || seenAudit.has(key)) return;
+        seenAudit.add(key);
+        auditList.append(createAuditNode(namespace, item));
+      });
+      const nodes = Array.from(auditList.querySelectorAll<HTMLElement>('[data-audit-id]')).sort((a, b) => new Date(b.dataset.auditCreated || '').getTime() - new Date(a.dataset.auditCreated || '').getTime());
+      if (nodes.length) auditList.replaceChildren(...nodes);
+      else { const empty = document.createElement('p'); empty.className = 'master-empty'; empty.textContent = 'No hay eventos recientes.'; auditList.append(empty); }
+    }
+    function syncAuditMoreButton() { if (auditMoreButton) auditMoreButton.disabled = !userAuditHasMore && !deviceAuditHasMore; }
+    auditMoreButton?.addEventListener('click', async () => {
+      auditMoreButton.disabled = true;
+      try {
+        const requests: Array<Promise<{ namespace: 'user' | 'device'; result: any }>> = [];
+        if (userAuditHasMore) requests.push(getMasterStoreUserAudit(storeId, userId, { page: userAuditPage + 1, perPage: 20 }).then((result) => ({ namespace: 'user', result })));
+        if (deviceAuditHasMore) requests.push(getMasterUserDeviceAudit(storeId, userId, { page: deviceAuditPage + 1, perPage: 20 }).then((result) => ({ namespace: 'device', result })));
+        const pages = await Promise.all(requests);
+        const events: Array<{ namespace: 'user' | 'device'; item: any }> = [];
+        pages.forEach(({ namespace, result }) => {
+          if (namespace === 'user') { userAuditPage = result.pagination.page; userAuditHasMore = userAuditPage < result.pagination.total_pages; }
+          else { deviceAuditPage = result.pagination.page; deviceAuditHasMore = deviceAuditPage < result.pagination.total_pages; }
+          result.audit.forEach((item: any) => events.push({ namespace, item }));
+        });
+        rebuildCombinedAudit(events);
+      } catch (_) {
+        auditMoreButton.disabled = false;
+        return;
+      }
+      syncAuditMoreButton();
+    });
+
+    async function refreshAfterDeviceRevocation() {
+      const [detailResult, deviceResult, usersAudit, devicesAudit] = await Promise.all([
+        getMasterStoreUserDetail(storeId, userId),
+        listMasterUserDevices(storeId, userId, { page: 1, perPage: 20, status: currentDeviceFilter }),
+        getMasterStoreUserAudit(storeId, userId, { page: 1, perPage: 20 }),
+        getMasterUserDeviceAudit(storeId, userId, { page: 1, perPage: 20 }),
+      ]);
+      currentDevices = deviceResult.devices;
+      renderDevices();
+      updateSummary(detailResult, deviceResult);
+      userAuditPage = usersAudit.pagination.page;
+      deviceAuditPage = devicesAudit.pagination.page;
+      userAuditHasMore = userAuditPage < usersAudit.pagination.total_pages;
+      deviceAuditHasMore = deviceAuditPage < devicesAudit.pagination.total_pages;
+      rebuildCombinedAudit([
+        ...usersAudit.audit.map((item) => ({ namespace: 'user' as const, item })),
+        ...devicesAudit.audit.map((item) => ({ namespace: 'device' as const, item })),
+      ], true);
+      syncAuditMoreButton();
+    }
+    root.querySelector('[data-device-submit]')?.addEventListener('click', async () => {
+      const reasonInput = document.getElementById('device-revoke-reason') as HTMLTextAreaElement | null;
+      const reason = reasonInput?.value.trim() || '';
+      const message = root.querySelector<HTMLElement>('[data-device-message]');
+      if (!reason) { if (message) message.textContent = 'Escribe el motivo interno.'; return; }
+      if (!selectedDevice) return;
+      try {
+        await revokeMasterUserDevice(storeId, userId, selectedDevice.id, reason);
+        window.PZMasterDialog?.close('master-device-revoke-dialog');
+        if (reasonInput) reasonInput.value = '';
+        selectedDevice = null;
+        if (message) message.textContent = '';
+        await refreshAfterDeviceRevocation();
+      } catch (error) {
+        if (message) message.textContent = getMasterDeviceErrorMessage(error);
+      }
+    });
+
+    const deleteDialog = document.getElementById('master-user-delete-dialog') as HTMLDialogElement | null;
+    const deleteForm = root.querySelector<HTMLFormElement>('[data-delete-user-form]');
+    const deleteReason = root.querySelector<HTMLTextAreaElement>('[data-delete-user-reason]');
+    const deleteEmail = root.querySelector<HTMLInputElement>('[data-delete-user-email]');
+    const deleteConfirm = root.querySelector<HTMLInputElement>('[data-delete-user-confirm]');
+    const deleteSubmit = root.querySelector<HTMLButtonElement>('[data-delete-user-submit]');
+    const deleteMessage = root.querySelector<HTMLElement>('[data-delete-user-message]');
+    const userEmail = root.dataset.userEmail || '';
+    let deletingUser = false;
+    function syncDeleteSubmit() {
+      if (deleteSubmit) deleteSubmit.disabled = deletingUser || !deleteReason?.value.trim() || deleteEmail?.value !== userEmail || deleteConfirm?.checked !== true;
+    }
+    [deleteReason, deleteEmail].forEach((input) => input?.addEventListener('input', syncDeleteSubmit));
+    deleteConfirm?.addEventListener('change', syncDeleteSubmit);
+    root.querySelector('[data-open-delete-user]')?.addEventListener('click', (event) => {
+      if ((event.currentTarget as HTMLButtonElement).disabled) return;
+      window.PZMasterDialog?.open('master-user-delete-dialog', event.currentTarget as HTMLElement);
+      window.setTimeout(() => deleteReason?.focus(), 0);
+    });
+    deleteDialog?.addEventListener('cancel', (event) => { if (deletingUser) event.preventDefault(); });
+    deleteDialog?.addEventListener('close', () => {
+      if (deletingUser) return;
+      deleteForm?.reset();
+      if (deleteReason) deleteReason.value = '';
+      if (deleteEmail) deleteEmail.value = '';
+      if (deleteMessage) deleteMessage.textContent = '';
+      syncDeleteSubmit();
+    });
+    deleteSubmit?.addEventListener('click', async () => {
+      const reason = deleteReason?.value.trim() || '';
+      if (!reason || deleteEmail?.value !== userEmail || deleteConfirm?.checked !== true || deletingUser) return;
+      deletingUser = true;
+      deleteDialog?.setAttribute('aria-busy', 'true');
+      deleteDialog?.querySelectorAll<HTMLButtonElement>('[data-master-dialog-close]').forEach((button) => { button.disabled = true; });
+      syncDeleteSubmit();
+      if (deleteMessage) deleteMessage.textContent = '';
+      try {
+        await deleteMasterStoreUser(storeId, userId, userEmail, reason);
+        deleteForm?.reset();
+        if (deleteReason) deleteReason.value = '';
+        if (deleteEmail) deleteEmail.value = '';
+        if (deleteMessage) deleteMessage.textContent = '';
+        deletingUser = false;
+        deleteDialog?.removeAttribute('aria-busy');
+        window.PZMasterDialog?.close('master-user-delete-dialog');
+        location.assign(`/master/stores/${encodeURIComponent(storeId)}/users?deleted=1`);
+      } catch (error) {
+        deletingUser = false;
+        deleteDialog?.removeAttribute('aria-busy');
+        deleteDialog?.querySelectorAll<HTMLButtonElement>('[data-master-dialog-close]').forEach((button) => { button.disabled = false; });
+        if (deleteMessage) deleteMessage.textContent = getMasterStoreUserErrorMessage(error);
+        syncDeleteSubmit();
+      }
+    });
   }
 </script>

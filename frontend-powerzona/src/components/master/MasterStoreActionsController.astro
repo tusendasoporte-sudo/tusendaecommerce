@@ -44,25 +44,6 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     </div>
   </MasterDialog>
 
-  <MasterDialog id="master-user-dialog" title="Crear usuario de tienda" description="Acceso administrativo asignado a una tienda." tone="primary">
-    <form class="master-form" data-user-form>
-      <input type="hidden" name="store" data-user-store />
-      <div class="master-field-grid">
-        <div class="master-field master-field--full"><label for="master-user-name">Nombre del usuario</label><input id="master-user-name" name="display_name" type="text" maxlength="140" autocomplete="name" required /></div>
-        <div class="master-field"><label for="master-user-email">Email</label><input id="master-user-email" name="email" type="email" maxlength="255" autocomplete="email" required /></div>
-        <div class="master-field"><label for="master-user-password">Contraseña temporal</label><input id="master-user-password" name="password" type="password" minlength="8" autocomplete="new-password" required /><small>Vence en 72 horas y debe cambiarse antes de entrar al panel.</small></div>
-        <div class="master-field"><label for="master-user-phone">Teléfono</label><input id="master-user-phone" name="phone" type="tel" maxlength="60" autocomplete="tel" /></div>
-        <div class="master-field"><label for="master-user-role">Rol</label><select id="master-user-role" name="role"><option value="store_admin">Administrador</option><option value="store_staff">Empleado</option></select></div>
-        <div class="master-field"><label for="master-user-status">Estado</label><select id="master-user-status" name="status"><option value="active">Activo</option><option value="suspended">Suspendido</option></select></div>
-      </div>
-      <p class="master-form-alert" data-user-form-alert role="alert" hidden></p>
-    </form>
-    <div slot="footer">
-      <button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button>
-      <button class="master-btn master-btn--primary" type="button" data-user-save><MasterIcon name="user-plus" size={19} /> Crear usuario</button>
-    </div>
-  </MasterDialog>
-
   <MasterDialog id="master-security-dialog" title="Configurar seguridad" description="Configuración privada de Seguridad para la tienda." tone="warning" size="lg">
     <form class="master-form" data-security-form>
       <input type="hidden" name="store_id" data-security-store />
@@ -103,7 +84,6 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     setStoreStatusFromMaster,
     updateStoreFromMaster,
   } from '../../lib/stores';
-  import { createStoreUserFromMaster, getStoreUserCreateErrorMessage } from '../../lib/masterUsers';
   import {
     getDefaultSecuritySettings,
     getStoreSecuritySettings,
@@ -119,10 +99,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     const storeMenu = controller.querySelector<HTMLElement>('#master-store-actions');
     const securityMenu = controller.querySelector<HTMLElement>('#master-security-actions');
     const storeDialog = controller.querySelector<HTMLDialogElement>('#master-store-dialog');
-    const userDialog = controller.querySelector<HTMLDialogElement>('#master-user-dialog');
     const securityDialog = controller.querySelector<HTMLDialogElement>('#master-security-dialog');
     const storeForm = controller.querySelector<HTMLFormElement>('[data-store-form]');
-    const userForm = controller.querySelector<HTMLFormElement>('[data-user-form]');
     const securityForm = controller.querySelector<HTMLFormElement>('[data-security-form]');
     let activeMenu: HTMLElement | null = null;
     let activeTrigger: HTMLButtonElement | null = null;
@@ -278,19 +256,6 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       }
     }
 
-    async function openUserDialog(context: HTMLElement) {
-      closeMenu();
-      if (!userDialog || !userForm) return;
-      userForm.reset();
-      setAlert(userForm.querySelector('[data-user-form-alert]'));
-      const target = userForm.querySelector<HTMLInputElement>('[data-user-store]');
-      if (target) target.value = storeId(context);
-      (userForm.elements.namedItem('role') as HTMLSelectElement | null)!.value = 'store_admin';
-      (userForm.elements.namedItem('status') as HTMLSelectElement | null)!.value = 'active';
-      window.PZMasterDialog?.open(userDialog.id, document.activeElement as HTMLElement | null);
-      (userForm.elements.namedItem('display_name') as HTMLInputElement | null)?.focus();
-    }
-
     function applySecuritySettings(settings: any) {
       if (!securityForm) return;
       const normalized = normalizeSecuritySettingsPayload(settings || {});
@@ -436,26 +401,6 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         window.location.assign(id ? window.location.href : '/master/stores?stores_page=1#tiendas-registradas');
       } catch (error: any) {
         setAlert(alert, error?.message || 'No se pudo guardar la tienda.');
-        button.disabled = false;
-      }
-    });
-
-    controller.querySelector<HTMLButtonElement>('[data-user-save]')?.addEventListener('click', async (event) => {
-      if (!userForm || !userForm.reportValidity()) return;
-      const button = event.currentTarget as HTMLButtonElement;
-      const alert = userForm.querySelector<HTMLElement>('[data-user-form-alert]');
-      const data = new FormData(userForm);
-      button.disabled = true;
-      setAlert(alert);
-      try {
-        await createStoreUserFromMaster({
-          store: String(data.get('store') || ''), display_name: String(data.get('display_name') || ''),
-          email: String(data.get('email') || ''), password: String(data.get('password') || ''),
-          phone: String(data.get('phone') || ''), role: String(data.get('role') || ''), status: String(data.get('status') || ''),
-        });
-        window.location.reload();
-      } catch (error: any) {
-        setAlert(alert, getStoreUserCreateErrorMessage(error));
         button.disabled = false;
       }
     });

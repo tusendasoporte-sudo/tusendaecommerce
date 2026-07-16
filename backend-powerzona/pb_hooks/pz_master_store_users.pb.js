@@ -52,6 +52,16 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/master/store-users/delete",
+  (e) => require(`${__hooks}/pz_master_store_users_lib.js`).handleDelete(e),
+  (e) => require(`${__hooks}/pz_master_store_users_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/master/store-users/change-password",
   (e) => require(`${__hooks}/pz_master_store_users_lib.js`).handleChangePassword(e),
   (e) => require(`${__hooks}/pz_master_store_users_lib.js`).requireAuthenticatedUser(e),

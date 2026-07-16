@@ -19,6 +19,7 @@ const AUDIT_ACTIONS = Object.freeze([
   "self_password_changed",
   "temporary_password_issued",
   "forced_password_changed",
+  "user_deleted",
 ]);
 const SAFE_CODES = new Set([
   "unauthorized",
@@ -48,6 +49,9 @@ const SAFE_CODES = new Set([
   "temporary_password_not_required",
   "temporary_password_issue_failed",
   "forced_password_change_failed",
+  "delete_confirmation_mismatch",
+  "delete_reason_required",
+  "user_delete_failed",
 ]);
 
 function setPrivateHeaders(e) {
@@ -248,6 +252,21 @@ function parseAuditPayload(body) {
     return invalid("invalid_payload");
   }
   return valid({ storeId, userId, page, perPage });
+}
+
+function parseDeletePayload(body) {
+  if (!exactPayload(body, ["store_id", "user_id", "confirmation_email", "reason"])) {
+    return invalid("invalid_payload");
+  }
+  const storeId = bodyValue(body, "store_id");
+  const userId = bodyValue(body, "user_id");
+  const confirmationEmail = normalizeEmail(bodyValue(body, "confirmation_email"));
+  const reason = bodyValue(body, "reason");
+  if (!isValidRecordId(storeId) || !isValidRecordId(userId)) return invalid("invalid_payload");
+  if (!confirmationEmail) return invalid("delete_confirmation_mismatch");
+  if (typeof reason !== "string" || !reason.trim()) return invalid("delete_reason_required");
+  if (reason.length > 500) return invalid("invalid_payload");
+  return valid({ storeId, userId, confirmationEmail, reason: reason.trim() });
 }
 
 function recordValue(record, key) {
@@ -595,6 +614,14 @@ function projectedCounts(counts, previous, next) {
   };
 }
 
+function projectedActiveAdminsAfterDeletion(counts, target) {
+  const activeAdmins = countValue(counts && counts.active_admins);
+  const removesActiveAdmin = target
+    && target.role === "store_admin"
+    && target.status === "active";
+  return Math.max(0, activeAdmins - (removesActiveAdmin ? 1 : 0));
+}
+
 function updateRevokesSessions(previous, next) {
   return previous.email !== next.email
     || previous.role !== next.role
@@ -661,6 +688,115 @@ function createAudit(app, store, actor, target, action, previous, next, sessions
   const values = buildAuditValues(store, actor, target, action, previous, next, sessionsRevoked, reason);
   Object.keys(values).forEach((key) => record.set(key, values[key]));
   app.save(record);
+  return record;
+}
+
+function relationFieldType(field) {
+  try {
+    if (field && typeof field.type === "function") return String(field.type());
+    return String(field && field.type || "");
+  } catch (_) {
+    return "";
+  }
+}
+
+function isOwnedDeviceUserRelation(collectionName, fieldName) {
+  return collectionName === "store_user_devices" && fieldName === "user";
+}
+
+function userRelationInventory(app) {
+  const users = app.findCollectionByNameOrId("users");
+  const collections = app.findAllCollections() || [];
+  const relations = [];
+  collections.forEach((collection) => {
+    if (!collection || !collection.name || !collection.fields) return;
+    try {
+      if (typeof collection.isView === "function" && collection.isView()) return;
+    } catch (_) {}
+    Array.from(collection.fields).forEach((field) => {
+      if (relationFieldType(field) !== "relation" || String(field.collectionId || "") !== users.id) return;
+      relations.push({ collection, field });
+    });
+  });
+  return relations;
+}
+
+function relationFilter(field, bindingName) {
+  const name = String(field && field.name || "");
+  if (!/^[A-Za-z0-9_]+$/.test(name)) throw codedError("user_delete_failed");
+  return `${name} ${Number(field.maxSelect || 0) > 1 ? "?=" : "="} {:${bindingName}}`;
+}
+
+function relatedRecords(app, collection, field, userId, limit) {
+  return app.findRecordsByFilter(
+    collection.name,
+    relationFilter(field, "userId"),
+    "id",
+    limit,
+    0,
+    { userId }
+  ) || [];
+}
+
+function assertNoUnexpectedRequiredUserRelations(app, userId) {
+  userRelationInventory(app).forEach(({ collection, field }) => {
+    if (isOwnedDeviceUserRelation(collection.name, field.name)) return;
+    if (field.required !== true && Number(field.minSelect || 0) < 1) return;
+    if (relatedRecords(app, collection, field, userId, 1).length) {
+      throw codedError("user_delete_failed");
+    }
+  });
+}
+
+function clearOptionalUserRelations(app, userId) {
+  let cleared = 0;
+  userRelationInventory(app).forEach(({ collection, field }) => {
+    if (isOwnedDeviceUserRelation(collection.name, field.name)) return;
+    if (field.required === true || Number(field.minSelect || 0) > 0) return;
+    for (let batch = 0; batch < 1000; batch += 1) {
+      const records = relatedRecords(app, collection, field, userId, 200);
+      if (!records.length) break;
+      records.forEach((record) => {
+        record.set(field.name, Number(field.maxSelect || 0) > 1 ? [] : "");
+        app.save(record);
+        cleared += 1;
+      });
+      if (batch === 999) throw codedError("user_delete_failed");
+    }
+  });
+  return cleared;
+}
+
+function loadTargetDevices(app, userId) {
+  return app.findRecordsByFilter(
+    "store_user_devices",
+    "user = {:userId}",
+    "id",
+    200,
+    0,
+    { userId }
+  ) || [];
+}
+
+function clearDeviceAuditRelations(app, devices) {
+  devices.forEach((device) => {
+    for (let batch = 0; batch < 1000; batch += 1) {
+      const records = app.findRecordsByFilter(
+        "store_user_device_audit",
+        "device = {:deviceId}",
+        "id",
+        200,
+        0,
+        { deviceId: device.id }
+      ) || [];
+      if (!records.length) break;
+      records.forEach((record) => {
+        record.set("device", "");
+        app.save(record);
+      });
+      if (batch === 999) throw codedError("user_delete_failed");
+    }
+  });
 }
 
 function mapAudit(record) {
@@ -719,6 +855,8 @@ function statusForCode(code) {
     "password_confirmation_mismatch",
     "password_reuse_not_allowed",
     "current_password_invalid",
+    "delete_confirmation_mismatch",
+    "delete_reason_required",
   ].includes(code)) return 400;
   return 500;
 }
@@ -1367,6 +1505,79 @@ function handleRevokeSessions(e) {
   }
 }
 
+function handleDelete(e) {
+  const context = requestContext(e, parseDeletePayload);
+  if (context.error) return sendError(e, context.error, "user_delete_failed");
+  let response = null;
+  try {
+    $app.runInTransaction((txApp) => {
+      const loaded = loadTransactionContext(txApp, context.actorId, context.parsed.storeId);
+      const user = loadTarget(txApp, context.parsed.userId, loaded.store.id);
+      const snapshot = userSnapshot(user);
+      if (context.parsed.confirmationEmail !== snapshot.email) {
+        throw codedError("delete_confirmation_mismatch");
+      }
+      if (!context.parsed.reason) throw codedError("delete_reason_required");
+
+      const counts = storeUserCounts(txApp, loaded.store.id);
+      if (projectedActiveAdminsAfterDeletion(counts, snapshot) < 1) {
+        throw codedError("last_active_admin_required");
+      }
+
+      const deletionAudit = createAudit(
+        txApp,
+        loaded.store,
+        loaded.actor,
+        user,
+        "user_deleted",
+        snapshot,
+        null,
+        true,
+        context.parsed.reason
+      );
+
+      const devices = loadTargetDevices(txApp, user.id);
+      assertNoUnexpectedRequiredUserRelations(txApp, user.id);
+      clearOptionalUserRelations(txApp, user.id);
+      clearDeviceAuditRelations(txApp, devices);
+
+      devices.forEach((device) => {
+        try {
+          txApp.delete(device);
+        } catch (_) {
+          throw codedError("user_delete_failed");
+        }
+      });
+      if (loadTargetDevices(txApp, user.id).length) throw codedError("user_delete_failed");
+
+      try {
+        txApp.delete(user);
+      } catch (_) {
+        throw codedError("user_delete_failed");
+      }
+      if (findRecord(txApp, "users", context.parsed.userId)) throw codedError("user_delete_failed");
+      const persistedAudit = findRecord(txApp, AUDIT_COLLECTION, deletionAudit.id);
+      if (!persistedAudit || recordString(persistedAudit, "action") !== "user_deleted") {
+        throw codedError("user_delete_failed");
+      }
+
+      response = {
+        ok: true,
+        user_deleted: true,
+        user_id: context.parsed.userId,
+        sessions_revoked: true,
+      };
+    });
+    if (!response) throw codedError("user_delete_failed");
+    return e.json(200, response);
+  } catch (error) {
+    const code = errorCode(error);
+    if (code) return sendError(e, code, "user_delete_failed");
+    logFailure("delete");
+    return sendError(e, "", "user_delete_failed");
+  }
+}
+
 function handleAudit(e) {
   const context = requestContext(e, parseAuditPayload);
   if (context.error) return sendError(e, context.error, "audit_load_failed");
@@ -1449,6 +1660,7 @@ module.exports = {
   handleAudit,
   handleChangePassword,
   handleCreate,
+  handleDelete,
   handleDetail,
   handleList,
   handleRevokeSessions,
@@ -1465,6 +1677,7 @@ module.exports = {
   normalizeEmail,
   parseAuditPayload,
   parseCreatePayload,
+  parseDeletePayload,
   parseListPayload,
   parsePasswordPayload,
   parseRevokePayload,
@@ -1476,6 +1689,7 @@ module.exports = {
   planAccess,
   passwordMeetsCollectionPolicy,
   projectedCounts,
+  projectedActiveAdminsAfterDeletion,
   rejectSuspendedAuthentication,
   requireAuthenticatedUser,
   sanitizeUser,

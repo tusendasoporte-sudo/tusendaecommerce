@@ -12,8 +12,9 @@ interface Props {
     pagination: { page: number; per_page: number; total_items: number; total_pages: number };
   };
   initialFilters: { search: string; role: string; status: string };
+  showDeletedMessage?: boolean;
 }
-const { store, initialData, initialFilters } = Astro.props;
+const { store, initialData, initialFilters, showDeletedMessage = false } = Astro.props;
 const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
 const relative = (value?: string) => {
   const time = new Date(value || '').getTime();
@@ -32,6 +33,7 @@ const plan = initialData.plan;
 ---
 
 <section class="master-users-page" data-master-users-root data-store-id={store.id}>
+  {showDeletedMessage && <p class="master-user-success" role="status" aria-live="polite">Usuario eliminado permanentemente.</p>}
   <header class="master-users-heading">
     <div class="master-users-identity">
       <span class="master-users-avatar" aria-hidden="true">{initials(store.name)}</span>
@@ -130,6 +132,7 @@ const plan = initialData.plan;
     let totalPages = Number(pagination?.dataset.totalPages || 1);
     let timer = 0;
     let transientSecret = '';
+    let issuedSecret = '';
     const escape = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] || char);
     const userInitials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0,2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
     const relative = (value: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
@@ -168,15 +171,22 @@ const plan = initialData.plan;
     const createForm = root.querySelector<HTMLFormElement>('[data-create-form]'); const password = document.getElementById('users-create-password') as HTMLInputElement | null; const confirm = document.getElementById('users-create-confirm') as HTMLInputElement | null; const createMessage = root.querySelector<HTMLElement>('[data-create-message]'); const secretResult = root.querySelector<HTMLElement>('[data-create-secret-result]'); const secretNode = root.querySelector<HTMLElement>('[data-create-secret]'); const submit = root.querySelector<HTMLButtonElement>('[data-create-submit]');
     function randomIndex(max: number) { const values = new Uint32Array(1); crypto.getRandomValues(values); return values[0] % max; }
     function generateSecret() { const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ','abcdefghijkmnopqrstuvwxyz','23456789','!@#$%&*+-_']; const all = groups.join(''); const chars = groups.map((group) => group[randomIndex(group.length)]); while (chars.length < 18) chars.push(all[randomIndex(all.length)]); for (let i = chars.length - 1; i > 0; i--) { const j = randomIndex(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; } return chars.join(''); }
-    root.querySelector('[data-create-generate]')?.addEventListener('click', () => { transientSecret = generateSecret(); if (password) password.value = transientSecret; if (confirm) confirm.value = transientSecret; });
-    root.querySelector('[data-create-toggle]')?.addEventListener('click', (event) => { if (!password || !confirm) return; const visible = password.type === 'text'; password.type = confirm.type = visible ? 'password' : 'text'; (event.currentTarget as HTMLButtonElement).textContent = visible ? 'Mostrar' : 'Ocultar'; });
-    async function copySecret() { const value = transientSecret || password?.value || ''; if (value) await navigator.clipboard.writeText(value); }
-    root.querySelector('[data-create-copy]')?.addEventListener('click', copySecret); root.querySelector('[data-result-copy]')?.addEventListener('click', copySecret);
-    submit?.addEventListener('click', async () => { if (!createForm || !password || !confirm) return; const data = new FormData(createForm); transientSecret = password.value; if (!transientSecret || transientSecret.length < 8) { if (createMessage) createMessage.textContent = 'La contraseña temporal no cumple la política de seguridad.'; return; } if (transientSecret !== confirm.value) { if (createMessage) createMessage.textContent = 'Las contraseñas temporales no coinciden.'; return; } submit.disabled = true; if (createMessage) createMessage.textContent = ''; try { await createStoreUserFromMaster({ store: storeId, email: String(data.get('email') || ''), password: transientSecret, display_name: String(data.get('display_name') || ''), phone: String(data.get('phone') || ''), role: String(data.get('role') || ''), status: String(data.get('status') || ''), reason: String(data.get('reason') || '') }); Array.from(createForm.elements).forEach((element) => { if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) element.disabled = true; }); if (secretNode) secretNode.textContent = transientSecret; if (secretResult) secretResult.hidden = false; submit.hidden = true; await load(1); } catch (error) { if (createMessage) createMessage.textContent = getMasterStoreUserErrorMessage(error); } finally { submit.disabled = false; } });
-    dialog?.addEventListener('close', () => { transientSecret = ''; if (secretNode) secretNode.textContent = ''; if (secretResult) secretResult.hidden = true; createForm?.reset(); Array.from(createForm?.elements || []).forEach((element) => { if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) element.disabled = false; }); if (password) password.type = 'password'; if (confirm) confirm.type = 'password'; if (submit) submit.hidden = false; if (createMessage) createMessage.textContent = ''; });
+    const editableSecretControls = () => Array.from(createForm?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | HTMLButtonElement>('input, select, textarea, [data-create-generate], [data-create-toggle], [data-create-copy]') || []);
+    password?.addEventListener('input', () => { if (!issuedSecret) transientSecret = password.value; });
+    root.querySelector('[data-create-generate]')?.addEventListener('click', () => { if (issuedSecret) return; transientSecret = generateSecret(); if (password) password.value = transientSecret; if (confirm) confirm.value = transientSecret; });
+    root.querySelector('[data-create-toggle]')?.addEventListener('click', (event) => { if (issuedSecret || !password || !confirm) return; const visible = password.type === 'text'; password.type = confirm.type = visible ? 'password' : 'text'; (event.currentTarget as HTMLButtonElement).textContent = visible ? 'Mostrar' : 'Ocultar'; });
+    async function copyTransientSecret() { if (!issuedSecret && transientSecret) await navigator.clipboard.writeText(transientSecret); }
+    async function copyIssuedSecret() { if (issuedSecret) await navigator.clipboard.writeText(issuedSecret); }
+    root.querySelector('[data-create-copy]')?.addEventListener('click', copyTransientSecret);
+    root.querySelector('[data-result-copy]')?.addEventListener('click', copyIssuedSecret);
+    submit?.addEventListener('click', async () => { if (!createForm || !password || !confirm || issuedSecret) return; const data = new FormData(createForm); transientSecret = password.value; const submittedSecret = transientSecret; if (!submittedSecret || submittedSecret.length < 8) { if (createMessage) createMessage.textContent = 'La contraseña temporal no cumple la política de seguridad.'; return; } if (submittedSecret !== confirm.value) { if (createMessage) createMessage.textContent = 'Las contraseñas temporales no coinciden.'; return; } submit.disabled = true; if (createMessage) createMessage.textContent = ''; try { await createStoreUserFromMaster({ store: storeId, email: String(data.get('email') || ''), password: submittedSecret, display_name: String(data.get('display_name') || ''), phone: String(data.get('phone') || ''), role: String(data.get('role') || ''), status: String(data.get('status') || ''), reason: String(data.get('reason') || '') }); issuedSecret = submittedSecret; transientSecret = ''; editableSecretControls().forEach((element) => { element.disabled = true; }); if (secretNode) secretNode.textContent = issuedSecret; if (secretResult) secretResult.hidden = false; submit.hidden = true; await load(1); } catch (error) { if (createMessage) createMessage.textContent = getMasterStoreUserErrorMessage(error); } finally { submit.disabled = false; } });
+    dialog?.addEventListener('close', () => { issuedSecret = ''; transientSecret = ''; if (secretNode) secretNode.textContent = ''; if (secretResult) secretResult.hidden = true; createForm?.reset(); editableSecretControls().forEach((element) => { element.disabled = false; }); if (password) { password.type = 'password'; password.value = ''; } if (confirm) { confirm.type = 'password'; confirm.value = ''; } const toggle = root.querySelector<HTMLButtonElement>('[data-create-toggle]'); if (toggle) toggle.textContent = 'Mostrar'; if (submit) { submit.hidden = false; submit.disabled = false; } if (createMessage) createMessage.textContent = ''; });
     if (new URLSearchParams(location.search).get('create') === '1') {
       window.PZMasterDialog?.open('master-users-create-dialog');
       const clean = new URL(location.href); clean.searchParams.delete('create'); history.replaceState(null, '', `${clean.pathname}${clean.search}`);
+    }
+    if (new URLSearchParams(location.search).get('deleted') === '1') {
+      const clean = new URL(location.href); clean.searchParams.delete('deleted'); history.replaceState(null, '', `${clean.pathname}${clean.search}`);
     }
   }
 </script>

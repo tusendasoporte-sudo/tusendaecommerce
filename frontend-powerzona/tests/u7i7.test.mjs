@@ -18,6 +18,9 @@ const temporaryPage = read('src/pages/t/[storeSlug]/admin/change-temporary-passw
 const login = read('src/pages/login.astro');
 const sidebar = read('src/components/admin/AdminSidebar.astro');
 const masterSidebar = read('src/components/master/MasterSidebar.astro');
+const actionsController = read('src/components/master/MasterStoreActionsController.astro');
+const listPage = read('src/pages/master/stores/[storeId]/users/index.astro');
+const usersStyles = read('src/styles/master-users.css');
 
 test('AuthUser y helpers puros modelan el cambio temporal', () => {
   assert.match(auth, /must_change_password\?: boolean/);
@@ -80,14 +83,23 @@ test('creacion temporal genera con Web Crypto muestra copia y limpia el secreto'
   assert.match(listView, /data-create-secret-result/);
   assert.match(listView, /transientSecret = ''/);
   assert.match(listView, /secretNode\.textContent = ''/);
+  assert.match(listView, /let issuedSecret = ''/);
+  assert.match(listView, /issuedSecret = submittedSecret/);
+  assert.match(listView, /copyIssuedSecret/);
+  assert.match(listView, /navigator\.clipboard\.writeText\(issuedSecret\)/);
+  assert.doesNotMatch(listView, /transientSecret \|\| password/);
+  assert.match(listView, /toggle\.textContent = 'Mostrar'/);
   for (const storage of ['localStorage', 'sessionStorage']) assert.doesNotMatch(listView, new RegExp(storage));
 });
 
-test('detalle protege ultimo admin y no ofrece eliminacion', () => {
+test('detalle protege ultimo admin y ofrece eliminacion critica solo en zona de peligro', () => {
   assert.match(detailView, /único Administrador activo/);
   assert.match(detailView, /disabled=\{detail\.protection\.last_active_admin\}/);
   assert.match(detailView, /last_active_admin_required|Debe existir al menos/);
-  assert.doesNotMatch(detailView, /Eliminar usuario|deleteMasterStoreUser/);
+  assert.match(detailView, /Zona de peligro/);
+  assert.match(detailView, /deleteMasterStoreUser/);
+  assert.match(detailView, /Crea o activa otro Administrador/);
+  assert.match(detailView, /data-open-delete-user disabled=\{deleteBlocked\}/);
 });
 
 test('restablecimiento Master es temporal cierra sesiones y limpia secreto', () => {
@@ -96,6 +108,10 @@ test('restablecimiento Master es temporal cierra sesiones y limpia secreto', () 
   assert.match(detailView, /todas las sesiones actuales dejarán de funcionar/);
   assert.match(detailView, /issueMasterTemporaryPassword/);
   assert.match(detailView, /resetSecret\.textContent = ''/);
+  assert.match(detailView, /issuedSecret = submittedSecret/);
+  assert.match(detailView, /navigator\.clipboard\.writeText\(issuedSecret\)/);
+  assert.doesNotMatch(detailView, /transientSecret \|\| resetPassword/);
+  assert.match(detailView, /resetToggle\.textContent = 'Mostrar'/);
   assert.doesNotMatch(detailView, /establecer contraseña permanente|excepto la actual/i);
 });
 
@@ -108,7 +124,55 @@ test('dispositivos no inventan IP ubicacion ni identificadores visibles', () => 
 test('auditoria combinada traduce eventos y carga incremental sin duplicados', () => {
   for (const action of ['user_created', 'user_updated', 'temporary_password_issued', 'forced_password_changed', 'sessions_revoked', 'self_password_changed', 'device_authorized', 'device_revoked']) assert.match(detailView, new RegExp(action));
   assert.match(detailView, /new Set/);
+  assert.match(detailView, /data-audit-id=\{`\$\{item\.auditNamespace\}:\$\{item\.id\}`\}/);
+  assert.match(detailView, /userAuditHasMore/);
+  assert.match(detailView, /deviceAuditHasMore/);
+  assert.match(detailView, /rebuildCombinedAudit/);
+  for (const label of ['Email', 'Nombre', 'Teléfono', 'Rol', 'Estado']) assert.match(detailView, new RegExp(`'${label}'`));
   assert.match(detailView, /Cargar más/);
+});
+
+test('revocar dispositivo recarga detalle lista contador y ambas auditorias', () => {
+  assert.match(detailView, /refreshAfterDeviceRevocation/);
+  assert.match(detailView, /getMasterStoreUserDetail/);
+  assert.match(detailView, /currentDeviceFilter/);
+  assert.match(detailView, /getMasterStoreUserAudit/);
+  assert.match(detailView, /getMasterUserDeviceAudit/);
+  assert.match(detailView, /data-summary-device-count/);
+  assert.match(detailView, /data-summary-last-activity/);
+  assert.match(detailView, /data-summary-active-count/);
+});
+
+test('existe un solo formulario oficial de creacion y create=1 abre una vez', () => {
+  assert.equal((listView.match(/data-create-form/g) || []).length, 2);
+  assert.doesNotMatch(actionsController, /master-user-dialog|data-user-form|data-user-save|createStoreUserFromMaster/);
+  assert.match(actionsController, /users\?create=1/);
+  assert.match(listView, /get\('create'\) === '1'/);
+  assert.match(listView, /searchParams\.delete\('create'\)/);
+});
+
+test('eliminacion exige email motivo checkbox usa endpoint privado y redirige', () => {
+  assert.match(detailView, /data-delete-user-reason/);
+  assert.match(detailView, /deleteEmail\?\.value !== userEmail/);
+  assert.match(detailView, /data-delete-user-confirm/);
+  assert.match(detailView, /Entiendo que esta acción es permanente/);
+  assert.match(detailView, /aria-live="assertive"/);
+  assert.match(detailView, /addEventListener\('cancel'.*deletingUser/s);
+  assert.match(detailView, /users\?deleted=1/);
+  assert.match(masterUsers, /deleteMasterStoreUser/);
+  assert.match(masterUsers, /confirmation_email/);
+  assert.doesNotMatch(masterUsers, /collection\(['"]users['"]\)\.delete/);
+  assert.match(listView, /Usuario eliminado permanentemente\./);
+  assert.match(listPage, /page > initialData\.pagination\.total_pages/);
+});
+
+test('zona critica conserva reglas responsive sin anchos rigidos ni scroll horizontal propio', () => {
+  assert.match(usersStyles, /\.master-users-page \{[^}]*min-width: 0/);
+  assert.match(usersStyles, /\.master-delete-user-summary span \{[^}]*min-width: 0/);
+  assert.match(usersStyles, /@media \(max-width: 820px\)/);
+  assert.match(usersStyles, /@media \(max-width: 480px\)/);
+  assert.match(usersStyles, /\[data-delete-user-submit\] \{ width: 100%/);
+  assert.doesNotMatch(usersStyles, /overflow-x:\s*(auto|scroll)/);
 });
 
 test('Mi cuenta es exclusiva del Admin y exige reautenticacion total', () => {
