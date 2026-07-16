@@ -1,5 +1,10 @@
 import PocketBase from 'pocketbase';
 import { pb } from './pocketbase';
+import {
+  ADMIN_DEVICE_HEADER_NAME,
+  ensureAdminDeviceToken,
+  readAdminDeviceToken,
+} from './adminDevice';
 
 export const AUTH_COLLECTION = 'users';
 export const AUTH_COOKIE_NAME = 'pb_auth';
@@ -49,7 +54,9 @@ export async function refreshAuthFromCookie(cookieHeader = '') {
 
   try {
     if (authPb.authStore.isValid) {
-      await authPb.collection(AUTH_COLLECTION).authRefresh();
+      const token = readAdminDeviceToken(cookieHeader);
+      const headers = token ? { [ADMIN_DEVICE_HEADER_NAME]: token } : {};
+      await authPb.collection(AUTH_COLLECTION).authRefresh({ headers });
     }
   } catch (_) {
     authPb.authStore.clear();
@@ -125,7 +132,10 @@ export function getRedirectPathForRole(user: AuthUser | null | undefined) {
 }
 
 export async function loginWithPassword(email: string, password: string) {
-  const result = await pb.collection(AUTH_COLLECTION).authWithPassword(email, password);
+  const token = ensureAdminDeviceToken();
+  const result = await pb.collection(AUTH_COLLECTION).authWithPassword(email, password, {
+    headers: { [ADMIN_DEVICE_HEADER_NAME]: token },
+  });
   return result.record as AuthUser;
 }
 

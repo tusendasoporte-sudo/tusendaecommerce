@@ -90,7 +90,10 @@ test('sanitiza usuarios sin password, hash, tokenKey ni username interno', () =>
   }), 1);
   assert.deepEqual(Object.keys(sanitized), [
     'id', 'email', 'display_name', 'phone', 'role', 'status', 'created', 'updated', 'is_last_active_admin',
+    'authorized_device_count', 'device_limit',
   ]);
+  assert.equal(sanitized.authorized_device_count, 0);
+  assert.equal(sanitized.device_limit, 0);
   for (const forbidden of ['password', 'hash', 'tokenKey', 'username', 'verified']) {
     assert.equal(forbidden in sanitized, false);
   }

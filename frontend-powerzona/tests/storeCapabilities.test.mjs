@@ -64,7 +64,8 @@ test('Free y Básico conservan las reglas numéricas y booleanas oficiales', () 
 
 test('Premium incluye límites ampliados y las cuatro capacidades booleanas', () => {
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_active_users', { now: NOW }).limit, 4);
-  assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_store_devices', { now: NOW }).limit, 8);
+  assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_devices_per_user', { now: NOW }).limit, 5);
+  assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_store_devices', { now: NOW }).limit, 20);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_product_images', { now: NOW }).limit, 4);
   for (const key of STORE_CAPABILITY_KEYS.slice(4)) {
     assert.equal(hasStoreCapability(store('premium'), key, { now: NOW }), true);

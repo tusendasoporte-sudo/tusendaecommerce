@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const management = require('../pb_hooks/pz_store_plan_management_lib.js');
@@ -126,7 +128,7 @@ test('uso vacío o inválido siempre devuelve enteros no negativos', () => {
   assert.deepEqual(management.normalizeUsageRow({
     activeUsers: -2,
     storeDevices: '3',
-    maxDevicesPerCustomer: undefined,
+    maxDevicesPerUser: undefined,
   }), {
     active_users: 0,
     store_devices: 3,
@@ -136,4 +138,13 @@ test('uso vacío o inválido siempre devuelve enteros no negativos', () => {
 
 test('safeIsoDate rechaza DateTime inválido en vez de inventar una fecha', () => {
   assert.throws(() => management.safeIsoDate(pocketBaseDateTime('inválida')), /invalid_date/);
+});
+
+test('Plan y límites cuenta solo dispositivos administrativos autorizados', () => {
+  const source = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_plan_management_lib.js'), 'utf8');
+  const usage = source.slice(source.indexOf('function storeUsage'), source.indexOf('function mapAudit'));
+  assert.match(usage, /store_user_devices/);
+  assert.match(usage, /COUNT\(DISTINCT device_digest\)/);
+  assert.match(usage, /status = 'authorized'/);
+  assert.equal(usage.includes('store_customer_devices'), false);
 });

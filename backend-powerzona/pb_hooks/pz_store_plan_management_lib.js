@@ -103,9 +103,13 @@ function planManagementReady(app) {
   try {
     const stores = app.findCollectionByNameOrId("stores");
     const audit = app.findCollectionByNameOrId(AUDIT_COLLECTION);
+    const devices = app.findCollectionByNameOrId("store_user_devices");
     return !!stores.fields.getByName("plan_is_permanent")
       && !!audit.fields.getByName("previous_is_permanent")
-      && !!audit.fields.getByName("new_is_permanent");
+      && !!audit.fields.getByName("new_is_permanent")
+      && devices.listRule === null
+      && devices.viewRule === null
+      && !!devices.fields.getByName("device_digest");
   } catch (_) {
     return false;
   }
@@ -129,14 +133,15 @@ function storeUsage(app, storeId) {
         WHERE store = {:storeId}
           AND status = 'active'
           AND role IN ('store_admin', 'store_staff')) AS activeUsers,
-      (SELECT COUNT(*) FROM store_customer_devices WHERE store = {:storeId}) AS storeDevices,
+      (SELECT COUNT(DISTINCT device_digest) FROM store_user_devices
+        WHERE store = {:storeId} AND status = 'authorized') AS storeDevices,
       COALESCE((SELECT MAX(deviceCount) FROM (
         SELECT COUNT(*) AS deviceCount
-        FROM store_customer_devices
-        WHERE store = {:storeId}
-        GROUP BY customer
-      )), 0) AS maxDevicesPerCustomer
-  `, { storeId }, { activeUsers: 0, storeDevices: 0, maxDevicesPerCustomer: 0 }) || {};
+        FROM store_user_devices
+        WHERE store = {:storeId} AND status = 'authorized'
+        GROUP BY user
+      )), 0) AS maxDevicesPerUser
+  `, { storeId }, { activeUsers: 0, storeDevices: 0, maxDevicesPerUser: 0 }) || {};
   return normalizeUsageRow(row);
 }
 
@@ -202,7 +207,7 @@ function normalizeUsageRow(row) {
   return {
     active_users: nonNegativeInteger(source.activeUsers),
     store_devices: nonNegativeInteger(source.storeDevices),
-    max_devices_per_user: nonNegativeInteger(source.maxDevicesPerCustomer),
+    max_devices_per_user: nonNegativeInteger(source.maxDevicesPerUser),
   };
 }
 

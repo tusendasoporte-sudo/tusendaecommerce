@@ -374,6 +374,34 @@ function storeUserCounts(app, storeId) {
   };
 }
 
+function storeAuthorizedDeviceCounts(app, storeId) {
+  const rows = queryRows(app, `
+    SELECT user AS userId, COUNT(*) AS deviceCount
+    FROM store_user_devices
+    WHERE store = {:storeId} AND status = 'authorized'
+    GROUP BY user
+  `, { storeId }, { userId: "", deviceCount: 0 });
+  const result = {};
+  rows.forEach((row) => {
+    const userId = String(row.userId || "").trim();
+    if (isValidRecordId(userId)) result[userId] = countValue(row.deviceCount);
+  });
+  return result;
+}
+
+function storeDeviceLimit(store) {
+  const access = capabilities.resolveStoreCapabilityAccess(
+    store,
+    "max_devices_per_user",
+    { enforceExpiration: false }
+  );
+  if (!access || !Number.isInteger(access.limit) || access.limit < 0
+    || ["invalid_plan_data", "invalid_capability"].includes(access.reason)) {
+    throw codedError("user_management_unavailable");
+  }
+  return access.limit;
+}
+
 function planAccess(store, requiredAmount) {
   const options = { enforceExpiration: false };
   if (Number.isInteger(requiredAmount)) options.requiredAmount = requiredAmount;
@@ -417,8 +445,9 @@ function userSnapshot(record) {
   };
 }
 
-function sanitizeUser(record, activeAdminCount) {
+function sanitizeUser(record, activeAdminCount, deviceSummary) {
   const snapshot = userSnapshot(record);
+  const devices = deviceSummary && typeof deviceSummary === "object" ? deviceSummary : {};
   return {
     id: String(record.id || recordString(record, "id")).slice(0, 15),
     email: snapshot.email,
@@ -431,7 +460,18 @@ function sanitizeUser(record, activeAdminCount) {
     is_last_active_admin: snapshot.role === "store_admin"
       && snapshot.status === "active"
       && activeAdminCount === 1,
+    authorized_device_count: countValue(devices.authorized_device_count),
+    device_limit: countValue(devices.device_limit),
   };
+}
+
+function sanitizeUsersWithDevices(app, store, records, activeAdminCount) {
+  const counts = storeAuthorizedDeviceCounts(app, store.id);
+  const deviceLimit = storeDeviceLimit(store);
+  return records.map((record) => sanitizeUser(record, activeAdminCount, {
+    authorized_device_count: counts[record.id] || 0,
+    device_limit: deviceLimit,
+  }));
 }
 
 function targetBelongsToStore(record, storeId) {
@@ -774,7 +814,7 @@ function handleList(e) {
       ok: true,
       store: storeResponse(store),
       plan: planResponse(store, counts),
-      users: result.records.map((record) => sanitizeUser(record, counts.active_admins)),
+      users: sanitizeUsersWithDevices($app, store, result.records, counts.active_admins),
       pagination: {
         page: context.parsed.page,
         per_page: context.parsed.perPage,
@@ -803,8 +843,10 @@ function handleDetail(e) {
       ok: true,
       store: storeResponse(store),
       plan: planResponse(store, counts),
-      user: sanitizeUser(user, counts.active_admins),
-      protection: { last_active_admin: sanitizeUser(user, counts.active_admins).is_last_active_admin },
+      user: sanitizeUsersWithDevices($app, store, [user], counts.active_admins)[0],
+      protection: {
+        last_active_admin: sanitizeUser(user, counts.active_admins).is_last_active_admin,
+      },
     });
   } catch (error) {
     const code = errorCode(error);
@@ -848,7 +890,10 @@ function handleCreate(e) {
       };
       response = {
         ok: true,
-        user: sanitizeUser(user, nextCounts.active_admins),
+        user: sanitizeUser(user, nextCounts.active_admins, {
+          authorized_device_count: 0,
+          device_limit: storeDeviceLimit(loaded.store),
+        }),
         plan: {
           code: access.plan,
           state: access.plan_state,
@@ -920,7 +965,7 @@ function handleUpdate(e) {
       };
       response = {
         ok: true,
-        user: sanitizeUser(user, nextCounts.active_admins),
+        user: sanitizeUsersWithDevices(txApp, loaded.store, [user], nextCounts.active_admins)[0],
         plan: planResponse(loaded.store, nextCounts),
         sessions_revoked: sessionsRevoked,
       };
@@ -1082,7 +1127,12 @@ function handleAudit(e) {
     return e.json(200, {
       ok: true,
       store: storeResponse(store),
-      user: sanitizeUser(user, storeUserCounts($app, store.id).active_admins),
+      user: sanitizeUsersWithDevices(
+        $app,
+        store,
+        [user],
+        storeUserCounts($app, store.id).active_admins
+      )[0],
       audit: records.map(mapAudit),
       pagination: {
         page: context.parsed.page,
@@ -1141,8 +1191,11 @@ module.exports = {
   rejectSuspendedAuthentication,
   requireAuthenticatedUser,
   sanitizeUser,
+  sanitizeUsersWithDevices,
   selfPasswordSuccessResponse,
   sessionsMustBeRevoked,
+  storeAuthorizedDeviceCounts,
+  storeDeviceLimit,
   targetBelongsToStore,
   updateRevokesSessions,
   validateSelfPasswordCredentials,

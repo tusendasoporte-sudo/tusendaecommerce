@@ -5,8 +5,8 @@ const plans = require('../pb_hooks/pz_store_plans_lib.js');
 
 const BASIC_CAPABILITIES = {
   max_active_users: 1,
-  max_devices_per_user: 2,
-  max_store_devices: 2,
+  max_devices_per_user: 5,
+  max_store_devices: 5,
   max_product_images: 2,
   raffles_enabled: false,
   security_enabled: false,
@@ -16,8 +16,8 @@ const BASIC_CAPABILITIES = {
 
 const PREMIUM_CAPABILITIES = {
   max_active_users: 4,
-  max_devices_per_user: 2,
-  max_store_devices: 8,
+  max_devices_per_user: 5,
+  max_store_devices: 20,
   max_product_images: 4,
   raffles_enabled: true,
   security_enabled: true,
@@ -62,19 +62,19 @@ test('la matriz de Premium es exacta', () => {
   });
 });
 
-test('Free permite un usuario, dos dispositivos y dos fotos', () => {
+test('Free permite un usuario, cinco dispositivos y dos fotos', () => {
   const capabilities = plans.getPlanCapabilities('free');
   assert.equal(capabilities.max_active_users, 1);
-  assert.equal(capabilities.max_devices_per_user, 2);
-  assert.equal(capabilities.max_store_devices, 2);
+  assert.equal(capabilities.max_devices_per_user, 5);
+  assert.equal(capabilities.max_store_devices, 5);
   assert.equal(capabilities.max_product_images, 2);
 });
 
-test('Premium permite cuatro usuarios, ocho dispositivos y cuatro fotos', () => {
+test('Premium permite cuatro usuarios, cinco dispositivos por usuario, veinte por tienda y cuatro fotos', () => {
   const capabilities = plans.getPlanCapabilities('premium');
   assert.equal(capabilities.max_active_users, 4);
-  assert.equal(capabilities.max_devices_per_user, 2);
-  assert.equal(capabilities.max_store_devices, 8);
+  assert.equal(capabilities.max_devices_per_user, 5);
+  assert.equal(capabilities.max_store_devices, 20);
   assert.equal(capabilities.max_product_images, 4);
 });
 

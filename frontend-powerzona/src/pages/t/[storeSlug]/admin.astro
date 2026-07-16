@@ -118,6 +118,7 @@ function storeInitials(name: string) {
 
   <script>
     import { exportAuthCookie, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout } from '../../../lib/auth';
+    import { getAdminDeviceLoginMessage } from '../../../lib/adminDevice';
 
     const form = document.getElementById('store-login-form') as HTMLFormElement | null;
     const button = document.getElementById('store-login-button') as HTMLButtonElement | null;
@@ -173,8 +174,8 @@ function storeInitials(name: string) {
 
         document.cookie = exportAuthCookie();
         window.location.assign(window.location.pathname);
-      } catch (_) {
-        showError('Email o contrasena incorrectos.');
+      } catch (error) {
+        showError(getAdminDeviceLoginMessage(error));
       } finally {
         button.disabled = false;
         button.textContent = 'Entrar al panel';

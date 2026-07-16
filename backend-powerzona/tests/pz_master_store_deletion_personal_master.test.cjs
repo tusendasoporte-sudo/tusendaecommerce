@@ -86,6 +86,8 @@ test('preserva la notificación personal y la cuenta Master relacionada por erro
     product_variations: 0,
     raffle_entries: 0,
     visitor_pageviews: 0,
+    user_device_audit: 0,
+    user_devices: 0,
     customer_links: 0,
     customer_devices: 0,
     customer_phones: 0,

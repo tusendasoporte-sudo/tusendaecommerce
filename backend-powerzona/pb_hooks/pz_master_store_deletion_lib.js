@@ -12,7 +12,8 @@ const COUNT_KEYS = [
   "store_users", "products", "product_variations", "orders", "order_items", "gifts",
   "promotions", "coupons", "coupon_usages", "raffles", "raffle_entries", "reviews",
   "analytics_events", "store_notifications", "customers", "customer_phones",
-  "customer_devices", "customer_links", "visitor_sessions", "visitor_pageviews",
+  "customer_devices", "customer_links", "user_devices", "user_device_audit",
+  "visitor_sessions", "visitor_pageviews",
   "security_events", "security_blocks", "security_audit", "security_settings",
   "price_watches", "price_events", "master_notifications", "settings", "categories",
   "subcategories", "currencies", "shipping_zones", "visual_items",
@@ -24,6 +25,7 @@ const DIRECT_STORE_COLLECTIONS = [
   "store_analytics_events", "store_customer_devices", "store_customer_links",
   "store_customer_phones", "store_customers", "store_notifications", "store_security_audit",
   "store_security_blocks", "store_security_events", "store_security_settings",
+  "store_user_device_audit", "store_user_devices",
   "store_visitor_pageviews", "store_visitor_sessions", "store_visual_items", "subcategories",
   "users",
 ];
@@ -212,7 +214,8 @@ function buildCounts(app, storeId) {
       target_users AS (
         SELECT id FROM users
         WHERE store = {:storeId} AND role IN ('store_admin', 'store_staff')
-      )
+      ),
+      target_user_devices AS (SELECT id FROM store_user_devices WHERE store = {:storeId})
     SELECT
       (SELECT COUNT(*) FROM target_users) AS storeUsers,
       (SELECT COUNT(*) FROM target_products) AS products,
@@ -234,6 +237,8 @@ function buildCounts(app, storeId) {
       (SELECT COUNT(*) FROM store_customer_phones WHERE store = {:storeId}) AS customerPhones,
       (SELECT COUNT(*) FROM store_customer_devices WHERE store = {:storeId}) AS customerDevices,
       (SELECT COUNT(*) FROM store_customer_links WHERE store = {:storeId}) AS customerLinks,
+      (SELECT COUNT(*) FROM target_user_devices) AS userDevices,
+      (SELECT COUNT(*) FROM store_user_device_audit WHERE store = {:storeId}) AS userDeviceAudit,
       (SELECT COUNT(*) FROM target_sessions) AS visitorSessions,
       (SELECT COUNT(*) FROM store_visitor_pageviews
         WHERE store = {:storeId} OR visitor_session IN (SELECT id FROM target_sessions)) AS visitorPageviews,
@@ -260,6 +265,7 @@ function buildCounts(app, storeId) {
     gifts: 0, promotions: 0, coupons: 0, couponUsages: 0, raffles: 0,
     raffleEntries: 0, reviews: 0, analyticsEvents: 0, storeNotifications: 0,
     customers: 0, customerPhones: 0, customerDevices: 0, customerLinks: 0,
+    userDevices: 0, userDeviceAudit: 0,
     visitorSessions: 0, visitorPageviews: 0, securityEvents: 0, securityBlocks: 0,
     securityAudit: 0, securitySettings: 0, priceWatches: 0, priceEvents: 0,
     masterNotifications: 0, settings: 0, categories: 0, subcategories: 0,
@@ -284,6 +290,8 @@ function buildCounts(app, storeId) {
     customer_phones: nonNegativeInteger(row.customerPhones),
     customer_devices: nonNegativeInteger(row.customerDevices),
     customer_links: nonNegativeInteger(row.customerLinks),
+    user_devices: nonNegativeInteger(row.userDevices),
+    user_device_audit: nonNegativeInteger(row.userDeviceAudit),
     visitor_sessions: nonNegativeInteger(row.visitorSessions),
     visitor_pageviews: nonNegativeInteger(row.visitorPageviews),
     security_events: nonNegativeInteger(row.securityEvents),
@@ -342,7 +350,8 @@ function findCrossStoreReferences(app, storeId) {
       target_users AS (
         SELECT id FROM users
         WHERE store = {:storeId} AND role IN ('store_admin', 'store_staff')
-      )
+      ),
+      target_user_devices AS (SELECT id FROM store_user_devices WHERE store = {:storeId})
     SELECT 'products' AS category, COUNT(DISTINCT p.id) AS referenceCount
       FROM products p
       WHERE COALESCE(p.store, '') != {:storeId}
@@ -451,6 +460,20 @@ function findCrossStoreReferences(app, storeId) {
           link.canonical_customer IN (SELECT id FROM target_customers)
           OR link.linked_customer IN (SELECT id FROM target_customers)
           OR link.created_by IN (SELECT id FROM target_users)
+        )
+    UNION ALL
+    SELECT 'user_devices', COUNT(DISTINCT device.id)
+      FROM store_user_devices device
+      WHERE COALESCE(device.store, '') != {:storeId}
+        AND device.user IN (SELECT id FROM target_users)
+    UNION ALL
+    SELECT 'user_device_audit', COUNT(DISTINCT audit.id)
+      FROM store_user_device_audit audit
+      WHERE COALESCE(audit.store, '') != {:storeId}
+        AND (
+          audit.target_user IN (SELECT id FROM target_users)
+          OR audit.actor IN (SELECT id FROM target_users)
+          OR audit.device IN (SELECT id FROM target_user_devices)
         )
     UNION ALL
     SELECT 'visitor_sessions', COUNT(DISTINCT session.id)
@@ -596,6 +619,8 @@ function executeDeletionPlan(app, storeId, counts) {
   deleted += deleteExpected(app, "product_variations", "product.store = {:storeId}", storeId, counts.product_variations);
   deleted += deleteExpected(app, "raffle_entries", "store = {:storeId} || raffle.store = {:storeId}", storeId, counts.raffle_entries);
   deleted += deleteExpected(app, "store_visitor_pageviews", "store = {:storeId} || visitor_session.store = {:storeId}", storeId, counts.visitor_pageviews);
+  deleted += deleteExpected(app, "store_user_device_audit", "store = {:storeId}", storeId, counts.user_device_audit);
+  deleted += deleteExpected(app, "store_user_devices", "store = {:storeId}", storeId, counts.user_devices);
   deleted += deleteExpected(app, "store_customer_links", "store = {:storeId}", storeId, counts.customer_links);
   deleted += deleteExpected(app, "store_customer_devices", "store = {:storeId}", storeId, counts.customer_devices);
   deleted += deleteExpected(app, "store_customer_phones", "store = {:storeId}", storeId, counts.customer_phones);
@@ -650,7 +675,7 @@ function createCompletedAudit(app, store, actor, counts, preservedMasters, total
     counts,
     preserved_master_users: preservedMasters,
     batch_size: BATCH_SIZE,
-    inventory_version: "V80-M7D1",
+    inventory_version: "V91-D7A6",
   });
   audit.set("total_records", totalRecords);
   audit.set("status", "completed");

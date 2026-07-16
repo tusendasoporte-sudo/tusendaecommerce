@@ -45,6 +45,7 @@ import Layout from '../layouts/Layout.astro';
 
   <script>
     import { exportAuthCookie, getRedirectPathForRole, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout } from '../lib/auth';
+    import { getAdminDeviceLoginMessage } from '../lib/adminDevice';
 
     const form = document.getElementById('login-form') as HTMLFormElement | null;
     const button = document.getElementById('login-button') as HTMLButtonElement | null;
@@ -106,8 +107,8 @@ import Layout from '../layouts/Layout.astro';
 
         document.cookie = exportAuthCookie();
         window.location.assign(getRedirectPathForRole(user));
-      } catch (_) {
-        showError('Email o contrasena incorrectos.');
+      } catch (error) {
+        showError(getAdminDeviceLoginMessage(error));
       } finally {
         button.disabled = false;
         button.textContent = 'Entrar al panel';

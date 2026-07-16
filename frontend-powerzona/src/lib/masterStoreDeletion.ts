@@ -17,6 +17,8 @@ export type MasterStoreDeleteCounts = {
   customer_phones: number;
   customer_devices: number;
   customer_links: number;
+  user_devices: number;
+  user_device_audit: number;
   visitor_sessions: number;
   visitor_pageviews: number;
   security_events: number;
@@ -71,7 +73,8 @@ const COUNT_KEYS: Array<Exclude<keyof MasterStoreDeleteCounts, 'total_records'>>
   'store_users', 'products', 'product_variations', 'orders', 'order_items', 'gifts',
   'promotions', 'coupons', 'coupon_usages', 'raffles', 'raffle_entries', 'reviews',
   'analytics_events', 'store_notifications', 'customers', 'customer_phones',
-  'customer_devices', 'customer_links', 'visitor_sessions', 'visitor_pageviews',
+  'customer_devices', 'customer_links', 'user_devices', 'user_device_audit',
+  'visitor_sessions', 'visitor_pageviews',
   'security_events', 'security_blocks', 'security_audit', 'security_settings',
   'price_watches', 'price_events', 'master_notifications', 'settings', 'categories',
   'subcategories', 'currencies', 'shipping_zones', 'visual_items',

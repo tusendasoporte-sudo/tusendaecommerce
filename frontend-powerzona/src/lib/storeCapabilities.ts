@@ -66,8 +66,8 @@ type CapabilityMatrix = Record<StoreCapabilityPlan, Record<StoreCapabilityKey, n
 
 const BASIC_CAPABILITIES = Object.freeze({
   max_active_users: 1,
-  max_devices_per_user: 2,
-  max_store_devices: 2,
+  max_devices_per_user: 5,
+  max_store_devices: 5,
   max_product_images: 2,
   raffles_enabled: false,
   security_enabled: false,
@@ -80,8 +80,8 @@ const STORE_PLAN_CAPABILITIES: CapabilityMatrix = Object.freeze({
   basic: BASIC_CAPABILITIES,
   premium: Object.freeze({
     max_active_users: 4,
-    max_devices_per_user: 2,
-    max_store_devices: 8,
+    max_devices_per_user: 5,
+    max_store_devices: 20,
     max_product_images: 4,
     raffles_enabled: true,
     security_enabled: true,

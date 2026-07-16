@@ -109,7 +109,8 @@ test('PowerZona Premium permanente conserva todas las capacidades Premium', () =
   for (const key of capabilities.BOOLEAN_CAPABILITY_KEYS) {
     assert.equal(capabilities.hasStoreCapability(permanent, key, { now: NOW }), true);
   }
-  assert.equal(capabilities.resolveStoreCapabilityAccess(permanent, 'max_store_devices', { now: NOW }).limit, 8);
+  assert.equal(capabilities.resolveStoreCapabilityAccess(permanent, 'max_devices_per_user', { now: NOW }).limit, 5);
+  assert.equal(capabilities.resolveStoreCapabilityAccess(permanent, 'max_store_devices', { now: NOW }).limit, 20);
 });
 
 test('un plan permanente ignora una fecha residual vencida', () => {
