@@ -1,6 +1,7 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HAVANA_TIME_ZONE = "America/Havana";
 const FREE_TRIAL_DAYS = 30;
 const STORE_PLAN_AUDIT_COLLECTION = "store_plan_audit";
 const MASTER_ROLE = "master_admin";
@@ -146,13 +147,56 @@ function addCalendarMonthsClamped(date, months) {
   return result;
 }
 
+function havanaCivilParts(date) {
+  try {
+    if (typeof Intl !== "undefined" && typeof Intl.DateTimeFormat === "function") {
+      const parts = new Intl.DateTimeFormat("en-US-u-ca-gregory-nu-latn", {
+        timeZone: HAVANA_TIME_ZONE,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(date);
+      const mapped = {};
+      parts.forEach((part) => {
+        if (part.type !== "literal") mapped[part.type] = Number(part.value);
+      });
+      if (mapped.year && mapped.month && mapped.day) {
+        return { year: mapped.year, month: mapped.month, day: mapped.day };
+      }
+    }
+  } catch (_) {}
+
+  const year = date.getUTCFullYear();
+  const marchFirst = new Date(Date.UTC(year, 2, 1));
+  const secondSundayMarch = 8 + ((7 - marchFirst.getUTCDay()) % 7);
+  const novemberFirst = new Date(Date.UTC(year, 10, 1));
+  const firstSundayNovember = 1 + ((7 - novemberFirst.getUTCDay()) % 7);
+  const dstStart = Date.UTC(year, 2, secondSundayMarch, 5, 0, 0);
+  const dstEnd = Date.UTC(year, 10, firstSundayNovember, 5, 0, 0);
+  const offsetHours = date.getTime() >= dstStart && date.getTime() < dstEnd ? -4 : -5;
+  const shifted = new Date(date.getTime() + offsetHours * 60 * 60 * 1000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  };
+}
+
+function getHavanaCivilDateKey(value) {
+  const parts = havanaCivilParts(parseDate(value, false));
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+function civilDayNumber(value) {
+  const parts = havanaCivilParts(parseDate(value, false));
+  return Math.floor(Date.UTC(parts.year, parts.month - 1, parts.day) / DAY_MS);
+}
+
 function getDaysRemaining(expiresAt, now) {
   const expiration = parseDate(expiresAt, true);
   if (!expiration) return null;
   const current = now === undefined ? new Date() : parseDate(now, false);
-  const difference = expiration.getTime() - current.getTime();
-  if (difference <= 0) return 0;
-  return Math.ceil(difference / DAY_MS);
+  return Math.max(0, civilDayNumber(expiration) - civilDayNumber(current));
 }
 
 function recordValue(record, key) {
@@ -185,13 +229,15 @@ function resolvePlanState(storeOrValues, now) {
   const startedAt = normalizedIso(recordValue(storeOrValues, "plan_started_at"));
   const expiresAt = normalizedIso(recordValue(storeOrValues, "plan_expires_at"));
   const isPermanent = booleanValue(recordValue(storeOrValues, "plan_is_permanent"));
-  const daysRemaining = isPermanent ? null : getDaysRemaining(expiresAt, now);
+  const current = now === undefined ? new Date() : parseDate(now, false);
+  const expiration = isPermanent ? null : parseDate(expiresAt, true);
+  const daysRemaining = isPermanent ? null : getDaysRemaining(expiration, current);
 
   let state = "unconfigured";
   if (isPermanent) {
     state = "active";
-  } else if (expiresAt) {
-    if (daysRemaining === 0) state = "expired";
+  } else if (expiration) {
+    if (expiration.getTime() <= current.getTime()) state = "expired";
     else if (daysRemaining <= 3) state = "critical";
     else if (daysRemaining <= 7) state = "expiring";
     else state = "active";
@@ -398,6 +444,7 @@ function handleStoreCreate(e) {
 }
 
 module.exports = {
+  HAVANA_TIME_ZONE,
   MONTHLY_PRICES_USD,
   PERMANENT_PLAN_CODES,
   PLAN_CODES,
@@ -408,6 +455,7 @@ module.exports = {
   buildPlanChangeValues,
   buildPlanRenewalValues,
   getDaysRemaining,
+  getHavanaCivilDateKey,
   getMonthlyPriceUsd,
   getPlanCapabilities,
   getPlanDefinition,

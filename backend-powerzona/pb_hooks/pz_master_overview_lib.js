@@ -260,7 +260,7 @@ function queryActivity(app, storeId, limit) {
       UNION ALL
       SELECT 'user_created', 'Usuario de tienda creado',
         CASE WHEN u.role = 'store_staff' THEN 'Rol: Empleado' ELSE 'Rol: Administrador' END,
-        u.created, '/master/stores/' || u.store
+        u.created, '/master/stores/' || u.store || '/users'
       FROM users u WHERE (u.role = 'store_admin' OR u.role = 'store_staff') ${userClause}
     ) activity
     ORDER BY datetime(created) DESC

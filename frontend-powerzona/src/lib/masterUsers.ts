@@ -31,6 +31,7 @@ export type MasterStoreUserPlan = {
   is_configured: boolean;
   is_expired: boolean;
   max_active_users: number;
+  total_users: number;
   active_users: number;
   active_admins: number;
   active_staff: number;
@@ -140,6 +141,36 @@ function mapMasterStoreUser(user: any): MasterStoreUser {
     is_last_active_admin: user.is_last_active_admin === true,
     authorized_device_count: Math.max(0, Number(user.authorized_device_count || 0)),
     device_limit: Math.max(0, Number(user.device_limit || 0)),
+  };
+}
+
+function nonNegativeInteger(value: unknown, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
+}
+
+export function normalizeMasterStoreUserPlan(value: any): MasterStoreUserPlan {
+  const totalUsers = Object.prototype.hasOwnProperty.call(value || {}, 'total_users')
+    ? nonNegativeInteger(value.total_users, 11)
+    : 11;
+  return {
+    code: String(value?.code || ''),
+    state: String(value?.state || 'unconfigured'),
+    is_permanent: value?.is_permanent === true,
+    is_configured: value?.is_configured === true,
+    is_expired: value?.is_expired === true,
+    max_active_users: nonNegativeInteger(value?.max_active_users),
+    total_users: totalUsers,
+    active_users: nonNegativeInteger(value?.active_users),
+    active_admins: nonNegativeInteger(value?.active_admins),
+    active_staff: nonNegativeInteger(value?.active_staff),
+    over_limit: value?.over_limit === true,
+    store_authorized_device_count: nonNegativeInteger(value?.store_authorized_device_count),
+    max_store_devices: nonNegativeInteger(value?.max_store_devices),
+    max_devices_per_user: nonNegativeInteger(value?.max_devices_per_user),
+    security_enabled: value?.security_enabled === true,
+    raffles_enabled: value?.raffles_enabled === true,
+    landing_qr_enabled: value?.landing_qr_enabled === true,
   };
 }
 
@@ -310,17 +341,17 @@ export function getMasterStoreUserErrorMessage(error: unknown) {
   return messages[getMasterStoreUserErrorCode(error)] || 'No se pudo completar la operación.';
 }
 
-export function listMasterStoreUsers(
+export async function listMasterStoreUsers(
   storeId: string,
   options: { page?: number; perPage?: number; search?: string; role?: 'all' | StoreUserRole; status?: 'all' | 'active' | 'suspended'; signal?: AbortSignal } = {},
   client = pb,
 ) {
   requireMasterClient(client);
-  return postMasterStoreUsers<{
+  const result = await postMasterStoreUsers<{
     ok: true;
     store: { id: string; name: string; slug: string; status: string };
-    plan: MasterStoreUserPlan;
-    users: MasterStoreUser[];
+    plan: any;
+    users: any[];
     pagination: MasterStoreUserPagination;
   }>(client, 'list', {
     store_id: storeId,
@@ -330,17 +361,27 @@ export function listMasterStoreUsers(
     role: options.role || 'all',
     status: options.status || 'all',
   }, options.signal);
+  return {
+    ...result,
+    plan: normalizeMasterStoreUserPlan(result.plan),
+    users: result.users.map((user) => mapMasterStoreUser({ ...user, store: storeId })),
+  };
 }
 
-export function getMasterStoreUserDetail(storeId: string, userId: string, client = pb) {
+export async function getMasterStoreUserDetail(storeId: string, userId: string, client = pb) {
   requireMasterClient(client);
-  return postMasterStoreUsers<{
+  const result = await postMasterStoreUsers<{
     ok: true;
     store: { id: string; name: string; slug: string; status: string };
-    plan: MasterStoreUserPlan;
-    user: MasterStoreUser;
+    plan: any;
+    user: any;
     protection: { last_active_admin: boolean };
   }>(client, 'detail', { store_id: storeId, user_id: userId });
+  return {
+    ...result,
+    plan: normalizeMasterStoreUserPlan(result.plan),
+    user: mapMasterStoreUser({ ...result.user, store: storeId }),
+  };
 }
 
 export function updateMasterStoreUser(

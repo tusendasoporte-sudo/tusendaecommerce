@@ -6,6 +6,7 @@ import MasterShell from '../../../../../components/master/MasterShell.astro';
 import MasterStoreUsersView from '../../../../../components/master/MasterStoreUsersView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../../lib/auth';
 import { listMasterStoreUsers } from '../../../../../lib/masterUsers';
+import { shouldUseCompactStoreUserList } from '../../../../../lib/masterUserListMode';
 import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
 import '../../../../../styles/master-users.css';
 
@@ -39,6 +40,21 @@ try {
 } catch (_) {
   return Astro.redirect('/master/stores');
 }
+const compactMode = shouldUseCompactStoreUserList(initialData.plan.total_users);
+if (compactMode && (
+  Astro.url.searchParams.has('page')
+  || Astro.url.searchParams.has('search')
+  || Astro.url.searchParams.has('role')
+  || (Astro.url.searchParams.has('status') && (status === 'all' || statusParam !== status))
+)) {
+  const compactUrl = new URL(Astro.url);
+  compactUrl.searchParams.delete('page');
+  compactUrl.searchParams.delete('search');
+  compactUrl.searchParams.delete('role');
+  if (status === 'all') compactUrl.searchParams.delete('status');
+  else compactUrl.searchParams.set('status', status);
+  return Astro.redirect(`${compactUrl.pathname}${compactUrl.search}`);
+}
 if (page > initialData.pagination.total_pages) {
   const fallback = new URL(Astro.url);
   fallback.searchParams.set('page', String(Math.max(1, initialData.pagination.total_pages)));
@@ -57,6 +73,6 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
 
 <Layout isMaster={true}>
   <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Usuarios" currentStore={currentStore}>
-    <MasterStoreUsersView store={currentStore} initialData={initialData} initialFilters={{ search, role, status }} showDeletedMessage={showDeletedMessage} />
+    <MasterStoreUsersView store={currentStore} initialData={initialData} initialFilters={{ search: compactMode ? '' : search, role: compactMode ? 'all' : role, status }} showDeletedMessage={showDeletedMessage} />
   </MasterShell>
 </Layout>

@@ -11,6 +11,7 @@ const USER_STATUSES = Object.freeze(["active", "suspended"]);
 const AUDIT_COLLECTION = "store_user_audit";
 const TEMPORARY_PASSWORD_TTL_HOURS = 72;
 const TEMPORARY_PASSWORD_TTL_MS = TEMPORARY_PASSWORD_TTL_HOURS * 60 * 60 * 1000;
+const COMPACT_USER_LIST_LIMIT = 10;
 const AUDIT_ACTIONS = Object.freeze([
   "user_created",
   "user_updated",
@@ -531,6 +532,7 @@ function planResponse(store, counts, app) {
     is_configured: access.is_configured,
     is_expired: access.is_expired,
     max_active_users: access.limit,
+    total_users: counts.total_users,
     active_users: counts.active_users,
     over_limit: counts.active_users > access.limit,
     active_admins: counts.active_admins,
@@ -1065,6 +1067,17 @@ function listStoreUsers(app, parsed) {
   };
 }
 
+function listPayloadForStoreCounts(parsed, counts) {
+  if (counts.total_users > COMPACT_USER_LIST_LIMIT) return parsed;
+  return {
+    ...parsed,
+    page: 1,
+    perPage: COMPACT_USER_LIST_LIMIT,
+    search: "",
+    role: "all",
+  };
+}
+
 function handleSummary(e) {
   const context = requestContext(e, parseSummaryPayload);
   if (context.error) return sendError(e, context.error, "user_management_unavailable");
@@ -1094,16 +1107,17 @@ function handleList(e) {
     const store = findRecord($app, "stores", context.parsed.storeId);
     if (!store) return sendError(e, "store_not_found", "user_management_unavailable");
     const counts = storeUserCounts($app, store.id);
-    const result = listStoreUsers($app, context.parsed);
-    const totalPages = Math.max(1, Math.ceil(result.totalItems / context.parsed.perPage));
+    const listPayload = listPayloadForStoreCounts(context.parsed, counts);
+    const result = listStoreUsers($app, listPayload);
+    const totalPages = Math.max(1, Math.ceil(result.totalItems / listPayload.perPage));
     return e.json(200, {
       ok: true,
       store: storeResponse(store),
       plan: planResponse(store, counts, $app),
       users: sanitizeUsersWithDevices($app, store, result.records, counts.active_admins),
       pagination: {
-        page: context.parsed.page,
-        per_page: context.parsed.perPage,
+        page: listPayload.page,
+        per_page: listPayload.perPage,
         total_items: result.totalItems,
         total_pages: totalPages,
       },
@@ -1673,6 +1687,7 @@ module.exports = {
   isActiveStoreAdmin,
   isActiveStoreUser,
   isValidRecordId,
+  listPayloadForStoreCounts,
   mapAudit,
   normalizeEmail,
   parseAuditPayload,
@@ -1687,6 +1702,7 @@ module.exports = {
   parseTargetPayload,
   parseUpdatePayload,
   planAccess,
+  planResponse,
   passwordMeetsCollectionPolicy,
   projectedCounts,
   projectedActiveAdminsAfterDeletion,

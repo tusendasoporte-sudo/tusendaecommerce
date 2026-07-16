@@ -176,6 +176,40 @@ test('una fecha pasada devuelve expired', () => {
   assert.equal(state.isExpired, true);
 });
 
+test('los días restantes usan fechas civiles de Cuba y no horas completas', () => {
+  const expiration = '2026-08-15T14:00:00.000Z';
+  const cases = [
+    ['2026-07-15T18:00:00.000Z', 31],
+    ['2026-07-16T04:01:00.000Z', 30],
+    ['2026-08-14T16:00:00.000Z', 1],
+    ['2026-08-15T13:59:59.000Z', 0],
+  ];
+  for (const [now, expected] of cases) {
+    assert.equal(plans.getDaysRemaining(expiration, now), expected);
+  }
+});
+
+test('vence hoy permanece crítico hasta el timestamp exacto', () => {
+  const values = { plan: 'basic', plan_expires_at: '2026-08-15T14:00:00.000Z' };
+  const before = plans.resolvePlanState(values, '2026-08-15T13:59:59.000Z');
+  const expired = plans.resolvePlanState(values, '2026-08-15T14:00:00.000Z');
+  assert.equal(before.days_remaining, 0);
+  assert.equal(before.state, 'critical');
+  assert.equal(before.isExpired, false);
+  assert.equal(expired.days_remaining, 0);
+  assert.equal(expired.state, 'expired');
+  assert.equal(expired.isExpired, true);
+});
+
+test('la clave civil de Cuba es estable en UTC, fin de mes, febrero y horario de verano', () => {
+  assert.equal(plans.HAVANA_TIME_ZONE, 'America/Havana');
+  assert.equal(plans.getHavanaCivilDateKey('2026-07-16T03:59:59.000Z'), '2026-07-15');
+  assert.equal(plans.getHavanaCivilDateKey('2026-07-16T04:00:00.000Z'), '2026-07-16');
+  assert.equal(plans.getDaysRemaining('2028-03-01T17:00:00.000Z', '2028-02-28T17:00:00.000Z'), 2);
+  assert.equal(plans.getDaysRemaining('2026-04-01T16:00:00.000Z', '2026-03-31T16:00:00.000Z'), 1);
+  assert.equal(plans.getDaysRemaining('2026-03-10T16:00:00.000Z', '2026-03-07T17:00:00.000Z'), 3);
+});
+
 test('Free genera exactamente treinta días', () => {
   const expiration = plans.addFreeTrialDays(NOW);
   assert.equal(expiration.getTime() - NOW.getTime(), 30 * 24 * 60 * 60 * 1000);

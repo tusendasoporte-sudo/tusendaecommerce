@@ -34,6 +34,7 @@ export type StorePlanPresentation = {
 };
 
 const DAY_MS = 86_400_000;
+export const STORE_PLAN_TIME_ZONE = 'America/Havana';
 
 const PLAN_COPY: Record<Exclude<StorePlanCode, ''>, {
   title: string;
@@ -99,10 +100,60 @@ function normalizeDate(value: unknown): Date | null {
   return Number.isFinite(parsed.getTime()) ? parsed : null;
 }
 
-function formatUtcDate(value: Date) {
-  const day = String(value.getUTCDate()).padStart(2, '0');
-  const month = String(value.getUTCMonth() + 1).padStart(2, '0');
-  return `${day}/${month}/${value.getUTCFullYear()}`;
+function havanaCivilParts(value: Date) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+      timeZone: STORE_PLAN_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(value);
+    const mapped: Record<string, number> = {};
+    parts.forEach((part) => {
+      if (part.type !== 'literal') mapped[part.type] = Number(part.value);
+    });
+    if (mapped.year && mapped.month && mapped.day) {
+      return { year: mapped.year, month: mapped.month, day: mapped.day };
+    }
+  } catch (_) {}
+
+  const year = value.getUTCFullYear();
+  const marchFirst = new Date(Date.UTC(year, 2, 1));
+  const secondSundayMarch = 8 + ((7 - marchFirst.getUTCDay()) % 7);
+  const novemberFirst = new Date(Date.UTC(year, 10, 1));
+  const firstSundayNovember = 1 + ((7 - novemberFirst.getUTCDay()) % 7);
+  const dstStart = Date.UTC(year, 2, secondSundayMarch, 5, 0, 0);
+  const dstEnd = Date.UTC(year, 10, firstSundayNovember, 5, 0, 0);
+  const offsetHours = value.getTime() >= dstStart && value.getTime() < dstEnd ? -4 : -5;
+  const shifted = new Date(value.getTime() + offsetHours * 60 * 60 * 1000);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  };
+}
+
+export function getHavanaCivilDateKey(value: unknown) {
+  const date = normalizeDate(value);
+  if (!date) return null;
+  const parts = havanaCivilParts(date);
+  return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
+
+export function getHavanaCalendarDaysRemaining(expiresAt: unknown, now: unknown) {
+  const expiration = normalizeDate(expiresAt);
+  const current = normalizeDate(now);
+  if (!expiration || !current) return null;
+  const expirationParts = havanaCivilParts(expiration);
+  const currentParts = havanaCivilParts(current);
+  const expirationDay = Date.UTC(expirationParts.year, expirationParts.month - 1, expirationParts.day);
+  const currentDay = Date.UTC(currentParts.year, currentParts.month - 1, currentParts.day);
+  return Math.max(0, Math.floor((expirationDay - currentDay) / DAY_MS));
+}
+
+function formatHavanaDate(value: Date) {
+  const parts = havanaCivilParts(value);
+  return `${String(parts.day).padStart(2, '0')}/${String(parts.month).padStart(2, '0')}/${parts.year}`;
 }
 
 function pluralDays(days: number) {
@@ -169,12 +220,12 @@ export function resolveStorePlanPresentation(
   const current = normalizeDate(now);
   if (!current) return unconfigured(code);
 
-  const difference = expiration.getTime() - current.getTime();
-  const daysRemaining = difference <= 0 ? 0 : Math.ceil(difference / DAY_MS);
+  const daysRemaining = getHavanaCalendarDaysRemaining(expiration, current);
+  if (daysRemaining === null) return unconfigured(code);
   const expiresAt = expiration.toISOString();
 
-  if (daysRemaining === 0) {
-    const expiredDate = formatUtcDate(expiration);
+  if (expiration.getTime() <= current.getTime()) {
+    const expiredDate = formatHavanaDate(expiration);
     const detail = `Venció el ${expiredDate}`;
     return {
       code,
@@ -200,10 +251,12 @@ export function resolveStorePlanPresentation(
     : daysRemaining <= 7
       ? 'expiring'
       : 'active';
-  const detail = state === 'critical'
-    ? `Vence en ${pluralDays(daysRemaining)}`
+  const detail = daysRemaining === 0
+    ? 'Vence hoy'
+    : state === 'critical'
+      ? `Vence en ${pluralDays(daysRemaining)}`
     : `${pluralDays(daysRemaining)} restantes`;
-  const compactDetail = pluralDays(daysRemaining);
+  const compactDetail = daysRemaining === 0 ? 'Vence hoy' : pluralDays(daysRemaining);
   const tone = state === 'critical' ? 'danger' : state === 'expiring' ? 'warning' : copy.tone;
   const dotTone = state === 'critical' ? 'danger' : state === 'expiring' ? 'warning' : copy.dotTone;
   const stateLabel = state === 'critical' ? 'estado crítico' : state === 'expiring' ? 'próximo a vencer' : 'activo';

@@ -37,6 +37,7 @@ function createApp() {
 }
 
 const sourcePath = path.resolve(__dirname, '../pb_hooks/pz_master_overview_lib.js');
+const source = fs.readFileSync(sourcePath, 'utf8');
 const sandbox = {
   module: { exports: {} },
   exports: {},
@@ -54,7 +55,7 @@ const sandbox = {
     return rows;
   },
 };
-vm.runInNewContext(fs.readFileSync(sourcePath, 'utf8'), sandbox, { filename: sourcePath });
+vm.runInNewContext(source, sandbox, { filename: sourcePath });
 
 const endpoints = [
   ['global', sandbox.module.exports.handleGlobalOverview, { period_days: 30 }],
@@ -94,3 +95,17 @@ for (const [name, handler, body] of endpoints) {
     });
   }
 }
+
+test('user_created abre el listado exacto de usuarios y conserva safeActionUrl', () => {
+  assert.match(
+    source,
+    /SELECT 'user_created'[\s\S]*?u\.created, '\/master\/stores\/' \|\| u\.store \|\| '\/users'/,
+  );
+  assert.match(source, /action_url: safeActionUrl\(row\.actionUrl\)/);
+});
+
+test('las demás actividades recientes conservan sus destinos', () => {
+  assert.match(source, /'\/master\/analytics\/' \|\| store \|\| '\/orders\/' \|\| id/);
+  assert.match(source, /'\/master\/security\/' \|\| store/);
+  assert.match(source, /'\/master\/products\/' \|\| store \|\| '\/' \|\| product_id_snapshot/);
+});

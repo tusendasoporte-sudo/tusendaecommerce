@@ -2,6 +2,7 @@
 import MasterDialog from './MasterDialog.astro';
 import MasterIcon from './MasterIcon.astro';
 import type { MasterStoreUser, MasterStoreUserPlan } from '../../lib/masterUsers';
+import { formatMasterStoreUserCount, shouldUseCompactStoreUserList } from '../../lib/masterUserListMode';
 import type { MasterShellStoreContext } from './MasterShell.astro';
 
 interface Props {
@@ -30,10 +31,11 @@ const accessLabel = (user: MasterStoreUser) => user.temporary_password_state ===
   : user.temporary_password_state === 'pending' ? 'Cambio de contraseña pendiente' : '';
 const detailHref = (userId: string) => `/master/stores/${encodeURIComponent(store.id)}/users/${encodeURIComponent(userId)}`;
 const plan = initialData.plan;
+const compactMode = shouldUseCompactStoreUserList(plan.total_users);
 ---
 
-<section class="master-users-page" data-master-users-root data-store-id={store.id}>
-  {showDeletedMessage && <p class="master-user-success" role="status" aria-live="polite">Usuario eliminado permanentemente.</p>}
+<section class="master-users-page" data-master-users-root data-store-id={store.id} data-compact-mode={String(compactMode)}>
+  {showDeletedMessage && <p class="master-user-success" role="status" aria-live="polite" data-deleted-success>Usuario eliminado permanentemente.</p>}
   <header class="master-users-heading">
     <div class="master-users-identity">
       <span class="master-users-avatar" aria-hidden="true">{initials(store.name)}</span>
@@ -61,12 +63,20 @@ const plan = initialData.plan;
 
   <div class="master-users-layout">
     <section class="master-card" aria-label="Listado de usuarios">
-      <div class="master-users-filters">
-        <input class="master-users-control" type="search" value={initialFilters.search} placeholder="Buscar por nombre, email o teléfono" aria-label="Buscar usuarios" data-users-search />
-        <select class="master-users-control" aria-label="Filtrar por rol" data-users-role><option value="all" selected={initialFilters.role === 'all'}>Todos los roles</option><option value="store_admin" selected={initialFilters.role === 'store_admin'}>Administrador</option><option value="store_staff" selected={initialFilters.role === 'store_staff'}>Personal</option></select>
-        <select class="master-users-control" aria-label="Filtrar por estado" data-users-status><option value="all" selected={initialFilters.status === 'all'}>Todos los estados</option><option value="active" selected={initialFilters.status === 'active'}>Activo</option><option value="suspended" selected={initialFilters.status === 'suspended'}>Suspendido</option></select>
-        <button class="master-btn master-btn--secondary" type="button" data-users-clear>Limpiar</button>
-      </div>
+      {compactMode ? (
+        <div class="master-users-compact-filter" role="group" aria-label="Filtrar usuarios por estado" data-users-compact-status>
+          <button class:list={['master-users-status-tab', { 'is-active': initialFilters.status === 'all' }]} type="button" aria-pressed={initialFilters.status === 'all'} data-users-status-tab data-status-value="all">Todos</button>
+          <button class:list={['master-users-status-tab', { 'is-active': initialFilters.status === 'active' }]} type="button" aria-pressed={initialFilters.status === 'active'} data-users-status-tab data-status-value="active">Activos</button>
+          <button class:list={['master-users-status-tab', { 'is-active': initialFilters.status === 'suspended' }]} type="button" aria-pressed={initialFilters.status === 'suspended'} data-users-status-tab data-status-value="suspended">Suspendidos</button>
+        </div>
+      ) : (
+        <div class="master-users-filters">
+          <input class="master-users-control" type="search" value={initialFilters.search} placeholder="Buscar por nombre, email o teléfono" aria-label="Buscar usuarios" data-users-search />
+          <select class="master-users-control" aria-label="Filtrar por rol" data-users-role><option value="all" selected={initialFilters.role === 'all'}>Todos los roles</option><option value="store_admin" selected={initialFilters.role === 'store_admin'}>Administrador</option><option value="store_staff" selected={initialFilters.role === 'store_staff'}>Personal</option></select>
+          <select class="master-users-control" aria-label="Filtrar por estado" data-users-status><option value="all" selected={initialFilters.status === 'all'}>Todos los estados</option><option value="active" selected={initialFilters.status === 'active'}>Activo</option><option value="suspended" selected={initialFilters.status === 'suspended'}>Suspendido</option></select>
+          <button class="master-btn master-btn--secondary" type="button" data-users-clear>Limpiar</button>
+        </div>
+      )}
 
       <div data-users-results aria-live="polite">
         {initialData.users.length ? (
@@ -78,7 +88,13 @@ const plan = initialData.plan;
           </>
         ) : <div class="master-users-empty"><strong>Todavía no hay usuarios en esta tienda.</strong><button class="master-btn master-btn--primary" type="button" data-open-create-user>Crear usuario</button></div>}
       </div>
-      <footer class="master-users-pagination" data-users-pagination data-page={initialData.pagination.page} data-total-pages={initialData.pagination.total_pages}><span data-users-count>{initialData.pagination.total_items} usuarios</span><div class="master-users-pages" data-users-pages></div><div><button class="master-btn master-btn--secondary" type="button" data-users-previous disabled={initialData.pagination.page <= 1}>Anterior</button> <button class="master-btn master-btn--secondary" type="button" data-users-next disabled={initialData.pagination.page >= initialData.pagination.total_pages}>Siguiente</button></div></footer>
+      <footer class:list={['master-users-pagination', { 'is-count-only': initialData.pagination.total_pages <= 1 }]} data-users-pagination data-page={initialData.pagination.page} data-total-pages={initialData.pagination.total_pages}>
+        <span data-users-count>{formatMasterStoreUserCount(initialData.pagination.total_items)}</span>
+        <div class="master-users-pagination__navigation" data-users-navigation hidden={initialData.pagination.total_pages <= 1}>
+          <div class="master-users-pages" data-users-pages></div>
+          <div><button class="master-btn master-btn--secondary" type="button" data-users-previous disabled={initialData.pagination.page <= 1}>Anterior</button> <button class="master-btn master-btn--secondary" type="button" data-users-next disabled={initialData.pagination.page >= initialData.pagination.total_pages}>Siguiente</button></div>
+        </div>
+      </footer>
     </section>
 
     <aside class="master-card master-users-plan">
@@ -116,16 +132,20 @@ const plan = initialData.plan;
 
 <script>
   import { createStoreUserFromMaster, getMasterStoreUserErrorMessage, listMasterStoreUsers } from '../../lib/masterUsers';
+  import { initializeDeletedSuccessNotice } from '../../lib/masterDeletedSuccessNotice';
+  import { formatMasterStoreUserCount, shouldUseCompactStoreUserList } from '../../lib/masterUserListMode';
   import { pb } from '../../lib/pocketbase';
   const root = document.querySelector<HTMLElement>('[data-master-users-root]');
   if (root) {
     if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     const storeId = root.dataset.storeId || '';
+    const compactMode = root.dataset.compactMode === 'true';
     const results = root.querySelector<HTMLElement>('[data-users-results]');
     const pagination = root.querySelector<HTMLElement>('[data-users-pagination]');
     const search = root.querySelector<HTMLInputElement>('[data-users-search]');
     const role = root.querySelector<HTMLSelectElement>('[data-users-role]');
     const status = root.querySelector<HTMLSelectElement>('[data-users-status]');
+    const statusTabs = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-users-status-tab]'));
     let requestSequence = 0;
     let activeController: AbortController | null = null;
     let currentPage = Number(pagination?.dataset.page || 1);
@@ -138,6 +158,9 @@ const plan = initialData.plan;
     const relative = (value: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
     const access = (user: any) => user.temporary_password_state === 'expired' ? '<em class="master-access-badge is-expired">Contraseña temporal vencida</em>' : user.temporary_password_state === 'pending' ? '<em class="master-access-badge">Cambio de contraseña pendiente</em>' : '';
     const href = (id: string) => `/master/stores/${encodeURIComponent(storeId)}/users/${encodeURIComponent(id)}`;
+    const currentStatus = () => compactMode
+      ? String(statusTabs.find((tab) => tab.getAttribute('aria-pressed') === 'true')?.dataset.statusValue || 'all')
+      : String(status?.value || 'all');
     function renderUsers(users: any[], deviceLimit: number) {
       if (!results) return;
       if (!users.length) { results.innerHTML = '<div class="master-users-empty"><strong>Todavía no hay usuarios en esta tienda.</strong><button class="master-btn master-btn--primary" type="button" data-open-create-user>Crear usuario</button></div>'; return; }
@@ -149,24 +172,26 @@ const plan = initialData.plan;
       const pages = root.querySelector<HTMLElement>('[data-users-pages]');
       if (pages) { const start = Math.max(1, page - 2); const end = Math.min(total, start + 4); pages.innerHTML = Array.from({ length: end - start + 1 }, (_, i) => start + i).map((item) => `<button class="master-users-page-btn${item === page ? ' is-active' : ''}" type="button" data-users-page="${item}" aria-label="Página ${item}">${item}</button>`).join(''); }
       const previous = root.querySelector<HTMLButtonElement>('[data-users-previous]'); const next = root.querySelector<HTMLButtonElement>('[data-users-next]'); if (previous) previous.disabled = page <= 1; if (next) next.disabled = page >= total;
+      const navigation = root.querySelector<HTMLElement>('[data-users-navigation]'); if (navigation) navigation.hidden = total <= 1; pagination?.classList.toggle('is-count-only', total <= 1);
     }
     async function load(page = 1) {
       const sequence = ++requestSequence; activeController?.abort(); activeController = new AbortController(); currentPage = page; if (results) results.innerHTML = '<div class="master-users-loading">Cargando usuarios…</div>';
       try {
-        const data = await listMasterStoreUsers(storeId, { page, perPage: 10, search: search?.value || '', role: (role?.value || 'all') as any, status: (status?.value || 'all') as any, signal: activeController.signal });
+        const data = await listMasterStoreUsers(storeId, { page, perPage: 10, search: compactMode ? '' : search?.value || '', role: (compactMode ? 'all' : role?.value || 'all') as any, status: currentStatus() as any, signal: activeController.signal });
         if (sequence !== requestSequence) return;
+        if (shouldUseCompactStoreUserList(data.plan.total_users) !== compactMode) { const next = new URL(location.href); next.searchParams.delete('page'); next.searchParams.delete('search'); next.searchParams.delete('role'); window.location.assign(`${next.pathname}${next.search}`); return; }
         totalPages = data.pagination.total_pages; renderUsers(data.users, data.plan.max_devices_per_user); renderPages(data.pagination.page, totalPages);
-        const count = root.querySelector<HTMLElement>('[data-users-count]'); if (count) count.textContent = `${data.pagination.total_items} usuarios`;
+        const count = root.querySelector<HTMLElement>('[data-users-count]'); if (count) count.textContent = formatMasterStoreUserCount(data.pagination.total_items);
         const metric = (selector: string, value: string) => { const node = root.querySelector<HTMLElement>(selector); if (node) node.textContent = value; };
         metric('[data-metric-active]', `${data.plan.active_users} / ${data.plan.max_active_users}`); metric('[data-metric-admins]', String(data.plan.active_admins)); metric('[data-metric-staff]', String(data.plan.active_staff)); metric('[data-metric-devices]', `${data.plan.store_authorized_device_count} / ${data.plan.max_store_devices}`);
-        const params = new URLSearchParams(); if (page > 1) params.set('page', String(page)); if (search?.value) params.set('search', search.value); if (role?.value && role.value !== 'all') params.set('role', role.value); if (status?.value && status.value !== 'all') params.set('status', status.value); history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
+        const params = new URLSearchParams(); if (!compactMode && page > 1) params.set('page', String(page)); if (!compactMode && search?.value) params.set('search', search.value); if (!compactMode && role?.value && role.value !== 'all') params.set('role', role.value); if (currentStatus() !== 'all') params.set('status', currentStatus()); history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
       } catch (error) { if ((error as any)?.name === 'AbortError' || sequence !== requestSequence) return; if (results) results.innerHTML = `<div class="master-users-empty"><strong>No se pudieron cargar los usuarios.</strong><button class="master-btn master-btn--secondary" type="button" data-users-retry>Reintentar</button><p>${escape(getMasterStoreUserErrorMessage(error))}</p></div>`; }
     }
     renderPages(currentPage, totalPages);
     search?.addEventListener('input', () => { window.clearTimeout(timer); timer = window.setTimeout(() => load(1), 320); });
     role?.addEventListener('change', () => load(1)); status?.addEventListener('change', () => load(1));
     root.querySelector('[data-users-clear]')?.addEventListener('click', () => { if (search) search.value = ''; if (role) role.value = 'all'; if (status) status.value = 'all'; load(1); });
-    root.addEventListener('click', (event) => { const target = event.target as Element; const pageButton = target.closest<HTMLElement>('[data-users-page]'); if (pageButton) load(Number(pageButton.dataset.usersPage || 1)); if (target.closest('[data-users-previous]')) load(Math.max(1, currentPage - 1)); if (target.closest('[data-users-next]')) load(Math.min(totalPages, currentPage + 1)); if (target.closest('[data-users-retry]')) load(currentPage); if (target.closest('[data-open-create-user]')) window.PZMasterDialog?.open('master-users-create-dialog', target.closest('button') as HTMLElement); });
+    root.addEventListener('click', (event) => { const target = event.target as Element; const statusTab = target.closest<HTMLButtonElement>('[data-users-status-tab]'); if (statusTab) { statusTabs.forEach((tab) => { const selected = tab === statusTab; tab.classList.toggle('is-active', selected); tab.setAttribute('aria-pressed', String(selected)); }); load(1); } const pageButton = target.closest<HTMLElement>('[data-users-page]'); if (pageButton) load(Number(pageButton.dataset.usersPage || 1)); if (target.closest('[data-users-previous]')) load(Math.max(1, currentPage - 1)); if (target.closest('[data-users-next]')) load(Math.min(totalPages, currentPage + 1)); if (target.closest('[data-users-retry]')) load(currentPage); if (target.closest('[data-open-create-user]')) window.PZMasterDialog?.open('master-users-create-dialog', target.closest('button') as HTMLElement); });
     const dialog = document.getElementById('master-users-create-dialog') as HTMLDialogElement | null;
     const createForm = root.querySelector<HTMLFormElement>('[data-create-form]'); const password = document.getElementById('users-create-password') as HTMLInputElement | null; const confirm = document.getElementById('users-create-confirm') as HTMLInputElement | null; const createMessage = root.querySelector<HTMLElement>('[data-create-message]'); const secretResult = root.querySelector<HTMLElement>('[data-create-secret-result]'); const secretNode = root.querySelector<HTMLElement>('[data-create-secret]'); const submit = root.querySelector<HTMLButtonElement>('[data-create-submit]');
     function randomIndex(max: number) { const values = new Uint32Array(1); crypto.getRandomValues(values); return values[0] % max; }
@@ -185,8 +210,6 @@ const plan = initialData.plan;
       window.PZMasterDialog?.open('master-users-create-dialog');
       const clean = new URL(location.href); clean.searchParams.delete('create'); history.replaceState(null, '', `${clean.pathname}${clean.search}`);
     }
-    if (new URLSearchParams(location.search).get('deleted') === '1') {
-      const clean = new URL(location.href); clean.searchParams.delete('deleted'); history.replaceState(null, '', `${clean.pathname}${clean.search}`);
-    }
+    initializeDeletedSuccessNotice(root);
   }
 </script>

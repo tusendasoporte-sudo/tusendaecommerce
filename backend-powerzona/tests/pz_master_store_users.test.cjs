@@ -47,6 +47,39 @@ function updatePayload(overrides = {}) {
   return { user_id: USER_ID, ...payload };
 }
 
+test('el plan sanitizado incluye el total real de cuentas sin filtros', () => {
+  const response = users.planResponse(store('premium'), {
+    total_users: 10,
+    active_users: 4,
+    active_admins: 2,
+    active_staff: 2,
+  }, null);
+  assert.equal(response.total_users, 10);
+  assert.equal(response.active_users, 4);
+  assert.equal(Object.prototype.hasOwnProperty.call(response, 'total_users'), true);
+});
+
+test('el total real decide listado compacto hasta 10 y completo desde 11', () => {
+  const filtered = {
+    storeId: STORE_ID,
+    page: 3,
+    perPage: 50,
+    search: 'oculto',
+    role: 'store_staff',
+    status: 'suspended',
+  };
+  for (const totalUsers of [0, 1, 4, 10]) {
+    assert.deepEqual(users.listPayloadForStoreCounts(filtered, { total_users: totalUsers }), {
+      ...filtered,
+      page: 1,
+      perPage: 10,
+      search: '',
+      role: 'all',
+    });
+  }
+  assert.equal(users.listPayloadForStoreCounts(filtered, { total_users: 11 }), filtered);
+});
+
 test('los payloads son exactos y rechazan campos adicionales', () => {
   assert.equal(users.parseSummaryPayload({ store_ids: [], role: 'master_admin' }).error, 'invalid_payload');
   assert.equal(users.parseCreatePayload({ ...createPayload(), tokenKey: 'secret' }).error, 'invalid_payload');

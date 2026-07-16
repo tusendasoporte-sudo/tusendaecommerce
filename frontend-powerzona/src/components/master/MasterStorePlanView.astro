@@ -42,10 +42,10 @@ function dateTime(value: string) {
     : 'Sin fecha';
 }
 
-function stateLabel(value: string) {
+function stateLabel(value: string, daysRemaining: number | null) {
   if (value === 'active') return 'Activo';
   if (value === 'expiring') return 'Próximo a vencer';
-  if (value === 'critical') return 'Vence pronto';
+  if (value === 'critical') return daysRemaining === 0 ? 'Vence hoy' : 'Vence pronto';
   if (value === 'expired') return 'Vencido';
   return 'No configurado';
 }
@@ -76,7 +76,7 @@ const validityValue = plan.plan_is_permanent
   : plan.days_remaining === null
     ? 'Sin configurar'
     : plan.days_remaining === 0
-      ? 'Vencido'
+      ? plan.state === 'expired' ? 'Vencido' : 'Vence hoy'
       : `${plan.days_remaining} ${plan.days_remaining === 1 ? 'día' : 'días'}`;
 
 const capabilities = [
@@ -157,7 +157,7 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
     </article>
     <article class="master-store-kpi">
       <span class="master-store-kpi__label">Estado</span>
-      <strong class="master-store-kpi__value"><span class:list={['master-pill', stateTone(plan.state)]}>{stateLabel(plan.state)}</span></strong>
+      <strong class="master-store-kpi__value"><span class:list={['master-pill', stateTone(plan.state)]}>{stateLabel(plan.state, plan.days_remaining)}</span></strong>
       <span class="master-store-kpi__meta">{plan.plan_is_permanent ? 'Vigencia permanente' : 'Vigencia temporal'}</span>
     </article>
   </div>

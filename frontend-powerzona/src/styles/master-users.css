@@ -1,5 +1,6 @@
 .master-users-page { display: grid; gap: 18px; min-width: 0; }
-.master-user-success { margin: 0; border: 1px solid #bbf7d0; border-radius: 14px; background: #f0fdf4; color: #166534; padding: 13px 15px; font-size: 13px; font-weight: 850; }
+.master-user-success { margin: 0; border: 1px solid #bbf7d0; border-radius: 14px; background: #f0fdf4; color: #166534; padding: 13px 15px; font-size: 13px; font-weight: 850; opacity: 1; transform: translateY(0); transition: opacity .3s ease, transform .3s ease; }
+.master-user-success.is-leaving { opacity: 0; transform: translateY(-4px); }
 .master-users-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; padding: 2px 0 4px; }
 .master-users-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .master-users-avatar { width: 54px; height: 54px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(135deg,#dbeafe,#ede9fe); color: #1d4ed8; font-weight: 950; }
@@ -17,6 +18,11 @@
 .master-users-plan li { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #475569; font-size: 13px; }
 .master-users-plan li strong { color: #0f172a; text-align: right; }
 .master-users-filters { display: grid; grid-template-columns: minmax(220px,1fr) 170px 170px auto; gap: 10px; padding: 16px; border-bottom: 1px solid #e2e8f0; }
+.master-users-compact-filter { display: flex; align-items: center; gap: 5px; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+.master-users-status-tab { min-height: 38px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #64748b; padding: 8px 13px; font: inherit; font-size: 12px; font-weight: 850; cursor: pointer; }
+.master-users-status-tab:hover { background: #f8fafc; color: #334155; }
+.master-users-status-tab:focus-visible { outline: 3px solid rgba(37,99,235,.18); outline-offset: 1px; }
+.master-users-status-tab.is-active { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
 .master-users-control { min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #0f172a; padding: 10px 12px; font: inherit; font-size: 13px; font-weight: 750; outline: none; }
 .master-users-control:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 .master-user-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
@@ -33,6 +39,9 @@
 .master-user-mobile-card__meta span { flex: 1; border-radius: 10px; background: #f8fafc; padding: 9px; color: #64748b; font-size: 11px; }
 .master-user-mobile-card__meta strong { display: block; margin-top: 3px; color: #0f172a; font-size: 13px; }
 .master-users-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px; border-top: 1px solid #e2e8f0; }
+.master-users-pagination.is-count-only { justify-content: flex-start; }
+.master-users-pagination__navigation { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.master-users-pagination__navigation[hidden] { display: none; }
 .master-users-pages { display: flex; gap: 6px; }
 .master-users-page-btn { min-width: 36px; min-height: 36px; border: 1px solid #dbe3ef; border-radius: 9px; background: #fff; color: #334155; font-weight: 850; cursor: pointer; }
 .master-users-page-btn.is-active { border-color: #2563eb; background: #2563eb; color: #fff; }
@@ -93,8 +102,14 @@
   .master-users-filters, .master-users-form-grid, .master-user-read-grid { grid-template-columns: 1fr; }
   .master-users-field--wide, .master-users-filters [type="search"] { grid-column: auto; }
   .master-users-pagination { align-items: stretch; flex-direction: column; }
+  .master-users-pagination__navigation { align-items: stretch; flex-direction: column; }
   .master-users-pages { flex-wrap: wrap; }
+  .master-users-compact-filter { align-items: stretch; flex-direction: column; }
   .master-users-password-row { flex-wrap: wrap; }
   .master-delete-user-summary { grid-template-columns: 1fr; }
   .master-danger-zone .master-btn, [data-delete-user-submit] { width: 100%; white-space: normal; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .master-user-success { transition: none; }
 }
