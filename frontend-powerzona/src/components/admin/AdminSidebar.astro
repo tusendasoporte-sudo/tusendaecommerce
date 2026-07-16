@@ -56,6 +56,7 @@ const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
 const adminRafflesPath = getStoreAdminPath(storeSlug, 'promos/raffles');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const adminSecurityPath = getStoreAdminPath(storeSlug, 'security');
+const adminAccountPath = getStoreAdminPath(storeSlug, 'account');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
 const notificationsAdminProductsPath = adminProductsPath;
@@ -72,6 +73,7 @@ const defaultMobileTitleBySection: Record<string, string> = {
   security: 'Seguridad',
   settings: 'Ajustes',
   marketing: 'Promociones',
+  account: 'Mi cuenta',
 };
 
 const resolvedMobileTitle =
@@ -98,7 +100,7 @@ const mobileBottomClass = (target: 'overview' | 'orders' | 'shipping' | 'setting
 
   const fallbackSettingsActive =
     target === 'settings' &&
-    !['overview', 'orders', 'shipping', 'security'].includes(activeSection || '');
+    !['overview', 'orders', 'shipping', 'security', 'account'].includes(activeSection || '');
 
   return `pz-admin-mobile-bottom-nav__link${directMatch || fallbackSettingsActive ? ' is-active' : ''}`;
 };
@@ -209,6 +211,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
     <div class="pz-admin-sidebar__bottom">
       <a class="pz-admin-sidebar__action" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver catálogo público</span></a>
+      <a class={navClass('account')} href={adminAccountPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span><span>Mi cuenta</span></a>
       <button id="logout-btn" class="pz-admin-sidebar__action pz-admin-sidebar__action--danger" type="button"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg></span><span>Cerrar sesión</span></button>
       <div class="pz-admin-sidebar__support-card">
         <strong>Soporte Tu Senda 84</strong>

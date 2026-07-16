@@ -25,6 +25,7 @@ export type AuthUser = {
   role?: UserRole | string;
   store?: string | string[];
   status?: 'active' | 'suspended' | string;
+  must_change_password?: boolean;
   collectionName?: string;
   [key: string]: unknown;
 };
@@ -94,6 +95,18 @@ export function isStoreStaff(user: AuthUser | null | undefined) {
 
 export function isStoreUser(user: AuthUser | null | undefined) {
   return isStoreAdmin(user) || isStoreStaff(user);
+}
+
+export function requiresTemporaryPasswordChange(user: AuthUser | null | undefined) {
+  return isStoreUser(user) && user?.must_change_password === true;
+}
+
+export function getTemporaryPasswordRedirect(user: AuthUser | null | undefined, storeSlug = '') {
+  if (!requiresTemporaryPasswordChange(user)) return '';
+  const normalizedSlug = String(storeSlug || '').trim().toLowerCase();
+  return normalizedSlug
+    ? `/t/${encodeURIComponent(normalizedSlug)}/admin/change-temporary-password`
+    : '/admin/change-temporary-password';
 }
 
 export function getUserStoreId(user: AuthUser | null | undefined) {

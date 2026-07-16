@@ -9,12 +9,16 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STORE_ROLES = Object.freeze(["store_admin", "store_staff"]);
 const USER_STATUSES = Object.freeze(["active", "suspended"]);
 const AUDIT_COLLECTION = "store_user_audit";
+const TEMPORARY_PASSWORD_TTL_HOURS = 72;
+const TEMPORARY_PASSWORD_TTL_MS = TEMPORARY_PASSWORD_TTL_HOURS * 60 * 60 * 1000;
 const AUDIT_ACTIONS = Object.freeze([
   "user_created",
   "user_updated",
   "password_changed",
   "sessions_revoked",
   "self_password_changed",
+  "temporary_password_issued",
+  "forced_password_changed",
 ]);
 const SAFE_CODES = new Set([
   "unauthorized",
@@ -39,6 +43,11 @@ const SAFE_CODES = new Set([
   "password_change_failed",
   "session_revocation_failed",
   "audit_load_failed",
+  "temporary_password_expired",
+  "temporary_password_change_required",
+  "temporary_password_not_required",
+  "temporary_password_issue_failed",
+  "forced_password_change_failed",
 ]);
 
 function setPrivateHeaders(e) {
@@ -211,6 +220,11 @@ function parseSelfPasswordPayload(body) {
   return valid({ currentPassword, newPassword });
 }
 
+function parseSelfRevokePayload(body) {
+  if (!exactPayload(body, [])) return invalid("invalid_payload");
+  return valid({});
+}
+
 function parseRevokePayload(body) {
   if (!exactPayload(body, ["store_id", "user_id", "reason"])) return invalid("invalid_payload");
   const storeId = bodyValue(body, "store_id");
@@ -259,6 +273,11 @@ function recordString(record, key) {
   return String(value === null || value === undefined ? "" : value).trim();
 }
 
+function recordBoolean(record, key) {
+  const value = recordValue(record, key);
+  return value === true || value === 1 || value === "1" || value === "true";
+}
+
 function relationId(record, key) {
   const value = recordValue(record, key);
   if (Array.isArray(value)) return String(value[0] || "").trim();
@@ -273,6 +292,23 @@ function safeDate(record, key) {
   return Number.isFinite(parsed) ? new Date(parsed).toISOString() : "";
 }
 
+function temporaryPasswordDates(now) {
+  const issued = now instanceof Date ? new Date(now.getTime()) : new Date(now || Date.now());
+  if (!Number.isFinite(issued.getTime())) throw codedError("temporary_password_issue_failed");
+  return {
+    issued_at: issued.toISOString(),
+    expires_at: new Date(issued.getTime() + TEMPORARY_PASSWORD_TTL_MS).toISOString(),
+  };
+}
+
+function temporaryPasswordState(record, now) {
+  if (!recordBoolean(record, "must_change_password")) return "none";
+  const expiresAt = safeDate(record, "temporary_password_expires_at");
+  const current = now instanceof Date ? now.getTime() : new Date(now || Date.now()).getTime();
+  if (!expiresAt || !Number.isFinite(current)) return "expired";
+  return new Date(expiresAt).getTime() > current ? "pending" : "expired";
+}
+
 function bounded(value, max) {
   return String(value === null || value === undefined ? "" : value).trim().slice(0, max);
 }
@@ -283,6 +319,12 @@ function isActiveMaster(record) {
 
 function isActiveStoreAdmin(record) {
   return recordString(record, "role") === "store_admin"
+    && recordString(record, "status") === "active"
+    && isValidRecordId(relationId(record, "store"));
+}
+
+function isActiveStoreUser(record) {
+  return STORE_ROLES.includes(recordString(record, "role"))
     && recordString(record, "status") === "active"
     && isValidRecordId(relationId(record, "store"));
 }
@@ -302,6 +344,9 @@ function userManagementReady(app) {
     return users.type === "auth"
       && !!users.fields.getByName("store")
       && !!users.fields.getByName("status")
+      && !!users.fields.getByName("must_change_password")
+      && !!users.fields.getByName("temporary_password_issued_at")
+      && !!users.fields.getByName("temporary_password_expires_at")
       && !!audit.fields.getByName("target_user_id_snapshot")
       && audit.listRule === null
       && audit.viewRule === null
@@ -375,18 +420,47 @@ function storeUserCounts(app, storeId) {
 }
 
 function storeAuthorizedDeviceCounts(app, storeId) {
+  const summaries = storeUserDeviceSummaries(app, storeId);
+  const result = {};
+  Object.keys(summaries).forEach((userId) => {
+    result[userId] = summaries[userId].authorized_device_count;
+  });
+  return result;
+}
+
+function storeUserDeviceSummaries(app, storeId) {
   const rows = queryRows(app, `
-    SELECT user AS userId, COUNT(*) AS deviceCount
+    SELECT
+      user AS userId,
+      COALESCE(SUM(CASE WHEN status = 'authorized' THEN 1 ELSE 0 END), 0) AS deviceCount,
+      MAX(last_seen_at) AS lastSeenAt
     FROM store_user_devices
-    WHERE store = {:storeId} AND status = 'authorized'
+    WHERE store = {:storeId}
     GROUP BY user
-  `, { storeId }, { userId: "", deviceCount: 0 });
+  `, { storeId }, { userId: "", deviceCount: 0, lastSeenAt: "" });
   const result = {};
   rows.forEach((row) => {
     const userId = String(row.userId || "").trim();
-    if (isValidRecordId(userId)) result[userId] = countValue(row.deviceCount);
+    const rawLastSeen = String(row.lastSeenAt || "").trim();
+    const normalized = rawLastSeen.includes("T") ? rawLastSeen : rawLastSeen.replace(" ", "T");
+    const parsed = new Date(normalized).getTime();
+    if (isValidRecordId(userId)) {
+      result[userId] = {
+        authorized_device_count: countValue(row.deviceCount),
+        last_admin_activity_at: Number.isFinite(parsed) ? new Date(parsed).toISOString() : "",
+      };
+    }
   });
   return result;
+}
+
+function distinctAuthorizedStoreDeviceCount(app, storeId) {
+  const row = queryOne(app, `
+    SELECT COUNT(DISTINCT device_digest) AS deviceCount
+    FROM store_user_devices
+    WHERE store = {:storeId} AND status = 'authorized'
+  `, { storeId }, { deviceCount: 0 }) || {};
+  return countValue(row.deviceCount);
 }
 
 function storeDeviceLimit(store) {
@@ -402,6 +476,18 @@ function storeDeviceLimit(store) {
   return access.limit;
 }
 
+function storeCapability(store, capabilityKey) {
+  const access = capabilities.resolveStoreCapabilityAccess(
+    store,
+    capabilityKey,
+    { enforceExpiration: false }
+  );
+  if (!access || ["invalid_plan_data", "invalid_capability"].includes(access.reason)) {
+    throw codedError("user_management_unavailable");
+  }
+  return access;
+}
+
 function planAccess(store, requiredAmount) {
   const options = { enforceExpiration: false };
   if (Number.isInteger(requiredAmount)) options.requiredAmount = requiredAmount;
@@ -412,8 +498,13 @@ function planAccess(store, requiredAmount) {
   return access;
 }
 
-function planResponse(store, counts) {
+function planResponse(store, counts, app) {
   const access = planAccess(store);
+  const deviceAccess = storeCapability(store, "max_devices_per_user");
+  const storeDeviceAccess = storeCapability(store, "max_store_devices");
+  const securityAccess = storeCapability(store, "security_enabled");
+  const rafflesAccess = storeCapability(store, "raffles_enabled");
+  const landingAccess = storeCapability(store, "landing_qr_enabled");
   return {
     code: access.plan,
     state: access.plan_state,
@@ -423,6 +514,14 @@ function planResponse(store, counts) {
     max_active_users: access.limit,
     active_users: counts.active_users,
     over_limit: counts.active_users > access.limit,
+    active_admins: counts.active_admins,
+    active_staff: counts.active_staff,
+    store_authorized_device_count: app ? distinctAuthorizedStoreDeviceCount(app, store.id) : 0,
+    max_store_devices: storeDeviceAccess.limit,
+    max_devices_per_user: deviceAccess.limit,
+    security_enabled: securityAccess.allowed,
+    raffles_enabled: rafflesAccess.allowed,
+    landing_qr_enabled: landingAccess.allowed,
   };
 }
 
@@ -457,6 +556,11 @@ function sanitizeUser(record, activeAdminCount, deviceSummary) {
     status: snapshot.status,
     created: safeDate(record, "created"),
     updated: safeDate(record, "updated"),
+    must_change_password: recordBoolean(record, "must_change_password"),
+    temporary_password_state: temporaryPasswordState(record),
+    temporary_password_issued_at: safeDate(record, "temporary_password_issued_at"),
+    temporary_password_expires_at: safeDate(record, "temporary_password_expires_at"),
+    last_admin_activity_at: bounded(devices.last_admin_activity_at, 40),
     is_last_active_admin: snapshot.role === "store_admin"
       && snapshot.status === "active"
       && activeAdminCount === 1,
@@ -466,10 +570,10 @@ function sanitizeUser(record, activeAdminCount, deviceSummary) {
 }
 
 function sanitizeUsersWithDevices(app, store, records, activeAdminCount) {
-  const counts = storeAuthorizedDeviceCounts(app, store.id);
+  const summaries = storeUserDeviceSummaries(app, store.id);
   const deviceLimit = storeDeviceLimit(store);
   return records.map((record) => sanitizeUser(record, activeAdminCount, {
-    authorized_device_count: counts[record.id] || 0,
+    ...(summaries[record.id] || {}),
     device_limit: deviceLimit,
   }));
 }
@@ -498,19 +602,26 @@ function updateRevokesSessions(previous, next) {
 }
 
 function sessionsMustBeRevoked(action, previous, next) {
-  if (["password_changed", "sessions_revoked", "self_password_changed"].includes(action)) return true;
+  if ([
+    "password_changed",
+    "sessions_revoked",
+    "self_password_changed",
+    "temporary_password_issued",
+    "forced_password_changed",
+  ].includes(action)) return true;
   if (action === "user_updated") return updateRevokesSessions(previous, next);
   return false;
 }
 
-function auditActorRole(actor) {
+function auditActorRole(actor, action) {
   const role = recordString(actor, "role");
   if (role === "master_admin" || role === "store_admin") return role;
+  if (role === "store_staff" && action === "forced_password_changed") return role;
   throw codedError("user_management_unavailable");
 }
 
 function buildAuditValues(store, actor, target, action, previous, next, sessionsRevoked, reason) {
-  const actorRole = auditActorRole(actor);
+  const actorRole = auditActorRole(actor, action);
   const actorName = bounded(
     recordString(actor, "display_name")
       || recordString(actor, "name")
@@ -588,7 +699,14 @@ function errorCode(error) {
 function statusForCode(code) {
   if (code === "unauthorized") return 403;
   if (code === "store_not_found" || code === "user_not_found") return 404;
-  if (["email_exists", "active_user_limit_reached", "last_active_admin_required"].includes(code)) return 409;
+  if ([
+    "email_exists",
+    "active_user_limit_reached",
+    "last_active_admin_required",
+    "temporary_password_change_required",
+    "temporary_password_not_required",
+    "temporary_password_expired",
+  ].includes(code)) return 409;
   if (code === "user_management_unavailable") return 503;
   if ([
     "invalid_payload",
@@ -640,6 +758,30 @@ function selfPasswordRequestContext(e) {
   return { info, actorId, parsed: parsed.value };
 }
 
+function temporaryPasswordRequestContext(e) {
+  setPrivateHeaders(e);
+  const info = e.requestInfo();
+  if (!isActiveStoreUser(info && info.auth)) return { error: "unauthorized" };
+  const parsed = parseSelfPasswordPayload(info.body || {});
+  if (!parsed.ok) return { error: parsed.error };
+  if (!selfPasswordManagementReady($app)) return { error: "user_management_unavailable" };
+  const actorId = recordString(info.auth, "id");
+  if (!isValidRecordId(actorId)) return { error: "unauthorized" };
+  return { info, actorId, parsed: parsed.value };
+}
+
+function selfRevokeRequestContext(e) {
+  setPrivateHeaders(e);
+  const info = e.requestInfo();
+  if (!isActiveStoreAdmin(info && info.auth)) return { error: "unauthorized" };
+  const parsed = parseSelfRevokePayload(info.body || {});
+  if (!parsed.ok) return { error: parsed.error };
+  if (!selfPasswordManagementReady($app)) return { error: "user_management_unavailable" };
+  const actorId = recordString(info.auth, "id");
+  if (!isValidRecordId(actorId)) return { error: "unauthorized" };
+  return { info, actorId, parsed: parsed.value };
+}
+
 function lockStore(app, storeId) {
   app.db().newQuery("UPDATE stores SET id = id WHERE id = {:storeId}").bind({ storeId }).execute();
 }
@@ -653,13 +795,15 @@ function loadTransactionContext(app, actorId, storeId) {
   return { actor, store };
 }
 
-function loadSelfPasswordContext(app, actorId) {
+function loadSelfPasswordContext(app, actorId, allowStaff) {
   let actor = findRecord(app, "users", actorId);
-  if (!actor || !isActiveStoreAdmin(actor)) throw codedError("unauthorized");
+  const allowed = allowStaff ? isActiveStoreUser(actor) : isActiveStoreAdmin(actor);
+  if (!actor || !allowed) throw codedError("unauthorized");
   const storeId = relationId(actor, "store");
   lockStore(app, storeId);
   actor = findRecord(app, "users", actorId);
-  if (!actor || !isActiveStoreAdmin(actor) || relationId(actor, "store") !== storeId) {
+  const reloadedAllowed = allowStaff ? isActiveStoreUser(actor) : isActiveStoreAdmin(actor);
+  if (!actor || !reloadedAllowed || relationId(actor, "store") !== storeId) {
     throw codedError("unauthorized");
   }
   const store = findRecord(app, "stores", storeId);
@@ -718,6 +862,10 @@ function saveNewUser(app, values) {
   user.set("role", values.role);
   user.set("status", values.status);
   user.set("store", values.storeId);
+  const temporary = temporaryPasswordDates();
+  user.set("must_change_password", true);
+  user.set("temporary_password_issued_at", temporary.issued_at);
+  user.set("temporary_password_expires_at", temporary.expires_at);
   try {
     app.save(user);
   } catch (error) {
@@ -813,7 +961,7 @@ function handleList(e) {
     return e.json(200, {
       ok: true,
       store: storeResponse(store),
-      plan: planResponse(store, counts),
+      plan: planResponse(store, counts, $app),
       users: sanitizeUsersWithDevices($app, store, result.records, counts.active_admins),
       pagination: {
         page: context.parsed.page,
@@ -842,7 +990,7 @@ function handleDetail(e) {
     return e.json(200, {
       ok: true,
       store: storeResponse(store),
-      plan: planResponse(store, counts),
+      plan: planResponse(store, counts, $app),
       user: sanitizeUsersWithDevices($app, store, [user], counts.active_admins)[0],
       protection: {
         last_active_admin: sanitizeUser(user, counts.active_admins).is_last_active_admin,
@@ -881,6 +1029,17 @@ function handleCreate(e) {
       const next = userSnapshot(user);
       failureStage = "audit_save";
       createAudit(txApp, loaded.store, loaded.actor, user, "user_created", null, next, false, context.parsed.reason);
+      createAudit(
+        txApp,
+        loaded.store,
+        loaded.actor,
+        user,
+        "temporary_password_issued",
+        next,
+        next,
+        false,
+        context.parsed.reason
+      );
       const nextCounts = {
         ...counts,
         total_users: counts.total_users + 1,
@@ -894,16 +1053,7 @@ function handleCreate(e) {
           authorized_device_count: 0,
           device_limit: storeDeviceLimit(loaded.store),
         }),
-        plan: {
-          code: access.plan,
-          state: access.plan_state,
-          is_permanent: access.is_permanent,
-          is_configured: access.is_configured,
-          is_expired: access.is_expired,
-          max_active_users: access.limit,
-          active_users: nextCounts.active_users,
-          over_limit: nextCounts.active_users > access.limit,
-        },
+        plan: planResponse(loaded.store, nextCounts, txApp),
       };
     });
     return e.json(200, response);
@@ -966,7 +1116,7 @@ function handleUpdate(e) {
       response = {
         ok: true,
         user: sanitizeUsersWithDevices(txApp, loaded.store, [user], nextCounts.active_admins)[0],
-        plan: planResponse(loaded.store, nextCounts),
+        plan: planResponse(loaded.store, nextCounts, txApp),
         sessions_revoked: sessionsRevoked,
       };
     });
@@ -986,6 +1136,9 @@ function handleSelfPasswordChange(e) {
   try {
     $app.runInTransaction((txApp) => {
       const loaded = loadSelfPasswordContext(txApp, context.actorId);
+      if (recordBoolean(loaded.actor, "must_change_password")) {
+        throw codedError("temporary_password_change_required");
+      }
       if (!passwordMeetsCollectionPolicy(txApp, context.parsed.newPassword)) {
         throw codedError("invalid_password");
       }
@@ -1025,41 +1178,154 @@ function handleSelfPasswordChange(e) {
 
 function handleChangePassword(e) {
   const context = requestContext(e, parsePasswordPayload);
-  if (context.error) return sendError(e, context.error, "password_change_failed");
+  if (context.error) return sendError(e, context.error, "temporary_password_issue_failed");
   let response = null;
   try {
     $app.runInTransaction((txApp) => {
       const loaded = loadTransactionContext(txApp, context.actorId, context.parsed.storeId);
       const user = loadTarget(txApp, context.parsed.userId, loaded.store.id);
+      if (!passwordMeetsCollectionPolicy(txApp, context.parsed.password)) {
+        throw codedError("invalid_password");
+      }
       const snapshot = userSnapshot(user);
-      const sessionsRevoked = sessionsMustBeRevoked("password_changed", snapshot, snapshot);
+      const sessionsRevoked = sessionsMustBeRevoked("temporary_password_issued", snapshot, snapshot);
+      const temporary = temporaryPasswordDates();
       user.setPassword(context.parsed.password);
+      user.set("must_change_password", true);
+      user.set("temporary_password_issued_at", temporary.issued_at);
+      user.set("temporary_password_expires_at", temporary.expires_at);
       if (sessionsRevoked) user.refreshTokenKey();
       try {
         txApp.save(user);
       } catch (error) {
         if (validationHasField(error, "password")) throw codedError("invalid_password");
-        throw codedError("password_change_failed");
+        throw codedError("temporary_password_issue_failed");
       }
       createAudit(
         txApp,
         loaded.store,
         loaded.actor,
         user,
-        "password_changed",
+        "temporary_password_issued",
         snapshot,
         snapshot,
         sessionsRevoked,
         context.parsed.reason
       );
-      response = { ok: true, user_id: user.id, sessions_revoked: sessionsRevoked };
+      response = {
+        ok: true,
+        user_id: user.id,
+        temporary_password_issued: true,
+        must_change_password: true,
+        temporary_password_expires_at: temporary.expires_at,
+        sessions_revoked: sessionsRevoked,
+      };
     });
     return e.json(200, response);
   } catch (error) {
     const code = errorCode(error);
-    if (code) return sendError(e, code, "password_change_failed");
-    logFailure("change_password");
-    return sendError(e, "", "password_change_failed");
+    if (code) return sendError(e, code, "temporary_password_issue_failed");
+    logFailure("temporary_password_issue");
+    return sendError(e, "", "temporary_password_issue_failed");
+  }
+}
+
+function handleTemporaryPasswordChange(e) {
+  const context = temporaryPasswordRequestContext(e);
+  if (context.error) return sendError(e, context.error, "forced_password_change_failed");
+  let response = null;
+  try {
+    $app.runInTransaction((txApp) => {
+      const loaded = loadSelfPasswordContext(txApp, context.actorId, true);
+      const state = temporaryPasswordState(loaded.actor);
+      if (state === "none") throw codedError("temporary_password_not_required");
+      if (state === "expired") throw codedError("temporary_password_expired");
+      if (!passwordMeetsCollectionPolicy(txApp, context.parsed.newPassword)) {
+        throw codedError("invalid_password");
+      }
+      const credentialError = validateSelfPasswordCredentials(loaded.actor, context.parsed);
+      if (credentialError) throw codedError(credentialError);
+      const snapshot = userSnapshot(loaded.actor);
+      loaded.actor.setPassword(context.parsed.newPassword);
+      loaded.actor.set("must_change_password", false);
+      loaded.actor.set("temporary_password_issued_at", "");
+      loaded.actor.set("temporary_password_expires_at", "");
+      loaded.actor.refreshTokenKey();
+      try {
+        txApp.save(loaded.actor);
+      } catch (error) {
+        if (validationHasField(error, "password")) throw codedError("invalid_password");
+        throw codedError("forced_password_change_failed");
+      }
+      createAudit(
+        txApp,
+        loaded.store,
+        loaded.actor,
+        loaded.actor,
+        "forced_password_changed",
+        snapshot,
+        snapshot,
+        true,
+        ""
+      );
+      response = {
+        ok: true,
+        code: "forced_password_changed",
+        must_change_password: false,
+        reauth_required: true,
+        sessions_revoked: true,
+      };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = errorCode(error);
+    if (code) return sendError(e, code, "forced_password_change_failed");
+    logFailure("forced_password_change");
+    return sendError(e, "", "forced_password_change_failed");
+  }
+}
+
+function handleSelfRevokeSessions(e) {
+  const context = selfRevokeRequestContext(e);
+  if (context.error) return sendError(e, context.error, "session_revocation_failed");
+  let response = null;
+  try {
+    $app.runInTransaction((txApp) => {
+      const loaded = loadSelfPasswordContext(txApp, context.actorId);
+      if (recordBoolean(loaded.actor, "must_change_password")) {
+        throw codedError("temporary_password_change_required");
+      }
+      const snapshot = userSnapshot(loaded.actor);
+      loaded.actor.refreshTokenKey();
+      try {
+        txApp.save(loaded.actor);
+      } catch (_) {
+        throw codedError("session_revocation_failed");
+      }
+      createAudit(
+        txApp,
+        loaded.store,
+        loaded.actor,
+        loaded.actor,
+        "sessions_revoked",
+        snapshot,
+        snapshot,
+        true,
+        ""
+      );
+      response = {
+        ok: true,
+        code: "sessions_revoked",
+        reauth_required: true,
+        sessions_revoked: true,
+      };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = errorCode(error);
+    if (code) return sendError(e, code, "session_revocation_failed");
+    logFailure("self_revoke_sessions");
+    return sendError(e, "", "session_revocation_failed");
   }
 }
 
@@ -1155,24 +1421,45 @@ function rejectSuspendedAuthentication(e) {
   }
 }
 
+function throwTemporaryPasswordAuthError() {
+  const code = "temporary_password_expired";
+  const message = "Temporary access is no longer available.";
+  throw new BadRequestError(message, {
+    [code]: new ValidationError(code, message),
+  });
+}
+
+function enforceTemporaryPasswordAuthentication(e) {
+  const user = e && e.record;
+  if (!user) return;
+  if (!STORE_ROLES.includes(recordString(user, "role"))) return;
+  if (temporaryPasswordState(user) === "expired") throwTemporaryPasswordAuthError();
+}
+
 module.exports = {
   AUDIT_ACTIONS,
   STORE_ROLES,
+  TEMPORARY_PASSWORD_TTL_HOURS,
+  TEMPORARY_PASSWORD_TTL_MS,
   USER_STATUSES,
   auditActorRole,
   buildAuditValues,
   exactPayload,
+  enforceTemporaryPasswordAuthentication,
   handleAudit,
   handleChangePassword,
   handleCreate,
   handleDetail,
   handleList,
   handleRevokeSessions,
+  handleSelfRevokeSessions,
   handleSelfPasswordChange,
+  handleTemporaryPasswordChange,
   handleSummary,
   handleUpdate,
   isActiveMaster,
   isActiveStoreAdmin,
+  isActiveStoreUser,
   isValidRecordId,
   mapAudit,
   normalizeEmail,
@@ -1182,6 +1469,7 @@ module.exports = {
   parsePasswordPayload,
   parseRevokePayload,
   parseSelfPasswordPayload,
+  parseSelfRevokePayload,
   parseSummaryPayload,
   parseTargetPayload,
   parseUpdatePayload,
@@ -1195,8 +1483,11 @@ module.exports = {
   selfPasswordSuccessResponse,
   sessionsMustBeRevoked,
   storeAuthorizedDeviceCounts,
+  storeUserDeviceSummaries,
   storeDeviceLimit,
   targetBelongsToStore,
+  temporaryPasswordDates,
+  temporaryPasswordState,
   updateRevokesSessions,
   validateSelfPasswordCredentials,
   userSnapshot,

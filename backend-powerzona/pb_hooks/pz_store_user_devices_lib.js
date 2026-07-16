@@ -758,16 +758,17 @@ function handleList(e) {
     if (!store) return sendError(e, "store_not_found", "device_list_failed");
     const user = findRecord($app, "users", context.parsed.userId);
     if (!targetBelongsToStore(user, store.id)) return sendError(e, "user_not_found", "device_list_failed");
-    const statusFilter = context.parsed.status === "all" ? "" : " && status = {:status}";
+    const sqlStatusFilter = context.parsed.status === "all" ? "" : " AND status = {:status}";
+    const recordStatusFilter = context.parsed.status === "all" ? "" : " && status = {:status}";
     const params = { storeId: store.id, userId: user.id, status: context.parsed.status };
     const totalRow = queryOne($app, `
       SELECT COUNT(*) AS totalItems FROM store_user_devices
-      WHERE store = {:storeId} AND user = {:userId}${statusFilter}
+      WHERE store = {:storeId} AND user = {:userId}${sqlStatusFilter}
     `, params, { totalItems: 0 }) || {};
     const offset = (context.parsed.page - 1) * context.parsed.perPage;
     const records = $app.findRecordsByFilter(
       DEVICE_COLLECTION,
-      `store = {:storeId} && user = {:userId}${context.parsed.status === "all" ? "" : " && status = {:status}"}`,
+      `store = {:storeId} && user = {:userId}${recordStatusFilter}`,
       "-last_seen_at,-created,-id",
       context.parsed.perPage,
       offset,

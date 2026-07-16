@@ -1,0 +1,182 @@
+---
+import MasterDialog from './MasterDialog.astro';
+import MasterIcon from './MasterIcon.astro';
+import type { MasterStoreUser, MasterStoreUserPlan } from '../../lib/masterUsers';
+import type { MasterShellStoreContext } from './MasterShell.astro';
+
+interface Props {
+  store: MasterShellStoreContext;
+  initialData: {
+    users: MasterStoreUser[];
+    plan: MasterStoreUserPlan;
+    pagination: { page: number; per_page: number; total_items: number; total_pages: number };
+  };
+  initialFilters: { search: string; role: string; status: string };
+}
+const { store, initialData, initialFilters } = Astro.props;
+const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
+const relative = (value?: string) => {
+  const time = new Date(value || '').getTime();
+  if (!Number.isFinite(time)) return 'Nunca';
+  const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+  if (minutes < 1) return 'Ahora';
+  if (minutes < 60) return `Hace ${minutes} min`;
+  if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`;
+  return `Hace ${Math.floor(minutes / 1440)} d`;
+};
+const accessLabel = (user: MasterStoreUser) => user.temporary_password_state === 'expired'
+  ? 'Contraseña temporal vencida'
+  : user.temporary_password_state === 'pending' ? 'Cambio de contraseña pendiente' : '';
+const detailHref = (userId: string) => `/master/stores/${encodeURIComponent(store.id)}/users/${encodeURIComponent(userId)}`;
+const plan = initialData.plan;
+---
+
+<section class="master-users-page" data-master-users-root data-store-id={store.id}>
+  <header class="master-users-heading">
+    <div class="master-users-identity">
+      <span class="master-users-avatar" aria-hidden="true">{initials(store.name)}</span>
+      <div>
+        <h1>Usuarios de {store.name}</h1>
+        <div class="master-users-heading__badges">
+          <span class:list={['master-pill', store.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{store.status === 'active' ? 'Activa' : 'Suspendida'}</span>
+          <span class="master-pill master-pill--info">{store.planPresentation.contextTitle}</span>
+          <span class="master-pill">{store.planPresentation.contextDetail}</span>
+        </div>
+      </div>
+    </div>
+    <div class="master-users-heading__actions">
+      <a class="master-btn master-btn--secondary" href={`/master/stores/${encodeURIComponent(store.id)}`}><MasterIcon name="back" size={18} /> Volver al resumen</a>
+      <button class="master-btn master-btn--primary" type="button" data-open-create-user><MasterIcon name="user-plus" size={18} /> Crear usuario</button>
+    </div>
+  </header>
+
+  <div class="master-users-metrics" data-users-metrics>
+    <article class="master-users-metric"><span>Usuarios activos</span><strong data-metric-active>{plan.active_users} / {plan.max_active_users}</strong></article>
+    <article class="master-users-metric"><span>Administradores activos</span><strong data-metric-admins>{plan.active_admins}</strong></article>
+    <article class="master-users-metric"><span>Personal activo</span><strong data-metric-staff>{plan.active_staff}</strong></article>
+    <article class="master-users-metric"><span>Dispositivos autorizados</span><strong data-metric-devices>{plan.store_authorized_device_count} / {plan.max_store_devices}</strong></article>
+  </div>
+
+  <div class="master-users-layout">
+    <section class="master-card" aria-label="Listado de usuarios">
+      <div class="master-users-filters">
+        <input class="master-users-control" type="search" value={initialFilters.search} placeholder="Buscar por nombre, email o teléfono" aria-label="Buscar usuarios" data-users-search />
+        <select class="master-users-control" aria-label="Filtrar por rol" data-users-role><option value="all" selected={initialFilters.role === 'all'}>Todos los roles</option><option value="store_admin" selected={initialFilters.role === 'store_admin'}>Administrador</option><option value="store_staff" selected={initialFilters.role === 'store_staff'}>Personal</option></select>
+        <select class="master-users-control" aria-label="Filtrar por estado" data-users-status><option value="all" selected={initialFilters.status === 'all'}>Todos los estados</option><option value="active" selected={initialFilters.status === 'active'}>Activo</option><option value="suspended" selected={initialFilters.status === 'suspended'}>Suspendido</option></select>
+        <button class="master-btn master-btn--secondary" type="button" data-users-clear>Limpiar</button>
+      </div>
+
+      <div data-users-results aria-live="polite">
+        {initialData.users.length ? (
+          <>
+            <div class="master-table-wrap master-users-desktop"><table class="master-table"><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Dispositivos</th><th>Acciones</th></tr></thead><tbody>
+              {initialData.users.map((user) => <tr><td><div class="master-user-cell"><span class="master-user-avatar">{initials(user.display_name || user.email)}</span><div class="master-user-copy"><strong>{user.display_name || 'Sin nombre'}</strong><span>{user.email}</span>{accessLabel(user) && <em class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel(user)}</em>}</div></div></td><td>{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</td><td><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span></td><td>{relative(user.last_admin_activity_at)}</td><td>{user.authorized_device_count || 0} / {user.device_limit || plan.max_devices_per_user}</td><td><a class="master-btn master-btn--secondary" href={detailHref(user.id)}>Ver detalle</a></td></tr>)}
+            </tbody></table></div>
+            <div class="master-users-mobile">{initialData.users.map((user) => <article class="master-user-mobile-card"><div class="master-user-mobile-card__top"><div class="master-user-cell"><span class="master-user-avatar">{initials(user.display_name || user.email)}</span><div class="master-user-copy"><strong>{user.display_name || 'Sin nombre'}</strong><span>{user.email}</span></div></div><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span></div><div><span class="master-pill master-pill--info">{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>{accessLabel(user) && <span class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel(user)}</span>}</div><div class="master-user-mobile-card__meta"><span>Último acceso<strong>{relative(user.last_admin_activity_at)}</strong></span><span>Dispositivos<strong>{user.authorized_device_count || 0} / {user.device_limit || plan.max_devices_per_user}</strong></span></div><div class="master-user-mobile-card__actions"><a class="master-btn master-btn--secondary" href={detailHref(user.id)}>Ver detalle</a><button class="master-icon-btn" type="button" aria-label="Más acciones" disabled><MasterIcon name="more" size={18} /></button></div></article>)}</div>
+          </>
+        ) : <div class="master-users-empty"><strong>Todavía no hay usuarios en esta tienda.</strong><button class="master-btn master-btn--primary" type="button" data-open-create-user>Crear usuario</button></div>}
+      </div>
+      <footer class="master-users-pagination" data-users-pagination data-page={initialData.pagination.page} data-total-pages={initialData.pagination.total_pages}><span data-users-count>{initialData.pagination.total_items} usuarios</span><div class="master-users-pages" data-users-pages></div><div><button class="master-btn master-btn--secondary" type="button" data-users-previous disabled={initialData.pagination.page <= 1}>Anterior</button> <button class="master-btn master-btn--secondary" type="button" data-users-next disabled={initialData.pagination.page >= initialData.pagination.total_pages}>Siguiente</button></div></footer>
+    </section>
+
+    <aside class="master-card master-users-plan">
+      <header class="master-card-header"><div><h2 class="master-card-title">Reglas del plan</h2><p class="master-card-subtitle">{store.planPresentation.contextTitle}</p></div></header>
+      <div class="master-card-body"><ul>
+        <li><span>Usuarios activos</span><strong>{plan.max_active_users}</strong></li>
+        <li><span>Dispositivos por usuario</span><strong>{plan.max_devices_per_user}</strong></li>
+        <li><span>Dispositivos de tienda</span><strong>{plan.max_store_devices}</strong></li>
+        <li><span>Seguridad</span><strong>{plan.security_enabled ? 'Incluida' : 'No incluida'}</strong></li>
+        <li><span>Rifas</span><strong>{plan.raffles_enabled ? 'Incluidas' : 'No incluidas'}</strong></li>
+        <li><span>Landing QR</span><strong>{plan.landing_qr_enabled ? 'Incluida' : 'No incluida'}</strong></li>
+        <li><span>Vigencia</span><strong>{plan.is_permanent ? 'Permanente' : store.planPresentation.contextDetail}</strong></li>
+      </ul></div>
+    </aside>
+  </div>
+
+  <MasterDialog id="master-users-create-dialog" title="Crear usuario" description="El acceso inicial usa una contraseña temporal." tone="primary" size="lg">
+    <form class="master-users-form" data-create-form>
+      <div class="master-users-form-grid">
+        <div class="master-users-field"><label for="users-create-name">Nombre</label><input id="users-create-name" class="master-users-control" name="display_name" maxlength="140" required /></div>
+        <div class="master-users-field"><label for="users-create-email">Email</label><input id="users-create-email" class="master-users-control" name="email" type="email" autocomplete="off" required /></div>
+        <div class="master-users-field"><label for="users-create-phone">Teléfono</label><input id="users-create-phone" class="master-users-control" name="phone" autocomplete="off" /></div>
+        <div class="master-users-field"><label for="users-create-role">Rol</label><select id="users-create-role" class="master-users-control" name="role"><option value="store_admin">Administrador</option><option value="store_staff">Personal</option></select></div>
+        <div class="master-users-field"><label for="users-create-status">Estado</label><select id="users-create-status" class="master-users-control" name="status"><option value="active">Activo</option><option value="suspended">Suspendido</option></select></div>
+        <div class="master-users-field"><label for="users-create-reason">Motivo interno</label><input id="users-create-reason" class="master-users-control" name="reason" maxlength="500" autocomplete="off" /></div>
+        <div class="master-users-field master-users-field--wide"><label for="users-create-password">Contraseña temporal</label><div class="master-users-password-row"><input id="users-create-password" class="master-users-control" name="password" type="password" autocomplete="new-password" required /><button class="master-btn master-btn--secondary" type="button" data-create-generate>Generar</button><button class="master-btn master-btn--secondary" type="button" data-create-toggle>Mostrar</button><button class="master-btn master-btn--secondary" type="button" data-create-copy>Copiar</button></div></div>
+        <div class="master-users-field master-users-field--wide"><label for="users-create-confirm">Confirmar contraseña temporal</label><input id="users-create-confirm" class="master-users-control" name="password_confirm" type="password" autocomplete="new-password" required /><small>Esta contraseña es temporal y vence en 72 horas. El usuario deberá crear una contraseña personal antes de entrar al panel.</small></div>
+      </div>
+      <p class="master-users-message" data-create-message aria-live="polite"></p>
+      <div class="master-users-secret" data-create-secret-result hidden><strong>Usuario creado</strong><span>Entrega esta contraseña temporal al usuario. Solo estará visible en este momento.</span><code data-create-secret></code><button class="master-btn master-btn--secondary" type="button" data-result-copy>Copiar contraseña</button></div>
+    </form>
+    <div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cerrar</button><button class="master-btn master-btn--primary" type="button" data-create-submit>Crear usuario</button></div>
+  </MasterDialog>
+</section>
+
+<script>
+  import { createStoreUserFromMaster, getMasterStoreUserErrorMessage, listMasterStoreUsers } from '../../lib/masterUsers';
+  import { pb } from '../../lib/pocketbase';
+  const root = document.querySelector<HTMLElement>('[data-master-users-root]');
+  if (root) {
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    const storeId = root.dataset.storeId || '';
+    const results = root.querySelector<HTMLElement>('[data-users-results]');
+    const pagination = root.querySelector<HTMLElement>('[data-users-pagination]');
+    const search = root.querySelector<HTMLInputElement>('[data-users-search]');
+    const role = root.querySelector<HTMLSelectElement>('[data-users-role]');
+    const status = root.querySelector<HTMLSelectElement>('[data-users-status]');
+    let requestSequence = 0;
+    let activeController: AbortController | null = null;
+    let currentPage = Number(pagination?.dataset.page || 1);
+    let totalPages = Number(pagination?.dataset.totalPages || 1);
+    let timer = 0;
+    let transientSecret = '';
+    const escape = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char] || char);
+    const userInitials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0,2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
+    const relative = (value: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
+    const access = (user: any) => user.temporary_password_state === 'expired' ? '<em class="master-access-badge is-expired">Contraseña temporal vencida</em>' : user.temporary_password_state === 'pending' ? '<em class="master-access-badge">Cambio de contraseña pendiente</em>' : '';
+    const href = (id: string) => `/master/stores/${encodeURIComponent(storeId)}/users/${encodeURIComponent(id)}`;
+    function renderUsers(users: any[], deviceLimit: number) {
+      if (!results) return;
+      if (!users.length) { results.innerHTML = '<div class="master-users-empty"><strong>Todavía no hay usuarios en esta tienda.</strong><button class="master-btn master-btn--primary" type="button" data-open-create-user>Crear usuario</button></div>'; return; }
+      const rows = users.map((user) => `<tr><td><div class="master-user-cell"><span class="master-user-avatar">${escape(userInitials(user.display_name || user.email))}</span><div class="master-user-copy"><strong>${escape(user.display_name || 'Sin nombre')}</strong><span>${escape(user.email)}</span>${access(user)}</div></div></td><td>${user.role === 'store_admin' ? 'Administrador' : 'Personal'}</td><td><span class="master-pill ${user.status === 'active' ? 'master-pill--success' : 'master-pill--danger'}">${user.status === 'active' ? 'Activo' : 'Suspendido'}</span></td><td>${escape(relative(user.last_admin_activity_at))}</td><td>${Number(user.authorized_device_count || 0)} / ${Number(user.device_limit || deviceLimit)}</td><td><a class="master-btn master-btn--secondary" href="${href(user.id)}">Ver detalle</a></td></tr>`).join('');
+      const cards = users.map((user) => `<article class="master-user-mobile-card"><div class="master-user-mobile-card__top"><div class="master-user-cell"><span class="master-user-avatar">${escape(userInitials(user.display_name || user.email))}</span><div class="master-user-copy"><strong>${escape(user.display_name || 'Sin nombre')}</strong><span>${escape(user.email)}</span></div></div><span class="master-pill ${user.status === 'active' ? 'master-pill--success' : 'master-pill--danger'}">${user.status === 'active' ? 'Activo' : 'Suspendido'}</span></div><div><span class="master-pill master-pill--info">${user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>${access(user)}</div><div class="master-user-mobile-card__meta"><span>Último acceso<strong>${escape(relative(user.last_admin_activity_at))}</strong></span><span>Dispositivos<strong>${Number(user.authorized_device_count || 0)} / ${Number(user.device_limit || deviceLimit)}</strong></span></div><div class="master-user-mobile-card__actions"><a class="master-btn master-btn--secondary" href="${href(user.id)}">Ver detalle</a><button class="master-icon-btn" type="button" aria-label="Más acciones" disabled>•••</button></div></article>`).join('');
+      results.innerHTML = `<div class="master-table-wrap master-users-desktop"><table class="master-table"><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Dispositivos</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div><div class="master-users-mobile">${cards}</div>`;
+    }
+    function renderPages(page: number, total: number) {
+      const pages = root.querySelector<HTMLElement>('[data-users-pages]');
+      if (pages) { const start = Math.max(1, page - 2); const end = Math.min(total, start + 4); pages.innerHTML = Array.from({ length: end - start + 1 }, (_, i) => start + i).map((item) => `<button class="master-users-page-btn${item === page ? ' is-active' : ''}" type="button" data-users-page="${item}" aria-label="Página ${item}">${item}</button>`).join(''); }
+      const previous = root.querySelector<HTMLButtonElement>('[data-users-previous]'); const next = root.querySelector<HTMLButtonElement>('[data-users-next]'); if (previous) previous.disabled = page <= 1; if (next) next.disabled = page >= total;
+    }
+    async function load(page = 1) {
+      const sequence = ++requestSequence; activeController?.abort(); activeController = new AbortController(); currentPage = page; if (results) results.innerHTML = '<div class="master-users-loading">Cargando usuarios…</div>';
+      try {
+        const data = await listMasterStoreUsers(storeId, { page, perPage: 10, search: search?.value || '', role: (role?.value || 'all') as any, status: (status?.value || 'all') as any, signal: activeController.signal });
+        if (sequence !== requestSequence) return;
+        totalPages = data.pagination.total_pages; renderUsers(data.users, data.plan.max_devices_per_user); renderPages(data.pagination.page, totalPages);
+        const count = root.querySelector<HTMLElement>('[data-users-count]'); if (count) count.textContent = `${data.pagination.total_items} usuarios`;
+        const metric = (selector: string, value: string) => { const node = root.querySelector<HTMLElement>(selector); if (node) node.textContent = value; };
+        metric('[data-metric-active]', `${data.plan.active_users} / ${data.plan.max_active_users}`); metric('[data-metric-admins]', String(data.plan.active_admins)); metric('[data-metric-staff]', String(data.plan.active_staff)); metric('[data-metric-devices]', `${data.plan.store_authorized_device_count} / ${data.plan.max_store_devices}`);
+        const params = new URLSearchParams(); if (page > 1) params.set('page', String(page)); if (search?.value) params.set('search', search.value); if (role?.value && role.value !== 'all') params.set('role', role.value); if (status?.value && status.value !== 'all') params.set('status', status.value); history.replaceState(null, '', `${location.pathname}${params.size ? `?${params}` : ''}`);
+      } catch (error) { if ((error as any)?.name === 'AbortError' || sequence !== requestSequence) return; if (results) results.innerHTML = `<div class="master-users-empty"><strong>No se pudieron cargar los usuarios.</strong><button class="master-btn master-btn--secondary" type="button" data-users-retry>Reintentar</button><p>${escape(getMasterStoreUserErrorMessage(error))}</p></div>`; }
+    }
+    renderPages(currentPage, totalPages);
+    search?.addEventListener('input', () => { window.clearTimeout(timer); timer = window.setTimeout(() => load(1), 320); });
+    role?.addEventListener('change', () => load(1)); status?.addEventListener('change', () => load(1));
+    root.querySelector('[data-users-clear]')?.addEventListener('click', () => { if (search) search.value = ''; if (role) role.value = 'all'; if (status) status.value = 'all'; load(1); });
+    root.addEventListener('click', (event) => { const target = event.target as Element; const pageButton = target.closest<HTMLElement>('[data-users-page]'); if (pageButton) load(Number(pageButton.dataset.usersPage || 1)); if (target.closest('[data-users-previous]')) load(Math.max(1, currentPage - 1)); if (target.closest('[data-users-next]')) load(Math.min(totalPages, currentPage + 1)); if (target.closest('[data-users-retry]')) load(currentPage); if (target.closest('[data-open-create-user]')) window.PZMasterDialog?.open('master-users-create-dialog', target.closest('button') as HTMLElement); });
+    const dialog = document.getElementById('master-users-create-dialog') as HTMLDialogElement | null;
+    const createForm = root.querySelector<HTMLFormElement>('[data-create-form]'); const password = document.getElementById('users-create-password') as HTMLInputElement | null; const confirm = document.getElementById('users-create-confirm') as HTMLInputElement | null; const createMessage = root.querySelector<HTMLElement>('[data-create-message]'); const secretResult = root.querySelector<HTMLElement>('[data-create-secret-result]'); const secretNode = root.querySelector<HTMLElement>('[data-create-secret]'); const submit = root.querySelector<HTMLButtonElement>('[data-create-submit]');
+    function randomIndex(max: number) { const values = new Uint32Array(1); crypto.getRandomValues(values); return values[0] % max; }
+    function generateSecret() { const groups = ['ABCDEFGHJKLMNPQRSTUVWXYZ','abcdefghijkmnopqrstuvwxyz','23456789','!@#$%&*+-_']; const all = groups.join(''); const chars = groups.map((group) => group[randomIndex(group.length)]); while (chars.length < 18) chars.push(all[randomIndex(all.length)]); for (let i = chars.length - 1; i > 0; i--) { const j = randomIndex(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; } return chars.join(''); }
+    root.querySelector('[data-create-generate]')?.addEventListener('click', () => { transientSecret = generateSecret(); if (password) password.value = transientSecret; if (confirm) confirm.value = transientSecret; });
+    root.querySelector('[data-create-toggle]')?.addEventListener('click', (event) => { if (!password || !confirm) return; const visible = password.type === 'text'; password.type = confirm.type = visible ? 'password' : 'text'; (event.currentTarget as HTMLButtonElement).textContent = visible ? 'Mostrar' : 'Ocultar'; });
+    async function copySecret() { const value = transientSecret || password?.value || ''; if (value) await navigator.clipboard.writeText(value); }
+    root.querySelector('[data-create-copy]')?.addEventListener('click', copySecret); root.querySelector('[data-result-copy]')?.addEventListener('click', copySecret);
+    submit?.addEventListener('click', async () => { if (!createForm || !password || !confirm) return; const data = new FormData(createForm); transientSecret = password.value; if (!transientSecret || transientSecret.length < 8) { if (createMessage) createMessage.textContent = 'La contraseña temporal no cumple la política de seguridad.'; return; } if (transientSecret !== confirm.value) { if (createMessage) createMessage.textContent = 'Las contraseñas temporales no coinciden.'; return; } submit.disabled = true; if (createMessage) createMessage.textContent = ''; try { await createStoreUserFromMaster({ store: storeId, email: String(data.get('email') || ''), password: transientSecret, display_name: String(data.get('display_name') || ''), phone: String(data.get('phone') || ''), role: String(data.get('role') || ''), status: String(data.get('status') || ''), reason: String(data.get('reason') || '') }); Array.from(createForm.elements).forEach((element) => { if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) element.disabled = true; }); if (secretNode) secretNode.textContent = transientSecret; if (secretResult) secretResult.hidden = false; submit.hidden = true; await load(1); } catch (error) { if (createMessage) createMessage.textContent = getMasterStoreUserErrorMessage(error); } finally { submit.disabled = false; } });
+    dialog?.addEventListener('close', () => { transientSecret = ''; if (secretNode) secretNode.textContent = ''; if (secretResult) secretResult.hidden = true; createForm?.reset(); Array.from(createForm?.elements || []).forEach((element) => { if (element instanceof HTMLInputElement || element instanceof HTMLSelectElement) element.disabled = false; }); if (password) password.type = 'password'; if (confirm) confirm.type = 'password'; if (submit) submit.hidden = false; if (createMessage) createMessage.textContent = ''; });
+    if (new URLSearchParams(location.search).get('create') === '1') {
+      window.PZMasterDialog?.open('master-users-create-dialog');
+      const clean = new URL(location.href); clean.searchParams.delete('create'); history.replaceState(null, '', `${clean.pathname}${clean.search}`);
+    }
+  }
+</script>

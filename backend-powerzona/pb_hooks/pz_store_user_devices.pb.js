@@ -37,10 +37,12 @@ routerAdd(
 
 onRecordAuthWithPasswordRequest((e) => {
   require(`${__hooks}/pz_store_user_devices_lib.js`).enforceLoginDevice(e);
+  require(`${__hooks}/pz_master_store_users_lib.js`).enforceTemporaryPasswordAuthentication(e);
   return e.next();
 }, "users");
 
 onRecordAuthRefreshRequest((e) => {
   require(`${__hooks}/pz_store_user_devices_lib.js`).enforceRefreshDevice(e);
+  require(`${__hooks}/pz_master_store_users_lib.js`).enforceTemporaryPasswordAuthentication(e);
   return e.next();
 }, "users");

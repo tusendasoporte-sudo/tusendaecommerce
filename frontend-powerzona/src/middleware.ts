@@ -1,5 +1,11 @@
 import { defineMiddleware } from 'astro:middleware';
-import { isMasterAdmin, isStoreUser, refreshAuthFromCookie } from './lib/auth';
+import {
+  getTemporaryPasswordRedirect,
+  isMasterAdmin,
+  isStoreUser,
+  refreshAuthFromCookie,
+  requiresTemporaryPasswordChange,
+} from './lib/auth';
 import { getLegacyAdminSection, getStoreAdminBasePath, getStoreAdminPath } from './lib/adminRoutes';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from './lib/storeContext';
 
@@ -69,6 +75,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
   try {
     const adminContext = await requireCurrentStoreForAdmin(authPb);
     const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
+    const canonicalAdminPath = getStoreAdminBasePath(currentStoreSlug);
+    const temporaryPath = getTemporaryPasswordRedirect(adminContext.user, currentStoreSlug)
+      || `${canonicalAdminPath}/change-temporary-password`;
+    const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+    const isTemporaryRoute = normalizedPath === temporaryPath
+      || normalizedPath === '/admin/change-temporary-password';
+
+    if (requiresTemporaryPasswordChange(adminContext.user)) {
+      if (normalizedPath !== temporaryPath) return context.redirect(temporaryPath);
+      return next();
+    }
+
+    if (isTemporaryRoute) return context.redirect(canonicalAdminPath);
 
     if (isAdminRoute) {
       return context.redirect(getStoreAdminPath(currentStoreSlug, getLegacyAdminSection(pathname)));

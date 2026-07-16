@@ -1,5 +1,15 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const notice = String(Astro.url.searchParams.get('password_setup') || '') === '1'
+  ? 'Contraseña personal creada. Inicia sesión nuevamente.'
+  : String(Astro.url.searchParams.get('password_changed') || '') === '1'
+    ? 'Contraseña actualizada. Inicia sesión nuevamente.'
+    : String(Astro.url.searchParams.get('sessions_closed') || '') === '1'
+      ? 'Sesiones cerradas. Inicia sesión nuevamente.'
+      : String(Astro.url.searchParams.get('temporary_expired') || '') === '1'
+        ? 'El acceso temporal ya no está disponible. Solicita uno nuevo al Master Admin.'
+      : '';
 ---
 
 <Layout isMaster={true}>
@@ -18,6 +28,7 @@ import Layout from '../layouts/Layout.astro';
     .login-button:disabled { opacity: .62; cursor: wait; }
     .login-alert { display: none; border-radius: 8px; border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; padding: 11px 12px; font-size: 13px; line-height: 1.4; font-weight: 850; }
     .login-alert.is-visible { display: block; }
+    .login-alert.is-success { display: block; border-color: #bbf7d0; background: #ecfdf5; color: #166534; }
   </style>
 
   <main class="login-shell">
@@ -29,6 +40,7 @@ import Layout from '../layouts/Layout.astro';
       </div>
 
       <form id="login-form" class="login-form">
+        {notice && <div class="login-alert is-success" role="status">{notice}</div>}
         <div class="field">
           <label for="login-email">Email</label>
           <input id="login-email" name="email" type="email" autocomplete="email" required />
@@ -44,8 +56,9 @@ import Layout from '../layouts/Layout.astro';
   </main>
 
   <script>
-    import { exportAuthCookie, getRedirectPathForRole, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout } from '../lib/auth';
+    import { exportAuthCookie, getRedirectPathForRole, getTemporaryPasswordRedirect, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout, requiresTemporaryPasswordChange } from '../lib/auth';
     import { getAdminDeviceLoginMessage } from '../lib/adminDevice';
+    import { getStoreAccountErrorCode } from '../lib/storeAccount';
 
     const form = document.getElementById('login-form') as HTMLFormElement | null;
     const button = document.getElementById('login-button') as HTMLButtonElement | null;
@@ -106,9 +119,17 @@ import Layout from '../layouts/Layout.astro';
         }
 
         document.cookie = exportAuthCookie();
-        window.location.assign(getRedirectPathForRole(user));
+        window.location.assign(
+          requiresTemporaryPasswordChange(user)
+            ? getTemporaryPasswordRedirect(user)
+            : getRedirectPathForRole(user)
+        );
       } catch (error) {
-        showError(getAdminDeviceLoginMessage(error));
+        showError(
+          getStoreAccountErrorCode(error) === 'temporary_password_expired'
+            ? 'La contraseña temporal venció. Solicita una nueva al Master Admin.'
+            : getAdminDeviceLoginMessage(error)
+        );
       } finally {
         button.disabled = false;
         button.textContent = 'Entrar al panel';

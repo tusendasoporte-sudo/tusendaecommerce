@@ -168,7 +168,7 @@ const pending = [
       </section>
 
       <section class="master-card">
-        <header class="master-card-header"><h3 class="master-card-title">Equipo de la tienda</h3><button class="master-btn master-btn--secondary" type="button" data-action-create-user>Gestionar usuarios</button></header>
+        <header class="master-card-header"><h3 class="master-card-title">Equipo de la tienda</h3><a class="master-btn master-btn--secondary" href={`/master/stores/${store.id}/users`}>Gestionar usuarios</a></header>
         <div class="master-card-body master-team-grid">
           <article class="master-mini-stat"><span>Usuarios activos</span><strong>{number(team.active_users)}</strong></article>
           <article class="master-mini-stat"><span>Administrador</span><strong>{number(team.admins)}</strong></article>

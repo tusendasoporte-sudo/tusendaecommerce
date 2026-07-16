@@ -1,0 +1,195 @@
+---
+export const prerender = false;
+
+import AdminDialog from '../../../../components/admin/AdminDialog.astro';
+import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
+import { getStoreAdminPath } from '../../../../lib/adminRoutes';
+import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../../../lib/auth';
+import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
+import '../../../../styles/global.css';
+import '../../../../styles/account-ui.css';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/login');
+if (isMasterAdmin(authPb.authStore.record as any)) return Astro.redirect('/master');
+
+let adminContext;
+try {
+  adminContext = await requireCurrentStoreForAdmin(authPb);
+} catch (_) {
+  return Astro.redirect('/login');
+}
+
+const storeSlug = String(adminContext.store.slug || '').trim().toLowerCase();
+const canonicalPath = getStoreAdminPath(storeSlug, 'account');
+const pathSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+if (pathSlug !== storeSlug) return Astro.redirect(canonicalPath);
+if (!isStoreAdmin(adminContext.user)) return Astro.redirect(getStoreAdminPath(storeSlug));
+
+const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
+const user = adminContext.user;
+const displayName = String(user.display_name || user.name || user.email || 'Administrador');
+const roleLabel = 'Administrador de tienda';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <title>Mi cuenta | {storeName}</title>
+  </head>
+  <body class="pz-account-page pz-account-page--sidebar">
+    <AdminSidebar
+      storeId={adminContext.storeId}
+      pocketbaseUrl={import.meta.env.PUBLIC_POCKETBASE_URL}
+      authToken={authPb.authStore.token}
+      storeSlug={storeSlug}
+      storeName={storeName}
+      storePlanValues={adminContext.store}
+      activeSection="account"
+      mobileTitle="Mi cuenta"
+    />
+
+    <main class="pz-account-shell">
+      <header class="pz-account-heading">
+        <h1>Mi cuenta</h1>
+        <p>Gestiona la seguridad de tu cuenta de administrador.</p>
+      </header>
+
+      <div class="pz-account-stack">
+        <section class="pz-account-card" aria-labelledby="account-information-title">
+          <header class="pz-account-card__head">
+            <h2 id="account-information-title">Información de la cuenta</h2>
+            <p>Estos son los datos asociados a tu cuenta de administrador.</p>
+          </header>
+          <dl class="pz-account-info">
+            <div><dt>Nombre</dt><dd>{displayName}</dd></div>
+            <div><dt>Email</dt><dd>{String(user.email || '')}</dd></div>
+            <div><dt>Teléfono</dt><dd>{String(user.phone || 'No registrado')}</dd></div>
+            <div><dt>Rol</dt><dd>{roleLabel}</dd></div>
+            <div><dt>Estado</dt><dd><span class="pz-account-badge">Activo</span></dd></div>
+          </dl>
+        </section>
+
+        <section class="pz-account-card" aria-labelledby="account-password-title">
+          <header class="pz-account-card__head">
+            <h2 id="account-password-title">Cambiar contraseña</h2>
+            <p>Asegúrate de usar una contraseña segura y única.</p>
+          </header>
+          <form id="account-password-form" class="pz-account-form" novalidate>
+            <div class="pz-account-field">
+              <label for="account-current-password">Contraseña actual</label>
+              <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-current-password" name="currentPassword" type="password" autocomplete="current-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
+            </div>
+            <div class="pz-account-field">
+              <label for="account-new-password">Nueva contraseña</label>
+              <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-new-password" name="newPassword" type="password" autocomplete="new-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
+            </div>
+            <div class="pz-account-field">
+              <label for="account-confirm-password">Confirmar nueva contraseña</label>
+              <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-confirm-password" name="newPasswordConfirm" type="password" autocomplete="new-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
+            </div>
+            <div class="pz-account-strength"><span>Seguridad</span><span class="pz-account-strength__bar" data-strength-bar></span><strong data-strength-label>Sin evaluar</strong></div>
+            <button class="pz-account-submit" type="submit">Cambiar contraseña</button>
+            <p class="pz-account-message" data-account-message aria-live="polite"></p>
+            <div class="pz-account-alert">Al cambiar tu contraseña se cerrarán todas tus sesiones activas, incluida esta sesión. Deberás iniciar sesión nuevamente.</div>
+          </form>
+        </section>
+
+        <section class="pz-account-card pz-account-session" aria-labelledby="account-sessions-title">
+          <div><h2 id="account-sessions-title">Sesiones</h2><p>Gestiona tus sesiones activas. Se cerrarán todas, incluida esta.</p></div>
+          <button id="account-revoke-sessions" class="pz-account-secondary" type="button">Cerrar todas mis sesiones</button>
+        </section>
+      </div>
+    </main>
+
+    <AdminDialog />
+
+    <script>
+      import { getTemporaryPasswordRedirect } from '../../../../lib/auth';
+      import { changeStoreAdminPassword, finishStoreAccountMutation, getStoreAccountErrorCode, getStoreAccountErrorMessage, revokeStoreAdminSessions } from '../../../../lib/storeAccount';
+
+      const form = document.getElementById('account-password-form') as HTMLFormElement | null;
+      const message = document.querySelector<HTMLElement>('[data-account-message]');
+      const newPassword = document.getElementById('account-new-password') as HTMLInputElement | null;
+      const strengthBar = document.querySelector<HTMLElement>('[data-strength-bar]');
+      const strengthLabel = document.querySelector<HTMLElement>('[data-strength-label]');
+
+      function strength(value: string) {
+        let score = 0;
+        if (value.length >= 8) score += 1;
+        if (value.length >= 12) score += 1;
+        if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1;
+        if (/\d/.test(value) && /[^A-Za-z0-9]/.test(value)) score += 1;
+        const labels = ['Sin evaluar', 'Básica', 'Aceptable', 'Buena', 'Fuerte'];
+        const colors = ['#94a3b8', '#ef4444', '#f97316', '#2563eb', '#16a34a'];
+        strengthBar?.style.setProperty('--strength', `${score * 25}%`);
+        strengthBar?.style.setProperty('--strength-color', colors[score]);
+        if (strengthLabel) strengthLabel.textContent = value ? labels[score] : labels[0];
+      }
+
+      document.querySelectorAll<HTMLButtonElement>('[data-toggle-password]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const input = button.previousElementSibling as HTMLInputElement | null;
+          if (!input) return;
+          input.type = input.type === 'password' ? 'text' : 'password';
+          button.setAttribute('aria-label', input.type === 'password' ? 'Mostrar contraseña' : 'Ocultar contraseña');
+        });
+      });
+      newPassword?.addEventListener('input', () => strength(newPassword.value));
+
+      form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+        const data = new FormData(form);
+        const input = {
+          currentPassword: String(data.get('currentPassword') || ''),
+          newPassword: String(data.get('newPassword') || ''),
+          newPasswordConfirm: String(data.get('newPasswordConfirm') || ''),
+        };
+        if (input.newPassword !== input.newPasswordConfirm) {
+          if (message) message.textContent = 'Las contraseñas nuevas no coinciden.';
+          return;
+        }
+        if (submit) submit.disabled = true;
+        if (message) message.textContent = '';
+        try {
+          await changeStoreAdminPassword(input);
+          form.reset();
+          finishStoreAccountMutation('password_changed=1');
+        } catch (error) {
+          if (getStoreAccountErrorCode(error) === 'temporary_password_change_required') {
+            window.location.assign(getTemporaryPasswordRedirect({ role: 'store_admin', status: 'active', must_change_password: true, id: '' }));
+            return;
+          }
+          if (message) message.textContent = getStoreAccountErrorMessage(error);
+        } finally {
+          if (submit) submit.disabled = false;
+        }
+      });
+
+      document.getElementById('account-revoke-sessions')?.addEventListener('click', async () => {
+        const confirmed = await window.AdminDialog?.confirm({
+          tone: 'warning',
+          title: '¿Cerrar todas tus sesiones?',
+          message: 'Se cerrarán todas tus sesiones, incluida esta.\nTendrás que iniciar sesión nuevamente.',
+          confirmText: 'Cerrar todas mis sesiones',
+        });
+        if (!confirmed) return;
+        try {
+          await revokeStoreAdminSessions();
+          finishStoreAccountMutation('sessions_closed=1');
+        } catch (error) {
+          window.AdminDialog?.toast({ tone: 'danger', message: getStoreAccountErrorMessage(error) });
+        }
+      });
+    </script>
+  </body>
+</html>

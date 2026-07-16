@@ -1,0 +1,56 @@
+---
+export const prerender = false;
+
+import Layout from '../../../../../layouts/Layout.astro';
+import MasterShell from '../../../../../components/master/MasterShell.astro';
+import MasterStoreUsersView from '../../../../../components/master/MasterStoreUsersView.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../../lib/auth';
+import { listMasterStoreUsers } from '../../../../../lib/masterUsers';
+import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
+import '../../../../../styles/master-users.css';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !masterUser) return Astro.redirect('/master-login');
+const storeId = String(Astro.params.storeId || '').trim();
+if (!/^[a-z0-9]{15}$/.test(storeId)) return Astro.redirect('/master/stores');
+
+let storeRecord: any;
+try {
+  storeRecord = await authPb.collection('stores').getOne(storeId, { fields: 'id,name,slug,status,plan,plan_started_at,plan_expires_at,plan_duration_months,plan_is_permanent,free_trial_used', requestKey: null });
+} catch (_) {
+  return Astro.redirect('/master/stores');
+}
+
+const page = Math.max(1, Number(Astro.url.searchParams.get('page') || 1));
+const search = String(Astro.url.searchParams.get('search') || '').slice(0, 120);
+const roleParam = String(Astro.url.searchParams.get('role') || 'all');
+const statusParam = String(Astro.url.searchParams.get('status') || 'all');
+const role = ['all', 'store_admin', 'store_staff'].includes(roleParam) ? roleParam as any : 'all';
+const status = ['all', 'active', 'suspended'].includes(statusParam) ? statusParam as any : 'all';
+let initialData;
+try {
+  initialData = await listMasterStoreUsers(storeId, { page, perPage: 10, search, role, status }, authPb);
+} catch (_) {
+  return Astro.redirect('/master/stores');
+}
+const currentStore = {
+  id: storeId,
+  name: String(storeRecord.name || storeRecord.slug || 'Tienda'),
+  slug: String(storeRecord.slug || ''),
+  status: String(storeRecord.status || '') === 'active' ? 'active' : 'suspended',
+  planPresentation: resolveStorePlanPresentation(storeRecord),
+};
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || 'Master Admin');
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Usuarios" currentStore={currentStore}>
+    <MasterStoreUsersView store={currentStore} initialData={initialData} initialFilters={{ search, role, status }} />
+  </MasterShell>
+</Layout>

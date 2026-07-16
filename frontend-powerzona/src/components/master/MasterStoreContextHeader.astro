@@ -46,9 +46,9 @@ function initials(value: string) {
     <button class="master-btn master-btn--secondary" type="button" data-action-edit-store>
       <MasterIcon name="edit" size={19} /> Editar tienda
     </button>
-    <button class="master-btn master-btn--secondary" type="button" data-action-create-user>
+    <a class="master-btn master-btn--secondary" href={`/master/stores/${encodeURIComponent(store.id)}/users?create=1`}>
       <MasterIcon name="user-plus" size={19} /> Crear usuario
-    </button>
+    </a>
     <button class="master-icon-btn" type="button" data-action-more aria-label="Más acciones" aria-haspopup="menu" aria-expanded="false">
       <MasterIcon name="more" size={21} />
     </button>

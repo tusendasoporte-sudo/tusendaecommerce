@@ -90,6 +90,26 @@ routerAdd(
   $apis.skipSuccessActivityLog()
 );
 
+routerAdd(
+  "POST",
+  "/api/pz/store/account/change-temporary-password",
+  (e) => require(`${__hooks}/pz_master_store_users_lib.js`).handleTemporaryPasswordChange(e),
+  (e) => require(`${__hooks}/pz_master_store_users_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/store/account/revoke-sessions",
+  (e) => require(`${__hooks}/pz_master_store_users_lib.js`).handleSelfRevokeSessions(e),
+  (e) => require(`${__hooks}/pz_master_store_users_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
 onRecordAuthWithPasswordRequest((e) => {
   require(`${__hooks}/pz_master_store_users_lib.js`).rejectSuspendedAuthentication(e);
   return e.next();

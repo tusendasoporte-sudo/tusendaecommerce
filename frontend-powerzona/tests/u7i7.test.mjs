@@ -1,0 +1,158 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+const auth = read('src/lib/auth.ts');
+const middleware = read('src/middleware.ts');
+const masterUsers = read('src/lib/masterUsers.ts');
+const devices = read('src/lib/masterUserDevices.ts');
+const account = read('src/lib/storeAccount.ts');
+const listView = read('src/components/master/MasterStoreUsersView.astro');
+const detailView = read('src/components/master/MasterStoreUserDetailView.astro');
+const accountPage = read('src/pages/t/[storeSlug]/admin/account.astro');
+const temporaryPage = read('src/pages/t/[storeSlug]/admin/change-temporary-password.astro');
+const login = read('src/pages/login.astro');
+const sidebar = read('src/components/admin/AdminSidebar.astro');
+const masterSidebar = read('src/components/master/MasterSidebar.astro');
+
+test('AuthUser y helpers puros modelan el cambio temporal', () => {
+  assert.match(auth, /must_change_password\?: boolean/);
+  assert.match(auth, /export function requiresTemporaryPasswordChange/);
+  assert.match(auth, /export function getTemporaryPasswordRedirect/);
+  assert.match(auth, /change-temporary-password/);
+});
+
+test('middleware central bloquea el panel y libera al usuario normal', () => {
+  assert.match(middleware, /requiresTemporaryPasswordChange\(adminContext\.user\)/);
+  assert.match(middleware, /normalizedPath !== temporaryPath/);
+  assert.match(middleware, /if \(isTemporaryRoute\) return context\.redirect\(canonicalAdminPath\)/);
+  assert.equal((middleware.match(/requiresTemporaryPasswordChange/g) || []).length >= 2, true);
+});
+
+test('servicio Master expone filtros paginacion actividad planes y estado temporal', () => {
+  for (const token of ['listMasterStoreUsers', 'getMasterStoreUserDetail', 'updateMasterStoreUser', 'issueMasterTemporaryPassword', 'revokeMasterStoreUserSessions', 'getMasterStoreUserAudit', 'last_admin_activity_at', 'temporary_password_state', 'max_devices_per_user', 'max_store_devices']) {
+    assert.match(masterUsers, new RegExp(token));
+  }
+  assert.doesNotMatch(masterUsers, /collection\(['"]users['"]\)/);
+});
+
+test('servicio de dispositivos usa solo endpoints privados sanitizados', () => {
+  assert.match(devices, /\/api\/pz\/master\/store-user-devices\//);
+  assert.match(devices, /authorized.*revoked.*all/s);
+  for (const secret of ['device_digest', 'tokenKey', 'user_agent', 'location', 'latitude', 'longitude']) assert.doesNotMatch(devices, new RegExp(secret, 'i'));
+});
+
+test('servicio de cuenta limpia auth y cookie despues de mutaciones', () => {
+  assert.match(account, /change-temporary-password/);
+  assert.match(account, /change-password/);
+  assert.match(account, /revoke-sessions/);
+  assert.match(account, /client\.authStore\.clear\(\)/);
+  assert.match(account, /Max-Age=0/);
+  assert.match(account, /password_setup=1.*password_changed=1.*sessions_closed=1/s);
+});
+
+test('listado implementa filtros debounce abort paginacion y evita pending como estado de usuario', () => {
+  assert.match(listView, /type="search"/);
+  assert.match(listView, /setTimeout\(\(\) => load\(1\), 320\)/);
+  assert.match(listView, /AbortController/);
+  assert.match(listView, /activeController\?\.abort\(\)/);
+  assert.match(listView, /perPage: 10/);
+  assert.match(listView, /store_admin.*store_staff/s);
+  assert.match(listView, /active.*suspended/s);
+  assert.doesNotMatch(listView, /value="pending"/);
+});
+
+test('limites 1 1 4 y 5 5 20 se consumen desde la respuesta dinamica', () => {
+  assert.match(listView, /plan\.active_users.*plan\.max_active_users/);
+  assert.match(listView, /plan\.max_devices_per_user/);
+  assert.match(listView, /plan\.max_store_devices/);
+  assert.doesNotMatch(listView, /Premium permite|Premium solamente|PowerZona Premium/);
+});
+
+test('creacion temporal genera con Web Crypto muestra copia y limpia el secreto', () => {
+  assert.match(listView, /crypto\.getRandomValues/);
+  assert.match(listView, /chars\.length < 18/);
+  assert.match(listView, /data-create-copy/);
+  assert.match(listView, /data-create-secret-result/);
+  assert.match(listView, /transientSecret = ''/);
+  assert.match(listView, /secretNode\.textContent = ''/);
+  for (const storage of ['localStorage', 'sessionStorage']) assert.doesNotMatch(listView, new RegExp(storage));
+});
+
+test('detalle protege ultimo admin y no ofrece eliminacion', () => {
+  assert.match(detailView, /único Administrador activo/);
+  assert.match(detailView, /disabled=\{detail\.protection\.last_active_admin\}/);
+  assert.match(detailView, /last_active_admin_required|Debe existir al menos/);
+  assert.doesNotMatch(detailView, /Eliminar usuario|deleteMasterStoreUser/);
+});
+
+test('restablecimiento Master es temporal cierra sesiones y limpia secreto', () => {
+  assert.match(detailView, /Restablecer acceso/);
+  assert.match(detailView, /vencerá en 72 horas/);
+  assert.match(detailView, /todas las sesiones actuales dejarán de funcionar/);
+  assert.match(detailView, /issueMasterTemporaryPassword/);
+  assert.match(detailView, /resetSecret\.textContent = ''/);
+  assert.doesNotMatch(detailView, /establecer contraseña permanente|excepto la actual/i);
+});
+
+test('dispositivos no inventan IP ubicacion ni identificadores visibles', () => {
+  for (const visible of ['label', 'browser_name', 'os_name', 'device_type', 'first_seen_at', 'last_seen_at']) assert.match(detailView, new RegExp(visible));
+  for (const forbidden of ['Ubicación', 'Ciudad', 'País', 'IP:', 'device_digest', 'User-Agent']) assert.doesNotMatch(detailView, new RegExp(forbidden, 'i'));
+  assert.match(detailView, /no solamente la sesión de este dispositivo/);
+});
+
+test('auditoria combinada traduce eventos y carga incremental sin duplicados', () => {
+  for (const action of ['user_created', 'user_updated', 'temporary_password_issued', 'forced_password_changed', 'sessions_revoked', 'self_password_changed', 'device_authorized', 'device_revoked']) assert.match(detailView, new RegExp(action));
+  assert.match(detailView, /new Set/);
+  assert.match(detailView, /Cargar más/);
+});
+
+test('Mi cuenta es exclusiva del Admin y exige reautenticacion total', () => {
+  assert.match(accountPage, /if \(!isStoreAdmin\(adminContext\.user\)\)/);
+  assert.match(accountPage, /incluida esta sesión/);
+  assert.match(accountPage, /Cerrar todas mis sesiones/);
+  assert.match(accountPage, /changeStoreAdminPassword/);
+  assert.match(accountPage, /revokeStoreAdminSessions/);
+  assert.doesNotMatch(accountPage, /Editar email|Cambiar email|gestionar otros usuarios/i);
+});
+
+test('cambio obligatorio admite Admin Staff sin navegacion operativa', () => {
+  assert.match(temporaryPage, /isStoreUser\(adminContext\.user\)/);
+  assert.match(temporaryPage, /Debes crear tu contraseña personal/);
+  assert.match(temporaryPage, /changeTemporaryPassword/);
+  assert.match(temporaryPage, /password_setup=1/);
+  for (const operational of ['AdminSidebar', 'Productos', 'Pedidos', 'Dispositivos autorizados', 'Auditoría']) assert.doesNotMatch(temporaryPage, new RegExp(operational));
+});
+
+test('login muestra mensajes neutrales y dirige la sesion temporal', () => {
+  assert.match(login, /Contraseña personal creada\. Inicia sesión nuevamente\./);
+  assert.match(login, /Contraseña actualizada\. Inicia sesión nuevamente\./);
+  assert.match(login, /Sesiones cerradas\. Inicia sesión nuevamente\./);
+  assert.match(login, /temporary_password_expired/);
+  assert.match(login, /getTemporaryPasswordRedirect/);
+});
+
+test('sidebars integran rutas sin crear layouts paralelos ni quinto boton movil', () => {
+  assert.match(masterSidebar, /\/users/);
+  assert.match(masterSidebar, />Usuarios</);
+  assert.match(sidebar, /adminAccountPath/);
+  assert.match(sidebar, />Mi cuenta</);
+  const mobileBottom = sidebar.slice(sidebar.indexOf('<nav class="pz-admin-mobile-bottom-nav"'), sidebar.indexOf('</nav>', sidebar.indexOf('<nav class="pz-admin-mobile-bottom-nav"')));
+  assert.equal((mobileBottom.match(/<a class=\{mobileBottomClass/g) || []).length, 4);
+  assert.doesNotMatch(mobileBottom, /Mi cuenta/);
+});
+
+test('rutas canonicas y legacy existen', () => {
+  for (const route of [
+    'src/pages/master/stores/[storeId]/users/index.astro',
+    'src/pages/master/stores/[storeId]/users/[userId].astro',
+    'src/pages/t/[storeSlug]/admin/change-temporary-password.astro',
+    'src/pages/t/[storeSlug]/admin/account.astro',
+    'src/pages/admin/change-temporary-password.astro',
+    'src/pages/admin/account.astro',
+  ]) assert.equal(fs.existsSync(path.join(ROOT, route)), true, route);
+});

@@ -89,7 +89,9 @@ test('sanitiza usuarios sin password, hash, tokenKey ni username interno', () =>
     password: 'plain', tokenKey: 'token', username: 'internal', verified: true,
   }), 1);
   assert.deepEqual(Object.keys(sanitized), [
-    'id', 'email', 'display_name', 'phone', 'role', 'status', 'created', 'updated', 'is_last_active_admin',
+    'id', 'email', 'display_name', 'phone', 'role', 'status', 'created', 'updated',
+    'must_change_password', 'temporary_password_state', 'temporary_password_issued_at',
+    'temporary_password_expires_at', 'last_admin_activity_at', 'is_last_active_admin',
     'authorized_device_count', 'device_limit',
   ]);
   assert.equal(sanitized.authorized_device_count, 0);

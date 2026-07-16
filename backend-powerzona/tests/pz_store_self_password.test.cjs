@@ -161,13 +161,15 @@ test('self_password_changed exige revocar todas las sesiones', () => {
   assert.equal(users.sessionsMustBeRevoked('self_password_changed', {}, {}), true);
 });
 
-test('la lista de auditoria agrega solo la quinta accion oficial', () => {
+test('la lista de auditoria conserva historicas y agrega acciones temporales', () => {
   assert.deepEqual(users.AUDIT_ACTIONS, [
     'user_created',
     'user_updated',
     'password_changed',
     'sessions_revoked',
     'self_password_changed',
+    'temporary_password_issued',
+    'forced_password_changed',
   ]);
 });
 

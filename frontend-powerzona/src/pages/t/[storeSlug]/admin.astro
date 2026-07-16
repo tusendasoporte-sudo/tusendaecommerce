@@ -99,7 +99,7 @@ function storeInitials(name: string) {
         ) : isSuspended ? (
           <div class="store-login-alert is-visible" role="alert">Esta tienda esta suspendida. Contacta al administrador principal.</div>
         ) : (
-          <form id="store-login-form" class="store-login-form" data-store-id={store.id}>
+          <form id="store-login-form" class="store-login-form" data-store-id={store.id} data-store-slug={storeSlug}>
             <div class="field">
               <label for="store-login-email">Email</label>
               <input id="store-login-email" name="email" type="email" autocomplete="email" required />
@@ -117,13 +117,15 @@ function storeInitials(name: string) {
   </main>
 
   <script>
-    import { exportAuthCookie, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout } from '../../../lib/auth';
+    import { exportAuthCookie, getTemporaryPasswordRedirect, getUserStoreId, isActiveUser, isMasterAdmin, isStoreUser, loginWithPassword, logout, requiresTemporaryPasswordChange } from '../../../lib/auth';
     import { getAdminDeviceLoginMessage } from '../../../lib/adminDevice';
+    import { getStoreAccountErrorCode } from '../../../lib/storeAccount';
 
     const form = document.getElementById('store-login-form') as HTMLFormElement | null;
     const button = document.getElementById('store-login-button') as HTMLButtonElement | null;
     const alertBox = document.getElementById('store-login-alert');
     const storeId = form?.dataset.storeId || '';
+    const storeSlug = form?.dataset.storeSlug || '';
 
     function showError(message: string) {
       if (!alertBox) return;
@@ -173,9 +175,17 @@ function storeInitials(name: string) {
         }
 
         document.cookie = exportAuthCookie();
-        window.location.assign(window.location.pathname);
+        window.location.assign(
+          requiresTemporaryPasswordChange(user)
+            ? getTemporaryPasswordRedirect(user, storeSlug)
+            : window.location.pathname
+        );
       } catch (error) {
-        showError(getAdminDeviceLoginMessage(error));
+        showError(
+          getStoreAccountErrorCode(error) === 'temporary_password_expired'
+            ? 'La contraseña temporal venció. Solicita una nueva al Master Admin.'
+            : getAdminDeviceLoginMessage(error)
+        );
       } finally {
         button.disabled = false;
         button.textContent = 'Entrar al panel';

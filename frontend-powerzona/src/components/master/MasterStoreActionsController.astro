@@ -50,7 +50,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       <div class="master-field-grid">
         <div class="master-field master-field--full"><label for="master-user-name">Nombre del usuario</label><input id="master-user-name" name="display_name" type="text" maxlength="140" autocomplete="name" required /></div>
         <div class="master-field"><label for="master-user-email">Email</label><input id="master-user-email" name="email" type="email" maxlength="255" autocomplete="email" required /></div>
-        <div class="master-field"><label for="master-user-password">Contraseña inicial</label><input id="master-user-password" name="password" type="password" minlength="8" autocomplete="new-password" required /></div>
+        <div class="master-field"><label for="master-user-password">Contraseña temporal</label><input id="master-user-password" name="password" type="password" minlength="8" autocomplete="new-password" required /><small>Vence en 72 horas y debe cambiarse antes de entrar al panel.</small></div>
         <div class="master-field"><label for="master-user-phone">Teléfono</label><input id="master-user-phone" name="phone" type="tel" maxlength="60" autocomplete="tel" /></div>
         <div class="master-field"><label for="master-user-role">Rol</label><select id="master-user-role" name="role"><option value="store_admin">Administrador</option><option value="store_staff">Empleado</option></select></div>
         <div class="master-field"><label for="master-user-status">Estado</label><select id="master-user-status" name="status"><option value="active">Activo</option><option value="suspended">Suspendido</option></select></div>
@@ -349,8 +349,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     document.getElementById('create-store')?.addEventListener('click', () => void openStoreDialog(null));
     document.querySelectorAll<HTMLButtonElement>('[data-action-edit-store]').forEach((button) => button.addEventListener('click', () => void openStoreDialog(contextFor(button))));
     document.querySelectorAll<HTMLButtonElement>('[data-action-create-user]').forEach((button) => button.addEventListener('click', () => {
-      const context = contextFor(button);
-      if (context) void openUserDialog(context);
+      const id = storeId(contextFor(button));
+      if (id) window.location.assign(`/master/stores/${encodeURIComponent(id)}/users?create=1`);
     }));
 
     securityMenu?.querySelector('[data-menu-security-view]')?.addEventListener('click', () => closeMenu());
@@ -361,7 +361,8 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
     storeMenu?.querySelector('[data-menu-products]')?.addEventListener('click', () => closeMenu());
     storeMenu?.querySelector('[data-menu-create-user]')?.addEventListener('click', () => {
       const context = activeContext;
-      if (context) void openUserDialog(context);
+      const id = storeId(context);
+      if (id) window.location.assign(`/master/stores/${encodeURIComponent(id)}/users?create=1`);
     });
     storeMenu?.querySelector('[data-menu-edit]')?.addEventListener('click', () => void openStoreDialog(activeContext));
     storeMenu?.querySelector('[data-menu-configure-security]')?.addEventListener('click', () => {

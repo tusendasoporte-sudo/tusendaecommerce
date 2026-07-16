@@ -327,6 +327,15 @@ test('los endpoints son POST privados, no-store y sin activity log de éxito', (
   assert.match(read('../pb_hooks/pz_store_user_devices_lib.js'), /Cache-Control", "private, no-store/);
 });
 
+test('el listado separa el filtro SQL del filtro de registros PocketBase', () => {
+  const source = read('../pb_hooks/pz_store_user_devices_lib.js');
+  const list = source.slice(source.indexOf('function handleList'), source.indexOf('function handleRevoke'));
+  assert.match(list, /sqlStatusFilter = context\.parsed\.status === "all" \? "" : " AND status = \{:status\}"/);
+  assert.match(list, /recordStatusFilter = context\.parsed\.status === "all" \? "" : " && status = \{:status\}"/);
+  assert.match(list, /WHERE store = \{:storeId\} AND user = \{:userId\}\$\{sqlStatusFilter\}/);
+  assert.match(list, /store = \{:storeId\} && user = \{:userId\}\$\{recordStatusFilter\}/);
+});
+
 test('no se modifica ni reutiliza la colección pública de dispositivos de clientes', () => {
   const deviceSource = read('../pb_hooks/pz_store_user_devices_lib.js');
   const migrationSource = read('../pb_migrations/1783386700_store_user_devices.js');
