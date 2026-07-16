@@ -26,6 +26,20 @@ export type MasterStoreUserInput = {
   status?: string;
 };
 
+export type MasterStoreUserSummaryItem = {
+  store_id: string;
+  total_users: number;
+  active_users: number;
+  active_admins: number;
+  active_staff: number;
+};
+
+export type MasterStoreUserSummary = {
+  ok: true;
+  total_users: number;
+  stores: MasterStoreUserSummaryItem[];
+};
+
 function requireMasterClient(client: PocketBase) {
   if (!isMasterAdmin(client.authStore.record as any)) {
     throw new Error('No tienes permisos para gestionar usuarios de tienda.');
@@ -41,14 +55,6 @@ function normalizeUserStatus(value: string | undefined) {
   const status = String(value || 'active').toLowerCase();
   if (status === 'active' || status === 'suspended') return status;
   throw new Error('El estado seleccionado no es valido.');
-}
-
-function escapePocketBaseValue(value: string) {
-  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-function storeUserRoleFilter() {
-  return `(role="${USER_ROLES.STORE_ADMIN}" || role="${USER_ROLES.STORE_STAFF}")`;
 }
 
 function mapMasterStoreUser(user: any): MasterStoreUser {
@@ -76,27 +82,57 @@ function getStoreUserPayload(input: MasterStoreUserInput) {
   if (password.length < 8) throw new Error('La contrasena debe tener al menos 8 caracteres.');
   if (!displayName) throw new Error('Escribe el nombre del usuario.');
 
-  const payload: Record<string, any> = {
+  const payload = {
+    store_id: store,
     email,
-    emailVisibility: true,
     password,
-    passwordConfirm: password,
     display_name: displayName,
+    phone: String(input.phone || '').trim(),
     role: normalizeStoreUserRole(input.role),
-    store,
     status: normalizeUserStatus(input.status),
+    reason: '',
   };
 
-  const phone = String(input.phone || '').trim();
-  if (phone) payload.phone = phone;
-
   return payload;
+}
+
+async function postMasterStoreUsers<T>(client: PocketBase, action: string, body: Record<string, unknown>) {
+  return client.send<T>(`/api/pz/master/store-users/${action}`, {
+    method: 'POST',
+    body,
+    requestKey: null,
+  });
+}
+
+async function getStoreUsersPage(client: PocketBase, storeId: string, page: number) {
+  return postMasterStoreUsers<{
+    ok: true;
+    users: any[];
+    pagination: { page: number; total_pages: number };
+  }>(client, 'list', {
+    store_id: storeId,
+    page,
+    per_page: 50,
+    search: '',
+    role: 'all',
+    status: 'all',
+  });
+}
+
+async function getAllUsersForStore(client: PocketBase, storeId: string) {
+  const first = await getStoreUsersPage(client, storeId, 1);
+  const users = [...first.users];
+  for (let page = 2; page <= first.pagination.total_pages; page += 1) {
+    users.push(...(await getStoreUsersPage(client, storeId, page)).users);
+  }
+  return users.map((user) => mapMasterStoreUser({ ...user, store: storeId }));
 }
 
 export function getStoreUserCreateErrorMessage(error: any) {
   const data = error?.data?.data || error?.data || {};
   const message = String(error?.message || '').toLowerCase();
   const status = Number(error?.status || error?.response?.status || 0);
+  const errorCode = String(error?.data?.error || data?.error || '').toLowerCase();
   const emailCode = String(data?.email?.code || data?.email?.message || '').toLowerCase();
   const passwordCode = String(data?.password?.code || data?.password?.message || '').toLowerCase();
   const storeCode = String(data?.store?.code || data?.store?.message || '').toLowerCase();
@@ -106,7 +142,17 @@ export function getStoreUserCreateErrorMessage(error: any) {
   const emailVisibilityCode = String(data?.emailVisibility?.code || data?.emailVisibility?.message || '').toLowerCase();
   const permissionCode = String(data?.permission?.code || data?.permission?.message || '').toLowerCase();
 
-  if (status === 403 || message.includes('forbidden')) return 'No tienes permisos para crear usuarios de tienda.';
+  if (errorCode === 'email_exists') return 'Este email ya existe.';
+  if (errorCode === 'active_user_limit_reached') return 'La tienda alcanzo el limite de usuarios activos de su plan.';
+  if (errorCode === 'invalid_role') return 'El rol seleccionado no es valido.';
+  if (errorCode === 'invalid_status') return 'El estado seleccionado no es valido.';
+  if (errorCode === 'invalid_email') return 'Escribe un email valido.';
+  if (errorCode === 'invalid_password') return 'La contrasena debe tener al menos 8 caracteres.';
+  if (errorCode === 'store_not_found') return 'No se encontro la tienda seleccionada.';
+  if (errorCode === 'user_management_unavailable') return 'La gestion de usuarios no esta disponible temporalmente.';
+  if (errorCode === 'unauthorized' || status === 403 || message.includes('forbidden')) {
+    return 'No tienes permisos para crear usuarios de tienda.';
+  }
 
   if (emailCode.includes('validation_not_unique') || emailCode.includes('unique')) return 'Este email ya existe.';
   if (passwordCode.includes('min') || message.includes('password')) return 'La contrasena debe tener al menos 8 caracteres.';
@@ -129,41 +175,33 @@ export function getStoreUserCreateErrorMessage(error: any) {
 
 export async function getStoreUsersForMaster(client = pb): Promise<MasterStoreUser[]> {
   requireMasterClient(client);
-
-  const users = await client.collection('users').getFullList({
-    fields: 'id,email,display_name,role,store,status,phone,created,updated',
-    filter: storeUserRoleFilter(),
-    sort: 'store,display_name,email',
-  });
-
-  return users.map(mapMasterStoreUser);
+  const stores = await client.collection('stores').getFullList({ fields: 'id', sort: 'id' });
+  const users = await Promise.all(stores.map((store) => getAllUsersForStore(client, store.id)));
+  return users.flat();
 }
 
 export async function getStoreUsersForMasterStoreIds(client: PocketBase, storeIds: string[]): Promise<MasterStoreUser[]> {
   requireMasterClient(client);
   const normalizedIds = [...new Set(storeIds.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 100);
   if (!normalizedIds.length) return [];
-  const storesFilter = normalizedIds.map((id) => `store="${escapePocketBaseValue(id)}"`).join(' || ');
-  const users = await client.collection('users').getFullList({
-    fields: 'id,email,display_name,role,store,status,phone,created,updated',
-    filter: `${storeUserRoleFilter()} && (${storesFilter})`,
-    sort: 'store,display_name,email',
-  });
-  return users.map(mapMasterStoreUser);
+  const users = await Promise.all(normalizedIds.map((storeId) => getAllUsersForStore(client, storeId)));
+  return users.flat();
+}
+
+export async function getMasterStoreUserSummary(client: PocketBase, storeIds: string[] = []) {
+  requireMasterClient(client);
+  const normalizedIds = [...new Set(storeIds.map((id) => String(id || '').trim()).filter(Boolean))].slice(0, 100);
+  return postMasterStoreUsers<MasterStoreUserSummary>(client, 'summary', { store_ids: normalizedIds });
 }
 
 export async function getMasterStoreUserCount(client: PocketBase) {
-  requireMasterClient(client);
-  const result = await client.collection('users').getList(1, 1, {
-    fields: 'id',
-    filter: storeUserRoleFilter(),
-  });
-  return Math.max(0, Number(result.totalItems || 0));
+  const result = await getMasterStoreUserSummary(client);
+  return Math.max(0, Number(result.total_users || 0));
 }
 
 export async function createStoreUserFromMaster(input: MasterStoreUserInput, client = pb) {
   requireMasterClient(client);
   const payload = getStoreUserPayload(input);
-
-  return client.collection('users').create(payload);
+  const result = await postMasterStoreUsers<{ ok: true; user: any }>(client, 'create', payload);
+  return mapMasterStoreUser({ ...result.user, store: payload.store_id });
 }

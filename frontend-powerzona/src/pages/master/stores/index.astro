@@ -6,7 +6,7 @@ import MasterShell from '../../../components/master/MasterShell.astro';
 import MasterStoresView, { type MasterStoresViewItem } from '../../../components/master/MasterStoresView.astro';
 import MasterStoreActionsController from '../../../components/master/MasterStoreActionsController.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
-import { getMasterStoreUserCount, getStoreUsersForMasterStoreIds } from '../../../lib/masterUsers';
+import { getMasterStoreUserSummary } from '../../../lib/masterUsers';
 import { getMasterStoreActivitySummary } from '../../../lib/masterStoreActivity';
 import {
   getDefaultSecurityBackendHealth,
@@ -35,8 +35,8 @@ if (!masterUser) return Astro.redirect('/master');
 const requestedPage = normalizeMasterStoresPage(Astro.url.searchParams.get('stores_page'));
 const storesPage = await getStoresPageForMaster(authPb, requestedPage, 10);
 const storeCounts = await getMasterStoreCounts(authPb);
-const storeUsers = await getStoreUsersForMasterStoreIds(authPb, storesPage.items.map((store) => store.id));
-const totalUsers = await getMasterStoreUserCount(authPb);
+const userSummary = await getMasterStoreUserSummary(authPb, storesPage.items.map((store) => store.id));
+const totalUsers = userSummary.total_users;
 const securityMap = await getMasterSecuritySettingsMap(authPb);
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const [activity, securityHealth] = await Promise.all([
@@ -44,10 +44,7 @@ const [activity, securityHealth] = await Promise.all([
   getSecurityBackendHealthForToken(pocketbaseUrl, authPb.authStore.token).catch(() => getDefaultSecurityBackendHealth()),
 ]);
 
-const usersByStore = storeUsers.reduce((map, user) => {
-  if (user.store) map.set(user.store, (map.get(user.store) || 0) + 1);
-  return map;
-}, new Map<string, number>());
+const usersByStore = new Map(userSummary.stores.map((item) => [item.store_id, item.total_users]));
 
 const stores: MasterStoresViewItem[] = storesPage.items.map((store) => {
   const settings = securityMap.get(store.id) || getDefaultSecuritySettings(store.id);
