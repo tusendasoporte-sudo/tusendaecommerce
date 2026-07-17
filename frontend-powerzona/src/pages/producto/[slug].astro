@@ -33,7 +33,7 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
-const storeQuery = { storeId: currentStoreId };
+const storeQuery = { storeId: currentStoreId, store: currentStore };
 const currentPathname = Astro.url.pathname;
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const settings = await getSettings(storeQuery);

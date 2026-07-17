@@ -23,7 +23,7 @@ export const GET: APIRoute = async ({ params }) => {
     const store = await getStoreBySlug(storeSlug);
     if (!store) return new Response('Not found', { status: 404 });
 
-    const storeQuery = { storeId: store.id };
+    const storeQuery = { storeId: store.id, store };
     const settings = await getSettings(storeQuery);
     if (isStoreTemporarilyClosed(settings)) return new Response('Not found', { status: 404 });
 

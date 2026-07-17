@@ -1,8 +1,10 @@
 import { pb, getPocketBaseFileUrl } from './pocketbase';
 import { getCurrentStore } from './stores';
+import { getPublicProductImageNames } from './productImageLimits';
 
 type StoreQueryOptions = {
   storeId?: string;
+  store?: any;
 };
 
 type StoreQueryInput = string | StoreQueryOptions | undefined;
@@ -143,22 +145,11 @@ function orderedFileValues(files: string[], orderValue: any) {
   return order.filter((filename) => files.includes(filename)).concat(files.filter((filename) => !order.includes(filename)));
 }
 
-function getOrderedProductImages(product: any) {
-  const images = normalizeFileValue(product.images);
-  let order: string[] = [];
-  try {
-    order = product?.image_order ? JSON.parse(product.image_order) : [];
-  } catch (_) {
-    order = [];
-  }
-  const ordered = Array.isArray(order) ? order.filter((filename) => images.includes(filename)) : [];
-  return ordered.concat(images.filter((filename) => !ordered.includes(filename))).slice(0, 4);
-}
-
-function addProductImages(product: any) {
+function addProductImages(product: any, options?: StoreQueryInput) {
+  const store = typeof options === 'object' ? options.store : null;
   return {
     ...product,
-    imageUrls: getOrderedProductImages(product).map((filename: string) =>
+    imageUrls: getPublicProductImageNames(product, store).map((filename: string) =>
       getPocketBaseFileUrl('products', product.id, filename)
     ),
   };
@@ -271,7 +262,7 @@ export async function getProducts(options?: StoreQueryInput) {
 
   return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map(addProductImages));
+    .map((product) => addProductImages(product, options)));
 }
 
 export async function getFeaturedProducts(options?: StoreQueryInput) {
@@ -283,7 +274,7 @@ export async function getFeaturedProducts(options?: StoreQueryInput) {
 
   return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map(addProductImages));
+    .map((product) => addProductImages(product, options)));
 }
 
 function addVisualItemFiles(item: any) {
@@ -593,7 +584,7 @@ export async function getProductBySlug(slug: string, options?: StoreQueryInput) 
     throw new Error('Producto no disponible en el catálogo público.');
   }
 
-  return addProductImages(product);
+  return addProductImages(product, options);
 }
 
 export async function getProductVariations(productId: string) {

@@ -2,6 +2,7 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../components/admin/AdminIcon.astro';
@@ -14,6 +15,13 @@ const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const productImageCapability = resolveStoreCapabilityAccess(adminContext.store, 'max_product_images');
+const activeImageLimit = productImageCapability.allowed
+  && Number.isInteger(productImageCapability.limit)
+  && Number(productImageCapability.limit) >= 0
+  && Number(productImageCapability.limit) <= 4
+    ? Number(productImageCapability.limit)
+    : 0;
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -390,6 +398,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .product-image-action { flex: 1; border: 1px solid #e2e8f0; border-radius: 999px; background: #fff; color: #111827; padding: 8px 7px; font-size: 11px; font-weight: 1000; cursor: pointer; box-shadow: 0 8px 16px rgba(15,23,42,.05); text-align: center; }
       .product-image-action.danger { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
       .product-image-action input { display: none; }
+      .product-image-slot.is-locked { background: linear-gradient(180deg,#f8fafc,#eef2f7); border-color: #cbd5e1; box-shadow: none; }
+      .product-image-slot.is-locked .product-image-preview { opacity: .72; filter: saturate(.72); }
+      .product-image-slot.is-drop-target { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.14); }
+      .product-image-premium-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 7px; font-size: 10px; font-weight: 1000; background: #ede9fe; color: #6d28d9; }
+      .product-image-locked-copy { min-height: 34px; margin: 8px 0 0; color: #64748b; font-size: 10px; font-weight: 800; line-height: 1.35; }
+      .product-image-reorder { display: flex; gap: 6px; margin-top: 7px; }
+      .product-image-reorder button { flex: 1; border: 1px solid #dbeafe; border-radius: 999px; background: #eff6ff; color: #1d4ed8; padding: 6px; font-size: 11px; font-weight: 1000; }
       @media (max-width: 640px) { .product-image-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
       .product-extra-panel { margin-top: 10px; display: grid; gap: 10px; }
@@ -996,7 +1011,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         border-radius: 18px !important;
         background: #eff6ff !important;
         text-align: center !important;
+        cursor: pointer !important;
+        outline: none !important;
+        transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease !important;
       }
+      .product-upload-dropzone:focus-visible,
+      .product-upload-dropzone.is-dragging {
+        border-color: #2563eb !important;
+        background: #dbeafe !important;
+        box-shadow: 0 0 0 4px rgba(37,99,235,.14) !important;
+        transform: translateY(-1px) !important;
+      }
+      .product-upload-dropzone input { display: none !important; }
       .product-upload-dropzone strong {
         color: #111827 !important;
         font-size: 14px !important;
@@ -2861,10 +2887,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   </div>
                   <div class="field full">
                     <label>Imágenes del producto</label>
-                    <div class="product-upload-dropzone">
+                    <div id="product-upload-dropzone" class="product-upload-dropzone" role="button" tabindex="0" aria-label="Seleccionar o soltar fotos del producto">
                       <strong>Arrastra imágenes aquí o selecciona archivos</strong>
-                      <span>Usa hasta 4 espacios; la primera foto es la portada.</span>
-                      <em>Seleccionar archivos desde las miniaturas</em>
+                      <span id="product-image-plan-message"></span>
+                      <em>Seleccionar archivos</em>
+                      <input id="product-images-multiple" type="file" accept="image/jpeg,image/png,image/webp" multiple />
                     </div>
                     <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
                     <div id="product-image-slots" class="product-image-slots"></div>
@@ -3180,13 +3207,32 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       </div>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, currentStoreName, currentStoreSlug }}>
+    <script>
+      import {
+        buildProductImageDropFeedback,
+        classifyProductImageDrop,
+      } from '../../lib/productImageLimitsCore.js';
+
+      Object.defineProperty(globalThis, 'pzProductImageDropCore', {
+        value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop }),
+        configurable: false,
+        enumerable: false,
+        writable: false,
+      });
+    </script>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, currentStoreName, currentStoreSlug, activeImageLimit }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const TRACK_STOCK_FIELD = 'track_stock';
       const PRODUCT_PAGE_SIZE = 7;
+      const PRODUCT_IMAGE_PHYSICAL_LIMIT = 4;
+      const ACTIVE_IMAGE_LIMIT = Number.isInteger(Number(activeImageLimit))
+        ? Math.max(0, Math.min(PRODUCT_IMAGE_PHYSICAL_LIMIT, Number(activeImageLimit)))
+        : 0;
+      const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+      const PRODUCT_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
       let categories = [];
       let subcategories = [];
@@ -3258,6 +3304,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productExtraCancelBtn = document.getElementById('product-extra-cancel-btn');
       const productExtraSaveBtn = document.getElementById('product-extra-save-btn');
       const productImageSlotsBox = document.getElementById('product-image-slots');
+      const productUploadDropzone = document.getElementById('product-upload-dropzone');
+      const productImagesMultipleInput = document.getElementById('product-images-multiple');
+      const productImagePlanMessage = document.getElementById('product-image-plan-message');
       const relatedProductsOpenBtn = document.getElementById('related-products-open-btn');
       const relatedProductsList = document.getElementById('related-products-list');
       const relatedProductsModal = document.getElementById('related-products-modal');
@@ -3344,21 +3393,26 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const variationActiveInput = document.getElementById('variation-active');
       const variationAllowPreorderInput = document.getElementById('variation-allow-preorder');
       const variationCurrentImageBox = document.getElementById('variation-current-image');
-      const PRODUCT_IMAGE_SLOT_COUNT = 4;
+      const PRODUCT_IMAGE_SLOT_COUNT = PRODUCT_IMAGE_PHYSICAL_LIMIT;
       let productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
       let productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
       let productImageSlotObjectUrls = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
       let productImagesToDelete = new Set();
+      let productImageInitialOrder = [];
+      let productDropzoneDragDepth = 0;
       const PRODUCT_EXTRA_INFO_LIMIT = 3;
       let productExtraInfoItems = [];
       let editingExtraInfoIndex = -1;
       function normalizeProductImages(product) {
         const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
-        let order = [];
-        try {
-          order = product?.image_order ? JSON.parse(product.image_order) : [];
-        } catch (_) {
-          order = [];
+        let order = Array.isArray(product?.image_order) ? product.image_order.filter(Boolean) : [];
+        if (!order.length && typeof product?.image_order === 'string') {
+          try {
+            const parsed = JSON.parse(product.image_order);
+            order = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+          } catch (_) {
+            order = [];
+          }
         }
         const ordered = Array.isArray(order) ? order.filter((name) => images.includes(name)) : [];
         return ordered.concat(images.filter((name) => !ordered.includes(name))).slice(0, PRODUCT_IMAGE_SLOT_COUNT);
@@ -3679,6 +3733,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
         productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('');
         productImagesToDelete = new Set();
+        productImageInitialOrder = [];
         renderProductImageSlots();
         updateEditorPreview();
       }
@@ -3694,48 +3749,73 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         return productImagePreviewUrl(productId, existing);
       }
+      function hasLockedProductImageTail() {
+        return productImageSlotExisting.slice(ACTIVE_IMAGE_LIMIT).some(Boolean);
+      }
+      function isActiveProductImageSlot(index) {
+        return index >= 0 && index < ACTIVE_IMAGE_LIMIT;
+      }
+      function updateProductImagePlanMessage() {
+        if (!productImagePlanMessage) return;
+        productImagePlanMessage.textContent = ACTIVE_IMAGE_LIMIT === PRODUCT_IMAGE_PHYSICAL_LIMIT
+          ? 'Tu Plan Premium permite hasta 4 fotos por producto.'
+          : `Tu plan permite hasta ${ACTIVE_IMAGE_LIMIT} fotos por producto. Premium permite hasta 4.`;
+      }
+      function productImageOrderControls(index, hasImage) {
+        if (!isActiveProductImageSlot(index) || !hasImage) return '';
+        const canMoveLeft = index > 0 && isActiveProductImageSlot(index - 1)
+          && Boolean(productImageSlotFiles[index - 1] || productImageSlotExisting[index - 1]);
+        const canMoveRight = index + 1 < ACTIVE_IMAGE_LIMIT
+          && Boolean(productImageSlotFiles[index + 1] || productImageSlotExisting[index + 1]);
+        if (!canMoveLeft && !canMoveRight) return '';
+        return `<div class="product-image-reorder">
+          ${canMoveLeft ? `<button type="button" data-image-move="${index}" data-image-direction="-1" aria-label="Mover foto a la izquierda">←</button>` : ''}
+          ${canMoveRight ? `<button type="button" data-image-move="${index}" data-image-direction="1" aria-label="Mover foto a la derecha">→</button>` : ''}
+        </div>`;
+      }
       function renderProductImageSlots(product = null) {
         if (!productImageSlotsBox) return;
+        updateProductImagePlanMessage();
         const productId = product?.id || productIdInput?.value || '';
+        const lockedTail = hasLockedProductImageTail();
         productImageSlotsBox.innerHTML = Array.from({ length: PRODUCT_IMAGE_SLOT_COUNT }, (_, index) => {
           const existing = productImageSlotExisting[index] || '';
           const preview = productSlotPreviewUrl(index, productId, existing);
           const isCover = index === 0;
           const hasImage = Boolean(preview);
+          const active = isActiveProductImageSlot(index);
+          const conserved = !active && Boolean(existing);
           const label = isCover ? 'Portada' : `Foto ${index + 1}`;
           return `
-            <div class="product-image-slot ${isCover ? 'is-cover' : ''}" data-slot="${index}">
+            <div class="product-image-slot ${isCover ? 'is-cover' : ''} ${active ? '' : 'is-locked'}" data-slot="${index}" ${active ? `data-image-drop-slot="${index}"` : ''}>
               <div class="product-image-preview">${hasImage ? `<img src="${preview}" alt="${label}" />` : '+'}</div>
-              <div class="product-image-label"><span>${label}</span>${isCover ? '<span class="product-image-badge">Portada</span>' : ''}</div>
-              <p class="form-help">Recomendado: imagen cuadrada o vertical limpia, mínimo 1000 x 1000 px.</p>
-              <div class="product-image-actions">
-                <label class="product-image-action">${hasImage ? 'Cambiar foto' : 'Subir nueva foto'}<input type="file" accept="image/*" data-image-input="${index}" /></label>
-                ${hasImage ? `<button type="button" class="product-image-action danger" data-image-remove="${index}">Borrar</button>` : ''}
-              </div>
+              <div class="product-image-label"><span>${label}</span>${isCover ? '<span class="product-image-badge">Portada</span>' : ''}${!active ? `<span class="product-image-premium-badge">${conserved ? 'Conservada · Premium' : 'Premium'}</span>` : ''}</div>
+              ${active ? '<p class="form-help">JPEG, PNG o WebP. Máximo final: 2 MiB.</p>' : `<p class="product-image-locked-copy">${conserved ? 'Esta foto está guardada y volverá a activarse al regresar a Premium.' : 'Disponible al cambiar a Premium.'}</p>`}
+              ${active ? `<div class="product-image-actions">
+                <label class="product-image-action">${hasImage ? 'Cambiar foto' : 'Subir nueva foto'}<input type="file" accept="image/jpeg,image/png,image/webp" data-image-input="${index}" /></label>
+                ${hasImage && !lockedTail ? `<button type="button" class="product-image-action danger" data-image-remove="${index}">Borrar</button>` : ''}
+              </div>${hasImage && lockedTail ? '<p class="product-image-locked-copy">Puedes reemplazar esta foto, pero no borrarla mientras haya fotos Premium conservadas.</p>' : ''}${productImageOrderControls(index, hasImage)}` : ''}
             </div>`;
         }).join('');
         productImageSlotsBox.querySelectorAll('[data-image-input]').forEach((input) => {
-          input.addEventListener('change', (event) => {
+          input.addEventListener('change', async (event) => {
             const slot = Number(event.currentTarget.dataset.imageInput);
             const file = event.currentTarget.files?.[0] || null;
             if (!file) return;
-            if (!file.type.startsWith('image/')) {
-              setFormAlert('Solo puedes subir imágenes.', 'error');
+            try {
+              await acceptProductImageFiles([file], { targetSlot: slot, product });
+            } finally {
               event.currentTarget.value = '';
-              return;
             }
-            const existing = productImageSlotExisting[slot] || '';
-            if (existing) productImagesToDelete.add(existing);
-            if (productImageSlotObjectUrls[slot]) URL.revokeObjectURL(productImageSlotObjectUrls[slot]);
-            productImageSlotObjectUrls[slot] = URL.createObjectURL(file);
-            productImageSlotFiles[slot] = file;
-            renderProductImageSlots(product);
-            updateProductFormState();
           });
         });
         productImageSlotsBox.querySelectorAll('[data-image-remove]').forEach((button) => {
           button.addEventListener('click', (event) => {
             const slot = Number(event.currentTarget.dataset.imageRemove);
+            if (hasLockedProductImageTail()) {
+              setFormAlert('No puedes borrar esta foto mientras existan fotos Premium conservadas. Puedes reemplazarla o volver a Premium para reorganizar toda la galería.', 'error');
+              return;
+            }
             const existing = productImageSlotExisting[slot] || '';
             if (existing) productImagesToDelete.add(existing);
             productImageSlotExisting[slot] = '';
@@ -3746,6 +3826,39 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             updateProductFormState();
           });
         });
+        productImageSlotsBox.querySelectorAll('[data-image-move]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const source = Number(button.dataset.imageMove);
+            const target = source + Number(button.dataset.imageDirection || 0);
+            if (!isActiveProductImageSlot(source) || !isActiveProductImageSlot(target)) return;
+            [productImageSlotExisting[source], productImageSlotExisting[target]] = [productImageSlotExisting[target], productImageSlotExisting[source]];
+            [productImageSlotFiles[source], productImageSlotFiles[target]] = [productImageSlotFiles[target], productImageSlotFiles[source]];
+            [productImageSlotObjectUrls[source], productImageSlotObjectUrls[target]] = [productImageSlotObjectUrls[target], productImageSlotObjectUrls[source]];
+            renderProductImageSlots(product);
+            updateProductFormState();
+          });
+        });
+        productImageSlotsBox.querySelectorAll('[data-image-drop-slot]').forEach((slotElement) => {
+          const slot = Number(slotElement.dataset.imageDropSlot);
+          if (!isActiveProductImageSlot(slot)) return;
+          slotElement.addEventListener('dragenter', (event) => {
+            event.preventDefault();
+            slotElement.classList.add('is-drop-target');
+          });
+          slotElement.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+          });
+          slotElement.addEventListener('dragleave', (event) => {
+            if (!slotElement.contains(event.relatedTarget)) slotElement.classList.remove('is-drop-target');
+          });
+          slotElement.addEventListener('drop', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            slotElement.classList.remove('is-drop-target');
+            await acceptProductImageFiles(Array.from(event.dataTransfer?.files || []), { targetSlot: slot, product });
+          });
+        });
         updateEditorPreview();
       }
       function renderCurrentImages(product) {
@@ -3754,32 +3867,140 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productImageSlotExisting = Array(PRODUCT_IMAGE_SLOT_COUNT).fill('').map((_, index) => images[index] || '');
         productImageSlotFiles = Array(PRODUCT_IMAGE_SLOT_COUNT).fill(null);
         productImagesToDelete = new Set();
+        productImageInitialOrder = images.slice();
         renderProductImageSlots(product);
         updateEditorPreview();
       }
-      async function optimizeProductImageFile(file) {
-        if (!file || !file.type.startsWith('image/')) return file;
-        if (typeof window === 'undefined' || !window.createImageBitmap) return file;
-        try {
+      async function decodeProductImageFile(file) {
+        if (typeof window.createImageBitmap === 'function') {
           const bitmap = await createImageBitmap(file);
+          return {
+            source: bitmap,
+            width: bitmap.width,
+            height: bitmap.height,
+            close: () => { if (typeof bitmap.close === 'function') bitmap.close(); },
+          };
+        }
+        const objectUrl = URL.createObjectURL(file);
+        try {
+          const image = await new Promise((resolve, reject) => {
+            const candidate = new Image();
+            candidate.onload = () => resolve(candidate);
+            candidate.onerror = () => reject(new Error('invalid_product_image'));
+            candidate.src = objectUrl;
+          });
+          return { source: image, width: image.naturalWidth, height: image.naturalHeight, close: () => {} };
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+      }
+      async function optimizeProductImageFile(file) {
+        if (!file || !PRODUCT_IMAGE_MIME_TYPES.has(String(file.type || '').toLowerCase()) || Number(file.size || 0) <= 0) {
+          throw new Error('Solo se permiten fotos JPEG, PNG o WebP válidas.');
+        }
+        let decoded = null;
+        try {
+          decoded = await decodeProductImageFile(file);
+          if (!decoded.width || !decoded.height) throw new Error('invalid_product_image');
           const maxSide = 1000;
-          const ratio = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-          const width = Math.max(1, Math.round(bitmap.width * ratio));
-          const height = Math.max(1, Math.round(bitmap.height * ratio));
+          const ratio = Math.min(1, maxSide / Math.max(decoded.width, decoded.height));
+          const width = Math.max(1, Math.round(decoded.width * ratio));
+          const height = Math.max(1, Math.round(decoded.height * ratio));
           const canvas = document.createElement('canvas');
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(bitmap, 0, 0, width, height);
+          if (!ctx) throw new Error('invalid_product_image');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(decoded.source, 0, 0, width, height);
           const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.78));
-          if (!blob) return file;
-          const isAlreadyWebp = file.type === 'image/webp' || /\.webp$/i.test(file.name || '');
-          if (isAlreadyWebp && blob.size >= file.size && file.size <= 450000) return file;
-          const safeName = file.name.replace(/\.[^.]+$/, '') || 'producto';
-          return new File([blob], `${safeName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+          if (!blob) throw new Error('invalid_product_image');
+          const safeName = (file.name || 'producto')
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_')
+            .slice(0, 48) || 'producto';
+          let result = new File([blob], `${safeName}.webp`, { type: 'image/webp', lastModified: Date.now() });
+          if (file.type === 'image/webp' && blob.size >= file.size && file.size <= PRODUCT_IMAGE_MAX_BYTES) result = file;
+          if (!PRODUCT_IMAGE_MIME_TYPES.has(result.type) || result.size <= 0 || result.size > PRODUCT_IMAGE_MAX_BYTES) {
+            throw new Error('La foto optimizada supera el máximo de 2 MiB.');
+          }
+          return result;
         } catch (error) {
-          return file;
+          if (error?.message === 'La foto optimizada supera el máximo de 2 MiB.') throw error;
+          throw new Error('No se pudo decodificar esta foto. Usa un JPEG, PNG o WebP válido.');
+        } finally {
+          decoded?.close();
         }
+      }
+      function replaceProductImageSlot(slot, file, product = null) {
+        if (!isActiveProductImageSlot(slot)) throw new Error('Este espacio está disponible solo en Premium.');
+        const existing = productImageSlotExisting[slot] || '';
+        if (existing) productImagesToDelete.add(existing);
+        if (productImageSlotObjectUrls[slot]) URL.revokeObjectURL(productImageSlotObjectUrls[slot]);
+        productImageSlotObjectUrls[slot] = URL.createObjectURL(file);
+        productImageSlotFiles[slot] = file;
+        renderProductImageSlots(product);
+        updateProductFormState();
+      }
+      async function acceptProductImageFiles(filesValue, { targetSlot = null, product = null } = {}) {
+        const files = Array.from(filesValue || []).filter(Boolean);
+        if (!files.length) return;
+        let acceptedCount = 0;
+        let invalidCount = 0;
+        let invalidMessage = '';
+        let planLimitRejectedCount = 0;
+        let singleSlotExtraCount = 0;
+        if (targetSlot !== null) {
+          if (!isActiveProductImageSlot(Number(targetSlot))) {
+            setFormAlert('Este espacio está disponible solo en Premium.', 'error');
+            return;
+          }
+          const classification = globalThis.pzProductImageDropCore.classifyProductImageDrop({
+            context: 'single-slot',
+            incomingFiles: files.length,
+            availableSlots: 1,
+          });
+          singleSlotExtraCount = classification.singleSlotExtraCount;
+          try {
+            const optimized = await optimizeProductImageFile(files[0]);
+            replaceProductImageSlot(Number(targetSlot), optimized, product);
+            acceptedCount = 1;
+          } catch (error) {
+            invalidCount = 1;
+            invalidMessage = error.message || 'No se pudo admitir la foto.';
+          }
+        } else {
+          for (let index = 0; index < files.length; index += 1) {
+            const emptySlot = Array.from({ length: ACTIVE_IMAGE_LIMIT }, (_, slot) => slot)
+              .find((slot) => !productImageSlotFiles[slot] && !productImageSlotExisting[slot]);
+            if (emptySlot === undefined) {
+              const classification = globalThis.pzProductImageDropCore.classifyProductImageDrop({
+                context: 'general',
+                incomingFiles: files.length - index,
+                availableSlots: 0,
+              });
+              planLimitRejectedCount += classification.planLimitRejectedCount;
+              break;
+            }
+            try {
+              const optimized = await optimizeProductImageFile(files[index]);
+              replaceProductImageSlot(emptySlot, optimized, product);
+              acceptedCount += 1;
+            } catch (error) {
+              invalidCount += 1;
+              if (!invalidMessage) invalidMessage = error.message || 'No se pudo admitir la foto.';
+            }
+          }
+        }
+        const feedback = globalThis.pzProductImageDropCore.buildProductImageDropFeedback({
+          acceptedCount,
+          invalidCount,
+          invalidMessage,
+          planLimitRejectedCount,
+          singleSlotExtraCount,
+        });
+        setFormAlert(feedback.message, feedback.type);
       }
       async function optimizeCatalogLikeImageFile(file) {
         if (!file || !file.type || !file.type.startsWith('image/')) return file;
@@ -3824,13 +4045,26 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productImagesToDelete.forEach((filename) => {
           if (filename) formData.append('images-', filename);
         });
-        const filesInOrder = productImageSlotFiles.map((file, index) => ({ file, index })).filter((item) => Boolean(item.file)).slice(0, PRODUCT_IMAGE_SLOT_COUNT);
+        const filesInOrder = productImageSlotFiles
+          .map((file, index) => ({ file, index }))
+          .filter((item) => Boolean(item.file) && isActiveProductImageSlot(item.index))
+          .slice(0, ACTIVE_IMAGE_LIMIT);
         const fieldName = appendMode ? 'images+' : 'images';
         for (const { file } of filesInOrder) {
-          formData.append(fieldName, await optimizeProductImageFile(file));
+          if (!PRODUCT_IMAGE_MIME_TYPES.has(file.type) || file.size <= 0 || file.size > PRODUCT_IMAGE_MAX_BYTES) {
+            throw new Error('Una foto preparada dejó de ser válida. Selecciónala nuevamente.');
+          }
+          formData.append(fieldName, file);
         }
       }
-      async function syncProductImageOrder(savedProduct) {
+      function hasPendingProductImageMutation() {
+        if (productImageSlotFiles.some(Boolean) || productImagesToDelete.size > 0) return true;
+        const currentOrder = productImageSlotExisting.filter(Boolean);
+        return currentOrder.length !== productImageInitialOrder.length
+          || currentOrder.some((name, index) => name !== productImageInitialOrder[index]);
+      }
+      async function syncProductImageOrder(savedProduct, shouldSync = true) {
+        if (!shouldSync) return savedProduct;
         if (!savedProduct?.id) return savedProduct;
         const savedImages = Array.isArray(savedProduct.images) ? savedProduct.images.filter(Boolean) : [];
         const existingKept = productImageSlotExisting.filter(Boolean).filter((name) => savedImages.includes(name));
@@ -3848,15 +4082,45 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           }
         }
         const finalOrder = ordered.concat(savedImages.filter((name) => !ordered.includes(name))).slice(0, PRODUCT_IMAGE_SLOT_COUNT);
-        if (!finalOrder.length) return savedProduct;
         const orderData = new FormData();
         orderData.set('image_order', JSON.stringify(finalOrder));
-        try {
-          return await apiRequest(`/api/collections/products/records/${savedProduct.id}`, { method: 'PATCH', body: orderData });
-        } catch (error) {
-          return savedProduct;
-        }
+        return await apiRequest(`/api/collections/products/records/${savedProduct.id}`, { method: 'PATCH', body: orderData });
       }
+      productUploadDropzone?.addEventListener('click', (event) => {
+        if (event.target !== productImagesMultipleInput) productImagesMultipleInput?.click();
+      });
+      productUploadDropzone?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        productImagesMultipleInput?.click();
+      });
+      productUploadDropzone?.addEventListener('dragenter', (event) => {
+        event.preventDefault();
+        productDropzoneDragDepth += 1;
+        productUploadDropzone.classList.add('is-dragging');
+      });
+      productUploadDropzone?.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      });
+      productUploadDropzone?.addEventListener('dragleave', (event) => {
+        event.preventDefault();
+        productDropzoneDragDepth = Math.max(0, productDropzoneDragDepth - 1);
+        if (productDropzoneDragDepth === 0) productUploadDropzone.classList.remove('is-dragging');
+      });
+      productUploadDropzone?.addEventListener('drop', async (event) => {
+        event.preventDefault();
+        productDropzoneDragDepth = 0;
+        productUploadDropzone.classList.remove('is-dragging');
+        await acceptProductImageFiles(Array.from(event.dataTransfer?.files || []));
+      });
+      productImagesMultipleInput?.addEventListener('change', async (event) => {
+        try {
+          await acceptProductImageFiles(Array.from(event.currentTarget.files || []));
+        } finally {
+          event.currentTarget.value = '';
+        }
+      });
       function variationImageUrl(variation) {
         const imageValue = Array.isArray(variation?.image) ? variation.image[0] : variation?.image;
         if (!variation?.id || !imageValue || !POCKETBASE_URL) return '';
@@ -4577,7 +4841,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('active', variationActiveInput.checked ? 'true' : 'false');
         formData.append('allow_preorder', variationAllowPreorderInput.checked ? 'true' : 'false');
         if (variationImageInput.files?.[0]) {
-          formData.append('image', await optimizeProductImageFile(variationImageInput.files[0]));
+          formData.append('image', await optimizeCatalogLikeImageFile(variationImageInput.files[0]));
         }
         return formData;
       }
@@ -4888,12 +5152,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const editingId = productIdInput.value;
         const requestedTrackStock = productTracksStock();
         const requestedStock = Math.max(0, Math.floor(Number(productStockInput.value || 0)));
+        const shouldSyncProductImages = hasPendingProductImageMutation();
         let formData;
         try {
           if (!requestedTrackStock || (editingId && productHasVariationsInput?.checked)) productStockInput.value = '0';
           formData = await buildProductFormData({ forceHasVariations: editingId ? null : false });
         } catch (error) {
-          setFormAlert('No se pudo guardar el producto', 'error');
+          setFormAlert(error.message || 'No se pudo preparar el producto para guardar.', 'error');
           updateProductFormState();
           return;
         }
@@ -4903,7 +5168,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         try {
           if (editingId) {
             const updatedProduct = await apiRequest(`/api/collections/products/records/${editingId}`, { method: 'PATCH', body: formData });
-            const savedProduct = await syncProductImageOrder(updatedProduct);
+            const savedProduct = await syncProductImageOrder(updatedProduct, shouldSyncProductImages);
             await loadProducts();
             const freshProduct = products.find((item) => item.id === editingId) || savedProduct || updatedProduct;
             renderCurrentImages(freshProduct);
@@ -4917,15 +5182,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               // Creamos primero igual que el flujo que ya funciona manualmente: sin stock descontable.
               const createData = new FormData();
               formData.forEach((value, key) => {
-                if (value instanceof File) return;
                 createData.append(key, value);
               });
               createData.set(TRACK_STOCK_FIELD, 'false');
               createData.set('stock', '0');
               createData.set('has_variations', 'false');
               createData.set('variation_view', 'buttons');
-              await appendProductImageFiles(createData);
-
               created = await apiRequest('/api/collections/products/records', { method: 'POST', body: createData });
 
               const stockPatchData = new FormData();
@@ -4933,10 +5195,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               stockPatchData.set('stock', String(requestedStock));
               stockPatchData.set('has_variations', 'false');
               stockPatchData.set('variation_view', 'buttons');
-              await apiRequest(`/api/collections/products/records/${created.id}`, { method: 'PATCH', body: stockPatchData });
+              created = await apiRequest(`/api/collections/products/records/${created.id}`, { method: 'PATCH', body: stockPatchData });
             } else {
               created = await apiRequest('/api/collections/products/records', { method: 'POST', body: formData });
             }
+            created = await syncProductImageOrder(created, shouldSyncProductImages);
 
             await loadProducts();
             productIdInput.value = created.id;
@@ -4954,7 +5217,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             showPostSaveVariationNotice(created.id);
           }
         } catch (error) {
-          setFormAlert('No se pudo guardar el producto', 'error');
+          setFormAlert(error.message || 'No se pudo guardar el producto.', 'error');
         } finally {
           isSavingProduct = false;
           updateProductFormState();

@@ -239,6 +239,7 @@ test('el User-Agent real se elimina del request antes del activity log global', 
 
 test('middleware temprano conserva User-Agent sólo en memoria y sanea el request', () => {
   const values = {};
+  let nextCalls = 0;
   const header = {
     value: 'Mozilla/5.0 private early value',
     get() { return this.value; },
@@ -248,11 +249,15 @@ test('middleware temprano conserva User-Agent sólo en memoria y sanea el reques
     request: { url: { path: '/api/collections/users/auth-with-password' }, header },
     set(key, value) { values[key] = value; },
     get(key) { return values[key]; },
-    next() { return 'next'; },
+    next() { nextCalls += 1; return 'next'; },
   };
-  assert.equal(devices.captureAndScrubAuthUserAgent(event), 'next');
+  assert.equal(devices.captureAndScrubAuthUserAgent(event), undefined);
+  assert.equal(nextCalls, 0);
   assert.equal(header.value, 'PowerZona administrative device');
   assert.equal(devices.originalUserAgent(event, {}), 'Mozilla/5.0 private early value');
+  const hookSource = read('../pb_hooks/pz_store_user_devices.pb.js');
+  assert.match(hookSource, /captureAndScrubAuthUserAgent\(e\);/);
+  assert.match(hookSource, /try\s*{\s*return e\.next\(\);\s*}\s*catch \(error\)\s*{\s*throw error;/);
 });
 
 test('la migración crea dos colecciones privadas, digest oculto e índices requeridos', () => {

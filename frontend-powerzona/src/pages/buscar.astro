@@ -6,7 +6,7 @@ import { isStoreTemporarilyClosed } from '../lib/storeAvailability';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
-const storeQuery = { storeId: currentStore.id };
+const storeQuery = { storeId: currentStore.id, store: currentStore };
 const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
 if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));

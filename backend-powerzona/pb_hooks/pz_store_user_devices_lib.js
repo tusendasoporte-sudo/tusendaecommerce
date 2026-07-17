@@ -170,19 +170,19 @@ function captureAndScrubAuthUserAgent(e) {
   try {
     const request = e && e.request;
     const path = String(request && request.url && request.url.path || "");
-    if (![
+    if ([
       "/api/collections/users/auth-with-password",
       "/api/collections/users/auth-refresh",
-    ].includes(path)) return e.next();
-    const raw = request && request.header && typeof request.header.get === "function"
-      ? String(request.header.get("User-Agent") || "").slice(0, 512)
-      : "";
-    if (raw && typeof e.set === "function") e.set(ORIGINAL_USER_AGENT_STORE_KEY, raw);
-    if (request && request.header && typeof request.header.set === "function") {
-      request.header.set("User-Agent", "PowerZona administrative device");
+    ].includes(path)) {
+      const raw = request && request.header && typeof request.header.get === "function"
+        ? String(request.header.get("User-Agent") || "").slice(0, 512)
+        : "";
+      if (raw && typeof e.set === "function") e.set(ORIGINAL_USER_AGENT_STORE_KEY, raw);
+      if (request && request.header && typeof request.header.set === "function") {
+        request.header.set("User-Agent", "PowerZona administrative device");
+      }
     }
   } catch (_) {}
-  return e.next();
 }
 
 function originalUserAgent(e, info) {
