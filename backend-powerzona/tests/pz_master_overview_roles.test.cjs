@@ -107,5 +107,5 @@ test('user_created abre el listado exacto de usuarios y conserva safeActionUrl',
 test('las demás actividades recientes conservan sus destinos', () => {
   assert.match(source, /'\/master\/analytics\/' \|\| store \|\| '\/orders\/' \|\| id/);
   assert.match(source, /'\/master\/security\/' \|\| store/);
-  assert.match(source, /'\/master\/products\/' \|\| store \|\| '\/' \|\| product_id_snapshot/);
+  assert.match(source, /'\/master\/price-watch\/' \|\| watch/);
 });

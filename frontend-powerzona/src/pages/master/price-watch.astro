@@ -67,6 +67,15 @@ function pageUrl(page: number, status = currentStatus) {
   return `/master/price-watch${query ? `?${query}` : ''}`;
 }
 
+function detailUrl(watchId: string) {
+  const params = new URLSearchParams();
+  params.set('return_page', String(currentPage));
+  params.set('return_status', currentStatus);
+  if (currentStoreId) params.set('return_store_id', currentStoreId);
+  if (currentSearch) params.set('return_q', currentSearch);
+  return `/master/price-watch/${encodeURIComponent(watchId)}?${params.toString()}`;
+}
+
 function date(value: string) {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle: 'short', timeStyle: 'short' }).format(parsed) : 'Sin cambios';
@@ -78,6 +87,11 @@ function usd(value: unknown) {
 
 function statusLabel(value: string) {
   return value === 'active' ? 'Activo' : value === 'paused' ? 'Pausado' : 'Eliminado';
+}
+
+function targetLabel(enabled: boolean, price: number) {
+  if (!price) return 'No configurado';
+  return enabled ? usd(price) : 'Desactivado';
 }
 
 const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
@@ -108,14 +122,15 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
         {data?.page.items.length ? (
           <div class="master-table-wrap">
             <table class="master-table">
-              <thead><tr><th>Tienda</th><th>Producto</th><th>Estado</th><th>Precio actual</th><th>Último cambio</th><th>Fecha</th><th>Abrir</th></tr></thead>
+              <thead><tr><th>Tienda</th><th>Producto</th><th>Estado</th><th>Precio actual</th><th>Objetivo</th><th>Último cambio</th><th>Fecha</th><th>Abrir</th></tr></thead>
               <tbody>{data.page.items.map((item) => (
                 <tr>
                   <td>{item.store.name}</td><td>{item.product.name}</td>
                   <td><span class:list={['master-pill', item.status === 'active' ? 'master-pill--success' : item.status === 'paused' ? 'master-pill--warning' : 'master-pill--danger']}>{statusLabel(item.status)}</span></td>
                   <td>{item.product.id ? usd(item.current_price_usd) : 'No disponible'}</td>
+                  <td><span class:list={['watch-target-badge', { 'is-met': item.target_met }]}>{targetLabel(item.target_alert_enabled, item.target_price_usd)}</span></td>
                   <td>{item.last_change || 'Sin cambios registrados'}</td><td>{date(item.last_change_at)}</td>
-                  <td><a class="master-icon-btn" href={item.action_url} aria-label={`Abrir ${item.product.name}`}><MasterIcon name="external" size={19} /></a></td>
+                  <td><a class="master-icon-btn" href={detailUrl(item.id)} aria-label={`Abrir seguimiento de ${item.product.name}`}><MasterIcon name="external" size={19} /></a></td>
                 </tr>
               ))}</tbody>
             </table>
@@ -128,3 +143,8 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
     </section>
   </MasterShell>
 </Layout>
+
+<style>
+  .watch-target-badge { display: inline-flex; border-radius: 999px; background: #f1f5f9; color: #475569; padding: 5px 8px; font-size: var(--master-font-caption); font-weight: 900; white-space: nowrap; }
+  .watch-target-badge.is-met { border: 1px solid #fca5a5; background: #fef2f2; color: #b91c1c; }
+</style>

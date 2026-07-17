@@ -249,8 +249,7 @@ function queryActivity(app, storeId, limit) {
         'Precio actualizado en ' || COALESCE(NULLIF(product_name_snapshot, ''), 'producto'),
         COALESCE(NULLIF(summary, ''), 'Cambio de precio registrado'),
         created,
-        CASE WHEN product_id_snapshot != '' THEN '/master/products/' || store || '/' || product_id_snapshot || '#seguimiento-precio'
-          ELSE '/master/price-watch?store_id=' || store END
+        '/master/price-watch/' || watch
       FROM master_product_price_events WHERE 1 = 1 ${storeClause}
       UNION ALL
       SELECT 'security_event', 'Actividad de Seguridad registrada',
@@ -273,7 +272,7 @@ function queryActivity(app, storeId, limit) {
     detail: boundedString(row.detail, 260),
     created: safeIsoDate(row.created),
     action_label: row.activityType === "order_created" ? "Ver pedido"
-      : row.activityType === "price_changed" ? "Ver producto"
+      : row.activityType === "price_changed" ? "Ver seguimiento"
         : row.activityType === "security_event" ? "Ver seguridad" : "Ver usuarios",
     action_url: safeActionUrl(row.actionUrl),
   }));
@@ -517,6 +516,7 @@ function pricePage(app, payload) {
   bindings.offset = (page - 1) * PAGE_SIZE;
   const items = queryRows(app, `
     SELECT w.id AS watchId, w.status AS watchStatus, w.created AS watchCreated,
+      w.target_alert_enabled AS targetAlertEnabled, w.target_price_usd AS targetPrice,
       w.store AS storeId, s.name AS storeName, s.slug AS storeSlug,
       COALESCE(NULLIF(p.id, ''), w.product_id_snapshot) AS productId,
       COALESCE(NULLIF(p.name, ''), w.product_name_snapshot) AS productName,
@@ -537,22 +537,27 @@ function pricePage(app, payload) {
     ORDER BY datetime(lastChangeAt) DESC, w.id DESC
     LIMIT {:limit} OFFSET {:offset}
   `, bindings, {
-    watchId: "", watchStatus: "", watchCreated: "", storeId: "", storeName: "", storeSlug: "",
+    watchId: "", watchStatus: "", watchCreated: "", targetAlertEnabled: false, targetPrice: 0,
+    storeId: "", storeName: "", storeSlug: "",
     productId: "", productName: "", productSlug: "", currentPrice: 0, lastChange: "", lastChangeAt: "",
   }).filter((row) => isRecordId(row.watchId) && isRecordId(row.storeId)).map((row) => {
     const productId = isRecordId(row.productId) ? String(row.productId) : "";
+    const currentPrice = finiteNumber(row.currentPrice);
+    const targetPrice = finiteNumber(row.targetPrice);
+    const targetEnabled = row.targetAlertEnabled === true || row.targetAlertEnabled === 1 || row.targetAlertEnabled === "1";
     return {
       id: String(row.watchId),
       store: { id: String(row.storeId), name: boundedString(row.storeName, 160) || "Tienda", slug: safeSlug(row.storeSlug) },
       product: { id: productId, name: boundedString(row.productName, 180) || "Producto eliminado", slug: safeSlug(row.productSlug) },
       status: PRICE_STATUSES.includes(String(row.watchStatus)) && row.watchStatus !== "all" ? String(row.watchStatus) : "deleted",
-      current_price_usd: finiteNumber(row.currentPrice),
+      current_price_usd: currentPrice,
+      target_alert_enabled: targetEnabled,
+      target_price_usd: targetPrice,
+      target_met: targetEnabled && targetPrice > 0 && currentPrice > 0 && currentPrice <= targetPrice,
       last_change: boundedString(row.lastChange, 300),
       last_change_at: safeIsoDate(row.lastChangeAt),
       created: safeIsoDate(row.watchCreated),
-      action_url: productId
-        ? safeActionUrl(`/master/products/${String(row.storeId)}/${productId}#seguimiento-precio`)
-        : "/master/notifications",
+      action_url: safeActionUrl(`/master/price-watch/${String(row.watchId)}`),
     };
   });
   return { page, per_page: PAGE_SIZE, total_items: totalItems, total_pages: totalPages, items };

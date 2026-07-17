@@ -4,6 +4,7 @@ const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const WATCHES_COLLECTION = "master_product_watches";
 const EVENTS_COLLECTION = "master_product_price_events";
 const HISTORY_PAGE_SIZE = 10;
+const MAX_TARGET_PRICE_USD = 999999999.99;
 const ACTOR_CONTEXT_TTL_MS = 30000;
 const ACTOR_CONTEXT_PREFIX = "pz:m7p2:actor:";
 const ALLOWED_ACTOR_ROLES = ["store_admin", "store_staff", "master_admin"];
@@ -235,9 +236,9 @@ function productSnapshotPrice(product) {
   const storedRegular = roundMoney(recordNumber(product, "regular_price_usd"));
   const normal = storedRegular > 0 ? storedRegular : base;
   const storedOffer = roundMoney(recordNumber(product, "offer_price_usd"));
-  const offerValid = recordBoolean(product, "is_offer") && storedOffer > 0 && storedOffer < normal;
-  const expectedEffective = offerValid ? storedOffer : normal;
-  const effective = base > 0 && moneyEqual(base, expectedEffective) ? base : expectedEffective;
+  const offerValid = recordBoolean(product, "is_offer") && storedOffer > 0
+    && (storedRegular > storedOffer || base > storedOffer);
+  const effective = offerValid ? storedOffer : base > 0 ? base : normal;
   return {
     regular: normal,
     offer_active: offerValid,
@@ -330,10 +331,14 @@ function findActiveWatchByProduct(app, productId) {
 
 function watchResponse(watch) {
   return {
+    id: isValidRecordId(watch && watch.id) ? String(watch.id) : "",
     status: recordString(watch, "status") || "none",
     started_at: safeIsoDate(recordString(watch, "started_at")),
     paused_at: safeIsoDate(recordString(watch, "paused_at")),
     deleted_at: safeIsoDate(recordString(watch, "deleted_at")),
+    target_alert_enabled: recordBoolean(watch, "target_alert_enabled"),
+    target_price_usd: roundMoney(recordNumber(watch, "target_price_usd")),
+    target_updated_at: safeIsoDate(recordString(watch, "target_updated_at")),
   };
 }
 
@@ -421,8 +426,43 @@ function parseHistoryPayload(body) {
   return { storeId: storeId.trim(), productId: productId.trim(), page };
 }
 
+function parseWatchDetailPayload(body) {
+  if (!exactPayload(body, ["watch_id", "page"])) return null;
+  const watchId = bodyValue(body, "watch_id");
+  const page = bodyValue(body, "page");
+  if (typeof watchId !== "string" || !isValidRecordId(watchId)) return null;
+  if (typeof page !== "number" || !Number.isInteger(page) || page < 1) return null;
+  return { watchId: watchId.trim(), page };
+}
+
+function hasMoneyPrecision(value) {
+  return Math.abs((Number(value) * 100) - Math.round(Number(value) * 100)) < 0.0000001;
+}
+
+function parseWatchTargetPayload(body) {
+  if (!exactPayload(body, ["watch_id", "target_alert_enabled", "target_price_usd"])) {
+    return { error: "invalid_payload" };
+  }
+  const watchId = bodyValue(body, "watch_id");
+  const enabled = bodyValue(body, "target_alert_enabled");
+  const target = bodyValue(body, "target_price_usd");
+  if (typeof watchId !== "string" || !isValidRecordId(watchId) || typeof enabled !== "boolean") {
+    return { error: "invalid_payload" };
+  }
+  if (typeof target !== "number" || !Number.isFinite(target)
+    || target < 0 || target > MAX_TARGET_PRICE_USD || !hasMoneyPrecision(target)
+    || (enabled && target <= 0)) {
+    return { error: "invalid_target_price" };
+  }
+  return { error: "", watchId: watchId.trim(), enabled, target: roundMoney(target) };
+}
+
 function isMasterRequest(info) {
   return recordString(info && info.auth, "role") === "master_admin";
+}
+
+function isActiveMasterRequest(info) {
+  return isMasterRequest(info) && recordString(info && info.auth, "status") === "active";
 }
 
 function handleProductWatchAction(e) {
@@ -469,6 +509,10 @@ function handleProductWatchAction(e) {
         watch.set("started_at", now);
         watch.set("paused_at", "");
         watch.set("deleted_at", "");
+        watch.set("target_alert_enabled", false);
+        watch.set("target_price_usd", 0);
+        watch.set("target_updated_at", "");
+        watch.set("target_updated_by", "");
         watch.set("created_by", actorId);
         watch.set("updated_by", actorId);
         txApp.save(watch);
@@ -520,6 +564,70 @@ function publicRange(snapshot) {
   if (snapshot.has_variations) return snapshot.active_range || { min: 0, max: 0 };
   const effective = roundMoney(snapshot.product && snapshot.product.effective);
   return { min: effective, max: effective };
+}
+
+function effectivePriceFromSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return 0;
+  if (snapshot.has_variations) {
+    const variations = Array.isArray(snapshot.variations) ? snapshot.variations : [];
+    const validPrices = variations
+      .filter((variation) => variation && variation.active === true)
+      .map((variation) => roundMoney(variation.effective))
+      .filter((price) => price > 0);
+    return validPrices.length ? roundMoney(Math.min.apply(null, validPrices)) : 0;
+  }
+  const effective = roundMoney(snapshot.product && snapshot.product.effective);
+  return effective > 0 ? effective : 0;
+}
+
+function targetConfiguration(watch) {
+  const price = roundMoney(recordNumber(watch, "target_price_usd"));
+  return {
+    enabled: recordBoolean(watch, "target_alert_enabled") && price > 0,
+    price: price > 0 ? price : 0,
+  };
+}
+
+function targetMetForPrice(configuration, price) {
+  return configuration.enabled && price > 0 && price <= configuration.price;
+}
+
+function priceNotificationCopy(change, before, after, configuration, productName, productDeleted) {
+  const beforePrice = effectivePriceFromSnapshot(before);
+  const afterPrice = productDeleted ? 0 : effectivePriceFromSnapshot(after);
+  const previousMet = targetMetForPrice(configuration, beforePrice);
+  const targetMet = targetMetForPrice(configuration, afterPrice);
+  const safeName = boundedString(productName, 180) || "Producto";
+  if (productDeleted) {
+    return {
+      type: "product_deleted",
+      tone: "normal",
+      targetMet: false,
+      afterPrice: 0,
+      title: `Producto eliminado: ${safeName}`.slice(0, 180),
+      message: `El producto seguido ${safeName} fue eliminado.`.slice(0, 500),
+    };
+  }
+
+  let title = `Precio cambiado: ${safeName}`;
+  if (targetMet) title = `${previousMet ? "Precio bajo el objetivo" : "Precio objetivo alcanzado"}: ${safeName}`;
+  else if (previousMet) title = `Precio por encima del objetivo: ${safeName}`;
+
+  let message = beforePrice > 0 && afterPrice > 0 && !moneyEqual(beforePrice, afterPrice)
+    ? `El precio cambió de ${formatUsd(beforePrice)} a ${formatUsd(afterPrice)}.`
+    : `${boundedString(change && change.summary, 360) || "Se registró un cambio real de precio"}.`;
+  if (configuration.enabled) {
+    message += ` Objetivo configurado: ${formatUsd(configuration.price)}.`;
+    if (after && after.has_variations) message += ` Precio mínimo actual: ${formatUsd(afterPrice)}.`;
+  }
+  return {
+    type: targetMet ? "product_price_target_reached" : "product_price_changed",
+    tone: targetMet ? "critical" : "normal",
+    targetMet,
+    afterPrice,
+    title: title.slice(0, 180),
+    message: message.slice(0, 500),
+  };
 }
 
 function formatUsd(value) {
@@ -612,6 +720,15 @@ function createPriceEvent(app, watch, product, before, after, change, actor, var
   const identity = variationId || recordString(watch, "product_id_snapshot");
   const dedupeKey = `price:${watch.id}:${$security.sha256(`${change.type}:${identity}:${beforeFingerprint}:${afterFingerprint}`)}`;
   if (eventExists(app, dedupeKey)) return false;
+  const configuration = targetConfiguration(watch);
+  const notification = priceNotificationCopy(
+    change,
+    before,
+    after,
+    configuration,
+    recordString(watch, "product_name_snapshot"),
+    productDeleted
+  );
   const collection = app.findCollectionByNameOrId(EVENTS_COLLECTION);
   const event = new Record(collection, {});
   const variation = change.variation || variationById(after, variationId) || variationById(before, variationId);
@@ -634,14 +751,23 @@ function createPriceEvent(app, watch, product, before, after, change, actor, var
   event.set("actor_role_snapshot", boundedString(actor.role, 40));
   event.set("source", actor.source === "request" ? "request" : "system");
   event.set("dedupe_key", dedupeKey.slice(0, 180));
+  event.set("target_alert_enabled_snapshot", configuration.enabled);
+  event.set("target_price_usd_snapshot", configuration.price);
+  event.set("target_met_snapshot", notification.targetMet);
+  event.set("effective_price_after_usd", notification.afterPrice);
+  event.set("notification_tone", notification.tone);
   app.save(event);
   try {
     require(`${__hooks}/pz_master_notifications_lib.js`).createProductNotification(app, {
-      type: change.type === "product_deleted" ? "product_deleted" : "product_price_changed",
+      type: notification.type,
+      tone: notification.tone,
       storeId: recordString(watch, "store"),
       productIdSnapshot: recordString(watch, "product_id_snapshot"),
       productName: recordString(watch, "product_name_snapshot"),
-      summary: change.summary,
+      watchId: watch.id,
+      eventKey: dedupeKey,
+      title: notification.title,
+      message: notification.message,
     });
   } catch (_) {
     try {
@@ -762,6 +888,7 @@ function mapHistoryRow(row) {
   const before = parseJson(row.beforeState, {});
   const after = parseJson(row.afterState, {});
   const variationId = isValidRecordId(row.variationId) ? String(row.variationId) : "";
+  const tone = row.notificationTone === "critical" ? "critical" : "normal";
   return {
     id: isValidRecordId(row.eventId) ? String(row.eventId) : "",
     change_type: boundedString(row.changeType, 60),
@@ -775,10 +902,60 @@ function mapHistoryRow(row) {
     before_range_max_usd: roundMoney(before && before.active_range && before.active_range.max),
     after_range_min_usd: roundMoney(after && after.active_range && after.active_range.min),
     after_range_max_usd: roundMoney(after && after.active_range && after.active_range.max),
+    effective_price_before_usd: effectivePriceFromSnapshot(before),
+    effective_price_after_usd: roundMoney(row.effectivePriceAfter) || effectivePriceFromSnapshot(after),
+    target_alert_enabled: row.targetAlertEnabled === true || row.targetAlertEnabled === 1 || row.targetAlertEnabled === "1",
+    target_price_usd: roundMoney(row.targetPrice),
+    target_met: row.targetMet === true || row.targetMet === 1 || row.targetMet === "1",
+    notification_tone: tone,
     actor_name: boundedString(row.actorName, 160) || "Sistema",
     actor_role: boundedString(row.actorRole, 40) || "system",
     source: row.source === "request" ? "request" : "system",
     created: safeIsoDate(row.created),
+  };
+}
+
+function historyForWatch(app, watchId, requestedPage) {
+  const count = queryOne(app, `
+    SELECT COUNT(*) AS totalItems FROM master_product_price_events WHERE watch = {:watchId}
+  `, { watchId }, { totalItems: 0 }) || {};
+  const totalItems = nonNegativeInteger(count.totalItems);
+  const totalPages = Math.max(1, Math.ceil(totalItems / HISTORY_PAGE_SIZE));
+  const page = Math.min(requestedPage, totalPages);
+  const rows = queryRows(app, `
+    SELECT
+      id AS eventId,
+      change_type AS changeType,
+      summary AS summary,
+      variation_id_snapshot AS variationId,
+      variation_label_snapshot AS variationLabel,
+      before_state AS beforeState,
+      after_state AS afterState,
+      target_alert_enabled_snapshot AS targetAlertEnabled,
+      target_price_usd_snapshot AS targetPrice,
+      target_met_snapshot AS targetMet,
+      effective_price_after_usd AS effectivePriceAfter,
+      notification_tone AS notificationTone,
+      actor_name_snapshot AS actorName,
+      actor_role_snapshot AS actorRole,
+      source AS source,
+      created AS created
+    FROM master_product_price_events
+    WHERE watch = {:watchId}
+    ORDER BY datetime(created) DESC, id DESC
+    LIMIT {:limit} OFFSET {:offset}
+  `, { watchId, limit: HISTORY_PAGE_SIZE, offset: (page - 1) * HISTORY_PAGE_SIZE }, {
+    eventId: "", changeType: "", summary: "", variationId: "", variationLabel: "",
+    beforeState: "", afterState: "", targetAlertEnabled: false, targetPrice: 0,
+    targetMet: false, effectivePriceAfter: 0, notificationTone: "normal",
+    actorName: "", actorRole: "", source: "", created: "",
+  });
+  return {
+    page,
+    per_page: HISTORY_PAGE_SIZE,
+    total_items: totalItems,
+    total_pages: totalPages,
+    items: rows.map(mapHistoryRow).filter((item) => item.id),
   };
 }
 
@@ -801,47 +978,129 @@ function handleProductPriceHistory(e) {
         page: { page: 1, per_page: HISTORY_PAGE_SIZE, total_items: 0, total_pages: 1, items: [] },
       });
     }
-    const count = queryOne($app, `
-      SELECT COUNT(*) AS totalItems FROM master_product_price_events WHERE watch = {:watchId}
-    `, { watchId: watch.id }, { totalItems: 0 }) || {};
-    const totalItems = nonNegativeInteger(count.totalItems);
-    const totalPages = Math.max(1, Math.ceil(totalItems / HISTORY_PAGE_SIZE));
-    const page = Math.min(parsed.page, totalPages);
-    const rows = queryRows($app, `
-      SELECT
-        id AS eventId,
-        change_type AS changeType,
-        summary AS summary,
-        variation_id_snapshot AS variationId,
-        variation_label_snapshot AS variationLabel,
-        before_state AS beforeState,
-        after_state AS afterState,
-        actor_name_snapshot AS actorName,
-        actor_role_snapshot AS actorRole,
-        source AS source,
-        created AS created
-      FROM master_product_price_events
-      WHERE watch = {:watchId}
-      ORDER BY datetime(created) DESC, id DESC
-      LIMIT {:limit} OFFSET {:offset}
-    `, { watchId: watch.id, limit: HISTORY_PAGE_SIZE, offset: (page - 1) * HISTORY_PAGE_SIZE }, {
-      eventId: "", changeType: "", summary: "", variationId: "", variationLabel: "",
-      beforeState: "", afterState: "", actorName: "", actorRole: "", source: "", created: "",
-    });
     return e.json(200, {
       ok: true,
       watch: watchResponse(watch),
-      page: {
-        page,
-        per_page: HISTORY_PAGE_SIZE,
-        total_items: totalItems,
-        total_pages: totalPages,
-        items: rows.map(mapHistoryRow).filter((item) => item.id),
-      },
+      page: historyForWatch($app, watch.id, parsed.page),
     });
   } catch (_) {
     logPriceWatch("PZ_MASTER_PRICE_WATCH_QUERY_FAILED");
     return e.json(500, { ok: false, error: "price_history_failed" });
+  }
+}
+
+function handleProductWatchDetail(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isActiveMasterRequest(info)) return e.json(403, { ok: false, error: "unauthorized" });
+    const parsed = parseWatchDetailPayload(info.body || {});
+    if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
+    const watch = findRecordByIdSafe($app, WATCHES_COLLECTION, parsed.watchId);
+    if (!watch) return e.json(404, { ok: false, error: "watch_not_found" });
+    const storeId = recordString(watch, "store");
+    const store = findRecordByIdSafe($app, "stores", storeId);
+    if (!store || !isValidRecordId(storeId)) return e.json(404, { ok: false, error: "watch_not_found" });
+
+    const productId = recordString(watch, "product");
+    const candidateProduct = isValidRecordId(productId) ? findRecordByIdSafe($app, "products", productId) : null;
+    const product = candidateProduct && recordString(candidateProduct, "store") === storeId ? candidateProduct : null;
+    const currentSnapshot = product ? buildSnapshot($app, product) : null;
+    const baselineSnapshot = recordJson(watch, "last_snapshot", {});
+    const initialRow = queryOne($app, `
+      SELECT before_state AS beforeState
+      FROM master_product_price_events
+      WHERE watch = {:watchId}
+      ORDER BY datetime(created) ASC, id ASC
+      LIMIT 1
+    `, { watchId: watch.id }, { beforeState: "" });
+    const initialSnapshot = initialRow ? parseJson(initialRow.beforeState, baselineSnapshot) : baselineSnapshot;
+    const currentPrice = product ? effectivePriceFromSnapshot(currentSnapshot) : 0;
+    const initialPrice = effectivePriceFromSnapshot(initialSnapshot);
+    const configuration = targetConfiguration(watch);
+    const targetMet = targetMetForPrice(configuration, currentPrice);
+    const lastChange = queryOne($app, `
+      SELECT summary AS summary, created AS created
+      FROM master_product_price_events
+      WHERE watch = {:watchId}
+      ORDER BY datetime(created) DESC, id DESC
+      LIMIT 1
+    `, { watchId: watch.id }, { summary: "", created: "" }) || {};
+    const identitySnapshot = currentSnapshot || baselineSnapshot || {};
+
+    return e.json(200, {
+      ok: true,
+      watch: watchResponse(watch),
+      store: {
+        id: storeId,
+        name: boundedString(recordString(store, "name"), 160) || "Tienda",
+        slug: boundedString(recordString(store, "slug"), 120),
+      },
+      product: {
+        id: product ? String(product.id) : "",
+        name: boundedString(product ? recordString(product, "name") : recordString(watch, "product_name_snapshot"), 180) || "Producto eliminado",
+        slug: boundedString(product ? recordString(product, "slug") : recordString(watch, "product_slug_snapshot"), 180),
+        exists: !!product,
+        has_variations: identitySnapshot.has_variations === true,
+      },
+      pricing: {
+        current_effective_price_usd: currentPrice,
+        initial_effective_price_usd: initialPrice,
+        difference_from_start_usd: currentPrice > 0 && initialPrice > 0 ? roundMoney(currentPrice - initialPrice) : 0,
+        target_met: targetMet,
+        amount_to_target_usd: configuration.enabled && currentPrice > configuration.price
+          ? roundMoney(currentPrice - configuration.price) : 0,
+      },
+      last_change: {
+        summary: boundedString(lastChange.summary, 500),
+        created: safeIsoDate(lastChange.created),
+      },
+      history: historyForWatch($app, watch.id, parsed.page),
+    });
+  } catch (_) {
+    logPriceWatch("PZ_MASTER_PRICE_WATCH_QUERY_FAILED");
+    return e.json(500, { ok: false, error: "watch_detail_failed" });
+  }
+}
+
+function handleProductWatchTarget(e) {
+  setPrivateHeaders(e);
+  try {
+    const info = e.requestInfo();
+    if (!isActiveMasterRequest(info)) return e.json(403, { ok: false, error: "unauthorized" });
+    const parsed = parseWatchTargetPayload(info.body || {});
+    if (parsed.error) {
+      return e.json(parsed.error === "invalid_payload" ? 400 : 422, { ok: false, error: parsed.error });
+    }
+    let result = null;
+    $app.runInTransaction((txApp) => {
+      const watch = findRecordByIdSafe(txApp, WATCHES_COLLECTION, parsed.watchId);
+      if (!watch) return;
+      const currentTarget = roundMoney(recordNumber(watch, "target_price_usd"));
+      const target = parsed.target > 0 ? parsed.target : currentTarget;
+      const now = new Date().toISOString();
+      watch.set("target_alert_enabled", parsed.enabled);
+      watch.set("target_price_usd", target);
+      watch.set("target_updated_at", now);
+      watch.set("target_updated_by", recordString(info.auth, "id"));
+      txApp.save(watch);
+      const productId = recordString(watch, "product");
+      const product = isValidRecordId(productId) ? findRecordByIdSafe(txApp, "products", productId) : null;
+      const currentPrice = product ? effectivePriceFromSnapshot(buildSnapshot(txApp, product)) : 0;
+      result = {
+        watch: watchResponse(watch),
+        pricing: {
+          current_effective_price_usd: currentPrice,
+          target_met: parsed.enabled && target > 0 && currentPrice > 0 && currentPrice <= target,
+          amount_to_target_usd: parsed.enabled && currentPrice > target ? roundMoney(currentPrice - target) : 0,
+        },
+      };
+    });
+    if (!result) return e.json(404, { ok: false, error: "watch_not_found" });
+    return e.json(200, Object.assign({ ok: true }, result));
+  } catch (_) {
+    logPriceWatch("PZ_MASTER_PRICE_WATCH_QUERY_FAILED");
+    return e.json(500, { ok: false, error: "watch_target_update_failed" });
   }
 }
 
@@ -851,10 +1110,17 @@ module.exports = {
   clearExpiredActorContexts,
   continueActorRequest,
   continuePriceWatchSuccess,
+  effectivePriceFromSnapshot,
   handleProductDelete,
   handleProductPriceHistory,
   handleProductUpdate,
   handleProductWatchAction,
+  handleProductWatchDetail,
+  handleProductWatchTarget,
   handleVariationMutation,
+  parseWatchDetailPayload,
+  parseWatchTargetPayload,
+  priceNotificationCopy,
   requireAuthenticatedUser,
+  targetMetForPrice,
 };

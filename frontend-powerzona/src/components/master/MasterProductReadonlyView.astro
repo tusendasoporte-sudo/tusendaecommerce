@@ -7,9 +7,16 @@ interface Props {
   productsPath: string;
   history: MasterPriceHistory | null;
   historyError?: string;
+  returnAction?: { href: string; label: string };
 }
 
-const { detail, productsPath, history, historyError = '' } = Astro.props;
+const {
+  detail,
+  productsPath,
+  history,
+  historyError = '',
+  returnAction = { href: productsPath, label: 'Volver a Productos' },
+} = Astro.props;
 const { store, product, variations, related_products: relatedProducts } = detail;
 const visibilityLabels: Record<string, string> = {
   visible: 'Visible',
@@ -65,29 +72,6 @@ function variationPrice(variation: MasterProductVariation) {
     : formatUsd(variation.current_price_usd);
 }
 
-function historyHref(page: number) {
-  const path = `${productsPath}/${encodeURIComponent(product.id)}`;
-  return page > 1 ? `${path}?history_page=${page}#seguimiento-precio` : `${path}#seguimiento-precio`;
-}
-
-function eventLabel(value: string) {
-  const labels: Record<string, string> = {
-    product_regular_price_changed: 'Precio normal',
-    product_offer_activated: 'Oferta activada',
-    product_offer_changed: 'Oferta modificada',
-    product_offer_disabled: 'Oferta desactivada',
-    variation_regular_price_changed: 'Precio de variación',
-    variation_offer_activated: 'Oferta de variación activada',
-    variation_offer_changed: 'Oferta de variación modificada',
-    variation_offer_disabled: 'Oferta de variación desactivada',
-    variation_added: 'Variación agregada',
-    variation_removed: 'Variación eliminada',
-    product_range_changed: 'Rango comercial',
-    product_deleted: 'Producto eliminado',
-  };
-  return labels[value] || 'Cambio de precio';
-}
-
 const activeVariationStock = variations
   .filter((variation) => variation.active)
   .reduce((total, variation) => total + Math.max(0, variation.stock), 0);
@@ -95,8 +79,10 @@ const activeVariationCount = variations.filter((variation) => variation.active).
 const hiddenVariationCount = variations.filter((variation) => !variation.active).length;
 const mainImage = product.image_urls[0] || '';
 const publicPath = publicProductPath();
-const watch = history?.watch || { status: 'none', started_at: '', paused_at: '', deleted_at: '' };
-const historyItems = history?.page.items || [];
+const watch = history?.watch || {
+  id: '', status: 'none', started_at: '', paused_at: '', deleted_at: '',
+  target_alert_enabled: false, target_price_usd: 0, target_updated_at: '',
+};
 ---
 
 <main class="detail-shell" data-watch-detail data-store-id={store.id} data-product-id={product.id}>
@@ -110,7 +96,7 @@ const historyItems = history?.page.items || [];
       <p>{product.internal_ref ? `Referencia ${product.internal_ref}` : product.slug || 'Sin referencia interna'}</p>
     </div>
     <nav class="hero-actions" aria-label="Acciones de producto">
-      <a class="secondary-action" href={productsPath}>Volver a Productos</a>
+      <a class="secondary-action" href={returnAction.href}>{returnAction.label}</a>
       <a class="secondary-action" href={`/master/analytics/${encodeURIComponent(store.id)}`}>Ver Analíticas</a>
       {publicPath ? (
         <a class="primary-action" href={publicPath}>Abrir producto público</a>
@@ -274,54 +260,10 @@ const historyItems = history?.page.items || [];
         <button type="button" data-watch-action="resume">Reanudar seguimiento</button>
       </div>
     )}
-
-    <div class="history-heading">
-      <div><span>Registro permanente</span><h3>Historial de precios</h3></div>
-      <span>{formatNumber(history?.page.total_items || 0)} eventos</span>
-    </div>
-
-    {historyItems.length ? (
-      <>
-        <div class="history-table">
-          <div class="history-row history-head" aria-hidden="true">
-            <span>Cambio</span><span>Detalle</span><span>Antes</span><span>Después</span><span>Actor</span><span>Fecha</span>
-          </div>
-          {historyItems.map((item) => (
-            <article class="history-row">
-              <div><strong>{eventLabel(item.change_type)}</strong>{item.variation_label && <small>{item.variation_label}</small>}</div>
-              <div>{item.summary}</div>
-              <div><strong>{formatUsd(item.before_effective_price_usd)}</strong><small>Normal {formatUsd(item.before_regular_price_usd)}</small></div>
-              <div><strong>{formatUsd(item.after_effective_price_usd)}</strong><small>Normal {formatUsd(item.after_regular_price_usd)}</small></div>
-              <div><strong>{item.actor_name}</strong><small>{item.actor_role}</small></div>
-              <div>{formatDate(item.created, true)}</div>
-            </article>
-          ))}
-        </div>
-        <div class="history-mobile">
-          {historyItems.map((item) => (
-            <article>
-              <header><div><strong>{eventLabel(item.change_type)}</strong><small>{item.variation_label}</small></div><time>{formatDate(item.created, true)}</time></header>
-              <p>{item.summary}</p>
-              <dl>
-                <div><dt>Antes</dt><dd>{formatUsd(item.before_effective_price_usd)}</dd></div>
-                <div><dt>Después</dt><dd>{formatUsd(item.after_effective_price_usd)}</dd></div>
-                <div><dt>Actor</dt><dd>{item.actor_name}</dd></div>
-                <div><dt>Rol</dt><dd>{item.actor_role}</dd></div>
-              </dl>
-            </article>
-          ))}
-        </div>
-      </>
-    ) : (
-      <p class="empty-copy padded">Todavía no hay cambios de precio registrados.</p>
-    )}
-
-    {history && history.page.total_pages > 1 && (
-      <nav class="history-pagination" aria-label="Paginación del historial de precios">
-        {history.page.page > 1 ? <a href={historyHref(history.page.page - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
-        <strong>Página {history.page.page} de {history.page.total_pages}</strong>
-        {history.page.page < history.page.total_pages ? <a href={historyHref(history.page.page + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
-      </nav>
+    {watch.id && (
+      <a class="watch-detail-link" href={`/master/price-watch/${encodeURIComponent(watch.id)}`}>
+        Abrir detalle del seguimiento
+      </a>
     )}
   </section>
 
@@ -435,6 +377,7 @@ const historyItems = history?.page.items || [];
   .watch-state-card p { margin: 0; color: #475569; font-size: var(--master-font-meta); line-height: var(--master-line-normal); font-weight: 750; }
   .watch-state-card button { min-height: 46px; border: 1px solid #6d28d9; border-radius: 10px; background: #6d28d9; color: #fff; padding: 10px 14px; font: inherit; font-size: var(--master-font-control); font-weight: 1000; white-space: nowrap; cursor: pointer; }
   .watch-state-card button:disabled { opacity: .65; cursor: wait; }
+  .watch-detail-link { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; margin-top: 12px; border: 1px solid #c7d2fe; border-radius: 10px; background: #eef2ff; color: #4338ca; padding: 10px 14px; font-size: var(--master-font-control); font-weight: 1000; text-decoration: none; }
   .watch-error { border-radius: 11px; background: #fff7ed; color: #9a3412; padding: 13px; font-size: var(--master-font-meta); font-weight: 800; }
   .history-heading { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-top: 20px; padding: 0 2px 10px; }
   .history-heading > div { display: grid; gap: 3px; }

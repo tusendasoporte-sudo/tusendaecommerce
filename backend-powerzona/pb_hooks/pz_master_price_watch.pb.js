@@ -20,6 +20,26 @@ routerAdd(
   $apis.skipSuccessActivityLog()
 );
 
+routerAdd(
+  "POST",
+  "/api/pz/master/product-watch-detail",
+  (e) => require(`${__hooks}/pz_master_price_watch_lib.js`).handleProductWatchDetail(e),
+  (e) => require(`${__hooks}/pz_master_price_watch_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/master/product-watch-target",
+  (e) => require(`${__hooks}/pz_master_price_watch_lib.js`).handleProductWatchTarget(e),
+  (e) => require(`${__hooks}/pz_master_price_watch_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
 onRecordUpdateRequest(
   (e) => require(`${__hooks}/pz_master_price_watch_lib.js`).continueActorRequest(e),
   "products",

@@ -6,7 +6,12 @@ import MasterProductReadonlyView from '../../../../components/master/MasterProdu
 import MasterShell from '../../../../components/master/MasterShell.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../lib/auth';
 import { getMasterStoreProductDetail, isValidRecordId } from '../../../../lib/masterStoreProducts';
-import { getMasterProductPriceHistory, normalizeHistoryPage } from '../../../../lib/masterProductWatches';
+import { getMasterProductPriceHistory, getMasterProductWatchDetail, normalizeHistoryPage } from '../../../../lib/masterProductWatches';
+import {
+  buildPriceWatchDetailHref,
+  matchesPriceWatchProductContext,
+  normalizePriceWatchReturnContext,
+} from '../../../../lib/masterPriceWatchNavigation';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -71,6 +76,34 @@ const historyResult = await getMasterProductPriceHistory(
   historyPage,
 );
 
+const returnContext = normalizePriceWatchReturnContext({
+  return_page: Astro.url.searchParams.get('return_page'),
+  return_status: Astro.url.searchParams.get('return_status'),
+  return_store_id: Astro.url.searchParams.get('return_store_id'),
+  return_q: Astro.url.searchParams.get('return_q'),
+});
+const sourceContext = Astro.url.searchParams.get('from');
+const contextWatchId = String(Astro.url.searchParams.get('watchId') || '').trim();
+let returnAction = { href: productsPath, label: 'Volver a Productos' };
+if (sourceContext === 'price-watch' && isValidRecordId(contextWatchId)) {
+  const contextResult = await getMasterProductWatchDetail(
+    pocketbaseUrl,
+    authPb.authStore.token,
+    contextWatchId,
+    1,
+  );
+  const contextDetail = contextResult.data;
+  if (
+    contextResult.available
+    && matchesPriceWatchProductContext(contextDetail, contextWatchId, storeId, productId)
+  ) {
+    returnAction = {
+      href: buildPriceWatchDetailHref(contextWatchId, returnContext),
+      label: 'Volver a seguimiento',
+    };
+  }
+}
+
 if (result.status === 404) {
   return Astro.redirect(productsPath);
 }
@@ -89,6 +122,7 @@ const viewError = result.status === 403
         productsPath={productsPath}
         history={historyResult.data}
         historyError={historyResult.available ? '' : 'No fue posible consultar el seguimiento de precio.'}
+        returnAction={returnAction}
       />
     ) : (
       <main class="product-error-shell">

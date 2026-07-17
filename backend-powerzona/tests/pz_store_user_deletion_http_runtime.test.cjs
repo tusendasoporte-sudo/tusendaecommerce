@@ -249,6 +249,7 @@ runtimeTest('U7I7F1D8 HTTP elimina fisicamente usuarios y preserva historial com
       store: storeA.id,
       title: 'Referencia requerida temporal',
       message: 'Fuerza rollback seguro',
+      tone: 'normal',
       status: 'unread',
       event_count: 1,
       first_event_at: new Date(now).toISOString(),

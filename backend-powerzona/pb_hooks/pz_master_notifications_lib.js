@@ -178,6 +178,7 @@ const NOTIFICATION_SELECT = `
     n.title AS title,
     n.message AS message,
     n.action_url AS actionUrl,
+    n.tone AS tone,
     n.status AS status,
     n.event_count AS eventCount,
     n.created AS created,
@@ -188,7 +189,7 @@ const NOTIFICATION_SELECT = `
 
 const NOTIFICATION_MODEL = {
   notificationId: "", type: "", category: "", storeName: "", title: "", message: "",
-  actionUrl: "", status: "", eventCount: 0, created: "", lastEventAt: "",
+  actionUrl: "", tone: "normal", status: "", eventCount: 0, created: "", lastEventAt: "",
 };
 
 function mapNotificationRow(row) {
@@ -202,6 +203,7 @@ function mapNotificationRow(row) {
     title: boundedString(row.title, 180),
     message: boundedString(row.message, 500),
     action_url: safeActionUrl(row.actionUrl),
+    tone: row.tone === "critical" ? "critical" : "normal",
     status: STATUSES.includes(status) && status !== "all" ? status : "unread",
     event_count: Math.max(1, nonNegativeInteger(row.eventCount)),
     created: safeIsoDate(row.created),
@@ -398,17 +400,18 @@ function groupedMessage(eventCount, productName) {
 }
 
 function createRecipientNotification(app, recipient, data, now) {
+  const priceEvent = data.type === "product_price_changed" || data.type === "product_price_target_reached";
   const cutoff = new Date(new Date(now).getTime() - GROUP_WINDOW_MS).toISOString();
-  const grouped = queryOne(app, `
-    SELECT id AS notificationId
-    FROM master_notifications
-    WHERE recipient = {:recipientId}
-      AND group_key = {:groupKey}
-      AND status = 'unread'
-      AND datetime(last_event_at) >= datetime({:cutoff})
-    ORDER BY datetime(last_event_at) DESC, id DESC
-    LIMIT 1
-  `, { recipientId: recipient.id, groupKey: data.groupKey, cutoff }, { notificationId: "" });
+  const grouped = priceEvent ? null : queryOne(app, `
+      SELECT id AS notificationId
+      FROM master_notifications
+      WHERE recipient = {:recipientId}
+        AND group_key = {:groupKey}
+        AND status = 'unread'
+        AND datetime(last_event_at) >= datetime({:cutoff})
+      ORDER BY datetime(last_event_at) DESC, id DESC
+      LIMIT 1
+    `, { recipientId: recipient.id, groupKey: data.groupKey, cutoff }, { notificationId: "" });
   const existing = grouped && isValidRecordId(grouped.notificationId)
     ? findRecordByIdSafe(app, NOTIFICATIONS_COLLECTION, String(grouped.notificationId))
     : null;
@@ -432,6 +435,7 @@ function createRecipientNotification(app, recipient, data, now) {
   notification.set("title", data.title);
   notification.set("message", data.message);
   notification.set("action_url", safeActionUrl(data.actionUrl));
+  notification.set("tone", data.tone === "critical" ? "critical" : "normal");
   notification.set("status", "unread");
   notification.set("group_key", data.groupKey);
   notification.set("event_count", 1);
@@ -447,21 +451,25 @@ function createProductNotification(app, input) {
   try {
     const storeId = boundedString(input && input.storeId, 15);
     const productIdSnapshot = boundedString(input && input.productIdSnapshot, 15);
-    if (!isValidRecordId(storeId) || !isValidRecordId(productIdSnapshot)) return;
+    const watchId = boundedString(input && input.watchId, 15);
+    const eventKey = boundedString(input && input.eventKey, 180);
+    if (!isValidRecordId(storeId) || !isValidRecordId(productIdSnapshot) || !isValidRecordId(watchId) || !eventKey) return;
     const deleted = input && input.type === "product_deleted";
+    const critical = !deleted && input && input.tone === "critical";
     const productName = boundedString(input && input.productName, 180) || "Producto";
     const data = {
-      type: deleted ? "product_deleted" : "product_price_changed",
+      type: deleted ? "product_deleted" : critical ? "product_price_target_reached" : "product_price_changed",
+      tone: critical ? "critical" : "normal",
       storeId,
       productId: deleted ? "" : productIdSnapshot,
       productIdSnapshot,
       productName,
-      title: deleted ? `Producto eliminado: ${productName}`.slice(0, 180) : `Cambio de precio: ${productName}`.slice(0, 180),
-      message: deleted ? `El producto seguido ${productName} fue eliminado.`.slice(0, 500) : boundedString(input && input.summary, 500),
-      actionUrl: deleted
-        ? "/master/notifications"
-        : `/master/products/${encodeURIComponent(storeId)}/${encodeURIComponent(productIdSnapshot)}#seguimiento-precio`,
-      groupKey: `${deleted ? "product_deleted" : "product_price"}:${storeId}:${productIdSnapshot}`.slice(0, 180),
+      title: boundedString(input && input.title, 180)
+        || (deleted ? `Producto eliminado: ${productName}` : `Precio cambiado: ${productName}`).slice(0, 180),
+      message: boundedString(input && input.message, 500)
+        || (deleted ? `El producto seguido ${productName} fue eliminado.` : "Se registró un cambio real de precio.").slice(0, 500),
+      actionUrl: `/master/price-watch/${encodeURIComponent(watchId)}`,
+      groupKey: `${deleted ? "product_deleted" : "price_event"}:${watchId}:${eventKey.slice(-64)}`.slice(0, 180),
     };
     const now = new Date().toISOString();
     activeMasterRecipients(app).forEach((recipient) => {

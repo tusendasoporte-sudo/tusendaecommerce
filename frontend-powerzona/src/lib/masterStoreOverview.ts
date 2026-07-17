@@ -89,6 +89,9 @@ export type MasterPriceWatchPage = {
       product: { id: string; name: string; slug: string };
       status: Exclude<MasterPriceWatchStatus, 'all'>;
       current_price_usd: number;
+      target_alert_enabled: boolean;
+      target_price_usd: number;
+      target_met: boolean;
       last_change: string;
       last_change_at: string;
       created: string;
@@ -345,6 +348,9 @@ export async function getMasterPriceWatchPage(
             product: { id: recordId(item?.product?.id), name: text(item?.product?.name, 180) || 'Producto eliminado', slug: text(item?.product?.slug, 120) },
             status: itemStatus,
             current_price_usd: numberValue(item?.current_price_usd),
+            target_alert_enabled: item?.target_alert_enabled === true,
+            target_price_usd: numberValue(item?.target_price_usd),
+            target_met: item?.target_met === true,
             last_change: text(item?.last_change, 300),
             last_change_at: isoDate(item?.last_change_at),
             created: isoDate(item?.created),

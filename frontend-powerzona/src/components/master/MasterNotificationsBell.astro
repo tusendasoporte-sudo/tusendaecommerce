@@ -104,6 +104,14 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     background: #eef2ff;
   }
 
+  :global(.bell-item.is-critical) {
+    border-color: #fca5a5;
+    background: #fef2f2;
+  }
+
+  :global(.bell-item.is-critical .bell-item-copy strong) { color: #991b1b; }
+  :global(.bell-critical-badge) { display: inline-flex; width: max-content; max-width: 100%; border-radius: 999px; background: #fee2e2; color: #991b1b !important; padding: 4px 7px; font-size: var(--master-font-caption) !important; font-weight: 1000 !important; }
+
   :global(.bell-item-copy) {
     display: grid;
     gap: 5px;
@@ -189,6 +197,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   }
   .bell-all-link { display: flex; justify-content: center; border-top: 1px solid #e2e8f0; color: #4338ca; padding: 13px; font-size: var(--master-font-meta); font-weight: 1000; text-decoration: none; }
   .bell-toast { position: fixed; z-index: 1100; right: 16px; bottom: 16px; width: min(340px, calc(100vw - 32px)); border: 1px solid #c7d2fe; border-radius: 13px; background: #eef2ff; color: #312e81; padding: 13px 15px; box-shadow: 0 18px 48px rgba(30, 41, 59, .2); font-size: var(--master-font-meta); line-height: 1.45; font-weight: 850; }
+  .bell-toast.is-critical { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
   @media (max-width: 520px) {
     .bell-panel {
       position: fixed;
@@ -269,7 +278,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     function showToast(notification: MasterNotification | undefined) {
       if (!notification) return;
       window.clearTimeout(toastTimer);
-      toast.textContent = `${notification.title}${notification.message ? ` · ${notification.message}` : ''}`;
+      toast.classList.toggle('is-critical', notification.tone === 'critical');
+      toast.textContent = `${notification.tone === 'critical' ? 'Crítica · ' : ''}${notification.title}${notification.message ? ` · ${notification.message}` : ''}`;
       toast.hidden = false;
       toastTimer = window.setTimeout(() => { toast.hidden = true; }, 4200);
     }
@@ -290,7 +300,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       items.forEach((item) => {
         const article = document.createElement('article');
-        article.className = `bell-item${item.status === 'unread' ? ' is-unread' : ''}`;
+        article.className = `bell-item${item.status === 'unread' ? ' is-unread' : ''}${item.tone === 'critical' ? ' is-critical' : ''}`;
         const copy = document.createElement('div');
         copy.className = 'bell-item-copy';
         const title = document.createElement('strong');
@@ -300,6 +310,12 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         const meta = document.createElement('small');
         const date = item.last_event_at ? new Date(item.last_event_at) : null;
         meta.textContent = `${item.store_name || 'Master'}${date && Number.isFinite(date.getTime()) ? ` · ${date.toLocaleString('es')}` : ''}`;
+        if (item.tone === 'critical') {
+          const criticalBadge = document.createElement('span');
+          criticalBadge.className = 'bell-critical-badge';
+          criticalBadge.textContent = 'Objetivo alcanzado';
+          copy.append(criticalBadge);
+        }
         copy.append(title, message, meta);
         const actions = document.createElement('div');
         actions.className = 'bell-item-actions';

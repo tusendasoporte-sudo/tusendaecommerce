@@ -1,5 +1,6 @@
 export type MasterNotificationStatus = 'unread' | 'read' | 'archived';
 export type MasterNotificationCategory = 'products' | 'security' | 'stores' | 'system';
+export type MasterNotificationTone = 'normal' | 'critical';
 
 export type MasterNotification = {
   id: string;
@@ -9,6 +10,7 @@ export type MasterNotification = {
   title: string;
   message: string;
   action_url: string;
+  tone: MasterNotificationTone;
   status: MasterNotificationStatus;
   event_count: number;
   created: string;
@@ -78,6 +80,7 @@ function normalizeNotification(value: any): MasterNotification | null {
     title: boundedString(value?.title, 180),
     message: boundedString(value?.message, 500),
     action_url: safeActionUrl(value?.action_url),
+    tone: value?.tone === 'critical' ? 'critical' : 'normal',
     status: status === 'all' ? 'unread' : status,
     event_count: Math.max(1, nonNegativeInteger(value?.event_count)),
     created: safeIsoDate(value?.created),

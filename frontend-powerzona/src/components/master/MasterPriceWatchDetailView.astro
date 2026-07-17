@@ -1,0 +1,293 @@
+---
+import type { MasterPriceWatchDetail } from '../../lib/masterProductWatches';
+import { formatPriceEventCount, resolvePriceHistoryMovement } from '../../lib/masterPriceWatchPresentation';
+
+interface Props {
+  detail: MasterPriceWatchDetail;
+  backUrl: string;
+  detailQuery: string;
+}
+
+const { detail, backUrl, detailQuery } = Astro.props;
+const { watch, store, product, pricing, last_change: lastChange, history } = detail;
+
+function usd(value: unknown) {
+  return new Intl.NumberFormat('es-US', { style: 'currency', currency: 'USD' }).format(Number(value || 0));
+}
+
+function date(value: string) {
+  if (!value) return 'Sin registro';
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat('es', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(parsed).replace(/\./g, '')
+    : 'Sin registro';
+}
+
+function statusLabel() {
+  if (!product.exists || watch.status === 'deleted') return 'Producto eliminado';
+  return watch.status === 'active' ? 'Activo' : 'Pausado';
+}
+
+function eventLabel(value: string) {
+  const labels: Record<string, string> = {
+    product_regular_price_changed: 'Precio normal',
+    product_offer_activated: 'Oferta activada',
+    product_offer_changed: 'Oferta modificada',
+    product_offer_disabled: 'Oferta desactivada',
+    variation_regular_price_changed: 'Precio de variación',
+    variation_offer_activated: 'Oferta de variación activada',
+    variation_offer_changed: 'Oferta de variación modificada',
+    variation_offer_disabled: 'Oferta de variación desactivada',
+    variation_added: 'Variación agregada',
+    variation_removed: 'Variación eliminada',
+    product_range_changed: 'Rango comercial',
+    product_deleted: 'Producto eliminado',
+  };
+  return labels[value] || 'Cambio de precio';
+}
+
+function historyHref(page: number) {
+  const params = new URLSearchParams(detailQuery);
+  if (page > 1) params.set('history_page', String(page));
+  else params.delete('history_page');
+  const query = params.toString();
+  return `/master/price-watch/${encodeURIComponent(watch.id)}${query ? `?${query}` : ''}#historial-precios`;
+}
+
+const currentPriceLabel = product.has_variations ? 'Precio mínimo actual' : 'Precio actual';
+const targetConfigured = watch.target_price_usd > 0;
+const productContext = new URLSearchParams(detailQuery);
+productContext.set('from', 'price-watch');
+productContext.set('watchId', watch.id);
+const productUrl = product.exists
+  ? `/master/products/${encodeURIComponent(store.id)}/${encodeURIComponent(product.id)}?${productContext.toString()}`
+  : '';
+const historyRows = history.items.flatMap((item) => {
+  const movement = resolvePriceHistoryMovement(item);
+  return movement ? [{ item, movement }] : [];
+});
+
+function movementPrice(value: number) {
+  return value > 0 ? usd(value) : 'No disponible';
+}
+---
+
+<main
+  class="price-watch-detail-shell"
+  data-price-watch-detail
+  data-watch-id={watch.id}
+  data-store-id={store.id}
+  data-product-id={product.id}
+  data-current-target={watch.target_price_usd}
+>
+  <header class="price-watch-hero">
+    <div class="price-watch-identity">
+      <span>Seguimiento de precios</span>
+      <h1>{product.name}</h1>
+      <p>{store.name} · Iniciado {date(watch.started_at)}</p>
+      <div class="price-watch-tags">
+        <span class:list={['watch-status-tag', `is-${watch.status}`]}>{statusLabel()}</span>
+        {product.has_variations && <span>Producto con variaciones</span>}
+      </div>
+    </div>
+    <nav class="price-watch-actions" aria-label="Acciones del seguimiento">
+      <a class="price-watch-back" href={backUrl}>Volver a seguimiento</a>
+      {product.exists && watch.status === 'active' && <button type="button" data-watch-action="pause">Pausar seguimiento</button>}
+      {product.exists && watch.status === 'paused' && <button type="button" data-watch-action="resume">Reanudar seguimiento</button>}
+      {productUrl && <a class="price-watch-product-link" href={productUrl}>Ver ficha del producto</a>}
+    </nav>
+  </header>
+
+  <section class="price-watch-summary" aria-label="Resumen del seguimiento">
+    <article class:list={['price-summary-card', { 'is-critical': pricing.target_met }]}>
+      <span>{currentPriceLabel}</span>
+      <strong>{product.exists && pricing.current_effective_price_usd > 0 ? usd(pricing.current_effective_price_usd) : 'No disponible'}</strong>
+      {pricing.target_met && <small>Objetivo alcanzado</small>}
+    </article>
+    <article class="price-summary-card">
+      <span>Precio al iniciar</span>
+      <strong>{pricing.initial_effective_price_usd > 0 ? usd(pricing.initial_effective_price_usd) : 'No disponible'}</strong>
+      <small>Línea base inicial</small>
+    </article>
+    <article class="price-summary-card">
+      <span>Diferencia desde el inicio</span>
+      <strong>{product.exists && pricing.initial_effective_price_usd > 0 ? `${pricing.difference_from_start_usd > 0 ? '+' : ''}${usd(pricing.difference_from_start_usd)}` : 'No disponible'}</strong>
+      <small>Precio efectivo actual menos inicial</small>
+    </article>
+    <article class="price-summary-card">
+      <span>Último cambio</span>
+      <strong>{lastChange.summary || 'Sin cambios registrados'}</strong>
+      <small>{date(lastChange.created)}</small>
+    </article>
+  </section>
+
+  <section class:list={['price-target-card', { 'is-critical': pricing.target_met }]} aria-labelledby="target-title">
+    <div class="price-target-copy">
+      <span>Configuración privada</span>
+      <h2 id="target-title">Alerta de precio objetivo</h2>
+      {watch.target_alert_enabled && targetConfigured ? (
+        pricing.target_met ? (
+          <p><strong>Objetivo alcanzado.</strong> Precio actual: {usd(pricing.current_effective_price_usd)} · Objetivo: {usd(watch.target_price_usd)}.</p>
+        ) : (
+          <p>Precio actual: {usd(pricing.current_effective_price_usd)} · Objetivo: {usd(watch.target_price_usd)}. Faltan {usd(pricing.amount_to_target_usd)} para alcanzar el objetivo.</p>
+        )
+      ) : (
+        <p>Todo cambio real continúa notificándose con tono normal mientras la alerta esté desactivada.</p>
+      )}
+    </div>
+    <form class="price-target-form" data-target-form novalidate>
+      <label class="target-toggle"><input type="checkbox" name="target_alert_enabled" checked={watch.target_alert_enabled} /> <span>Activar alerta</span></label>
+      <label class="target-price-field">
+        <span>Avisarme cuando el precio sea igual o menor a:</span>
+        <span class="target-price-input"><input type="number" name="target_price_usd" min="0.01" max="999999999.99" step="0.01" inputmode="decimal" value={targetConfigured ? watch.target_price_usd.toFixed(2) : ''} placeholder="30.00" /><b>USD</b></span>
+      </label>
+      <p class="target-form-error" data-target-error role="alert" hidden></p>
+      <button type="submit">Guardar objetivo</button>
+    </form>
+  </section>
+
+  <section id="historial-precios" class="price-history-card">
+    <header>
+      <div><span>Registro permanente</span><h2>Historial de precios</h2><p>Todos los cambios reales, sin margen mínimo.</p></div>
+      <strong data-event-count data-total-items={history.total_items}>{formatPriceEventCount(history.total_items)}</strong>
+    </header>
+    {history.items.length ? (
+      <>
+        <div class="price-history-table">
+          <div class="price-history-row is-heading" aria-hidden="true"><span>Fecha</span><span>Movimiento</span><span>Diferencia</span><span>Objetivo</span><span>Actor</span></div>
+          {historyRows.map(({ item, movement }) => (
+            <article class:list={['price-history-row', { 'is-critical': item.target_met }]}>
+              <time>{date(item.created)}</time>
+              <div class="price-history-movement">
+                <strong>{movementPrice(movement.beforeUsd)} → {movementPrice(movement.afterUsd)}</strong>
+                {item.variation_label && <small>Variación: {item.variation_label}</small>}
+                <small>{eventLabel(item.change_type)}</small>
+              </div>
+              <strong class:list={['price-history-difference', `is-${movement.direction}`]}>
+                {movement.direction === 'down' ? `↓ ${usd(movement.differenceUsd)}` : movement.direction === 'up' ? `↑ ${usd(movement.differenceUsd)}` : 'No disponible'}
+              </strong>
+              <div class="price-history-objective">
+                {item.target_alert_enabled && item.target_price_usd > 0 ? (
+                  <><strong>Objetivo: {usd(item.target_price_usd)}</strong>{item.target_met ? <em>Objetivo alcanzado</em> : <small>Por encima</small>}</>
+                ) : <strong>Sin objetivo</strong>}
+              </div>
+              <div><strong>{item.actor_name}</strong><small>{item.actor_role}</small></div>
+            </article>
+          ))}
+        </div>
+        <div class="price-history-mobile">
+          {historyRows.map(({ item, movement }) => (
+            <article class:list={{ 'is-critical': item.target_met }}>
+              <header><time>{date(item.created)}</time>{item.target_met && <em>Objetivo alcanzado</em>}</header>
+              <div class="price-history-mobile-movement">
+                <strong>{movementPrice(movement.beforeUsd)} → {movementPrice(movement.afterUsd)}</strong>
+                <strong class:list={['price-history-difference', `is-${movement.direction}`]}>
+                  {movement.direction === 'down' ? `↓ ${usd(movement.differenceUsd)}` : movement.direction === 'up' ? `↑ ${usd(movement.differenceUsd)}` : 'No disponible'}
+                </strong>
+                {item.variation_label && <small>Variación: {item.variation_label}</small>}
+                <small>{eventLabel(item.change_type)}</small>
+              </div>
+              <dl>
+                <div><dt>Objetivo</dt><dd>{item.target_alert_enabled && item.target_price_usd > 0 ? `Objetivo: ${usd(item.target_price_usd)}` : 'Sin objetivo'}</dd>{item.target_alert_enabled && item.target_price_usd > 0 && !item.target_met && <small>Por encima</small>}</div>
+                <div><dt>Actor</dt><dd>Actualizado por {item.actor_name}</dd><small>{item.actor_role}</small></div>
+              </dl>
+            </article>
+          ))}
+        </div>
+      </>
+    ) : <p class="price-history-empty">Todavía no hay cambios de precio registrados.</p>}
+
+    {history.total_pages > 1 && (
+      <nav class="price-history-pagination" aria-label="Paginación del historial">
+        {history.page > 1 ? <a href={historyHref(history.page - 1)}>Anterior</a> : <span aria-disabled="true">Anterior</span>}
+        <strong>Página {history.page} de {history.total_pages}</strong>
+        {history.page < history.total_pages ? <a href={historyHref(history.page + 1)}>Siguiente</a> : <span aria-disabled="true">Siguiente</span>}
+      </nav>
+    )}
+  </section>
+</main>
+
+<script>
+  import { pb } from '../../lib/pocketbase';
+  import { runMasterProductWatchAction, runMasterProductWatchTarget } from '../../lib/masterProductWatches';
+  import { formatPriceEventCount } from '../../lib/masterPriceWatchPresentation';
+
+  document.querySelectorAll<HTMLElement>('[data-event-count]').forEach((element) => {
+    element.textContent = formatPriceEventCount(element.dataset.totalItems);
+  });
+
+  const root = document.querySelector<HTMLElement>('[data-price-watch-detail]');
+  const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+  if (root && pocketbaseUrl) {
+    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+
+    root.querySelectorAll<HTMLButtonElement>('[data-watch-action]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const action = String(button.dataset.watchAction || '') as 'pause' | 'resume';
+        if (!pb.authStore.isValid || !pb.authStore.token || !['pause', 'resume'].includes(action)) return;
+        button.disabled = true;
+        const previous = button.textContent || '';
+        button.textContent = 'Procesando…';
+        const result = await runMasterProductWatchAction(
+          pocketbaseUrl,
+          pb.authStore.token,
+          String(root.dataset.storeId || ''),
+          String(root.dataset.productId || ''),
+          action,
+        );
+        if (result.available) window.location.reload();
+        else {
+          button.disabled = false;
+          button.textContent = previous;
+        }
+      });
+    });
+
+    const form = root.querySelector<HTMLFormElement>('[data-target-form]');
+    const error = root.querySelector<HTMLElement>('[data-target-error]');
+    form?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!pb.authStore.isValid || !pb.authStore.token || !error) return;
+      const checkbox = form.elements.namedItem('target_alert_enabled') as HTMLInputElement | null;
+      const input = form.elements.namedItem('target_price_usd') as HTMLInputElement | null;
+      const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (!checkbox || !input || !button) return;
+      const enabled = checkbox.checked;
+      const raw = input.value.trim();
+      const validFormat = /^\d+(?:\.\d{1,2})?$/.test(raw);
+      const currentTarget = Number(root.dataset.currentTarget || 0);
+      const target = raw ? Number(raw) : currentTarget;
+      if ((enabled && (!validFormat || target <= 0)) || target > 999999999.99) {
+        error.textContent = 'Ingresa un precio mayor que 0 con un máximo de 2 decimales.';
+        error.hidden = false;
+        input.focus();
+        return;
+      }
+      error.hidden = true;
+      button.disabled = true;
+      button.textContent = 'Guardando…';
+      const result = await runMasterProductWatchTarget(
+        pocketbaseUrl,
+        pb.authStore.token,
+        String(root.dataset.watchId || ''),
+        enabled,
+        Number.isFinite(target) ? target : 0,
+      );
+      if (result.available) window.location.reload();
+      else {
+        button.disabled = false;
+        button.textContent = 'Guardar objetivo';
+        error.textContent = result.error === 'invalid_target_price'
+          ? 'El precio objetivo no es válido.'
+          : 'No fue posible guardar el objetivo.';
+        error.hidden = false;
+      }
+    });
+  }
+</script>

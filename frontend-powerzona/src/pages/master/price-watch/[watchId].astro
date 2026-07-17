@@ -1,0 +1,78 @@
+---
+export const prerender = false;
+
+import Layout from '../../../layouts/Layout.astro';
+import MasterShell from '../../../components/master/MasterShell.astro';
+import MasterPriceWatchDetailView from '../../../components/master/MasterPriceWatchDetailView.astro';
+import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
+import {
+  getMasterProductWatchDetail,
+  normalizeHistoryPage,
+} from '../../../lib/masterProductWatches';
+import {
+  normalizePriceWatchPage,
+  normalizePriceWatchStatus,
+} from '../../../lib/masterStoreOverview';
+import '../../../styles/master-price-watch-detail.css';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const masterUser = requireMasterAdmin(authPb.authStore.record as any);
+if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/master-login');
+if (!masterUser) return Astro.redirect('/master');
+
+const watchId = String(Astro.params.watchId || '').trim();
+if (!/^[a-z0-9]{15}$/.test(watchId)) return Astro.redirect('/master/price-watch');
+
+const returnPage = normalizePriceWatchPage(Astro.url.searchParams.get('return_page'));
+const returnStatus = normalizePriceWatchStatus(Astro.url.searchParams.get('return_status'));
+const rawReturnStoreId = String(Astro.url.searchParams.get('return_store_id') || '').trim();
+const returnStoreId = /^[a-z0-9]{15}$/.test(rawReturnStoreId) ? rawReturnStoreId : '';
+const returnSearch = String(Astro.url.searchParams.get('return_q') || '').trim().slice(0, 100);
+const historyPage = normalizeHistoryPage(Astro.url.searchParams.get('history_page'));
+
+const returnParams = new URLSearchParams();
+if (returnPage > 1) returnParams.set('page', String(returnPage));
+if (returnStatus !== 'active') returnParams.set('status', returnStatus);
+if (returnStoreId) returnParams.set('store_id', returnStoreId);
+if (returnSearch) returnParams.set('q', returnSearch);
+const backQuery = returnParams.toString();
+const backUrl = `/master/price-watch${backQuery ? `?${backQuery}` : ''}`;
+
+const detailResult = await getMasterProductWatchDetail(
+  import.meta.env.PUBLIC_POCKETBASE_URL,
+  authPb.authStore.token,
+  watchId,
+  historyPage,
+);
+if (detailResult.status === 404) return Astro.redirect(backUrl);
+
+const preservedDetailParams = new URLSearchParams();
+preservedDetailParams.set('return_page', String(returnPage));
+preservedDetailParams.set('return_status', returnStatus);
+if (returnStoreId) preservedDetailParams.set('return_store_id', returnStoreId);
+if (returnSearch) preservedDetailParams.set('return_q', returnSearch);
+
+const displayName = String(masterUser.display_name || masterUser.name || masterUser.email || '').trim();
+---
+
+<Layout isMaster={true}>
+  <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Detalle de seguimiento">
+    {detailResult.data ? (
+      <MasterPriceWatchDetailView
+        detail={detailResult.data}
+        backUrl={backUrl}
+        detailQuery={preservedDetailParams.toString()}
+      />
+    ) : (
+      <main class="price-watch-detail-shell">
+        <a class="price-watch-back" href={backUrl}>Volver a seguimiento</a>
+        <p class="price-watch-load-error" role="alert">No fue posible consultar este seguimiento privado.</p>
+      </main>
+    )}
+  </MasterShell>
+</Layout>
