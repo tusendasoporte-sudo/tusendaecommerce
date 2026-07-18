@@ -42,21 +42,25 @@ test('V7E9: validación viva cubre producto y variación sin revelar vencimiento
   assert.equal(validator.includes('vencido por fecha'), false);
 });
 
-test('V7E9: el admin usa endpoint privado y carga diferida solo con capacidad Premium', () => {
+test('V7E9-C2: el Resumen usa endpoint privado, carga diferida y páginas de 5', () => {
   const dashboard = readFileSync(new URL('../src/pages/admin/index.astro', import.meta.url), 'utf8');
   assert.match(dashboard, /resolveStoreCapabilityAccess\(adminContext\.store, 'product_expiration_tools_enabled'\)/);
   assert.match(dashboard, /\/api\/pz\/admin\/product-expirations/);
   assert.match(dashboard, /new IntersectionObserver/);
-  assert.match(dashboard, /JSON\.stringify\(\{ view, window_days: windowDays, page \}\)/);
+  assert.match(dashboard, /JSON\.stringify\(\{ view, window_days: windowDays, page, page_size: pageSize \}\)/);
+  assert.match(dashboard, /postExpirationQuery\(selectedExpirationView, selectedExpirationRange, selectedExpirationPage, 5\)/);
   assert.match(dashboard, /href="\$\{escapeHtml\(`\$\{ADMIN_EXPIRATIONS_PATH\}\?view=expired`\)\}"[^>]*>Ver vencidos<\/a>/);
   assert.equal(dashboard.includes('href="#productos-proximos-vencer"'), false);
-  assert.match(dashboard, /\.items\.slice\(0, 5\)/);
+  assert.equal(dashboard.includes('.items.slice(0, 5)'), false);
   assert.match(dashboard, /Ver todos los vencimientos/);
-  assert.equal(dashboard.includes('id="expiration-pagination"'), false);
+  assert.match(dashboard, /id="expiration-pagination"/);
+  assert.match(dashboard, /aria-current="page"/);
+  assert.match(dashboard, /Mostrando \$\{rangeStart\}–\$\{rangeEnd\} de \$\{totalItems\}/);
+  assert.match(dashboard, /selectedExpirationPage = 1/);
   assert.equal(dashboard.includes('getProductsNearExpiration'), false);
 });
 
-test('V7E9-C1: página independiente usa gate SSR, endpoint privado, contexto seguro y paginación de 10', () => {
+test('V7E9-C2: página independiente usa gate SSR, búsqueda segura y paginación de 10', () => {
   const page = readFileSync(new URL('../src/pages/admin/expirations.astro', import.meta.url), 'utf8');
   const wrapper = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/expirations.astro', import.meta.url), 'utf8');
   assert.match(wrapper, /import AdminExpirations from '\.\.\/\.\.\/\.\.\/admin\/expirations\.astro'/);
@@ -64,12 +68,16 @@ test('V7E9-C1: página independiente usa gate SSR, endpoint privado, contexto se
   assert.match(page, /expirationToolsEnabled \? \(/);
   assert.match(page, /if \(expirationToolsEnabled !== true\) return/);
   assert.match(page, /\/api\/pz\/admin\/product-expirations/);
-  assert.match(page, /JSON\.stringify\(\{ view, window_days: windowDays, page \}\)/);
-  assert.match(page, /Se muestran hasta 10 por página/);
+  assert.match(page, /JSON\.stringify\(\{ view, window_days: windowDays, page, page_size: 10, query \}\)/);
+  assert.match(page, /Mostrando \$\{rangeStart\}–\$\{rangeEnd\} de \$\{total\}/);
+  assert.match(page, /Buscar producto o variación/);
+  assert.match(page, /maxlength="80"/);
   assert.match(page, /Editar producto/);
-  assert.match(page, /Volver al Resumen/);
+  assert.match(page, /← Volver al Resumen/);
   assert.match(page, /recordIdPattern = \/\^\[a-z0-9\]\{15\}\$\//);
   assert.match(page, /overflow-x: hidden/);
+  assert.match(page, /aria-current="page"/);
+  assert.equal(page.includes('Registro privado de vencimiento'), false);
   assert.equal(page.includes('<img'), false);
 });
 
@@ -124,17 +132,33 @@ test('V7E9-C1: la prueba portable no importa TypeScript ni requiere loaders', ()
   assert.equal(source.includes(['experimental-strip', '-types'].join('')), false);
 });
 
-test('V7E9: gate y listado conservan contrato responsive compacto sin imágenes', () => {
+test('V7E9-C2: gate y listados conservan contrato responsive compacto sin imágenes', () => {
   const dashboard = readFileSync(new URL('../src/pages/admin/index.astro', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../src/pages/admin/expirations.astro', import.meta.url), 'utf8');
   const gate = readFileSync(new URL('../src/components/shared/StoreCapabilityGate.astro', import.meta.url), 'utf8');
   assert.match(gate, /compact\?: boolean/);
   assert.match(gate, /store-capability-gate--compact/);
   assert.match(gate, /@media \(max-width: 640px\)/);
-  assert.match(dashboard, /@media \(max-width: 760px\) \{[\s\S]*?\.expiration-item \{[\s\S]*?grid-template-columns: 14px minmax\(0, 1fr\)/);
+  assert.match(dashboard, /@media \(max-width: 760px\) \{[\s\S]*?\.expiration-item \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(dashboard, /\.expiration-tabs \{[\s\S]*?overflow-x: auto/);
   const sectionStart = dashboard.indexOf('id="productos-proximos-vencer"');
   const sectionEnd = dashboard.indexOf('</section>', sectionStart);
   assert.ok(sectionStart >= 0 && sectionEnd > sectionStart);
   assert.equal(dashboard.slice(sectionStart, sectionEnd).includes('<img'), false);
-  assert.equal(dashboard.slice(sectionStart, sectionEnd).includes('expiration-pagination'), false);
+  assert.equal(page.includes('<img'), false);
+  assert.match(dashboard, /\.expiration-item\.expired \{[\s\S]*?border-color: #ef4444/);
+  assert.match(page, /\.expiration-row\.is-expired \{[\s\S]*?border-color: #ef4444/);
+  assert.match(page, /@media \(max-width: 520px\)/);
+  assert.equal(dashboard.includes('Registro privado de vencimiento'), false);
+});
+
+test('V7E9-C2: paginadores cubren cortes 0/1/5/6/12 y 10/11 sin render masivo', () => {
+  const dashboard = readFileSync(new URL('../src/pages/admin/index.astro', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../src/pages/admin/expirations.astro', import.meta.url), 'utf8');
+  assert.match(dashboard, /if \(total <= 1\) \{[\s\S]*?expirationPagination\.hidden = true/);
+  assert.match(dashboard, /Math\.min\(selectedExpirationPage \* 5, totalItems\)/);
+  assert.match(dashboard, /items = Array\.isArray\(expirationDetails\.items\) \? expirationDetails\.items : \[\]/);
+  assert.match(page, /if \(total <= 1\) \{[\s\S]*?pagination\.hidden = true/);
+  assert.match(page, /Math\.min\(page \* 10, total\)/);
+  assert.match(page, /page = 1;[\s\S]*?syncControls\(\);[\s\S]*?load\(\)/);
 });

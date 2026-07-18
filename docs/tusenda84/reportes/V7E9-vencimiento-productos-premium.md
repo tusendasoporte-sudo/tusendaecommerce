@@ -317,3 +317,15 @@ Correcciones incorporadas:
 El detalle, los comandos reales, la evidencia de limpieza y la limitación visual se registran en `docs/tusenda84/reportes/V7E9-C1-correcciones-finales.md`.
 
 Estado: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**
+
+## 28. Addendum privado V7E9-C2 — 18 de julio de 2026
+
+Se aplicó V7E9-C2 — Pulido visual Premium y paginación de Vencimientos sobre el mismo punto todavía no confirmado.
+
+El Resumen ahora usa una única tarjeta ligera, filas con icono genérico y jerarquía clara, estado vencido con borde rojo completo, acción Ver producto y paginación real de 5 resultados solicitados al servidor. La página independiente integra encabezado compacto, campana real, acción ← Volver al Resumen, filtros, búsqueda server-side segura, filas Premium y paginación de 10 dentro de una sola superficie.
+
+El endpoint privado existente admite únicamente page_size 5/10 y query normalizada de hasta 80 caracteres; continúa resolviendo tienda y plan desde la autenticación, rechazando store_id y campos adicionales. Free/Básico, Store Staff, reglas 90/60/30/0, bloqueo desde el día exacto y limpieza por downgrade permanecen intactos.
+
+Las pruebas focales, suites completas y build finalizaron sin fallos. La revisión visual real no se declara porque la herramienta del navegador integrado no estuvo disponible en esta sesión y queda pendiente para Kraken. El detalle técnico y la evidencia de limpieza están en docs/tusenda84/reportes/V7E9-C2-pulido-visual-vencimientos.md.
+
+Estado: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**

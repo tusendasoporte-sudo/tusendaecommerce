@@ -154,10 +154,33 @@ test('conteos separan vencidos, próximos y cuentan cada producto una sola vez',
   assert.deepEqual(summary, { expired_products: 1, upcoming_30_products: 1 });
 });
 
-test('endpoint acepta solo vistas y ventanas acumulativas aprobadas', () => {
-  assert.deepEqual(expiration.parseAdminQueryPayload({ view: 'upcoming', window_days: 60, page: 2 }), { view: 'upcoming', windowDays: 60, page: 2 });
+test('endpoint limita paginación 5/10 y normaliza la búsqueda sin abrir filtros arbitrarios', () => {
+  const base = { view: 'upcoming', window_days: 60, page: 2 };
+  assert.deepEqual(expiration.parseAdminQueryPayload(base), { view: 'upcoming', windowDays: 60, page: 2, pageSize: 10, query: '' });
+  assert.deepEqual(expiration.parseAdminQueryPayload({ ...base, page_size: 5, query: '  glucosamina   forte  ' }), { view: 'upcoming', windowDays: 60, page: 2, pageSize: 5, query: 'glucosamina forte' });
+  assert.deepEqual(expiration.parseAdminQueryPayload({ ...base, page_size: 10, query: '' }), { view: 'upcoming', windowDays: 60, page: 2, pageSize: 10, query: '' });
+  [0, 1, 6, 20, '5', '10'].forEach((pageSize) => {
+    assert.equal(expiration.parseAdminQueryPayload({ ...base, page_size: pageSize }), null);
+  });
+  assert.deepEqual(expiration.parseAdminQueryPayload({ ...base, query: 'x'.repeat(80) })?.query, 'x'.repeat(80));
+  assert.equal(expiration.parseAdminQueryPayload({ ...base, query: 'x'.repeat(81) }), null);
+  assert.deepEqual(expiration.parseAdminQueryPayload({ ...base, query: '  ' })?.query, '');
+  assert.deepEqual(expiration.parseAdminQueryPayload({ ...base, query: 'name ~ "x" || store != ""' })?.query, 'name ~ "x" || store != ""');
   assert.equal(expiration.parseAdminQueryPayload({ view: 'upcoming', window_days: 7, page: 1 }), null);
   assert.equal(expiration.parseAdminQueryPayload({ view: 'expired', window_days: 30, page: 1, store_id: 'forbiddenstore1' }), null);
+  assert.equal(expiration.parseAdminQueryPayload({ ...base, extra_filter: 'forbidden' }), null);
+});
+
+test('búsqueda privada coincide solo con nombre de producto o label de variación', () => {
+  const items = [
+    { name: 'Glucosamina Forte', affected_variations: [{ name: 'Tamaño: Grande' }] },
+    { name: 'Vitamina C', affected_variations: [{ name: 'Sabor: Naranja' }] },
+  ];
+  assert.deepEqual(expiration.filterAdminExpirationItems(items, 'glucosamina'), [items[0]]);
+  assert.deepEqual(expiration.filterAdminExpirationItems(items, 'naranja'), [items[1]]);
+  assert.deepEqual(expiration.filterAdminExpirationItems(items, 'sin resultado'), []);
+  assert.deepEqual(expiration.filterAdminExpirationItems(items, 'name ~ "x"'), []);
+  assert.equal(expiration.filterAdminExpirationItems(items, ''), items);
 });
 
 test('la deduplicación persiste por tienda, entidad, fecha y umbral', () => {

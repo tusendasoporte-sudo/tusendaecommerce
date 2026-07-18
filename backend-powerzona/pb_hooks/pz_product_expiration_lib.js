@@ -361,13 +361,32 @@ function clampPage(value) {
 
 function parseAdminQueryPayload(body) {
   const keys = Object.keys(body || {}).filter((key) => typeof body[key] !== "function").sort();
-  if (keys.join(",") !== "page,view,window_days") return null;
+  const allowedKeys = ["page", "page_size", "query", "view", "window_days"];
+  if (!keys.includes("page") || !keys.includes("view") || !keys.includes("window_days")) return null;
+  if (keys.some((key) => !allowedKeys.includes(key))) return null;
   const view = bodyValue(body, "view");
   const windowDays = Number(bodyValue(body, "window_days"));
   const page = clampPage(bodyValue(body, "page"));
+  const rawPageSize = bodyValue(body, "page_size");
+  const pageSize = rawPageSize === undefined || rawPageSize === null ? 10 : rawPageSize;
+  const rawQuery = bodyValue(body, "query");
+  if (typeof pageSize !== "number" || !Number.isInteger(pageSize) || ![5, 10].includes(pageSize)) return null;
+  if (rawQuery !== undefined && rawQuery !== null && typeof rawQuery !== "string") return null;
+  const query = String(rawQuery || "").trim().replace(/\s+/g, " ");
   if (!["summary", "expired", "upcoming"].includes(view)) return null;
   if (![30, 60, 90].includes(windowDays)) return null;
-  return { view, windowDays, page };
+  if (query.length > 80) return null;
+  return { view, windowDays, page, pageSize, query };
+}
+
+function filterAdminExpirationItems(items, query) {
+  const normalizeSearchText = (value) => String(value || "").trim().replace(/\s+/g, " ").toLowerCase();
+  const needle = normalizeSearchText(query);
+  if (!needle) return items;
+  return items.filter((item) => {
+    if (normalizeSearchText(item.name).includes(needle)) return true;
+    return (item.affected_variations || []).some((variation) => normalizeSearchText(variation.name).includes(needle));
+  });
 }
 
 function setPrivateHeaders(e) {
@@ -394,9 +413,9 @@ function handleAdminExpirationQuery(e) {
     if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
     const groups = productExpirationGroups($app, storeId, new Date());
     const summary = expirationSummary(groups);
-    if (parsed.view === "summary") return e.json(200, { ok: true, summary, page: 1, total_pages: 1, total_items: 0, items: [] });
+    if (parsed.view === "summary") return e.json(200, { ok: true, summary, page: 1, page_size: parsed.pageSize, total_pages: 1, total_items: 0, items: [] });
 
-    const selected = groups.map((group) => {
+    const selected = filterAdminExpirationItems(groups.map((group) => {
       const hasExpired = group.dates.some((item) => item.days <= 0);
       const affected = parsed.view === "expired"
         ? group.dates.filter((item) => item.days <= 0)
@@ -417,17 +436,18 @@ function handleAdminExpirationQuery(e) {
           days_left: item.days,
         })),
       };
-    }).filter(Boolean).sort((left, right) => left.days_left - right.days_left || left.name.localeCompare(right.name));
+    }).filter(Boolean).sort((left, right) => left.days_left - right.days_left || left.name.localeCompare(right.name)), parsed.query);
     const totalItems = selected.length;
-    const totalPages = Math.max(1, Math.ceil(totalItems / 10));
+    const totalPages = Math.max(1, Math.ceil(totalItems / parsed.pageSize));
     const page = Math.min(parsed.page, totalPages);
     return e.json(200, {
       ok: true,
       summary,
       page,
+      page_size: parsed.pageSize,
       total_pages: totalPages,
       total_items: totalItems,
-      items: selected.slice((page - 1) * 10, page * 10),
+      items: selected.slice((page - 1) * parsed.pageSize, page * parsed.pageSize),
     });
   } catch (_) {
     return e.json(500, { ok: false, error: "expiration_query_failed" });
@@ -804,6 +824,7 @@ module.exports = {
   daysUntilExpiration,
   evaluateCommercialAvailability,
   expirationSummary,
+  filterAdminExpirationItems,
   getStoreExpirationCleanupPreview,
   handleAdminExpirationQuery,
   handleExpirationRecordChange,
