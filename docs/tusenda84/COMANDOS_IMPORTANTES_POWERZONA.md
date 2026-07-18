@@ -25,8 +25,7 @@ cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt"
 Usar el launcher unico desde la raiz del proyecto:
 
 ```powershell
-cd "C:\Users\workd\Desktop\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt"
-.\Start-PowerZonaLocal.ps1
+cd "E:\Trabajo\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt"; .\Start-PowerZonaLocal.ps1
 ```
 
 Tambien se puede ejecutar con doble clic:
