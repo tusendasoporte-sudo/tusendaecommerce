@@ -24,6 +24,7 @@ test('acepta un cambio temporal válido de 1 a 12 meses', () => {
     isPermanent: false,
     durationMonths: 3,
     reason: 'Renovación comercial',
+    confirmExpirationCleanup: false,
   });
 });
 
@@ -40,6 +41,25 @@ test('acepta Premium permanente solo con duración cero', () => {
     isPermanent: true,
     durationMonths: 0,
     reason: '',
+    confirmExpirationCleanup: false,
+  });
+});
+
+test('acepta confirmación explícita de limpieza irreversible V7E9', () => {
+  assert.deepEqual(management.parseChangePayload({
+    store_id: STORE_ID,
+    plan: 'basic',
+    is_permanent: false,
+    duration_months: 1,
+    reason: 'Downgrade confirmado',
+    confirm_expiration_cleanup: true,
+  }), {
+    storeId: STORE_ID,
+    plan: 'basic',
+    isPermanent: false,
+    durationMonths: 1,
+    reason: 'Downgrade confirmado',
+    confirmExpirationCleanup: true,
   });
 });
 

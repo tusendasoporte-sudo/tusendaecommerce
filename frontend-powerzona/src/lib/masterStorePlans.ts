@@ -58,6 +58,7 @@ export type MasterStorePlan = {
     capabilities: MasterPlanCapabilities;
   };
   usage: { active_users: number; store_devices: number; max_devices_per_user: number };
+  expiration_cleanup: { products: number; variations: number; notifications: number; cycles: number };
   definitions: MasterPlanDefinition[];
   last_change: MasterPlanAudit | null;
   history: MasterPlanAudit[];
@@ -197,6 +198,12 @@ function normalizeResponse(value: any): MasterStorePlan | null {
       store_devices: integer(value.usage?.store_devices),
       max_devices_per_user: integer(value.usage?.max_devices_per_user),
     },
+    expiration_cleanup: {
+      products: integer(value.expiration_cleanup?.products),
+      variations: integer(value.expiration_cleanup?.variations),
+      notifications: integer(value.expiration_cleanup?.notifications),
+      cycles: integer(value.expiration_cleanup?.cycles),
+    },
     definitions,
     last_change: lastChange,
     history,
@@ -244,6 +251,7 @@ export function getMasterPlanErrorMessage(error: string) {
     invalid_plan_permanence: 'El plan Free solo puede ser temporal por 30 días.',
     permanent_plan_not_renewable: 'Los planes permanentes no se renuevan por meses.',
     free_plan_not_renewable: 'La prueba Free no admite renovaciones por meses.',
+    expiration_cleanup_confirmation_required: 'Confirma la eliminación irreversible de fechas y alertas de vencimiento.',
     store_not_found: 'La tienda ya no está disponible.',
     unauthorized: 'Tu sesión Master ya no está autorizada.',
   };
@@ -258,7 +266,7 @@ export function getMasterStorePlan(pocketbaseUrl: string, token: string, storeId
 export function changeMasterStorePlan(
   pocketbaseUrl: string,
   token: string,
-  input: { store_id: string; plan: MasterPlanCode; is_permanent: boolean; duration_months: number; reason: string },
+  input: { store_id: string; plan: MasterPlanCode; is_permanent: boolean; duration_months: number; reason: string; confirm_expiration_cleanup: boolean },
 ) {
   return postEndpoint(pocketbaseUrl, token, '/api/pz/master/store-plan/change', input);
 }

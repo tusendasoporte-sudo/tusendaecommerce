@@ -9,6 +9,7 @@ interface Props {
   requiredPlanLabel?: string;
   infoTitle?: string;
   infoDescription?: string;
+  compact?: boolean;
 }
 
 const {
@@ -19,6 +20,7 @@ const {
   requiredPlanLabel = 'Plan Premium requerido',
   infoTitle = '',
   infoDescription = '',
+  compact = false,
 } = Astro.props;
 
 const isTechnicalState = access.reason === 'invalid_capability'
@@ -29,7 +31,7 @@ const title = isTechnicalState
   ? 'Función temporalmente no disponible'
   : isLimitState
     ? 'Límite alcanzado'
-    : `${featureName} disponible en el Plan Premium`;
+    : compact ? 'Función Premium' : `${featureName} disponible en el Plan Premium`;
 const description = isTechnicalState
   ? 'Intenta nuevamente más tarde o contacta al administrador principal.'
   : featureDescription || (isLimitState
@@ -44,6 +46,7 @@ const description = isTechnicalState
     'store-capability-gate',
     isTechnicalState && 'store-capability-gate--neutral',
     isLimitState && 'store-capability-gate--limit',
+    compact && 'store-capability-gate--compact',
   ]}>
     <div class="store-capability-gate__shell">
       <section
@@ -154,6 +157,59 @@ const description = isTechnicalState
       linear-gradient(135deg, #fff 0%, var(--gate-soft) 100%);
     padding: clamp(30px, 6vw, 54px) clamp(20px, 7vw, 56px);
     text-align: center;
+  }
+
+  .store-capability-gate--compact {
+    gap: 10px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__shell {
+    border-radius: 16px;
+    padding: 8px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__card {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    gap: 13px;
+    padding: 16px;
+    text-align: left;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__lock {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__lock svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__heading {
+    gap: 5px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__heading h2 {
+    font-size: 17px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__heading p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__notice {
+    grid-column: 2 / -1;
+    width: 100%;
+    padding: 11px 13px;
+  }
+
+  .store-capability-gate--compact .store-capability-gate__badge {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .store-capability-gate--neutral .store-capability-gate__card {
@@ -372,6 +428,19 @@ const description = isTechnicalState
 
     .store-capability-gate__info {
       padding: 15px;
+    }
+
+    .store-capability-gate--compact .store-capability-gate__card {
+      min-height: 0;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 11px;
+      padding: 14px;
+    }
+
+    .store-capability-gate--compact .store-capability-gate__badge,
+    .store-capability-gate--compact .store-capability-gate__notice {
+      grid-column: 1 / -1;
+      grid-row: auto;
     }
   }
 

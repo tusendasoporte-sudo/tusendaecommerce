@@ -3,6 +3,9 @@
 const plans = typeof __hooks === "undefined"
   ? require("./pz_store_plans_lib.js")
   : require(`${__hooks}/pz_store_plans_lib.js`);
+const productExpiration = typeof __hooks === "undefined"
+  ? require("./pz_product_expiration_lib.js")
+  : require(`${__hooks}/pz_product_expiration_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const AUDIT_COLLECTION = "store_plan_audit";
@@ -104,12 +107,15 @@ function planManagementReady(app) {
     const stores = app.findCollectionByNameOrId("stores");
     const audit = app.findCollectionByNameOrId(AUDIT_COLLECTION);
     const devices = app.findCollectionByNameOrId("store_user_devices");
+    const expirationCycles = app.findCollectionByNameOrId(productExpiration.CYCLES_COLLECTION);
     return !!stores.fields.getByName("plan_is_permanent")
       && !!audit.fields.getByName("previous_is_permanent")
       && !!audit.fields.getByName("new_is_permanent")
       && devices.listRule === null
       && devices.viewRule === null
-      && !!devices.fields.getByName("device_digest");
+      && !!devices.fields.getByName("device_digest")
+      && expirationCycles.listRule === null
+      && !!expirationCycles.fields.getByName("cycle_key");
   } catch (_) {
     return false;
   }
@@ -236,6 +242,7 @@ function buildPlanResponse(app, store) {
     },
     plan: state,
     usage,
+    expiration_cleanup: productExpiration.getStoreExpirationCleanupPreview(app, store.id),
     definitions,
     last_change: history.length ? history[0] : null,
     history,
@@ -249,22 +256,26 @@ function parseDetailPayload(body) {
 }
 
 function parseChangePayload(body) {
-  if (!exactPayload(body, ["store_id", "plan", "is_permanent", "duration_months", "reason"])) return null;
+  const withConfirmation = exactPayload(body, ["store_id", "plan", "is_permanent", "duration_months", "reason", "confirm_expiration_cleanup"]);
+  const legacyPayload = exactPayload(body, ["store_id", "plan", "is_permanent", "duration_months", "reason"]);
+  if (!withConfirmation && !legacyPayload) return null;
   const storeId = bodyValue(body, "store_id");
   const plan = bodyValue(body, "plan");
   const isPermanent = bodyValue(body, "is_permanent");
   const durationMonths = bodyValue(body, "duration_months");
   const reason = bodyValue(body, "reason");
+  const confirmExpirationCleanup = withConfirmation ? bodyValue(body, "confirm_expiration_cleanup") : false;
   if (typeof storeId !== "string" || !RECORD_ID_PATTERN.test(storeId)) return null;
   if (typeof plan !== "string" || !plans.isValidPlanCode(plan)) return null;
   if (typeof isPermanent !== "boolean") return null;
   if (!Number.isInteger(durationMonths) || durationMonths < 0 || durationMonths > 12) return null;
   if (typeof reason !== "string" || reason.length > 500) return null;
+  if (typeof confirmExpirationCleanup !== "boolean") return null;
   if (isPermanent && !plans.PERMANENT_PLAN_CODES.includes(plan)) return null;
   if (!isPermanent && plan === "free" && durationMonths !== 0) return null;
   if (!isPermanent && plan !== "free" && durationMonths < 1) return null;
   if (isPermanent && durationMonths !== 0) return null;
-  return { storeId, plan, isPermanent, durationMonths, reason: reason.trim() };
+  return { storeId, plan, isPermanent, durationMonths, reason: reason.trim(), confirmExpirationCleanup };
 }
 
 function parseRenewPayload(body) {
@@ -324,6 +335,7 @@ function knownErrorCode(error) {
     "invalid_plan_permanence",
     "permanent_plan_not_renewable",
     "free_plan_not_renewable",
+    "expiration_cleanup_confirmation_required",
   ].includes(message) ? message : "";
 }
 
@@ -390,6 +402,10 @@ function handlePlanChange(e) {
       if (!actor || !isMaster({ auth: actor })) throw new Error("unauthorized");
       if (!store) throw new Error("store_not_found");
       const previous = storeSnapshot(store);
+      const requiresExpirationCleanup = previous.plan === "premium" && parsed.plan !== "premium";
+      if (requiresExpirationCleanup && parsed.confirmExpirationCleanup !== true) {
+        throw new Error("expiration_cleanup_confirmation_required");
+      }
       const values = plans.buildPlanChangeValues(store, {
         plan: parsed.plan,
         is_permanent: parsed.isPermanent,
@@ -397,9 +413,13 @@ function handlePlanChange(e) {
       }, new Date(), actorId);
       applyValues(store, values);
       txApp.save(store);
+      const expirationCleanupResult = requiresExpirationCleanup
+        ? productExpiration.cleanupStoreExpirationData(txApp, store.id)
+        : null;
       const next = storeSnapshot(store);
       createAudit(txApp, store, actor, permanenceAction(previous, next), previous, next, parsed.durationMonths, parsed.reason);
       response = buildPlanResponse(txApp, store);
+      if (expirationCleanupResult) response.expiration_cleanup_result = expirationCleanupResult;
     });
     return runResponseStage("response_serialization", () => e.json(200, response));
   } catch (error) {

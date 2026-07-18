@@ -6,6 +6,7 @@ import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../components/admin/AdminIcon.astro';
+import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -22,6 +23,8 @@ const activeImageLimit = productImageCapability.allowed
   && Number(productImageCapability.limit) <= 4
     ? Number(productImageCapability.limit)
     : 0;
+const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
+const expirationToolsEnabled = expirationToolsAccess.allowed === true;
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -2812,10 +2815,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <input id="product-stock" type="number" min="0" step="1" placeholder="0" />
                     <p id="product-stock-help" class="form-help">Si el producto usa variaciones, el stock real de venta saldrá de las variaciones.</p>
                   </div>
-                  <div class="field">
-                    <label for="product-expiration-date">Fecha de vencimiento</label>
-                    <input id="product-expiration-date" type="date" />
-                  </div>
+                  {expirationToolsEnabled ? (
+                    <div class="field">
+                      <label for="product-expiration-date">Fecha de vencimiento</label>
+                      <input id="product-expiration-date" type="date" />
+                      <p id="product-expiration-help" class="form-help">La fecha general no puede combinarse con fechas por variación.</p>
+                    </div>
+                  ) : (
+                    <div class="field full">
+                      <StoreCapabilityGate
+                        access={expirationToolsAccess}
+                        featureName="Vencimiento de productos"
+                        featureDescription="Las fechas de vencimiento y sus alertas están disponibles exclusivamente en Premium."
+                        preservationMessage="Disponible exclusivamente para tiendas Premium."
+                        compact
+                      />
+                    </div>
+                  )}
 
                   <div class="editor-section-heading full">
                     <p class="editor-section-kicker">Contenido</p>
@@ -3001,11 +3017,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                         <input id="variation-stock" type="number" min="0" step="1" placeholder="0" />
                         <p id="variation-stock-help" class="form-help">Se exige solo si el producto padre descuenta stock.</p>
                       </div>
-                      <div class="field variation-field-expiration">
-                        <label for="variation-expiration-date">Fecha de vencimiento</label>
-                        <input id="variation-expiration-date" type="date" />
-                        <p class="form-help">Opcional. Util cuando esta variacion/lote vence en una fecha diferente al producto padre.</p>
-                      </div>
+                      {expirationToolsEnabled ? (
+                        <div class="field variation-field-expiration">
+                          <label for="variation-expiration-date">Fecha de vencimiento</label>
+                          <input id="variation-expiration-date" type="date" />
+                          <p id="variation-expiration-help" class="form-help">Opcional. Al asignarla se quitará la fecha general del producto, previa confirmación.</p>
+                        </div>
+                      ) : (
+                        <div class="field full">
+                          <StoreCapabilityGate
+                            access={expirationToolsAccess}
+                            featureName="Vencimiento por variación"
+                            featureDescription="Las fechas por variación están disponibles exclusivamente en Premium."
+                            preservationMessage="Disponible exclusivamente para tiendas Premium."
+                            compact
+                          />
+                        </div>
+                      )}
                       <div class="field variation-field-ref">
                         <label for="variation-ref">Ref interna</label>
                         <input id="variation-ref" type="text" placeholder="Ej: BF-WHEY-CHOC" />
@@ -3220,11 +3248,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         writable: false,
       });
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, currentStoreName, currentStoreSlug, activeImageLimit }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, currentStoreName, currentStoreSlug, activeImageLimit, expirationToolsEnabled }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
       const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
       const TRACK_STOCK_FIELD = 'track_stock';
       const PRODUCT_PAGE_SIZE = 7;
       const PRODUCT_IMAGE_PHYSICAL_LIMIT = 4;
@@ -3293,6 +3322,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productStockHelp = document.getElementById('product-stock-help');
       const productDeliveryModeInput = document.getElementById('product-delivery-mode');
       const productExpirationDateInput = document.getElementById('product-expiration-date');
+      const productExpirationHelp = document.getElementById('product-expiration-help');
       const productDescriptionInput = document.getElementById('product-description');
       const productExtraList = document.getElementById('product-extra-list');
       const productExtraAddBtn = document.getElementById('product-extra-add-btn');
@@ -3387,6 +3417,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const variationStockInput = document.getElementById('variation-stock');
       const variationStockHelp = document.getElementById('variation-stock-help');
       const variationExpirationDateInput = document.getElementById('variation-expiration-date');
+      const variationExpirationHelp = document.getElementById('variation-expiration-help');
       const variationRefInput = document.getElementById('variation-ref');
       const variationOrderInput = document.getElementById('variation-order');
       const variationImageInput = document.getElementById('variation-image');
@@ -4571,16 +4602,40 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateProductFormState();
         variationValueInput.focus();
       }
+      function updateExpirationModeState() {
+        if (!EXPIRATION_TOOLS_ENABLED) return;
+        const hasVariationDates = productVariations.some((variation) => Boolean(dateForInput(variation.expiration_date)));
+        if (hasVariationDates && productExpirationDateInput?.value) productExpirationDateInput.value = '';
+        const hasGeneralDate = Boolean(productExpirationDateInput?.value);
+        if (productExpirationDateInput) {
+          productExpirationDateInput.disabled = hasVariationDates;
+          productExpirationDateInput.title = hasVariationDates
+            ? 'Quita primero las fechas de vencimiento de todas las variaciones.'
+            : '';
+        }
+        if (productExpirationHelp) {
+          productExpirationHelp.textContent = hasVariationDates
+            ? 'Este producto usa fechas por variación. Quita todas esas fechas para habilitar una fecha general.'
+            : 'La fecha general no puede combinarse con fechas por variación.';
+        }
+        if (variationExpirationHelp) {
+          variationExpirationHelp.textContent = hasGeneralDate
+            ? 'Al guardar esta fecha se quitará la fecha general del producto, previa confirmación.'
+            : 'Opcional. Usa esta fecha cuando cada variación o lote vence en un día diferente.';
+        }
+      }
       function renderVariations() {
         if (!variationsList) return;
         const currentProductId = productIdInput.value;
         if (!currentProductId) {
           variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Guarda el producto primero para poder crear variaciones.</div>';
+          updateExpirationModeState();
           updateEditorPreview();
           return;
         }
         if (!productVariations.length) {
           variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Este producto todavía no tiene variaciones. Usa el botón Nueva variación para crear la primera.</div>';
+          updateExpirationModeState();
           updateEditorPreview();
           return;
         }
@@ -4614,7 +4669,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <p class="variation-name">${escapeHtml(variation.variation_type || 'Variación')}: ${escapeHtml(variation.value || 'Sin valor')}</p>
                   <p class="variation-meta">
                     <span>${escapeHtml(refText)}</span>
-                    ${variation.expiration_date ? `<span class="variation-expiration-chip">Vence: ${escapeHtml(dateForInput(variation.expiration_date))}</span>` : ''}
+                    ${EXPIRATION_TOOLS_ENABLED && variation.expiration_date ? `<span class="variation-expiration-chip">Vence: ${escapeHtml(dateForInput(variation.expiration_date))}</span>` : ''}
                   </p>
                 </div>
               </div>
@@ -4673,6 +4728,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           `;
         }).join('');
         variationsList.innerHTML = header + rows;
+        updateExpirationModeState();
         updateEditorPreview();
       }
       async function loadProductVariations(productId) {
@@ -4684,6 +4740,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Cargando variaciones...</div>';
         const filter = encodeURIComponent(`product="${productId}"`);
         productVariations = await loadAllRecords('product_variations', `filter=${filter}&sort=sort_order,variation_type,value`);
+        if (!EXPIRATION_TOOLS_ENABLED) {
+          productVariations = productVariations.map(({ expiration_date: _ignoredExpirationDate, ...variation }) => variation);
+        }
         renderVariations();
         updateProductFormState();
       }
@@ -4835,7 +4894,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('offer_price_usd', variationOfferState.valid ? String(variationOfferState.offerPrice) : '0');
         formData.append('cost_usd', String(Math.max(0, Number(variationCostInput.value || 0))));
         formData.append('stock', String(Math.max(0, Math.floor(Number(variationStockInput.value || 0)))));
-        formData.append('expiration_date', variationExpirationDateInput?.value || '');
+        if (EXPIRATION_TOOLS_ENABLED) formData.append('expiration_date', variationExpirationDateInput?.value || '');
         formData.append('internal_ref', variationRefInput.value.trim());
         formData.append('sort_order', String(Math.max(0, Math.floor(Number(variationOrderInput.value || 0)))));
         formData.append('active', variationActiveInput.checked ? 'true' : 'false');
@@ -4849,6 +4908,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const currentProductId = productIdInput.value;
         if (!currentProductId || isSavingVariation || variationSaveBtn.disabled) return;
         const editingVariationId = variationIdInput.value;
+        const replacesGeneralExpiration = EXPIRATION_TOOLS_ENABLED
+          && Boolean(variationExpirationDateInput?.value)
+          && Boolean(productExpirationDateInput?.value);
+        if (replacesGeneralExpiration) {
+          const confirmed = await window.adminConfirm({
+            title: 'Cambiar a vencimiento por variación',
+            message: 'Este producto tiene una fecha general. Al guardar la fecha de esta variación se eliminará la fecha general y no se restaurará automáticamente.',
+            confirmText: 'Continuar y quitar fecha general',
+            cancelText: 'Cancelar',
+            tone: 'warning',
+          });
+          if (!confirmed) return;
+        }
         isSavingVariation = true;
         updateVariationFormState();
         setVariationAlert(editingVariationId ? 'Guardando variación...' : 'Creando variación...', 'info');
@@ -4862,6 +4934,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             setVariationAlert('Variación creada correctamente.', 'success');
           }
           setVariationAlert('Variaci\u00f3n guardada correctamente.', 'success');
+          if (replacesGeneralExpiration && productExpirationDateInput) productExpirationDateInput.value = '';
           await loadProductVariations(currentProductId);
           await syncProductVariationFlag();
           resetVariationEditor();
@@ -4900,6 +4973,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetQuickCreatePanels();
         renderProductSelectOptions();
         resetVariationState();
+        updateExpirationModeState();
         updateProductFormState();
       }
       function setCatalogOverviewVisible(isVisible) {
@@ -4954,7 +5028,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productInternalRefInput.value = product.internal_ref || '';
         productStockInput.value = Number(product.stock || 0);
         productDeliveryModeInput.value = product.delivery_mode || 'both';
-        productExpirationDateInput.value = dateForInput(product.expiration_date);
+        if (EXPIRATION_TOOLS_ENABLED && productExpirationDateInput) productExpirationDateInput.value = dateForInput(product.expiration_date);
         productDescriptionInput.value = product.description || '';
         resetProductExtraInfo(product.extra_info);
         selectedRelatedProductIds = normalizeRelatedProductsValue(product.related_products).filter((id) => id !== product.id);
@@ -5065,8 +5139,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append(TRACK_STOCK_FIELD, trackStock ? 'true' : 'false');
         formData.append('has_variations', shouldUseVariations ? 'true' : 'false');
         formData.append('variation_view', shouldUseVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons');
-        if (isEditing) formData.append('expiration_date', productExpirationDateInput.value || '');
-        else appendOptionalFormValue(formData, 'expiration_date', productExpirationDateInput.value || '');
+        if (EXPIRATION_TOOLS_ENABLED && productExpirationDateInput) {
+          if (isEditing) formData.append('expiration_date', productExpirationDateInput.value || '');
+          else appendOptionalFormValue(formData, 'expiration_date', productExpirationDateInput.value || '');
+        }
         const relatedIds = selectedRelatedProductIds.slice(0, 4).filter(Boolean);
         if (relatedIds.length) relatedIds.forEach((id) => formData.append('related_products', id));
         else formData.append('related_products', '');
@@ -5707,7 +5783,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           ]);
           categories = categoryRecords;
           subcategories = subcategoryRecords;
-          products = productRecords;
+          products = EXPIRATION_TOOLS_ENABLED
+            ? productRecords
+            : productRecords.map(({ expiration_date: _ignoredExpirationDate, ...product }) => product);
           renderProductSelectOptions();
           renderFilters();
           syncFiltersFromUrl();
@@ -6019,6 +6097,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
       productForm?.addEventListener('change', (event) => {
         if (event.target?.type === 'file') return;
+        if (event.target === productExpirationDateInput) updateExpirationModeState();
         updateProductFormState();
       });
       postSaveVariationYesBtn?.addEventListener('click', confirmPostSaveVariationChoice);

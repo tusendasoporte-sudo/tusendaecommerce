@@ -5,8 +5,10 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -20,6 +22,7 @@ const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
 const adminAuthToken = authPb.authStore.token;
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
 const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 const adminProfitsPath = getStoreAdminPath(currentStoreSlug, 'profits');
 const adminPageviewsPath = getStoreAdminPath(currentStoreSlug, 'pageviews');
@@ -28,6 +31,8 @@ const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
+const expirationToolsEnabled = expirationToolsAccess.allowed === true;
 ---
 
 <!doctype html>
@@ -1073,7 +1078,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			.expiration-main {
 				min-width: 0;
 				display: grid;
-				grid-template-columns: minmax(180px, 1fr) auto auto auto;
+				grid-template-columns: minmax(180px, 1fr) auto auto auto auto;
 				align-items: center;
 				gap: 10px;
 			}
@@ -1265,6 +1270,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 					grid-template-columns: 1fr;
 					gap: 8px;
 				}
+				.expiration-mode { white-space: normal; }
 				.expiration-stock,
 				.expiration-pill,
 				.expiration-date-chip,
@@ -2756,6 +2762,21 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 			}
 
+			.expiration-mode {
+				color: #475569;
+				font-size: 12px;
+				font-weight: 900;
+				white-space: nowrap;
+			}
+
+			.expiration-preview-actions {
+				display: flex;
+				align-items: center;
+				justify-content: flex-end;
+				gap: 10px;
+				flex-wrap: wrap;
+			}
+
 			.analytics-line-chart .traffic-chart-svg {
 				width: 100%;
 				height: 340px;
@@ -3814,6 +3835,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				display: grid;
 				gap: 10px;
 			}
+
 
 			.admin-recent-activity-card {
 				display: grid;
@@ -4918,18 +4940,29 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 
 					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>
 
-					<section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title"><div class="dashboard-block-head"><div><h2 id="expiration-title" class="dashboard-block-title">Productos próximos a vencer</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">Cargando productos...</p></div><div class="expiration-tabs" data-pz-scroll-hint><button class="expiration-btn active" type="button" data-expiration-range="30">1 mes</button><button class="expiration-btn" type="button" data-expiration-range="60">2 meses</button><button class="expiration-btn" type="button" data-expiration-range="90">3 meses</button></div></div><div id="expiration-products-list" class="expiration-products-list"></div></section>
+					<section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title">
+						<div class="dashboard-block-head">
+							<div><h2 id="expiration-title" class="dashboard-block-title">Vencimiento de productos</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">{expirationToolsEnabled ? 'Los detalles se cargarán al llegar a esta sección.' : 'Disponible exclusivamente para tiendas Premium.'}</p></div>
+							{expirationToolsEnabled && <div class="expiration-preview-actions"><div class="expiration-tabs" data-pz-scroll-hint><button class="expiration-btn active" type="button" data-expiration-view="upcoming">Próximos</button><button class="expiration-btn" type="button" data-expiration-view="expired">Vencidos</button><button class="expiration-btn active" type="button" data-expiration-range="30">30 días</button><button class="expiration-btn" type="button" data-expiration-range="60">60 días</button><button class="expiration-btn" type="button" data-expiration-range="90">90 días</button></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminExpirationsPath}><span class="pz-admin-btn__label">Ver todos los vencimientos</span></a></div>}
+						</div>
+						{expirationToolsEnabled ? (
+							<div id="expiration-products-list" class="expiration-products-list"><div class="empty-state">Desplázate hasta aquí para cargar la vista previa privada.</div></div>
+						) : (
+							<StoreCapabilityGate access={expirationToolsAccess} featureName="Vencimiento de productos" featureDescription="Gestiona fechas, alertas y productos vencidos con el plan Premium." preservationMessage="Disponible exclusivamente para tiendas Premium." compact />
+						)}
+					</section>
 				</div>
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminProductsPath, adminOrdersPath, adminPageviewsPath }}>
+		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, expirationToolsEnabled }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const SESSION_TOKEN = String(adminAuthToken || '');
 			const STORE_FILTER = String(currentStoreFilter || '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
+			const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
 			const ORDER_ITEMS_STORE_FILTER = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22` : '';
-			const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
+			const ADMIN_EXPIRATIONS_PATH = String(adminExpirationsPath || '/admin/expirations');
 			const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
 			const ADMIN_PAGEVIEWS_PATH = String(adminPageviewsPath || '/admin/pageviews');
 			const ANALYTICS_MAX_RETENTION_DAYS = 30;
@@ -4989,7 +5022,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			const sidebarOverlay = document.getElementById('sidebar-overlay');
 			const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
 			const periodButtons = Array.from(document.querySelectorAll('.period-btn'));
-			const expirationButtons = Array.from(document.querySelectorAll('.expiration-btn'));
+			const expirationRangeButtons = Array.from(document.querySelectorAll('[data-expiration-range]'));
+			const expirationViewButtons = Array.from(document.querySelectorAll('[data-expiration-view]'));
 			const visitAnalyticsTabs = Array.from(document.querySelectorAll('.visit-analytics-tab'));
 			const visitAnalyticsPanels = Array.from(document.querySelectorAll('.visit-analytics-panel'));
 			const businessSummaryTabs = Array.from(document.querySelectorAll('[data-business-summary-tab]'));
@@ -5004,6 +5038,11 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			let reviewsCollectionAvailable = true;
 			let selectedRange = normalizeSummaryRange(readInitialSummaryRange());
 			let selectedExpirationRange = 30;
+			let selectedExpirationView = 'upcoming';
+			let expirationSummary = { expired_products: 0, upcoming_30_products: 0 };
+			let expirationDetails = null;
+			let expirationDetailsLoaded = false;
+			let expirationDetailsLoading = false;
 
 			const statusLabels = {
 				pending: 'Pendiente',
@@ -5145,11 +5184,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 
-			function formatDateOnly(value) {
-				if (!value) return 'Sin fecha';
-				return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
-			}
-
 			function parseProductImageOrder(product) {
 				const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
 				let stored = [];
@@ -5168,19 +5202,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const firstImage = images[0] || '';
 				if (!product?.id || !firstImage || !POCKETBASE_URL) return '';
 				return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(firstImage)}?thumb=160x160`;
-			}
-
-			function productExpirationThumbMarkup(product) {
-				const url = productImageUrl(product);
-				const name = product?.name || 'Producto';
-				if (!url) return '<span class="expiration-thumb">📦</span>';
-				return `<img class="expiration-thumb" src="${url}" alt="${escapeHtml(name)}" loading="lazy" />`;
-			}
-
-
-			function productAdminUrl(product) {
-				if (!product?.id) return ADMIN_PRODUCTS_PATH;
-				return `${ADMIN_PRODUCTS_PATH}?product=${encodeURIComponent(product.id)}`;
 			}
 
 			function orderDetailPath(order) {
@@ -5554,32 +5575,6 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				}, {});
 
 				return { filteredOrders, filteredItems, totalSales, totalShipping, totalProfit, profitByOrder, averageTicket, openOrders, topProduct, topProducts, statusCounts };
-			}
-
-			function getOneMonthExpirationSummary() {
-				const now = new Date();
-				now.setHours(0, 0, 0, 0);
-
-				const limit = new Date(now);
-				limit.setDate(limit.getDate() + 30);
-				limit.setHours(23, 59, 59, 999);
-
-				const items = products
-					.map((product) => {
-						if (!product.expiration_date) return null;
-						const expirationDate = new Date(product.expiration_date);
-						if (Number.isNaN(expirationDate.getTime())) return null;
-						expirationDate.setHours(0, 0, 0, 0);
-						if (expirationDate > limit) return null;
-						const daysLeft = Math.ceil((expirationDate - now) / 86400000);
-						return { product, expirationDate, daysLeft };
-					})
-					.filter(Boolean)
-					.sort((a, b) => a.daysLeft - b.daysLeft);
-
-				const expiredCount = items.filter((item) => item.daysLeft < 0).length;
-				const validCount = items.length - expiredCount;
-				return { items, expiredCount, validCount };
 			}
 
 			function localDayKey(date) {
@@ -6525,12 +6520,11 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			function renderKpis(metrics) {
 				renderBusinessSummary(metrics);
 				const summaryRangeLabel = getSummaryRangeLabel();
-				const expirationSummary = getOneMonthExpirationSummary();
-				const expirationMeta = expirationSummary.validCount
-					? 'Productos con vencimiento en 30 días o menos.'
-					: 'Sin productos por vencer en 1 mes.';
-				const expirationBadge = expirationSummary.expiredCount
-					? `${expirationSummary.expiredCount} vencido${expirationSummary.expiredCount === 1 ? '' : 's'}`
+				const upcomingExpirationCount = EXPIRATION_TOOLS_ENABLED ? Number(expirationSummary.upcoming_30_products || 0) : 0;
+				const expiredExpirationCount = EXPIRATION_TOOLS_ENABLED ? Number(expirationSummary.expired_products || 0) : 0;
+				const expirationMeta = `${expiredExpirationCount} vencido${expiredExpirationCount === 1 ? '' : 's'} · ${upcomingExpirationCount} próximo${upcomingExpirationCount === 1 ? '' : 's'} en 30 días`;
+				const expirationBadge = expiredExpirationCount
+					? `${expiredExpirationCount} vencido${expiredExpirationCount === 1 ? '' : 's'}`
 					: '1 mes';
 				const topLabel = metrics.topProduct ? metrics.topProduct.name : 'Aún sin ventas';
 				const topMeta = metrics.topProduct ? `${metrics.topProduct.quantity} unidades vendidas en este período` : 'Sin datos para este período';
@@ -6578,6 +6572,26 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				`;
 				}
 
+				const expirationKpiCard = EXPIRATION_TOOLS_ENABLED ? `
+					<div class="metric-card metric-red" style="${cardStyle}">
+						<div style="${topStyle}">
+							<div class="metric-icon" style="${iconStyle}">${icons.expiration}</div>
+							<span class="metric-badge" style="${badgeStyle}">${escapeHtml(expirationBadge)}</span>
+						</div>
+						<div style="${labelStyle}">Por vencer</div>
+						<div style="${valueStyle}"><strong style="font-weight:700;">${upcomingExpirationCount}</strong></div>
+						<div style="${metaStyle}">${expirationMeta}</div>
+						<a href="${escapeHtml(`${ADMIN_EXPIRATIONS_PATH}?view=expired`)}" style="${kpiActionStyle}">Ver vencidos</a>
+					</div>
+				` : `
+					<div class="metric-card metric-purple" style="${cardStyle}">
+						<div style="${topStyle}"><div class="metric-icon" style="${iconStyle}">🔒</div><span class="metric-badge" style="${badgeStyle}">Premium</span></div>
+						<div style="${labelStyle}">Función Premium</div>
+						<div style="${productValueStyle}">Vencimiento de productos</div>
+						<div style="${metaStyle}">Para activarla, contacta al administrador principal.</div>
+					</div>
+				`;
+
 				profitKpiGrid.innerHTML = `
 					<div class="metric-card metric-dark" style="${cardStyle}">
 						<div style="${topStyle}">
@@ -6599,16 +6613,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 						<div style="${metaStyle}">Órdenes abiertas: <strong style="font-weight:700;color:#0f172a;">${metrics.openOrders}</strong></div>
 					</div>
 
-					<div class="metric-card metric-red" style="${cardStyle}">
-						<div style="${topStyle}">
-							<div class="metric-icon" style="${iconStyle}">${icons.expiration}</div>
-							<span class="metric-badge" style="${badgeStyle}">${escapeHtml(expirationBadge)}</span>
-						</div>
-						<div style="${labelStyle}">Por vencer</div>
-						<div style="${valueStyle}"><strong style="font-weight:700;">${expirationSummary.validCount}</strong></div>
-						<div style="${metaStyle}">${expirationMeta}</div>
-						<a href="#productos-proximos-vencer" style="${kpiActionStyle}">Ver próximos →</a>
-					</div>
+					${expirationKpiCard}
 				`;
 
 			}
@@ -6766,97 +6771,129 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 			}
 
 
-			function getProductsNearExpiration() {
-				const now = new Date();
-				now.setHours(0, 0, 0, 0);
-
-				const limit = new Date(now);
-				limit.setDate(limit.getDate() + Number(selectedExpirationRange || 30));
-				limit.setHours(23, 59, 59, 999);
-
-				return products
-					.map((product) => {
-						if (!product.expiration_date) return null;
-						const expirationDate = new Date(product.expiration_date);
-						if (Number.isNaN(expirationDate.getTime())) return null;
-						expirationDate.setHours(0, 0, 0, 0);
-						if (expirationDate > limit) return null;
-						const daysLeft = Math.ceil((expirationDate - now) / 86400000);
-						return { product, expirationDate, daysLeft };
-					})
-					.filter(Boolean)
-					.sort((a, b) => a.daysLeft - b.daysLeft);
+			function formatExpirationCivilDate(value) {
+				const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').slice(0, 10));
+				return match ? `${match[3]}/${match[2]}/${match[1]}` : 'Sin fecha';
 			}
 
 			function getExpirationStatus(item) {
-				if (item.daysLeft < 0) return { label: 'Vencido', className: 'expired' };
-				if (item.daysLeft <= 30) return { label: '1 mes', className: 'one-month' };
-				if (item.daysLeft <= 60) return { label: '2 meses', className: 'two-months' };
-				return { label: '3 meses', className: 'three-months' };
-			}
-
-			function getExpirationPalette(className) {
-				if (className === 'two-months') {
-					return { main: '#f59e0b', soft: '#fffbeb', chip: '#fef3c7', text: '#92400e', border: 'rgba(245, 158, 11, 0.28)' };
-				}
-				if (className === 'three-months') {
-					return { main: '#2563eb', soft: '#eff6ff', chip: '#dbeafe', text: '#1d4ed8', border: 'rgba(37, 99, 235, 0.24)' };
-				}
-				return { main: '#dc2626', soft: '#fff1f2', chip: '#fee2e2', text: '#991b1b', border: 'rgba(220, 38, 38, 0.28)' };
+				if (Number(item.days_left) <= 0) return { label: 'Vencido', className: 'expired' };
+				if (Number(item.days_left) <= 30) return { label: '30 días', className: 'one-month' };
+				if (Number(item.days_left) <= 60) return { label: '60 días', className: 'two-months' };
+				return { label: '90 días', className: 'three-months' };
 			}
 
 			function getExpirationDaysText(daysLeft) {
-				if (daysLeft < 0) return `Vencido hace ${Math.abs(daysLeft)} día${Math.abs(daysLeft) === 1 ? '' : 's'}`;
-				if (daysLeft === 0) return 'Vence hoy';
-				if (daysLeft === 1) return 'Vence mañana';
-				return `Faltan ${daysLeft} días`;
+				const days = Number(daysLeft || 0);
+				if (days < 0) return `Vencido hace ${Math.abs(days)} día${Math.abs(days) === 1 ? '' : 's'}`;
+				if (days === 0) return 'Vencido hoy';
+				if (days === 1) return 'Vence mañana';
+				return `Faltan ${days} días`;
+			}
+
+			async function postExpirationQuery(view, windowDays, page) {
+				return apiRequest('/api/pz/admin/product-expirations', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ view, window_days: windowDays, page }),
+				});
+			}
+
+			async function loadExpirationSummary() {
+				if (!EXPIRATION_TOOLS_ENABLED) return;
+				try {
+					const result = await postExpirationQuery('summary', 30, 1);
+					expirationSummary = {
+						expired_products: Math.max(0, Number(result?.summary?.expired_products || 0)),
+						upcoming_30_products: Math.max(0, Number(result?.summary?.upcoming_30_products || 0)),
+					};
+					if (expirationProductsMeta) expirationProductsMeta.textContent = `${expirationSummary.upcoming_30_products} por vencer en 30 días · ${expirationSummary.expired_products} vencido${expirationSummary.expired_products === 1 ? '' : 's'}. El detalle se carga al desplazarte.`;
+				} catch (_) {
+					expirationSummary = { expired_products: 0, upcoming_30_products: 0 };
+					if (expirationProductsMeta) expirationProductsMeta.textContent = 'No se pudo cargar el resumen privado de vencimientos.';
+				}
+			}
+
+			function expirationPreviewUrl(item) {
+				const recordIdPattern = /^[a-z0-9]{15}$/;
+				const productId = recordIdPattern.test(String(item?.product_id || '')) ? String(item.product_id) : '';
+				const variation = Array.isArray(item?.affected_variations)
+					? item.affected_variations.find((candidate) => recordIdPattern.test(String(candidate?.id || '')))
+					: null;
+				const url = new URL(ADMIN_EXPIRATIONS_PATH, window.location.origin);
+				url.searchParams.set('view', selectedExpirationView);
+				if (selectedExpirationView === 'upcoming') url.searchParams.set('range', String(selectedExpirationRange));
+				if (productId) url.searchParams.set('product', productId);
+				if (variation?.id) url.searchParams.set('variation', String(variation.id));
+				return `${url.pathname}${url.search}`;
 			}
 
 			function renderExpirationProducts() {
-				const nearExpiration = getProductsNearExpiration();
-				const expiredCount = nearExpiration.filter((item) => item.daysLeft < 0).length;
-				const validCount = nearExpiration.length - expiredCount;
-				const rangeText = selectedExpirationRange === 30 ? '1 mes' : selectedExpirationRange === 60 ? '2 meses' : '3 meses';
-
-				expirationProductsMeta.textContent = expiredCount
-					? `${validCount} por vencer en ${rangeText} · ${expiredCount} vencido${expiredCount === 1 ? '' : 's'}`
-					: `${validCount} producto${validCount === 1 ? '' : 's'} por vencer en ${rangeText}`;
-
-				if (!nearExpiration.length) {
-					expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No hay productos con vencimiento dentro de este rango.</div>';
+				if (!EXPIRATION_TOOLS_ENABLED || !expirationProductsList || !expirationProductsMeta) return;
+				if (!expirationDetailsLoaded || !expirationDetails) return;
+				const items = Array.isArray(expirationDetails.items) ? expirationDetails.items.slice(0, 5) : [];
+				const totalItems = Math.max(0, Number(expirationDetails.total_items || 0));
+				const viewLabel = selectedExpirationView === 'expired' ? 'vencidos' : `por vencer en ${selectedExpirationRange} días`;
+				expirationProductsMeta.textContent = `${totalItems} producto${totalItems === 1 ? '' : 's'} ${viewLabel}. Vista previa de hasta 5 productos.`;
+				if (!items.length) {
+					expirationProductsList.innerHTML = `<div class="empty-state">No hay productos ${escapeHtml(viewLabel)}.</div>`;
 					return;
 				}
-
-				expirationProductsList.innerHTML = nearExpiration.map((item) => {
-					const product = item.product;
+				expirationProductsList.innerHTML = items.map((item) => {
 					const status = getExpirationStatus(item);
-					const palette = getExpirationPalette(status.className);
-					const stock = Number(product.stock || 0);
-					const rowStyle = `display:flex;align-items:center;gap:10px;width:calc(100% - 8px);max-width:calc(100% - 8px);box-sizing:border-box;min-width:0;margin-right:8px;padding:14px 14px 14px 16px;border-radius:22px;background:linear-gradient(135deg, ${palette.soft}, #ffffff 62%);border:1px solid ${palette.border};box-shadow:0 18px 34px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.95);position:relative;overflow:hidden;flex-wrap:wrap;`;
-					const leftBarStyle = `position:absolute;left:0;top:0;bottom:0;width:5px;background:${palette.main};box-shadow:0 0 26px ${palette.border};`;
-					const dotStyle = `width:12px;height:12px;border-radius:999px;background:${palette.main};box-shadow:0 0 0 5px ${palette.chip}, 0 8px 18px ${palette.border};flex:0 0 auto;`;
-					const contentStyle = 'display:flex;align-items:center;gap:9px;min-width:0;flex:1 1 360px;flex-wrap:wrap;max-width:100%;';
-					const nameStyle = 'margin:0;font-size:15px;font-weight:950;letter-spacing:-0.02em;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:0;flex:1 1 180px;';
-					const neutralChipStyle = 'display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;background:#ffffff;border:1px solid rgba(226,232,240,0.98);color:#334155;font-size:12px;font-weight:900;white-space:nowrap;';
-					const priorityChipStyle = `display:inline-flex;align-items:center;min-height:30px;padding:0 11px;border-radius:999px;background:${palette.chip};color:${palette.text};font-size:11px;font-weight:950;white-space:nowrap;box-shadow:inset 0 0 0 1px ${palette.border};`;
-					const daysStyle = `font-size:12px;font-weight:950;color:${palette.text};white-space:nowrap;`;
-					const viewStyle = `display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:999px;background:${palette.main};color:#ffffff;font-size:12px;font-weight:950;text-decoration:none;box-shadow:0 12px 22px ${palette.border}, inset 0 1px 0 rgba(255,255,255,0.28);white-space:nowrap;flex:0 0 auto;margin-left:auto;max-width:calc(100% - 4px);`;
-
+					const variations = Array.isArray(item.affected_variations) ? item.affected_variations : [];
+					const modeLabel = item.mode === 'variations'
+						? `${variations.length} variación${variations.length === 1 ? '' : 'es'} afectada${variations.length === 1 ? '' : 's'}`
+						: 'Producto general';
 					return `
-						<div class="expiration-item ${status.className}" style="${rowStyle}">
-							<span style="${leftBarStyle}" aria-hidden="true"></span>
-							<span class="expiration-signal" style="${dotStyle}" aria-hidden="true"></span>
-							<div class="expiration-main" style="${contentStyle}">
-								<p class="expiration-name" style="${nameStyle}">${escapeHtml(product.name || 'Producto sin nombre')}</p>
-								<span class="expiration-stock" style="${neutralChipStyle}">Stock: ${escapeHtml(stock)}</span>
-								<span class="expiration-pill ${status.className}" style="${priorityChipStyle}">${escapeHtml(status.label)}</span>
-								<span class="expiration-date-chip" style="${neutralChipStyle}">${escapeHtml(formatDateOnly(product.expiration_date))}</span>
-								<span class="expiration-days" style="${daysStyle}">${escapeHtml(getExpirationDaysText(item.daysLeft))}</span>
+						<article class="expiration-item ${status.className}">
+							<span class="expiration-signal" aria-hidden="true"></span>
+							<div class="expiration-main">
+								<p class="expiration-name">${escapeHtml(item.name || 'Producto sin nombre')}</p>
+								<span class="expiration-mode">${escapeHtml(modeLabel)}</span>
+								<span class="expiration-date-chip">${escapeHtml(formatExpirationCivilDate(item.expiration_date))}</span>
+								<span class="expiration-pill ${status.className}">${escapeHtml(status.label)}</span>
+								<span class="expiration-days">${escapeHtml(getExpirationDaysText(item.days_left))}</span>
 							</div>
-							<a class="expiration-view" style="${viewStyle}" href="${productAdminUrl(product)}" aria-label="Ver producto ${escapeHtml(product.name || 'Producto')}">Ver →</a>
-						</div>
+							<a class="expiration-view" href="${escapeHtml(expirationPreviewUrl(item))}" aria-label="Ver ${escapeHtml(item.name || 'producto')} en vencimientos">Ver</a>
+						</article>
 					`;
 				}).join('');
+			}
+
+			async function loadExpirationDetails() {
+				if (!EXPIRATION_TOOLS_ENABLED || expirationDetailsLoading || !expirationProductsList) return;
+				expirationDetailsLoading = true;
+				expirationProductsList.innerHTML = '<div class="empty-state">Cargando vista previa privada...</div>';
+				try {
+					expirationDetails = await postExpirationQuery(selectedExpirationView, selectedExpirationRange, 1);
+					expirationDetailsLoaded = true;
+					renderExpirationProducts();
+				} catch (_) {
+					expirationDetailsLoaded = true;
+					expirationDetails = null;
+					expirationProductsList.innerHTML = '<div class="empty-state">No se pudo cargar la vista previa de vencimientos.</div>';
+					if (expirationProductsMeta) expirationProductsMeta.textContent = 'Revisa tu sesión e inténtalo nuevamente.';
+				} finally {
+					expirationDetailsLoading = false;
+				}
+			}
+
+			function setupExpirationLazyLoading() {
+				if (!EXPIRATION_TOOLS_ENABLED) return;
+				const section = document.getElementById('productos-proximos-vencer');
+				if (!section || section.dataset.expirationLazyReady === 'true') return;
+				section.dataset.expirationLazyReady = 'true';
+				if (!('IntersectionObserver' in window)) {
+					loadExpirationDetails();
+					return;
+				}
+				const observer = new IntersectionObserver((entries) => {
+					if (!entries.some((entry) => entry.isIntersecting)) return;
+					observer.disconnect();
+					loadExpirationDetails();
+				}, { rootMargin: '240px 0px' });
+				observer.observe(section);
 			}
 
 			function renderStatusGrid(metrics) {
@@ -6947,8 +6984,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				statusGrid.innerHTML = '<div class="empty-state">Cargando estados...</div>';
 				if (ratingSummaryGrid) ratingSummaryGrid.innerHTML = '<div class="empty-state">Cargando rating y reseñas...</div>';
 				if (ratingSummaryNote) ratingSummaryNote.classList.add('hidden');
-				expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando vencimientos...</div>';
-				expirationProductsMeta.textContent = 'Cargando productos...';
+				if (expirationProductsList) expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">El detalle se cargará al llegar a esta sección.</div>';
+				if (expirationProductsMeta && EXPIRATION_TOOLS_ENABLED) expirationProductsMeta.textContent = 'Cargando resumen privado...';
 
 				await loadSettingsRecord();
 				await runAnalyticsCleanupIfNeeded();
@@ -6956,8 +6993,9 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				const [ordersResult, itemsResult, productsResult, analyticsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
 					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
-					loadAllRecords('products', 'sort=expiration_date&expand=category,subcategory'),
+					loadAllRecords('products', 'sort=name&expand=category,subcategory'),
 					loadAllRecords('store_analytics_events', buildAnalyticsEventsQuery()),
+					loadExpirationSummary(),
 				]);
 
 				await loadRatingSupportData();
@@ -6967,6 +7005,7 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				products = productsResult || [];
 				analyticsEvents = analyticsResult || [];
 				renderDashboard();
+				setupExpirationLazyLoading();
 			}
 
 			function closeSidebar() {
@@ -7096,11 +7135,19 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 				});
 			});
 
-			expirationButtons.forEach((button) => {
+			expirationRangeButtons.forEach((button) => {
 				button.addEventListener('click', () => {
 					selectedExpirationRange = Number(button.dataset.expirationRange || 30);
-					expirationButtons.forEach((item) => item.classList.toggle('active', item === button));
-					renderExpirationProducts();
+					expirationRangeButtons.forEach((item) => item.classList.toggle('active', item === button));
+					loadExpirationDetails();
+				});
+			});
+			expirationViewButtons.forEach((button) => {
+				button.addEventListener('click', () => {
+					selectedExpirationView = button.dataset.expirationView === 'expired' ? 'expired' : 'upcoming';
+					expirationViewButtons.forEach((item) => item.classList.toggle('active', item === button));
+					expirationRangeButtons.forEach((item) => { item.disabled = selectedExpirationView === 'expired'; });
+					loadExpirationDetails();
 				});
 			});
 			sidebarOverlay?.addEventListener('click', closeSidebar);

@@ -124,7 +124,38 @@
     const subcategory = firstExpanded(product.expand?.subcategory);
     if (product.category && category && category.active === false) return false;
     if (product.subcategory && subcategory && subcategory.active === false) return false;
+    if (expirationEnabled() && expirationDateExpired(product.expiration_date)) return false;
     return true;
+  }
+
+  function expirationEnabled() {
+    return window.PZ_PRODUCT_EXPIRATION_ENABLED === true;
+  }
+
+  function civilDate(value) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim());
+    if (!match) return '';
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day
+      ? `${match[1]}-${match[2]}-${match[3]}`
+      : '';
+  }
+
+  function havanaToday() {
+    const parts = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+      timeZone: 'America/Havana', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date());
+    const mapped = {};
+    parts.forEach((part) => { if (part.type !== 'literal') mapped[part.type] = part.value; });
+    return `${mapped.year}-${mapped.month}-${mapped.day}`;
+  }
+
+  function expirationDateExpired(value) {
+    const date = civilDate(value);
+    return Boolean(date) && date <= havanaToday();
   }
 
   function getProductPrice(product) {
@@ -329,6 +360,9 @@
     const variation = await fetchRecord('product_variations', item.variation_id, options);
     if (!variation || variation.active === false || relationId(variation.product) !== String(product.id || '')) {
       return unavailableItem(item, 'variation_unavailable', 'Variacion no disponible.', 'variation_unavailable', options, flags);
+    }
+    if (expirationEnabled() && expirationDateExpired(variation.expiration_date)) {
+      return unavailableItem(item, 'variation_unavailable', 'Este producto ya no esta disponible.', 'variation_unavailable', options, flags);
     }
 
     const next = { ...item };

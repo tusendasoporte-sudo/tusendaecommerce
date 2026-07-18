@@ -8,6 +8,8 @@ import PublicFooter from '../../components/PublicFooter.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import LandingQrSettings from '../../components/admin/LandingQrSettings.astro';
+import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
+import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -23,6 +25,8 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
+const expirationToolsEnabled = expirationToolsAccess.allowed === true;
 const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
 const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con los ajustes de tienda de ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
@@ -3558,32 +3562,20 @@ try {
                         </div>
                       </div>
 
-                      <label class="rating-setting-row full" for="settings-notify-product-expiring">
-                        <span><strong>Productos proximos a vencer</strong><small>Avisa cuando un producto este dentro del rango configurado.</small></span>
-                        <span class="switch-control"><input id="settings-notify-product-expiring" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-
-                      <div class="general-settings-grid">
-                        <div class="field">
-                          <label for="settings-product-expiring-days-before">Avisar desde X dias antes</label>
-                          <input id="settings-product-expiring-days-before" type="number" min="1" step="1" value="30" />
-                        </div>
-
-                        <div class="field">
-                          <label for="settings-product-expiring-critical-days">Alta prioridad desde X dias antes</label>
-                          <input id="settings-product-expiring-critical-days" type="number" min="0" step="1" value="7" />
-                        </div>
-                      </div>
-
-                      <label class="rating-setting-row full" for="settings-notify-product-expired">
-                        <span><strong>Productos vencidos</strong><small>Avisa si un producto ya llego o paso su fecha de vencimiento.</small></span>
-                        <span class="switch-control"><input id="settings-notify-product-expired" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
-
-                      <label class="rating-setting-row full" for="settings-notify-variation-expiration">
-                        <span><strong>Revisar variaciones tambien</strong><small>Usa la fecha de vencimiento propia de cada variacion cuando exista.</small></span>
-                        <span class="switch-control"><input id="settings-notify-variation-expiration" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                      </label>
+                      {expirationToolsEnabled ? (
+                        <label class="rating-setting-row full" for="settings-notify-expiration-alerts">
+                          <span><strong>Alertas de vencimiento</strong><small>Recibe avisos a 90, 60 y 30 días, y el día del vencimiento.</small></span>
+                          <span class="switch-control"><input id="settings-notify-expiration-alerts" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                        </label>
+                      ) : (
+                        <StoreCapabilityGate
+                          access={expirationToolsAccess}
+                          compact
+                          featureName="Vencimiento de productos"
+                          featureDescription="Gestiona fechas de vencimiento y recibe alertas con el plan Premium."
+                          preservationMessage="Disponible exclusivamente para tiendas Premium."
+                        />
+                      )}
 
                       <label class="rating-setting-row full" for="settings-notify-low-stock">
                         <span><strong>Stock bajo</strong><small>Avisa cuando un producto o variacion tenga pocas unidades.</small></span>
@@ -5160,12 +5152,13 @@ try {
       else if (window.location.hash === '#landing') showTab('landing');
       else showTab('generales');
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
         const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(adminAuthToken || '');
+        const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
         const form = document.getElementById('settings-form');
         window.addEventListener('pz:store-settings:save', () => {
           const generalTab = document.getElementById('tab-generales');
@@ -5198,11 +5191,7 @@ try {
           notificationPriorityCriticalMin: document.getElementById('settings-notification-priority-critical-min'),
           notificationShowOrderSubtotal: document.getElementById('settings-notification-show-order-subtotal'),
           notificationBellPriorityColors: document.getElementById('settings-notification-bell-priority-colors'),
-          notifyProductExpiring: document.getElementById('settings-notify-product-expiring'),
-          productExpiringDaysBefore: document.getElementById('settings-product-expiring-days-before'),
-          productExpiringCriticalDays: document.getElementById('settings-product-expiring-critical-days'),
-          notifyProductExpired: document.getElementById('settings-notify-product-expired'),
-          notifyVariationExpiration: document.getElementById('settings-notify-variation-expiration'),
+          notifyExpirationAlerts: document.getElementById('settings-notify-expiration-alerts'),
           notifyLowStock: document.getElementById('settings-notify-low-stock'),
           lowStockThreshold: document.getElementById('settings-low-stock-threshold'),
           notifyOutOfStock: document.getElementById('settings-notify-out-of-stock'),
@@ -5651,11 +5640,7 @@ try {
             notificationPriorityCriticalMin: Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)),
             notificationShowOrderSubtotal: fields.notificationShowOrderSubtotal?.checked !== false,
             notificationBellPriorityColors: fields.notificationBellPriorityColors?.checked !== false,
-            notifyProductExpiring: fields.notifyProductExpiring?.checked !== false,
-            productExpiringDaysBefore: Math.max(1, Number(fields.productExpiringDaysBefore?.value || 30)),
-            productExpiringCriticalDays: Math.max(0, Number(fields.productExpiringCriticalDays?.value || 7)),
-            notifyProductExpired: fields.notifyProductExpired?.checked !== false,
-            notifyVariationExpiration: fields.notifyVariationExpiration?.checked !== false,
+            notifyExpirationAlerts: EXPIRATION_TOOLS_ENABLED ? fields.notifyExpirationAlerts?.checked !== false : null,
             notifyLowStock: fields.notifyLowStock?.checked !== false,
             lowStockThreshold: Math.max(1, Number(fields.lowStockThreshold?.value || 3)),
             notifyOutOfStock: fields.notifyOutOfStock?.checked !== false,
@@ -5967,11 +5952,7 @@ try {
             notification_priority_critical_min_usd: Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)),
             notification_show_order_subtotal: fields.notificationShowOrderSubtotal?.checked !== false,
             notification_bell_priority_colors: fields.notificationBellPriorityColors?.checked !== false,
-            notify_product_expiring: fields.notifyProductExpiring?.checked !== false,
-            product_expiring_days_before: Math.max(1, Number(fields.productExpiringDaysBefore?.value || 30)),
-            product_expiring_critical_days: Math.max(0, Number(fields.productExpiringCriticalDays?.value || 7)),
-            notify_product_expired: fields.notifyProductExpired?.checked !== false,
-            notify_variation_expiration: fields.notifyVariationExpiration?.checked !== false,
+            ...(EXPIRATION_TOOLS_ENABLED ? { notify_expiration_alerts: fields.notifyExpirationAlerts?.checked !== false } : {}),
             notify_low_stock: fields.notifyLowStock?.checked !== false,
             low_stock_threshold: Math.max(1, Number(fields.lowStockThreshold?.value || 3)),
             notify_out_of_stock: fields.notifyOutOfStock?.checked !== false,
@@ -6073,11 +6054,7 @@ try {
           if (fields.notificationPriorityCriticalMin) fields.notificationPriorityCriticalMin.value = String(Math.max(0, Number(record.notification_priority_critical_min_usd ?? 100)));
           if (fields.notificationShowOrderSubtotal) fields.notificationShowOrderSubtotal.checked = record.notification_show_order_subtotal !== false;
           if (fields.notificationBellPriorityColors) fields.notificationBellPriorityColors.checked = record.notification_bell_priority_colors !== false;
-          if (fields.notifyProductExpiring) fields.notifyProductExpiring.checked = record.notify_product_expiring !== false;
-          if (fields.productExpiringDaysBefore) fields.productExpiringDaysBefore.value = String(Math.max(1, Number(record.product_expiring_days_before ?? 30)));
-          if (fields.productExpiringCriticalDays) fields.productExpiringCriticalDays.value = String(Math.max(0, Number(record.product_expiring_critical_days ?? 7)));
-          if (fields.notifyProductExpired) fields.notifyProductExpired.checked = record.notify_product_expired !== false;
-          if (fields.notifyVariationExpiration) fields.notifyVariationExpiration.checked = record.notify_variation_expiration !== false;
+          if (EXPIRATION_TOOLS_ENABLED && fields.notifyExpirationAlerts) fields.notifyExpirationAlerts.checked = record.notify_expiration_alerts !== false;
           if (fields.notifyLowStock) fields.notifyLowStock.checked = record.notify_low_stock !== false;
           if (fields.lowStockThreshold) fields.lowStockThreshold.value = String(Math.max(1, Number(record.low_stock_threshold ?? 3)));
           if (fields.notifyOutOfStock) fields.notifyOutOfStock.checked = record.notify_out_of_stock !== false;
@@ -6159,11 +6136,7 @@ try {
             data.append('notification_priority_critical_min_usd', Math.max(0, Number(fields.notificationPriorityCriticalMin?.value || 100)));
             data.append('notification_show_order_subtotal', fields.notificationShowOrderSubtotal?.checked !== false);
             data.append('notification_bell_priority_colors', fields.notificationBellPriorityColors?.checked !== false);
-            data.append('notify_product_expiring', fields.notifyProductExpiring?.checked !== false);
-            data.append('product_expiring_days_before', Math.max(1, Number(fields.productExpiringDaysBefore?.value || 30)));
-            data.append('product_expiring_critical_days', Math.max(0, Number(fields.productExpiringCriticalDays?.value || 7)));
-            data.append('notify_product_expired', fields.notifyProductExpired?.checked !== false);
-            data.append('notify_variation_expiration', fields.notifyVariationExpiration?.checked !== false);
+            if (EXPIRATION_TOOLS_ENABLED) data.append('notify_expiration_alerts', fields.notifyExpirationAlerts?.checked !== false);
             data.append('notify_low_stock', fields.notifyLowStock?.checked !== false);
             data.append('low_stock_threshold', Math.max(1, Number(fields.lowStockThreshold?.value || 3)));
             data.append('notify_out_of_stock', fields.notifyOutOfStock?.checked !== false);

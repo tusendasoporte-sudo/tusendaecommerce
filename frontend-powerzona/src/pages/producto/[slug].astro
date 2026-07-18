@@ -73,7 +73,7 @@ try {
 		extra_info: [],
 	};
 }
-const variations = !productUnavailable && product.has_variations ? await getProductVariations(product.id) : [];
+const variations = !productUnavailable && product.has_variations ? await getProductVariations(product.id, storeQuery) : [];
 const automaticPromotions = productUnavailable ? [] : await getAutomaticPromotions(storeQuery);
 const automaticPromotionText = productUnavailable ? '' : getProductAutomaticPromotionText(product, automaticPromotions);
 const reviewsEnabled = settings?.reviews_enabled !== false;

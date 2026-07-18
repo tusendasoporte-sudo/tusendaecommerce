@@ -210,6 +210,8 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
         markNotificationRead,
         archiveNotification,
         archiveAllNotifications,
+        getNotificationVisualPriority,
+        isV7E9RedNotification,
       } from '../../lib/adminNotifications.js';
 
       (() => {
@@ -291,7 +293,10 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
           }
 
           list.innerHTML = items.map((item) => {
-            const priority = normalizePriority(item.priority);
+            const priority = getNotificationVisualPriority(item);
+            const priorityText = isV7E9RedNotification(item) && String(item.priority || '') !== 'critical'
+              ? 'Alerta de 30 días'
+              : priorityLabel(priority);
             const openUrl = getOpenUrl(item);
             const openAction = openUrl ? `<a href="${escapeHtml(openUrl)}" data-notification-open="${escapeHtml(item.id)}">Abrir</a>` : '';
             const readAction = item.status === 'unread'
@@ -304,7 +309,7 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
                   <h2 class="notification-title">${escapeHtml(item.title)}</h2>
                   <p class="notification-message">${escapeHtml(item.message)}</p>
                   <div class="notification-meta">
-                    <span class="notification-priority is-${escapeHtml(priority)}">${escapeHtml(priorityLabel(priority))}</span>
+                    <span class="notification-priority is-${escapeHtml(priority)}">${escapeHtml(priorityText)}</span>
                     <span>${escapeHtml(timeAgo(item.created))}</span>
                   </div>
                 </div>

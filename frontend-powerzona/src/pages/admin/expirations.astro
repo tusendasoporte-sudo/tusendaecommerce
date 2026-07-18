@@ -1,0 +1,431 @@
+---
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { refreshAuthFromCookie } from '../../lib/auth';
+import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
+import '../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminAuthToken = authPb.authStore.token;
+const currentStoreId = adminContext.storeId;
+const currentStoreSlug = adminContext.store.slug || '';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const adminBasePath = getStoreAdminPath(currentStoreSlug);
+const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
+const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
+const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
+const expirationToolsEnabled = expirationToolsAccess.allowed === true;
+const requestedView = Astro.url.searchParams.get('view') === 'upcoming' ? 'upcoming' : 'expired';
+const requestedRangeValue = Number(Astro.url.searchParams.get('range') || 30);
+const requestedRange = [30, 60, 90].includes(requestedRangeValue) ? requestedRangeValue : 30;
+const requestedPage = Math.max(1, Math.min(10000, Math.floor(Number(Astro.url.searchParams.get('page') || 1) || 1)));
+const safeRecordId = (value: string | null) => /^[a-z0-9]{15}$/.test(String(value || '')) ? String(value) : '';
+const requestedProduct = safeRecordId(Astro.url.searchParams.get('product'));
+const requestedVariation = safeRecordId(Astro.url.searchParams.get('variation'));
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vencimiento de productos | PowerZona Admin</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <style is:global>
+      :root {
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --expiration-page: #eef3f9;
+        --expiration-surface: #ffffff;
+        --expiration-text: #0f172a;
+        --expiration-muted: #64748b;
+        --expiration-border: #e2e8f0;
+        --expiration-blue: #2563eb;
+        --expiration-red: #dc2626;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-width: 0; min-height: 100%; overflow-x: hidden; }
+      body {
+        color: var(--expiration-text);
+        background:
+          radial-gradient(circle at 12% 0%, rgba(37, 99, 235, .13), transparent 30%),
+          radial-gradient(circle at 88% 7%, rgba(220, 38, 38, .08), transparent 24%),
+          linear-gradient(180deg, #f8fbff 0%, var(--expiration-page) 52%, #e8eef7 100%);
+      }
+      button, a { font: inherit; }
+      button { cursor: pointer; }
+      button:disabled { cursor: not-allowed; opacity: .58; }
+      a { color: inherit; text-decoration: none; }
+      .hidden { display: none !important; }
+
+      .expiration-page-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .expiration-page-main { min-width: 0; padding-bottom: 104px; }
+      .expiration-workspace { display: grid; min-width: 0; gap: 16px; }
+      .expiration-toolbar {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        border: 1px solid var(--expiration-border);
+        border-radius: 22px;
+        background: rgba(255,255,255,.94);
+        padding: 16px;
+        box-shadow: 0 16px 42px rgba(15, 23, 42, .07);
+      }
+      .expiration-tabs,
+      .expiration-ranges { display: flex; min-width: 0; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .expiration-filter {
+        min-height: 40px;
+        border: 1px solid var(--expiration-border);
+        border-radius: 999px;
+        background: #f8fafc;
+        color: #475569;
+        padding: 0 14px;
+        font-size: 12px;
+        font-weight: 950;
+      }
+      .expiration-filter.is-active { border-color: #0f172a; background: #0f172a; color: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .16); }
+      .expiration-ranges[hidden] { display: none; }
+
+      .expiration-list-card {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--expiration-border);
+        border-radius: 22px;
+        background: var(--expiration-surface);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .07);
+      }
+      .expiration-list-meta { margin: 0; border-bottom: 1px solid var(--expiration-border); padding: 14px 18px; color: var(--expiration-muted); font-size: 13px; font-weight: 800; }
+      .expiration-table-head,
+      .expiration-row {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(190px, 1.35fr) minmax(135px, .75fr) minmax(118px, .65fr) minmax(120px, .7fr) auto;
+        align-items: center;
+        gap: 14px;
+      }
+      .expiration-table-head { border-bottom: 1px solid var(--expiration-border); background: #f8fafc; padding: 12px 18px; color: #64748b; font-size: 11px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
+      .expiration-list { display: grid; min-width: 0; }
+      .expiration-row { position: relative; border-bottom: 1px solid #eef2f7; padding: 15px 18px; }
+      .expiration-row:last-child { border-bottom: 0; }
+      .expiration-row::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--row-accent, #2563eb); }
+      .expiration-row.is-expired,
+      .expiration-row.is-one-month { --row-accent: #dc2626; }
+      .expiration-row.is-two-months { --row-accent: #f59e0b; }
+      .expiration-row.is-three-months { --row-accent: #2563eb; }
+      .expiration-row.is-context { background: #eff6ff; box-shadow: inset 0 0 0 2px rgba(37, 99, 235, .22); }
+      .expiration-product { min-width: 0; }
+      .expiration-product strong { display: block; overflow-wrap: anywhere; font-size: 14px; line-height: 1.3; font-weight: 1000; }
+      .expiration-product small { display: block; margin-top: 4px; color: var(--expiration-muted); font-size: 11.5px; font-weight: 800; }
+      .expiration-cell-label { display: none; color: #64748b; font-size: 10px; font-weight: 1000; text-transform: uppercase; letter-spacing: .04em; }
+      .expiration-mode,
+      .expiration-date,
+      .expiration-status { min-width: 0; color: #334155; font-size: 12.5px; font-weight: 850; overflow-wrap: anywhere; }
+      .expiration-status { display: inline-flex; width: fit-content; min-height: 28px; align-items: center; border-radius: 999px; background: #dbeafe; color: #1d4ed8; padding: 0 10px; }
+      .is-expired .expiration-status,
+      .is-one-month .expiration-status { background: #fee2e2; color: #b91c1c; }
+      .is-two-months .expiration-status { background: #fef3c7; color: #92400e; }
+      .expiration-variations { display: grid; gap: 5px; margin: 8px 0 0; padding: 0; list-style: none; }
+      .expiration-variations li { color: #475569; font-size: 11.5px; line-height: 1.4; font-weight: 750; overflow-wrap: anywhere; }
+      .expiration-edit {
+        display: inline-flex;
+        min-height: 38px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        padding: 0 13px;
+        font-size: 11.5px;
+        font-weight: 1000;
+        white-space: nowrap;
+      }
+      .expiration-empty { margin: 0; padding: 34px 20px; color: var(--expiration-muted); text-align: center; font-size: 13px; font-weight: 850; }
+      .expiration-pagination { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; border-top: 1px solid var(--expiration-border); padding: 14px 18px; }
+      .expiration-page-button { min-width: 38px; min-height: 38px; border: 1px solid var(--expiration-border); border-radius: 11px; background: #fff; color: #334155; padding: 0 11px; font-size: 12px; font-weight: 950; }
+      .expiration-page-button.is-active { border-color: #0f172a; background: #0f172a; color: #fff; }
+
+      @media (min-width: 1024px) {
+        body { padding-left: calc(var(--pz-admin-sidebar-width, 278px) + var(--pz-admin-content-gap, 30px)); }
+        .expiration-page-shell { padding: var(--pz-admin-content-top, 28px) var(--pz-admin-content-right, 32px) var(--pz-admin-content-bottom, 48px) 0; }
+      }
+      @media (max-width: 820px) {
+        .expiration-page-shell { padding: 14px 14px 112px; }
+        .expiration-toolbar { align-items: stretch; border-radius: 18px; }
+        .expiration-tabs, .expiration-ranges { width: 100%; }
+        .expiration-filter { flex: 1 1 auto; }
+        .expiration-table-head { display: none; }
+        .expiration-list-card { overflow: visible; border: 0; background: transparent; box-shadow: none; }
+        .expiration-list-meta { border: 1px solid var(--expiration-border); border-radius: 16px; background: #fff; margin-bottom: 10px; }
+        .expiration-list { gap: 10px; }
+        .expiration-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; border: 1px solid var(--expiration-border); border-radius: 18px; background: #fff; padding: 16px 14px 16px 18px; box-shadow: 0 12px 28px rgba(15, 23, 42, .06); }
+        .expiration-row::before { border-radius: 18px 0 0 18px; }
+        .expiration-product { grid-column: 1 / -1; }
+        .expiration-mode, .expiration-date, .expiration-status { display: grid; gap: 3px; }
+        .expiration-cell-label { display: inline; }
+        .expiration-edit { grid-column: 2; grid-row: 2 / span 3; align-self: center; }
+        .expiration-pagination { justify-content: center; border: 1px solid var(--expiration-border); border-radius: 16px; background: #fff; margin-top: 10px; }
+      }
+      @media (max-width: 480px) {
+        .expiration-row { grid-template-columns: minmax(0, 1fr); }
+        .expiration-edit { grid-column: 1; grid-row: auto; width: 100%; }
+        .expiration-filter { padding-inline: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <AdminSidebar
+      storeSlug={currentStoreSlug}
+      storeName={currentStoreName}
+      storePlanValues={adminContext.store}
+      activeSection=""
+      mobileTitle="Vencimientos"
+      mobileBackHref={adminBasePath}
+      mobileBackLabel="Resumen"
+      storeId={currentStoreId}
+      pocketbaseUrl={pocketbaseUrl}
+      authToken={adminAuthToken}
+    />
+
+    <div class="expiration-page-shell admin-view">
+      <main class="expiration-page-main">
+        <AdminSectionHeader
+          kicker="Herramienta Premium"
+          title="Vencimiento de productos"
+          description="Revisa productos vencidos y próximos a vencer sin exponerlos en el catálogo público."
+          bellId="expiration-page-bell"
+          actionLabel="Volver al Resumen"
+          actionHref={adminBasePath}
+          actionClass="expiration-back-action"
+        />
+
+        {expirationToolsEnabled ? (
+          <section class="expiration-workspace" data-expiration-page-root>
+            <div class="expiration-toolbar" aria-label="Filtros de vencimiento">
+              <div class="expiration-tabs" role="tablist" aria-label="Estado de vencimiento">
+                <button class:list={['expiration-filter', requestedView === 'expired' && 'is-active']} type="button" role="tab" aria-selected={requestedView === 'expired' ? 'true' : 'false'} data-expiration-view="expired">Vencidos</button>
+                <button class:list={['expiration-filter', requestedView === 'upcoming' && 'is-active']} type="button" role="tab" aria-selected={requestedView === 'upcoming' ? 'true' : 'false'} data-expiration-view="upcoming">Próximos a vencer</button>
+              </div>
+              <div class="expiration-ranges" data-expiration-ranges hidden={requestedView === 'expired'} aria-label="Rango acumulativo">
+                <button class:list={['expiration-filter', requestedRange === 30 && 'is-active']} type="button" data-expiration-range="30">1 mes</button>
+                <button class:list={['expiration-filter', requestedRange === 60 && 'is-active']} type="button" data-expiration-range="60">2 meses</button>
+                <button class:list={['expiration-filter', requestedRange === 90 && 'is-active']} type="button" data-expiration-range="90">3 meses</button>
+              </div>
+            </div>
+
+            <div class="expiration-list-card">
+              <p class="expiration-list-meta" data-expiration-meta aria-live="polite">Cargando vencimientos privados...</p>
+              <div class="expiration-table-head" aria-hidden="true"><span>Producto</span><span>Modalidad</span><span>Fecha</span><span>Estado</span><span>Acción</span></div>
+              <div class="expiration-list" data-expiration-list><p class="expiration-empty">Cargando vencimientos privados...</p></div>
+              <nav class="expiration-pagination" data-expiration-pagination aria-label="Paginación de vencimientos"></nav>
+            </div>
+          </section>
+        ) : (
+          <StoreCapabilityGate
+            access={expirationToolsAccess}
+            featureName="Vencimiento de productos"
+            featureDescription="Las fechas, alertas y listados privados de vencimiento están disponibles exclusivamente para tiendas Premium."
+            preservationMessage="Esta página no consulta ni muestra fechas con tu plan actual."
+            infoTitle="Acceso protegido"
+            infoDescription="Vuelve al Resumen para continuar administrando las funciones incluidas en tu plan."
+          />
+        )}
+      </main>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, expirationToolsEnabled, requestedView, requestedRange, requestedPage, requestedProduct, requestedVariation }}>
+      (() => {
+        if (expirationToolsEnabled !== true) return;
+        const root = document.querySelector('[data-expiration-page-root]');
+        const list = document.querySelector('[data-expiration-list]');
+        const meta = document.querySelector('[data-expiration-meta]');
+        const pagination = document.querySelector('[data-expiration-pagination]');
+        const ranges = document.querySelector('[data-expiration-ranges]');
+        if (!root || !list || !meta || !pagination) return;
+
+        const baseUrl = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const cookie = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth=')) || '';
+        let token = '';
+        try {
+          const parsed = JSON.parse(decodeURIComponent(cookie.slice('pb_auth='.length)));
+          token = typeof parsed?.token === 'string' ? parsed.token : '';
+        } catch (_) {
+          token = '';
+        }
+        const productsPath = String(adminProductsPath || '/admin/products');
+        const pagePath = String(adminExpirationsPath || '/admin/expirations');
+        const recordIdPattern = /^[a-z0-9]{15}$/;
+        const contextProduct = recordIdPattern.test(String(requestedProduct || '')) ? String(requestedProduct) : '';
+        const contextVariation = recordIdPattern.test(String(requestedVariation || '')) ? String(requestedVariation) : '';
+        let view = requestedView === 'upcoming' ? 'upcoming' : 'expired';
+        let windowDays = [30, 60, 90].includes(Number(requestedRange)) ? Number(requestedRange) : 30;
+        let page = Math.max(1, Number(requestedPage || 1));
+        let loading = false;
+
+        function escapeHtml(value) {
+          return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function formatDate(value) {
+          const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+          return match ? `${match[3]}/${match[2]}/${match[1]}` : 'Sin fecha';
+        }
+
+        function statusFor(item) {
+          const days = Number(item?.days_left || 0);
+          if (days <= 0) return { className: 'is-expired', label: days === 0 ? 'Vence hoy' : `Vencido hace ${Math.abs(days)} día${Math.abs(days) === 1 ? '' : 's'}` };
+          if (days <= 30) return { className: 'is-one-month', label: days === 1 ? 'Vence mañana' : `Faltan ${days} días` };
+          if (days <= 60) return { className: 'is-two-months', label: `Faltan ${days} días` };
+          return { className: 'is-three-months', label: `Faltan ${days} días` };
+        }
+
+        function editUrl(item) {
+          const productId = recordIdPattern.test(String(item?.product_id || '')) ? String(item.product_id) : '';
+          if (!productId) return productsPath;
+          const affected = Array.isArray(item?.affected_variations) ? item.affected_variations : [];
+          const firstVariation = affected.find((variation) => recordIdPattern.test(String(variation?.id || '')))?.id || '';
+          const variationId = productId === contextProduct && contextVariation ? contextVariation : firstVariation;
+          const url = new URL(productsPath, window.location.origin);
+          url.searchParams.set('product', productId);
+          if (recordIdPattern.test(String(variationId || ''))) url.searchParams.set('variation', String(variationId));
+          return `${url.pathname}${url.search}`;
+        }
+
+        function syncControls() {
+          root.querySelectorAll('[data-expiration-view]').forEach((button) => {
+            const active = button.getAttribute('data-expiration-view') === view;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+          root.querySelectorAll('[data-expiration-range]').forEach((button) => {
+            button.classList.toggle('is-active', Number(button.getAttribute('data-expiration-range')) === windowDays);
+          });
+          if (ranges) ranges.hidden = view === 'expired';
+        }
+
+        function syncUrl() {
+          const url = new URL(pagePath, window.location.origin);
+          url.searchParams.set('view', view);
+          if (view === 'upcoming') url.searchParams.set('range', String(windowDays));
+          if (page > 1) url.searchParams.set('page', String(page));
+          if (contextProduct) url.searchParams.set('product', contextProduct);
+          if (contextVariation) url.searchParams.set('variation', contextVariation);
+          window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+        }
+
+        function renderPagination(totalPages) {
+          const total = Math.max(1, Number(totalPages || 1));
+          if (total <= 1) {
+            pagination.innerHTML = '';
+            return;
+          }
+          const first = Math.max(1, Math.min(page - 2, total - 4));
+          const pages = Array.from({ length: Math.min(5, total) }, (_, index) => first + index).filter((value) => value <= total);
+          pagination.innerHTML = [
+            `<button class="expiration-page-button" type="button" data-expiration-page="${Math.max(1, page - 1)}" ${page <= 1 ? 'disabled' : ''}>Anterior</button>`,
+            ...pages.map((value) => `<button class="expiration-page-button ${value === page ? 'is-active' : ''}" type="button" data-expiration-page="${value}" aria-label="Página ${value}">${value}</button>`),
+            `<button class="expiration-page-button" type="button" data-expiration-page="${Math.min(total, page + 1)}" ${page >= total ? 'disabled' : ''}>Siguiente</button>`,
+          ].join('');
+        }
+
+        function render(result) {
+          const items = Array.isArray(result?.items) ? result.items : [];
+          const total = Math.max(0, Number(result?.total_items || 0));
+          const totalPages = Math.max(1, Number(result?.total_pages || 1));
+          page = Math.max(1, Math.min(totalPages, Number(result?.page || page)));
+          const viewLabel = view === 'expired' ? 'vencidos' : `próximos en ${windowDays} días`;
+          meta.textContent = `${total} producto${total === 1 ? '' : 's'} ${viewLabel}. Se muestran hasta 10 por página.`;
+          if (!items.length) {
+            list.innerHTML = `<p class="expiration-empty">No hay productos ${escapeHtml(viewLabel)}.</p>`;
+            renderPagination(totalPages);
+            syncUrl();
+            return;
+          }
+
+          list.innerHTML = items.map((item) => {
+            const status = statusFor(item);
+            const variations = Array.isArray(item?.affected_variations) ? item.affected_variations : [];
+            const isContext = contextProduct && String(item?.product_id || '') === contextProduct;
+            const mode = item?.mode === 'variations'
+              ? `${variations.length} variación${variations.length === 1 ? '' : 'es'} afectada${variations.length === 1 ? '' : 's'}`
+              : 'Producto general';
+            const variationsMarkup = variations.length
+              ? `<ul class="expiration-variations">${variations.map((variation) => `<li>${escapeHtml(variation?.name || 'Variación')} · ${escapeHtml(formatDate(variation?.expiration_date))} · ${escapeHtml(statusFor(variation).label)}</li>`).join('')}</ul>`
+              : '';
+            return `
+              <article class="expiration-row ${status.className}${isContext ? ' is-context' : ''}">
+                <div class="expiration-product"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${isContext ? 'Producto seleccionado desde el Resumen' : 'Registro privado de vencimiento'}</small>${variationsMarkup}</div>
+                <div class="expiration-mode"><span class="expiration-cell-label">Modalidad</span><span>${escapeHtml(mode)}</span></div>
+                <div class="expiration-date"><span class="expiration-cell-label">Fecha</span><span>${escapeHtml(formatDate(item?.expiration_date))}</span></div>
+                <div class="expiration-status"><span class="expiration-cell-label">Estado</span><span>${escapeHtml(status.label)}</span></div>
+                <a class="expiration-edit" href="${escapeHtml(editUrl(item))}">Editar producto</a>
+              </article>
+            `;
+          }).join('');
+          renderPagination(totalPages);
+          syncUrl();
+        }
+
+        async function load() {
+          if (loading) return;
+          loading = true;
+          meta.textContent = 'Cargando vencimientos privados...';
+          list.innerHTML = '<p class="expiration-empty">Cargando vencimientos privados...</p>';
+          pagination.innerHTML = '';
+          try {
+            const response = await fetch(`${baseUrl}/api/pz/admin/product-expirations`, {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              cache: 'no-store',
+              body: JSON.stringify({ view, window_days: windowDays, page }),
+            });
+            const result = await response.json().catch(() => null);
+            if (!response.ok || result?.ok !== true) throw new Error('expiration_query_failed');
+            render(result);
+          } catch (_) {
+            meta.textContent = 'No se pudo cargar el listado privado.';
+            list.innerHTML = '<p class="expiration-empty">Revisa tu sesión e inténtalo nuevamente.</p>';
+          } finally {
+            loading = false;
+          }
+        }
+
+        root.addEventListener('click', (event) => {
+          const target = event.target instanceof Element ? event.target : null;
+          const viewButton = target?.closest('[data-expiration-view]');
+          const rangeButton = target?.closest('[data-expiration-range]');
+          const pageButton = target?.closest('[data-expiration-page]');
+          if (viewButton) {
+            view = viewButton.getAttribute('data-expiration-view') === 'upcoming' ? 'upcoming' : 'expired';
+            page = 1;
+          } else if (rangeButton) {
+            const nextRange = Number(rangeButton.getAttribute('data-expiration-range'));
+            if (![30, 60, 90].includes(nextRange)) return;
+            windowDays = nextRange;
+            page = 1;
+          } else if (pageButton && !pageButton.hasAttribute('disabled')) {
+            page = Math.max(1, Number(pageButton.getAttribute('data-expiration-page') || 1));
+          } else return;
+          syncControls();
+          load();
+        });
+
+        syncControls();
+        load();
+      })();
+    </script>
+  </body>
+</html>

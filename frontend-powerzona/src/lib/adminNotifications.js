@@ -1,4 +1,21 @@
 const COLLECTION = 'store_notifications';
+const V7E9_RED_TYPES = Object.freeze([
+  'product_expiring_critical',
+  'variation_expiring_critical',
+  'product_expired',
+  'variation_expired',
+]);
+
+export function isV7E9RedNotification(value) {
+  const type = typeof value === 'string' ? value : value?.type;
+  return V7E9_RED_TYPES.includes(String(type || ''));
+}
+
+export function getNotificationVisualPriority(notification) {
+  if (isV7E9RedNotification(notification)) return 'critical';
+  const priority = String(notification?.priority || 'normal');
+  return ['normal', 'important', 'critical'].includes(priority) ? priority : 'normal';
+}
 
 function cleanBaseUrl(value) {
   return String(value || '').replace(/\/$/, '');
@@ -149,13 +166,18 @@ export async function loadUnreadNotificationPrioritySummary({ pb, storeId }) {
   try {
     const store = escapeFilterValue(storeId);
 
-    const [critical, important, unread] = await Promise.all([
+    const [critical, important, v7e9Red, unread] = await Promise.all([
       collectionList(pb, `store="${store}" && status="unread" && priority="critical"`, {
         page: 1,
         perPage: 1,
         fields: 'id',
       }),
       collectionList(pb, `store="${store}" && status="unread" && priority="important"`, {
+        page: 1,
+        perPage: 1,
+        fields: 'id',
+      }),
+      collectionList(pb, `store="${store}" && status="unread" && (type="product_expiring_critical" || type="variation_expiring_critical" || type="product_expired" || type="variation_expired")`, {
         page: 1,
         perPage: 1,
         fields: 'id',
@@ -170,15 +192,16 @@ export async function loadUnreadNotificationPrioritySummary({ pb, storeId }) {
     const count = Number(unread.totalItems || 0);
     let highestPriority = 'normal';
 
-    if (Number(critical.totalItems || 0) > 0) {
+    const hasV7E9Red = Number(v7e9Red.totalItems || 0) > 0;
+    if (Number(critical.totalItems || 0) > 0 || hasV7E9Red) {
       highestPriority = 'critical';
     } else if (Number(important.totalItems || 0) > 0) {
       highestPriority = 'important';
     }
 
-    return { count, highestPriority };
+    return { count, highestPriority, hasV7E9Red };
   } catch (error) {
-    return { count: 0, highestPriority: 'normal' };
+    return { count: 0, highestPriority: 'normal', hasV7E9Red: false };
   }
 }
 

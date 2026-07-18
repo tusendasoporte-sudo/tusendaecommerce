@@ -18,6 +18,7 @@ interface Props {
 
 const { data, storeMeta } = Astro.props;
 const { store, plan, usage, definitions, last_change: lastChange, history } = data;
+const expirationCleanup = data.expiration_cleanup;
 const headerStore = { ...store, featured: storeMeta.featured, security_label: storeMeta.securityLabel };
 const planPresentation = resolveStorePlanPresentation(plan, data.generated_at || new Date());
 
@@ -129,6 +130,10 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
   data-current-permanent={plan.plan_is_permanent ? 'true' : 'false'}
   data-current-expiration={plan.plan_expires_at}
   data-current-monthly-price={plan.monthly_price_usd}
+  data-expiration-products={expirationCleanup.products}
+  data-expiration-variations={expirationCleanup.variations}
+  data-expiration-notifications={expirationCleanup.notifications}
+  data-expiration-cycles={expirationCleanup.cycles}
 >
   <MasterStoreContextHeader store={headerStore} planPresentation={planPresentation} />
 
@@ -248,6 +253,14 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
       </fieldset>
       <div class="master-field" data-change-months-field><label for="master-plan-months">Duración</label><select id="master-plan-months" name="duration_months">{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option value={month}>{month} {month === 1 ? 'mes' : 'meses'}</option>)}</select></div>
       <div class="master-field"><label for="master-plan-reason">Motivo interno (opcional)</label><textarea id="master-plan-reason" name="reason" maxlength="500" placeholder="Contexto para la auditoría del cambio"></textarea></div>
+      <aside class="master-form-alert master-expiration-cleanup-warning" data-expiration-cleanup-warning role="alert" hidden>
+        <strong>Esta acción es irreversible.</strong>
+        <span data-expiration-cleanup-copy></span>
+        <label class="master-choice">
+          <input name="confirm_expiration_cleanup" type="checkbox" />
+          <span>Confirmo que se eliminen definitivamente las fechas, notificaciones y ciclos de vencimiento de esta tienda.</span>
+        </label>
+      </aside>
       <aside class="master-plan-form-summary" data-change-summary aria-live="polite"></aside>
       <p class="master-form-alert" data-plan-change-alert role="alert" hidden></p>
     </form>
@@ -286,6 +299,12 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
     const currentPlan = String(root.dataset.currentPlan || 'free') as MasterPlanCode;
     const currentExpiration = String(root.dataset.currentExpiration || '');
     const monthlyPrice = Math.max(0, Number(root.dataset.currentMonthlyPrice || 0));
+    const expirationCleanup = {
+      products: Math.max(0, Number(root.dataset.expirationProducts || 0)),
+      variations: Math.max(0, Number(root.dataset.expirationVariations || 0)),
+      notifications: Math.max(0, Number(root.dataset.expirationNotifications || 0)),
+      cycles: Math.max(0, Number(root.dataset.expirationCycles || 0)),
+    };
     const changeForm = root.querySelector<HTMLFormElement>('[data-plan-change-form]');
     const changePlan = changeForm?.querySelector<HTMLSelectElement>('[name="plan"]');
     const changeMonths = changeForm?.querySelector<HTMLSelectElement>('[name="duration_months"]');
@@ -295,6 +314,9 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
     const temporaryInput = changeForm?.querySelector<HTMLInputElement>('[name="validity"][value="temporary"]');
     const permanentChoice = changeForm?.querySelector<HTMLElement>('[data-permanent-choice]');
     const changeSummary = changeForm?.querySelector<HTMLElement>('[data-change-summary]');
+    const expirationCleanupWarning = changeForm?.querySelector<HTMLElement>('[data-expiration-cleanup-warning]');
+    const expirationCleanupCopy = changeForm?.querySelector<HTMLElement>('[data-expiration-cleanup-copy]');
+    const expirationCleanupConfirmation = changeForm?.querySelector<HTMLInputElement>('[name="confirm_expiration_cleanup"]');
     const renewForm = root.querySelector<HTMLFormElement>('[data-plan-renew-form]');
     const renewMonths = renewForm?.querySelector<HTMLSelectElement>('[name="months"]');
     const renewReason = renewForm?.querySelector<HTMLTextAreaElement>('[name="reason"]');
@@ -326,6 +348,10 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
       return permanentInput?.checked === true;
     }
 
+    function requiresExpirationCleanup(selected: MasterPlanCode) {
+      return currentPlan === 'premium' && selected !== 'premium';
+    }
+
     function updateChangeSummary() {
       if (!changePlan || !changeMonths || !changeSummary) return;
       const selected = changePlan.value as MasterPlanCode;
@@ -339,6 +365,12 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
       const months = Math.max(1, Number(changeMonths.value || 1));
       const expiration = isFree ? new Date(Date.now() + 30 * 86400000) : addMonthsClamped(new Date(), months);
       changeSummary.innerHTML = `<span>Nuevo plan</span><strong>${labels[selected]}</strong><span>Vigencia</span><strong>${permanent ? 'Permanente · sin vencimiento' : isFree ? `30 días · hasta ${formatDate(expiration)}` : `${months} ${months === 1 ? 'mes' : 'meses'} · hasta ${formatDate(expiration)}`}</strong>`;
+      const needsCleanup = requiresExpirationCleanup(selected);
+      if (expirationCleanupWarning) expirationCleanupWarning.hidden = !needsCleanup;
+      if (expirationCleanupCopy) {
+        expirationCleanupCopy.textContent = `Al bajar de Premium se eliminarán ${expirationCleanup.products} fecha${expirationCleanup.products === 1 ? '' : 's'} general${expirationCleanup.products === 1 ? '' : 'es'} de producto, ${expirationCleanup.variations} fecha${expirationCleanup.variations === 1 ? '' : 's'} de variación, ${expirationCleanup.notifications} notificación${expirationCleanup.notifications === 1 ? '' : 'es'} y ${expirationCleanup.cycles} ciclo${expirationCleanup.cycles === 1 ? '' : 's'} de alertas. Un upgrade posterior no restaurará estos datos.`;
+      }
+      if (!needsCleanup && expirationCleanupConfirmation) expirationCleanupConfirmation.checked = false;
     }
 
     function updateRenewSummary() {
@@ -380,11 +412,18 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
 
     root.querySelector<HTMLButtonElement>('[data-plan-change-save]')?.addEventListener('click', async (event) => {
       const button = event.currentTarget as HTMLButtonElement;
+      if (button.disabled) return;
       const alert = root.querySelector<HTMLElement>('[data-plan-change-alert]');
       if (!changePlan || !changeMonths || !changeReason) return;
-      button.disabled = true;
       setAlert(alert);
       const selected = changePlan.value as MasterPlanCode;
+      const needsCleanup = requiresExpirationCleanup(selected);
+      if (needsCleanup && expirationCleanupConfirmation?.checked !== true) {
+        setAlert(alert, 'Confirma la eliminación irreversible de fechas y alertas de vencimiento.');
+        expirationCleanupConfirmation?.focus();
+        return;
+      }
+      button.disabled = true;
       const permanent = selectedPermanent();
       const result = await changeMasterStorePlan(import.meta.env.PUBLIC_POCKETBASE_URL, pb.authStore.token, {
         store_id: storeId,
@@ -392,6 +431,7 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
         is_permanent: permanent,
         duration_months: permanent || selected === 'free' ? 0 : Number(changeMonths.value),
         reason: changeReason.value.trim(),
+        confirm_expiration_cleanup: needsCleanup && expirationCleanupConfirmation?.checked === true,
       });
       if (result.available) window.location.reload();
       else {
@@ -402,6 +442,7 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
 
     root.querySelector<HTMLButtonElement>('[data-plan-renew-save]')?.addEventListener('click', async (event) => {
       const button = event.currentTarget as HTMLButtonElement;
+      if (button.disabled) return;
       const alert = root.querySelector<HTMLElement>('[data-plan-renew-alert]');
       if (!renewMonths || !renewReason) return;
       button.disabled = true;

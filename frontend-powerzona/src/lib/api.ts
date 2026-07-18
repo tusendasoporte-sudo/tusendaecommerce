@@ -1,6 +1,7 @@
 import { pb, getPocketBaseFileUrl } from './pocketbase';
 import { getCurrentStore } from './stores';
 import { getPublicProductImageNames } from './productImageLimits';
+import { filterPublicCatalogByExpiration, isPublicProductAllowedByExpiration } from './productExpiration';
 
 type StoreQueryOptions = {
   storeId?: string;
@@ -34,6 +35,11 @@ async function resolveStoreId(options?: StoreQueryInput) {
   if (typeof options === 'string') return options;
   if (options?.storeId) return options.storeId;
   return (await getCurrentStore()).id;
+}
+
+async function resolveStore(options?: StoreQueryInput) {
+  if (typeof options === 'object' && options?.store) return options.store;
+  return getCurrentStore();
 }
 
 async function storeFilter(baseFilter: string, options?: StoreQueryInput) {
@@ -239,18 +245,21 @@ function addVariationPriceSummary(products: any[], variations: any[]) {
   });
 }
 
-async function attachVariationPriceSummary(products: any[]) {
-  const productIds = products
+async function attachVariationPriceSummary(products: any[], options?: StoreQueryInput) {
+  const store = await resolveStore(options);
+  const generalFiltered = filterPublicCatalogByExpiration(products, [], store).products;
+  const productIds = generalFiltered
     .filter((product) => product?.has_variations && product?.id)
     .map((product) => product.id);
-  if (!productIds.length) return products;
+  if (!productIds.length) return generalFiltered;
 
   const variations = await pb.collection('product_variations').getFullList({
     filter: productIds.map((id) => `product="${escapePocketBaseValue(id)}"`).join(' || '),
     sort: 'sort_order,variation_type,value',
   });
 
-  return addVariationPriceSummary(products, variations);
+  const filtered = filterPublicCatalogByExpiration(generalFiltered, variations, store);
+  return addVariationPriceSummary(filtered.products, filtered.variations);
 }
 
 export async function getProducts(options?: StoreQueryInput) {
@@ -262,7 +271,7 @@ export async function getProducts(options?: StoreQueryInput) {
 
   return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map((product) => addProductImages(product, options)));
+    .map((product) => addProductImages(product, options)), options);
 }
 
 export async function getFeaturedProducts(options?: StoreQueryInput) {
@@ -274,7 +283,7 @@ export async function getFeaturedProducts(options?: StoreQueryInput) {
 
   return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map((product) => addProductImages(product, options)));
+    .map((product) => addProductImages(product, options)), options);
 }
 
 function addVisualItemFiles(item: any) {
@@ -584,10 +593,21 @@ export async function getProductBySlug(slug: string, options?: StoreQueryInput) 
     throw new Error('Producto no disponible en el catálogo público.');
   }
 
+  const store = await resolveStore(options);
+  const variations = product.has_variations === true
+    ? await pb.collection('product_variations').getFullList({
+      filter: `product="${escapePocketBaseValue(product.id)}" && active=true`,
+      sort: 'sort_order,variation_type,value',
+    })
+    : [];
+  if (!isPublicProductAllowedByExpiration(product, variations, store)) {
+    throw new Error('Producto no disponible en el catálogo público.');
+  }
+
   return addProductImages(product, options);
 }
 
-export async function getProductVariations(productId: string) {
+export async function getProductVariations(productId: string, options?: StoreQueryInput) {
   if (!productId) return [];
 
   const filter = `product="${productId}" && active=true`;
@@ -596,7 +616,9 @@ export async function getProductVariations(productId: string) {
     sort: 'sort_order,variation_type,value',
   });
 
-  return variations.map(addVariationImages);
+  const store = await resolveStore(options);
+  const placeholderProduct = { id: productId, has_variations: true, track_stock: false };
+  return filterPublicCatalogByExpiration([placeholderProduct], variations, store).variations.map(addVariationImages);
 }
 
 export async function getShippingZones(options?: StoreQueryInput) {

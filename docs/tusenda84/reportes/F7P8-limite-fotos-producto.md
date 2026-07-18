@@ -1,6 +1,8 @@
 # REPORTE FINAL — PROMPT ID: F7P8
 
-Estado: EN REVISIÓN — pendiente de confirmación explícita de Kraken
+Estado: COMPLETADO
+
+Cierre confirmado el 17 de julio de 2026 por Kraken. Referencia de continuidad: cierre registrado en la bitácora v30, con Source V104.
 
 ## 1. Fecha
 
@@ -243,10 +245,10 @@ Confirmado: no se hizo commit, push, merge, deploy, `git add`, cambio de Coolify
 - Upgrade: confirmar cuatro fotos públicas/editables en el orden anterior, sin re-subir ni limpiar caché manualmente.
 - Comprobar teclado en dropzone, estado visual dragenter/over/leave/drop, swipe/puntos/flechas y ausencia de scroll horizontal.
 
-## 42. Estado técnico para revisión
+## 42. Estado técnico confirmado
 
-Backend real, frontend, SSR público, pruebas focalizadas, runtime F7P8, suites completas, build, source maps y limpieza están verificados. La revisión visual PC/móvil queda pendiente y por ello este documento no declara el punto como completado.
+Backend real, frontend, SSR público, pruebas focalizadas, runtime F7P8, suites completas, build, source maps y limpieza quedaron verificados en la entrega. Kraken confirmó explícitamente el cierre el 17 de julio de 2026; la referencia del cierre está registrada en la bitácora v30 y la continuidad parte de Source V104.
 
 ## 43. Cierre controlado
 
-F7P8 queda **EN REVISIÓN — pendiente de confirmación explícita de Kraken**. Solo Kraken debe cambiar el estado después de repetir las pruebas manuales y confirmar expresamente el cierre.
+F7P8 queda **COMPLETADO**, confirmado explícitamente por Kraken el 17 de julio de 2026. Referencia: bitácora v30. Source de continuidad: V104.
