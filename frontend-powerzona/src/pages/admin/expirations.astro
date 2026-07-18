@@ -5,6 +5,7 @@ import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import { PRODUCT_EXPIRATION_BOTTLE_ICON_SVG } from '../../components/admin/productExpirationBottleIcon.js';
 import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import '../../styles/global.css';
 
@@ -20,6 +21,7 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
 const expirationToolsEnabled = expirationToolsAccess.allowed === true;
+const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 const requestedView = Astro.url.searchParams.get('view') === 'upcoming' ? 'upcoming' : 'expired';
 const requestedRangeValue = Number(Astro.url.searchParams.get('range') || 30);
 const requestedRange = [30, 60, 90].includes(requestedRangeValue) ? requestedRangeValue : 30;
@@ -74,12 +76,11 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       .expiration-page-main { min-width: 0; padding-bottom: 104px; }
       .expiration-workspace { display: grid; min-width: 0; gap: 16px; }
       .expiration-toolbar {
-        display: flex;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
         min-width: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: 14px;
-        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 12px;
         border: 1px solid var(--expiration-border);
         border-radius: 22px;
         background: rgba(255,255,255,.94);
@@ -87,7 +88,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         box-shadow: 0 16px 42px rgba(15, 23, 42, .07);
       }
       .expiration-tabs,
-      .expiration-ranges { display: flex; min-width: 0; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .expiration-ranges { display: flex; min-width: 0; align-items: center; gap: 8px; flex-wrap: nowrap; }
       .expiration-filter {
         min-height: 40px;
         border: 1px solid var(--expiration-border);
@@ -232,23 +233,33 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         box-shadow: 0 10px 28px rgba(15, 23, 42, .05);
       }
       .expiration-toolbar {
-        align-items: flex-end;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
         border: 0;
         border-radius: 0;
         background: #fff;
         padding: 16px 18px;
         box-shadow: none;
       }
-      .expiration-controls { display: grid; gap: 10px; min-width: 0; }
-      .expiration-filter { min-height: 38px; box-shadow: none; }
+      .expiration-controls {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: nowrap;
+      }
+      .expiration-filter { min-height: 40px; box-shadow: none; }
       .expiration-filter.is-active { box-shadow: none; }
       .expiration-filter[aria-pressed="true"] { border-color: #0f172a; background: #0f172a; color: #fff; }
       .expiration-search {
         display: flex;
-        width: min(430px, 100%);
+        width: min(520px, 100%);
         min-width: min(320px, 100%);
         align-items: center;
         gap: 7px;
+        padding-top: 12px;
+        border-top: 1px solid #eef2f7;
       }
       .expiration-search-label {
         position: absolute;
@@ -307,6 +318,10 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         background: #fff;
       }
       .expiration-row.is-context { background: #eff6ff; box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .2); }
+      .expiration-row.is-expiration-critical {
+        border-color: #ef4444;
+        background: #fff7f7;
+      }
       .expiration-product {
         display: flex;
         min-width: 0;
@@ -315,17 +330,18 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       }
       .expiration-product-icon {
         display: inline-flex;
-        width: 38px;
-        height: 38px;
-        flex: 0 0 38px;
+        width: 48px;
+        height: 48px;
+        flex: 0 0 48px;
         align-items: center;
         justify-content: center;
         border: 1px solid #dbeafe;
-        border-radius: 11px;
+        border-radius: 13px;
         background: #eff6ff;
         color: #2563eb;
+        overflow: hidden;
       }
-      .expiration-product-icon svg { width: 20px; height: 20px; }
+      .expiration-product-icon svg { width: 24px; height: 24px; max-width: 24px; max-height: 24px; flex: 0 0 24px; }
       .expiration-product-copy { min-width: 0; }
       .expiration-product small { margin-top: 3px; overflow-wrap: anywhere; }
       .expiration-date { white-space: nowrap; }
@@ -339,7 +355,21 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       @media (max-width: 820px) {
         .expiration-workspace { overflow: hidden; border-radius: 18px; }
         .expiration-toolbar { padding: 14px; }
-        .expiration-controls,
+        .expiration-controls {
+          display: grid;
+          width: 100%;
+          min-width: 0;
+          gap: 8px;
+        }
+        .expiration-tabs,
+        .expiration-ranges {
+          display: grid;
+          width: 100%;
+          gap: 8px;
+        }
+        .expiration-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .expiration-ranges { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .expiration-filter { width: 100%; min-height: 44px; padding-inline: 8px; }
         .expiration-search { width: 100%; min-width: 0; }
         .expiration-list-card { overflow: hidden; border-top: 1px solid var(--expiration-border); background: #fff; }
         .expiration-list-meta { margin: 0; border: 0; border-bottom: 1px solid var(--expiration-border); border-radius: 0; }
@@ -347,6 +377,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         .expiration-row,
         .expiration-row:last-child { margin: 0 0 8px; border: 1px solid #e2e8f0; border-radius: 15px; box-shadow: none; }
         .expiration-row.is-expired { border-color: #ef4444; }
+        .expiration-row.is-expiration-critical { border-color: #ef4444; background: #fff7f7; }
         .expiration-product { grid-column: 1 / -1; }
         .expiration-pagination { margin: 0; border: 0; border-top: 1px solid var(--expiration-border); border-radius: 0; }
       }
@@ -426,7 +457,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, expirationToolsEnabled, requestedView, requestedRange, requestedPage, requestedQuery, requestedProduct, requestedVariation }}>
+    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, expirationToolsEnabled, requestedView, requestedRange, requestedPage, requestedQuery, requestedProduct, requestedVariation, productExpirationBottleIconSvg }}>
       (() => {
         if (expirationToolsEnabled !== true) return;
         const root = document.querySelector('[data-expiration-page-root]');
@@ -450,6 +481,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         }
         const productsPath = String(adminProductsPath || '/admin/products');
         const pagePath = String(adminExpirationsPath || '/admin/expirations');
+        const PRODUCT_EXPIRATION_BOTTLE_ICON_SVG = String(productExpirationBottleIconSvg || '');
         const recordIdPattern = /^[a-z0-9]{15}$/;
         const contextProduct = recordIdPattern.test(String(requestedProduct || '')) ? String(requestedProduct) : '';
         const contextVariation = recordIdPattern.test(String(requestedVariation || '')) ? String(requestedVariation) : '';
@@ -471,10 +503,10 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 
         function statusFor(item) {
           const days = Number(item?.days_left || 0);
-          if (days <= 0) return { className: 'is-expired', label: 'Vencido' };
-          if (days <= 30) return { className: 'is-one-month', label: days === 1 ? 'Vence mañana' : `Faltan ${days} días` };
-          if (days <= 60) return { className: 'is-two-months', label: `Faltan ${days} días` };
-          return { className: 'is-three-months', label: `Faltan ${days} días` };
+          if (days <= 0) return { className: 'is-expired', rowClassName: 'is-expiration-critical', label: 'Vencido' };
+          if (days <= 30) return { className: 'is-one-month', rowClassName: 'is-expiration-critical', label: days === 1 ? 'Vence mañana' : `Faltan ${days} días` };
+          if (days <= 60) return { className: 'is-two-months', rowClassName: '', label: `Faltan ${days} días` };
+          return { className: 'is-three-months', rowClassName: '', label: `Faltan ${days} días` };
         }
 
         function editUrl(item) {
@@ -558,8 +590,8 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
             const mode = item?.mode === 'variations' ? 'Por variación' : 'General';
             const dateLabel = status.className === 'is-expired' ? 'Venció' : 'Vence';
             return `
-              <article class="expiration-row ${status.className}${isContext ? ' is-context' : ''}">
-                <div class="expiration-product"><span class="expiration-product-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7.5 12 4l7 3.5v9L12 20l-7-3.5v-9Z" stroke="currentColor" stroke-width="1.7"/><path d="m5.5 7.7 6.5 3.2 6.5-3.2M12 11v8.4" stroke="currentColor" stroke-width="1.7"/></svg></span><div class="expiration-product-copy"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${escapeHtml(productSubtitle)}</small></div></div>
+              <article class="expiration-row ${status.className} ${status.rowClassName}${isContext ? ' is-context' : ''}">
+                <div class="expiration-product"><span class="expiration-product-icon" aria-hidden="true">${PRODUCT_EXPIRATION_BOTTLE_ICON_SVG}</span><div class="expiration-product-copy"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${escapeHtml(productSubtitle)}</small></div></div>
                 <div class="expiration-mode"><span class="expiration-cell-label">Modalidad</span><span>${escapeHtml(mode)}</span></div>
                 <div class="expiration-date"><span class="expiration-cell-label">Fecha</span><span>${dateLabel}: ${escapeHtml(formatDate(item?.expiration_date))}</span></div>
                 <div class="expiration-status-cell"><span class="expiration-cell-label">Estado</span><span class="expiration-status">${status.className === 'is-expired' ? '<span aria-hidden="true">!</span>' : ''}${escapeHtml(status.label)}</span></div>

@@ -329,3 +329,23 @@ El endpoint privado existente admite únicamente page_size 5/10 y query normaliz
 Las pruebas focales, suites completas y build finalizaron sin fallos. La revisión visual real no se declara porque la herramienta del navegador integrado no estuvo disponible en esta sesión y queda pendiente para Kraken. El detalle técnico y la evidencia de limpieza están en docs/tusenda84/reportes/V7E9-C2-pulido-visual-vencimientos.md.
 
 Estado: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**
+
+## 29. Addendum privado V7E9-C3 — 18 de julio de 2026
+
+Se aplicó V7E9-C3 exclusivamente al bloque **Admin de tienda → Resumen → Vencimiento de productos**. La causa del icono gigante era la combinación de filas creadas mediante `innerHTML` con reglas ubicadas en un `<style>` acotado por Astro: los nodos dinámicos no recibían el atributo de alcance, el SVG quedaba sin las dimensiones previstas y usaba su tamaño intrínseco.
+
+El listado dinámico dispone ahora de reglas globales limitadas por `#expiration-products-list`, filas Premium compactas, borde rojo completo para vencidos y adaptación móvil sin ancho rígido. El placeholder predeterminado es un frasco de suplementos en un contenedor fijo de 48 × 48 px; el SVG mide 24 × 24 px tanto por atributos como por CSS. El endpoint no expone categoría o subcategoría, por lo que no se añadió clasificación por texto libre ni se amplió el backend.
+
+La página independiente de vencimientos no se modificó. La prueba focal terminó 14/14, la suite frontend completa 152/152 y el build SSR finalizó correctamente. El navegador integrado no logró abrir una pestaña, por lo que la comprobación visual pixel a pixel continúa pendiente de Kraken. `dist`, `.astro`, source maps y procesos temporales quedaron en cero. El detalle técnico se registra en `docs/tusenda84/reportes/V7E9-C3-icono-resumen-vencimientos.md`.
+
+Estado: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**
+
+## 30. Addendum privado V7E9-C4 — 18 de julio de 2026
+
+Se aplicó V7E9-C4 exclusivamente al pulido de controles e iconografía del módulo de vencimientos. En el Resumen, Próximos/Vencidos y 30/60/90 comparten ahora una sola línea de escritorio; **Ver todos los vencimientos →** quedó en una segunda fila alineada a la derecha antes del listado. En móvil, los dos grupos se distribuyen en cuadrículas separadas de dos y tres botones, sin scroll horizontal.
+
+La página independiente usa la misma jerarquía: Vencidos/Próximos a vencer y 1/2/3 meses comparten la línea principal en PC, pasan a dos filas equilibradas en móvil y el buscador permanece en una segunda zona separada. La lógica que oculta los meses al seleccionar Vencidos no cambió.
+
+Ambos renderizadores dinámicos consumen `src/components/admin/productExpirationBottleIcon.js`, única fuente del SVG de frasco. Ya no existe un SVG de producto duplicado ni se usa el cubo anterior. La prueba focal terminó 15/15, la suite frontend completa 153/153 y el build SSR finalizó correctamente. La conexión del navegador integrado falló antes de abrir una pestaña, por lo que la revisión visual real permanece pendiente de Kraken. El detalle técnico se registra en `docs/tusenda84/reportes/V7E9-C4-alineacion-controles-icono-compartido.md`.
+
+Estado: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**
