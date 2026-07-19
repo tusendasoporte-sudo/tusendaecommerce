@@ -229,6 +229,30 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .add-product-header .section-title { margin: 0; }
       .add-product-panel { margin-top: 14px; padding: 14px; border: 1px solid rgba(226,232,240,.92); border-radius: 22px; background: linear-gradient(145deg,#ffffff 0%,#f8fafc 100%); box-shadow: 0 12px 26px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.95); }
       .add-product-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+      .canonical-price-display { min-height: 42px; display: flex; align-items: center; padding: 10px 12px; border-radius: 14px; background: #f1f5f9; border: 1px solid #e2e8f0; color: #0f172a; font-size: 14px; font-weight: 1000; }
+      .price-adjustment-modal { position: fixed; inset: 0; z-index: 10080; display: grid; place-items: center; padding: 20px; background: rgba(15,23,42,.62); backdrop-filter: blur(8px); }
+      .price-adjustment-modal.hidden { display: none; }
+      .price-adjustment-card { width: min(620px, 100%); max-height: min(94vh, 840px); overflow: auto; border: 1px solid rgba(226,232,240,.95); border-radius: 28px; padding: 22px; background: #fff; box-shadow: 0 28px 90px rgba(15,23,42,.3); outline: none; }
+      .price-adjustment-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+      .price-adjustment-heading h2 { margin: 3px 0 4px; color: #0f172a; font-size: 24px; line-height: 1.15; font-weight: 1000; }
+      .price-adjustment-heading p { margin: 0; color: #64748b; font-size: 13px; font-weight: 850; }
+      .price-adjustment-kicker { color: #2563eb; font-size: 11px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+      .price-adjustment-close { width: 40px; height: 40px; flex: 0 0 40px; border: 0; border-radius: 13px; background: #f1f5f9; color: #334155; font-size: 24px; font-weight: 800; cursor: pointer; }
+      .price-adjustment-baseline { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 16px; padding: 13px 14px; border-radius: 16px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 13px; font-weight: 900; }
+      .price-adjustment-baseline strong { white-space: nowrap; font-size: 15px; font-weight: 1000; }
+      .price-adjustment-warning { margin-top: 14px; padding: 12px 14px; border-radius: 16px; border: 1px solid #fed7aa; background: #fff7ed; color: #9a3412; font-size: 13px; line-height: 1.4; font-weight: 900; }
+      .price-adjustment-state-warning { margin: 0 0 14px; padding: 12px 14px; border-radius: 16px; border: 1px solid #fbbf24; background: #fffbeb; color: #854d0e; font-size: 13px; line-height: 1.4; font-weight: 900; }
+      .price-adjustment-reset-summary { display: grid; gap: 1px; margin-bottom: 16px; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 18px; background: #cbd5e1; }
+      .price-adjustment-reset-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; background: #f8fafc; color: #334155; font-size: 13px; font-weight: 850; }
+      .price-adjustment-reset-row strong { color: #0f172a; text-align: right; font-size: 14px; font-weight: 1000; }
+      .price-adjustment-reset-row:last-child { background: #eff6ff; color: #1e3a8a; }
+      .price-adjustment-field-error { margin: 6px 0 0; color: #b91c1c; font-size: 12px; line-height: 1.35; font-weight: 900; }
+      .price-adjustment-zero { margin-top: 12px; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 16px; border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; font-size: 13px; line-height: 1.35; font-weight: 900; }
+      .price-adjustment-zero.hidden { display: none; }
+      .price-adjustment-zero input { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 1px; }
+      .price-adjustment-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; margin-top: 18px; }
+      .price-adjustment-actions .btn { padding-inline: 14px; }
+      .price-adjustment-actions-spacer { flex: 1 1 0; min-width: 0; }
       .empty-state { padding: 36px 18px; text-align: center; color: var(--muted); font-weight: 800; }
       .section-title { margin: 22px 0 10px; font-size: 16px; font-weight: 950; }
       .quick-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
@@ -237,7 +261,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       .danger-zone p { margin: 0 0 10px; color: #991b1b; font-size: 13px; font-weight: 800; line-height: 1.45; }
       @media (max-width: 1300px) { .stats-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
       @media (max-width: 1100px) { .toolbar, .admin-grid { grid-template-columns: 1fr; } .detail-panel { position: static; } }
-      @media (max-width: 720px) { .topbar { flex-direction: column; } .toolbar, .info-grid, .form-grid.two, .quick-actions, .product-edit-grid, .add-product-actions { grid-template-columns: 1fr; } .order-row { flex-direction: column; align-items: stretch; } .order-right { align-items: flex-start; min-width: 0; } .order-status-big { min-width: 0; width: fit-content; } .total-text { text-align: left; } .item-row { grid-template-columns: 1fr; gap: 10px; padding: 18px; } .item-main { padding-left: 4px; } .item-price { text-align: left; padding-left: 4px; } .order-product-card { grid-template-columns: 58px minmax(0,1fr); padding: 12px; } .order-product-img, .order-product-placeholder { width: 58px; height: 58px; border-radius: 16px; } .order-product-head { flex-direction: column; } .order-product-total { text-align: left; } }
+      @media (max-width: 720px) { .topbar { flex-direction: column; } .toolbar, .info-grid, .form-grid.two, .quick-actions, .product-edit-grid, .add-product-actions { grid-template-columns: 1fr; } .order-row { flex-direction: column; align-items: stretch; } .order-right { align-items: flex-start; min-width: 0; } .order-status-big { min-width: 0; width: fit-content; } .total-text { text-align: left; } .item-row { grid-template-columns: 1fr; gap: 10px; padding: 18px; } .item-main { padding-left: 4px; } .item-price { text-align: left; padding-left: 4px; } .order-product-card { grid-template-columns: 58px minmax(0,1fr); padding: 12px; } .order-product-img, .order-product-placeholder { width: 58px; height: 58px; border-radius: 16px; } .order-product-head { flex-direction: column; } .order-product-total { text-align: left; } .price-adjustment-modal { align-items: end; padding: 10px; } .price-adjustment-card { max-height: 94vh; border-radius: 24px 24px 18px 18px; padding: 18px 15px; } .price-adjustment-actions { display: grid; grid-template-columns: 1fr; } .price-adjustment-actions-spacer { display: none; } .price-adjustment-actions .btn { width: 100%; } }
 
       .cleanup-selection-bar { padding: 14px 16px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border: 1px solid rgba(248,113,113,.28); background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(254,242,242,.92)); }
       .cleanup-selection-copy { min-width: 240px; }
@@ -1024,7 +1048,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
                     </div>
                     <div class="form-grid two">
                       <div><label for="add-product-quantity">Cantidad</label><input id="add-product-quantity" type="number" min="1" step="1" value="1" /></div>
-                      <div><label for="add-product-price">Precio unitario USD</label><input id="add-product-price" type="number" min="0" step="0.01" value="0.00" /></div>
+                      <div><label>Precio canónico vigente</label><div id="add-product-price-display" class="canonical-price-display">$0.00 USD</div></div>
                     </div>
                     <div class="add-product-actions">
                       <button id="add-product-btn" class="btn btn-primary" type="button" style="width:100%;">Agregar a la orden</button>
@@ -1106,6 +1130,65 @@ const isOrderDetailPage = Boolean(initialOrderId);
         </div>
       </div>
 
+      <div id="price-adjustment-modal" class="price-adjustment-modal hidden" role="dialog" aria-modal="true" aria-labelledby="price-adjustment-title" aria-hidden="true">
+        <div class="price-adjustment-card" tabindex="-1">
+          <div class="price-adjustment-heading">
+            <div>
+              <span class="price-adjustment-kicker">Acuerdo económico manual</span>
+              <h2 id="price-adjustment-title">Ajustar precio</h2>
+              <p id="price-adjustment-product"></p>
+            </div>
+            <button id="price-adjustment-close" class="price-adjustment-close" type="button" aria-label="Cerrar">×</button>
+          </div>
+          <div id="price-adjustment-baseline" class="price-adjustment-baseline">
+            <span>Precio después de promoción/cupón</span>
+            <strong id="price-adjustment-automatic-price">$0.00 USD</strong>
+          </div>
+          <div id="price-adjustment-reset-summary" class="price-adjustment-reset-summary hidden" aria-live="polite">
+            <div class="price-adjustment-reset-row"><span>Precio final actual</span><strong id="price-adjustment-reset-current">$0.00 USD</strong></div>
+            <div class="price-adjustment-reset-row"><span>Precio automático del sistema</span><strong id="price-adjustment-reset-automatic">$0.00 USD</strong></div>
+            <div class="price-adjustment-reset-row"><span>Diferencia que se retirará</span><strong id="price-adjustment-reset-difference">$0.00 USD</strong></div>
+          </div>
+          <div id="price-adjustment-state-warning" class="price-adjustment-state-warning hidden" role="status"></div>
+          <div class="form-grid">
+            <div id="price-adjustment-final-wrap">
+              <label for="price-adjustment-final-price">Precio unitario final USD</label>
+              <input id="price-adjustment-final-price" type="number" min="0" max="1000000" step="0.01" inputmode="decimal" />
+            </div>
+            <div>
+              <label for="price-adjustment-reason">Motivo obligatorio</label>
+              <select id="price-adjustment-reason">
+                <option value="">Selecciona un motivo</option>
+                <option value="customer_agreement">Acuerdo con el cliente</option>
+                <option value="price_correction">Corrección de precio</option>
+                <option value="special_discount">Descuento especial</option>
+                <option value="shipping_service">Servicio o envío</option>
+                <option value="inconvenience">Compensación por inconveniente</option>
+                <option value="other">Otro</option>
+              </select>
+              <p id="price-adjustment-reason-error" class="price-adjustment-field-error hidden"></p>
+            </div>
+            <div>
+              <label for="price-adjustment-reason-text">Detalle interno</label>
+              <textarea id="price-adjustment-reason-text" maxlength="500" placeholder="Obligatorio para ‘Otro’ (mínimo 5 caracteres). Máximo 500."></textarea>
+              <p id="price-adjustment-reason-text-error" class="price-adjustment-field-error hidden"></p>
+            </div>
+          </div>
+          <div id="price-adjustment-warning" class="price-adjustment-warning hidden" role="status"></div>
+          <label id="price-adjustment-zero-wrap" class="price-adjustment-zero hidden">
+            <input id="price-adjustment-zero-confirm" type="checkbox" />
+            Confirmo que esta línea quedará con precio final $0.00 USD.
+          </label>
+          <div id="price-adjustment-alert" class="alert hidden"></div>
+          <div class="price-adjustment-actions">
+            <button id="price-adjustment-reset" class="btn btn-secondary hidden" type="button">Restablecer precio del sistema</button>
+            <span class="price-adjustment-actions-spacer"></span>
+            <button id="price-adjustment-cancel" class="btn btn-secondary" type="button">Cancelar</button>
+            <button id="price-adjustment-submit" class="btn btn-primary" type="button">Guardar ajuste</button>
+          </div>
+        </div>
+      </div>
+
       {isOrderDetailPage && (
         <button id="floating-delete-order-btn" class="btn btn-danger detail-floating-delete hidden" type="button">
           Eliminar pedido
@@ -1175,8 +1258,33 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const addProductVariationWrap = document.getElementById('add-product-variation-wrap');
       const addProductVariationSelect = document.getElementById('add-product-variation-select');
       const addProductQuantity = document.getElementById('add-product-quantity');
-      const addProductPrice = document.getElementById('add-product-price');
+      const addProductPriceDisplay = document.getElementById('add-product-price-display');
       const addProductBtn = document.getElementById('add-product-btn');
+      const priceAdjustmentModal = document.getElementById('price-adjustment-modal');
+      const priceAdjustmentCard = priceAdjustmentModal?.querySelector('.price-adjustment-card');
+      const priceAdjustmentClose = document.getElementById('price-adjustment-close');
+      const priceAdjustmentCancel = document.getElementById('price-adjustment-cancel');
+      const priceAdjustmentSubmit = document.getElementById('price-adjustment-submit');
+      const priceAdjustmentReset = document.getElementById('price-adjustment-reset');
+      const priceAdjustmentTitle = document.getElementById('price-adjustment-title');
+      const priceAdjustmentProduct = document.getElementById('price-adjustment-product');
+      const priceAdjustmentBaseline = document.getElementById('price-adjustment-baseline');
+      const priceAdjustmentAutomaticPrice = document.getElementById('price-adjustment-automatic-price');
+      const priceAdjustmentResetSummary = document.getElementById('price-adjustment-reset-summary');
+      const priceAdjustmentResetCurrent = document.getElementById('price-adjustment-reset-current');
+      const priceAdjustmentResetAutomatic = document.getElementById('price-adjustment-reset-automatic');
+      const priceAdjustmentResetDifference = document.getElementById('price-adjustment-reset-difference');
+      const priceAdjustmentStateWarning = document.getElementById('price-adjustment-state-warning');
+      const priceAdjustmentFinalWrap = document.getElementById('price-adjustment-final-wrap');
+      const priceAdjustmentFinalPrice = document.getElementById('price-adjustment-final-price');
+      const priceAdjustmentReason = document.getElementById('price-adjustment-reason');
+      const priceAdjustmentReasonText = document.getElementById('price-adjustment-reason-text');
+      const priceAdjustmentReasonError = document.getElementById('price-adjustment-reason-error');
+      const priceAdjustmentReasonTextError = document.getElementById('price-adjustment-reason-text-error');
+      const priceAdjustmentWarning = document.getElementById('price-adjustment-warning');
+      const priceAdjustmentZeroWrap = document.getElementById('price-adjustment-zero-wrap');
+      const priceAdjustmentZeroConfirm = document.getElementById('price-adjustment-zero-confirm');
+      const priceAdjustmentAlert = document.getElementById('price-adjustment-alert');
       const toggleEditOrderBtn = document.getElementById('toggle-edit-order-btn');
       const editOrderPanel = document.getElementById('edit-order-panel');
       const closeEditOrderBtn = document.getElementById('close-edit-order-btn');
@@ -1217,6 +1325,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
       let productVariations = [];
       let shippingZones = [];
       let selectedAddProduct = null;
+      let adjustmentItem = null;
+      let adjustmentPreviousFocus = null;
+      let priceAdjustmentMode = 'adjust';
       const itemSaveTimers = new Map();
       let orderAutoSaveTimer = null;
       let orderAutoSaveRunning = false;
@@ -1227,11 +1338,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const cleanupOrdersOpenBtnOriginalHtml = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.innerHTML : '';
       const cleanupOrdersOpenBtnOriginalClass = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.className : '';
 
-      const statusLabels = { pending: 'Pendiente', confirmed: 'Confirmada', delivered: 'Entregada', cancelled: 'Cancelada' };
+      const statusLabels = { pending: 'Pendiente', confirmed: 'Confirmada', preparing: 'Preparando', delivered: 'Entregada', cancelled: 'Cancelada' };
       const statusAliases = {
         pending: 'pending', pendiente: 'pending',
         confirmed: 'confirmed', confirmada: 'confirmed', confirmado: 'confirmed',
-        preparing: 'pending', preparando: 'pending',
+        preparing: 'preparing', preparando: 'preparing',
         delivered: 'delivered', entregada: 'delivered', entregado: 'delivered',
         cancelled: 'cancelled', canceled: 'cancelled', cancelada: 'cancelled', cancelado: 'cancelled'
       };
@@ -2016,7 +2127,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         selectedAddProduct = null;
         if (addProductSearch) addProductSearch.value = '';
         if (addProductSelectedId) addProductSelectedId.value = '';
-        if (addProductPrice) addProductPrice.value = '0.00';
+        if (addProductPriceDisplay) addProductPriceDisplay.textContent = formatUSD(0);
         if (addProductQuantity) addProductQuantity.value = '1';
         if (addProductVariationWrap) addProductVariationWrap.classList.add('hidden');
         if (addProductVariationSelect) addProductVariationSelect.innerHTML = '<option value="">Selecciona una variación</option>';
@@ -2087,13 +2198,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
           addProductVariationSelect.innerHTML = '<option value="">Selecciona una variación</option>' + variations.map((variation) => `
             <option value="${escapeHtml(variation.id)}">${escapeHtml(getVariationLabel(variation))} · ${productTracksStock(product) ? `Stock: ${Number(variation.stock || 0)}` : 'Sin stock descontable'} · ${formatUSD(getVariationUnitPrice(product, variation))}</option>
           `).join('');
-          addProductPrice.value = Number(product.base_price_usd || 0).toFixed(2);
+          addProductPriceDisplay.textContent = formatUSD(product.base_price_usd || 0);
           addProductQuantity.removeAttribute('max');
           addProductPreview.textContent = `Producto seleccionado: ${product.name}. Selecciona una variación para cargar precio y stock.`;
         } else {
           addProductVariationWrap.classList.add('hidden');
           addProductVariationSelect.innerHTML = '<option value="">Sin variaciones</option>';
-          addProductPrice.value = Number(product.base_price_usd || 0).toFixed(2);
+          addProductPriceDisplay.textContent = formatUSD(product.base_price_usd || 0);
           updateAddProductQuantityLimit();
           const availableStock = getAvailableStockForProductSelection(product, null);
           addProductPreview.textContent = productTracksStock(product)
@@ -2106,11 +2217,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (!selectedAddProduct) return;
         const variation = productVariations.find((item) => item.id === addProductVariationSelect.value);
         if (!variation) {
-          addProductPrice.value = Number(selectedAddProduct.base_price_usd || 0).toFixed(2);
+          addProductPriceDisplay.textContent = formatUSD(selectedAddProduct.base_price_usd || 0);
           addProductPreview.textContent = `Producto seleccionado: ${selectedAddProduct.name}. Selecciona una variación para cargar precio y stock.`;
           return;
         }
-        addProductPrice.value = getVariationUnitPrice(selectedAddProduct, variation).toFixed(2);
+        addProductPriceDisplay.textContent = formatUSD(getVariationUnitPrice(selectedAddProduct, variation));
         updateAddProductQuantityLimit();
         const availableStock = getAvailableStockForProductSelection(selectedAddProduct, variation);
         addProductPreview.textContent = productTracksStock(selectedAddProduct)
@@ -2441,7 +2552,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function updateProductEditorLockState() {
         const locked = isProductEditingLocked();
-        [addProductSearch, addProductVariationSelect, addProductQuantity, addProductPrice, addProductBtn].forEach((element) => {
+        [addProductSearch, addProductVariationSelect, addProductQuantity, addProductBtn].forEach((element) => {
           if (element) element.disabled = locked;
         });
         if (toggleAddProductBtn) {
@@ -2700,64 +2811,72 @@ const isOrderDetailPage = Boolean(initialOrderId);
         updateWhatsAppButtonState();
       }
 
+      function getAutomaticUnitPrice(item) {
+        const explicit = Number(item?.unit_price_after_automatic_discount_usd);
+        if (Number.isFinite(explicit) && (explicit > 0 || Number(item?.line_subtotal_after_automatic_discount_usd) === 0)) return Math.max(0, explicit);
+        const quantity = Math.max(1, Number(item?.quantity || 1));
+        return Math.max(0, (Number(item?.line_total_usd || 0) - Number(item?.manual_adjustment_total_usd || 0)) / quantity);
+      }
+
       function renderItems() {
         if (!selectedItems.length) {
           detailItems.innerHTML = '<div class="item-row"><div class="item-sub">Esta orden no tiene productos asociados. Puedes agregar uno desde el botón de arriba.</div></div>';
           return;
         }
 
+        const adjustmentAllowed = ['pending', 'confirmed', 'preparing'].includes(normalizeStatus(selectedOrder?.status));
         detailItems.innerHTML = `<div class="order-product-list">${selectedItems.map((item) => {
           const quantity = Math.max(1, Number(item.quantity || 1));
           const isGiftItem = Boolean(item.is_gift);
-          const unitPrice = isGiftItem ? 0 : getItemUnitPrice(item);
-          const stockInfo = getItemStockInfo(item);
+          const baseUnit = isGiftItem ? 0 : Math.max(0, Number(item.unit_price_original_usd ?? item.unit_price_usd ?? 0));
+          const automaticUnit = isGiftItem ? 0 : getAutomaticUnitPrice(item);
+          const finalUnit = isGiftItem ? 0 : getItemUnitPrice(item);
+          const automaticDiscount = Math.max(0, (baseUnit - automaticUnit) * quantity);
+          const manualTotal = Number(item.manual_adjustment_total_usd || ((finalUnit - automaticUnit) * quantity));
           const maxStockValue = getMaxQuantityForExistingItem(item);
           const maxStock = Number.isFinite(maxStockValue) && maxStockValue !== null ? maxStockValue : '';
-          const locked = isProductEditingLocked();
-          const disabledAttr = locked ? 'disabled' : '';
+          const productsLocked = isProductEditingLocked();
+          const quantityDisabled = productsLocked || isGiftItem;
           const imageUrl = isGiftItem ? (item.expand?.gift?.image ? `${POCKETBASE_URL}/api/files/gifts/${item.expand.gift.id}/${Array.isArray(item.expand.gift.image) ? item.expand.gift.image[0] : item.expand.gift.image}` : '') : getProductImageUrlFromItem(item);
           const imageHtml = imageUrl
-            ? `<img class="order-product-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.product_name || 'Producto')}" loading="lazy" style="width:46px !important;height:46px !important;min-width:46px !important;max-width:46px !important;min-height:46px !important;max-height:46px !important;border-radius:13px;object-fit:cover;display:block;" />`
-            : `<div class="order-product-placeholder" style="width:46px !important;height:46px !important;min-width:46px !important;max-width:46px !important;min-height:46px !important;max-height:46px !important;border-radius:13px;">${getProductInitial(item.product_name)}</div>`;
+            ? `<img class="order-product-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.product_name || 'Producto')}" loading="lazy" style="width:46px!important;height:46px!important;border-radius:13px;object-fit:cover;display:block;" />`
+            : `<div class="order-product-placeholder" style="width:46px!important;height:46px!important;border-radius:13px;">${getProductInitial(item.product_name)}</div>`;
+          const adjustmentHtml = item.has_manual_price_adjustment
+            ? `<div style="display:flex;justify-content:space-between;gap:12px;color:#7c3aed;font-weight:950;"><span>Ajuste especial</span><span>${manualTotal >= 0 ? '+' : '−'}${formatUSD(Math.abs(manualTotal))}</span></div>` : '';
 
           return `
             <div class="order-product-card clean-order-product-card" data-item-id="${escapeHtml(item.id)}" style="display:grid;grid-template-columns:46px minmax(0,1fr);gap:12px;align-items:start;background:#f8fafc;border:0;box-shadow:none;border-radius:16px;padding:12px;margin-bottom:10px;">
               ${imageHtml}
-
               <div style="display:flex;flex-direction:column;gap:10px;min-width:0;">
-                <div class="product-edit-grid" style="display:grid;grid-template-columns:1fr;gap:10px;">
-                  <div style="display:flex;flex-direction:column;gap:5px;">
-                    <label style="font-size:11px;font-weight:900;color:#64748b;margin:0;">Nombre del producto</label>
-                    <input class="edit-item-name" type="text" value="${escapeHtml(item.product_name || '')}" ${disabledAttr} style="width:100%;height:38px;border:0;border-radius:12px;background:#ffffff;padding:9px 11px;font-size:13px;font-weight:850;color:#0f172a;box-shadow:inset 0 0 0 1px rgba(226,232,240,.9);" />
-                    ${isGiftItem ? `<div style="display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:6px 9px;border-radius:999px;background:#ecfdf5;color:#166534;font-size:11px;font-weight:950;line-height:1.1;box-shadow:inset 0 0 0 1px rgba(187,247,208,.95);">🎁 Regalo · mínimo $${Number(item.gift_min_order_usd || 0).toFixed(2)} USD</div>` : getItemVariationDisplay(item) ? `<div style="display:inline-flex;align-items:center;width:max-content;max-width:100%;padding:6px 9px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:950;line-height:1.1;box-shadow:inset 0 0 0 1px rgba(191,219,254,.95);">Variación: ${escapeHtml(getItemVariationDisplay(item))}</div>` : ''}
-                  </div>
-
-                  <div style="display:flex;flex-direction:column;gap:5px;">
+                <div>
+                  <div style="font-size:14px;font-weight:1000;color:#0f172a;line-height:1.3;">${escapeHtml(item.product_name || 'Producto')}</div>
+                  ${isGiftItem ? '<span class="product-pill success">🎁 Regalo</span>' : getItemVariationDisplay(item) ? `<span class="product-pill" style="margin-top:6px;">Variación: ${escapeHtml(getItemVariationDisplay(item))}</span>` : ''}
+                </div>
+                ${!isGiftItem ? `<div class="item-economic-breakdown" style="display:grid;gap:5px;padding:10px 12px;border-radius:14px;background:#fff;border:1px solid #e2e8f0;font-size:12px;color:#475569;">
+                  <div style="display:flex;justify-content:space-between;gap:12px;"><span>Precio base · ${quantity}</span><strong>${formatUSD(baseUnit * quantity)}</strong></div>
+                  ${automaticDiscount > .000001 ? `<div style="display:flex;justify-content:space-between;gap:12px;color:#166534;font-weight:900;"><span>Promoción/cupón</span><span>−${formatUSD(automaticDiscount)}</span></div>` : ''}
+                  ${adjustmentHtml}
+                  <div style="display:flex;justify-content:space-between;gap:12px;padding-top:6px;border-top:1px solid #e2e8f0;color:#0f172a;font-weight:1000;"><span>Final · ${formatUSD(finalUnit)} c/u</span><span class="item-live-total">${formatUSD(finalUnit * quantity)}</span></div>
+                </div>` : ''}
+                <div style="display:flex;flex-wrap:wrap;align-items:end;gap:10px;">
+                  <div style="display:flex;flex-direction:column;gap:5px;min-width:150px;flex:1 1 170px;">
                     <label style="font-size:11px;font-weight:900;color:#64748b;margin:0;">Cantidad</label>
                     <div style="display:grid;grid-template-columns:38px minmax(0,1fr) 38px;gap:8px;align-items:center;">
-                      <button class="item-qty-minus" type="button" data-item-id="${escapeHtml(item.id)}" ${disabledAttr} style="height:38px;border:0;border-radius:12px;background:#e2e8f0;color:#0f172a;font-size:18px;font-weight:1000;line-height:1;cursor:pointer;">−</button>
-                      <input class="edit-item-quantity" type="number" min="1" ${maxStock ? `max="${maxStock}"` : ''} step="1" value="${quantity}" data-max-stock="${maxStock}" ${disabledAttr} style="width:100%;height:38px;border:0;border-radius:12px;background:#ffffff;padding:9px 11px;text-align:center;font-size:13px;font-weight:850;color:#0f172a;box-shadow:inset 0 0 0 1px rgba(226,232,240,.9);appearance:textfield;-moz-appearance:textfield;" />
-                      <button class="item-qty-plus" type="button" data-item-id="${escapeHtml(item.id)}" ${disabledAttr} style="height:38px;border:0;border-radius:12px;background:#dcfce7;color:#166534;font-size:18px;font-weight:1000;line-height:1;cursor:pointer;">+</button>
+                      <button class="item-qty-minus" type="button" ${quantityDisabled ? 'disabled' : ''} style="height:38px;border:0;border-radius:12px;background:#e2e8f0;font-size:18px;font-weight:1000;">−</button>
+                      <input class="edit-item-quantity" type="number" min="1" ${maxStock ? `max="${maxStock}"` : ''} step="1" value="${quantity}" data-max-stock="${maxStock}" ${quantityDisabled ? 'disabled' : ''} style="width:100%;height:38px;border:0;border-radius:12px;background:#fff;text-align:center;font-weight:900;box-shadow:inset 0 0 0 1px #e2e8f0;" />
+                      <button class="item-qty-plus" type="button" ${quantityDisabled ? 'disabled' : ''} style="height:38px;border:0;border-radius:12px;background:#dcfce7;color:#166534;font-size:18px;font-weight:1000;">+</button>
                     </div>
                   </div>
-
-                  <div style="display:flex;flex-direction:column;gap:5px;">
-                    <label style="font-size:11px;font-weight:900;color:#64748b;margin:0;">Precio USD</label>
-                    <input class="edit-item-unit-price" type="number" min="0" step="0.01" value="${unitPrice.toFixed(2)}" ${isGiftItem ? 'disabled' : disabledAttr} style="width:100%;height:38px;border:0;border-radius:12px;background:#ffffff;padding:9px 11px;font-size:13px;font-weight:850;color:#0f172a;box-shadow:inset 0 0 0 1px rgba(226,232,240,.9);" />
-                  </div>
+                  ${!isGiftItem ? `<button class="btn btn-secondary adjust-price-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${adjustmentAllowed ? '' : 'disabled'}>${item.has_manual_price_adjustment ? 'Editar ajuste' : 'Ajustar precio'}</button>` : ''}
+                  <button class="btn btn-danger delete-item-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${productsLocked ? 'disabled' : ''}>Borrar</button>
                 </div>
-
-                <div class="product-card-actions" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:2px;">
-                  <span class="item-save-status" style="font-size:11px;line-height:1.25;color:#64748b;font-weight:850;">${locked ? 'Inventario ya descontado: edición bloqueada.' : 'Cambios con guardado automático.'}</span>
-                  <button class="btn btn-danger delete-item-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${disabledAttr} style="border:0;border-radius:12px;background:#fee2e2;color:#991b1b;padding:8px 12px;font-size:12px;font-weight:950;box-shadow:none;">Borrar</button>
-                </div>
+                <span class="item-save-status" style="font-size:11px;color:#64748b;font-weight:850;">${productsLocked ? 'Cantidad y borrado bloqueados por inventario.' : 'El precio canónico es de solo lectura.'}</span>
               </div>
             </div>`;
         }).join('')}</div>`;
 
-        detailItems.querySelectorAll('.delete-item-btn').forEach((button) => {
-          button.addEventListener('click', () => deleteOrderItem(button.dataset.itemId));
-        });
+        detailItems.querySelectorAll('.delete-item-btn').forEach((button) => button.addEventListener('click', () => deleteOrderItem(button.dataset.itemId)));
+        detailItems.querySelectorAll('.adjust-price-btn').forEach((button) => button.addEventListener('click', () => openPriceAdjustment(button.dataset.itemId)));
         bindQuantityButtons();
         bindItemAutoSave();
       }
@@ -2772,50 +2891,15 @@ const isOrderDetailPage = Boolean(initialOrderId);
         renderOrders();
       }
 
-      function getEditedItemsTotalFromForm() {
-        let total = 0;
-        selectedItems.forEach((item) => {
-          const row = detailItems.querySelector(`[data-item-id="${item.id}"]`);
-          if (!row) return;
-          const quantityInput = row.querySelector('.edit-item-quantity');
-          const maxStock = quantityInput?.dataset.maxStock ? Number(quantityInput.dataset.maxStock) : null;
-          const quantity = clampQuantityToStock(quantityInput, maxStock);
-          const unitPrice = Math.max(0, Number(row.querySelector('.edit-item-unit-price')?.value || 0));
-          total += quantity * unitPrice;
-        });
-        return total;
-      }
-
-      async function updateOrderTotal(productsTotal = null) {
-        if (!selectedOrder) return null;
-        const subtotal = productsTotal === null ? selectedItems.reduce((sum, item) => sum + Number(item.line_total_usd || 0), 0) : Number(productsTotal || 0);
-        const shipping = getOrderShippingAmount(selectedOrder);
-        const newTotal = subtotal + shipping;
-        const updatedOrder = await apiRequest(`/api/collections/orders/records/${selectedOrder.id}?expand=shipping_zone,currency`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            total: newTotal,
-            total_usd: newTotal,
-          }),
-        });
-        selectedOrder = updatedOrder;
-        orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
-        fillDetail(updatedOrder);
+      async function applyPrivateOrderMutation(result) {
+        if (result?.order?.id) {
+          selectedOrder = { ...selectedOrder, ...result.order };
+          orders = orders.map((order) => order.id === selectedOrder.id ? { ...order, ...selectedOrder } : order);
+        }
+        await reloadSelectedItems();
+        if (selectedOrder) fillDetail(selectedOrder);
         renderStats();
         renderOrders();
-        return updatedOrder;
-      }
-
-      function updateItemRowPreview(row) {
-        if (!row) return;
-        const quantityInput = row.querySelector('.edit-item-quantity');
-        const maxStock = quantityInput?.dataset.maxStock ? Number(quantityInput.dataset.maxStock) : null;
-        const status = row.querySelector('.item-save-status');
-        const quantity = clampQuantityToStock(quantityInput, maxStock, status);
-        const unitPrice = Math.max(0, Number(row.querySelector('.edit-item-unit-price')?.value || 0));
-        const totalEl = row.querySelector('.item-live-total');
-        if (totalEl) totalEl.textContent = formatUSD(quantity * unitPrice);
       }
 
       function bindQuantityButtons() {
@@ -2855,16 +2939,14 @@ const isOrderDetailPage = Boolean(initialOrderId);
       function bindItemAutoSave() {
         detailItems.querySelectorAll('[data-item-id]').forEach((row) => {
           const itemId = row.dataset.itemId;
-          row.querySelectorAll('.edit-item-name, .edit-item-quantity, .edit-item-unit-price').forEach((input) => {
+          row.querySelectorAll('.edit-item-quantity').forEach((input) => {
             input.addEventListener('input', () => {
-              updateItemRowPreview(row);
               const status = row.querySelector('.item-save-status');
-              if (status) status.textContent = 'Guardando cambios...';
+              if (status) status.textContent = 'Guardando cantidad...';
               clearTimeout(itemSaveTimers.get(itemId));
               itemSaveTimers.set(itemId, setTimeout(() => saveSingleOrderItem(itemId), 650));
             });
             input.addEventListener('change', () => {
-              updateItemRowPreview(row);
               clearTimeout(itemSaveTimers.get(itemId));
               saveSingleOrderItem(itemId);
             });
@@ -2884,7 +2966,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
         const status = row.querySelector('.item-save-status');
         try {
-          const productName = row.querySelector('.edit-item-name')?.value.trim() || item.product_name || 'Producto';
           const quantityInput = row.querySelector('.edit-item-quantity');
           const maxStock = quantityInput?.dataset.maxStock ? Number(quantityInput.dataset.maxStock) : null;
           const quantity = clampQuantityToStock(quantityInput, maxStock, status);
@@ -2893,38 +2974,242 @@ const isOrderDetailPage = Boolean(initialOrderId);
             setDetailAlert('No puedes guardar una cantidad mayor al stock disponible.', 'error');
             return;
           }
-          const unitPriceUSD = Math.max(0, Number(row.querySelector('.edit-item-unit-price')?.value || 0));
-          const lineTotalUSD = quantity * unitPriceUSD;
-          const unitProfitUSD = Number(item.unit_profit_usd || 0);
-
-          const updatedItem = await apiRequest(`/api/collections/order_items/records/${itemId}?expand=product,variation,gift`, {
+          const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/items/${itemId}/quantity`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              product_name: productName,
-              quantity,
-              unit_price_usd: unitPriceUSD,
-              unit_price_selected_currency: unitPriceUSD,
-              line_total_usd: lineTotalUSD,
-              line_total_selected_currency: lineTotalUSD,
-              line_profit_usd: unitProfitUSD * quantity,
-            }),
+            body: JSON.stringify({ quantity }),
           });
-
-          selectedItems = selectedItems.map((entry) => entry.id === itemId ? updatedItem : entry);
-          if (selectedOrder?.id) orderItemsByOrder[selectedOrder.id] = selectedItems;
-          await updateOrderTotal(getEditedItemsTotalFromForm());
-          renderOrders();
-          if (status) status.textContent = 'Guardado automático';
+          await applyPrivateOrderMutation(result);
+          setDetailAlert('Cantidad actualizada conservando el acuerdo económico original.', 'success');
         } catch (error) {
           if (status) status.textContent = 'No se pudo guardar';
-          setDetailAlert('No se pudo guardar el producto automáticamente. Revisa reglas update en order_items.', 'error');
+          setDetailAlert(error?.message || 'No se pudo actualizar la cantidad.', 'error');
         }
       }
 
-      async function saveOrderProducts() {
-        if (!selectedOrder) return;
-        for (const item of selectedItems) await saveSingleOrderItem(item.id);
+      function setPriceAdjustmentAlert(message = '', type = 'error') {
+        if (!priceAdjustmentAlert) return;
+        priceAdjustmentAlert.textContent = message;
+        priceAdjustmentAlert.className = message ? `alert ${type}` : 'alert hidden';
+      }
+
+      function clearPriceAdjustmentFieldErrors() {
+        for (const element of [priceAdjustmentReasonError, priceAdjustmentReasonTextError]) {
+          if (!element) continue;
+          element.textContent = '';
+          element.classList.add('hidden');
+        }
+      }
+
+      function setPriceAdjustmentFieldError(element, message) {
+        if (!element) return;
+        element.textContent = message;
+        element.classList.remove('hidden');
+      }
+
+      function validatePriceAdjustmentReason() {
+        clearPriceAdjustmentFieldErrors();
+        const reasonCode = priceAdjustmentReason.value;
+        const reasonText = priceAdjustmentReasonText.value.trim();
+        if (!reasonCode) {
+          setPriceAdjustmentFieldError(priceAdjustmentReasonError, 'Selecciona un motivo nuevo antes de confirmar.');
+          priceAdjustmentReason.focus();
+          return null;
+        }
+        if (reasonText.length > 500 || (reasonCode === 'other' && reasonText.length < 5)) {
+          setPriceAdjustmentFieldError(priceAdjustmentReasonTextError, 'Para “Otro”, escribe entre 5 y 500 caracteres.');
+          priceAdjustmentReasonText.focus();
+          return null;
+        }
+        return { reasonCode, reasonText };
+      }
+
+      function updatePriceAdjustmentStateWarning() {
+        const status = normalizeStatus(selectedOrder?.status);
+        const message = status === 'confirmed'
+          ? 'La orden está confirmada. Este cambio modificará el importe acordado, pero no modificará el inventario.'
+          : status === 'preparing'
+            ? 'La orden está en preparación. Este cambio modificará el importe acordado, pero no modificará el inventario.'
+            : '';
+        if (priceAdjustmentStateWarning) {
+          priceAdjustmentStateWarning.textContent = message;
+          priceAdjustmentStateWarning.classList.toggle('hidden', !message);
+        }
+      }
+
+      function updatePriceAdjustmentWarning() {
+        if (!adjustmentItem) return;
+        if (priceAdjustmentMode === 'reset') {
+          priceAdjustmentWarning?.classList.add('hidden');
+          priceAdjustmentZeroWrap?.classList.add('hidden');
+          return;
+        }
+        const automatic = getAutomaticUnitPrice(adjustmentItem);
+        const next = Number(priceAdjustmentFinalPrice?.value);
+        const valid = Number.isFinite(next) && next >= 0;
+        priceAdjustmentWarning?.classList.toggle('hidden', !valid || Math.abs(next - automatic) < .000001);
+        if (priceAdjustmentWarning && valid && Math.abs(next - automatic) >= .000001) {
+          priceAdjustmentWarning.textContent = next > automatic
+            ? `Estás aumentando el total que deberá pagar el cliente. El precio final subirá ${formatUSD(next - automatic)} por unidad.`
+            : `El precio final disminuirá ${formatUSD(automatic - next)} por unidad frente al precio automático.`;
+        }
+        priceAdjustmentZeroWrap?.classList.toggle('hidden', !valid || next !== 0);
+        if (next !== 0 && priceAdjustmentZeroConfirm) priceAdjustmentZeroConfirm.checked = false;
+      }
+
+      function openPriceAdjustment(itemId) {
+        const item = selectedItems.find((entry) => entry.id === itemId);
+        if (!item || item.is_gift || !['pending', 'confirmed', 'preparing'].includes(normalizeStatus(selectedOrder?.status))) return;
+        adjustmentItem = item;
+        adjustmentPreviousFocus = document.activeElement;
+        const automatic = getAutomaticUnitPrice(item);
+        const currentFinal = getItemUnitPrice(item);
+        priceAdjustmentMode = 'adjust';
+        priceAdjustmentProduct.textContent = getItemDisplayName(item);
+        priceAdjustmentAutomaticPrice.textContent = formatUSD(automatic);
+        priceAdjustmentFinalPrice.value = currentFinal.toFixed(2);
+        priceAdjustmentReason.value = '';
+        priceAdjustmentReasonText.value = '';
+        priceAdjustmentZeroConfirm.checked = false;
+        priceAdjustmentTitle.textContent = 'Ajustar precio';
+        priceAdjustmentBaseline.classList.remove('hidden');
+        priceAdjustmentResetSummary.classList.add('hidden');
+        priceAdjustmentFinalWrap.classList.remove('hidden');
+        priceAdjustmentReset.classList.toggle('hidden', !item.has_manual_price_adjustment);
+        priceAdjustmentSubmit.textContent = 'Guardar ajuste';
+        clearPriceAdjustmentFieldErrors();
+        setPriceAdjustmentAlert();
+        updatePriceAdjustmentStateWarning();
+        updatePriceAdjustmentWarning();
+        priceAdjustmentModal.classList.remove('hidden');
+        priceAdjustmentModal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => priceAdjustmentFinalPrice?.focus());
+      }
+
+      function closePriceAdjustment() {
+        if (!priceAdjustmentModal || priceAdjustmentModal.classList.contains('hidden')) return;
+        priceAdjustmentModal.classList.add('hidden');
+        priceAdjustmentModal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        priceAdjustmentMode = 'adjust';
+        adjustmentItem = null;
+        if (adjustmentPreviousFocus?.focus) adjustmentPreviousFocus.focus();
+        adjustmentPreviousFocus = null;
+      }
+
+      function priceAdjustmentFocusables() {
+        return Array.from(priceAdjustmentCard?.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])
+          .filter((element) => !element.classList.contains('hidden') && element.offsetParent !== null);
+      }
+
+      function handlePriceAdjustmentKeydown(event) {
+        if (!priceAdjustmentModal || priceAdjustmentModal.classList.contains('hidden')) return;
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closePriceAdjustment();
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        const focusables = priceAdjustmentFocusables();
+        if (!focusables.length) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+
+      async function submitPriceAdjustment() {
+        if (!selectedOrder || !adjustmentItem) return;
+        if (priceAdjustmentMode === 'reset') {
+          await submitPriceAdjustmentReset();
+          return;
+        }
+        const finalUnit = Number(priceAdjustmentFinalPrice.value);
+        if (!Number.isFinite(finalUnit) || finalUnit < 0 || finalUnit > 1000000) {
+          setPriceAdjustmentAlert('Ingresa un precio entre $0.00 y $1,000,000.00 USD.');
+          return;
+        }
+        const reason = validatePriceAdjustmentReason();
+        if (!reason) return;
+        if (finalUnit === 0 && !priceAdjustmentZeroConfirm.checked) {
+          setPriceAdjustmentAlert('Confirma expresamente el precio cero antes de guardar.');
+          priceAdjustmentZeroConfirm.focus();
+          return;
+        }
+        priceAdjustmentSubmit.disabled = true;
+        setPriceAdjustmentAlert('Guardando ajuste...', 'info');
+        try {
+          const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/items/${adjustmentItem.id}/price-adjustments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              final_unit_price_usd: finalUnit,
+              reason_code: reason.reasonCode,
+              reason_text: reason.reasonText,
+              confirm_zero_price: finalUnit === 0 && priceAdjustmentZeroConfirm.checked,
+            }),
+          });
+          await applyPrivateOrderMutation(result);
+          closePriceAdjustment();
+          setDetailAlert('Ajuste especial guardado y auditado.', 'success');
+        } catch (error) {
+          setPriceAdjustmentAlert(error?.message || 'No se pudo guardar el ajuste.');
+        } finally {
+          priceAdjustmentSubmit.disabled = false;
+        }
+      }
+
+      function openPriceAdjustmentResetConfirmation() {
+        if (!selectedOrder || !adjustmentItem?.has_manual_price_adjustment) return;
+        const automatic = getAutomaticUnitPrice(adjustmentItem);
+        const currentFinal = getItemUnitPrice(adjustmentItem);
+        const difference = currentFinal - automatic;
+        priceAdjustmentMode = 'reset';
+        priceAdjustmentTitle.textContent = 'Restablecer precio del sistema';
+        priceAdjustmentBaseline.classList.add('hidden');
+        priceAdjustmentResetSummary.classList.remove('hidden');
+        priceAdjustmentResetCurrent.textContent = formatUSD(currentFinal);
+        priceAdjustmentResetAutomatic.textContent = formatUSD(automatic);
+        priceAdjustmentResetDifference.textContent = `${difference >= 0 ? '+' : '−'}${formatUSD(Math.abs(difference))}`;
+        priceAdjustmentFinalWrap.classList.add('hidden');
+        priceAdjustmentWarning.classList.add('hidden');
+        priceAdjustmentZeroWrap.classList.add('hidden');
+        priceAdjustmentReset.classList.add('hidden');
+        priceAdjustmentSubmit.textContent = 'Restablecer precio';
+        priceAdjustmentReason.value = '';
+        priceAdjustmentReasonText.value = '';
+        clearPriceAdjustmentFieldErrors();
+        setPriceAdjustmentAlert();
+        updatePriceAdjustmentStateWarning();
+        requestAnimationFrame(() => priceAdjustmentReason?.focus());
+      }
+
+      async function submitPriceAdjustmentReset() {
+        if (!selectedOrder || !adjustmentItem?.has_manual_price_adjustment) return;
+        const reason = validatePriceAdjustmentReason();
+        if (!reason) return;
+        priceAdjustmentSubmit.disabled = true;
+        setPriceAdjustmentAlert('Restableciendo precio automático...', 'info');
+        try {
+          const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/items/${adjustmentItem.id}/price-adjustments/reset`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason_code: reason.reasonCode, reason_text: reason.reasonText }),
+          });
+          await applyPrivateOrderMutation(result);
+          closePriceAdjustment();
+          setDetailAlert('Precio automático restablecido; el historial de auditoría se conservó.', 'success');
+        } catch (error) {
+          setPriceAdjustmentAlert(error?.message || 'No se pudo restablecer el ajuste.');
+        } finally {
+          priceAdjustmentSubmit.disabled = false;
+        }
       }
 
       async function addProductToOrder() {
@@ -2971,76 +3256,21 @@ const isOrderDetailPage = Boolean(initialOrderId);
             }
           }
 
-          const unitPriceUSD = Math.max(0, Number(addProductPrice.value || product.base_price_usd || 0));
-          const unitCostUSD = Number(variation?.cost_usd ?? product.cost_usd ?? 0);
-          const unitProfitUSD = unitPriceUSD - unitCostUSD;
-          const variationName = variation ? getVariationLabel(variation) : '';
-          const existingItem = findExistingItemForSelection(product.id, variation?.id || '');
-
-          if (existingItem) {
-            const newQuantity = Number(existingItem.quantity || 0) + quantity;
-            const lineTotalUSD = newQuantity * unitPriceUSD;
-            const updatedItem = await apiRequest(`/api/collections/order_items/records/${existingItem.id}?expand=product,variation,gift`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                product_name: existingItem.product_name || product.name,
-                product_ref: existingItem.product_ref || product.id,
-                variation_name: existingItem.variation_name || variationName,
-                variation_label: existingItem.variation_label || variationName,
-                variation_ref: existingItem.variation_ref || variation?.internal_ref || variation?.id || '',
-                quantity: newQuantity,
-                unit_price_usd: unitPriceUSD,
-                unit_price_selected_currency: unitPriceUSD,
-                variation_price_usd: unitPriceUSD,
-                line_total_usd: lineTotalUSD,
-                line_total_selected_currency: lineTotalUSD,
-                unit_profit_usd: unitProfitUSD,
-                line_profit_usd: unitProfitUSD * newQuantity,
-              }),
-            });
-            selectedItems = selectedItems.map((item) => item.id === existingItem.id ? updatedItem : item);
-            setAddProductPanel(false);
-            await reloadSelectedItems();
-            await updateOrderTotal();
-            setDetailAlert('Este producto ya existía en la orden. Se sumó la cantidad a la línea existente.', 'success');
-            return;
-          }
-
-          const lineTotalUSD = quantity * unitPriceUSD;
-          const payload = {
-            order: selectedOrder.id,
-            product: product.id,
-            product_ref: product.id,
-            product_name: product.name,
-            variation_name: variationName,
-            variation_label: variationName,
-            variation_ref: variation?.internal_ref || variation?.id || '',
-            quantity,
-            unit_price_usd: unitPriceUSD,
-            unit_price_selected_currency: unitPriceUSD,
-            variation_price_usd: unitPriceUSD,
-            line_total_usd: lineTotalUSD,
-            line_total_selected_currency: lineTotalUSD,
-            unit_profit_usd: unitProfitUSD,
-            line_profit_usd: unitProfitUSD * quantity,
-            only_usd: Boolean(product.only_usd),
-          };
-
-          if (variation) payload.variation = variation.id;
-
-          await apiRequest('/api/collections/order_items/records', {
+          const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({
+              product_id: product.id,
+              variation_id: variation?.id || '',
+              quantity,
+            }),
           });
 
           setAddProductPanel(false);
-          await reloadSelectedItems();
-          await updateOrderTotal();
-          setDetailAlert('Producto agregado y total de la orden actualizado.', 'success');
+          await applyPrivateOrderMutation(result);
+          setDetailAlert('Producto agregado con precio canónico y reglas económicas históricas de la orden.', 'success');
         } catch (error) {
-          setDetailAlert('No se pudo agregar el producto. Revisa reglas create/update en order_items y que product_variations tenga acceso de lectura.', 'error');
+          setDetailAlert(error?.message || 'No se pudo agregar el producto.', 'error');
         } finally {
           addProductBtn.disabled = false;
         }
@@ -3064,12 +3294,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
         setDetailAlert('Borrando producto de la orden...', 'info');
         try {
-          await apiRequest(`/api/collections/order_items/records/${itemId}`, { method: 'DELETE' });
-          await reloadSelectedItems();
-          await updateOrderTotal();
-          setDetailAlert('Producto borrado y total de la orden actualizado.', 'success');
+          const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/items/${itemId}`, { method: 'DELETE' });
+          await applyPrivateOrderMutation(result);
+          setDetailAlert('Producto borrado y acuerdo económico recalculado.', 'success');
         } catch (error) {
-          setDetailAlert('No se pudo borrar el producto. Revisa las reglas de delete en order_items.', 'error');
+          setDetailAlert(error?.message || 'No se pudo borrar el producto.', 'error');
         }
       }
 
@@ -3188,6 +3417,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
           selectedItems.forEach((item, index) => {
             lines.push(`${index + 1}. ${getItemDisplayName(item)}`);
             lines.push(`   Cantidad: ${Number(item.quantity || 0)}`);
+            lines.push(`   Precio unitario final: ${formatUSD(getItemUnitPrice(item))}`);
+            if (item.has_manual_price_adjustment) lines.push('   Ajuste especial aplicado');
             lines.push(`   Total: ${formatUSD(item.line_total_usd)}`);
           });
         } else {
@@ -3256,6 +3487,15 @@ const isOrderDetailPage = Boolean(initialOrderId);
           lines.push('');
           lines.push(`Total actual: ${formatUSD(selectedOrder.total)}`);
           lines.push(`Estado actual: ${getStatusLabel(selectedOrder.status)}`);
+        }
+
+        if (selectedItems.length) {
+          lines.push('');
+          lines.push('Productos:');
+          selectedItems.forEach((item) => {
+            lines.push(`• ${Number(item.quantity || 0)} × ${getItemDisplayName(item)} · ${formatUSD(getItemUnitPrice(item))} c/u · ${formatUSD(item.line_total_usd)}`);
+            if (item.has_manual_price_adjustment) lines.push('  Ajuste especial aplicado');
+          });
         }
 
         return lines.join('\n');
@@ -3485,11 +3725,16 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       async function deleteOrderPermanentlyNoStock(orderId) {
         if (!orderId) return;
+        await apiRequest(`/api/collections/orders/records/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'cancelled', stock_deducted: false }),
+        });
         const filter = encodeURIComponent(`order = "${orderId}"`);
         const itemsResult = await apiRequest(`/api/collections/order_items/records?filter=${filter}&perPage=200`);
         const items = itemsResult.items || [];
         for (const item of items) {
-          await apiRequest(`/api/collections/order_items/records/${item.id}`, { method: 'DELETE' });
+          await apiRequest(`/api/pz/admin/orders/${orderId}/items/${item.id}`, { method: 'DELETE' });
         }
         await apiRequest(`/api/collections/orders/records/${orderId}`, { method: 'DELETE' });
       }
@@ -3739,6 +3984,16 @@ const isOrderDetailPage = Boolean(initialOrderId);
       addProductVariationSelect.addEventListener('change', handleAddVariationChange);
       addProductQuantity.addEventListener('input', updateAddProductQuantityLimit);
       addProductQuantity.addEventListener('change', updateAddProductQuantityLimit);
+      priceAdjustmentFinalPrice?.addEventListener('input', updatePriceAdjustmentWarning);
+      priceAdjustmentClose?.addEventListener('click', closePriceAdjustment);
+      priceAdjustmentCancel?.addEventListener('click', closePriceAdjustment);
+      priceAdjustmentSubmit?.addEventListener('click', submitPriceAdjustment);
+      priceAdjustmentReset?.addEventListener('click', openPriceAdjustmentResetConfirmation);
+      priceAdjustmentReason?.addEventListener('change', clearPriceAdjustmentFieldErrors);
+      priceAdjustmentReasonText?.addEventListener('input', clearPriceAdjustmentFieldErrors);
+      priceAdjustmentModal?.addEventListener('click', (event) => {
+        if (event.target === priceAdjustmentModal) closePriceAdjustment();
+      });
       copyOrderBtn.addEventListener('click', copyOrderSummary);
       whatsappOrderBtn.addEventListener('click', openWhatsAppOrder);
       printOrderBtn.addEventListener('click', printSelectedOrder);
@@ -3757,6 +4012,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       orderDeleteConfirmSubmit?.addEventListener('click', confirmPendingOrderDelete);
       orderDeleteConfirmSecondary?.addEventListener('click', confirmPendingOrderDeleteSecondary);
       document.addEventListener('keydown', (event) => {
+        handlePriceAdjustmentKeydown(event);
         if (event.key === 'Escape' && !orderDeleteConfirmModal?.classList.contains('hidden')) closeOrderDeleteConfirm();
       });
 

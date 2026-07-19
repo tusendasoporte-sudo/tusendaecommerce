@@ -266,6 +266,22 @@ function variationSnapshotRow(row) {
   };
 }
 
+function variationSnapshotPrice(variation) {
+  return variationSnapshotRow({
+    variationId: recordString(variation, "id"),
+    variationType: recordString(variation, "variation_type"),
+    value: recordString(variation, "value"),
+    active: recordBoolean(variation, "active"),
+    priceUsd: recordNumber(variation, "price_usd"),
+    isOffer: recordBoolean(variation, "is_offer"),
+    offerPriceUsd: recordNumber(variation, "offer_price_usd"),
+  });
+}
+
+function effectiveCommercialPrice(product, variation) {
+  return variation ? variationSnapshotPrice(variation) : productSnapshotPrice(product);
+}
+
 function variationRows(app, productId) {
   return queryRows(app, `
     SELECT
@@ -1110,6 +1126,7 @@ module.exports = {
   clearExpiredActorContexts,
   continueActorRequest,
   continuePriceWatchSuccess,
+  effectiveCommercialPrice,
   effectivePriceFromSnapshot,
   handleProductDelete,
   handleProductPriceHistory,
@@ -1123,4 +1140,6 @@ module.exports = {
   priceNotificationCopy,
   requireAuthenticatedUser,
   targetMetForPrice,
+  productSnapshotPrice,
+  variationSnapshotPrice,
 };

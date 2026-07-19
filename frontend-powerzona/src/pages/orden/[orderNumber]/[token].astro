@@ -258,16 +258,45 @@ const receiptSeo = {
       return formatUSD(item.line_total_usd);
     }
 
+    function getItemFinalUnit(item) {
+      if (item?.is_gift) return 0;
+      const explicit = Number(item?.unit_price_final_usd ?? item?.unit_price_usd);
+      if (Number.isFinite(explicit)) return Math.max(0, explicit);
+      return Math.max(0, Number(item?.line_total_usd || 0) / Math.max(1, Number(item?.quantity || 1)));
+    }
+
+    function getFinalTotalDisplay(order, currencyCode) {
+      const canonicalTotalUsd = Number(order.total ?? order.usd_total ?? 0);
+      if (currencyCode === 'USD') return formatUSD(canonicalTotalUsd);
+      const localProducts = Number(order.local_currency_total || 0);
+      const shippingVisual = Number(order.shipping_cup || 0);
+      const usdOnlyTotal = Number(order.usd_only_total || 0);
+      const localFinal = localProducts + shippingVisual;
+      if (usdOnlyTotal > 0 && localFinal > 0) {
+        return `${formatMoney(localFinal, currencyCode)} + ${formatUSD(usdOnlyTotal)}`;
+      }
+      if (usdOnlyTotal > 0) return formatUSD(canonicalTotalUsd);
+      if (localFinal > 0 || canonicalTotalUsd === 0) return formatMoney(localFinal, currencyCode);
+      return formatUSD(canonicalTotalUsd);
+    }
+
     function getTotalsLines(order, items, currencyCode) {
       const usdOnlyTotal = Number(order.usd_only_total || 0);
       const localCurrencyTotal = Number(order.local_currency_total || 0);
       const subtotal = Number(order.subtotal || 0);
+      const subtotalBeforeManual = Number(order.subtotal_before_manual_adjustments_usd ?? subtotal);
+      const manualAdjustment = Number(order.manual_adjustment_total_usd || 0);
       const shippingUsd = Number(order.shipping || 0);
       const shippingVisual = Number(order.shipping_cup || 0);
       const isMixedPayment = order.mixed_payment === true;
       const hasUsdOnly = usdOnlyTotal > 0;
       const hasLocal = currencyCode !== 'USD' && localCurrencyTotal > 0;
       const rows = [];
+
+      if (Math.abs(manualAdjustment) > .000001) {
+        rows.push(['Productos antes del ajuste especial', formatUSD(subtotalBeforeManual)]);
+        rows.push(['Ajuste especial', `${manualAdjustment >= 0 ? '+' : '−'}${formatUSD(Math.abs(manualAdjustment))}`]);
+      }
 
       if (isMixedPayment && currencyCode !== 'USD' && hasUsdOnly && hasLocal) {
         rows.push(['Productos convertibles', formatMoney(localCurrencyTotal, currencyCode)]);
@@ -280,16 +309,17 @@ const receiptSeo = {
         rows.push(['Productos', formatUSD(subtotal)]);
       }
 
-      rows.push(['Envio', shippingUsd > 0 ? (currencyCode === 'USD' ? formatUSD(shippingUsd) : `${formatUSD(shippingUsd)} / ${formatMoney(shippingVisual, currencyCode)}`) : 'Sin costo']);
+      rows.push(['Envío', shippingUsd > 0 ? (currencyCode === 'USD' ? formatUSD(shippingUsd) : `${formatUSD(shippingUsd)} / ${formatMoney(shippingVisual, currencyCode)}`) : 'Sin costo']);
+      rows.push(['Total final', getFinalTotalDisplay(order, currencyCode), true]);
       return rows;
     }
 
     function renderTotals(order, items, currencyCode) {
       const totalsBox = document.getElementById('receipt-totals');
       const rows = getTotalsLines(order, items, currencyCode);
-      totalsBox.innerHTML = rows.map(([label, value]) => `
-        <div class="flex items-center justify-between gap-4 border-b border-slate-200 last:border-b-0 pb-3 last:pb-0">
-          <span class="text-slate-500 font-bold">${escapeHtml(label)}</span>
+      totalsBox.innerHTML = rows.map(([label, value, isFinal]) => `
+        <div class="${isFinal ? 'receipt-total-final' : ''} flex items-center justify-between gap-4 border-b border-slate-200 last:border-b-0 pb-3 last:pb-0">
+          <span class="${isFinal ? 'text-slate-950' : 'text-slate-500'} font-bold">${escapeHtml(label)}</span>
           <strong class="text-slate-950 text-right">${escapeHtml(value)}</strong>
         </div>
       `).join('');
@@ -480,6 +510,11 @@ const receiptSeo = {
         'shipping_zone',
         'currency',
         'subtotal',
+        'total',
+        'usd_total',
+        'subtotal_before_manual_adjustments_usd',
+        'manual_adjustment_total_usd',
+        'subtotal_after_manual_adjustments_usd',
         'shipping',
         'shipping_cup',
         'mixed_payment',
@@ -541,8 +576,9 @@ const receiptSeo = {
 
               <div class="receipt-item-info">
                 <h3>${escapeHtml(itemName)}</h3>
-                <p>Cantidad: ${escapeHtml(quantity)}</p>
+                <p>Cantidad: ${escapeHtml(quantity)}${item.is_gift ? '' : ` · Precio unitario final: ${escapeHtml(formatUSD(getItemFinalUnit(item)))}`}</p>
                 ${item.is_gift ? '<span class="receipt-item-gift">Regalo incluido</span>' : ''}
+                ${item.has_manual_price_adjustment ? '<span class="receipt-item-adjustment">Ajuste especial</span>' : ''}
               </div>
 
               <strong class="receipt-item-price">${escapeHtml(total)}</strong>
@@ -653,6 +689,37 @@ const receiptSeo = {
       padding: 0 9px !important;
       font-size: 11px !important;
       font-weight: 1000 !important;
+    }
+
+    .receipt-total-final {
+      margin: 4px -8px -4px !important;
+      padding: 15px 12px !important;
+      border: 1px solid #bfdbfe !important;
+      border-radius: 16px !important;
+      background: linear-gradient(135deg, #eff6ff, #eef2ff) !important;
+      color: #0f172a !important;
+      font-size: 16px !important;
+      box-shadow: 0 8px 20px rgba(37, 99, 235, .08) !important;
+    }
+
+    .receipt-total-final strong {
+      color: #1d4ed8 !important;
+      font-size: 18px !important;
+      font-weight: 1000 !important;
+    }
+
+    .receipt-item-adjustment {
+      display: inline-flex !important;
+      margin-top: 7px !important;
+      min-height: 24px !important;
+      align-items: center !important;
+      border-radius: 999px !important;
+      border: 1px solid #ddd6fe !important;
+      background: #f5f3ff !important;
+      color: #6d28d9 !important;
+      padding: 4px 9px !important;
+      font-size: 11px !important;
+      font-weight: 950 !important;
     }
 
     .receipt-empty {

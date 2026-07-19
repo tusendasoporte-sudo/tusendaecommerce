@@ -406,6 +406,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		let selectedManualCouponCode = localStorage.getItem(SELECTED_COUPON_KEY) || '';
 
 		const PENDING_ORDER_KEY = `powerzona_pending_checkout_order_${COUPON_STORE_KEY}`;
+		const CHECKOUT_ATTEMPT_KEY = `powerzona_checkout_attempt_${COUPON_STORE_KEY}`;
 		const CART_STORAGE_KEY = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${CURRENT_STORE_ID || 'powerzona'}`;
 		const CHECKOUT_CART_STORAGE_KEY = window.PZ_CHECKOUT_CART_STORAGE_KEY || `${CART_STORAGE_KEY}_checkout`;
 		const SECURITY_DEVICE_COOKIE = 'pz_client_device';
@@ -667,6 +668,24 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				.join('|');
 		}
 
+		function getCheckoutAttemptKey(cart, checkoutContext = {}) {
+			const cartFingerprint = `${buildCartFingerprint(cart)}|${JSON.stringify(checkoutContext)}`;
+			try {
+				const current = JSON.parse(sessionStorage.getItem(CHECKOUT_ATTEMPT_KEY) || 'null');
+				if (current?.cartFingerprint === cartFingerprint && /^[A-Za-z0-9_-]{24,80}$/.test(current?.key || '')) {
+					return current.key;
+				}
+			} catch (_) {
+			}
+			const key = buildReceiptToken();
+			sessionStorage.setItem(CHECKOUT_ATTEMPT_KEY, JSON.stringify({ key, cartFingerprint }));
+			return key;
+		}
+
+		function clearCheckoutAttempt() {
+			sessionStorage.removeItem(CHECKOUT_ATTEMPT_KEY);
+		}
+
 		function getPendingCheckoutOrder(cart) {
 			try {
 				const pending = JSON.parse(sessionStorage.getItem(PENDING_ORDER_KEY) || 'null');
@@ -740,6 +759,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			pendingOrderFingerprint = '';
 			setCheckoutLocked(false);
 			clearPendingCheckoutOrder();
+			clearCheckoutAttempt();
 		}
 
 		function completeCheckoutAfterWhatsApp() {
@@ -751,6 +771,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 			localStorage.removeItem('powerzona_checkout_draft');
 			clearPendingCheckoutOrder();
+			clearCheckoutAttempt();
 			window.dispatchEvent(new Event('cart-updated'));
 			checkoutContent?.classList.add('hidden');
 			checkoutEmpty?.classList.remove('hidden');
@@ -1997,37 +2018,14 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 
-		function normalizeOrderPrefix(value) {
-			const clean = String(value || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
-			return clean || 'PP';
-		}
-
-		function buildOrderNumber(prefix = 'PP') {
-			const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-			let code = '';
-
-			for (let i = 0; i < 5; i++) {
-				const randomIndex = Math.floor(Math.random() * characters.length);
-				code += characters[randomIndex];
-			}
-
-			return `${normalizeOrderPrefix(prefix)}-${code}`;
-		}
-
 		function buildReceiptToken() {
+			if (!window.crypto?.getRandomValues) {
+				throw new Error('No se pudo iniciar un checkout seguro. Actualiza el navegador e intenta nuevamente.');
+			}
 			const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 			const cryptoValues = new Uint32Array(24);
-
-			if (window.crypto?.getRandomValues) {
-				window.crypto.getRandomValues(cryptoValues);
-				return Array.from(cryptoValues, (value) => characters[value % characters.length]).join('');
-			}
-
-			let token = '';
-			for (let i = 0; i < 24; i++) {
-				token += characters[Math.floor(Math.random() * characters.length)];
-			}
-			return token;
+			window.crypto.getRandomValues(cryptoValues);
+			return Array.from(cryptoValues, (value) => characters[value % characters.length]).join('');
 		}
 
 		function buildReceiptUrl(orderNumber, token) {
@@ -2184,57 +2182,21 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return parts.length ? parts.join(' | ') : fallback;
 		}
 
-		async function pocketbaseRequest(collectionName, data) {
+		async function createCanonicalCheckoutOrder(data) {
 			if (!POCKETBASE_URL) {
 				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
 			}
 
-			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records`, {
+			const response = await fetch(`${POCKETBASE_URL}/api/pz/checkout/orders`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(data),
-			});
-
-			const result = await response.json().catch(() => null);
-
-			if (!response.ok) {
-				throw new Error(formatPocketBaseError(result, `No se pudo crear el registro en ${collectionName}.`));
-			}
-
-			return result;
-		}
-
-		async function pocketbasePatch(collectionName, recordId, data) {
-			if (!POCKETBASE_URL) {
-				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
-			}
-
-			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`, {
-				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(data),
 			});
 			const result = await response.json().catch(() => null);
-			if (!response.ok) {
-				throw new Error(formatPocketBaseError(result, `No se pudo actualizar el registro en ${collectionName}.`));
+			if (!response.ok || !result?.ok || !result?.order) {
+				throw new Error('No se pudo validar y guardar el pedido. Revisa el carrito e intenta nuevamente.');
 			}
 			return result;
-		}
-
-		async function pocketbaseDelete(collectionName, recordId) {
-			if (!POCKETBASE_URL) {
-				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
-			}
-			const response = await fetch(`${POCKETBASE_URL}/api/collections/${collectionName}/records/${recordId}`, {
-				method: 'DELETE',
-			});
-			if (!response.ok) {
-				const result = await response.json().catch(() => null);
-				throw new Error(formatPocketBaseError(result, `No se pudo eliminar el registro en ${collectionName}.`));
-			}
-			return true;
 		}
 
 		async function pocketbaseGetRecord(collectionName, recordId) {
@@ -2322,112 +2284,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return persistCheckoutCartSnapshot(normalizedCart);
 		}
 
-		function formatNotificationUsd(value) {
-			const amount = Math.max(0, Number(value || 0));
-			return `$${amount.toFixed(2)} USD`;
-		}
-
-		function getOrderProductsSubtotalUSD(order) {
-			const candidates = [
-				order?.subtotal_after_discount_usd,
-				order?.subtotal,
-				order?.subtotal_original_usd,
-			];
-
-			for (const candidate of candidates) {
-				const value = Number(candidate || 0);
-				if (value > 0) return value;
-			}
-
-			const total = Number(order?.usd_total || order?.total || 0);
-			const shipping = Number(order?.shipping || order?.shipping_usd || order?.shipping_original_usd || 0);
-			return Math.max(0, total - shipping);
-		}
-
-		function normalizeNotificationPriority(priority) {
-			return ['normal', 'important', 'critical'].includes(priority) ? priority : 'normal';
-		}
-
-		function getNotificationPrioritySettings(settings = {}) {
-			const importantMin = Math.max(0, Number(settings?.notification_priority_important_min_usd ?? 50));
-			const criticalRaw = Math.max(0, Number(settings?.notification_priority_critical_min_usd ?? 100));
-			const criticalMin = Math.max(importantMin, criticalRaw);
-
-			return {
-				enabled: settings?.notification_priority_enabled !== false,
-				importantMin,
-				criticalMin,
-				showOrderSubtotal: settings?.notification_show_order_subtotal !== false,
-			};
-		}
-
-		function getOrderNotificationPriority(order, settings, fallback = 'important') {
-			const config = getNotificationPrioritySettings(settings);
-			if (!config.enabled) return normalizeNotificationPriority(fallback);
-
-			const subtotal = getOrderProductsSubtotalUSD(order);
-			if (subtotal >= config.criticalMin) return 'critical';
-			if (subtotal >= config.importantMin) return 'important';
-			return 'normal';
-		}
-
-		function buildOrderProductsText(order, settings) {
-			const config = getNotificationPrioritySettings(settings);
-			if (!config.showOrderSubtotal) return '';
-
-			const subtotal = getOrderProductsSubtotalUSD(order);
-			if (subtotal <= 0) return '';
-
-			return ` - Productos: ${formatNotificationUsd(subtotal)} sin envio`;
-		}
-
-		async function createNewOrderNotification({ order, checkoutData, settings }) {
-			try {
-				if (!order?.id || !CURRENT_STORE_ID) return;
-				if (!POCKETBASE_URL) return;
-				if (settings?.notifications_enabled === false || settings?.notify_new_order === false) return;
-
-				const orderNumber = order.order_number || order.id;
-				const customerName =
-					checkoutData?.customer_name
-					|| checkoutData?.name
-					|| order.customer_name
-					|| order.name
-					|| 'cliente';
-				const productsSubtotalUSD = getOrderProductsSubtotalUSD(order);
-				const priority = getOrderNotificationPriority(order, settings, 'important');
-				const productsText = buildOrderProductsText(order, settings);
-				const payload = {
-					store: CURRENT_STORE_ID,
-					type: 'new_order',
-					title: 'Nuevo pedido recibido',
-					message: `Pedido #${orderNumber} por ${customerName}${productsText}`,
-					status: 'unread',
-					priority,
-					target_url: `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/admin/orders/${encodeURIComponent(order.id)}`,
-					entity_collection: 'orders',
-					entity_id: order.id,
-					metadata_json: {
-						order_number: order.order_number || '',
-						customer_name: customerName,
-						products_subtotal_usd: productsSubtotalUSD,
-						shipping_excluded: true,
-						priority_rule: priority,
-					},
-				};
-
-				const response = await fetch(`${POCKETBASE_URL}/api/collections/store_notifications/records`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(payload),
-				});
-
-				if (!response.ok) return;
-			} catch {
-				return;
-			}
-		}
-
 		function getCartItemDisplayName(item) {
 			const variationLabel = item?.variation_label || item?.variation_name || '';
 			return variationLabel ? `${item.title} — ${variationLabel}` : item.title;
@@ -2445,18 +2301,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				if (stock <= 0 || quantity > stock) {
 					throw new Error(`${getCartItemDisplayName(item)} no tiene stock suficiente. Disponible: ${Math.max(0, stock)}.`);
 				}
-			}
-		}
-
-		async function deductLiveStockForOrder(items) {
-			for (const item of items) {
-				if (item.is_gift || item.track_stock === false || item.preorder) continue;
-				const quantity = Number(item.quantity || 1);
-				const collectionName = item.variation_id ? 'product_variations' : 'products';
-				const recordId = item.variation_id || item.id;
-				const record = await pocketbaseGetRecord(collectionName, recordId);
-				const nextStock = Math.max(0, Number(record.stock || 0) - quantity);
-				await pocketbasePatch(collectionName, recordId, { stock: nextStock });
 			}
 		}
 
@@ -2618,118 +2462,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 		}
 
-		function buildOrderItemPayloadDraft(item, selectedCode) {
-			const isGift = isGiftCartItem(item);
-			const quantity = isGift ? 1 : Number(item.quantity || 1);
-			const unitPriceUSD = isGift ? 0 : Number(item.price || 0);
-			const unitFinalPriceUSD = isGift ? 0 : Number(item.unit_price_final_usd ?? unitPriceUSD);
-			const unitCostUSD = isGift ? 0 : Number(item.variation_cost_usd ?? item.cost_usd ?? 0);
-			const unitProfitUSD = isGift ? 0 : unitFinalPriceUSD - unitCostUSD;
-			const lineOriginalUSD = isGift ? 0 : Number(item.line_subtotal_original_usd ?? (unitPriceUSD * quantity));
-			const lineDiscountUSD = isGift ? 0 : Number(item.line_discount_usd || 0);
-			const lineTotalUSD = isGift ? 0 : Number(item.line_subtotal_final_usd ?? (unitFinalPriceUSD * quantity));
-			const lineProfitUSD = isGift ? 0 : unitProfitUSD * quantity;
-			const variationLabel = isGift ? '' : (item.variation_label || item.variation_name || '');
-			const variationRef = isGift ? '' : (item.variation_ref || item.variation_internal_ref || '');
-			const itemTitle = item.title || (isGift ? 'Regalo' : 'Producto');
-			const itemImageUrl = normalizeReceiptImageUrl(item.image || item.image_url || item.thumbnail || '');
-			const keepItemSeparatedUsd = shouldSeparateUsdOnlyTotals() && Boolean(item.only_usd);
-			const visualUnitPrice = isGift ? 0 : (keepItemSeparatedUsd || selectedCode === 'USD' ? unitFinalPriceUSD : convertFromUsd(unitFinalPriceUSD, selectedCode));
-			const visualLineTotal = isGift ? 0 : (keepItemSeparatedUsd || selectedCode === 'USD' ? lineTotalUSD : convertFromUsd(lineTotalUSD, selectedCode));
-			const payload = {
-				product_name: itemTitle,
-				variation_name: variationLabel,
-				variation_label: variationLabel,
-				variation_ref: variationRef,
-				item_image_url: itemImageUrl,
-				item_image_alt: itemTitle,
-				quantity,
-				unit_price_selected_currency: visualUnitPrice,
-				unit_price_usd: unitFinalPriceUSD,
-				variation_price_usd: unitFinalPriceUSD,
-				unit_price_original_usd: unitPriceUSD,
-				unit_price_final_usd: unitFinalPriceUSD,
-				unit_profit_usd: unitProfitUSD,
-				line_profit_usd: lineProfitUSD,
-				line_total_usd: lineTotalUSD,
-				line_total_selected_currency: visualLineTotal,
-				line_subtotal_original_usd: lineOriginalUSD,
-				line_discount_usd: lineDiscountUSD,
-				line_subtotal_final_usd: lineTotalUSD,
-				promotion_id: isGift ? '' : (item.promotion?.id || ''),
-				promotion_name: isGift ? '' : (item.promotion?.name || item.promotion_label || ''),
-				promotion_type: isGift ? '' : (item.promotion?.type || ''),
-				coupon_id: isGift ? '' : (item.coupon?.id || ''),
-				coupon_code: isGift ? '' : (item.coupon?.code || ''),
-				coupon_discount_usd: isGift ? 0 : Number(item.coupon_discount_usd || 0),
-				only_usd: isGift ? false : Boolean(item.only_usd),
-				is_gift: isGift,
-				gift_min_order_usd: isGift ? Number(item.min_order_usd || 0) : 0,
-			};
-
-			if (isGift) {
-				payload.gift = normalizeGiftId(item);
-			} else {
-				payload.product = item.id;
-				payload.product_ref = item.id;
-				if (item.variation_id) payload.variation = item.variation_id;
-			}
-
-			return payload;
-		}
-
-		function validateGiftOrderItemPayload(payload) {
-			if (!payload?.is_gift || !payload.gift || !payload.product_name || Number(payload.quantity) !== 1) {
-				throw new Error('No se pudo preparar el regalo para el pedido. Eliminalo del carrito y vuelve a seleccionarlo.');
-			}
-
-			const zeroFields = [
-				'unit_price_selected_currency',
-				'unit_price_usd',
-				'variation_price_usd',
-				'unit_price_original_usd',
-				'unit_price_final_usd',
-				'unit_profit_usd',
-				'line_profit_usd',
-				'line_total_usd',
-				'line_total_selected_currency',
-				'line_subtotal_original_usd',
-				'line_discount_usd',
-				'line_subtotal_final_usd',
-				'coupon_discount_usd',
-			];
-			if (zeroFields.some((field) => Number(payload[field] || 0) !== 0)) {
-				throw new Error('No se pudo preparar el regalo como item gratis. Eliminalo del carrito y vuelve a seleccionarlo.');
-			}
-			if ('product' in payload || 'product_ref' in payload || 'variation' in payload) {
-				throw new Error('No se pudo preparar el regalo para el pedido. Eliminalo del carrito y vuelve a seleccionarlo.');
-			}
-		}
-
-		function buildOrderItemPayloadsForOrder(items, selectedCode) {
-			const payloads = items.map((item) => buildOrderItemPayloadDraft(item, selectedCode));
-			payloads.filter((payload) => payload.is_gift).forEach(validateGiftOrderItemPayload);
-			return payloads;
-		}
-
-		function validateGiftPayloadCount(cart, orderItemPayloads) {
-			const expectedGiftCount = Array.isArray(cart) ? cart.filter(isGiftCartItem).length : 0;
-			const payloadGiftCount = Array.isArray(orderItemPayloads)
-				? orderItemPayloads.filter((payload) => payload.is_gift === true).length
-				: 0;
-
-			if (expectedGiftCount !== payloadGiftCount) {
-				throw new Error('No se pudo preparar el regalo del pedido. Elimina el regalo y vuelve a seleccionarlo.');
-			}
-		}
-
-		async function rollbackPendingOrderAfterItemFailure(createdOrder) {
-			if (!createdOrder?.id || createdOrder.status !== 'pending') return false;
-			await pocketbaseDelete('orders', createdOrder.id);
-			return true;
-		}
-
-
 		async function createOrderAndItems(validation) {
 			const liveValidation = await runCheckoutLiveValidation({
 				force: true,
@@ -2778,133 +2510,62 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			}
 
 			const selectedShippingZone = getSelectedShippingZone();
-			const totals = calculateTotals(cart, selectedShippingZone, validation.data.delivery_method);
-			const orderNumber = buildOrderNumber(settings.order_prefix);
-			const receiptToken = buildReceiptToken();
-			const receiptUrl = buildReceiptUrl(orderNumber, receiptToken);
+			const previewTotals = calculateTotals(cart, selectedShippingZone, validation.data.delivery_method);
 
 			const selectedCurrency = getSelectedCurrencyObject();
 			const currencyId = selectedCurrency?.id || getCurrencyId(settings);
-			const expandedCurrency = selectedCurrency?.id ? selectedCurrency : getExpandedDefaultCurrency(settings);
-			const selectedCode = normalizeCurrencyCode(selectedCurrency?.code || selectedCurrencyCode());
-			const exchangeRateUsed = Number(expandedCurrency?.exchange_rate || 1);
-			const separateUsdOnlyTotals = shouldSeparateUsdOnlyTotals();
-			const selectedCurrencyProductsTotalUSD = separateUsdOnlyTotals ? totals.localCurrencyTotal : totals.subtotalUSD;
-			const visualConvertibleTotal = selectedCode === 'USD' ? selectedCurrencyProductsTotalUSD : convertFromUsd(selectedCurrencyProductsTotalUSD, selectedCode);
-			const visualUsdOnlyTotal = separateUsdOnlyTotals ? totals.usdOnlyTotal : 0;
-			const visualShippingTotal = selectedCode === 'USD' ? totals.shippingUSD : convertFromUsd(totals.shippingUSD, selectedCode);
-			const calculatedItemsRaw = totals.promotionItems || calculateCartPromotions(cart).items || cart;
+			const calculatedItemsRaw = previewTotals.promotionItems || calculateCartPromotions(cart).items || cart;
 			const calculatedItems = mergeGiftItemsIntoCalculatedItems(cart, calculatedItemsRaw);
 			await validateLiveStockForOrder(calculatedItems);
-			const orderItemPayloads = buildOrderItemPayloadsForOrder(calculatedItems, selectedCode);
-			validateGiftPayloadCount(cart, orderItemPayloads);
 
-			const shippingZoneName = selectedShippingZone
-				? `${selectedShippingZone.municipality} / ${selectedShippingZone.zone || selectedShippingZone.municipality}`
-				: '';
-
-			validation.data.shipping_zone_name = shippingZoneName;
-
-			const orderPayload = {
-				store: CURRENT_STORE_ID,
-				order_number: orderNumber,
-				receipt_token: receiptToken,
+			const receiptToken = getCheckoutAttemptKey(cart, {
+				customer_name: validation.data.customer_name,
+				customer_phone: validation.data.customer_phone,
+				customer_address: validation.data.delivery_method === 'delivery' ? validation.data.customer_address : '',
+				customer_municipality: validation.data.customer_municipality || '',
+				customer_note: validation.data.customer_note || '',
+				currency_id: currencyId,
+				delivery_method: validation.data.delivery_method,
+				shipping_zone_id: selectedShippingZone?.id || '',
+				coupon_code: selectedManualCouponCode || '',
+			});
+			const checkoutResult = await createCanonicalCheckoutOrder({
+				store_id: CURRENT_STORE_ID,
+				idempotency_key: receiptToken,
 				customer_name: validation.data.customer_name,
 				customer_phone: validation.data.customer_phone,
 				customer_address: validation.data.delivery_method === 'delivery'
 					? validation.data.customer_address
 					: '',
-				currency: currencyId,
-				subtotal: totals.subtotalUSD,
-				shipping: totals.shippingUSD,
-				total: totals.totalUSD,
-				usd_total: totals.totalUSD,
-				subtotal_original_usd: totals.subtotalOriginalUSD,
-				discount_total_usd: totals.discountTotalUSD,
-				subtotal_after_discount_usd: totals.subtotalUSD,
-				promotion_summary: totals.promotionSummary || '',
-				coupon_id: totals.couponWinner === 'manual_coupon' ? (totals.manualCoupon?.id || '') : '',
-				coupon_code: totals.couponWinner === 'manual_coupon' ? (totals.manualCoupon?.code || '') : '',
-				coupon_discount_usd: totals.couponWinner === 'manual_coupon' ? Number(totals.couponDiscountUSD || 0) : 0,
-				coupon_summary: totals.couponWinner === 'manual_coupon' ? (totals.promotionSummary || getPromotionReasonText(totals)) : '',
-				shipping_original_usd: totals.shippingOriginalUSD,
-				shipping_discount_usd: totals.shippingDiscountUSD,
-				mixed_payment: totals.mixedPayment,
+				customer_municipality: validation.data.customer_municipality || '',
+				customer_note: validation.data.customer_note || '',
+				currency_id: currencyId,
 				delivery_method: validation.data.delivery_method,
-				status: 'pending',
-				whatsapp_sent: false,
-				stock_deducted: false,
-				notes: [
-					validation.data.customer_municipality ? `Municipio: ${validation.data.customer_municipality}` : '',
-					validation.data.customer_note ? `Nota cliente: ${validation.data.customer_note}` : '',
-					`Moneda elegida cliente: ${selectedCode}`,
-					`Total productos visual cliente: ${formatCheckoutTotals(totals)}`,
-					totals.discountTotalUSD > 0 ? `${totals.couponWinner === 'manual_coupon' ? 'Descuento cupón USD' : 'Descuento automático USD'}: ${formatUSD(totals.discountTotalUSD)}` : '',
-					`Envío visual cliente: ${formatShipping(totals.shippingUSD)}`,
-					cart.some((item) => item.preorder) ? `Preorder: ${cart.filter((item) => item.preorder).map((item) => item.title).join(', ')}` : '',
-					cart.some((item) => item.is_offer) ? `Ahorro por ofertas USD: ${formatUSD(cart.reduce((sum, item) => sum + (item.is_gift ? 0 : Math.max(0, Number(item.regular_price_usd || item.price || 0) - Number(item.price || 0)) * Number(item.quantity || 1)), 0))}` : '',
-				].filter(Boolean).join('\n'),
-				local_currency_total: visualConvertibleTotal,
-				usd_only_total: visualUsdOnlyTotal,
-				shipping_cup: visualShippingTotal,
-				shipping_zone: selectedShippingZone?.id || '',
-				exchange_rate_used: exchangeRateUsed,
+				shipping_zone_id: selectedShippingZone?.id || '',
+				coupon_code: selectedManualCouponCode || '',
+				items: cart.map((item) => isGiftCartItem(item)
+					? { gift_id: normalizeGiftId(item), quantity: 1 }
+					: {
+						product_id: item.id,
+						variation_id: item.variation_id || '',
+						quantity: Number(item.quantity || 1),
+					}),
+			});
+			const createdOrder = checkoutResult.order;
+			const canonicalCart = Array.isArray(checkoutResult.items) ? checkoutResult.items : [];
+			const totals = {
+				...previewTotals,
+				...(checkoutResult.totals || {}),
+				promotionItems: canonicalCart,
 			};
-
-			const createdOrder = await pocketbaseRequest('orders', orderPayload);
-
-			try {
-				for (const itemPayload of orderItemPayloads) {
-					await pocketbaseRequest('order_items', {
-						order: createdOrder.id,
-						...itemPayload,
-					});
-				}
-			} catch (error) {
-				let rollbackDone = false;
-				try {
-					rollbackDone = await rollbackPendingOrderAfterItemFailure(createdOrder);
-				} catch (_) {
-					rollbackDone = false;
-				}
-				const detail = error?.message ? ` Detalle: ${error.message}` : '';
-				if (!rollbackDone) {
-					throw new Error(`No se pudo completar el pedido. Intente nuevamente o contacte a la tienda.${detail}`);
-				}
-				throw new Error(`No se pudo completar el pedido. Intente nuevamente.${detail}`);
-			}
+			validation.data.shipping_zone_name = checkoutResult.shipping_zone_name || '';
+			const receiptUrl = buildReceiptUrl(createdOrder.order_number, createdOrder.receipt_token);
 
 			void registerOrderSecurityIdentity(createdOrder);
 
-			if (totals.couponWinner === 'manual_coupon' && totals.manualCoupon?.id) {
-				await pocketbaseRequest('manual_coupon_usages', {
-					coupon: totals.manualCoupon.id,
-					order: createdOrder.id,
-					coupon_code: totals.manualCoupon.code || '',
-					customer_name: validation.data.customer_name,
-					order_number: orderNumber,
-					discount_usd: Number(totals.couponDiscountUSD || 0),
-					shipping_discount_usd: Number(totals.shippingDiscountUSD || 0),
-				});
-				await pocketbasePatch('manual_coupons', totals.manualCoupon.id, {
-					used_count: Number(totals.manualCoupon.used_count || 0) + 1,
-				});
-				const nextUsedCount = Number(totals.manualCoupon.used_count || 0) + 1;
-				const maxUses = Number(totals.manualCoupon.max_uses || 0);
-				if (totals.manualCoupon.unlimited_uses === false && maxUses > 0 && nextUsedCount >= maxUses) {
-					removeSavedCouponCode(totals.manualCoupon.code || '');
-				}
-			}
-
-			await createNewOrderNotification({
-				order: createdOrder,
-				checkoutData: validation.data,
-				settings,
-			});
-
 			const message = buildWhatsAppMessage({
 				order: createdOrder,
-				cart,
+				cart: canonicalCart,
 				checkoutData: validation.data,
 				totals,
 				receiptUrl,
