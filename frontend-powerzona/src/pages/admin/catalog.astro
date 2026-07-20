@@ -2,6 +2,8 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import '../../styles/global.css';
@@ -13,6 +15,17 @@ const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const catalogPermissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canManageCategories = hasStorePermission(catalogPermissionContext, 'catalog.categories.manage');
+const canCreateProducts = hasStorePermission(catalogPermissionContext, 'catalog.products.create');
+const canEditProducts = hasStorePermission(catalogPermissionContext, 'catalog.products.edit');
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -153,6 +166,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
       .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
       .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+      .permission-hidden { display: none !important; }
       .section-stack { display: grid; gap: 18px; }
       .list-card { overflow: visible; position: relative; z-index: 1; }
       .catalog-categories-card { z-index: 40; margin-bottom: 34px; }
@@ -1067,7 +1081,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="catalog" mobileTitle="Categorias" mobileActionLabel="Nueva categoria" mobileActionTarget="#category-create-main-btn" />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="catalog" mobileTitle="Categorias" mobileActionLabel={canManageCategories ? 'Nueva categoria' : ''} mobileActionTarget={canManageCategories ? '#category-create-main-btn' : ''} />
 
       <main class="main-wrap admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
@@ -1082,13 +1096,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           description="Gestiona y organiza las categorias de tus productos."
           titleId="catalog-page-title"
           bellId="admin-catalog-bell"
-          actionId="category-create-main-btn"
-          actionLabel="Nueva categoria"
+          actionId={canManageCategories ? 'category-create-main-btn' : undefined}
+          actionLabel={canManageCategories ? 'Nueva categoria' : undefined}
         />
       <section id="admin-view">
         <div id="catalog-grid" class="grid">
           <div id="catalog-tools-panel" class="section-stack">
-            <section id="subcategory-create-card" class="panel-card create-accordion-card hidden">
+            <section id="subcategory-create-card" class:list={['panel-card create-accordion-card hidden', !canManageCategories && 'permission-hidden']}>
               <button id="subcategory-create-toggle" class="create-toggle-btn" type="button" aria-expanded="false" aria-controls="subcategory-create-panel">
                 <span class="create-toggle-left">
                   <span class="create-toggle-icon">＋</span>
@@ -1178,7 +1192,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </div>
             </section>
 
-            <section id="category-create-card" class="panel-card create-accordion-card catalog-create-on-top">
+            <section id="category-create-card" class:list={['panel-card create-accordion-card catalog-create-on-top', !canManageCategories && 'permission-hidden']}>
               <button id="category-create-toggle" class="create-toggle-btn" type="button" aria-expanded="false" aria-controls="category-create-panel">
                 <span class="create-toggle-left">
                   <span class="create-toggle-icon">＋</span>
@@ -1264,13 +1278,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminCatalogPath, adminProductsPath, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminCatalogPath, adminProductsPath, canManageCategories, canCreateProducts, canEditProducts }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_CATALOG_PATH = String(adminCatalogPath || '/admin/catalog');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const CAN_MANAGE_CATEGORIES = canManageCategories === true;
+      const CAN_CREATE_PRODUCTS = canCreateProducts === true;
+      const CAN_EDIT_PRODUCTS = canEditProducts === true;
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
       const adminSubtitle = document.getElementById('admin-subtitle') || { textContent: '' };
@@ -1516,7 +1532,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </div>
               <div class="content-product-actions">
                 <span class="content-price-pill">${escapeHtml(formatUsd(product.base_price_usd))}</span>
-                <button class="mini-btn js-product-edit-soon" type="button">Editar</button>
+                ${CAN_EDIT_PRODUCTS ? '<button class="mini-btn js-product-edit-soon" type="button">Editar</button>' : ''}
               </div>
             </article>
           `;
@@ -1606,7 +1622,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <h3 class="content-section-title">Productos directos de la categoría</h3>
                 <p class="content-section-note">Productos que no dependen de una subcategoría.</p>
               </div>
-              <button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>
+              ${CAN_CREATE_PRODUCTS ? '<button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>' : ''}
             </div>
             <div class="content-mini-grid">${renderProductCards(directProducts)}</div>
           </section>
@@ -1644,7 +1660,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <h3 class="content-section-title">Productos dentro de esta subcategoría</h3>
                 <p class="content-section-note">Administra los productos asociados a esta subcategoría.</p>
               </div>
-              <button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>
+              ${CAN_CREATE_PRODUCTS ? '<button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>' : ''}
             </div>
             <div class="content-mini-grid">${renderProductCards(productItems)}</div>
           </section>
@@ -1692,6 +1708,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function toggleCreatePanel(type) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const isCategory = type === 'category';
         const card = isCategory ? categoryCreateCard : subcategoryCreateCard;
         const toggle = isCategory ? categoryCreateToggle : subcategoryCreateToggle;
@@ -1708,6 +1725,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function openCategoryCreatePanel() {
+        if (!CAN_MANAGE_CATEGORIES) return;
         if (!isCategoryCreatePanelOpen()) toggleCreatePanel('category');
         categoryCreateCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         setTimeout(() => categoryName?.focus(), 180);
@@ -1724,10 +1742,37 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         element.className = `alert alert-${type}`;
         element.classList.toggle('hidden', !message);
       }
-      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function getAdminToken() {
+        const authCookie = String(document.cookie || '')
+          .split(';')
+          .map((value) => value.trim())
+          .find((value) => value.startsWith('pb_auth='));
+        if (!authCookie) return '';
+        try {
+          const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+          return String(auth?.token || '');
+        } catch {
+          return '';
+        }
+      }
       function showAdmin() { adminView?.classList.remove('hidden'); }
 
+      function assertCatalogMutationAllowed(path, options = {}) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (/^\/api\/collections\/(categories|subcategories)\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_MANAGE_CATEGORIES) throw new Error('No tienes permiso para gestionar categorias.');
+          return;
+        }
+        if (/^\/api\/collections\/products\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_EDIT_PRODUCTS) throw new Error('No tienes permiso para editar productos.');
+          return;
+        }
+        throw new Error('Esta accion no esta habilitada para tu perfil.');
+      }
+
       async function apiRequest(path, options = {}) {
+        assertCatalogMutationAllowed(path, options);
         const headers = { ...(options.headers || {}) };
         const token = getAdminToken();
         if (token) headers.Authorization = `Bearer ${token}`;
@@ -1844,20 +1889,22 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
 
-              <button class="visibility-btn ${statusClass} js-inline-subcategory-toggle" type="button" title="Cambiar visibilidad">👁 ${statusText}</button>
+              ${CAN_MANAGE_CATEGORIES
+                ? `<button class="visibility-btn ${statusClass} js-inline-subcategory-toggle" type="button" title="Cambiar visibilidad">👁 ${statusText}</button>`
+                : `<span class="visibility-btn ${statusClass}">👁 ${statusText}</span>`}
 
               <div class="category-product-actions">
-                <button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>
+                ${CAN_CREATE_PRODUCTS ? '<button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>' : ''}
               </div>
 
-              <div class="catalog-order-actions" aria-label="Ordenar subcategoría">
+              ${CAN_MANAGE_CATEGORIES ? `<div class="catalog-order-actions" aria-label="Ordenar subcategoría">
                 <button class="catalog-icon-btn js-inline-subcategory-up" type="button" ${index === 0 ? 'disabled' : ''} title="Subir">↑</button>
                 <button class="catalog-icon-btn js-inline-subcategory-down" type="button" ${index === childSubcategories.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
-              </div>
+              </div>` : ''}
 
               <a class="catalog-open-btn js-category-open" href="${ADMIN_CATALOG_PATH}/category/${category.id}" title="Abrir categoría">Abrir →</a>
 
-              <div class="catalog-menu-wrap">
+              ${CAN_MANAGE_CATEGORIES ? `<div class="catalog-menu-wrap">
                 <button class="catalog-icon-btn js-menu-toggle" type="button" title="Más opciones">⋮</button>
                 <div class="catalog-menu">
                   <button class="js-inline-subcategory-edit" type="button"><span>Editar</span><strong>✎</strong></button>
@@ -1865,9 +1912,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <button class="js-inline-subcategory-toggle" type="button"><span>${toggleText}</span><strong>👁</strong></button>
                   <button class="danger js-inline-subcategory-delete-soon" type="button"><span>Borrar y mover productos</span><strong>!</strong></button>
                 </div>
-              </div>
+              </div>` : ''}
 
-              <div class="category-child-editor">
+              ${CAN_MANAGE_CATEGORIES ? `<div class="category-child-editor">
                 <div class="catalog-card-editor">
                   <div class="catalog-edit-grid">
                     <div class="premium-field">
@@ -1891,7 +1938,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>` : ''}
             </article>
           `;
         }).join('');
@@ -1917,11 +1964,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
 
-              <button class="visibility-btn ${statusClass} js-product-edit-soon" type="button" title="Cambiar visibilidad del producto">👁 ${statusText}</button>
+              ${CAN_EDIT_PRODUCTS
+                ? `<button class="visibility-btn ${statusClass} js-product-edit-soon" type="button" title="Gestionar producto">👁 ${statusText}</button>`
+                : `<span class="visibility-btn ${statusClass}">👁 ${statusText}</span>`}
 
               <div class="category-product-actions">
                 <span class="product-price-mini">${escapeHtml(formatUsd(product.base_price_usd))}</span>
-                <button class="mini-btn js-product-edit-soon" type="button">Editar</button>
+                ${CAN_EDIT_PRODUCTS ? '<button class="mini-btn js-product-edit-soon" type="button">Editar</button>' : ''}
               </div>
             </article>
           `;
@@ -1936,7 +1985,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <h3 class="category-subcategories-title">Contenido de ${escapeHtml(category.name || 'esta categoría')}</h3>
                 <p class="category-subcategories-note">Subcategorías y productos.</p>
               </div>
-              <button class="mini-btn primary js-inline-subcategory-new-toggle" type="button">+ Nueva subcategoría</button>
+              ${CAN_MANAGE_CATEGORIES ? '<button class="mini-btn primary js-inline-subcategory-new-toggle" type="button">+ Nueva subcategoría</button>' : ''}
             </div>
 
             <div class="category-subcategories-head" style="margin-bottom:10px;">
@@ -1945,7 +1994,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </div>
             </div>
 
-            <div class="inline-subcategory-form">
+            ${CAN_MANAGE_CATEGORIES ? `<div class="inline-subcategory-form">
               <div class="catalog-edit-grid">
                 <div class="premium-field">
                   <label>Nombre de la subcategoría</label>
@@ -1970,7 +2019,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
               <div class="alert alert-info hidden inline-subcategory-alert"></div>
-            </div>
+            </div>` : ''}
 
             <div class="category-subcategories-list">
               ${renderInlineSubcategoryCards(category)}
@@ -1982,7 +2031,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <h3 class="category-subcategories-title">Productos directos</h3>
                   <p class="category-subcategories-note">Productos publicados en esta categoría sin subcategoría.</p>
                 </div>
-                <button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>
+                ${CAN_CREATE_PRODUCTS ? '<button class="mini-btn primary js-product-create-soon" type="button">+ Nuevo producto</button>' : ''}
               </div>
               <div class="category-subcategories-list">
                 ${renderInlineProductCards(category)}
@@ -1993,6 +2042,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function createInlineSubcategory(panel) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const categoryId = panel?.dataset?.inlineCategoryId;
         const category = getCategory(categoryId);
         const nameInput = panel?.querySelector('.js-inline-subcategory-new-name');
@@ -2103,15 +2153,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
               <div class="catalog-cell">${children}</div>
               <div class="catalog-cell">${productCount}</div>
-              <button class="visibility-btn ${statusClass} js-category-toggle" type="button" title="Cambiar visibilidad">${statusText}</button>
+              ${CAN_MANAGE_CATEGORIES
+                ? `<button class="visibility-btn ${statusClass} js-category-toggle" type="button" title="Cambiar visibilidad">${statusText}</button>`
+                : `<span class="visibility-btn ${statusClass}">${statusText}</span>`}
 
               <div class="catalog-actions-cell">
-                <button class="visibility-btn is-featured js-category-featured" type="button" title="Destacar en portada">${escapeHtml(category.featured_on_home === true ? 'Destacada' : 'Destacar')}</button>
+                ${CAN_MANAGE_CATEGORIES ? `<button class="visibility-btn is-featured js-category-featured" type="button" title="Destacar en portada">${escapeHtml(category.featured_on_home === true ? 'Destacada' : 'Destacar')}</button>
                 <div class="catalog-order-actions" aria-label="Ordenar categoria">
                   <button class="catalog-icon-btn js-category-up" type="button" ${index <= 0 ? 'disabled' : ''} title="Subir">&uarr;</button>
                   <button class="catalog-icon-btn js-category-down" type="button" ${index === orderedForButtons.length - 1 ? 'disabled' : ''} title="Bajar">&darr;</button>
-                </div>
-                <div class="catalog-menu-wrap">
+                </div>` : ''}
+                ${CAN_MANAGE_CATEGORIES ? `<div class="catalog-menu-wrap">
                   <button class="catalog-icon-btn js-menu-toggle" type="button" title="Mas opciones">&vellip;</button>
                   <div class="catalog-menu">
                     <button class="js-category-edit" type="button"><span>Editar</span><strong>Editar</strong></button>
@@ -2119,7 +2171,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <button class="js-category-toggle" type="button"><span>${toggleText}</span><strong>${statusText}</strong></button>
                     <button class="danger js-category-delete-soon" type="button"><span>Borrar completa</span><strong>!</strong></button>
                   </div>
-                </div>
+                </div>` : `<button class="mini-btn js-category-view" type="button">Ver contenido</button>`}
               </div>
             </article>
           `;
@@ -2153,14 +2205,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
 
-              <button class="visibility-btn ${statusClass} js-subcategory-toggle" type="button" title="Cambiar visibilidad">👁 ${statusText}</button>
+              ${CAN_MANAGE_CATEGORIES
+                ? `<button class="visibility-btn ${statusClass} js-subcategory-toggle" type="button" title="Cambiar visibilidad">👁 ${statusText}</button>`
+                : `<span class="visibility-btn ${statusClass}">👁 ${statusText}</span>`}
 
-              <div class="catalog-order-actions" aria-label="Ordenar subcategoría">
+              ${CAN_MANAGE_CATEGORIES ? `<div class="catalog-order-actions" aria-label="Ordenar subcategoría">
                 <button class="catalog-icon-btn js-subcategory-up" type="button" ${siblingIndex <= 0 ? 'disabled' : ''} title="Subir">↑</button>
                 <button class="catalog-icon-btn js-subcategory-down" type="button" ${siblingIndex === siblings.length - 1 ? 'disabled' : ''} title="Bajar">↓</button>
-              </div>
+              </div>` : ''}
 
-              <div class="catalog-menu-wrap">
+              ${CAN_MANAGE_CATEGORIES ? `<div class="catalog-menu-wrap">
                 <button class="catalog-icon-btn js-menu-toggle" type="button" title="Más opciones">⋮</button>
                 <div class="catalog-menu">
                   <button class="js-subcategory-edit" type="button"><span>Editar</span><strong>✎</strong></button>
@@ -2168,9 +2222,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <button class="js-subcategory-toggle" type="button"><span>${toggleText}</span><strong>👁</strong></button>
                   <button class="danger js-subcategory-delete-soon" type="button"><span>Borrar y mover productos</span><strong>!</strong></button>
                 </div>
-              </div>
+              </div>` : `<button class="mini-btn js-subcategory-view" type="button">Ver contenido</button>`}
 
-              <div class="catalog-inline-editor">
+              ${CAN_MANAGE_CATEGORIES ? `<div class="catalog-inline-editor">
                 <div class="catalog-card-editor">
                   <div class="catalog-edit-grid">
                     <div class="premium-field">
@@ -2199,7 +2253,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>` : ''}
             </article>
           `;
         }).join('');
@@ -2240,6 +2294,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       async function createCategory(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_CATEGORIES) return;
         const name = categoryName.value.trim();
         if (!name) {
           setAlert(categoryAlert, 'Escribe el nombre de la categoría.', 'error');
@@ -2281,6 +2336,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       async function createSubcategory(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_CATEGORIES) return;
         const name = subcategoryName.value.trim();
         const categoryId = subcategoryCategory.value;
         if (!categoryId) {
@@ -2328,6 +2384,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function updateCategory(row, changes) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const id = row.dataset.categoryId;
         const imageFile = row.querySelector('.js-category-image')?.files?.[0];
         if (imageFile) {
@@ -2358,6 +2415,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function deleteCategorySafely(category) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         if (!category?.id || !isCurrentStoreRecord(category)) {
           showAdminToast('No tienes permisos para eliminar esta categoría.', 'error');
           return;
@@ -2400,6 +2458,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function toggleCategoryFeatured(category) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         if (!category || !category.id) return;
         const nextFeatured = category.featured_on_home !== true;
         const featuredCategories = categories.filter((item) => item.featured_on_home === true && item.id !== category.id);
@@ -2421,6 +2480,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function updateSubcategory(row, changes) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const id = row.dataset.subcategoryId;
         const imageFile = row.querySelector('.js-subcategory-image')?.files?.[0];
         if (imageFile) {
@@ -2453,6 +2513,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function moveCategory(categoryId, direction) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const ordered = sortedByCatalogOrder(categories);
         const index = ordered.findIndex((item) => item.id === categoryId);
         const targetIndex = index + direction;
@@ -2465,6 +2526,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function moveSubcategory(subcategoryId, direction) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const current = subcategories.find((item) => item.id === subcategoryId);
         if (!current) return;
 
@@ -2525,6 +2587,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
 
       function productCreateUrl(categoryId = '', subcategoryId = '') {
+        if (!CAN_CREATE_PRODUCTS) return '';
         const params = new URLSearchParams();
         params.set('new', '1');
         if (categoryId) params.set('category', categoryId);
@@ -2532,6 +2595,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
       }
       function productEditUrl(productId = '') {
+        if (!CAN_EDIT_PRODUCTS) return '';
         const params = new URLSearchParams();
         if (productId) params.set('product', productId);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
@@ -2565,11 +2629,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         const productCreateButton = event.target.closest('.js-product-create-soon');
         if (productCreateButton) {
+          if (!CAN_CREATE_PRODUCTS) return;
           window.location.href = productCreateUrl(contentNavigation?.categoryId || '', contentNavigation?.subcategoryId || '');
           return;
         }
         const productEditButton = event.target.closest('.js-product-edit-soon');
         if (productEditButton) {
+          if (!CAN_EDIT_PRODUCTS) return;
           const productCard = productEditButton.closest('[data-product-id]');
           window.location.href = productEditUrl(productCard?.dataset?.productId || '');
         }
@@ -2582,6 +2648,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       categoriesList.addEventListener('click', async (event) => {
         const inlineSubcategoryMain = event.target.closest('.category-child-main');
         if (inlineSubcategoryMain) {
+          if (!CAN_MANAGE_CATEGORIES) return;
           const childRow = inlineSubcategoryMain.closest('[data-subcategory-id]');
           if (childRow) {
             closeCatalogMenus();
@@ -2604,6 +2671,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 return;
               }
               if (inlineButton.classList.contains('js-inline-subcategory-new-toggle')) {
+                if (!CAN_MANAGE_CATEGORIES) return;
                 inlinePanel.classList.toggle('creating');
                 inlinePanel.querySelector('.js-inline-subcategory-new-name')?.focus();
                 return;
@@ -2613,16 +2681,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 return;
               }
               if (inlineButton.classList.contains('js-inline-subcategory-create')) {
+                if (!CAN_MANAGE_CATEGORIES) return;
                 await createInlineSubcategory(inlinePanel);
                 return;
               }
               if (inlineButton.classList.contains('js-product-create-soon')) {
+                if (!CAN_CREATE_PRODUCTS) return;
                 const inlineCategoryId = inlinePanel?.dataset?.inlineCategoryId || '';
                 const inlineSubcategoryId = inlineRow?.dataset?.subcategoryId || '';
                 window.location.href = productCreateUrl(inlineCategoryId || (inlineSubcategoryId ? subcategories.find((item) => item.id === inlineSubcategoryId)?.category : ''), inlineSubcategoryId);
                 return;
               }
               if (inlineButton.classList.contains('js-product-edit-soon')) {
+                if (!CAN_EDIT_PRODUCTS) return;
                 const productRow = inlineButton.closest('[data-product-id]');
                 window.location.href = productEditUrl(productRow?.dataset?.productId || '');
                 return;
@@ -2708,6 +2779,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         button.disabled = true;
         try {
+          if (!CAN_MANAGE_CATEGORIES && !button.classList.contains('js-category-view')) return;
           if (button.classList.contains('js-category-up')) {
             await moveCategory(category.id, -1);
             return;
@@ -2789,6 +2861,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         button.disabled = true;
         try {
+          if (!CAN_MANAGE_CATEGORIES && !button.classList.contains('js-subcategory-view')) return;
           if (button.classList.contains('js-subcategory-up')) {
             await moveSubcategory(subcategory.id, -1);
             return;

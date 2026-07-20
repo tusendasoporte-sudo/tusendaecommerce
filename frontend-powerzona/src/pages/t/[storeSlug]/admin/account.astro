@@ -4,8 +4,9 @@ export const prerender = false;
 import AdminDialog from '../../../../components/admin/AdminDialog.astro';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import { getStoreAdminPath } from '../../../../lib/adminRoutes';
-import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../../../lib/auth';
+import { isMasterAdmin, isStoreStaff, refreshAuthFromCookie } from '../../../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
+import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
 import '../../../../styles/global.css';
 import '../../../../styles/account-ui.css';
 
@@ -29,12 +30,11 @@ const storeSlug = String(adminContext.store.slug || '').trim().toLowerCase();
 const canonicalPath = getStoreAdminPath(storeSlug, 'account');
 const pathSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
 if (pathSlug !== storeSlug) return Astro.redirect(canonicalPath);
-if (!isStoreAdmin(adminContext.user)) return Astro.redirect(getStoreAdminPath(storeSlug));
-
 const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
 const user = adminContext.user;
 const displayName = String(user.display_name || user.name || user.email || 'Administrador');
-const roleLabel = 'Administrador de tienda';
+const roleLabel = isStoreStaff(user) ? 'Personal de tienda' : 'Administrador de tienda';
+const planPresentation = resolveStorePlanPresentation(adminContext.store);
 ---
 
 <!doctype html>
@@ -64,6 +64,18 @@ const roleLabel = 'Administrador de tienda';
       </header>
 
       <div class="pz-account-stack">
+        <section id="plan" class="pz-account-card" aria-labelledby="account-plan-title">
+          <header class="pz-account-card__head">
+            <h2 id="account-plan-title">Planes de la tienda</h2>
+            <p>Consulta el plan actual y las opciones disponibles. La asignación o el cambio se gestiona de forma segura desde Master Admin.</p>
+          </header>
+          <dl class="pz-account-info">
+            <div><dt>Plan actual</dt><dd>{planPresentation.contextTitle}</dd></div>
+            <div><dt>Estado</dt><dd>{planPresentation.contextDetail}</dd></div>
+            <div><dt>Opciones</dt><dd>Prueba gratuita · Plan Básico · Plan Premium</dd></div>
+          </dl>
+        </section>
+
         <section class="pz-account-card" aria-labelledby="account-information-title">
           <header class="pz-account-card__head">
             <h2 id="account-information-title">Información de la cuenta</h2>

@@ -334,6 +334,57 @@ test('solo un master_admin active supera la validacion de actor', () => {
   assert.equal(users.isActiveMaster(record({ role: 'store_admin', status: 'active' })), false);
 });
 
+test('Master asigna una plantilla granular segura por defecto según el rol', () => {
+  const admin = users.defaultAccessForRole('store_admin');
+  const staff = users.defaultAccessForRole('store_staff');
+  assert.equal(admin.templateCode, 'secondary_admin');
+  assert.equal(admin.permissions.includes('catalog.products.edit'), true);
+  assert.equal(admin.permissions.includes('team.manage'), false);
+  assert.equal(staff.templateCode, 'read_only');
+  assert.equal(staff.permissions.length > 0, true);
+  assert.equal(staff.permissions.every((permission) => permission.endsWith('.view')), true);
+});
+
+test('Master persiste acceso granular al crear o cambiar el rol y conserva un acceso existente estable', () => {
+  const PreviousRecord = global.Record;
+  class MockRecord {
+    constructor(collection) { this.id = 'accessmaster001'; this.collection = collection; this.values = {}; }
+    set(key, value) { this.values[key] = value; }
+    get(key) { return this.values[key]; }
+  }
+  global.Record = MockRecord;
+  try {
+    const saved = [];
+    let existing = null;
+    const app = {
+      findFirstRecordByFilter() {
+        if (!existing) throw new Error('not_found');
+        return existing;
+      },
+      findCollectionByNameOrId(name) { return { name }; },
+      save(access) { saved.push(access); existing = access; },
+    };
+    const targetStore = record({ primary_admin_user: '' }, STORE_ID);
+    const actor = record({ role: 'master_admin', status: 'active' }, 'mastertestu7b50');
+    const target = record({ role: 'store_staff', status: 'active', store: STORE_ID });
+
+    const created = users.ensureMasterManagedAccess(app, targetStore, target, actor, '');
+    assert.equal(created.values.template_code, 'read_only');
+    assert.equal(created.values.created_by, actor.id);
+    assert.equal(saved.length, 1);
+
+    users.ensureMasterManagedAccess(app, targetStore, target, actor, 'store_staff');
+    assert.equal(saved.length, 1);
+
+    target.get = (key) => ({ role: 'store_admin', status: 'active', store: STORE_ID }[key]);
+    users.ensureMasterManagedAccess(app, targetStore, target, actor, 'store_staff');
+    assert.equal(existing.values.template_code, 'secondary_admin');
+    assert.equal(saved.length, 2);
+  } finally {
+    global.Record = PreviousRecord;
+  }
+});
+
 test('login y refresh suspendidos usan un error generico', () => {
   const PreviousBadRequestError = global.BadRequestError;
   global.BadRequestError = class BadRequestError extends Error {};

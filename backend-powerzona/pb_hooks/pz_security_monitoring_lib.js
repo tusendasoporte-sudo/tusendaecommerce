@@ -4,6 +4,9 @@ const {
   getValidHmacSecret,
   getValidAesKey,
 } = require(`${__hooks}/pz_security_secret_contract.js`);
+const teamPermissions = typeof __hooks === "undefined"
+  ? require("./pz_store_team_permissions_lib.js")
+  : require(`${__hooks}/pz_store_team_permissions_lib.js`);
 const SECURITY_SETTINGS_COLLECTION = "store_security_settings";
 const SECURITY_EVENTS_COLLECTION = "store_security_events";
 const VISITOR_SESSIONS_COLLECTION = "store_visitor_sessions";
@@ -939,17 +942,36 @@ function isAllowedCustomerDetailPayload(body) {
   return true;
 }
 
-function canReadStore(role, authStoreId, storeId) {
+function canUseStorePermission(role, authStoreId, storeId, auth, permission) {
+  const store = findRecordByIdSafe($app, STORES_COLLECTION, storeId);
+  if (!store) return false;
   if (role === "master_admin") return true;
-  if (role === "store_admin" && authStoreId && authStoreId === storeId) return true;
-  return false;
+  if (!["store_admin", "store_staff"].includes(role) || !authStoreId || authStoreId !== storeId) return false;
+  return teamPermissions.hasStorePermission($app, auth, store, permission);
+}
+
+function canReadStore(role, authStoreId, storeId, auth) {
+  return canUseStorePermission(role, authStoreId, storeId, auth, "security.view");
+}
+
+function canManageStore(role, authStoreId, storeId, auth) {
+  return canUseStorePermission(role, authStoreId, storeId, auth, "security.manage");
+}
+
+function respondStorePermissionDenied(e, role, authStoreId, storeId) {
+  const isStoreUser = role === "store_admin" || role === "store_staff";
+  const belongsToAnotherTenant = isStoreUser && !!authStoreId && authStoreId !== storeId;
+  if (belongsToAnotherTenant || !findRecordByIdSafe($app, STORES_COLLECTION, storeId)) {
+    return e.json(404, { ok: false, error: "not_found" });
+  }
+  return e.json(403, { ok: false, error: "permission_denied" });
 }
 
 function getAuthorizedSecuritySettings(info, storeId) {
   const auth = info && info.auth;
   const role = authRole(auth);
   const authStoreId = authStore(auth);
-  if (!canReadStore(role, authStoreId, storeId)) return null;
+  if (!canReadStore(role, authStoreId, storeId, auth)) return null;
   const settings = getReadableSecuritySettings($app, storeId, role);
   if (!settings) return null;
   return { role, settings };
@@ -1167,7 +1189,7 @@ function handleSecurityActivityPage(e) {
     const payload = parseActivityPagePayload(info.body || {});
     if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
     const access = getAuthorizedSecuritySettings(info, payload.storeId);
-    if (!access) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!access) return respondStorePermissionDenied(e, authRole(info.auth), authStore(info.auth), payload.storeId);
 
     const filters = ["store = {:store}"];
     const params = { store: payload.storeId };
@@ -1210,7 +1232,7 @@ function handleSecurityVisitorsPage(e) {
     const payload = parseVisitorsPagePayload(info.body || {});
     if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
     const access = getAuthorizedSecuritySettings(info, payload.storeId);
-    if (!access) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!access) return respondStorePermissionDenied(e, authRole(info.auth), authStore(info.auth), payload.storeId);
 
     const result = listSecurityPage(
       $app,
@@ -1242,7 +1264,7 @@ function handleSecurityVisitorDetail(e) {
     const payload = parseVisitorDetailPayload(info.body || {});
     if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
     const access = getAuthorizedSecuritySettings(info, payload.storeId);
-    if (!access) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!access) return respondStorePermissionDenied(e, authRole(info.auth), authStore(info.auth), payload.storeId);
 
     const visitor = findRecordByIdSafe($app, VISITOR_SESSIONS_COLLECTION, payload.visitorSessionId);
     if (!visitor || getRelationId(visitor, "store") !== payload.storeId) {
@@ -1562,8 +1584,8 @@ function handleMonitoringSummary(e) {
     }
 
     const storeId = String(getBodyValue(body, "store_id") || "");
-    if (!canReadStore(role, authStoreId, storeId)) {
-      return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canReadStore(role, authStoreId, storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, storeId);
     }
 
     const settings = getReadableSecuritySettings($app, storeId, role);
@@ -1835,8 +1857,8 @@ function handleCustomerDetail(e) {
     const ordersPage = normalizePositivePage(getBodyValue(body, "orders_page"));
     const eventsPage = normalizePositivePage(getBodyValue(body, "events_page"));
 
-    if (!canReadStore(role, authStoreId, storeId)) {
-      return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canReadStore(role, authStoreId, storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, storeId);
     }
 
     const settings = getReadableSecuritySettings($app, storeId, role);
@@ -2247,7 +2269,9 @@ function handleCustomerObservation(e) {
     const authStoreId = authStore(auth);
     const parsed = parseObservationPayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
-    if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+    }
 
     expireDueSecurityBlocks($app);
     const settings = getSecuritySettingsRecord($app, parsed.storeId);
@@ -2302,7 +2326,9 @@ function handleCustomerObservation(e) {
 function handleSecurityBlockCreate(e, auth, parsed) {
   const role = authRole(auth);
   const authStoreId = authStore(auth);
-  if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+  if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+    return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+  }
 
   expireDueSecurityBlocks($app);
   const settings = getSecuritySettingsRecord($app, parsed.storeId);
@@ -2350,7 +2376,9 @@ function handleSecurityBlockCreate(e, auth, parsed) {
 function handleSecurityBlockRevoke(e, auth, parsed) {
   const role = authRole(auth);
   const authStoreId = authStore(auth);
-  if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+  if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+    return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+  }
 
   expireDueSecurityBlocks($app);
   const settings = getSecuritySettingsRecord($app, parsed.storeId);
@@ -2506,7 +2534,9 @@ function handleSecurityBlocksPage(e) {
     const authStoreId = authStore(auth);
     const parsed = parseBlocksPagePayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
-    if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canReadStore(role, authStoreId, parsed.storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+    }
 
     const settings = getReadableSecuritySettings($app, parsed.storeId, role);
     if (!settings) return e.json(403, { ok: false, error: "security_disabled" });
@@ -2566,8 +2596,8 @@ function handleCustomerLifecycle(e) {
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
     action = parsed.action;
 
-    if (!canReadStore(role, authStoreId, parsed.storeId)) {
-      return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
     }
     if (!getActiveSecuritySettings($app, parsed.storeId)) {
       return e.json(403, { ok: false, error: "security_disabled" });
@@ -2652,7 +2682,7 @@ function handleResolveIps(e) {
     const role = authRole(auth);
     const userStore = authStore(auth);
 
-    if (role !== "master_admin" && role !== "store_admin") {
+    if (role !== "master_admin" && role !== "store_admin" && role !== "store_staff") {
       return e.json(403, { ok: false, error: "unauthorized" });
     }
 
@@ -2682,8 +2712,8 @@ function handleResolveIps(e) {
       const record = recordMaps[source] && recordMaps[source][id];
       if (!record) return e.json(404, { ok: false, error: "not_found" });
       const storeId = storeIdForRecord(record);
-      if (!canReadStore(role, userStore, storeId)) {
-        return e.json(403, { ok: false, error: "unauthorized" });
+      if (!canManageStore(role, userStore, storeId, auth)) {
+        return respondStorePermissionDenied(e, role, userStore, storeId);
       }
       if (!settingsByStore[storeId]) {
         settingsByStore[storeId] = getReadableSecuritySettings($app, storeId, role);

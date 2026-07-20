@@ -193,11 +193,11 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, adminOrdersPath, adminNotificationsPath, initialPage }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminBasePath, adminOrdersPath, adminNotificationsPath, initialPage }}>
       window.PZ_NOTIFICATIONS_PAGE_CONFIG = {
         pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
-        authToken: String(adminAuthToken || ''),
         storeId: String(currentStoreId || ''),
+        adminBasePath: String(adminBasePath || ''),
         ordersPath: String(adminOrdersPath || ''),
         notificationsPath: String(adminNotificationsPath || ''),
         initialPage: Number(initialPage || 1),
@@ -213,11 +213,21 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
         getNotificationVisualPriority,
         isV7E9RedNotification,
       } from '../../lib/adminNotifications.js';
+      import { safeAdminNotificationTarget } from '../../lib/adminNotificationTarget.js';
 
       (() => {
         const config = window.PZ_NOTIFICATIONS_PAGE_CONFIG || {};
-        const pb = { baseUrl: config.pocketbaseUrl, token: config.authToken };
+        const readAuthToken = () => {
+          try {
+            const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+            if (!pair) return '';
+            const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+            return typeof parsed?.token === 'string' ? parsed.token : '';
+          } catch (_) { return ''; }
+        };
+        const pb = { baseUrl: config.pocketbaseUrl, token: readAuthToken() };
         const storeId = String(config.storeId || '');
+        const tenantAdminBasePath = String(config.adminBasePath || '');
         const ordersPath = String(config.ordersPath || '');
         const notificationsPath = String(config.notificationsPath || '');
         const list = document.querySelector('[data-notifications-list]');
@@ -263,9 +273,13 @@ const initialPage = Math.max(1, Number(Astro.url.searchParams.get('page') || 1))
         }
 
         function getOpenUrl(item) {
-          if (item.type === 'review_pending' && item.targetUrl) return item.targetUrl;
-          if (item.entityCollection === 'orders' && item.entityId) return buildOrderUrl(item.entityId);
-          return item.targetUrl || '';
+          if (item.type === 'review_pending' && item.targetUrl) {
+            return safeAdminNotificationTarget(item.targetUrl, tenantAdminBasePath, window.location.origin);
+          }
+          if (item.entityCollection === 'orders' && item.entityId) {
+            return safeAdminNotificationTarget(buildOrderUrl(item.entityId), tenantAdminBasePath, window.location.origin);
+          }
+          return safeAdminNotificationTarget(item.targetUrl, tenantAdminBasePath, window.location.origin);
         }
 
         function pageHref(page) {

@@ -6,6 +6,9 @@ const capabilities = typeof __hooks === "undefined"
 const plans = typeof __hooks === "undefined"
   ? require("./pz_store_plans_lib.js")
   : require(`${__hooks}/pz_store_plans_lib.js`);
+const teamPermissions = typeof __hooks === "undefined"
+  ? require("./pz_store_team_permissions_lib.js")
+  : require(`${__hooks}/pz_store_team_permissions_lib.js`);
 
 const CAPABILITY = "product_expiration_tools_enabled";
 const CYCLES_COLLECTION = "product_expiration_cycles";
@@ -217,6 +220,7 @@ function raiseExpirationRequestError(safe) {
   const data = {};
   data[String(error.field || "expiration_date")] = new ValidationError(String(error.code || "invalid_expiration_date"), message);
   const status = Number(error.status) || 400;
+  if (status === 404 && typeof NotFoundError === "function") throw new NotFoundError(message, data);
   if (status === 403 && typeof ForbiddenError === "function") throw new ForbiddenError(message, data);
   if (status >= 500 && typeof InternalServerError === "function") throw new InternalServerError(message, data);
   throw new BadRequestError(message, data);
@@ -236,8 +240,31 @@ function authCanManageStore(e, storeId) {
   const auth = requestAuthRecord(e);
   const role = recordString(auth, "role");
   if (role === "master_admin") return recordString(auth, "status").toLowerCase() !== "suspended";
-  return ["store_admin", "store_staff"].includes(role) && relationId(auth, "store") === storeId
+  if (!authBelongsToActiveStore(e, storeId)) return false;
+  const app = e && e.app ? e.app : (typeof $app === "undefined" ? null : $app);
+  const store = findRecord(app, "stores", storeId);
+  return !!store && teamPermissions.hasStorePermission(
+    app,
+    auth,
+    store,
+    "catalog.expirations.manage"
+  );
+}
+
+function authBelongsToActiveStore(e, storeId) {
+  const auth = requestAuthRecord(e);
+  const role = recordString(auth, "role");
+  if (role === "master_admin") return recordString(auth, "status").toLowerCase() !== "suspended";
+  return ["store_admin", "store_staff"].includes(role)
+    && relationId(auth, "store") === storeId
     && recordString(auth, "status").toLowerCase() !== "suspended";
+}
+
+function authBelongsToAnotherStore(e, storeId) {
+  const auth = requestAuthRecord(e);
+  return ["store_admin", "store_staff"].includes(recordString(auth, "role"))
+    && relationId(auth, "store")
+    && relationId(auth, "store") !== storeId;
 }
 
 function variationsForProduct(app, productId) {
@@ -269,11 +296,17 @@ function validateDateWriteRequest(e, collectionName) {
   if (!resolved || !resolved.store || !resolved.product || !resolved.storeId) {
     return safeRequestError("expiration_management_unavailable", "La fecha de vencimiento no está disponible temporalmente.", "expiration_date", 503);
   }
-  if (!authCanManageStore(e, resolved.storeId)) {
-    return safeRequestError("expiration_unauthorized", "No tienes permiso para modificar esta fecha.");
+  if (authBelongsToAnotherStore(e, resolved.storeId)) {
+    return safeRequestError("expiration_not_found", "No se encontrÃ³ el recurso solicitado.", "expiration_date", 404);
+  }
+  if (!authBelongsToActiveStore(e, resolved.storeId)) {
+    return safeRequestError("expiration_unauthorized", "No tienes permiso para modificar esta fecha.", "expiration_date", 403);
   }
   if (!storeExpirationEnabled(resolved.store)) {
     return safeRequestError("expiration_premium_required", "Esta función está disponible solo en el plan Premium.", "expiration_date", 403);
+  }
+  if (!authCanManageStore(e, resolved.storeId)) {
+    return safeRequestError("permission_denied", "No tienes permiso para modificar esta fecha.", "expiration_date", 403);
   }
 
   if (collectionName === "products" && normalized) {
@@ -305,11 +338,17 @@ function validateExpirationSettingsRequest(e) {
   const body = requestBody(e);
   if (!bodyHas(body, "notify_expiration_alerts")) return null;
   const resolved = settingsStore(e.app, e.record);
-  if (!resolved.store || !authCanManageStore(e, resolved.storeId)) {
-    return safeRequestError("expiration_unauthorized", "No tienes permiso para modificar estas alertas.", "notify_expiration_alerts");
+  if (resolved.store && authBelongsToAnotherStore(e, resolved.storeId)) {
+    return safeRequestError("expiration_not_found", "No se encontrÃ³ el recurso solicitado.", "notify_expiration_alerts", 404);
+  }
+  if (!resolved.store || !authBelongsToActiveStore(e, resolved.storeId)) {
+    return safeRequestError("expiration_unauthorized", "No tienes permiso para modificar estas alertas.", "notify_expiration_alerts", 403);
   }
   if (!storeExpirationEnabled(resolved.store)) {
     return safeRequestError("expiration_premium_required", "Esta función está disponible solo en el plan Premium.", "notify_expiration_alerts", 403);
+  }
+  if (!authCanManageStore(e, resolved.storeId)) {
+    return safeRequestError("permission_denied", "No tienes permiso para modificar estas alertas.", "notify_expiration_alerts", 403);
   }
   return null;
 }
@@ -406,9 +445,9 @@ function handleAdminExpirationQuery(e) {
     const role = recordString(info.auth, "role");
     if (!info.auth || !["store_admin", "store_staff"].includes(role)) return e.json(403, { ok: false, error: "unauthorized" });
     const storeId = relationId(info.auth, "store");
-    if (!authCanManageStore(e, storeId)) return e.json(403, { ok: false, error: "unauthorized" });
     const store = findRecord($app, "stores", storeId);
     if (!store || !storeExpirationEnabled(store)) return e.json(403, { ok: false, error: "premium_required" });
+    if (!authCanManageStore(e, storeId)) return e.json(403, { ok: false, error: "permission_denied" });
     const parsed = parseAdminQueryPayload(info.body || {});
     if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
     const groups = productExpirationGroups($app, storeId, new Date());

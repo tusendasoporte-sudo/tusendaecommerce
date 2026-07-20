@@ -9,6 +9,42 @@ routerAdd(
 );
 
 routerAdd(
+  "POST",
+  "/api/pz/admin/orders/{orderId}/transition",
+  (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleOrderTransition(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/admin/orders/{orderId}/receipt-token",
+  (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleOrderReceiptToken(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/admin/orders/{orderId}/review-token",
+  (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleOrderReviewToken(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "DELETE",
+  "/api/pz/admin/orders/{orderId}",
+  (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleOrderDelete(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
   "PATCH",
   "/api/pz/admin/orders/{orderId}/items/{itemId}/quantity",
   (e) => require(`${__hooks}/pz_order_pricing_lib.js`).handleOrderItemQuantity(e),

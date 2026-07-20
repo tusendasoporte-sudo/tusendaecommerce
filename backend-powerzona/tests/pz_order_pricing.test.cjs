@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const pricing = require('../pb_hooks/pz_order_pricing_lib.js');
 const priceWatch = require('../pb_hooks/pz_master_price_watch_lib.js');
+const teamPermissions = require('../pb_hooks/pz_store_team_permissions_lib.js');
 
 const IDS = Object.freeze({
   store: 'storeprice00001',
@@ -19,6 +20,13 @@ const IDS = Object.freeze({
   otherVariation: 'variationprice2',
   crossVariation: 'variationprice3',
   order: 'orderprice00001',
+  gift: 'giftprice000001',
+  itemProduct: 'itemprice000001',
+  itemVariation: 'itemprice000002',
+  itemGift: 'itemprice000003',
+  coupon: 'couponprice0001',
+  usage: 'usageprice00001',
+  master: 'masterprice0001',
 });
 
 function mutableRecord(id, values = {}) {
@@ -130,6 +138,7 @@ function fixtureTables(overrides = {}) {
     ],
     automatic_promotions: [],
     manual_coupons: [],
+    manual_coupon_usages: [],
     gifts: [],
     orders: [],
     order_items: [],
@@ -152,10 +161,24 @@ function fixtureApp(overrides = {}) {
       if (params.product) rows = rows.filter((item) => item.product === params.product);
       if (params.order) rows = rows.filter((item) => item.order === params.order);
       if (params.code) rows = rows.filter((item) => String(item.code || '') === String(params.code));
-      if (params.token) rows = rows.filter((item) => item.store === params.store && item.receipt_token === params.token);
+      if (params.token) {
+        if (String(_filter || '').includes('review_token')) rows = rows.filter((item) => item.review_token === params.token);
+        else rows = rows.filter((item) => (!params.store || item.store === params.store) && item.receipt_token === params.token);
+      }
       return rows.slice(offset, offset + limit);
     },
     save(record) { return record; },
+    delete(record) {
+      for (const rows of Object.values(tables)) {
+        if (!Array.isArray(rows)) continue;
+        const index = rows.indexOf(record);
+        if (index >= 0) {
+          rows.splice(index, 1);
+          return record;
+        }
+      }
+      return record;
+    },
   };
 }
 
@@ -176,6 +199,10 @@ function parsed(item = {}, extra = {}) {
   const result = pricing.parseCheckoutPayload(checkoutPayload(item, extra));
   assert.ok(result);
   return result;
+}
+
+function masterAuth() {
+  return mutableRecord(IDS.master, { role: 'master_admin', status: 'active' });
 }
 
 test('el contrato publico acepta solo referencias/cantidad e ignora nombre, precios y totales manipulados', () => {
@@ -493,6 +520,196 @@ test('orden legacy congela valores almacenados antes de cambiar cantidad sin con
   assert.equal(order.coupon_code, 'HIST20');
 });
 
+test('transicion oficial mueve producto, variacion y regalo una sola vez y restaura al liberar la orden', () => {
+  const app = fixtureApp();
+  const order = mutableRecord(IDS.order, {
+    store: IDS.store,
+    status: 'pending',
+    stock_deducted: false,
+    delivered_at: '',
+  });
+  app.tables.orders.push(order);
+  app.tables.gifts.push(mutableRecord(IDS.gift, { store: IDS.store, stock: 4, active: true }));
+  app.tables.order_items.push(
+    mutableRecord(IDS.itemProduct, { order: order.id, product: IDS.product, variation: '', gift: '', is_gift: false, quantity: 2 }),
+    mutableRecord(IDS.itemVariation, { order: order.id, product: IDS.variationProduct, variation: IDS.variation, gift: '', is_gift: false, quantity: 3 }),
+    mutableRecord(IDS.itemGift, { order: order.id, product: '', variation: '', gift: IDS.gift, is_gift: true, quantity: 1 }),
+  );
+
+  const confirmed = pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'confirmed', new Date('2026-07-19T10:00:00.000Z'));
+  assert.deepEqual(confirmed, {
+    ok: true,
+    order: { id: order.id, status: 'confirmed', stock_deducted: true, delivered_at: '' },
+    inventory_action: 'deducted',
+  });
+  assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 8);
+  assert.equal(app.tables.product_variations.find((row) => row.id === IDS.variation).stock, 5);
+  assert.equal(app.tables.gifts[0].stock, 3);
+
+  const idempotent = pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'confirmed', new Date('2026-07-19T10:01:00.000Z'));
+  assert.equal(idempotent.inventory_action, 'unchanged');
+  assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 8);
+  assert.equal(app.tables.product_variations.find((row) => row.id === IDS.variation).stock, 5);
+  assert.equal(app.tables.gifts[0].stock, 3);
+
+  const delivered = pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'delivered', new Date('2026-07-19T10:02:00.000Z'));
+  assert.equal(delivered.order.status, 'delivered');
+  assert.equal(delivered.order.delivered_at, '2026-07-19T10:02:00.000Z');
+  assert.equal(delivered.inventory_action, 'unchanged');
+
+  const pending = pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'pending', new Date('2026-07-19T10:03:00.000Z'));
+  assert.equal(pending.inventory_action, 'restored');
+  assert.equal(pending.order.stock_deducted, false);
+  assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 10);
+  assert.equal(app.tables.product_variations.find((row) => row.id === IDS.variation).stock, 8);
+  assert.equal(app.tables.gifts[0].stock, 4);
+});
+
+test('transicion oficial cierra payload, estados y entrega; valida todo el inventario antes de escribir', () => {
+  for (const payload of [{}, { status: 'confirmed', stock_deducted: true }, { status: 'inventado' }]) {
+    assert.throws(() => pricing.parseOrderTransitionPayload(payload), (error) => {
+      assert.ok(['invalid_payload', 'invalid_status'].includes(error.privateCode));
+      return true;
+    });
+  }
+  assert.equal(pricing.parseOrderTransitionPayload({ status: 'CONFIRMED' }), 'confirmed');
+
+  const app = fixtureApp();
+  const order = mutableRecord(IDS.order, { store: IDS.store, status: 'pending', stock_deducted: false, delivered_at: '' });
+  app.tables.orders.push(order);
+  app.tables.gifts.push(mutableRecord(IDS.gift, { store: IDS.store, stock: 7, active: true }));
+  app.tables.order_items.push(
+    mutableRecord(IDS.itemProduct, { order: order.id, product: IDS.product, is_gift: false, quantity: 11 }),
+    mutableRecord(IDS.itemGift, { order: order.id, gift: IDS.gift, is_gift: true, quantity: 2 }),
+  );
+  assert.throws(
+    () => pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'confirmed'),
+    (error) => error.privateCode === 'insufficient_stock' && error.status === 409,
+  );
+  assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 10);
+  assert.equal(app.tables.gifts[0].stock, 7);
+  assert.equal(order.status, 'pending');
+  assert.equal(order.stock_deducted, false);
+  assert.throws(
+    () => pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'delivered'),
+    (error) => error.privateCode === 'invalid_status_transition' && error.status === 409,
+  );
+});
+
+test('inventario oficial rechaza relaciones cruzadas de producto, variacion o regalo', () => {
+  const cases = [
+    mutableRecord(IDS.itemProduct, { order: IDS.order, product: IDS.otherProduct, is_gift: false, quantity: 1 }),
+    mutableRecord(IDS.itemVariation, { order: IDS.order, product: IDS.product, variation: IDS.variation, is_gift: false, quantity: 1 }),
+    mutableRecord(IDS.itemGift, { order: IDS.order, gift: IDS.gift, is_gift: true, quantity: 1 }),
+  ];
+  for (const item of cases) {
+    const app = fixtureApp();
+    const order = mutableRecord(IDS.order, { store: IDS.store, status: 'pending', stock_deducted: false });
+    app.tables.orders.push(order);
+    app.tables.gifts.push(mutableRecord(IDS.gift, { store: IDS.otherStore, stock: 4 }));
+    app.tables.order_items.push(item);
+    assert.throws(
+      () => pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'confirmed'),
+      (error) => error.privateCode === 'order_inventory_invalid' && error.status === 409,
+    );
+    assert.equal(order.status, 'pending');
+  }
+});
+
+test('tokens oficiales son criptograficos, idempotentes, de payload vacio y la reseña exige entrega', () => {
+  const app = fixtureApp();
+  const order = mutableRecord(IDS.order, {
+    store: IDS.store,
+    status: 'delivered',
+    receipt_token: '',
+    review_token: '',
+  });
+  app.tables.orders.push(order);
+  const calls = [];
+  const securityApi = {
+    randomStringWithAlphabet(length, alphabet) {
+      calls.push({ length, alphabet });
+      return (length === 32 ? 'R' : 'V').repeat(length);
+    },
+  };
+  const receipt = pricing.ensurePrivateOrderToken(app, masterAuth(), order.id, { field: 'receipt_token', securityApi });
+  assert.deepEqual(receipt, { ok: true, order: { id: order.id, receipt_token: 'R'.repeat(32) } });
+  const receiptAgain = pricing.ensurePrivateOrderToken(app, masterAuth(), order.id, {
+    field: 'receipt_token',
+    securityApi: { randomStringWithAlphabet() { throw new Error('must preserve token'); } },
+  });
+  assert.deepEqual(receiptAgain, receipt);
+  const review = pricing.ensurePrivateOrderToken(app, masterAuth(), order.id, { field: 'review_token', securityApi });
+  assert.deepEqual(review, { ok: true, order: { id: order.id, review_token: 'V'.repeat(40) } });
+  assert.deepEqual(calls.map((call) => call.length), [32, 40]);
+  assert.ok(calls.every((call) => call.alphabet === 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'));
+
+  order.status = 'confirmed';
+  order.review_token = '';
+  assert.throws(
+    () => pricing.ensurePrivateOrderToken(app, masterAuth(), order.id, { field: 'review_token', securityApi }),
+    (error) => error.privateCode === 'review_not_available' && error.status === 409,
+  );
+});
+
+test('acciones oficiales resuelven permisos granulares por accion y ocultan ordenes de otra tienda', () => {
+  const app = fixtureApp();
+  const order = mutableRecord(IDS.order, { store: IDS.store, status: 'pending', stock_deducted: false });
+  app.tables.orders.push(order);
+  const auth = mutableRecord('staffprice00001', { store: IDS.store, role: 'store_staff', status: 'active' });
+  const seen = [];
+  const original = teamPermissions.hasStorePermission;
+  teamPermissions.hasStorePermission = (_app, _user, _store, permission) => {
+    seen.push(permission);
+    return true;
+  };
+  const securityApi = { randomStringWithAlphabet: (length) => 'T'.repeat(length) };
+  try {
+    pricing.transitionPrivateOrder(app, auth, order.id, 'confirmed');
+    pricing.transitionPrivateOrder(app, auth, order.id, 'cancelled');
+    pricing.ensurePrivateOrderToken(app, auth, order.id, { field: 'receipt_token', securityApi });
+    order.status = 'delivered';
+    pricing.ensurePrivateOrderToken(app, auth, order.id, { field: 'review_token', securityApi });
+    pricing.deletePrivateOrder(app, auth, order.id);
+  } finally {
+    teamPermissions.hasStorePermission = original;
+  }
+  for (const permission of [
+    'orders.status.manage', 'orders.cancel_delete', 'orders.contact_customer', 'reviews.manage',
+  ]) assert.ok(seen.includes(permission), `${permission}: ${seen.join(',')}`);
+
+  const crossApp = fixtureApp();
+  crossApp.tables.orders.push(mutableRecord(IDS.order, { store: IDS.store, status: 'pending', stock_deducted: false }));
+  const foreign = mutableRecord('staffprice00002', { store: IDS.otherStore, role: 'store_staff', status: 'active' });
+  assert.throws(
+    () => pricing.transitionPrivateOrder(crossApp, foreign, IDS.order, 'confirmed'),
+    (error) => error.privateCode === 'order_not_found' && error.status === 404,
+  );
+});
+
+test('borrado oficial restaura inventario y elimina items, uso de cupon y orden atomizados por el handler', () => {
+  const app = fixtureApp();
+  const order = mutableRecord(IDS.order, { store: IDS.store, status: 'confirmed', stock_deducted: true });
+  const coupon = mutableRecord(IDS.coupon, { used_count: 1 });
+  app.tables.orders.push(order);
+  app.tables.products.find((row) => row.id === IDS.product).stock = 8;
+  app.tables.gifts.push(mutableRecord(IDS.gift, { store: IDS.store, stock: 3 }));
+  app.tables.order_items.push(
+    mutableRecord(IDS.itemProduct, { order: order.id, product: IDS.product, is_gift: false, quantity: 2 }),
+    mutableRecord(IDS.itemGift, { order: order.id, gift: IDS.gift, is_gift: true, quantity: 1 }),
+  );
+  app.tables.manual_coupons.push(coupon);
+  app.tables.manual_coupon_usages.push(mutableRecord(IDS.usage, { order: order.id, coupon: coupon.id }));
+
+  assert.deepEqual(pricing.deletePrivateOrder(app, masterAuth(), order.id), { ok: true, deleted: true });
+  assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 10);
+  assert.equal(app.tables.gifts[0].stock, 4);
+  assert.equal(app.tables.orders.length, 0);
+  assert.equal(app.tables.order_items.length, 0);
+  assert.equal(app.tables.manual_coupon_usages.length, 0);
+  assert.equal(coupon.used_count, 0);
+});
+
 test('endpoint, migracion y checkout cierran escritura publica y garantizan una transaccion unica', () => {
   const root = path.join(__dirname, '..', '..');
   const hook = readFileSync(path.join(root, 'backend-powerzona/pb_hooks/pz_order_pricing_lib.js'), 'utf8');
@@ -521,6 +738,10 @@ test('C1 expone solo mutaciones privadas, auditoria inmutable y UI sin precio li
   const receipt = readFileSync(path.join(root, 'frontend-powerzona/src/pages/orden/[orderNumber]/[token].astro'), 'utf8');
 
   for (const endpoint of [
+    '/api/pz/admin/orders/{orderId}/transition',
+    '/api/pz/admin/orders/{orderId}/receipt-token',
+    '/api/pz/admin/orders/{orderId}/review-token',
+    '/api/pz/admin/orders/{orderId}',
     '/api/pz/admin/orders/{orderId}/items/{itemId}/quantity',
     '/api/pz/admin/orders/{orderId}/items',
     '/api/pz/admin/orders/{orderId}/items/{itemId}',
@@ -532,6 +753,15 @@ test('C1 expone solo mutaciones privadas, auditoria inmutable y UI sin precio li
   assert.match(hook, /MAX_MANUAL_UNIT_PRICE_USD = 1000000/);
   assert.match(hook, /zero_price_confirmation_required/);
   assert.match(hook, /createPriceAdjustmentAudit/);
+  assert.match(hook, /nextStatus === "cancelled" \? "orders\.cancel_delete" : "orders\.status\.manage"/);
+  assert.match(hook, /"orders\.contact_customer"/);
+  assert.match(hook, /"reviews\.manage"/);
+  assert.match(hook, /randomStringWithAlphabet\(length, ORDER_TOKEN_ALPHABET\)/);
+  assert.match(hook, /moveOrderInventory\(app, order, -1\)/);
+  assert.match(hook, /moveOrderInventory\(app, order, 1\)/);
+  assert.match(routes, /\/transition"[\s\S]*\$apis\.requireAuth\(\)[\s\S]*\$apis\.bodyLimit\(2048\)/);
+  assert.match(routes, /\/receipt-token"[\s\S]*\$apis\.requireAuth\(\)[\s\S]*\$apis\.bodyLimit\(1024\)/);
+  assert.match(routes, /\/review-token"[\s\S]*\$apis\.requireAuth\(\)[\s\S]*\$apis\.bodyLimit\(1024\)/);
   assert.match(migration, /name: "order_price_adjustments"/);
   assert.match(migration, /createRule: null,[\s\S]*updateRule: null,[\s\S]*deleteRule: null/);
   assert.match(migration, /orderItems\.createRule = null/);

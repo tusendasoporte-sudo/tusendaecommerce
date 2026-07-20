@@ -1,0 +1,286 @@
+---
+import MasterDialog from './MasterDialog.astro';
+import type {
+  MasterPrimaryAdminCandidate,
+  MasterPrimaryAdminStatus,
+} from '../../lib/masterPrimaryAdmin';
+import {
+  getMasterPrimaryAdminStateLabel,
+  PRIMARY_ADMIN_REPLACEMENT_CONFIRMATION,
+} from '../../lib/masterPrimaryAdmin';
+import {
+  STORE_PERMISSION_CATALOG,
+  STORE_PERMISSION_TEMPLATES,
+} from '../../lib/storeTeamPermissions';
+
+interface Props {
+  storeId: string;
+  status: MasterPrimaryAdminStatus;
+  fixedTargetId?: string;
+  compact?: boolean;
+}
+
+const { storeId, status, fixedTargetId = '', compact = false } = Astro.props;
+const configuredId = String(status.primary_admin?.id || '');
+const operation: 'assign' | 'replace' = configuredId ? 'replace' : 'assign';
+const fixedCandidate = status.candidates.find((candidate) => candidate.id === fixedTargetId);
+let targets: MasterPrimaryAdminCandidate[];
+if (fixedTargetId && fixedTargetId !== configuredId) targets = fixedCandidate ? [fixedCandidate] : [];
+else targets = status.candidates.filter((candidate) => candidate.id !== configuredId);
+const canSubmit = targets.length > 0 && status.quota.max_active_users > 0;
+const currentName = String(status.primary_admin?.display_name || status.primary_admin?.email || 'Administrador actual');
+const stateLabel = getMasterPrimaryAdminStateLabel(status.state);
+const templateOptions = Object.values(STORE_PERMISSION_TEMPLATES);
+const defaultPermissions = new Set(STORE_PERMISSION_TEMPLATES.secondary_admin.permissions);
+const targetLabel = (candidate: MasterPrimaryAdminCandidate) => candidate.display_name
+  ? `${candidate.display_name} · ${candidate.email}`
+  : candidate.email;
+---
+
+<section
+  class:list={['master-primary-admin-card', { 'is-compact': compact, 'is-pending': status.state !== 'configured' }]}
+  data-master-primary-control
+  data-store-id={storeId}
+  data-primary-operation={operation}
+  data-current-primary-id={configuredId}
+  data-confirmation={PRIMARY_ADMIN_REPLACEMENT_CONFIRMATION}
+>
+  <div class="master-primary-admin-card__content">
+    <div class="master-primary-admin-card__title-row">
+      <span class:list={['master-pill', status.state === 'configured' ? 'master-pill--success' : 'master-pill--warning']}>
+        {status.state === 'configured' ? 'Administrador principal' : 'Acción pendiente'}
+      </span>
+      <span class="master-primary-admin-card__state">{stateLabel}</span>
+    </div>
+    {configuredId ? (
+      <div>
+        <strong>{currentName}</strong>
+        {status.primary_admin?.email && <span>{status.primary_admin.email}</span>}
+        <p>Es la fuente de autoridad de “Mi equipo” para esta tienda.</p>
+      </div>
+    ) : (
+      <div>
+        <strong>{status.state === 'missing' ? 'No hay candidatos activos' : 'El Master debe confirmar quién administrará el equipo.'}</strong>
+        <p>Hasta definirlo, ningún usuario puede gestionar altas ni permisos desde “Mi equipo”.</p>
+      </div>
+    )}
+  </div>
+  <div class="master-primary-admin-card__actions">
+    <span>{status.quota.active_users} / {status.quota.max_active_users} usuarios activos</span>
+    {canSubmit ? (
+      <button
+        class:list={['master-btn', operation === 'replace' ? 'master-btn--danger-solid' : 'master-btn--primary']}
+        type="button"
+        data-open-primary-admin
+      >
+        {operation === 'replace' ? 'Reemplazar principal' : 'Definir principal'}
+      </button>
+    ) : (
+      <small>{operation === 'replace' ? 'No hay otro Administrador activo elegible.' : 'Crea o activa un Administrador para poder definirlo.'}</small>
+    )}
+  </div>
+
+  {canSubmit && (
+    <MasterDialog
+      id="master-primary-admin-dialog"
+      title={operation === 'replace' ? 'Reemplazar Administrador principal' : 'Definir Administrador principal'}
+      description={operation === 'replace'
+        ? 'La autoridad de la tienda cambiará inmediatamente.'
+        : 'Este usuario obtendrá la autoridad exclusiva para gestionar Mi equipo.'}
+      tone={operation === 'replace' ? 'danger' : 'warning'}
+      size="lg"
+      closeOnBackdrop={false}
+    >
+      <form class="master-primary-admin-form" data-primary-admin-form>
+        {operation === 'replace' && (
+          <div class="master-primary-admin-critical" role="alert">
+            <strong>Advertencia: esta operación transfiere el control de “Mi equipo”.</strong>
+            <p>Se cerrarán todas las sesiones del Administrador principal anterior y del nuevo. No se transfieren contraseñas, tokens ni secretos.</p>
+          </div>
+        )}
+
+        <div class="master-users-field">
+          <label for="primary-admin-target">{operation === 'replace' ? 'Nuevo Administrador principal' : 'Administrador principal'}</label>
+          <select id="primary-admin-target" class="master-users-control" data-primary-target required>
+            {targets.map((candidate) => <option value={candidate.id}>{targetLabel(candidate)}</option>)}
+          </select>
+          <small>Solo aparecen Administradores activos de esta tienda.</small>
+        </div>
+
+        {operation === 'replace' && (
+          <>
+            <div class="master-users-field">
+              <label for="primary-admin-previous-mode">Administrador anterior</label>
+              <select id="primary-admin-previous-mode" class="master-users-control" data-primary-previous-mode>
+                <option value="keep_active">Mantener activo como usuario adicional</option>
+                <option value="suspend">Suspender y liberar su cupo</option>
+              </select>
+            </div>
+            <div class="master-primary-admin-access" data-primary-previous-access>
+              <div class="master-users-field">
+                <label for="primary-admin-template">Plantilla para el administrador anterior</label>
+                <select id="primary-admin-template" class="master-users-control" data-primary-template>
+                  {templateOptions.map((template) => <option value={template.code} selected={template.code === 'secondary_admin'}>{template.label}</option>)}
+                </select>
+                <small>Al cambiar permisos manualmente la plantilla pasa a Personalizado.</small>
+              </div>
+              <div class="master-primary-admin-permissions" data-primary-permissions>
+                {STORE_PERMISSION_CATALOG.map((group) => (
+                  <fieldset>
+                    <legend>{group.label}</legend>
+                    <div>
+                      {group.permissions.map((permission) => (
+                        <label>
+                          <input
+                            type="checkbox"
+                            value={permission.key}
+                            checked={defaultPermissions.has(permission.key)}
+                            data-primary-permission
+                          />
+                          <span><strong>{permission.label}</strong><small>{permission.description}</small></span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div class="master-users-field">
+          <label for="primary-admin-reason">Motivo interno</label>
+          <textarea id="primary-admin-reason" class="master-users-control" maxlength="500" data-primary-reason required></textarea>
+        </div>
+
+        {operation === 'replace' && (
+          <div class="master-users-field">
+            <label for="primary-admin-confirmation">Escribe exactamente: <strong>{PRIMARY_ADMIN_REPLACEMENT_CONFIRMATION}</strong></label>
+            <input id="primary-admin-confirmation" class="master-users-control" autocomplete="off" data-primary-confirmation required />
+          </div>
+        )}
+
+        <label class="master-primary-admin-ack">
+          <input type="checkbox" data-primary-ack />
+          <span>{operation === 'replace'
+            ? 'Entiendo que el cambio es inmediato, cierra ambas sesiones y que el anterior quedará con el estado y permisos elegidos.'
+            : 'Confirmo que este usuario será la autoridad principal de la tienda y que sus sesiones actuales se cerrarán.'}</span>
+        </label>
+        <p class="master-users-message" data-primary-message aria-live="polite"></p>
+      </form>
+      <div slot="footer">
+        <button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button>
+        <button
+          class:list={['master-btn', operation === 'replace' ? 'master-btn--danger-solid' : 'master-btn--primary']}
+          type="button"
+          data-primary-submit
+        >
+          {operation === 'replace' ? 'Reemplazar definitivamente' : 'Definir Administrador principal'}
+        </button>
+      </div>
+    </MasterDialog>
+  )}
+</section>
+
+<script>
+  import {
+    assignMasterPrimaryAdmin,
+    getMasterPrimaryAdminErrorMessage,
+    replaceMasterPrimaryAdmin,
+  } from '../../lib/masterPrimaryAdmin';
+  import {
+    detectStorePermissionTemplate,
+    getStorePermissionTemplatePermissions,
+    toggleStorePermission,
+    type StorePermission,
+  } from '../../lib/storeTeamPermissions';
+
+  const control = document.querySelector<HTMLElement>('[data-master-primary-control]');
+  if (control) {
+    const storeId = control.dataset.storeId || '';
+    const operation = control.dataset.primaryOperation as 'assign' | 'replace';
+    const confirmationPhrase = control.dataset.confirmation || '';
+    const form = control.querySelector<HTMLFormElement>('[data-primary-admin-form]');
+    const target = control.querySelector<HTMLSelectElement>('[data-primary-target]');
+    const previousMode = control.querySelector<HTMLSelectElement>('[data-primary-previous-mode]');
+    const previousAccess = control.querySelector<HTMLElement>('[data-primary-previous-access]');
+    const template = control.querySelector<HTMLSelectElement>('[data-primary-template]');
+    const permissionInputs = Array.from(control.querySelectorAll<HTMLInputElement>('[data-primary-permission]'));
+    const reason = control.querySelector<HTMLTextAreaElement>('[data-primary-reason]');
+    const confirmation = control.querySelector<HTMLInputElement>('[data-primary-confirmation]');
+    const acknowledgement = control.querySelector<HTMLInputElement>('[data-primary-ack]');
+    const message = control.querySelector<HTMLElement>('[data-primary-message]');
+    const submit = control.querySelector<HTMLButtonElement>('[data-primary-submit]');
+    let saving = false;
+
+    const selectedPermissions = () => permissionInputs
+      .filter((input) => input.checked)
+      .map((input) => input.value as StorePermission);
+    const renderPermissionSelection = (permissions: readonly StorePermission[]) => {
+      const selected = new Set(permissions);
+      permissionInputs.forEach((input) => { input.checked = selected.has(input.value as StorePermission); });
+    };
+    const selectTemplate = (code: string) => {
+      renderPermissionSelection(getStorePermissionTemplatePermissions(code));
+      if (template) template.value = code;
+    };
+    const syncPreviousMode = () => {
+      const suspended = previousMode?.value === 'suspend';
+      if (previousAccess) previousAccess.hidden = suspended;
+      template?.toggleAttribute('disabled', suspended);
+      permissionInputs.forEach((input) => { input.disabled = suspended; });
+    };
+
+    control.querySelector('[data-open-primary-admin]')?.addEventListener('click', (event) => {
+      window.PZMasterDialog?.open('master-primary-admin-dialog', event.currentTarget as HTMLElement);
+    });
+    template?.addEventListener('change', () => selectTemplate(template.value));
+    permissionInputs.forEach((input) => input.addEventListener('change', () => {
+      const next = toggleStorePermission(selectedPermissions(), input.value as StorePermission, input.checked);
+      renderPermissionSelection(next);
+      if (template) template.value = detectStorePermissionTemplate(next);
+    }));
+    previousMode?.addEventListener('change', syncPreviousMode);
+    syncPreviousMode();
+
+    submit?.addEventListener('click', async () => {
+      if (saving || !target?.value) return;
+      if (!reason?.value.trim()) {
+        if (message) message.textContent = 'Escribe el motivo interno.';
+        return;
+      }
+      if (!acknowledgement?.checked) {
+        if (message) message.textContent = 'Confirma que comprendes el alcance de la operación.';
+        return;
+      }
+      if (operation === 'replace' && confirmation?.value !== confirmationPhrase) {
+        if (message) message.textContent = `Escribe exactamente: ${confirmationPhrase}`;
+        return;
+      }
+      saving = true;
+      submit.disabled = true;
+      if (message) message.textContent = '';
+      try {
+        if (operation === 'assign') {
+          await assignMasterPrimaryAdmin(storeId, target.value, reason.value);
+        } else {
+          const suspending = previousMode?.value === 'suspend';
+          await replaceMasterPrimaryAdmin({
+            storeId,
+            userId: target.value,
+            previousUserMode: suspending ? 'suspend' : 'keep_active',
+            templateCode: suspending ? '' : (template?.value || 'custom') as any,
+            permissions: suspending ? [] : selectedPermissions(),
+            reason: reason.value,
+            confirmation: confirmation?.value || '',
+          });
+        }
+        location.reload();
+      } catch (error) {
+        saving = false;
+        submit.disabled = false;
+        if (message) message.textContent = getMasterPrimaryAdminErrorMessage(error);
+      }
+    });
+  }
+</script>

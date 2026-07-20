@@ -2,7 +2,9 @@
 export const prerender = false;
 
 import { getStoreAdminPath } from '../../../../lib/adminRoutes';
-import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../../../lib/auth';
+import { isMasterAdmin, refreshAuthFromCookie } from '../../../../lib/auth';
+import { getStoreAccessContext } from '../../../../lib/storeTeam';
+import { hasStorePermission } from '../../../../lib/storeTeamPermissions';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../../lib/storeContext';
 import {
   getStoreSecuritySettings,
@@ -73,9 +75,15 @@ if (pathStoreSlug && pathStoreSlug !== String(currentStoreSlug || '').trim().toL
   return Astro.redirect(adminBasePath);
 }
 
-if (!isStoreAdmin(adminContext.user)) {
+let storeAccess;
+try {
+  storeAccess = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: authPb.authStore.token });
+} catch (_) {
   return Astro.redirect(adminBasePath);
 }
+const canViewSecurity = hasStorePermission({ permissions: storeAccess.access.permissions }, 'security.view');
+const canManageSecurity = hasStorePermission({ permissions: storeAccess.access.permissions }, 'security.manage');
+if (!canViewSecurity) return Astro.redirect(adminBasePath);
 
 const securitySettings = await getStoreSecuritySettings(currentStoreId, authPb);
 if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {
@@ -86,7 +94,9 @@ const requestMethod = Astro.request.method.toUpperCase();
 let formData: FormData | null = null;
 let viewError = '';
 
-if (requestMethod === 'POST') {
+if (requestMethod === 'POST' && !canManageSecurity) {
+  viewError = 'No tienes permiso para modificar la configuraciÃ³n de Seguridad.';
+} else if (requestMethod === 'POST') {
   const contentType = String(Astro.request.headers.get('content-type') || '').toLowerCase();
   const isFormRequest = contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data');
   if (isFormRequest) {
@@ -362,6 +372,7 @@ try {
           storeName={currentStoreName}
           basePath={adminSecurityPath}
           adminOrdersPath={adminOrdersPath}
+          actionsEnabled={canManageSecurity}
           params={params}
           settings={securitySettings}
           summary={summary}

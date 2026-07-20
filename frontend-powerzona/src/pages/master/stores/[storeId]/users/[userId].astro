@@ -6,6 +6,7 @@ import MasterShell from '../../../../../components/master/MasterShell.astro';
 import MasterStoreUserDetailView from '../../../../../components/master/MasterStoreUserDetailView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../../lib/auth';
 import { getMasterStoreUserAudit, getMasterStoreUserDetail } from '../../../../../lib/masterUsers';
+import { getMasterPrimaryAdminStatus } from '../../../../../lib/masterPrimaryAdmin';
 import { getMasterUserDeviceAudit, listMasterUserDevices } from '../../../../../lib/masterUserDevices';
 import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
 import '../../../../../styles/master-users.css';
@@ -31,13 +32,14 @@ try {
 
 let data;
 try {
-  const [detail, devices, userAudit, deviceAudit] = await Promise.all([
+  const [detail, devices, userAudit, deviceAudit, primaryAdmin] = await Promise.all([
     getMasterStoreUserDetail(storeId, userId, authPb),
     listMasterUserDevices(storeId, userId, { page: 1, perPage: 10, status: 'authorized' }, authPb),
     getMasterStoreUserAudit(storeId, userId, { page: 1, perPage: 20 }, authPb),
     getMasterUserDeviceAudit(storeId, userId, { page: 1, perPage: 20 }, authPb),
+    getMasterPrimaryAdminStatus(storeId, authPb),
   ]);
-  data = { detail, devices, userAudit, deviceAudit };
+  data = { detail, devices, userAudit, deviceAudit, primaryAdmin };
 } catch (_) {
   return Astro.redirect(`/master/stores/${encodeURIComponent(storeId)}/users`);
 }

@@ -1,0 +1,59 @@
+/// <reference path="../pb_data/types.d.ts" />
+
+onRecordsListRequest(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRead(e),
+  "products", "product_variations", "categories", "subcategories", "orders", "order_items",
+  "shipping_methods", "shipping_zones", "automatic_promotions", "manual_coupons", "manual_coupon_usages",
+  "gifts", "raffles", "raffle_entries", "reviews", "store_notifications",
+  "store_analytics_events", "store_visual_items", "settings", "currencies",
+  "store_security_settings", "store_security_events", "store_security_blocks",
+  "store_visitor_sessions", "store_customers",
+);
+
+onRecordViewRequest(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRead(e),
+  "products", "product_variations", "categories", "subcategories", "orders", "order_items",
+  "shipping_methods", "shipping_zones", "automatic_promotions", "manual_coupons", "manual_coupon_usages",
+  "gifts", "raffles", "raffle_entries", "reviews", "store_notifications",
+  "store_analytics_events", "store_visual_items", "settings", "currencies",
+  "store_security_settings", "store_security_events", "store_security_blocks",
+  "store_visitor_sessions", "store_customers",
+);
+
+onRecordCreateRequest(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceMutation(e, "", "create"),
+  "products", "product_variations", "categories", "subcategories", "orders", "order_items",
+  "shipping_methods", "shipping_zones", "automatic_promotions", "manual_coupons", "manual_coupon_usages",
+  "gifts", "raffles", "raffle_entries", "reviews", "store_notifications",
+  "store_analytics_events", "store_visual_items", "settings", "currencies",
+  "store_security_settings", "store_security_events", "store_security_blocks",
+  "store_visitor_sessions", "store_customers",
+);
+
+onRecordUpdateRequest(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceMutation(e, "", "update"),
+  "products", "product_variations", "categories", "subcategories", "orders", "order_items",
+  "shipping_methods", "shipping_zones", "automatic_promotions", "manual_coupons", "manual_coupon_usages",
+  "gifts", "raffles", "raffle_entries", "reviews", "store_notifications",
+  "store_analytics_events", "store_visual_items", "settings", "currencies",
+  "store_security_settings", "store_security_events", "store_security_blocks",
+  "store_visitor_sessions", "store_customers",
+);
+
+onRecordDeleteRequest(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceMutation(e, "", "delete"),
+  "products", "product_variations", "categories", "subcategories", "orders", "order_items",
+  "shipping_methods", "shipping_zones", "automatic_promotions", "manual_coupons", "manual_coupon_usages",
+  "gifts", "raffles", "raffle_entries", "reviews", "store_notifications",
+  "store_analytics_events", "store_visual_items", "settings", "currencies",
+  "store_security_settings", "store_security_events", "store_security_blocks",
+  "store_visitor_sessions", "store_customers",
+);
+
+onRealtimeSubscribeRequest((e) => {
+  return require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRealtimeSubscribe(e);
+});
+
+onRealtimeMessageSend((e) => {
+  return require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRealtimeMessage(e);
+});

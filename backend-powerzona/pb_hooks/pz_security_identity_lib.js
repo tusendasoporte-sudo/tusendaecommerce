@@ -7,6 +7,9 @@ const {
   getValidHmacSecret,
   getValidAesKey,
 } = require(`${__hooks}/pz_security_secret_contract.js`);
+const teamPermissions = typeof __hooks === "undefined"
+  ? require("./pz_store_team_permissions_lib.js")
+  : require(`${__hooks}/pz_store_team_permissions_lib.js`);
 const SECURITY_SETTINGS_COLLECTION = "store_security_settings";
 const STORE_CUSTOMERS_COLLECTION = "store_customers";
 const STORE_CUSTOMER_PHONES_COLLECTION = "store_customer_phones";
@@ -266,10 +269,29 @@ function sanitizeMergeReason(value) {
     .trim(), 500);
 }
 
-function canReadStore(role, authStoreId, storeId) {
+function canUseStorePermission(role, authStoreId, storeId, auth, permission) {
+  const store = findRecordByIdSafe($app, STORES_COLLECTION, storeId);
+  if (!store) return false;
   if (role === "master_admin") return true;
-  if (role === "store_admin" && authStoreId && authStoreId === storeId) return true;
-  return false;
+  if (!["store_admin", "store_staff"].includes(role) || !authStoreId || authStoreId !== storeId) return false;
+  return teamPermissions.hasStorePermission($app, auth, store, permission);
+}
+
+function canReadStore(role, authStoreId, storeId, auth) {
+  return canUseStorePermission(role, authStoreId, storeId, auth, "security.view");
+}
+
+function canManageStore(role, authStoreId, storeId, auth) {
+  return canUseStorePermission(role, authStoreId, storeId, auth, "security.manage");
+}
+
+function respondStorePermissionDenied(e, role, authStoreId, storeId) {
+  const isStoreUser = role === "store_admin" || role === "store_staff";
+  const belongsToAnotherTenant = isStoreUser && !!authStoreId && authStoreId !== storeId;
+  if (belongsToAnotherTenant || !findRecordByIdSafe($app, STORES_COLLECTION, storeId)) {
+    return e.json(404, { ok: false, error: "not_found" });
+  }
+  return e.json(403, { ok: false, error: "permission_denied" });
 }
 
 function createSecurityAudit(app, storeId, action, actorId, subjectRecordId, reason, counts) {
@@ -2004,7 +2026,9 @@ function handleCustomersPage(e) {
     const authStoreId = authStore(auth);
     const parsed = parseCustomersPagePayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
-    if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canReadStore(role, authStoreId, parsed.storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+    }
     if (!hasReadableSecuritySettings($app, parsed.storeId, role)) return e.json(403, { ok: false, error: "security_disabled" });
 
     const page = buildCustomersPage($app, parsed.storeId, parsed.page, parsed.status, parsed.search);
@@ -2044,7 +2068,9 @@ function handleMergeCustomers(e) {
     const authStoreId = authStore(auth);
     const parsed = parseMergePayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
-    if (!canReadStore(role, authStoreId, parsed.storeId)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+    }
     if (!getActiveSecuritySettings($app, parsed.storeId)) return e.json(403, { ok: false, error: "security_disabled" });
     if (!hasCanonicalIdentitySchema($app)) return e.json(400, { ok: false, error: "schema_unavailable" });
 

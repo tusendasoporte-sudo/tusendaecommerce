@@ -6,6 +6,9 @@ const priceWatch = typeof __hooks === "undefined"
 const expiration = typeof __hooks === "undefined"
   ? require("./pz_product_expiration_lib.js")
   : require(`${__hooks}/pz_product_expiration_lib.js`);
+const teamPermissions = typeof __hooks === "undefined"
+  ? require("./pz_store_team_permissions_lib.js")
+  : require(`${__hooks}/pz_store_team_permissions_lib.js`);
 
 const CHECKOUT_PATH = "/api/pz/checkout/orders";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
@@ -19,6 +22,9 @@ const ECONOMIC_SNAPSHOT_VERSION = 1;
 const ECONOMIC_SNAPSHOT_ALGORITHM = "pz-order-economics-v1";
 const MAX_MANUAL_UNIT_PRICE_USD = 1000000;
 const MANUAL_ADJUSTMENT_STATES = Object.freeze(["pending", "confirmed", "preparing"]);
+const ORDER_STATUSES = Object.freeze(["pending", "confirmed", "preparing", "delivered", "cancelled"]);
+const INVENTORY_RESERVED_STATUSES = Object.freeze(["confirmed", "preparing", "delivered"]);
+const ORDER_TOKEN_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 const MANUAL_ADJUSTMENT_REASONS = Object.freeze([
   "customer_agreement",
   "price_correction",
@@ -1645,14 +1651,22 @@ function privateMutationError(code, status) {
   return error;
 }
 
-function requirePrivateOrder(app, auth, orderId) {
+function requirePrivateOrder(app, auth, orderId, permissionKey) {
   if (!auth || !RECORD_ID_PATTERN.test(orderId)) throw privateMutationError("order_not_found", 404);
   const role = recordString(auth, "role");
   const status = recordString(auth, "status").toLowerCase();
-  if (status !== "active" || !["master_admin", "store_admin"].includes(role)) throw privateMutationError("forbidden", 403);
+  if (status !== "active" || !["master_admin", "store_admin", "store_staff"].includes(role)) throw privateMutationError("forbidden", 403);
   const order = findRecord(app, "orders", orderId);
   if (!order) throw privateMutationError("order_not_found", 404);
-  if (role === "store_admin" && relationId(auth, "store") !== relationId(order, "store")) throw privateMutationError("forbidden", 403);
+  const storeId = relationId(order, "store");
+  const store = findRecord(app, "stores", storeId);
+  if (!store) throw privateMutationError("order_not_found", 404);
+  if (role !== "master_admin") {
+    if (relationId(auth, "store") !== storeId) throw privateMutationError("order_not_found", 404);
+    if (!teamPermissions.hasStorePermission(app, auth, store, permissionKey)) {
+      throw privateMutationError("permission_denied", 403);
+    }
+  }
   return order;
 }
 
@@ -1661,6 +1675,215 @@ function requirePrivateItem(app, order, itemId) {
   const item = findRecord(app, "order_items", itemId);
   if (!item || relationId(item, "order") !== order.id) throw privateMutationError("item_not_found", 404);
   return item;
+}
+
+function exactPrivatePayload(body, expectedKeys) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  const actual = Object.keys(body).filter((key) => typeof body[key] !== "function").sort();
+  const expected = expectedKeys.slice().sort();
+  return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
+}
+
+function parseOrderTransitionPayload(body) {
+  if (!exactPrivatePayload(body, ["status"])) throw privateMutationError("invalid_payload", 422);
+  const status = bounded(bodyValue(body, "status"), 40).toLowerCase();
+  if (!ORDER_STATUSES.includes(status)) throw privateMutationError("invalid_status", 422);
+  return status;
+}
+
+function requireEmptyPrivatePayload(body) {
+  if (!exactPrivatePayload(body, [])) throw privateMutationError("invalid_payload", 422);
+}
+
+function lockOrderStore(app, storeId) {
+  if (!app || typeof app.db !== "function") return;
+  const database = app.db();
+  if (!database || typeof database.newQuery !== "function") return;
+  database.newQuery("UPDATE stores SET id = id WHERE id = {:storeId}").bind({ storeId }).execute();
+}
+
+function requireLockedPrivateOrder(app, auth, orderId, permissionKey) {
+  const initial = requirePrivateOrder(app, auth, orderId, permissionKey);
+  const storeId = relationId(initial, "store");
+  lockOrderStore(app, storeId);
+  const current = requirePrivateOrder(app, auth, orderId, permissionKey);
+  if (relationId(current, "store") !== storeId) throw privateMutationError("order_not_found", 404);
+  return current;
+}
+
+function addInventoryGroup(groups, key, record, quantity) {
+  const existing = groups.get(key);
+  if (existing) {
+    existing.quantity += quantity;
+    return;
+  }
+  groups.set(key, { key, record, quantity });
+}
+
+function orderInventoryGroups(app, order) {
+  const storeId = relationId(order, "store");
+  const items = findRecordsStrict(app, "order_items", "order = {:order}", "created", 10000, 0, { order: order.id });
+  const groups = new Map();
+  items.forEach((item) => {
+    if (relationId(item, "order") !== order.id) throw privateMutationError("order_inventory_invalid", 409);
+    const quantity = recordNumber(item, "quantity");
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
+      throw privateMutationError("order_inventory_invalid", 409);
+    }
+
+    const productId = relationId(item, "product");
+    const variationId = relationId(item, "variation");
+    const giftId = relationId(item, "gift");
+    if (recordBool(item, "is_gift")) {
+      if (!giftId || productId || variationId) throw privateMutationError("order_inventory_invalid", 409);
+      const gift = findRecord(app, "gifts", giftId);
+      if (!gift || relationId(gift, "store") !== storeId) throw privateMutationError("order_inventory_invalid", 409);
+      addInventoryGroup(groups, `gift:${gift.id}`, gift, quantity);
+      return;
+    }
+
+    if (!productId || giftId) throw privateMutationError("order_inventory_invalid", 409);
+    const product = findRecord(app, "products", productId);
+    if (!product || relationId(product, "store") !== storeId) throw privateMutationError("order_inventory_invalid", 409);
+    if (recordValue(product, "track_stock") === false) return;
+    if (!variationId) {
+      addInventoryGroup(groups, `product:${product.id}`, product, quantity);
+      return;
+    }
+
+    const variation = findRecord(app, "product_variations", variationId);
+    if (!variation || relationId(variation, "product") !== product.id) {
+      throw privateMutationError("order_inventory_invalid", 409);
+    }
+    addInventoryGroup(groups, `variation:${variation.id}`, variation, quantity);
+  });
+  return Array.from(groups.values());
+}
+
+function moveOrderInventory(app, order, direction) {
+  const groups = orderInventoryGroups(app, order);
+  groups.forEach((group) => {
+    const stock = Number(recordValue(group.record, "stock"));
+    if (!Number.isFinite(stock) || stock < 0 || !Number.isInteger(stock)) {
+      throw privateMutationError("order_inventory_invalid", 409);
+    }
+    if (direction < 0 && stock < group.quantity) throw privateMutationError("insufficient_stock", 409);
+  });
+  groups.forEach((group) => {
+    const stock = Number(recordValue(group.record, "stock"));
+    group.record.set("stock", stock + direction * group.quantity);
+    app.save(group.record);
+  });
+  return groups.length;
+}
+
+function reconcileOrderInventory(app, order, nextStatus) {
+  const shouldReserve = INVENTORY_RESERVED_STATUSES.includes(nextStatus);
+  const wasReserved = recordBool(order, "stock_deducted");
+  if (shouldReserve && !wasReserved) {
+    moveOrderInventory(app, order, -1);
+    order.set("stock_deducted", true);
+    return "deducted";
+  }
+  if (!shouldReserve && wasReserved) {
+    moveOrderInventory(app, order, 1);
+    order.set("stock_deducted", false);
+    return "restored";
+  }
+  return "unchanged";
+}
+
+function sanitizedTransitionResponse(order, inventoryAction) {
+  return {
+    ok: true,
+    order: {
+      id: order.id,
+      status: recordString(order, "status"),
+      stock_deducted: recordBool(order, "stock_deducted"),
+      delivered_at: recordString(order, "delivered_at"),
+    },
+    inventory_action: inventoryAction,
+  };
+}
+
+function transitionPrivateOrder(app, auth, orderId, nextStatus, now) {
+  if (!ORDER_STATUSES.includes(nextStatus)) throw privateMutationError("invalid_status", 422);
+  const permission = nextStatus === "cancelled" ? "orders.cancel_delete" : "orders.status.manage";
+  const order = requireLockedPrivateOrder(app, auth, orderId, permission);
+  const currentStatus = recordString(order, "status").toLowerCase();
+  if (nextStatus === "delivered" && !["confirmed", "delivered"].includes(currentStatus)) {
+    throw privateMutationError("invalid_status_transition", 409);
+  }
+  const inventoryAction = reconcileOrderInventory(app, order, nextStatus);
+  order.set("status", nextStatus);
+  if (nextStatus === "delivered" && !recordString(order, "delivered_at")) {
+    const deliveredAt = now instanceof Date ? now : new Date();
+    order.set("delivered_at", deliveredAt.toISOString());
+  }
+  app.save(order);
+  return sanitizedTransitionResponse(order, inventoryAction);
+}
+
+function secureUniqueOrderToken(app, field, length, securityApi) {
+  const generator = securityApi || (typeof $security === "undefined" ? null : $security);
+  if (!generator || typeof generator.randomStringWithAlphabet !== "function") {
+    throw privateMutationError("token_unavailable", 503);
+  }
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const token = String(generator.randomStringWithAlphabet(length, ORDER_TOKEN_ALPHABET) || "");
+    if (token.length !== length || !/^[A-Za-z0-9_-]+$/.test(token)) continue;
+    const duplicate = findRecordsStrict(app, "orders", `${field} = {:token}`, "", 1, 0, { token })[0];
+    if (!duplicate) return token;
+  }
+  throw privateMutationError("token_unavailable", 503);
+}
+
+function ensurePrivateOrderToken(app, auth, orderId, options) {
+  const config = options || {};
+  const field = config.field === "review_token" ? "review_token" : "receipt_token";
+  const permission = field === "review_token" ? "reviews.manage" : "orders.contact_customer";
+  const order = requireLockedPrivateOrder(app, auth, orderId, permission);
+  if (field === "review_token" && recordString(order, "status") !== "delivered") {
+    throw privateMutationError("review_not_available", 409);
+  }
+  let token = recordString(order, field);
+  if (!token) {
+    token = secureUniqueOrderToken(app, field, field === "review_token" ? 40 : 32, config.securityApi);
+    order.set(field, token);
+    app.save(order);
+  }
+  const responseOrderValue = { id: order.id };
+  responseOrderValue[field] = token;
+  return { ok: true, order: responseOrderValue };
+}
+
+function deleteCouponUsagesForOrder(app, order) {
+  const usages = findRecordsStrict(app, "manual_coupon_usages", "order = {:order}", "created", 1000, 0, { order: order.id });
+  usages.forEach((usage) => {
+    const coupon = findRecord(app, "manual_coupons", relationId(usage, "coupon"));
+    app.delete(usage);
+    if (!coupon) return;
+    coupon.set("used_count", Math.max(0, recordNumber(coupon, "used_count") - 1));
+    app.save(coupon);
+  });
+}
+
+function deletePrivateOrder(app, auth, orderId) {
+  const order = requireLockedPrivateOrder(app, auth, orderId, "orders.cancel_delete");
+  if (recordBool(order, "stock_deducted")) {
+    moveOrderInventory(app, order, 1);
+    order.set("stock_deducted", false);
+  }
+  order.set("status", "cancelled");
+  app.save(order);
+  const items = findRecordsStrict(app, "order_items", "order = {:order}", "created", 10000, 0, { order: order.id });
+  items.forEach((item) => {
+    if (relationId(item, "order") !== order.id) throw privateMutationError("order_inventory_invalid", 409);
+    app.delete(item);
+  });
+  deleteCouponUsagesForOrder(app, order);
+  app.delete(order);
+  return { ok: true, deleted: true };
 }
 
 function requireProductEditingOpen(order) {
@@ -1763,13 +1986,58 @@ function handlePrivateMutation(e, callback) {
   }
 }
 
+function handleOrderTransition(e) {
+  const body = e.requestInfo().body || {};
+  const orderId = privateRouteId(e, "orderId");
+  let status = "";
+  try { status = parseOrderTransitionPayload(body); }
+  catch (error) {
+    setNoStoreHeaders(e);
+    return e.json(Number(error && error.status) || 422, { ok: false, error: error && error.privateCode || "invalid_payload" });
+  }
+  return handlePrivateMutation(e, (app) => transitionPrivateOrder(app, e.auth, orderId, status, new Date()));
+}
+
+function handleOrderReceiptToken(e) {
+  const body = e.requestInfo().body || {};
+  const orderId = privateRouteId(e, "orderId");
+  try { requireEmptyPrivatePayload(body); }
+  catch (error) {
+    setNoStoreHeaders(e);
+    return e.json(Number(error && error.status) || 422, { ok: false, error: error && error.privateCode || "invalid_payload" });
+  }
+  return handlePrivateMutation(e, (app) => ensurePrivateOrderToken(app, e.auth, orderId, { field: "receipt_token" }));
+}
+
+function handleOrderReviewToken(e) {
+  const body = e.requestInfo().body || {};
+  const orderId = privateRouteId(e, "orderId");
+  try { requireEmptyPrivatePayload(body); }
+  catch (error) {
+    setNoStoreHeaders(e);
+    return e.json(Number(error && error.status) || 422, { ok: false, error: error && error.privateCode || "invalid_payload" });
+  }
+  return handlePrivateMutation(e, (app) => ensurePrivateOrderToken(app, e.auth, orderId, { field: "review_token" }));
+}
+
+function handleOrderDelete(e) {
+  const body = e.requestInfo().body || {};
+  const orderId = privateRouteId(e, "orderId");
+  try { requireEmptyPrivatePayload(body); }
+  catch (error) {
+    setNoStoreHeaders(e);
+    return e.json(Number(error && error.status) || 422, { ok: false, error: error && error.privateCode || "invalid_payload" });
+  }
+  return handlePrivateMutation(e, (app) => deletePrivateOrder(app, e.auth, orderId));
+}
+
 function handleOrderItemQuantity(e) {
   const body = e.requestInfo().body || {};
   const orderId = privateRouteId(e, "orderId");
   const itemId = privateRouteId(e, "itemId");
   return handlePrivateMutation(e, (app) => {
     const quantity = parsePositiveQuantity(body.quantity);
-    const order = requirePrivateOrder(app, e.auth, orderId);
+    const order = requirePrivateOrder(app, e.auth, orderId, "orders.items.manage");
     requireProductEditingOpen(order);
     const item = requirePrivateItem(app, order, itemId);
     if (recordBool(item, "is_gift")) throw privateMutationError("gift_quantity_locked", 409);
@@ -1791,7 +2059,7 @@ function handleOrderItemAdd(e) {
     if (!RECORD_ID_PATTERN.test(productId) || (variationId && !RECORD_ID_PATTERN.test(variationId))) {
       throw privateMutationError("invalid_product", 422);
     }
-    const order = requirePrivateOrder(app, e.auth, orderId);
+    const order = requirePrivateOrder(app, e.auth, orderId, "orders.items.manage");
     requireProductEditingOpen(order);
     const existing = findRecordsStrict(app, "order_items", "order = {:order}", "created", 1000, 0, { order: order.id })
       .find((item) => !recordBool(item, "is_gift") && relationId(item, "product") === productId && relationId(item, "variation") === variationId);
@@ -1822,7 +2090,7 @@ function handleOrderItemDelete(e) {
   const orderId = privateRouteId(e, "orderId");
   const itemId = privateRouteId(e, "itemId");
   return handlePrivateMutation(e, (app) => {
-    const order = requirePrivateOrder(app, e.auth, orderId);
+    const order = requirePrivateOrder(app, e.auth, orderId, "orders.items.manage");
     requireProductEditingOpen(order);
     const item = requirePrivateItem(app, order, itemId);
     app.delete(item);
@@ -1837,7 +2105,7 @@ function handleOrderItemAdjustment(e) {
   return handlePrivateMutation(e, (app) => {
     const finalUnit = adjustmentUnitPrice(body);
     const reason = adjustmentReason(body);
-    const order = requirePrivateOrder(app, e.auth, orderId);
+    const order = requirePrivateOrder(app, e.auth, orderId, "orders.price_adjustment");
     requireAdjustmentState(order);
     const item = requirePrivateItem(app, order, itemId);
     if (recordBool(item, "is_gift")) throw privateMutationError("gift_adjustment_forbidden", 409);
@@ -1866,7 +2134,7 @@ function handleOrderItemAdjustmentReset(e) {
   const orderId = privateRouteId(e, "orderId");
   const itemId = privateRouteId(e, "itemId");
   return handlePrivateMutation(e, (app) => {
-    const order = requirePrivateOrder(app, e.auth, orderId);
+    const order = requirePrivateOrder(app, e.auth, orderId, "orders.price_adjustment");
     requireAdjustmentState(order);
     const item = requirePrivateItem(app, order, itemId);
     const reason = validateResetPayload(body);
@@ -1934,22 +2202,32 @@ module.exports = {
   canonicalizeOrderItemRecord,
   canonicalizeOrderRecord,
   couponLabel,
+  deletePrivateOrder,
   discountLabel,
+  ensurePrivateOrderToken,
   freezeLegacyLineEconomics,
   handleCheckout,
+  handleOrderDelete,
   handleOrderItemAdd,
   handleOrderItemAdjustment,
   handleOrderItemAdjustmentReset,
   handleOrderItemDelete,
   handleOrderItemQuantity,
+  handleOrderReceiptToken,
+  handleOrderReviewToken,
+  handleOrderTransition,
+  moveOrderInventory,
   normalizeCoupon,
   normalizePromotion,
+  orderInventoryGroups,
   ordersAllowedBySettings,
   parseCheckoutPayload,
+  parseOrderTransitionPayload,
   raiseOrderRequestError,
   recalculateOrderEconomics,
   recalculateOrderAfterItemMutation,
   resolveProductLine,
   responseOrder,
+  transitionPrivateOrder,
   validateResetPayload,
 };

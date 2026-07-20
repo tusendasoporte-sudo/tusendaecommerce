@@ -1,0 +1,788 @@
+---
+import AdminSectionHeader from './AdminSectionHeader.astro';
+import {
+  STORE_PERMISSION_CATALOG,
+  STORE_PERMISSION_TEMPLATE_CODES,
+  STORE_PERMISSION_TEMPLATES,
+} from '../../lib/storeTeamPermissions';
+
+interface Props {
+  pocketbaseUrl: string;
+  storeSlug: string;
+  plansPath?: string;
+}
+
+const {
+  pocketbaseUrl,
+  storeSlug,
+  plansPath = '/planes',
+} = Astro.props;
+---
+
+<main class="store-team-page" data-store-team-root>
+  <div class="store-team-shell">
+    <AdminSectionHeader
+      kicker="Accesos de la tienda"
+      title="Mi equipo"
+      description="Administra los accesos y permisos de tu tienda."
+    />
+
+    <section class="store-team-summary" aria-label="Resumen de usuarios">
+      <article class="store-team-summary__card">
+        <span>Usuarios activos</span>
+        <strong data-team-active-count>—</strong>
+      </article>
+      <article class="store-team-summary__card">
+        <span>Cupos disponibles</span>
+        <strong data-team-available-count>—</strong>
+      </article>
+      <article class="store-team-summary__card">
+        <span>Plan actual</span>
+        <strong data-team-plan-label>—</strong>
+      </article>
+    </section>
+
+    <aside class="store-team-plan-notice" data-team-plan-notice hidden>
+      <span>Tu plan permite un solo usuario activo. Los accesos preservados permanecen inactivos y sus permisos se muestran en modo lectura.</span>
+      <a href={plansPath}>Ver planes</a>
+    </aside>
+
+    <div class="store-team-alert" role="status" aria-live="polite" data-team-alert hidden></div>
+
+    <section class="store-team-panel" aria-labelledby="store-team-list-title">
+      <div class="store-team-panel__head">
+        <div>
+          <h2 id="store-team-list-title">Usuarios de la tienda</h2>
+          <p data-team-list-summary>Cargando el equipo…</p>
+        </div>
+        <button class="store-team-primary-button" type="button" data-team-create disabled>Nuevo usuario</button>
+      </div>
+
+      <div class="store-team-table__header" aria-hidden="true">
+        <span>Usuario</span>
+        <span>Rol y plantilla</span>
+        <span>Estado</span>
+        <span>Actividad</span>
+        <span>Dispositivos</span>
+        <span></span>
+      </div>
+      <div class="store-team-list" data-team-list aria-live="polite">
+        <p class="store-team-empty">Cargando usuarios…</p>
+      </div>
+    </section>
+  </div>
+
+  <dialog class="store-team-dialog" data-team-editor-dialog aria-labelledby="store-team-editor-title">
+    <form class="store-team-dialog__layout" data-team-editor-form>
+      <header class="store-team-dialog__head">
+        <div>
+          <h2 id="store-team-editor-title" data-team-editor-title>Nuevo usuario</h2>
+          <p data-team-editor-subtitle>Define los datos y permisos de este acceso.</p>
+        </div>
+        <button class="store-team-dialog__close" type="button" data-team-dialog-close aria-label="Cerrar">×</button>
+      </header>
+
+      <div class="store-team-dialog__body">
+        <div class="store-team-alert is-error" role="alert" data-team-editor-alert hidden></div>
+        <div class="store-team-form-grid">
+          <div class="store-team-field">
+            <label for="store-team-display-name">Nombre</label>
+            <input id="store-team-display-name" name="display_name" type="text" maxlength="120" autocomplete="off" required />
+          </div>
+          <div class="store-team-field">
+            <label for="store-team-email">Correo</label>
+            <input id="store-team-email" name="email" type="email" maxlength="180" autocomplete="off" required />
+          </div>
+          <div class="store-team-field">
+            <label for="store-team-phone">Teléfono</label>
+            <input id="store-team-phone" name="phone" type="tel" maxlength="40" autocomplete="off" />
+          </div>
+          <div class="store-team-field">
+            <label for="store-team-template">Plantilla</label>
+            <select id="store-team-template" name="template_code" data-team-template required>
+              {STORE_PERMISSION_TEMPLATE_CODES.map((code) => (
+                <option value={code}>{STORE_PERMISSION_TEMPLATES[code].label}</option>
+              ))}
+            </select>
+            <small data-team-template-description></small>
+          </div>
+          <div class="store-team-field is-wide">
+            <label for="store-team-reason">Motivo interno</label>
+            <textarea id="store-team-reason" name="reason" maxlength="500" placeholder="Ej.: acceso para gestión de inventario"></textarea>
+          </div>
+        </div>
+
+        <section class="store-team-permissions" aria-labelledby="store-team-permissions-title">
+          <div>
+            <strong id="store-team-permissions-title" class="store-team-permissions__title">Permisos operativos</strong>
+            <p class="store-team-permissions__help" data-team-permissions-help>Al cambiar manualmente una opción, la plantilla pasa a Personalizado. Las dependencias se aplican automáticamente.</p>
+          </div>
+          {STORE_PERMISSION_CATALOG.map((group) => (
+            <section class="store-team-permission-group">
+              <h3>{group.label}</h3>
+              <div class="store-team-permission-list">
+                {group.permissions.map((item) => (
+                  <label class="store-team-permission-option">
+                    <input type="checkbox" name="permissions" value={item.key} data-team-permission />
+                    <span>
+                      <strong>{item.label}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          ))}
+        </section>
+      </div>
+
+      <footer class="store-team-dialog__foot">
+        <button class="store-team-secondary-button" type="button" data-team-dialog-close>Cancelar</button>
+        <button class="store-team-primary-button" type="submit" data-team-editor-submit>Crear usuario</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="store-team-dialog" data-team-action-dialog aria-labelledby="store-team-action-title">
+    <form class="store-team-dialog__layout" data-team-action-form>
+      <header class="store-team-dialog__head">
+        <div>
+          <h2 id="store-team-action-title" data-team-action-title>Confirmar acción</h2>
+          <p data-team-action-description></p>
+        </div>
+        <button class="store-team-dialog__close" type="button" data-team-dialog-close aria-label="Cerrar">×</button>
+      </header>
+      <div class="store-team-dialog__body">
+        <div class="store-team-alert is-error" role="alert" data-team-action-alert hidden></div>
+        <div class="store-team-field">
+          <label for="store-team-action-reason">Motivo interno</label>
+          <textarea id="store-team-action-reason" name="reason" maxlength="500" required placeholder="Describe brevemente el motivo"></textarea>
+        </div>
+      </div>
+      <footer class="store-team-dialog__foot">
+        <button class="store-team-secondary-button" type="button" data-team-dialog-close>Cancelar</button>
+        <button class="store-team-danger-button" type="submit" data-team-action-submit>Confirmar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="store-team-dialog" data-team-secret-dialog aria-labelledby="store-team-secret-title">
+    <div class="store-team-dialog__layout">
+      <header class="store-team-dialog__head">
+        <div>
+          <h2 id="store-team-secret-title">Acceso temporal listo</h2>
+          <p>Compártelo de forma segura con el usuario.</p>
+        </div>
+        <button class="store-team-dialog__close" type="button" data-team-secret-close aria-label="Cerrar">×</button>
+      </header>
+      <div class="store-team-dialog__body">
+        <div class="store-team-secret">
+          <p class="store-team-secret__warning">Esta contraseña se muestra una sola vez. Al cerrar esta ventana se elimina de la página y no podrás recuperarla.</p>
+          <div class="store-team-secret__value">
+            <code data-team-secret-value></code>
+            <button class="store-team-secondary-button" type="button" data-team-secret-copy>Copiar</button>
+          </div>
+          <small class="store-team-permissions__help" data-team-secret-expiration></small>
+        </div>
+      </div>
+      <footer class="store-team-dialog__foot">
+        <button class="store-team-primary-button" type="button" data-team-secret-close>Entendido, cerrar</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog class="store-team-dialog" data-team-audit-dialog aria-labelledby="store-team-audit-title">
+    <div class="store-team-dialog__layout">
+      <header class="store-team-dialog__head">
+        <div>
+          <h2 id="store-team-audit-title">Auditoría del usuario</h2>
+          <p data-team-audit-subtitle>Historial privado de cambios.</p>
+        </div>
+        <button class="store-team-dialog__close" type="button" data-team-dialog-close aria-label="Cerrar">×</button>
+      </header>
+      <div class="store-team-dialog__body">
+        <div class="store-team-audit-list" data-team-audit-list>
+          <p class="store-team-empty">Cargando auditoría…</p>
+        </div>
+      </div>
+      <footer class="store-team-dialog__foot">
+        <button class="store-team-secondary-button" type="button" data-team-dialog-close>Cerrar</button>
+      </footer>
+    </div>
+  </dialog>
+</main>
+
+<script define:vars={{ pocketbaseUrl, storeSlug }}>
+  window.PZ_STORE_TEAM_CONFIG = {
+    pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
+    storeSlug: String(storeSlug || ''),
+    isPrimaryAdmin: true,
+  };
+</script>
+
+<script>
+  import {
+    createStoreTeamUser,
+    canCreateStoreTeamUser,
+    formatStoreTeamActiveCount,
+    getStoreTeamErrorMessage,
+    getStoreTeamSummary,
+    getStoreTeamUserAudit,
+    getStoreTeamUserDetail,
+    issueStoreTeamTemporaryAccess,
+    listStoreTeamUsers,
+    reactivateStoreTeamUser,
+    revokeStoreTeamUserDevices,
+    revokeStoreTeamUserSessions,
+    suspendStoreTeamUser,
+    updateStoreTeamUser,
+    type StoreTeamSummary,
+    type StoreTeamUser,
+  } from '../../lib/storeTeam';
+  import {
+    STORE_PERMISSION_TEMPLATE_CODES,
+    STORE_PERMISSION_TEMPLATES,
+    getStorePermissionTemplatePermissions,
+    isStorePermission,
+    normalizeStorePermissions,
+    toggleStorePermission,
+    type StorePermission,
+    type StorePermissionTemplateCode,
+  } from '../../lib/storeTeamPermissions';
+
+  type TeamConfig = {
+    pocketbaseUrl: string;
+    storeSlug: string;
+    isPrimaryAdmin: boolean;
+  };
+
+  type TeamAction = 'suspend' | 'reactivate' | 'temporary' | 'sessions' | 'devices';
+
+  const config = ((window as typeof window & { PZ_STORE_TEAM_CONFIG?: TeamConfig }).PZ_STORE_TEAM_CONFIG || {}) as TeamConfig;
+  const root = document.querySelector<HTMLElement>('[data-store-team-root]');
+
+  if (root && config.isPrimaryAdmin === true) {
+    const readAuthToken = () => {
+      const cookie = String(document.cookie || '')
+        .split(';')
+        .map((value) => value.trim())
+        .find((value) => value.startsWith('pb_auth='));
+      if (!cookie) return '';
+      try {
+        const parsed = JSON.parse(decodeURIComponent(cookie.slice('pb_auth='.length)));
+        return typeof parsed?.token === 'string' ? parsed.token : '';
+      } catch (_) {
+        return '';
+      }
+    };
+    const client = { baseUrl: config.pocketbaseUrl, token: readAuthToken() };
+    const list = root.querySelector<HTMLElement>('[data-team-list]');
+    const alertBox = root.querySelector<HTMLElement>('[data-team-alert]');
+    const activeCount = root.querySelector<HTMLElement>('[data-team-active-count]');
+    const availableCount = root.querySelector<HTMLElement>('[data-team-available-count]');
+    const planLabel = root.querySelector<HTMLElement>('[data-team-plan-label]');
+    const planNotice = root.querySelector<HTMLElement>('[data-team-plan-notice]');
+    const listSummary = root.querySelector<HTMLElement>('[data-team-list-summary]');
+    const createButton = root.querySelector<HTMLButtonElement>('[data-team-create]');
+
+    const editorDialog = root.querySelector<HTMLDialogElement>('[data-team-editor-dialog]');
+    const editorForm = root.querySelector<HTMLFormElement>('[data-team-editor-form]');
+    const editorTitle = root.querySelector<HTMLElement>('[data-team-editor-title]');
+    const editorSubtitle = root.querySelector<HTMLElement>('[data-team-editor-subtitle]');
+    const editorAlert = root.querySelector<HTMLElement>('[data-team-editor-alert]');
+    const editorSubmit = root.querySelector<HTMLButtonElement>('[data-team-editor-submit]');
+    const displayNameInput = root.querySelector<HTMLInputElement>('#store-team-display-name');
+    const emailInput = root.querySelector<HTMLInputElement>('#store-team-email');
+    const phoneInput = root.querySelector<HTMLInputElement>('#store-team-phone');
+    const reasonInput = root.querySelector<HTMLTextAreaElement>('#store-team-reason');
+    const templateSelect = root.querySelector<HTMLSelectElement>('[data-team-template]');
+    const templateDescription = root.querySelector<HTMLElement>('[data-team-template-description]');
+    const permissionsHelp = root.querySelector<HTMLElement>('[data-team-permissions-help]');
+    const permissionInputs = [...root.querySelectorAll<HTMLInputElement>('[data-team-permission]')];
+
+    const actionDialog = root.querySelector<HTMLDialogElement>('[data-team-action-dialog]');
+    const actionForm = root.querySelector<HTMLFormElement>('[data-team-action-form]');
+    const actionTitle = root.querySelector<HTMLElement>('[data-team-action-title]');
+    const actionDescription = root.querySelector<HTMLElement>('[data-team-action-description]');
+    const actionAlert = root.querySelector<HTMLElement>('[data-team-action-alert]');
+    const actionReason = root.querySelector<HTMLTextAreaElement>('#store-team-action-reason');
+    const actionSubmit = root.querySelector<HTMLButtonElement>('[data-team-action-submit]');
+
+    const secretDialog = root.querySelector<HTMLDialogElement>('[data-team-secret-dialog]');
+    const secretValue = root.querySelector<HTMLElement>('[data-team-secret-value]');
+    const secretExpiration = root.querySelector<HTMLElement>('[data-team-secret-expiration]');
+    const secretCopy = root.querySelector<HTMLButtonElement>('[data-team-secret-copy]');
+
+    const auditDialog = root.querySelector<HTMLDialogElement>('[data-team-audit-dialog]');
+    const auditSubtitle = root.querySelector<HTMLElement>('[data-team-audit-subtitle]');
+    const auditList = root.querySelector<HTMLElement>('[data-team-audit-list]');
+
+    let users: StoreTeamUser[] = [];
+    let summary: StoreTeamSummary | null = null;
+    let currentPlanLimit = 0;
+    let editingUser: StoreTeamUser | null = null;
+    let selectedPermissions: StorePermission[] = [];
+    let pendingAction: TeamAction | null = null;
+    let pendingActionUser: StoreTeamUser | null = null;
+    let temporarySecret = '';
+    let userRefCounter = 0;
+    const userByRef = new Map<string, StoreTeamUser>();
+
+    const escapeHtml = (value: unknown) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+    function openDialog(dialog: HTMLDialogElement | null) {
+      if (!dialog) return;
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    }
+
+    function closeDialog(dialog: HTMLDialogElement | null) {
+      if (!dialog) return;
+      if (typeof dialog.close === 'function') dialog.close();
+      else dialog.removeAttribute('open');
+    }
+
+    function showMessage(element: HTMLElement | null, message = '', tone: 'info' | 'error' | 'success' = 'info') {
+      if (!element) return;
+      element.textContent = message;
+      element.hidden = !message;
+      element.classList.toggle('is-error', tone === 'error');
+      element.classList.toggle('is-success', tone === 'success');
+    }
+
+    function formatDate(value: unknown) {
+      const raw = String(value || '').trim();
+      if (!raw) return 'Sin actividad reciente';
+      const parsed = new Date(raw.replace(' ', 'T'));
+      if (!Number.isFinite(parsed.getTime())) return 'Sin actividad reciente';
+      return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
+    }
+
+    function maskEmail(value: unknown) {
+      const email = String(value || '').trim();
+      const [local = '', domain = ''] = email.split('@');
+      if (!domain) return email || 'Sin correo';
+      const visible = local.slice(0, Math.min(2, local.length));
+      return `${visible}${'*'.repeat(Math.max(2, Math.min(6, local.length - visible.length)))}@${domain}`;
+    }
+
+    function roleLabel(user: StoreTeamUser) {
+      if (user.is_primary_admin) return 'Administrador principal';
+      return user.role === 'store_admin' ? 'Administrador' : 'Colaborador';
+    }
+
+    function templateLabel(code: unknown) {
+      const normalized = STORE_PERMISSION_TEMPLATE_CODES.includes(code as StorePermissionTemplateCode)
+        ? code as StorePermissionTemplateCode
+        : 'custom';
+      return STORE_PERMISSION_TEMPLATES[normalized].label;
+    }
+
+    function statePresentation(user: StoreTeamUser) {
+      const state = String(user.state || '').toLowerCase();
+      const temporary = String(user.temporary_password_state || '').toLowerCase();
+      if (user.blocked_by_plan === true || state === 'blocked_by_plan') return { label: 'Inactivo por plan', className: 'is-plan' };
+      if (String(user.status || '').toLowerCase() === 'suspended' || state === 'suspended') return { label: 'Suspendido', className: 'is-suspended' };
+      if (temporary === 'expired' || state === 'temporary_password_expired') return { label: 'Contraseña temporal vencida', className: 'is-expired' };
+      if (temporary === 'pending' || state === 'temporary_password_pending') return { label: 'Acceso temporal pendiente', className: 'is-pending' };
+      return { label: 'Activo', className: 'is-active' };
+    }
+
+    function closeMenus(except: HTMLElement | null = null) {
+      root.querySelectorAll<HTMLElement>('[data-team-menu]').forEach((menu) => {
+        if (menu !== except) menu.hidden = true;
+      });
+    }
+
+    function actionMenu(user: StoreTeamUser) {
+      if (user.is_primary_admin) return '<span aria-label="Sin acciones destructivas"></span>';
+      const suspended = String(user.status || '').toLowerCase() === 'suspended' || String(user.state || '').toLowerCase() === 'suspended';
+      const blockedByPlan = user.blocked_by_plan === true || String(user.state || '').toLowerCase() === 'blocked_by_plan';
+      const activationAction = suspended && !blockedByPlan
+        ? '<button type="button" data-team-action="reactivate">Reactivar</button>'
+        : (!suspended ? '<button class="is-danger" type="button" data-team-action="suspend">Suspender</button>' : '');
+      return `
+        <button class="store-team-menu-button" type="button" aria-label="Abrir acciones" aria-expanded="false" data-team-menu-toggle>⋯</button>
+        <div class="store-team-menu" data-team-menu hidden>
+          <button type="button" data-team-action="edit">Editar usuario</button>
+          <button type="button" data-team-action="permissions">Permisos</button>
+          <button type="button" data-team-action="temporary">Restablecer acceso</button>
+          <button type="button" data-team-action="sessions">Cerrar sesiones</button>
+          <button type="button" data-team-action="devices">Revocar dispositivos</button>
+          ${activationAction}
+          <button type="button" data-team-action="audit">Ver auditoría</button>
+        </div>`;
+    }
+
+    function renderUsers() {
+      if (!list) return;
+      userByRef.clear();
+      if (!users.length) {
+        list.innerHTML = '<p class="store-team-empty">Todavía no hay usuarios para mostrar.</p>';
+        return;
+      }
+      list.innerHTML = users.map((user) => {
+        const reference = `team-user-${++userRefCounter}`;
+        userByRef.set(reference, user);
+        const state = statePresentation(user);
+        const primaryBadge = user.is_primary_admin
+          ? '<span class="store-team-badge is-primary">Administrador principal</span>'
+          : '';
+        return `
+          <article class="store-team-row" data-user-ref="${reference}">
+            <div class="store-team-row__identity">
+              <strong>${escapeHtml(user.display_name || 'Usuario sin nombre')}</strong>
+              <span title="Correo protegido">${escapeHtml(maskEmail(user.email))}</span>
+            </div>
+            <div class="store-team-row__cell">
+              <span class="store-team-cell-label">Rol y plantilla</span>
+              <strong>${escapeHtml(roleLabel(user))}</strong>
+              <small>${escapeHtml(user.is_primary_admin ? 'Permisos operativos implícitos' : templateLabel(user.template_code))}</small>
+            </div>
+            <div class="store-team-row__cell">
+              <span class="store-team-cell-label">Estado</span>
+              <div class="store-team-badges"><span class="store-team-badge ${state.className}">${escapeHtml(state.label)}</span>${primaryBadge}</div>
+            </div>
+            <div class="store-team-row__cell">
+              <span class="store-team-cell-label">Última actividad</span>
+              <strong>${escapeHtml(formatDate(user.last_activity_at))}</strong>
+              <small>${user.temporary_password_expires_at ? `Temporal hasta ${escapeHtml(formatDate(user.temporary_password_expires_at))}` : 'Acceso personal'}</small>
+            </div>
+            <div class="store-team-row__cell">
+              <span class="store-team-cell-label">Dispositivos</span>
+              <strong>${Math.max(0, Number(user.authorized_device_count || 0))}</strong>
+              <small>autorizados</small>
+            </div>
+            <div class="store-team-actions">${actionMenu(user)}</div>
+          </article>`;
+      }).join('');
+    }
+
+    function renderSummary() {
+      if (!summary) return;
+      const counts = summary.user_counts;
+      currentPlanLimit = Math.max(0, Number(summary.plan?.max_active_users || 0));
+      if (activeCount) activeCount.textContent = formatStoreTeamActiveCount(counts.active, currentPlanLimit);
+      if (availableCount) availableCount.textContent = String(counts.available);
+      if (planLabel) planLabel.textContent = summary.plan?.label || (summary.plan?.code ? `Plan ${summary.plan.code}` : 'Sin configurar');
+      if (listSummary) listSummary.textContent = `${counts.total} usuario${counts.total === 1 ? '' : 's'} registrado${counts.total === 1 ? '' : 's'}`;
+      if (planNotice) planNotice.hidden = currentPlanLimit > 1;
+      if (createButton) {
+        createButton.disabled = !canCreateStoreTeamUser(summary);
+        createButton.title = createButton.disabled
+          ? (currentPlanLimit <= 1 ? 'Tu plan permite un solo usuario activo.' : 'No hay cupos activos disponibles.')
+          : '';
+      }
+    }
+
+    async function loadTeam(successMessage = '') {
+      showMessage(alertBox);
+      if (list) list.innerHTML = '<p class="store-team-empty">Cargando usuarios…</p>';
+      try {
+        const [summaryResult, listResult] = await Promise.all([
+          getStoreTeamSummary(client),
+          listStoreTeamUsers(client),
+        ]);
+        summary = summaryResult;
+        users = listResult.users;
+        renderSummary();
+        renderUsers();
+        if (successMessage) showMessage(alertBox, successMessage, 'success');
+      } catch (error) {
+        if (list) list.innerHTML = '<p class="store-team-empty">No se pudo cargar el equipo.</p>';
+        showMessage(alertBox, getStoreTeamErrorMessage(error), 'error');
+      }
+    }
+
+    function syncPermissionInputs() {
+      const selected = new Set(selectedPermissions);
+      permissionInputs.forEach((input) => {
+        input.checked = selected.has(input.value as StorePermission);
+        input.disabled = currentPlanLimit <= 1 && editingUser !== null;
+      });
+      if (templateSelect) {
+        const code = templateSelect.value as StorePermissionTemplateCode;
+        templateDescription!.textContent = STORE_PERMISSION_TEMPLATES[code]?.description || STORE_PERMISSION_TEMPLATES.custom.description;
+        templateSelect.disabled = currentPlanLimit <= 1 && editingUser !== null;
+      }
+      if (permissionsHelp) {
+        permissionsHelp.textContent = currentPlanLimit <= 1 && editingUser !== null
+          ? 'El plan actual conserva estos permisos en modo lectura.'
+          : 'Al cambiar manualmente una opción, la plantilla pasa a Personalizado. Las dependencias se aplican automáticamente.';
+      }
+    }
+
+    function resetEditor(mode: 'create' | 'edit', user: StoreTeamUser | null = null) {
+      editingUser = user;
+      editorForm?.reset();
+      showMessage(editorAlert);
+      if (displayNameInput) displayNameInput.value = user?.display_name || '';
+      if (emailInput) emailInput.value = user?.email || '';
+      if (phoneInput) phoneInput.value = user?.phone || '';
+      if (reasonInput) reasonInput.value = '';
+      const templateCode = user?.template_code || 'read_only';
+      if (templateSelect) templateSelect.value = templateCode;
+      selectedPermissions = user
+        ? normalizeStorePermissions(user.permissions)
+        : getStorePermissionTemplatePermissions(templateCode);
+      if (editorTitle) editorTitle.textContent = mode === 'create' ? 'Nuevo usuario' : 'Editar usuario';
+      if (editorSubtitle) editorSubtitle.textContent = mode === 'create'
+        ? 'Define los datos y permisos de este acceso.'
+        : 'Actualiza los datos y permisos sin cambiar el nombre silenciosamente.';
+      if (editorSubmit) editorSubmit.textContent = mode === 'create' ? 'Crear usuario' : 'Guardar cambios';
+      syncPermissionInputs();
+    }
+
+    async function openEditor(user: StoreTeamUser | null = null, focusPermissions = false) {
+      if (!user) {
+        resetEditor('create');
+        openDialog(editorDialog);
+        displayNameInput?.focus();
+        return;
+      }
+      showMessage(alertBox);
+      try {
+        const result = await getStoreTeamUserDetail(user.id, client);
+        resetEditor('edit', result.user);
+        openDialog(editorDialog);
+        (focusPermissions ? permissionInputs[0] : displayNameInput)?.focus();
+      } catch (error) {
+        showMessage(alertBox, getStoreTeamErrorMessage(error), 'error');
+      }
+    }
+
+    function clearTemporarySecret() {
+      temporarySecret = '';
+      if (secretValue) secretValue.textContent = '';
+      if (secretExpiration) secretExpiration.textContent = '';
+      if (secretCopy) secretCopy.textContent = 'Copiar';
+    }
+
+    function showTemporarySecret(secret: unknown, expiration: unknown) {
+      clearTemporarySecret();
+      temporarySecret = String(secret || '');
+      if (!temporarySecret) return;
+      if (secretValue) secretValue.textContent = temporarySecret;
+      if (secretExpiration) secretExpiration.textContent = expiration
+        ? `Vence: ${formatDate(expiration)}`
+        : 'La persona deberá cambiarla en su primer acceso.';
+      openDialog(secretDialog);
+    }
+
+    const ACTION_COPY: Record<TeamAction, { title: string; description: string; button: string; danger: boolean }> = {
+      suspend: { title: 'Suspender usuario', description: 'El acceso y sus sesiones quedarán bloqueados inmediatamente.', button: 'Suspender', danger: true },
+      reactivate: { title: 'Reactivar usuario', description: 'El usuario recuperará acceso si existe cupo en el plan.', button: 'Reactivar', danger: false },
+      temporary: { title: 'Restablecer acceso', description: 'Se cerrarán las sesiones actuales y se emitirá una contraseña temporal de un solo uso.', button: 'Emitir acceso', danger: true },
+      sessions: { title: 'Cerrar sesiones', description: 'Todas las sesiones activas de este usuario se invalidarán.', button: 'Cerrar sesiones', danger: true },
+      devices: { title: 'Revocar dispositivos', description: 'Los dispositivos administrativos autorizados deberán validarse nuevamente.', button: 'Revocar dispositivos', danger: true },
+    };
+
+    function openAction(action: TeamAction, user: StoreTeamUser) {
+      pendingAction = action;
+      pendingActionUser = user;
+      const copy = ACTION_COPY[action];
+      if (actionTitle) actionTitle.textContent = copy.title;
+      if (actionDescription) actionDescription.textContent = copy.description;
+      if (actionReason) actionReason.value = '';
+      if (actionSubmit) {
+        actionSubmit.textContent = copy.button;
+        actionSubmit.className = copy.danger ? 'store-team-danger-button' : 'store-team-primary-button';
+      }
+      showMessage(actionAlert);
+      openDialog(actionDialog);
+      actionReason?.focus();
+    }
+
+    async function runAction(reason: string) {
+      if (!pendingAction || !pendingActionUser) return null;
+      const user = pendingActionUser;
+      const action = pendingAction;
+      if (action === 'suspend') await suspendStoreTeamUser(user.id, reason, client);
+      if (action === 'reactivate') await reactivateStoreTeamUser(user.id, reason, client);
+      if (action === 'sessions') await revokeStoreTeamUserSessions(user.id, reason, client);
+      if (action === 'devices') await revokeStoreTeamUserDevices(user.id, reason, client);
+      if (action === 'temporary') {
+        return issueStoreTeamTemporaryAccess(user.id, reason, client);
+      }
+      return null;
+    }
+
+    async function openAudit(user: StoreTeamUser) {
+      if (auditSubtitle) auditSubtitle.textContent = `Historial privado de ${user.display_name || 'este usuario'}.`;
+      if (auditList) auditList.innerHTML = '<p class="store-team-empty">Cargando auditoría…</p>';
+      openDialog(auditDialog);
+      try {
+        const result = await getStoreTeamUserAudit(user.id, 1, 20, client);
+        if (!auditList) return;
+        if (!result.audit.length) {
+          auditList.innerHTML = '<p class="store-team-empty">No hay eventos de auditoría para mostrar.</p>';
+          return;
+        }
+        auditList.innerHTML = result.audit.map((entry) => `
+          <article class="store-team-audit-item">
+            <strong>${escapeHtml(String(entry.action || 'Cambio en el equipo').replace(/_/g, ' '))}</strong>
+            <span>${escapeHtml(entry.reason || 'Sin motivo registrado')}</span>
+            <small>${escapeHtml(entry.actor_name || 'Sistema')} · ${escapeHtml(formatDate(entry.created))}</small>
+          </article>`).join('');
+      } catch (error) {
+        if (auditList) auditList.innerHTML = `<p class="store-team-empty">${escapeHtml(getStoreTeamErrorMessage(error))}</p>`;
+      }
+    }
+
+    createButton?.addEventListener('click', () => openEditor());
+
+    templateSelect?.addEventListener('change', () => {
+      const code = templateSelect.value as StorePermissionTemplateCode;
+      if (code !== 'custom') selectedPermissions = getStorePermissionTemplatePermissions(code);
+      syncPermissionInputs();
+    });
+
+    permissionInputs.forEach((input) => {
+      input.addEventListener('change', () => {
+        if (!isStorePermission(input.value)) return;
+        selectedPermissions = toggleStorePermission(selectedPermissions, input.value, input.checked);
+        if (templateSelect) templateSelect.value = 'custom';
+        syncPermissionInputs();
+      });
+    });
+
+    editorForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!editorForm.reportValidity() || !editorSubmit) return;
+      editorSubmit.disabled = true;
+      showMessage(editorAlert);
+      const payload = {
+        display_name: displayNameInput?.value.trim() || '',
+        email: emailInput?.value.trim() || '',
+        phone: phoneInput?.value.trim() || '',
+        template_code: (templateSelect?.value || 'custom') as StorePermissionTemplateCode,
+        permissions: selectedPermissions,
+        reason: reasonInput?.value.trim() || '',
+      };
+      try {
+        if (editingUser) {
+          await updateStoreTeamUser(editingUser.id, payload, client);
+          closeDialog(editorDialog);
+          await loadTeam('Usuario y permisos actualizados correctamente.');
+        } else {
+          const response = await createStoreTeamUser(payload, client);
+          closeDialog(editorDialog);
+          await loadTeam('Usuario creado correctamente.');
+          showTemporarySecret(response.temporary_password, response.temporary_password_expires_at);
+        }
+      } catch (error) {
+        showMessage(editorAlert, getStoreTeamErrorMessage(error), 'error');
+      } finally {
+        editorSubmit.disabled = false;
+      }
+    });
+
+    actionForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const reason = actionReason?.value.trim() || '';
+      if (!reason) {
+        showMessage(actionAlert, 'Escribe el motivo interno de la acción.', 'error');
+        actionReason?.focus();
+        return;
+      }
+      if (!actionSubmit) return;
+      actionSubmit.disabled = true;
+      showMessage(actionAlert);
+      try {
+        const completedAction = pendingAction;
+        const temporaryAccess = await runAction(reason);
+        closeDialog(actionDialog);
+        pendingAction = null;
+        pendingActionUser = null;
+        await loadTeam(completedAction === 'temporary' ? 'Acceso temporal emitido.' : 'Acción completada correctamente.');
+        if (temporaryAccess) {
+          showTemporarySecret(temporaryAccess.temporary_password, temporaryAccess.temporary_password_expires_at);
+        }
+      } catch (error) {
+        showMessage(actionAlert, getStoreTeamErrorMessage(error), 'error');
+      } finally {
+        actionSubmit.disabled = false;
+      }
+    });
+
+    list?.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const row = target?.closest<HTMLElement>('[data-user-ref]');
+      const reference = row?.dataset.userRef || '';
+      const user = userByRef.get(reference);
+      if (!user) return;
+      const toggle = target?.closest<HTMLButtonElement>('[data-team-menu-toggle]');
+      if (toggle) {
+        const menu = row?.querySelector<HTMLElement>('[data-team-menu]') || null;
+        const opening = menu?.hidden === true;
+        closeMenus(opening ? menu : null);
+        if (menu) menu.hidden = !opening;
+        toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        return;
+      }
+      const actionButton = target?.closest<HTMLButtonElement>('[data-team-action]');
+      const action = actionButton?.dataset.teamAction || '';
+      if (!action) return;
+      closeMenus();
+      if (action === 'edit') void openEditor(user);
+      else if (action === 'permissions') void openEditor(user, true);
+      else if (action === 'audit') void openAudit(user);
+      else if (['suspend', 'reactivate', 'temporary', 'sessions', 'devices'].includes(action)) openAction(action as TeamAction, user);
+    });
+
+    root.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[data-team-dialog-close]')) {
+        closeDialog(target.closest('dialog'));
+      }
+      if (target?.closest('[data-team-secret-close]')) {
+        closeDialog(secretDialog);
+        clearTemporarySecret();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest('[data-team-menu-toggle], [data-team-menu]')) closeMenus();
+    });
+
+    secretCopy?.addEventListener('click', async () => {
+      if (!temporarySecret) return;
+      try {
+        await navigator.clipboard.writeText(temporarySecret);
+        secretCopy.textContent = 'Copiada';
+      } catch (_) {
+        secretCopy.textContent = 'Selecciona y copia';
+        const selection = window.getSelection();
+        const range = document.createRange();
+        if (secretValue) {
+          range.selectNodeContents(secretValue);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
+      }
+    });
+
+    secretDialog?.addEventListener('cancel', () => clearTemporarySecret());
+    secretDialog?.addEventListener('close', () => clearTemporarySecret());
+    editorDialog?.addEventListener('close', () => {
+      editingUser = null;
+      selectedPermissions = [];
+      editorForm?.reset();
+      showMessage(editorAlert);
+    });
+    actionDialog?.addEventListener('close', () => {
+      pendingAction = null;
+      pendingActionUser = null;
+      actionForm?.reset();
+      showMessage(actionAlert);
+    });
+
+    void loadTeam();
+  }
+</script>

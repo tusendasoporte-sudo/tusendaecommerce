@@ -1,8 +1,10 @@
 ---
 import MasterDialog from './MasterDialog.astro';
 import MasterIcon from './MasterIcon.astro';
+import MasterPrimaryAdminControl from './MasterPrimaryAdminControl.astro';
 import type { MasterStoreUser, MasterStoreUserAudit, MasterStoreUserPlan } from '../../lib/masterUsers';
 import type { MasterDeviceAudit, MasterUserDevice } from '../../lib/masterUserDevices';
+import type { MasterPrimaryAdminStatus } from '../../lib/masterPrimaryAdmin';
 
 interface Props {
   store: { id: string; name: string; slug: string; status: string; planPresentation: { contextTitle: string; contextDetail: string } };
@@ -10,20 +12,32 @@ interface Props {
   devices: { devices: MasterUserDevice[]; authorized_for_user: number; user_limit: number; pagination: { total_items: number } };
   userAudit: { audit: MasterStoreUserAudit[]; pagination: { page: number; total_pages: number } };
   deviceAudit: { audit: MasterDeviceAudit[]; pagination: { page: number; total_pages: number } };
+  primaryAdmin: MasterPrimaryAdminStatus;
 }
-const { store, detail, devices, userAudit, deviceAudit } = Astro.props;
+const { store, detail, devices, userAudit, deviceAudit, primaryAdmin } = Astro.props;
 const user = detail.user;
+const isPrimaryAdmin = primaryAdmin.primary_admin?.id === user.id;
 const name = user.display_name || user.email || 'Usuario';
 const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
 const exact = (value?: string) => { const date = new Date(value || ''); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date) : 'Nunca'; };
 const relative = (value?: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
 const accessLabel = user.temporary_password_state === 'expired' ? 'Contraseña temporal vencida' : user.temporary_password_state === 'pending' ? 'Cambio de contraseña pendiente' : 'Acceso normal';
-const auditLabels: Record<string, string> = { user_created: 'Usuario creado', user_updated: 'Información actualizada', password_changed: 'Evento histórico de contraseña Master', temporary_password_issued: 'Contraseña temporal emitida', forced_password_changed: 'Contraseña personal creada por el usuario', sessions_revoked: 'Sesiones cerradas', self_password_changed: 'Contraseña cambiada voluntariamente por el Admin', user_deleted: 'Usuario eliminado permanentemente', device_authorized: 'Dispositivo autorizado', device_revoked: 'Dispositivo revocado' };
+const auditLabels: Record<string, string> = { user_created: 'Usuario creado', user_updated: 'Información actualizada', password_changed: 'Evento histórico de contraseña Master', temporary_password_issued: 'Contraseña temporal emitida', forced_password_changed: 'Contraseña personal creada por el usuario', sessions_revoked: 'Sesiones cerradas', self_password_changed: 'Contraseña cambiada voluntariamente por el Admin', user_deleted: 'Usuario eliminado permanentemente', primary_admin_assigned: 'Administrador principal definido', primary_admin_replaced: 'Administrador principal reemplazado', team_user_updated: 'Acceso adicional configurado', team_user_suspended: 'Usuario suspendido tras reemplazo', device_authorized: 'Dispositivo autorizado', device_revoked: 'Dispositivo revocado' };
 const roleLabel = (value: string) => value === 'store_admin' ? 'Administrador' : value === 'store_staff' ? 'Personal' : value;
 const statusLabel = (value: string) => value === 'active' ? 'Activo' : value === 'suspended' ? 'Suspendido' : value;
 const auditChanges = (item: MasterStoreUserAudit | MasterDeviceAudit) => {
-  if (item.action !== 'user_updated') return '';
   const audit = item as MasterStoreUserAudit;
+  if (['primary_admin_assigned', 'primary_admin_replaced', 'team_user_updated', 'team_user_suspended'].includes(item.action)) {
+    const changes = [];
+    if (audit.previous_template_code !== audit.new_template_code) {
+      changes.push(`Plantilla: ${audit.previous_template_code || 'Principal implícito'} → ${audit.new_template_code || 'Principal implícito'}`);
+    }
+    if ((audit.previous_permissions || []).join('|') !== (audit.new_permissions || []).join('|')) {
+      changes.push(`Permisos: ${(audit.previous_permissions || []).length} → ${(audit.new_permissions || []).length}`);
+    }
+    return changes.join(' · ');
+  }
+  if (item.action !== 'user_updated') return '';
   const changes = [
     ['Email', audit.previous_email, audit.new_email],
     ['Nombre', audit.previous_display_name, audit.new_display_name],
@@ -37,16 +51,18 @@ const combinedAudit = Array.from(new Map([
   ...userAudit.audit.map((item) => [`user:${item.id}`, { ...item, auditNamespace: 'user' }]),
   ...deviceAudit.audit.map((item) => [`device:${item.id}`, { ...item, auditNamespace: 'device' }]),
 ]).values()).sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
-const deleteBlocked = detail.protection.last_active_admin || detail.plan.active_admins < 1;
+const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || detail.plan.active_admins < 1;
 ---
 
-<section class="master-users-page" data-master-user-detail data-store-id={store.id} data-user-id={user.id} data-user-email={user.email} data-user-audit-pages={userAudit.pagination.total_pages} data-device-audit-pages={deviceAudit.pagination.total_pages}>
+<section class="master-users-page" data-master-user-detail data-store-id={store.id} data-user-id={user.id} data-user-email={user.email} data-user-audit-pages={userAudit.pagination.total_pages} data-device-audit-pages={deviceAudit.pagination.total_pages} data-is-primary-admin={String(isPrimaryAdmin)}>
   <header class="master-users-heading">
-    <div class="master-users-identity"><span class="master-users-avatar">{initials}</span><div><h1>{name}</h1><p>{user.email} · {user.phone || 'Sin teléfono'}</p><div class="master-users-heading__badges"><span class="master-pill master-pill--info">{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span><span class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel}</span></div></div></div>
+    <div class="master-users-identity"><span class="master-users-avatar">{initials}</span><div><h1>{name}</h1><p>{user.email} · {user.phone || 'Sin teléfono'}</p><div class="master-users-heading__badges"><span class="master-pill master-pill--info">{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>{isPrimaryAdmin && <span class="master-pill master-pill--success">Administrador principal</span>}<span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span><span class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel}</span></div></div></div>
     <div class="master-users-heading__actions"><a class="master-btn master-btn--secondary" href={`/master/stores/${encodeURIComponent(store.id)}/users`}><MasterIcon name="back" size={18} /> Volver a usuarios</a><button class="master-btn master-btn--primary" type="button" data-edit-user><MasterIcon name="edit" size={18} /> Editar</button></div>
   </header>
 
-  {detail.protection.last_active_admin && <div class="master-user-warning" role="status"><strong>Este usuario es el único Administrador activo de la tienda.</strong><br />Debe existir al menos un Administrador activo en todo momento. Suspenderlo o degradarlo a Personal está deshabilitado.</div>}
+  {isPrimaryAdmin ? <div class="master-user-warning" role="status"><strong>Este usuario es el Administrador principal.</strong><br />Para suspenderlo, degradarlo o eliminarlo debes completar primero el reemplazo explícito y auditado.</div> : detail.protection.last_active_admin && <div class="master-user-warning" role="status"><strong>Este usuario es el único Administrador activo de la tienda.</strong><br />Debe existir al menos un Administrador activo en todo momento. Suspenderlo o degradarlo a Personal está deshabilitado.</div>}
+
+  <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} fixedTargetId={user.id} compact />
 
   <div class="master-user-detail-grid">
     <div class="master-user-detail-stack">
@@ -57,7 +73,7 @@ const deleteBlocked = detail.protection.last_active_admin || detail.plan.active_
             <div class="master-user-read-field"><span>Nombre</span><strong>{name}</strong></div><div class="master-user-read-field"><span>Email</span><strong>{user.email}</strong></div><div class="master-user-read-field"><span>Teléfono</span><strong>{user.phone || 'No registrado'}</strong></div><div class="master-user-read-field"><span>Rol</span><strong>{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</strong></div><div class="master-user-read-field"><span>Estado</span><strong>{user.status === 'active' ? 'Activo' : 'Suspendido'}</strong></div><div class="master-user-read-field"><span>Creado</span><strong>{exact(user.created)}</strong></div><div class="master-user-read-field"><span>Último acceso</span><strong>{relative(user.last_admin_activity_at)}</strong></div><div class="master-user-read-field"><span>Estado de acceso</span><strong>{accessLabel}</strong></div>{user.temporary_password_state !== 'none' && <div class="master-user-read-field"><span>Vencimiento temporal</span><strong>{exact(user.temporary_password_expires_at)}</strong></div>}
           </div>
           <form class="master-users-form" data-user-edit-form hidden>
-            <div class="master-users-form-grid"><div class="master-users-field"><label for="detail-name">Nombre</label><input id="detail-name" class="master-users-control" name="display_name" value={name} required /></div><div class="master-users-field"><label for="detail-email">Email</label><input id="detail-email" class="master-users-control" name="email" type="email" value={user.email} required /></div><div class="master-users-field"><label for="detail-phone">Teléfono</label><input id="detail-phone" class="master-users-control" name="phone" value={user.phone || ''} /></div><div class="master-users-field"><label for="detail-role">Rol</label><select id="detail-role" class="master-users-control" name="role"><option value="store_admin" selected={user.role === 'store_admin'}>Administrador</option><option value="store_staff" selected={user.role === 'store_staff'} disabled={detail.protection.last_active_admin}>Personal</option></select></div><div class="master-users-field"><label for="detail-status">Estado</label><select id="detail-status" class="master-users-control" name="status"><option value="active" selected={user.status === 'active'}>Activo</option><option value="suspended" selected={user.status === 'suspended'} disabled={detail.protection.last_active_admin}>Suspendido</option></select></div></div>
+            <div class="master-users-form-grid"><div class="master-users-field"><label for="detail-name">Nombre</label><input id="detail-name" class="master-users-control" name="display_name" value={name} required /></div><div class="master-users-field"><label for="detail-email">Email</label><input id="detail-email" class="master-users-control" name="email" type="email" value={user.email} required /></div><div class="master-users-field"><label for="detail-phone">Teléfono</label><input id="detail-phone" class="master-users-control" name="phone" value={user.phone || ''} /></div><div class="master-users-field"><label for="detail-role">Rol</label><select id="detail-role" class="master-users-control" name="role"><option value="store_admin" selected={user.role === 'store_admin'}>Administrador</option><option value="store_staff" selected={user.role === 'store_staff'} disabled={isPrimaryAdmin || detail.protection.last_active_admin}>Personal</option></select></div><div class="master-users-field"><label for="detail-status">Estado</label><select id="detail-status" class="master-users-control" name="status"><option value="active" selected={user.status === 'active'}>Activo</option><option value="suspended" selected={user.status === 'suspended'} disabled={isPrimaryAdmin || detail.protection.last_active_admin}>Suspendido</option></select></div></div>
             <p class="master-users-message" data-edit-message aria-live="polite"></p><div><button class="master-btn master-btn--secondary" type="button" data-cancel-edit>Cancelar</button> <button class="master-btn master-btn--primary" type="submit" data-edit-submit>Guardar cambios</button></div>
           </form>
         </div>
@@ -85,7 +101,7 @@ const deleteBlocked = detail.protection.last_active_admin || detail.plan.active_
 
   <section class="master-card master-danger-zone" aria-labelledby="master-user-danger-title">
     <header class="master-card-header"><div><h2 class="master-card-title" id="master-user-danger-title">Zona de peligro</h2><p class="master-card-subtitle">Eliminar usuario</p></div></header>
-    <div class="master-card-body"><p>Esta acción eliminará permanentemente la cuenta de PocketBase, sus sesiones y sus dispositivos administrativos. No se puede deshacer. Los datos comerciales de la tienda se conservarán.</p>{deleteBlocked && <p class="master-user-warning">Crea o activa otro Administrador antes de eliminar esta cuenta.</p>}<button class="master-btn master-btn--danger-solid" type="button" data-open-delete-user disabled={deleteBlocked}>Eliminar usuario</button></div>
+    <div class="master-card-body"><p>Esta acción eliminará permanentemente la cuenta de PocketBase, sus sesiones y sus dispositivos administrativos. No se puede deshacer. Los datos comerciales de la tienda se conservarán.</p>{deleteBlocked && <p class="master-user-warning">{isPrimaryAdmin ? 'Reemplaza primero al Administrador principal desde el flujo protegido.' : 'Crea o activa otro Administrador antes de eliminar esta cuenta.'}</p>}<button class="master-btn master-btn--danger-solid" type="button" data-open-delete-user disabled={deleteBlocked}>Eliminar usuario</button></div>
   </section>
 
   <MasterDialog id="master-user-reset-dialog" title="Restablecer acceso" description="Emite una contraseña temporal y cierra todas las sesiones." tone="warning" size="lg"><form class="master-users-form" data-reset-form><div class="master-users-field"><label for="reset-password">Contraseña temporal</label><div class="master-users-password-row"><input id="reset-password" class="master-users-control" name="password" type="password" autocomplete="new-password" required /><button class="master-btn master-btn--secondary" type="button" data-reset-generate>Generar</button><button class="master-btn master-btn--secondary" type="button" data-reset-toggle>Mostrar</button><button class="master-btn master-btn--secondary" type="button" data-reset-copy>Copiar</button></div></div><div class="master-users-field"><label for="reset-confirm">Confirmar contraseña temporal</label><input id="reset-confirm" class="master-users-control" name="confirm" type="password" autocomplete="new-password" required /></div><div class="master-users-field"><label for="reset-reason">Motivo interno</label><textarea id="reset-reason" class="master-users-control" name="reason" maxlength="500" required></textarea></div><label class="master-user-warning"><input type="checkbox" name="confirmed" required /> ¿Restablecer el acceso de este usuario? La contraseña anterior y todas las sesiones actuales dejarán de funcionar.</label><p class="master-card-subtitle">La contraseña actual no se puede ver. La nueva contraseña será temporal y vencerá en 72 horas. El usuario deberá cambiarla antes de entrar al panel. Al emitirla se cerrarán inmediatamente todas sus sesiones activas.</p><p class="master-users-message" data-reset-message aria-live="polite"></p><div class="master-users-secret" data-reset-result hidden><strong>Contraseña temporal emitida</strong><span data-reset-expiry></span><code data-reset-secret></code><button class="master-btn master-btn--secondary" type="button" data-reset-result-copy>Copiar contraseña</button></div></form><div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cerrar</button><button class="master-btn master-btn--primary" type="button" data-reset-submit>Emitir contraseña temporal</button></div></MasterDialog>
@@ -246,10 +262,16 @@ const deleteBlocked = detail.protection.last_active_admin || detail.plan.active_
     let userAuditHasMore = Number(root.dataset.userAuditPages || 1) > 1;
     let deviceAuditHasMore = Number(root.dataset.deviceAuditPages || 1) > 1;
     const seenAudit = new Set<string>(Array.from(auditList?.querySelectorAll<HTMLElement>('[data-audit-id]') || []).map((item) => item.dataset.auditId || '').filter(Boolean));
-    const labels: Record<string,string> = { user_created:'Usuario creado',user_updated:'Información actualizada',password_changed:'Evento histórico de contraseña Master',temporary_password_issued:'Contraseña temporal emitida',forced_password_changed:'Contraseña personal creada por el usuario',sessions_revoked:'Sesiones cerradas',self_password_changed:'Contraseña cambiada voluntariamente por el Admin',user_deleted:'Usuario eliminado permanentemente',device_authorized:'Dispositivo autorizado',device_revoked:'Dispositivo revocado' };
+    const labels: Record<string,string> = { user_created:'Usuario creado',user_updated:'Información actualizada',password_changed:'Evento histórico de contraseña Master',temporary_password_issued:'Contraseña temporal emitida',forced_password_changed:'Contraseña personal creada por el usuario',sessions_revoked:'Sesiones cerradas',self_password_changed:'Contraseña cambiada voluntariamente por el Admin',user_deleted:'Usuario eliminado permanentemente',primary_admin_assigned:'Administrador principal definido',primary_admin_replaced:'Administrador principal reemplazado',team_user_updated:'Acceso adicional configurado',team_user_suspended:'Usuario suspendido tras reemplazo',device_authorized:'Dispositivo autorizado',device_revoked:'Dispositivo revocado' };
     const readableRole = (value: string) => value === 'store_admin' ? 'Administrador' : value === 'store_staff' ? 'Personal' : value;
     const readableStatus = (value: string) => value === 'active' ? 'Activo' : value === 'suspended' ? 'Suspendido' : value;
     function userUpdatedChanges(item: any) {
+      if (['primary_admin_assigned','primary_admin_replaced','team_user_updated','team_user_suspended'].includes(item.action)) {
+        const changes = [];
+        if ((item.previous_template_code || '') !== (item.new_template_code || '')) changes.push(`Plantilla: ${item.previous_template_code || 'Principal implícito'} → ${item.new_template_code || 'Principal implícito'}`);
+        if ((item.previous_permissions || []).join('|') !== (item.new_permissions || []).join('|')) changes.push(`Permisos: ${(item.previous_permissions || []).length} → ${(item.new_permissions || []).length}`);
+        return changes.join(' · ');
+      }
       if (item.action !== 'user_updated') return '';
       return [
         ['Email', item.previous_email, item.new_email],

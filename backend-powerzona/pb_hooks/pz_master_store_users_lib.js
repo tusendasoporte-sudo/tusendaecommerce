@@ -3,6 +3,9 @@
 const capabilities = typeof __hooks === "undefined"
   ? require("./pz_store_capabilities_lib.js")
   : require(`${__hooks}/pz_store_capabilities_lib.js`);
+const storePermissions = typeof __hooks === "undefined"
+  ? require("./pz_store_team_permissions_lib.js")
+  : require(`${__hooks}/pz_store_team_permissions_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,6 +25,30 @@ const AUDIT_ACTIONS = Object.freeze([
   "forced_password_changed",
   "user_deleted",
 ]);
+const TEAM_AUDIT_ACTIONS = Object.freeze([
+  "team_user_created",
+  "team_user_updated",
+  "team_user_suspended",
+  "team_user_reactivated",
+  "team_permissions_changed",
+  "team_template_changed",
+  "team_sessions_revoked",
+  "team_devices_revoked",
+  "team_temporary_password_issued",
+  "primary_admin_assigned",
+  "primary_admin_replaced",
+  "plan_access_locked",
+  "plan_access_restored",
+]);
+const VISIBLE_AUDIT_ACTIONS = Object.freeze([...AUDIT_ACTIONS, ...TEAM_AUDIT_ACTIONS]);
+const TEAM_TEMPLATE_CODES = Object.freeze([
+  "secondary_admin",
+  "catalog_inventory",
+  "orders_shipping",
+  "marketing_promotions",
+  "read_only",
+  "custom",
+]);
 const SAFE_CODES = new Set([
   "unauthorized",
   "invalid_payload",
@@ -39,6 +66,7 @@ const SAFE_CODES = new Set([
   "invalid_status",
   "active_user_limit_reached",
   "last_active_admin_required",
+  "primary_admin_replacement_required",
   "user_management_unavailable",
   "user_create_failed",
   "user_update_failed",
@@ -605,6 +633,12 @@ function targetBelongsToStore(record, storeId) {
     && STORE_ROLES.includes(recordString(record, "role"));
 }
 
+function isPrimaryAdminUser(store, user) {
+  return !!store && !!user
+    && isValidRecordId(String(user.id || recordString(user, "id")))
+    && relationId(store, "primary_admin_user") === String(user.id || recordString(user, "id"));
+}
+
 function projectedCounts(counts, previous, next) {
   const wasActive = previous.status === "active" && STORE_ROLES.includes(previous.role);
   const willBeActive = next.status === "active" && STORE_ROLES.includes(next.role);
@@ -645,7 +679,11 @@ function sessionsMustBeRevoked(action, previous, next) {
 function auditActorRole(actor, action) {
   const role = recordString(actor, "role");
   if (role === "master_admin" || role === "store_admin") return role;
-  if (role === "store_staff" && action === "forced_password_changed") return role;
+  if (role === "store_staff" && [
+    "forced_password_changed",
+    "self_password_changed",
+    "sessions_revoked",
+  ].includes(action)) return role;
   throw codedError("user_management_unavailable");
 }
 
@@ -801,10 +839,23 @@ function clearDeviceAuditRelations(app, devices) {
   });
 }
 
+function auditPermissions(record, key) {
+  let value = recordValue(record, key);
+  if (typeof value === "string" && value) {
+    try { value = JSON.parse(value); } catch (_) { value = []; }
+  }
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value
+    .filter((permission) => typeof permission === "string" && /^[a-z0-9._]+$/.test(permission))
+    .map((permission) => permission.slice(0, 80)))]
+    .slice(0, 50)
+    .sort();
+}
+
 function mapAudit(record) {
   return {
     id: String(record.id || recordString(record, "id")).slice(0, 15),
-    action: AUDIT_ACTIONS.includes(recordString(record, "action")) ? recordString(record, "action") : "",
+    action: VISIBLE_AUDIT_ACTIONS.includes(recordString(record, "action")) ? recordString(record, "action") : "",
     actor_name: bounded(recordString(record, "actor_name_snapshot"), 160),
     actor_role: bounded(recordString(record, "actor_role_snapshot"), 40),
     previous_email: bounded(recordString(record, "previous_email"), 254),
@@ -817,6 +868,10 @@ function mapAudit(record) {
     new_role: STORE_ROLES.includes(recordString(record, "new_role")) ? recordString(record, "new_role") : "",
     previous_status: USER_STATUSES.includes(recordString(record, "previous_status")) ? recordString(record, "previous_status") : "",
     new_status: USER_STATUSES.includes(recordString(record, "new_status")) ? recordString(record, "new_status") : "",
+    previous_template_code: TEAM_TEMPLATE_CODES.includes(recordString(record, "previous_template_code")) ? recordString(record, "previous_template_code") : "",
+    new_template_code: TEAM_TEMPLATE_CODES.includes(recordString(record, "new_template_code")) ? recordString(record, "new_template_code") : "",
+    previous_permissions: auditPermissions(record, "previous_permissions_json"),
+    new_permissions: auditPermissions(record, "new_permissions_json"),
     sessions_revoked: recordValue(record, "sessions_revoked") === true,
     reason: bounded(recordString(record, "reason"), 500),
     created: safeDate(record, "created"),
@@ -841,6 +896,7 @@ function statusForCode(code) {
     "email_exists",
     "active_user_limit_reached",
     "last_active_admin_required",
+    "primary_admin_replacement_required",
     "temporary_password_change_required",
     "temporary_password_not_required",
     "temporary_password_expired",
@@ -889,7 +945,7 @@ function requestContext(e, parser) {
 function selfPasswordRequestContext(e) {
   setPrivateHeaders(e);
   const info = e.requestInfo();
-  if (!isActiveStoreAdmin(info && info.auth)) return { error: "unauthorized" };
+  if (!isActiveStoreUser(info && info.auth)) return { error: "unauthorized" };
   const parsed = parseSelfPasswordPayload(info.body || {});
   if (!parsed.ok) return { error: parsed.error };
   if (!selfPasswordManagementReady($app)) return { error: "user_management_unavailable" };
@@ -913,7 +969,7 @@ function temporaryPasswordRequestContext(e) {
 function selfRevokeRequestContext(e) {
   setPrivateHeaders(e);
   const info = e.requestInfo();
-  if (!isActiveStoreAdmin(info && info.auth)) return { error: "unauthorized" };
+  if (!isActiveStoreUser(info && info.auth)) return { error: "unauthorized" };
   const parsed = parseSelfRevokePayload(info.body || {});
   if (!parsed.ok) return { error: parsed.error };
   if (!selfPasswordManagementReady($app)) return { error: "user_management_unavailable" };
@@ -980,6 +1036,47 @@ function emailExists(app, email, excludeId) {
     WHERE LOWER(email) = {:email} AND ({:excludeId} = '' OR id != {:excludeId})
   `, { email, excludeId: excludeId || "" }, { matches: 0 }) || {};
   return countValue(row.matches) > 0;
+}
+
+function findStoreUserAccess(app, storeId, userId) {
+  try {
+    return app.findFirstRecordByFilter(
+      "store_user_access",
+      "store = {:store} && user = {:user}",
+      { store: storeId, user: userId },
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
+function defaultAccessForRole(role) {
+  const templateCode = role === "store_admin" ? "secondary_admin" : "read_only";
+  return {
+    templateCode,
+    permissions: storePermissions.resolveTemplatePermissions(templateCode).slice().sort(),
+  };
+}
+
+function ensureMasterManagedAccess(app, store, user, actor, previousRole) {
+  if (!app || !store || !user || !actor || isPrimaryAdminUser(store, user)) return null;
+  const role = recordString(user, "role");
+  if (!STORE_ROLES.includes(role)) return null;
+  let access = findStoreUserAccess(app, store.id, user.id);
+  if (access && previousRole === role) return access;
+  let collection;
+  try { collection = app.findCollectionByNameOrId("store_user_access"); } catch (_) { return access; }
+  const created = !access;
+  if (!access) access = new Record(collection, {});
+  const defaults = defaultAccessForRole(role);
+  access.set("store", store.id);
+  access.set("user", user.id);
+  access.set("template_code", defaults.templateCode);
+  access.set("permissions_json", defaults.permissions);
+  if (created) access.set("created_by", actor.id);
+  access.set("updated_by", actor.id);
+  app.save(access);
+  return access;
 }
 
 function validationHasField(error, field) {
@@ -1178,6 +1275,8 @@ function handleCreate(e) {
       }
       failureStage = "user_save";
       const user = saveNewUser(txApp, context.parsed);
+      failureStage = "access_save";
+      ensureMasterManagedAccess(txApp, loaded.store, user, loaded.actor, "");
       const next = userSnapshot(user);
       failureStage = "audit_save";
       createAudit(txApp, loaded.store, loaded.actor, user, "user_created", null, next, false, context.parsed.reason);
@@ -1236,6 +1335,10 @@ function handleUpdate(e) {
         role: context.parsed.role,
         status: context.parsed.status,
       };
+      if (isPrimaryAdminUser(loaded.store, user)
+        && (next.role !== "store_admin" || next.status !== "active")) {
+        throw codedError("primary_admin_replacement_required");
+      }
       if (emailExists(txApp, next.email, user.id)) throw codedError("email_exists");
       const counts = storeUserCounts(txApp, loaded.store.id);
       const projected = projectedCounts(counts, previous, next);
@@ -1249,6 +1352,7 @@ function handleUpdate(e) {
       }
       const sessionsRevoked = sessionsMustBeRevoked("user_updated", previous, next);
       applyUserUpdate(txApp, user, next, sessionsRevoked);
+      ensureMasterManagedAccess(txApp, loaded.store, user, loaded.actor, previous.role);
       createAudit(
         txApp,
         loaded.store,
@@ -1287,7 +1391,7 @@ function handleSelfPasswordChange(e) {
   let response = null;
   try {
     $app.runInTransaction((txApp) => {
-      const loaded = loadSelfPasswordContext(txApp, context.actorId);
+      const loaded = loadSelfPasswordContext(txApp, context.actorId, true);
       if (recordBoolean(loaded.actor, "must_change_password")) {
         throw codedError("temporary_password_change_required");
       }
@@ -1443,7 +1547,7 @@ function handleSelfRevokeSessions(e) {
   let response = null;
   try {
     $app.runInTransaction((txApp) => {
-      const loaded = loadSelfPasswordContext(txApp, context.actorId);
+      const loaded = loadSelfPasswordContext(txApp, context.actorId, true);
       if (recordBoolean(loaded.actor, "must_change_password")) {
         throw codedError("temporary_password_change_required");
       }
@@ -1528,6 +1632,9 @@ function handleDelete(e) {
       const loaded = loadTransactionContext(txApp, context.actorId, context.parsed.storeId);
       const user = loadTarget(txApp, context.parsed.userId, loaded.store.id);
       const snapshot = userSnapshot(user);
+      if (isPrimaryAdminUser(loaded.store, user)) {
+        throw codedError("primary_admin_replacement_required");
+      }
       if (context.parsed.confirmationEmail !== snapshot.email) {
         throw codedError("delete_confirmation_mismatch");
       }
@@ -1663,6 +1770,7 @@ function enforceTemporaryPasswordAuthentication(e) {
 
 module.exports = {
   AUDIT_ACTIONS,
+  TEAM_AUDIT_ACTIONS,
   STORE_ROLES,
   TEMPORARY_PASSWORD_TTL_HOURS,
   TEMPORARY_PASSWORD_TTL_MS,
@@ -1686,6 +1794,9 @@ module.exports = {
   isActiveMaster,
   isActiveStoreAdmin,
   isActiveStoreUser,
+  isPrimaryAdminUser,
+  defaultAccessForRole,
+  ensureMasterManagedAccess,
   isValidRecordId,
   listPayloadForStoreCounts,
   mapAudit,

@@ -208,9 +208,16 @@ const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
       </main>
     </section>
 
-    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminOrdersPath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId, adminOrdersPath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-      const ADMIN_TOKEN = String(adminAuthToken || '');
+      const ADMIN_TOKEN = (() => {
+        try {
+          const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+          if (!pair) return '';
+          const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+          return typeof parsed?.token === 'string' ? parsed.token : '';
+        } catch (_) { return ''; }
+      })();
       const STORE_FILTER = String(currentStoreFilter || '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');

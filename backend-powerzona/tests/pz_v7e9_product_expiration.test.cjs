@@ -255,7 +255,7 @@ test('cambio o borrado de fecha elimina el ciclo y la notificación anteriores',
 test('F12 rechaza fecha residual, cruce de tienda, fecha inválida y coexistencia de modos', () => {
   const storeId = 'storevalid00001';
   const productId = 'productvalid001';
-  const premium = mutableRecord(storeId, premiumStore());
+  const premium = mutableRecord(storeId, { ...premiumStore(), primary_admin_user: 'adminvalidate01' });
   const basic = mutableRecord(storeId, basicStore());
   const product = mutableRecord(productId, { store: storeId, expiration_date: '' });
   const variation = mutableRecord('variationvalid1', { product: productId, expiration_date: '2026-08-20' });
@@ -276,28 +276,42 @@ test('F12 rechaza fecha residual, cruce de tienda, fecha inválida y coexistenci
   assert.equal(expiration.validateDateWriteRequest(event({ expiration_date: '2026-08-20' }), 'products').code, 'expiration_premium_required');
   app.store = premium;
   assert.equal(expiration.validateDateWriteRequest(event({ expiration_date: '20/08/2026' }), 'products').code, 'invalid_expiration_date');
-  assert.equal(expiration.validateDateWriteRequest(event({ expiration_date: '2026-08-20' }, 'otherstore00001'), 'products').code, 'expiration_unauthorized');
+  assert.equal(expiration.validateDateWriteRequest(event({ expiration_date: '2026-08-20' }, 'otherstore00001'), 'products').code, 'expiration_not_found');
   assert.equal(expiration.validateDateWriteRequest(event({ expiration_date: '2026-08-20' }), 'products').code, 'expiration_modes_conflict');
 });
 
-test('Store Staff activo conserva el guardado Premium autorizado y V7E9 bloquea suspensión o cruce de tienda', () => {
+test('Store Staff con permiso conserva el guardado Premium y V7E9 bloquea suspensión o cruce de tienda', () => {
   const storeId = 'storestaff00001';
+  const staff = mutableRecord('staffvalidate01', { role: 'store_staff', status: 'active', store: storeId });
   const product = mutableRecord('productstaff001', { store: storeId, expiration_date: '' });
   const variation = mutableRecord('variationstaff1', { product: product.id, expiration_date: '' });
   const app = {
     findRecordById(collection, id) {
-      if (collection === 'stores' && id === storeId) return mutableRecord(storeId, premiumStore());
+      if (collection === 'stores' && id === storeId) return mutableRecord(storeId, { ...premiumStore(), primary_admin_user: 'primarystaff001' });
       if (collection === 'products' && id === product.id) return product;
       throw new Error('not_found');
     },
-    findRecordsByFilter() { return []; },
+    findRecordsByFilter(collection) { return collection === 'users' ? [staff] : []; },
+    findFirstRecordByFilter(collection) {
+      if (collection === 'store_user_access') {
+        return mutableRecord('accessstaff0001', {
+          store: storeId,
+          user: 'staffvalidate01',
+          template_code: 'custom',
+          permissions_json: ['catalog.expirations.manage'],
+        });
+      }
+      throw new Error('not_found');
+    },
     save() {},
     delete() {},
   };
   const event = (record, body, status = 'active', authStore = storeId, role = 'store_staff') => ({
     app,
     record,
-    auth: mutableRecord('staffvalidate01', { role, status, store: authStore }),
+    auth: role === 'store_staff' && status === 'active' && authStore === storeId
+      ? staff
+      : mutableRecord('staffvalidate01', { role, status, store: authStore }),
     requestInfo: () => ({ body }),
   });
 
@@ -305,7 +319,7 @@ test('Store Staff activo conserva el guardado Premium autorizado y V7E9 bloquea 
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }), 'products'), null);
   assert.equal(expiration.validateDateWriteRequest(event(variation, { expiration_date: '2026-08-21' }), 'product_variations'), null);
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'suspended'), 'products').code, 'expiration_unauthorized');
-  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', 'otherstore00001'), 'products').code, 'expiration_unauthorized');
+  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', 'otherstore00001'), 'products').code, 'expiration_not_found');
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', storeId, 'customer'), 'products').code, 'expiration_unauthorized');
 });
 
@@ -316,7 +330,7 @@ test('primera fecha de variación elimina fecha general y no la restaura automá
   const saved = [];
   const app = {
     findRecordById(collection, id) {
-      if (collection === 'stores' && id === storeId) return mutableRecord(storeId, premiumStore());
+      if (collection === 'stores' && id === storeId) return mutableRecord(storeId, { ...premiumStore(), primary_admin_user: 'adminvalidate02' });
       if (collection === 'products' && id === product.id) return product;
       throw new Error('not_found');
     },

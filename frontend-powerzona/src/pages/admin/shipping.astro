@@ -520,10 +520,17 @@ const masterSupportHref = masterSupportWhatsapp
       <a class="active" href={adminShippingPath}><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Z"/></svg><span>Env&iacute;os</span></a>
       <a href={adminStoreSettingsPath}><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a8 8 0 0 0-2.6-1.5L14 2h-4l-.4 3a8 8 0 0 0-2.6 1.5l-2.4-1-2 3.5 2 1.5A9 9 0 0 0 4.5 12c0 .5 0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 2.6 1.5l.4 3h4l.4-3a8 8 0 0 0 2.6-1.5l2.4 1 2-3.5-2-1.5Z"/></svg><span>Ajustes</span></a>
     </nav>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const ADMIN_AUTH_TOKEN = (() => {
+        try {
+          const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+          if (!pair) return '';
+          const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+          return typeof parsed?.token === 'string' ? parsed.token : '';
+        } catch (_) { return ''; }
+      })();
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\"')}"`;
       const sidebarOpen = document.getElementById('sidebar-open');
       const sidebarOverlay = document.getElementById('sidebar-overlay');

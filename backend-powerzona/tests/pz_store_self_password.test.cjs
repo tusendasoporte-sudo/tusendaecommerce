@@ -192,11 +192,14 @@ test('auditorias Master existentes conservan master_admin', () => {
   assert.equal(audit.actor_role_snapshot, 'master_admin');
 });
 
-test('roles arbitrarios no pueden crear auditoria administrativa', () => {
+test('Staff puede auditar su propia seguridad pero roles arbitrarios siguen cerrados', () => {
   const staff = activeAdmin({ role: 'store_staff' });
   const snapshot = users.userSnapshot(staff);
+  const ownAudit = users.buildAuditValues(store(), staff, staff, 'self_password_changed', snapshot, snapshot, true, '');
+  assert.equal(ownAudit.actor_role_snapshot, 'store_staff');
+  const customer = activeAdmin({ role: 'customer' });
   assert.throws(
-    () => users.buildAuditValues(store(), staff, staff, 'self_password_changed', snapshot, snapshot, true, ''),
+    () => users.buildAuditValues(store(), customer, customer, 'self_password_changed', snapshot, snapshot, true, ''),
     (error) => error.code === 'user_management_unavailable',
   );
 });

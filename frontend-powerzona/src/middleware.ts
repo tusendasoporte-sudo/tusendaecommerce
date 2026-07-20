@@ -8,6 +8,66 @@ import {
 } from './lib/auth';
 import { getLegacyAdminSection, getStoreAdminBasePath, getStoreAdminPath } from './lib/adminRoutes';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from './lib/storeContext';
+import { getStoreAccessContext } from './lib/storeTeam';
+import { hasStorePermission, type StorePermission } from './lib/storeTeamPermissions';
+
+type AdminAccessRule = Readonly<{ any?: readonly StorePermission[]; primary?: boolean }>;
+
+function adminAccessRule(section: string): AdminAccessRule | null {
+  const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
+  if (!normalized || normalized === 'pageviews' || normalized === 'profits') return { any: ['analytics.view'] };
+  if (normalized === 'account' || normalized === 'change-temporary-password') return null;
+  if (normalized === 'team') return { primary: true };
+  if (normalized === 'products' || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
+  if (normalized === 'orders' || normalized.startsWith('orders/')) return { any: ['orders.view'] };
+  if (normalized === 'shipping') return { any: ['shipping.manage'] };
+  if (normalized === 'gifts') return { any: ['gifts.manage'] };
+  if (normalized === 'expirations') return { any: ['catalog.expirations.manage'] };
+  if (normalized === 'promos/raffles') return { any: ['raffles.manage'] };
+  if (normalized === 'promos') return { any: ['promotions.manage', 'coupons.manage'] };
+  if (normalized === 'notifications') return { any: ['notifications.view'] };
+  if (normalized === 'security' || normalized.startsWith('security/')) return { any: ['security.view'] };
+  if (normalized === 'store-settings') {
+    return { any: ['store.settings.manage', 'reviews.manage', 'landing_qr.manage'] };
+  }
+  if (normalized === 'organization') return { any: ['promotions.manage', 'catalog.products.visibility'] };
+  return { any: [] };
+}
+
+function firstAllowedAdminPath(storeSlug: string, access: { permissions: readonly StorePermission[] }) {
+  const candidates: ReadonlyArray<readonly [StorePermission, string]> = [
+    ['analytics.view', ''],
+    ['orders.view', 'orders'],
+    ['catalog.view', 'products'],
+    ['shipping.manage', 'shipping'],
+    ['gifts.manage', 'gifts'],
+    ['promotions.manage', 'promos'],
+    ['coupons.manage', 'promos'],
+    ['raffles.manage', 'promos/raffles'],
+    ['notifications.view', 'notifications'],
+    ['security.view', 'security'],
+    ['store.settings.manage', 'store-settings'],
+    ['reviews.manage', 'store-settings'],
+    ['landing_qr.manage', 'store-settings'],
+  ];
+  const match = candidates.find(([permission]) => access.permissions.includes(permission));
+  return match ? getStoreAdminPath(storeSlug, match[1]) : '';
+}
+
+function renderPermissionBlock(homePath: string) {
+  return new Response(`<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>No tienes permiso</title><meta name="robots" content="noindex,nofollow,noarchive"/>
+<style>:root{font-family:Inter,system-ui,sans-serif;color:#0f172a;background:#f8fafc}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}main{width:min(560px,100%);padding:28px;border:1px solid #dbe3ef;border-radius:20px;background:#fff;box-shadow:0 20px 60px rgba(15,23,42,.1)}h1{margin:0;font-size:28px}p{color:#64748b;line-height:1.55}a{display:inline-flex;min-height:42px;align-items:center;border-radius:10px;background:#0f172a;color:#fff;padding:0 15px;text-decoration:none;font-weight:800}</style>
+</head><body><main><h1>No tienes permiso</h1><p>Tu acceso no incluye esta sección. Si necesitas usarla, consulta al Administrador principal de la tienda.</p><a href="${homePath}">Ir a una sección disponible</a></main></body></html>`, {
+    status: 403,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0',
+      'X-Robots-Tag': 'noindex, nofollow,noarchive',
+    },
+  });
+}
 
 function renderAdminBlock(message: string) {
   return new Response(`<!doctype html>
@@ -88,6 +148,35 @@ export const onRequest = defineMiddleware(async (context, next) => {
     }
 
     if (isTemporaryRoute) return context.redirect(canonicalAdminPath);
+
+    const requestedSection = isAdminRoute
+      ? getLegacyAdminSection(pathname)
+      : String(professionalAdminMatch?.[2] || '');
+    const accessRule = adminAccessRule(requestedSection);
+    if (accessRule) {
+      let storeAccess;
+      try {
+        storeAccess = await getStoreAccessContext({
+          baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
+          token: authPb.authStore.token,
+        });
+      } catch (_) {
+        return renderAdminBlock('No se pudo validar tus permisos. Inicia sesión nuevamente.');
+      }
+      const permissionContext = {
+        permissions: storeAccess.access.permissions,
+        is_primary_admin: storeAccess.access.is_primary_admin,
+        blocked_by_plan: storeAccess.access.blocked_by_plan,
+      };
+      const allowed = accessRule.primary === true
+        ? storeAccess.access.is_primary_admin === true
+        : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission));
+      if (!allowed) {
+        const fallback = firstAllowedAdminPath(currentStoreSlug, storeAccess.access);
+        if (!requestedSection && fallback && fallback !== canonicalAdminPath) return context.redirect(fallback);
+        return renderPermissionBlock(fallback || canonicalAdminPath);
+      }
+    }
 
     if (isAdminRoute) {
       return context.redirect(getStoreAdminPath(currentStoreSlug, getLegacyAdminSection(pathname)));

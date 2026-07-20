@@ -4,6 +4,8 @@ import StorePlanIndicator from '../shared/StorePlanIndicator.astro';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { getStoreSecuritySettingsForToken, isStoreSecurityEnabled } from '../../lib/security';
 import { resolveStorePlanPresentation, type StorePlanValues } from '../../lib/storePlanPresentation';
+import { getStoreAccessContext, type StoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission, type StorePermission } from '../../lib/storeTeamPermissions';
 
 interface Props {
   storeSlug?: string;
@@ -57,6 +59,7 @@ const adminRafflesPath = getStoreAdminPath(storeSlug, 'promos/raffles');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const adminSecurityPath = getStoreAdminPath(storeSlug, 'security');
 const adminAccountPath = getStoreAdminPath(storeSlug, 'account');
+const adminTeamPath = getStoreAdminPath(storeSlug, 'team');
 const publicStorePath = getPublicStorePath(storeSlug);
 const notificationsAdminOrdersPath = adminOrdersPath;
 const notificationsAdminProductsPath = adminProductsPath;
@@ -73,6 +76,7 @@ const defaultMobileTitleBySection: Record<string, string> = {
   security: 'Seguridad',
   settings: 'Ajustes',
   marketing: 'Promociones',
+  team: 'Mi equipo',
   account: 'Mi cuenta',
 };
 
@@ -100,7 +104,7 @@ const mobileBottomClass = (target: 'overview' | 'orders' | 'shipping' | 'setting
 
   const fallbackSettingsActive =
     target === 'settings' &&
-    !['overview', 'orders', 'shipping', 'security', 'account'].includes(activeSection || '');
+    !['overview', 'orders', 'shipping', 'security', 'team', 'account'].includes(activeSection || '');
 
   return `pz-admin-mobile-bottom-nav__link${directMatch || fallbackSettingsActive ? ' is-active' : ''}`;
 };
@@ -115,14 +119,50 @@ const masterSupportHref = supportWhatsapp
   ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
   : (supportEmail ? `mailto:${supportEmail}?subject=${encodeURIComponent('Soporte Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 
+let resolvedStoreAccess: StoreAccessContext | null = null;
+if (pocketbaseUrl && authToken) {
+  try {
+    resolvedStoreAccess = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: authToken });
+  } catch (_) {
+    resolvedStoreAccess = null;
+  }
+}
+
+const isPrimaryAdmin = resolvedStoreAccess?.access.is_primary_admin === true;
+const permissionContext = resolvedStoreAccess
+  ? {
+      permissions: resolvedStoreAccess.access.permissions,
+      is_primary_admin: resolvedStoreAccess.access.is_primary_admin,
+      blocked_by_plan: resolvedStoreAccess.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canShowModule = (permission: StorePermission) =>
+  hasStorePermission(permissionContext, permission);
+const canShowOrdersNav = canShowModule('orders.view');
+const canShowCatalogNav = canShowModule('catalog.view');
+const canShowOverviewNav = canShowModule('analytics.view');
+const canShowGiftsNav = canShowModule('gifts.manage');
+const canShowShippingNav = canShowModule('shipping.manage');
+const canShowStoreSettingsNav = canShowModule('store.settings.manage');
+const canShowReviewsNav = canShowModule('reviews.manage');
+const canShowLandingQrNav = canShowModule('landing_qr.manage');
+const canShowSettingsGroup = canShowStoreSettingsNav || canShowReviewsNav || canShowLandingQrNav;
+const canShowPromotionsNav = canShowModule('promotions.manage');
+const canShowCouponsNav = canShowModule('coupons.manage');
+const canShowRafflesNav = canShowModule('raffles.manage');
+const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav;
+const canShowNotificationsNav = canShowModule('notifications.view');
+
 let canShowSecurityNav = false;
-try {
-  const securitySettings = await getStoreSecuritySettingsForToken(storeId, pocketbaseUrl, authToken, {
-    fields: 'id,store,enabled,mode',
-  });
-  canShowSecurityNav = securitySettings.exists && isStoreSecurityEnabled(securitySettings);
-} catch (_) {
-  canShowSecurityNav = false;
+if (canShowModule('security.view')) {
+  try {
+    const securitySettings = await getStoreSecuritySettingsForToken(storeId, pocketbaseUrl, authToken, {
+      fields: 'id,store,enabled,mode',
+    });
+    canShowSecurityNav = securitySettings.exists && isStoreSecurityEnabled(securitySettings);
+  } catch (_) {
+    canShowSecurityNav = false;
+  }
 }
 
 const navClass = (section: string) => `pz-admin-sidebar__nav-item${activeSection === section ? ' is-active' : ''}`;
@@ -167,47 +207,48 @@ const marketingVisualSubClass = (subsection: string) => {
 
     <p class="pz-admin-sidebar__section-label">Principal</p>
     <nav class="pz-admin-sidebar__nav-list">
-      <a class={navClass('overview')} href={adminBasePath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>
-      <a class={navClass('orders')} href={adminOrdersPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>
-      <a class={navClass('catalog')} href={adminCatalogPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>
+      {canShowOverviewNav && <a class={navClass('overview')} href={adminBasePath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>}
+      {canShowOrdersNav && <a class={navClass('orders')} href={adminOrdersPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>}
+      {canShowCatalogNav && <a class={navClass('catalog')} href={adminCatalogPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>}
     </nav>
 
     <p class="pz-admin-sidebar__section-label">Tienda</p>
     <nav class="pz-admin-sidebar__nav-list">
-      <a class={navClass('products')} href={adminProductsPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>
-      <a class={navClass('gifts')} href={adminGiftsPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>
-      <a class={navClass('shipping')} href={adminShippingPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>
+      {canShowCatalogNav && <a class={navClass('products')} href={adminProductsPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>}
+      {canShowGiftsNav && <a class={navClass('gifts')} href={adminGiftsPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>}
+      {canShowShippingNav && <a class={navClass('shipping')} href={adminShippingPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>}
       {canShowSecurityNav && (
         <a class={navClass('security')} href={adminSecurityPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.4 2.9 8.5 7 9.9 4.1-1.4 7-5.5 7-9.9V5l-7-3Zm0 2.2 5 2.2V11c0 3.3-2 6.5-5 7.7-3-1.2-5-4.4-5-7.7V6.4l5-2.2Zm-1 4.8h2v3.1l2.2 2.2-1.4 1.4-2.8-2.8V9Z"/></svg></span><span>Seguridad</span></a>
       )}
 
-      <div class="pz-admin-sidebar__settings-group">
+      {canShowSettingsGroup && <div class="pz-admin-sidebar__settings-group">
         <button class={settingsToggleClass} type="button" aria-expanded={isSettingsActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-settings-subnav" data-settings-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
         <div id="pz-admin-sidebar-settings-subnav" class={settingsSubnavClass} aria-label="Secciones de ajustes de tienda">
-          <a class={subClass('generales')} data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>
-          <a class={subClass('footer')} data-settings-subitem="footer" href={`${adminStoreSettingsPath}#footer`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg></span><span>Footer público</span></a>
-          <a class={subClass('monedas')} data-settings-subitem="monedas" href={`${adminStoreSettingsPath}#monedas`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><span>Monedas</span></a>
-          <a class={subClass('horario')} data-settings-subitem="horario" href={`${adminStoreSettingsPath}#horario`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><span>Horarios</span></a>
-          <a class={subClass('rating')} data-settings-subitem="rating" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Rating y reseñas</span></a>
-          <a class={subClass('landing')} data-settings-subitem="landing" href={`${adminStoreSettingsPath}#landing`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm9-2h2v2h-2v-2Zm3 0h2v4h-2v-4Zm-5 4h2v3h-2v-3Zm3 1h2v2h-2v-2Zm3 1h1v1h-1v-1Z"/></svg></span><span>Landing QR</span></a>
+          {canShowStoreSettingsNav && <a class={subClass('generales')} data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>}
+          {canShowStoreSettingsNav && <a class={subClass('footer')} data-settings-subitem="footer" href={`${adminStoreSettingsPath}#footer`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg></span><span>Footer público</span></a>}
+          {canShowStoreSettingsNav && <a class={subClass('monedas')} data-settings-subitem="monedas" href={`${adminStoreSettingsPath}#monedas`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><span>Monedas</span></a>}
+          {canShowStoreSettingsNav && <a class={subClass('horario')} data-settings-subitem="horario" href={`${adminStoreSettingsPath}#horario`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><span>Horarios</span></a>}
+          {canShowReviewsNav && <a class={subClass('rating')} data-settings-subitem="rating" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Rating y reseñas</span></a>}
+          {canShowLandingQrNav && <a class={subClass('landing')} data-settings-subitem="landing" href={`${adminStoreSettingsPath}#landing`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm9-2h2v2h-2v-2Zm3 0h2v4h-2v-4Zm-5 4h2v3h-2v-3Zm3 1h2v2h-2v-2Zm3 1h1v1h-1v-1Z"/></svg></span><span>Landing QR</span></a>}
         </div>
-      </div>
+      </div>}
+      {isPrimaryAdmin && <a class={navClass('team')} href={adminTeamPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8.5 1a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM1 21v-2a6 6 0 0 1 12 0v2H1Zm12.5 0v-2a7.5 7.5 0 0 0-1.1-3.9A5.5 5.5 0 0 1 23 17v4h-9.5Z"/></svg></span><span>Mi equipo</span></a>}
     </nav>
 
-    <p class="pz-admin-sidebar__section-label">PROMOS</p>
-    <nav class="pz-admin-sidebar__nav-list">
+    {canShowMarketingGroup && <p class="pz-admin-sidebar__section-label">PROMOS</p>}
+    {canShowMarketingGroup && <nav class="pz-admin-sidebar__nav-list">
       <div class="pz-admin-sidebar__settings-group">
         <button class={marketingVisualToggleClass} type="button" aria-expanded={isMarketingVisualActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-marketing-visual-subnav" data-marketing-visual-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Promociones</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
         <div id="pz-admin-sidebar-marketing-visual-subnav" class={marketingVisualSubnavClass} aria-label="Secciones de marketing y organización visual">
-          <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={`${adminPromosPath}#destacados`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>
-          <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones automáticas</span></a>
-          <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>
-          <a class={marketingVisualSubClass('rifas')} data-marketing-visual-subitem="rifas" href={adminRafflesPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h14v10H5V10Zm3 2v2h8v-2H8Zm0 4v2h5v-2H8Zm9-13 2 2-2 2-2-2 2-2ZM7 3l2 2-2 2-2-2 2-2Z"/></svg></span><span>Rifas</span></a>
-          <a class={marketingVisualSubClass('cintillo')} data-marketing-visual-subitem="cintillo" href={`${adminPromosPath}#cintillo`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v5H3V6Zm2 7h14v5H5v-5Zm3-5v1h8V8H8Zm0 7v1h8v-1H8Z"/></svg></span><span>Cintillo promocional</span></a>
-          <a class={marketingVisualSubClass('visuales')} data-marketing-visual-subitem="visuales" href={`${adminPromosPath}#visuales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></span><span>Accesos rápidos</span></a>
+          {canShowPromotionsNav && <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={`${adminPromosPath}#destacados`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>}
+          {canShowPromotionsNav && <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones automáticas</span></a>}
+          {canShowCouponsNav && <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>}
+          {canShowRafflesNav && <a class={marketingVisualSubClass('rifas')} data-marketing-visual-subitem="rifas" href={adminRafflesPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h14v10H5V10Zm3 2v2h8v-2H8Zm0 4v2h5v-2H8Zm9-13 2 2-2 2-2-2 2-2ZM7 3l2 2-2 2-2-2 2-2Z"/></svg></span><span>Rifas</span></a>}
+          {canShowPromotionsNav && <a class={marketingVisualSubClass('cintillo')} data-marketing-visual-subitem="cintillo" href={`${adminPromosPath}#cintillo`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6h18v5H3V6Zm2 7h14v5H5v-5Zm3-5v1h8V8H8Zm0 7v1h8v-1H8Z"/></svg></span><span>Cintillo promocional</span></a>}
+          {canShowPromotionsNav && <a class={marketingVisualSubClass('visuales')} data-marketing-visual-subitem="visuales" href={`${adminPromosPath}#visuales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg></span><span>Accesos rápidos</span></a>}
         </div>
       </div>
-    </nav>
+    </nav>}
 
     <div class="pz-admin-sidebar__bottom">
       <a class="pz-admin-sidebar__action" href={publicStorePath} target="_blank" rel="noopener noreferrer"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z"/></svg></span><span>Ver catálogo público</span></a>
@@ -263,15 +304,15 @@ const marketingVisualSubClass = (subsection: string) => {
     </button>
   ) : null}
 
-  <button class="pz-admin-mobile-topbar__notification" type="button" aria-label="Notificaciones" aria-expanded="false" data-pz-admin-notification-trigger>
+  {canShowNotificationsNav && <button class="pz-admin-mobile-topbar__notification" type="button" aria-label="Notificaciones" aria-expanded="false" data-pz-admin-notification-trigger>
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4a2.8 2.8 0 0 0 2.7 2Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"></path>
     </svg>
     <span class="pz-admin-notification-count hidden" data-pz-admin-notification-count></span>
-  </button>
+  </button>}
 </header>
 
-<section
+{canShowNotificationsNav && <section
   id="pz-admin-notifications-panel"
   class="pz-admin-notifications-panel hidden"
   role="dialog"
@@ -311,7 +352,7 @@ const marketingVisualSubClass = (subsection: string) => {
   <div class="pz-admin-notifications-panel__body" data-pz-admin-notifications-list>
     <p class="pz-admin-notifications-empty">Cargando notificaciones...</p>
   </div>
-</section>
+</section>}
 
 {hasMobileBack && (
   <a
@@ -326,59 +367,63 @@ const marketingVisualSubClass = (subsection: string) => {
 )}
 
 <nav class="pz-admin-mobile-bottom-nav" aria-label="Navegación móvil principal del admin">
-  <a class={mobileBottomClass('overview')} href={adminBasePath}>
+  {canShowOverviewNav && <a class={mobileBottomClass('overview')} href={adminBasePath}>
     <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
         <path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"></path>
       </svg>
     </span>
     <span>Resumen</span>
-  </a>
+  </a>}
 
-  <a class={mobileBottomClass('orders')} href={adminOrdersPath}>
+  {canShowOrdersNav && <a class={mobileBottomClass('orders')} href={adminOrdersPath}>
     <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
         <path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"></path>
       </svg>
     </span>
     <span>Pedidos</span>
-  </a>
+  </a>}
 
-  <a class={mobileBottomClass('shipping')} href={adminShippingPath}>
+  {canShowShippingNav && <a class={mobileBottomClass('shipping')} href={adminShippingPath}>
     <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
         <path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path>
       </svg>
     </span>
     <span>Envíos</span>
-  </a>
+  </a>}
 
-  <a class={mobileBottomClass('settings')} href={adminStoreSettingsPath}>
+  {canShowSettingsGroup && <a class={mobileBottomClass('settings')} href={adminStoreSettingsPath}>
     <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
         <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path>
       </svg>
     </span>
     <span>Ajustes</span>
-  </a>
+  </a>}
 </nav>
 
 <AdminDialog />
 
-<script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath }}>
+<script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminBasePath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath, canShowNotificationsNav, isPrimaryAdmin }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
     ordersPath: String(notificationsAdminOrdersPath || ''),
     productsPath: String(notificationsAdminProductsPath || ''),
     rafflesPath: String(adminRafflesPath || ''),
+    adminBasePath: String(adminBasePath || ''),
     notificationsPath: String(adminNotificationsPath || ''),
     settingsPath: String(adminStoreSettingsPath || ''),
+    enabled: canShowNotificationsNav === true,
+    canGenerate: isPrimaryAdmin === true,
   };
 </script>
 
 <script>
   import PocketBase from 'pocketbase';
+  import { safeAdminNotificationTarget } from '../../lib/adminNotificationTarget.js';
   import {
     loadNotifications,
     loadVisibleNotificationCount,
@@ -422,14 +467,17 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     const config = window.PZ_ADMIN_NOTIFICATIONS_CONFIG || {};
+    if (config.enabled === false) return;
     const storeId = String(config.storeId || '');
     const baseUrl = String(config.pocketbaseUrl || '').replace(/\/$/, '');
     const token = readAuthTokenFromCookie();
     const ordersPath = String(config.ordersPath || '');
     const productsPath = String(config.productsPath || '');
     const rafflesPath = String(config.rafflesPath || '');
+    const tenantAdminBasePath = String(config.adminBasePath || '');
     const notificationsPath = String(config.notificationsPath || '');
     const settingsPath = String(config.settingsPath || '');
+    const canGenerateNotifications = config.canGenerate === true;
     const pb = { baseUrl, token };
     const panel = document.querySelector('[data-pz-admin-notifications-panel]');
     const list = document.querySelector('[data-pz-admin-notifications-list]');
@@ -776,15 +824,17 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     function getOrderNotificationUrl(item) {
-      if (item?.type === 'review_pending' && item?.targetUrl) return String(item.targetUrl || '');
+      if (item?.type === 'review_pending' && item?.targetUrl) {
+        return safeAdminNotificationTarget(item.targetUrl, tenantAdminBasePath, window.location.origin);
+      }
       const entityCollection = String(item?.entityCollection || item?.raw?.entity_collection || '');
       const entityId = String(item?.entityId || item?.raw?.entity_id || '');
 
       if (entityCollection === 'orders' && entityId) {
-        return buildOrderUrl(entityId);
+        return safeAdminNotificationTarget(buildOrderUrl(entityId), tenantAdminBasePath, window.location.origin);
       }
 
-      return String(item?.targetUrl || '');
+      return safeAdminNotificationTarget(item?.targetUrl, tenantAdminBasePath, window.location.origin);
     }
 
     function buildRatingPendingUrl() {
@@ -969,10 +1019,10 @@ const marketingVisualSubClass = (subsection: string) => {
       try {
         const settings = await loadSettings();
 
-        if (detectNewOrders || detectPending) {
+        if (canGenerateNotifications && (detectNewOrders || detectPending)) {
           await detectMissingNewOrderNotifications(settings);
         }
-        if (detectPending) {
+        if (canGenerateNotifications && detectPending) {
           await runNotificationCleanup(settings);
           await detectPendingOrders(settings);
           await detectPendingReviewNotifications(settings);

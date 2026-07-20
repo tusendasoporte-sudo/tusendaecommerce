@@ -6,6 +6,9 @@ const plans = typeof __hooks === "undefined"
 const productExpiration = typeof __hooks === "undefined"
   ? require("./pz_product_expiration_lib.js")
   : require(`${__hooks}/pz_product_expiration_lib.js`);
+const storeTeam = typeof __hooks === "undefined"
+  ? require("./pz_store_team_lib.js")
+  : require(`${__hooks}/pz_store_team_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const AUDIT_COLLECTION = "store_plan_audit";
@@ -402,6 +405,7 @@ function handlePlanChange(e) {
       if (!actor || !isMaster({ auth: actor })) throw new Error("unauthorized");
       if (!store) throw new Error("store_not_found");
       const previous = storeSnapshot(store);
+      const previousTeamLimit = storeTeam.effectivePlanMax(store);
       const requiresExpirationCleanup = previous.plan === "premium" && parsed.plan !== "premium";
       if (requiresExpirationCleanup && parsed.confirmExpirationCleanup !== true) {
         throw new Error("expiration_cleanup_confirmation_required");
@@ -418,8 +422,15 @@ function handlePlanChange(e) {
         : null;
       const next = storeSnapshot(store);
       createAudit(txApp, store, actor, permanenceAction(previous, next), previous, next, parsed.durationMonths, parsed.reason);
+      const teamAccessTransition = storeTeam.reconcilePlanAccess(
+        txApp,
+        store,
+        previousTeamLimit,
+        actor
+      );
       response = buildPlanResponse(txApp, store);
       if (expirationCleanupResult) response.expiration_cleanup_result = expirationCleanupResult;
+      response.team_access_transition = teamAccessTransition;
     });
     return runResponseStage("response_serialization", () => e.json(200, response));
   } catch (error) {
@@ -448,12 +459,20 @@ function handlePlanRenew(e) {
       if (!actor || !isMaster({ auth: actor })) throw new Error("unauthorized");
       if (!store) throw new Error("store_not_found");
       const previous = storeSnapshot(store);
+      const previousTeamLimit = storeTeam.effectivePlanMax(store);
       const values = plans.buildPlanRenewalValues(store, parsed.months, new Date(), actorId);
       applyValues(store, values);
       txApp.save(store);
       const next = storeSnapshot(store);
       createAudit(txApp, store, actor, "plan_renewed", previous, next, parsed.months, parsed.reason);
+      const teamAccessTransition = storeTeam.reconcilePlanAccess(
+        txApp,
+        store,
+        previousTeamLimit,
+        actor
+      );
       response = buildPlanResponse(txApp, store);
+      response.team_access_transition = teamAccessTransition;
     });
     return runResponseStage("response_serialization", () => e.json(200, response));
   } catch (error) {

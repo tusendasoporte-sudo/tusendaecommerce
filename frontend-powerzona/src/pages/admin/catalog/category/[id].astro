@@ -4,6 +4,8 @@ export const prerender = false;
 import { refreshAuthFromCookie } from '../../../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
+import { getStoreAccessContext } from '../../../../lib/storeTeam';
+import { hasStorePermission } from '../../../../lib/storeTeamPermissions';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
 import '../../../../styles/global.css';
@@ -16,6 +18,17 @@ const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const categoryPermissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canManageCategories = hasStorePermission(categoryPermissionContext, 'catalog.categories.manage');
+const canCreateProducts = hasStorePermission(categoryPermissionContext, 'catalog.products.create');
+const canEditProducts = hasStorePermission(categoryPermissionContext, 'catalog.products.edit');
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -125,6 +138,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
       .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
       .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+      .permission-hidden { display: none !important; }
       .list-card { overflow: hidden; }
       .list-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 20px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.6)); }
       .list-title { margin: 0; font-size: 18px; font-weight: 1000; letter-spacing: -.02em; }
@@ -897,9 +911,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         titleId="category-editor-page-title"
         bellId="admin-category-editor-bell"
       >
+        {canManageCategories && (
         <button class="admin-primary-action admin-header-primary-action" type="submit" form="category-form" slot="action">
           <span>Guardar cambios</span>
         </button>
+        )}
       </AdminSectionHeader>
       <section id="admin-view">
         <main class="category-premium-main pz-admin-content-inner">
@@ -961,20 +977,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </article>
             </div>
 
-            <div class="category-overview-actions">
-              <button id="category-edit-toggle-btn" class="pz-admin-btn pz-admin-btn--secondary" type="button">
+            <div class:list={['category-overview-actions', !canManageCategories && !canCreateProducts && 'permission-hidden']}>
+              <button id="category-edit-toggle-btn" class:list={['pz-admin-btn pz-admin-btn--secondary', !canManageCategories && 'permission-hidden']} type="button" disabled={!canManageCategories}>
                 <span class="pz-admin-btn__icon" aria-hidden="true">✎</span>
                 <span class="pz-admin-btn__label">Editar categoria</span>
               </button>
 
-              <button id="quick-new-subcategory-btn" class="pz-admin-btn pz-admin-btn--primary" type="button">
+              <button id="quick-new-subcategory-btn" class:list={['pz-admin-btn pz-admin-btn--primary', !canManageCategories && 'permission-hidden']} type="button" disabled={!canManageCategories}>
                 <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                 <span class="pz-admin-btn__label">Nueva subcategoria</span>
               </button>
             </div>
           </section>
 
-          <section id="category-edit-panel" class="category-edit-panel hidden">
+          <section id="category-edit-panel" class:list={['category-edit-panel hidden', !canManageCategories && 'permission-hidden']}>
             <div class="category-panel-head">
               <div>
                 <h2>Editar categoria</h2>
@@ -1063,7 +1079,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <input id="direct-products-search" type="search" placeholder="Buscar productos directos..." />
                 </label>
 
-                <button id="new-product-btn" class="pz-admin-btn pz-admin-btn--primary pz-admin-btn--compact" type="button">
+                <button id="new-product-btn" class:list={['pz-admin-btn pz-admin-btn--primary pz-admin-btn--compact', !canCreateProducts && 'permission-hidden']} type="button" disabled={!canCreateProducts}>
                   <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                   <span class="pz-admin-btn__label">Nuevo producto directo</span>
                 </button>
@@ -1094,9 +1110,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           </section>
         </main>
       </section>
-    <div id="subcategory-actions-menu" class="subcategory-actions-menu hidden" role="menu" aria-hidden="true"></div>
+    <div id="subcategory-actions-menu" class:list={['subcategory-actions-menu hidden', !canManageCategories && 'permission-hidden']} role="menu" aria-hidden="true"></div>
 
-    <div id="subcategory-modal-overlay" class="subcategory-modal-overlay hidden" aria-hidden="true">
+    <div id="subcategory-modal-overlay" class:list={['subcategory-modal-overlay hidden', !canManageCategories && 'permission-hidden']} aria-hidden="true">
       <section class="subcategory-modal" role="dialog" aria-modal="true" aria-labelledby="subcategory-modal-title">
         <div class="subcategory-modal-card">
           <div class="subcategory-modal-head">
@@ -1132,13 +1148,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       </section>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, categoryId, currentStoreId, adminProductsPath, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, categoryId, currentStoreId, adminProductsPath, canManageCategories, canCreateProducts, canEditProducts }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CATEGORY_ID = String(categoryId || '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const CAN_MANAGE_CATEGORIES = canManageCategories === true;
+      const CAN_CREATE_PRODUCTS = canCreateProducts === true;
+      const CAN_EDIT_PRODUCTS = canEditProducts === true;
       const adminView = document.getElementById('admin-view');
       const logoutBtn = document.getElementById('logout-btn');
 
@@ -1288,7 +1306,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           return file;
         }
       }
-      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function getAdminToken() {
+        const authCookie = String(document.cookie || '')
+          .split(';')
+          .map((value) => value.trim())
+          .find((value) => value.startsWith('pb_auth='));
+        if (!authCookie) return '';
+        try {
+          const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+          return String(auth?.token || '');
+        } catch {
+          return '';
+        }
+      }
       function showAdmin() { adminView?.classList.remove('hidden'); }
 
       function setAlert(element, message, type = 'info') {
@@ -1406,6 +1436,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function openSubcategoryModal(mode = 'create', subcategoryId = '') {
+        if (!CAN_MANAGE_CATEGORIES) return;
         closeSubcategoryMenu();
         resetSubcategoryModal();
         if (mode === 'edit') {
@@ -1436,7 +1467,22 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetSubcategoryModal();
       }
 
+      function assertCategoryMutationAllowed(path, options = {}) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (/^\/api\/collections\/(categories|subcategories)\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_MANAGE_CATEGORIES) throw new Error('No tienes permiso para gestionar categorias.');
+          return;
+        }
+        if (/^\/api\/collections\/products\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_EDIT_PRODUCTS) throw new Error('No tienes permiso para editar productos.');
+          return;
+        }
+        throw new Error('Esta accion no esta habilitada para tu perfil.');
+      }
+
       async function apiRequest(path, options = {}) {
+        assertCategoryMutationAllowed(path, options);
         const headers = { ...(options.headers || {}) };
         const token = getAdminToken();
         if (token) headers.Authorization = `Bearer ${token}`;
@@ -1555,6 +1601,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function productCreateUrl(categoryId = '', subcategoryId = '') {
+        if (!CAN_CREATE_PRODUCTS) return '';
         const params = new URLSearchParams();
         params.set('new', '1');
         if (categoryId) params.set('category', categoryId);
@@ -1563,6 +1610,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function productEditUrl(productId = '') {
+        if (!CAN_EDIT_PRODUCTS) return '';
         const params = new URLSearchParams();
         if (productId) params.set('product', productId);
         return `${ADMIN_PRODUCTS_PATH}?${params.toString()}`;
@@ -1581,6 +1629,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function openCategoryEditPanel() {
+        if (!CAN_MANAGE_CATEGORIES) return;
         categoryEditPanel?.classList.remove('hidden');
 
         if (categoryEditToggleBtn) {
@@ -1624,9 +1673,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <p class="category-product-card-stock">${isVisible ? 'En stock' : 'Oculto'}</p>
             </div>
             <p class="category-product-card-price">${escapeHtml(formatUsd(product.base_price_usd))}</p>
-            <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-product-edit" type="button">
+            ${CAN_EDIT_PRODUCTS ? `<button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-product-edit" type="button">
               <span class="pz-admin-btn__label">Editar</span>
-            </button>
+            </button>` : ''}
           </article>
         `;
       }
@@ -1674,9 +1723,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           categoryOverviewDescription.textContent = category?.description || 'Esta categoria contiene productos directos y subcategorias con mas productos.';
         }
 
-        if (categoryOverviewId) {
-          categoryOverviewId.textContent = category?.id ? `ID: ${category.id}` : 'ID de categoria';
-        }
+        if (categoryOverviewId) categoryOverviewId.textContent = 'Categoria actual';
 
         setCategoryInitialSnapshot();
       }
@@ -1713,6 +1760,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       function openSubcategoryMenu(subcategoryId, anchorButton) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const subcategory = subcategories.find((item) => item.id === subcategoryId);
         if (!subcategory || !subcategoryActionsMenu || !anchorButton) return;
         activeSubcategoryMenuId = subcategoryId;
@@ -1725,16 +1773,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         subcategoryActionsMenu.innerHTML = `
           <button type="button" data-menu-action="edit" data-subcategory-id="${escapeHtml(subcategory.id)}">Editar</button>
           <button type="button" data-menu-action="toggle" data-subcategory-id="${escapeHtml(subcategory.id)}">${subcategory.active ? 'Ocultar' : 'Activar'}</button>
-          <button type="button" class="danger" data-menu-action="delete" data-subcategory-id="${escapeHtml(subcategory.id)}">Eliminar</button>
+          ${CAN_EDIT_PRODUCTS || productsForSubcategory(subcategory.id).length === 0
+            ? `<button type="button" class="danger" data-menu-action="delete" data-subcategory-id="${escapeHtml(subcategory.id)}">Eliminar</button>`
+            : ''}
         `;
         subcategoryActionsMenu.classList.remove('hidden');
         subcategoryActionsMenu.setAttribute('aria-hidden', 'false');
       }
 
       function showSubcategoryDeleteConfirm(subcategoryId) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const subcategory = subcategories.find((item) => item.id === subcategoryId);
         if (!subcategory || !subcategoryDeleteConfirm) return;
         const count = productsForSubcategory(subcategory.id).length;
+        if (count > 0 && !CAN_EDIT_PRODUCTS) {
+          setAlert(subcategoryAlert, 'Necesitas permiso para editar productos antes de moverlos fuera de esta subcategoria.', 'error');
+          return;
+        }
         const deleteTitle = count > 0 ? `Esta subcategoría tiene ${count} productos.` : '¿Eliminar esta subcategoría?';
         const deleteText = count > 0
           ? `Si la eliminas, los productos no se borrarán. Pasarán a la categoría principal "${escapeHtml(category?.name || 'esta categoría')}" sin subcategoría.`
@@ -1783,16 +1838,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <p class="category-subcategory-card-title">${escapeHtml(subcategory.name || 'Subcategoria sin nombre')}</p>
                 <p class="category-subcategory-card-meta">${count} ${count === 1 ? 'producto' : 'productos'} · ${escapeHtml(statusText)}</p>
                 <div class="category-subcategory-actions">
-                  <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-subcategory-edit-direct" type="button">
+                  ${CAN_MANAGE_CATEGORIES ? `<button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-subcategory-edit-direct" type="button">
                     <span class="pz-admin-btn__label">Editar</span>
-                  </button>
-                  <button class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact js-subcategory-products" type="button">
+                  </button>` : ''}
+                  ${CAN_CREATE_PRODUCTS ? `<button class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact js-subcategory-products" type="button">
                     <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                     <span class="pz-admin-btn__label">Agregar producto</span>
-                  </button>
+                  </button>` : ''}
                 </div>
               </div>
-              <button class="subcategory-menu-button js-subcategory-menu" type="button" aria-label="Mas acciones" aria-expanded="${activeSubcategoryMenuId === subcategory.id ? 'true' : 'false'}">⋯</button>
+              ${CAN_MANAGE_CATEGORIES ? `<button class="subcategory-menu-button js-subcategory-menu" type="button" aria-label="Mas acciones" aria-expanded="${activeSubcategoryMenuId === subcategory.id ? 'true' : 'false'}">⋯</button>` : ''}
             </article>
           `;
         }).join('');
@@ -1862,12 +1917,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   ` : '<div class="empty">Sin productos todavia.</div>'}
 
-                  <div class="category-subcategory-group-actions">
+                  ${CAN_CREATE_PRODUCTS ? `<div class="category-subcategory-group-actions">
                     <button class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact js-subcategory-group-product" type="button" data-subcategory-id="${subcategory.id}">
                       <span class="pz-admin-btn__icon" aria-hidden="true">+</span>
                       <span class="pz-admin-btn__label">Agregar producto</span>
                     </button>
-                  </div>
+                  </div>` : ''}
                 </div>
               ` : ''}
             </section>
@@ -1907,6 +1962,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       async function saveCategory(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_CATEGORIES) return;
         const name = categoryName.value.trim();
         if (!name) {
           setAlert(categoryAlert, 'El nombre de la categoría no puede estar vacío.', 'error');
@@ -1936,6 +1992,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       async function saveCategoryWithDirtyState(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_CATEGORIES) return;
         if (categorySaving) return;
 
         const name = String(categoryName?.value || '').trim();
@@ -1994,6 +2051,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       async function createSubcategory(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_CATEGORIES) return;
         const name = subcategoryName.value.trim();
         if (!name) {
           setAlert(subcategoryAlert, 'Escribe el nombre de la subcategoría.', 'error');
@@ -2034,6 +2092,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function updateSubcategory(rowOrId, changes) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         const id = typeof rowOrId === 'string' ? rowOrId : rowOrId.dataset.subcategoryId;
         const imageFile = typeof rowOrId === 'string' ? null : rowOrId.querySelector('.js-subcategory-image')?.files?.[0];
         if (imageFile) {
@@ -2058,6 +2117,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function moveProductToParentCategory(product) {
+        if (!CAN_EDIT_PRODUCTS) throw new Error('No tienes permiso para mover productos.');
         const formData = new FormData();
         formData.append('category', CATEGORY_ID);
         formData.append('subcategory', '');
@@ -2066,6 +2126,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       async function deleteSubcategorySafely(subcategoryId) {
+        if (!CAN_MANAGE_CATEGORIES) return;
         if (!category?.id || category.id !== CATEGORY_ID || !isCurrentStoreRecord(category)) {
           throw new Error('No se pudo validar la categoria actual.');
         }
@@ -2143,6 +2204,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         renderSubcategories();
       });
       newProductBtn?.addEventListener('click', () => {
+        if (!CAN_CREATE_PRODUCTS) return;
         window.location.href = productCreateUrl(CATEGORY_ID, '');
       });
       subcategoryCreateClose?.addEventListener('click', closeSubcategoryModal);
@@ -2151,12 +2213,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (event.target === subcategoryModalOverlay) closeSubcategoryModal();
       });
       document.querySelectorAll('[data-action="new-product"]').forEach((button) => {
-        button.addEventListener('click', () => newProductBtn.click());
+        button.addEventListener('click', () => {
+          if (CAN_CREATE_PRODUCTS) newProductBtn?.click();
+        });
       });
 
       document.addEventListener('click', (event) => {
         const newSubcategoryButton = event.target.closest('#quick-new-subcategory-btn, [data-action="new-subcategory"]');
         if (!newSubcategoryButton) return;
+        if (!CAN_MANAGE_CATEGORIES) return;
         event.preventDefault();
         event.stopPropagation();
         openSubcategoryModal('create');
@@ -2172,17 +2237,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         try {
           if (button.classList.contains('js-subcategory-edit-direct')) {
+            if (!CAN_MANAGE_CATEGORIES) return;
             closeSubcategoryMenu();
             openSubcategoryModal('edit', subcategory.id);
             return;
           }
 
           if (button.classList.contains('js-subcategory-products')) {
+            if (!CAN_CREATE_PRODUCTS) return;
             closeSubcategoryMenu();
             window.location.href = productCreateUrl(CATEGORY_ID, subcategory.id);
             return;
           }
           if (button.classList.contains('js-subcategory-menu')) {
+            if (!CAN_MANAGE_CATEGORIES) return;
             if (activeSubcategoryMenuId === subcategory.id && !subcategoryActionsMenu?.classList.contains('hidden')) closeSubcategoryMenu();
             else openSubcategoryMenu(subcategory.id, button);
             return;
@@ -2210,15 +2278,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         closeSubcategoryMenu();
         try {
           if (action === 'edit') {
+            if (!CAN_MANAGE_CATEGORIES) return;
             openSubcategoryModal('edit', subcategoryId);
             return;
           }
           if (action === 'toggle') {
+            if (!CAN_MANAGE_CATEGORIES) return;
             button.disabled = true;
             await updateSubcategory(subcategoryId, { active: !subcategory.active });
             return;
           }
           if (action === 'delete') {
+            if (!CAN_MANAGE_CATEGORIES) return;
             showSubcategoryDeleteConfirm(subcategoryId);
           }
         } catch (error) {
@@ -2262,7 +2333,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       productsList.addEventListener('click', (event) => {
         const button = event.target.closest('.js-product-edit');
         const row = button?.closest('[data-product-id]');
-        if (row?.dataset?.productId) window.location.href = productEditUrl(row.dataset.productId);
+        if (CAN_EDIT_PRODUCTS && row?.dataset?.productId) window.location.href = productEditUrl(row.dataset.productId);
       });
       subcategoryProductsList?.addEventListener('click', (event) => {
         const toggleButton = event.target.closest('.js-subcategory-products-toggle');
@@ -2274,12 +2345,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
         const productButton = event.target.closest('.js-product-edit');
         const productRow = productButton?.closest('[data-product-id]');
-        if (productRow?.dataset?.productId) {
+        if (CAN_EDIT_PRODUCTS && productRow?.dataset?.productId) {
           window.location.href = productEditUrl(productRow.dataset.productId);
           return;
         }
         const addButton = event.target.closest('.js-subcategory-group-product');
-        if (addButton?.dataset?.subcategoryId) {
+        if (CAN_CREATE_PRODUCTS && addButton?.dataset?.subcategoryId) {
           window.location.href = productCreateUrl(CATEGORY_ID, addButton.dataset.subcategoryId);
         }
       });

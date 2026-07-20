@@ -566,10 +566,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       </section>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const ADMIN_AUTH_TOKEN = (() => {
+        try {
+          const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+          if (!pair) return '';
+          const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+          return typeof parsed?.token === 'string' ? parsed.token : '';
+        } catch (_) { return ''; }
+      })();
       function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';

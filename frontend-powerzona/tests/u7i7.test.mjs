@@ -92,9 +92,11 @@ test('creacion temporal genera con Web Crypto muestra copia y limpia el secreto'
   for (const storage of ['localStorage', 'sessionStorage']) assert.doesNotMatch(listView, new RegExp(storage));
 });
 
-test('detalle protege ultimo admin y ofrece eliminacion critica solo en zona de peligro', () => {
+test('detalle protege al principal y al ultimo admin, con eliminacion critica solo en zona de peligro', () => {
   assert.match(detailView, /único Administrador activo/);
-  assert.match(detailView, /disabled=\{detail\.protection\.last_active_admin\}/);
+  assert.match(detailView, /disabled=\{isPrimaryAdmin \|\| detail\.protection\.last_active_admin\}/);
+  assert.match(detailView, /Este usuario es el Administrador principal/);
+  assert.match(detailView, /Reemplaza primero al Administrador principal/);
   assert.match(detailView, /last_active_admin_required|Debe existir al menos/);
   assert.match(detailView, /Zona de peligro/);
   assert.match(detailView, /deleteMasterStoreUser/);
@@ -175,8 +177,9 @@ test('zona critica conserva reglas responsive sin anchos rigidos ni scroll horiz
   assert.doesNotMatch(usersStyles, /overflow-x:\s*(auto|scroll)/);
 });
 
-test('Mi cuenta es exclusiva del Admin y exige reautenticacion total', () => {
-  assert.match(accountPage, /if \(!isStoreAdmin\(adminContext\.user\)\)/);
+test('Mi cuenta cubre Admin y Staff y exige reautenticacion total', () => {
+  assert.doesNotMatch(accountPage, /if \(!isStoreAdmin\(adminContext\.user\)\)/);
+  assert.match(accountPage, /isStoreStaff\(user\)/);
   assert.match(accountPage, /incluida esta sesión/);
   assert.match(accountPage, /Cerrar todas mis sesiones/);
   assert.match(accountPage, /changeStoreAdminPassword/);

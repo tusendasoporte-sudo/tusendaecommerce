@@ -2,7 +2,9 @@
 export const prerender = false;
 
 import { getStoreAdminPath } from '../../../../../../lib/adminRoutes';
-import { isMasterAdmin, isStoreAdmin, refreshAuthFromCookie } from '../../../../../../lib/auth';
+import { isMasterAdmin, refreshAuthFromCookie } from '../../../../../../lib/auth';
+import { getStoreAccessContext } from '../../../../../../lib/storeTeam';
+import { hasStorePermission } from '../../../../../../lib/storeTeamPermissions';
 import { getStoreSecuritySettings, isStoreSecurityEnabled } from '../../../../../../lib/security';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../../../../lib/storeContext';
 import {
@@ -47,9 +49,13 @@ if (pathStoreSlug && pathStoreSlug !== String(currentStoreSlug || '').trim().toL
   return Astro.redirect(adminBasePath);
 }
 
-if (!isStoreAdmin(adminContext.user)) {
+let storeAccess;
+try {
+  storeAccess = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: authPb.authStore.token });
+} catch (_) {
   return Astro.redirect(adminBasePath);
 }
+if (!hasStorePermission({ permissions: storeAccess.access.permissions }, 'security.view')) return Astro.redirect(adminBasePath);
 
 const securitySettings = await getStoreSecuritySettings(currentStoreId, authPb);
 if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {

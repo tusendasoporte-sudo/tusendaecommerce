@@ -657,12 +657,18 @@ test('PZ-ORD-PRICE01-C2 HTTP runtime valida reset, estados y total canonico', { 
       token: storeAdminToken,
       body: { final_unit_price_usd: 5, reason_code: 'other', reason_text: 'Cross store QA' },
     });
-    assert.equal(crossDenied.status, 403, crossDenied.raw);
+    assert.equal(crossDenied.status, 404, crossDenied.raw);
     const crossResetDenied = await request(`/api/pz/admin/orders/${crossOrder.data.order.id}/items/${crossOrder.data.items[0].id}/price-adjustments/reset`, {
       token: storeAdminToken,
       body: { reason_code: 'price_correction', reason_text: 'Cross reset QA' },
     });
-    assert.equal(crossResetDenied.status, 403, crossResetDenied.raw);
+    assert.equal(crossResetDenied.status, 404, crossResetDenied.raw);
+    const crossTransitionDenied = await request(`/api/pz/admin/orders/${crossOrder.data.order.id}/transition`, {
+      token: storeAdminToken,
+      body: { status: 'confirmed' },
+    });
+    assert.equal(crossTransitionDenied.status, 404, crossTransitionDenied.raw);
+    assert.equal(crossTransitionDenied.data?.error, 'order_not_found');
 
     const auditPage = await request(`/api/collections/order_price_adjustments/records?filter=${encodeURIComponent(`order="${couponResult.data.order.id}"`)}&perPage=100`, { token: storeAdminToken });
     assert.equal(auditPage.status, 200, auditPage.raw);
@@ -690,6 +696,121 @@ test('PZ-ORD-PRICE01-C2 HTTP runtime valida reset, estados y total canonico', { 
     const giftLine = giftResult.data.items.find((item) => item.is_gift);
     assert.equal(giftLine.product_name, gift.name);
     close(giftLine.line_total_usd, 0);
+
+    const actionOrderId = giftResult.data.order.id;
+    const generalStockBeforeAction = (await request(`/api/collections/products/records/${general.id}`, { token: superToken })).data.stock;
+    const giftStockBeforeAction = (await request(`/api/collections/gifts/records/${gift.id}`, { token: superToken })).data.stock;
+    const invalidDelivered = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'delivered' },
+    });
+    assert.equal(invalidDelivered.status, 409, invalidDelivered.raw);
+    assert.equal(invalidDelivered.data?.error, 'invalid_status_transition');
+    const extraTransitionField = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'confirmed', stock_deducted: true },
+    });
+    assert.equal(extraTransitionField.status, 422, extraTransitionField.raw);
+    assert.equal(extraTransitionField.data?.error, 'invalid_payload');
+    const staffTransitionDenied = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeStaffToken, body: { status: 'confirmed' },
+    });
+    assert.equal(staffTransitionDenied.status, 403, staffTransitionDenied.raw);
+    for (const directBody of [
+      { status: 'confirmed' },
+      { stock_deducted: true },
+      { receipt_token: 'client-controlled-receipt-token' },
+      { review_token: 'client-controlled-review-token' },
+    ]) {
+      const directDenied = await request(`/api/collections/orders/records/${actionOrderId}`, {
+        token: storeAdminToken, method: 'PATCH', body: directBody,
+      });
+      assert.equal(directDenied.status, 403, `${JSON.stringify(directBody)}: ${directDenied.raw}`);
+    }
+    const directDeleteDenied = await request(`/api/collections/orders/records/${actionOrderId}`, {
+      token: storeAdminToken, method: 'DELETE',
+    });
+    assert.equal(directDeleteDenied.status, 403, directDeleteDenied.raw);
+
+    const confirmedAction = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'confirmed' },
+    });
+    assert.equal(confirmedAction.status, 200, confirmedAction.raw);
+    assert.deepEqual(Object.keys(confirmedAction.data.order).sort(), ['delivered_at', 'id', 'status', 'stock_deducted']);
+    assert.equal(confirmedAction.data.order.status, 'confirmed');
+    assert.equal(confirmedAction.data.order.stock_deducted, true);
+    assert.equal(confirmedAction.data.inventory_action, 'deducted');
+    close((await request(`/api/collections/products/records/${general.id}`, { token: superToken })).data.stock, generalStockBeforeAction - 1);
+    close((await request(`/api/collections/gifts/records/${gift.id}`, { token: superToken })).data.stock, giftStockBeforeAction - 1);
+    const confirmedAgain = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'confirmed' },
+    });
+    assert.equal(confirmedAgain.status, 200, confirmedAgain.raw);
+    assert.equal(confirmedAgain.data.inventory_action, 'unchanged');
+    close((await request(`/api/collections/products/records/${general.id}`, { token: superToken })).data.stock, generalStockBeforeAction - 1);
+
+    const clearReceipt = await request(`/api/collections/orders/records/${actionOrderId}`, {
+      token: superToken, method: 'PATCH', body: { receipt_token: '' },
+    });
+    assert.equal(clearReceipt.status, 200, clearReceipt.raw);
+    const invalidReceiptPayload = await request(`/api/pz/admin/orders/${actionOrderId}/receipt-token`, {
+      token: storeAdminToken, body: { token: 'client-controlled' },
+    });
+    assert.equal(invalidReceiptPayload.status, 422, invalidReceiptPayload.raw);
+    const receiptTokenAction = await request(`/api/pz/admin/orders/${actionOrderId}/receipt-token`, {
+      token: storeAdminToken, body: {},
+    });
+    assert.equal(receiptTokenAction.status, 200, receiptTokenAction.raw);
+    assert.match(receiptTokenAction.data?.order?.receipt_token || '', /^[A-Za-z0-9_-]{32}$/);
+    assert.deepEqual(Object.keys(receiptTokenAction.data.order).sort(), ['id', 'receipt_token']);
+    const receiptTokenAgain = await request(`/api/pz/admin/orders/${actionOrderId}/receipt-token`, {
+      token: storeAdminToken, body: {},
+    });
+    assert.equal(receiptTokenAgain.status, 200, receiptTokenAgain.raw);
+    assert.equal(receiptTokenAgain.data.order.receipt_token, receiptTokenAction.data.order.receipt_token);
+
+    const reviewBeforeDelivery = await request(`/api/pz/admin/orders/${actionOrderId}/review-token`, {
+      token: storeAdminToken, body: {},
+    });
+    assert.equal(reviewBeforeDelivery.status, 409, reviewBeforeDelivery.raw);
+    assert.equal(reviewBeforeDelivery.data?.error, 'review_not_available');
+    const deliveredAction = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'delivered' },
+    });
+    assert.equal(deliveredAction.status, 200, deliveredAction.raw);
+    assert.equal(deliveredAction.data.inventory_action, 'unchanged');
+    assert.ok(deliveredAction.data.order.delivered_at);
+    const reviewTokenAction = await request(`/api/pz/admin/orders/${actionOrderId}/review-token`, {
+      token: storeAdminToken, body: {},
+    });
+    assert.equal(reviewTokenAction.status, 200, reviewTokenAction.raw);
+    assert.match(reviewTokenAction.data?.order?.review_token || '', /^[A-Za-z0-9_-]{40}$/);
+    assert.deepEqual(Object.keys(reviewTokenAction.data.order).sort(), ['id', 'review_token']);
+    const reviewTokenAgain = await request(`/api/pz/admin/orders/${actionOrderId}/review-token`, {
+      token: storeAdminToken, body: {},
+    });
+    assert.equal(reviewTokenAgain.status, 200, reviewTokenAgain.raw);
+    assert.equal(reviewTokenAgain.data.order.review_token, reviewTokenAction.data.order.review_token);
+
+    const cancelledAction = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'cancelled' },
+    });
+    assert.equal(cancelledAction.status, 200, cancelledAction.raw);
+    assert.equal(cancelledAction.data.inventory_action, 'restored');
+    close((await request(`/api/collections/products/records/${general.id}`, { token: superToken })).data.stock, generalStockBeforeAction);
+    close((await request(`/api/collections/gifts/records/${gift.id}`, { token: superToken })).data.stock, giftStockBeforeAction);
+    const reconfirmAction = await request(`/api/pz/admin/orders/${actionOrderId}/transition`, {
+      token: storeAdminToken, body: { status: 'confirmed' },
+    });
+    assert.equal(reconfirmAction.status, 200, reconfirmAction.raw);
+    assert.equal(reconfirmAction.data.inventory_action, 'deducted');
+    const deleteAction = await request(`/api/pz/admin/orders/${actionOrderId}`, {
+      token: storeAdminToken, method: 'DELETE',
+    });
+    assert.equal(deleteAction.status, 200, deleteAction.raw);
+    assert.deepEqual(deleteAction.data, { ok: true, deleted: true });
+    assert.equal(await count('orders', `id="${actionOrderId}"`), 0);
+    assert.equal(await count('order_items', `order="${actionOrderId}"`), 0);
+    close((await request(`/api/collections/products/records/${general.id}`, { token: superToken })).data.stock, generalStockBeforeAction);
+    close((await request(`/api/collections/gifts/records/${gift.id}`, { token: superToken })).data.stock, giftStockBeforeAction);
 
     const expired = await createProduct(store, 'expired');
     const future30 = await createProduct(store, 'future30');

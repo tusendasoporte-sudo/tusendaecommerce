@@ -2,6 +2,8 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import '../../styles/global.css';
@@ -23,6 +25,19 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminRafflesPath = getStoreAdminPath(currentStoreSlug, 'promos/raffles');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const marketingPermissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canManagePromotions = hasStorePermission(marketingPermissionContext, 'promotions.manage');
+const canManageCoupons = hasStorePermission(marketingPermissionContext, 'coupons.manage');
+const canManageRaffles = hasStorePermission(marketingPermissionContext, 'raffles.manage');
+const canManageProductVisibility = hasStorePermission(marketingPermissionContext, 'catalog.products.visibility');
+const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 'store.settings.manage');
 ---
 <!doctype html>
 <html lang="es">
@@ -421,6 +436,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
       .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
       .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+      .permission-hidden { display: none !important; }
       .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
       .tab-btn { border: 1px solid #e2e8f0; background: rgba(255,255,255,.92); color: #334155; border-radius: 999px; padding: 11px 14px; font-weight: 1000; box-shadow: 0 12px 26px rgba(15,23,42,.05); }
       .tab-btn.active { background: #0f172a; border-color: #0f172a; color: #fff; }
@@ -2604,11 +2620,11 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
 
         <section id="admin-view" class="hidden">
           <div class="tabs">
-            <button class="tab-btn active" data-tab="destacados" type="button">Destacados</button>
-            <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>
-            <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>
-            <a class="tab-btn" href={adminRafflesPath}>Rifas</a>
-            <button class="tab-btn" data-tab="visuales" type="button">Promo visual / Acceso rápido</button>
+            {canManageProductVisibility && <button class="tab-btn" data-tab="destacados" type="button">Destacados</button>}
+            {canManagePromotions && <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>}
+            {canManageCoupons && <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>}
+            {canManageRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
+            {canManagePromotions && <button class="tab-btn" data-tab="visuales" type="button">Promo visual / Acceso rápido</button>}
           </div>
 
           <div class="stats-grid hidden" aria-hidden="true">
@@ -2617,7 +2633,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             <article class="stat-card"><p class="stat-label">Accesos rápidos</p><p id="stat-shortcuts-old" class="stat-value">0</p></article>
           </div>
 
-          <section id="marketing-bar-panel" class="marketing-bar-screen hidden">
+          <section id="marketing-bar-panel" class:list={['marketing-bar-screen hidden', !canManagePromotions && 'permission-hidden']}>
             <section class="admin-compact-summary admin-compact-summary--marketing marketing-bar-summary-grid" data-marketing-bar-active-only aria-label="Resumen del cintillo promocional">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
@@ -2891,7 +2907,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </form>
           </div>
 
-          <section id="tab-generales" class="panel-card tab-panel hidden">
+          <section id="tab-generales" class:list={['panel-card tab-panel hidden', !canManageStoreSettings && 'permission-hidden']}>
             <div class="section-head">
               <div>
                 <h2 class="section-title">Ajustes generales públicos</h2>
@@ -2918,7 +2934,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </form>
           </section>
 
-          <section id="tab-footer" class="panel-card tab-panel hidden">
+          <section id="tab-footer" class:list={['panel-card tab-panel hidden', !canManageStoreSettings && 'permission-hidden']}>
             <div class="section-head">
               <div>
                 <h2 class="section-title">Footer público</h2>
@@ -2942,7 +2958,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </form>
           </section>
 
-          <section id="tab-monedas" class="panel-card tab-panel hidden">
+          <section id="tab-monedas" class:list={['panel-card tab-panel hidden', !canManageStoreSettings && 'permission-hidden']}>
             <div class="section-head">
               <div>
                 <h2 class="section-title">Monedas</h2>
@@ -2961,7 +2977,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </form>
           </section>
 
-          <section id="tab-destacados" class="tab-panel">
+          <section id="tab-destacados" class:list={['tab-panel', !canManageProductVisibility && 'permission-hidden']}>
             <section class="admin-compact-summary admin-compact-summary--marketing" aria-label="Resumen de destacados visuales">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
@@ -3080,7 +3096,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
                 </div>              </article>
             </section>
           </section>
-          <section id="tab-visuales" class="tab-panel hidden marketing-quick-screen">
+          <section id="tab-visuales" class:list={['tab-panel hidden marketing-quick-screen', !canManagePromotions && 'permission-hidden']}>
             <section class="admin-compact-summary admin-compact-summary--marketing marketing-quick-summary-grid" aria-label="Resumen de accesos r&aacute;pidos">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
@@ -3298,7 +3314,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </div>
           </section>
 
-          <section id="tab-promociones" class="panel-card tab-panel hidden marketing-promos-screen">
+          <section id="tab-promociones" class:list={['panel-card tab-panel hidden marketing-promos-screen', !canManagePromotions && 'permission-hidden']}>
             <section class="admin-compact-summary admin-compact-summary--marketing marketing-promos-summary-grid" aria-label="Resumen de promociones autom&aacute;ticas">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
@@ -3493,7 +3509,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
             </div>
           </div>
 
-          <section id="tab-cupones" class="tab-panel hidden marketing-coupons-screen">
+          <section id="tab-cupones" class:list={['tab-panel hidden marketing-coupons-screen', !canManageCoupons && 'permission-hidden']}>
             <section class="admin-compact-summary admin-compact-summary--marketing marketing-coupons-summary-grid" aria-label="Resumen de cupones manuales">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
@@ -3800,11 +3816,14 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath, adminProductsPath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, adminProductsPath, canManagePromotions, canManageCoupons, canManageRaffles, canManageProductVisibility }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
+      const CAN_MANAGE_PROMOTIONS = canManagePromotions === true;
+      const CAN_MANAGE_COUPONS = canManageCoupons === true;
+      const CAN_MANAGE_RAFFLES = canManageRaffles === true;
+      const CAN_MANAGE_PRODUCT_VISIBILITY = canManageProductVisibility === true;
       function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
@@ -3815,7 +3834,13 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       let automaticPromotions = [];
       let manualCoupons = [];
       let manualCouponUsages = [];
-      let activeTab = 'destacados';
+      const ALLOWED_MARKETING_TABS = [
+        CAN_MANAGE_PRODUCT_VISIBILITY ? 'destacados' : '',
+        CAN_MANAGE_PROMOTIONS ? 'promociones' : '',
+        CAN_MANAGE_COUPONS ? 'cupones' : '',
+        CAN_MANAGE_PROMOTIONS ? 'visuales' : '',
+      ].filter(Boolean);
+      let activeTab = ALLOWED_MARKETING_TABS[0] || '';
       let promotionFilter = 'all';
       let couponFilter = 'all';
       let pendingPromotionDeleteId = '';
@@ -3960,7 +3985,19 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       const couponMaxUses = document.getElementById('coupon-max-uses');
       const couponActive = document.getElementById('coupon-active');
 
-      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function getAdminToken() {
+        const authCookie = String(document.cookie || '')
+          .split(';')
+          .map((value) => value.trim())
+          .find((value) => value.startsWith('pb_auth='));
+        if (!authCookie) return '';
+        try {
+          const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+          return String(auth?.token || '');
+        } catch {
+          return '';
+        }
+      }
       function setAdminToken(_token) {}
       function clearAdminToken() {}
       function showAlert(el, message = '', type = 'info') {
@@ -4017,7 +4054,30 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           : [];
         return fieldErrors.length ? `${base} ${fieldErrors.join(' · ')}` : base;
       }
+      function assertMarketingMutationAllowed(path, options = {}) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (/^\/api\/collections\/automatic_promotions\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_MANAGE_PROMOTIONS) throw new Error('No tienes permiso para gestionar promociones.');
+          return;
+        }
+        if (/^\/api\/collections\/manual_coupon(?:s|_usages)\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_MANAGE_COUPONS) throw new Error('No tienes permiso para gestionar cupones.');
+          return;
+        }
+        if (/^\/api\/collections\/store_visual_items\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_MANAGE_PROMOTIONS) throw new Error('No tienes permiso para gestionar elementos promocionales.');
+          return;
+        }
+        if (/^\/api\/collections\/products\/records(?:\/|\?|$)/.test(path)) {
+          if (!CAN_MANAGE_PRODUCT_VISIBILITY) throw new Error('No tienes permiso para cambiar destacados.');
+          return;
+        }
+        throw new Error('Esta accion no esta habilitada para tu perfil.');
+      }
+
       async function apiRequest(path, options = {}) {
+        assertMarketingMutationAllowed(path, options);
         const headers = { ...(options.headers || {}) };
         const token = getAdminToken();
         if (token) headers.Authorization = `Bearer ${token}`;
@@ -5070,6 +5130,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         couponNewBtn.classList.add('pz-admin-btn--primary');
       }
       function openCouponForm(item = null) {
+        if (!CAN_MANAGE_COUPONS) return;
         resetCouponForm();
         if (item) {
           couponId.value = item.id || '';
@@ -5126,6 +5187,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function saveCoupon(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_COUPONS) return;
         if (isSavingCoupon) return;
         const payload = collectCouponPayload();
         const id = couponId?.value || '';
@@ -5149,6 +5211,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }
       async function toggleCoupon(id) {
+        if (!CAN_MANAGE_COUPONS) return;
         const item = manualCoupons.find((coupon) => coupon.id === id);
         if (!item) return;
         try {
@@ -5160,6 +5223,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }
       async function deleteCoupon(id) {
+        if (!CAN_MANAGE_COUPONS) return;
         if (!id) return;
         try {
           await apiRequest(`/api/collections/manual_coupons/records/${id}`, { method: 'DELETE' });
@@ -5182,6 +5246,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       function openCouponDeleteModal(id) { pendingCouponDeleteId = id || ''; closePromotionMenus(); couponDeleteModal?.classList.remove('hidden'); couponDeleteModal?.setAttribute('aria-hidden', 'false'); }
       function closeCouponDeleteModal() { pendingCouponDeleteId = ''; couponDeleteModal?.classList.add('hidden'); couponDeleteModal?.setAttribute('aria-hidden', 'true'); }
       function openCouponHistory(id) {
+        if (!CAN_MANAGE_COUPONS) return;
         const item = manualCoupons.find((coupon) => coupon.id === id);
         if (!item || !couponHistoryList) return;
         const rows = manualCouponUsages.filter((usage) => usage.coupon === id);
@@ -5206,24 +5271,24 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         products = await loadAllRecords('products', 'sort=featured_order,name');
         categories = await loadAllRecords('categories', 'sort=order,name');
         subcategories = await loadAllRecords('subcategories', 'sort=order,name');
-        try {
+        if (CAN_MANAGE_PROMOTIONS) try {
           automaticPromotions = await loadAllRecords('automatic_promotions', 'sort=priority,-updated');
         } catch (error) {
           automaticPromotions = [];
           showAlert(promotionAlert, 'Las promociones automáticas no están disponibles. Contacta a soporte para activarlas.', 'error');
         }
-        try {
+        if (CAN_MANAGE_COUPONS) try {
           manualCoupons = await loadAllRecords('manual_coupons', 'sort=-updated');
         } catch (error) {
           manualCoupons = [];
           showAlert(couponAlert, 'Los cupones manuales no están disponibles. Contacta a soporte para activarlos.', 'error');
         }
-        try {
+        if (CAN_MANAGE_COUPONS) try {
           manualCouponUsages = await loadAllRecords('manual_coupon_usages', 'sort=-created');
         } catch (error) {
           manualCouponUsages = [];
         }
-        try {
+        if (CAN_MANAGE_PROMOTIONS) try {
           visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
         } catch (error) {
           visualItems = [];
@@ -5232,6 +5297,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         renderAll();
       }
       async function markFeatured(productIdOverride = '') {
+        if (!CAN_MANAGE_PRODUCT_VISIBILITY) return;
         const productId = productIdOverride || featuredProductSelect?.value || '';
         if (!productId) {
           return showAlert(featuredAlert, 'Selecciona un producto primero.', 'error');
@@ -5259,6 +5325,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         updateFeaturedVisualSummary();
       }
       async function unfeatureProduct(productId) {
+        if (!CAN_MANAGE_PRODUCT_VISIBILITY) return;
         const formData = new FormData();
         formData.append('featured', 'false');
         await apiRequest(`/api/collections/products/records/${productId}`, { method: 'PATCH', body: formData });
@@ -5274,6 +5341,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         return visualItems.reduce((max, item) => Math.max(max, Number(item.sort_order || 0)), 0) + 1;
       }
       async function swapVisualOrder(itemId, direction, alertTarget = visualAlert) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         const currentItem = visualItems.find((item) => item.id === itemId);
         if (!currentItem) return;
         const sameTypeItems = getAllVisualItemsSorted();
@@ -5296,6 +5364,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         await loadData();
       }
       async function toggleVisualActive(itemId, alertTarget = visualAlert) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         const item = visualItems.find((entry) => entry.id === itemId);
         if (!item) return;
         const formData = new FormData();
@@ -5358,6 +5427,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         updateActionFields();
       }
       function openVisualForm(item = null) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         resetVisualForm();
 
         if (item) {
@@ -5417,6 +5487,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function saveVisualItem(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_PROMOTIONS) return;
         const title = visualTitle.value.trim();
         if (!title) return showAlert(visualAlert, 'Escribe un título.', 'error');
         if (visualSaveBtn) {
@@ -5458,6 +5529,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }
       async function deleteVisualItem(id) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         if (!id) return;
         const confirmed = await window.adminConfirm({
           title: 'Eliminar elemento visual',
@@ -5487,6 +5559,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         setPromotionSnapshotFromCurrent();
       }
       function openPromotionForm(item = null) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         resetPromotionForm();
         if (item) {
           promotionId.value = item.id || '';
@@ -5599,6 +5672,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       }
       async function savePromotion(event) {
         event.preventDefault();
+        if (!CAN_MANAGE_PROMOTIONS) return;
         if (isSavingPromotion) return;
         const type = promotionType.value;
         const payload = {
@@ -5656,6 +5730,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }
       async function togglePromotion(id) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         const item = automaticPromotions.find((promotion) => promotion.id === id);
         if (!item) return;
         const nextActive = item.active === false;
@@ -5672,6 +5747,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
       }
       async function deletePromotion(id) {
+        if (!CAN_MANAGE_PROMOTIONS) return;
         if (!id) return;
         try {
           await apiRequest(`/api/collections/automatic_promotions/records/${id}`, { method: 'DELETE' });
@@ -5756,14 +5832,24 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         return { tab: 'destacados', copy: 'destacados' };
       }
 
+      function marketingTabAllowed(tab) {
+        if (tab === 'destacados') return CAN_MANAGE_PRODUCT_VISIBILITY;
+        if (tab === 'cupones') return CAN_MANAGE_COUPONS;
+        if (['promociones', 'visuales', 'cintillo'].includes(tab)) return CAN_MANAGE_PROMOTIONS;
+        return false;
+      }
+
       function showTab(tab, copyKey = tab) {
-        const isCintillo = tab === 'cintillo' || copyKey === 'cintillo';
-        activeTab = tab;
-        document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', !isCintillo && btn.dataset.tab === tab));
+        const safeTab = marketingTabAllowed(tab) ? tab : (ALLOWED_MARKETING_TABS[0] || '');
+        if (!safeTab) return;
+        const safeCopy = safeTab === tab ? copyKey : safeTab;
+        const isCintillo = safeTab === 'cintillo' || safeCopy === 'cintillo';
+        activeTab = safeTab;
+        document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.toggle('active', !isCintillo && btn.dataset.tab === safeTab));
         document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.add('hidden'));
-        if (!isCintillo) document.getElementById(`tab-${tab}`)?.classList.remove('hidden');
+        if (!isCintillo) document.getElementById(`tab-${safeTab}`)?.classList.remove('hidden');
         marketingBarPanel?.classList.toggle('hidden', !isCintillo);
-        updateMarketingSectionCopy(copyKey || tab);
+        updateMarketingSectionCopy(safeCopy || safeTab);
       }
       function hydrateMarketingHashState() {
         const section = resolveMarketingTabFromHash();
@@ -6082,11 +6168,12 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
       showAdmin();
       hydrateMarketingHashState();
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, canManagePromotions, canManageStoreSettings }}>
       (() => {
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const CAN_MANAGE_PROMOTIONS = canManagePromotions === true;
+      const CAN_MANAGE_STORE_SETTINGS = canManageStoreSettings === true;
       function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
@@ -6164,7 +6251,19 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         let marketingBarInitialSnapshot = '';
         let marketingBarNoticeTimer = null;
         let isSavingMarketingBar = false;
-        function token() { return ADMIN_AUTH_TOKEN; }
+        function token() {
+          const authCookie = String(document.cookie || '')
+            .split(';')
+            .map((value) => value.trim())
+            .find((value) => value.startsWith('pb_auth='));
+          if (!authCookie) return '';
+          try {
+            const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+            return String(auth?.token || '');
+          } catch {
+            return '';
+          }
+        }
         function showMessage(box, message = '', type = 'info') {
           if (!box) return;
           if (!message) { box.className = 'alert alert-info hidden'; box.textContent = ''; return; }
@@ -6443,7 +6542,21 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           if (!settingsRecord || !settingsRecord.id || !filename) return '';
           return POCKETBASE_URL_PUBLIC_SETTINGS + '/api/files/settings/' + encodeURIComponent(settingsRecord.id) + '/' + encodeURIComponent(filename) + (thumb ? '?thumb=' + encodeURIComponent(thumb) : '');
         }
+        function settingsMutationAllowed(options = {}) {
+          const method = String(options.method || 'GET').toUpperCase();
+          if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return true;
+          let keys = [];
+          if (options.body instanceof FormData) keys = Array.from(new Set(options.body.keys()));
+          else if (typeof options.body === 'string' && options.body.trim()) {
+            try { keys = Object.keys(JSON.parse(options.body)); } catch { keys = []; }
+          }
+          if (!keys.length) return false;
+          return keys.every((key) => String(key).startsWith('marketing_bar_'))
+            ? CAN_MANAGE_PROMOTIONS
+            : CAN_MANAGE_STORE_SETTINGS;
+        }
         async function api(path, options = {}) {
+          if (!settingsMutationAllowed(options)) throw new Error('Esta accion no esta habilitada para tu perfil.');
           const headers = Object.assign({}, options.headers || {});
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL_PUBLIC_SETTINGS + path, Object.assign({}, options, { headers }));
@@ -6497,6 +6610,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         async function save(event) {
           event.preventDefault();
+          if (!CAN_MANAGE_STORE_SETTINGS) return;
           if (!settingsRecord || !settingsRecord.id) { show('No se encontró el registro activo de ajustes.', 'error'); return; }
           const data = new FormData();
           data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
@@ -6517,6 +6631,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         async function saveFooter(event) {
           event.preventDefault();
+          if (!CAN_MANAGE_STORE_SETTINGS) return;
           if (!settingsRecord || !settingsRecord.id) { showFooter('No se encontró el registro activo de ajustes.', 'error'); return; }
           const data = new FormData();
           data.append('footer_title', fields.footerTitle.value.trim());
@@ -6533,6 +6648,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         async function saveMarketingBar(event) {
           event.preventDefault();
+          if (!CAN_MANAGE_PROMOTIONS) return;
           if (!settingsRecord || !settingsRecord.id) { showMarketingBar('No se encontro el registro activo de ajustes.', 'error'); return; }
           if (isSavingMarketingBar) return;
           const data = collectMarketingBarPayload();
@@ -6558,6 +6674,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           }
         }
         async function saveMarketingBarActive() {
+          if (!CAN_MANAGE_PROMOTIONS) return;
           if (!settingsRecord || !settingsRecord.id) { showMarketingBar('No se encontro el registro activo de ajustes.', 'error'); return; }
           const isActive = fields.marketingBarActive?.checked === true;
           updateMarketingBarPanelVisibility();
@@ -6692,15 +6809,15 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           updateMarketingBarFormState();
         });
         marketingBarForm && marketingBarForm.addEventListener('submit', (event) => saveMarketingBar(event).catch(() => showMarketingBar('No se pudo guardar el cintillo', 'error')));
-        if (token()) loadSettings().catch(() => {});
+        if (token() && (CAN_MANAGE_PROMOTIONS || CAN_MANAGE_STORE_SETTINGS)) loadSettings().catch(() => {});
       })();
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, canManageStoreSettings }}>
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const CAN_MANAGE_STORE_SETTINGS = canManageStoreSettings === true;
       function quotePb(value) { return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\"'); }
       const STORE_FILTER = CURRENT_STORE_ID ? `store="${quotePb(CURRENT_STORE_ID)}"` : '';
       const ACTIVE_STORE_FILTER = CURRENT_STORE_ID ? `active=true && ${STORE_FILTER}` : 'active=true';
@@ -6714,7 +6831,19 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         const rateInput = document.getElementById('currency-rate');
         let currencies = [];
         let settingsRecord = null;
-        function token() { return ADMIN_AUTH_TOKEN; }
+        function token() {
+          const authCookie = String(document.cookie || '')
+            .split(';')
+            .map((value) => value.trim())
+            .find((value) => value.startsWith('pb_auth='));
+          if (!authCookie) return '';
+          try {
+            const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+            return String(auth?.token || '');
+          } catch {
+            return '';
+          }
+        }
         function show(message = '', type = 'info') {
           if (!alertBox) return;
           if (!message) { alertBox.className = 'alert alert-info hidden'; alertBox.textContent = ''; return; }
@@ -6722,6 +6851,10 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           alertBox.textContent = message;
         }
         async function api(path, options = {}) {
+          const method = String(options.method || 'GET').toUpperCase();
+          if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method) && !CAN_MANAGE_STORE_SETTINGS) {
+            throw new Error('No tienes permiso para gestionar monedas.');
+          }
           const headers = Object.assign({}, options.headers || {});
           if (token()) headers.Authorization = 'Bearer ' + token();
           const response = await fetch(POCKETBASE_URL + path, Object.assign({}, options, { headers }));
@@ -6767,6 +6900,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
           `).join('');
         }
         async function saveCurrency(row) {
+          if (!CAN_MANAGE_STORE_SETTINGS) return;
           const id = row?.dataset?.currencyId;
           const currency = currencies.find((item) => item.id === id);
           if (!id || !currency) return;
@@ -6795,6 +6929,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         }
         async function createCurrency(event) {
           event.preventDefault();
+          if (!CAN_MANAGE_STORE_SETTINGS) return;
           const code = String(codeInput?.value || '').trim().toUpperCase();
           if (!code) return show('Escribe el código de la moneda.', 'error');
           const payload = {
@@ -6823,7 +6958,7 @@ const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
         refreshBtn?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
         createForm?.addEventListener('submit', (event) => createCurrency(event).catch((error) => show(error.message || 'No se pudo crear la moneda.', 'error')));
         document.querySelector('[data-tab="monedas"]')?.addEventListener('click', () => loadCurrencies().catch((error) => show(error.message || 'No se pudieron cargar las monedas.', 'error')));
-        if (token()) loadCurrencies().catch(() => {});
+        if (token() && CAN_MANAGE_STORE_SETTINGS) loadCurrencies().catch(() => {});
       })();
     </script>
 

@@ -4,7 +4,6 @@ type Props = {
   currentStoreId: string;
   currentStoreSlug: string;
   currentStoreName: string;
-  adminAuthToken: string;
 };
 
 const {
@@ -12,7 +11,6 @@ const {
   currentStoreId,
   currentStoreSlug,
   currentStoreName,
-  adminAuthToken,
 } = Astro.props as Props;
 
 const safeStoreSlug = currentStoreSlug || 'powerzona';
@@ -1110,7 +1108,7 @@ const qrPngPath = `${publicPath}/qr.png`;
   }
 </style>
 
-<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug, currentStoreName, adminAuthToken, publicPath, publicStorePath, qrSvgPath, qrPngPath }}>
+<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug, currentStoreName, publicPath, publicStorePath, qrSvgPath, qrPngPath }}>
   (() => {
     const root = document.querySelector('[data-landing-qr-root]');
     if (!root) return;
@@ -1119,7 +1117,14 @@ const qrPngPath = `${publicPath}/qr.png`;
     const CURRENT_STORE_ID = String(currentStoreId || '');
     const CURRENT_STORE_SLUG = String(currentStoreSlug || 'powerzona');
     const CURRENT_STORE_NAME = String(currentStoreName || 'Tienda');
-    const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+    const ADMIN_AUTH_TOKEN = (() => {
+      try {
+        const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+        if (!pair) return '';
+        const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+        return typeof parsed?.token === 'string' ? parsed.token : '';
+      } catch (_) { return ''; }
+    })();
     const PUBLIC_PATH = String(publicPath || `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}/links`);
     const PUBLIC_STORE_PATH = String(publicStorePath || `/t/${encodeURIComponent(CURRENT_STORE_SLUG)}`);
     const QR_SVG_PATH = String(qrSvgPath || `${PUBLIC_PATH}/qr.svg`);

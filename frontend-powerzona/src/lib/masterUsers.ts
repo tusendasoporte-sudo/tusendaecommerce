@@ -66,6 +66,10 @@ export type MasterStoreUserAudit = {
   new_role: string;
   previous_status: string;
   new_status: string;
+  previous_template_code: string;
+  new_template_code: string;
+  previous_permissions: string[];
+  new_permissions: string[];
   sessions_revoked: boolean;
   reason: string;
   created: string;
@@ -327,6 +331,7 @@ export function getMasterStoreUserErrorMessage(error: unknown) {
     invalid_status: 'Selecciona un estado válido.',
     active_user_limit_reached: 'La tienda alcanzó el límite de usuarios activos de su plan.',
     last_active_admin_required: 'Debe existir al menos un Administrador activo.',
+    primary_admin_replacement_required: 'Reemplaza primero al Administrador principal desde el flujo protegido.',
     user_management_unavailable: 'La gestión de usuarios no está disponible temporalmente.',
     user_create_failed: 'No se pudo crear el usuario.',
     user_update_failed: 'No se pudo actualizar el usuario.',

@@ -2,6 +2,8 @@
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../components/admin/AdminIcon.astro';
@@ -24,6 +26,22 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const orderPermissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canManageOrderStatus = hasStorePermission(orderPermissionContext, 'orders.status.manage');
+const canManageOrderItems = hasStorePermission(orderPermissionContext, 'orders.items.manage');
+const canAdjustOrderPrice = hasStorePermission(orderPermissionContext, 'orders.price_adjustment');
+const canCancelDeleteOrders = hasStorePermission(orderPermissionContext, 'orders.cancel_delete');
+const canContactOrderCustomers = hasStorePermission(orderPermissionContext, 'orders.contact_customer');
+const canManageOrderReviews = hasStorePermission(orderPermissionContext, 'reviews.manage');
+const canRequestOrderReviews = canContactOrderCustomers && canManageOrderReviews;
+const canManageOrderShipping = hasStorePermission(orderPermissionContext, 'shipping.manage');
 const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
 const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con el panel de pedidos de la tienda ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
@@ -77,6 +95,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       button { cursor: pointer; }
       a { color: inherit; text-decoration: none; }
       .hidden { display: none !important; }
+      .permission-hidden { display: none !important; }
       .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
       .login-card { width: min(100%, 460px); background: rgba(255,255,255,0.96); border: 1px solid rgba(226,232,240,0.9); border-radius: 32px; box-shadow: 0 30px 90px rgba(15,23,42,0.18); padding: 30px; }
       .brand-chip { display: inline-flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 950; }
@@ -973,10 +992,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
             </select>
           </div>
 
-          <section id="cleanup-orders-panel" class="card cleanup-selection-bar hidden" hidden>
+          <section id="cleanup-orders-panel" class:list={['card cleanup-selection-bar hidden', !canCancelDeleteOrders && 'permission-hidden']} hidden>
             <div class="cleanup-selection-copy">
               <h2 class="cleanup-selection-title">Modo borrar órdenes</h2>
-              <p class="cleanup-selection-warning">Esta acción elimina la orden y no modifica el inventario.<br />Úsalo solo para limpieza administrativa o después de exportar tus órdenes.</p>
+              <p class="cleanup-selection-warning">Esta acción elimina la orden y concilia el inventario de forma segura.<br />Úsalo solo para limpieza administrativa o después de exportar tus órdenes.</p>
             </div>
             <span id="cleanup-selected-count" class="cleanup-selection-count">0 seleccionadas</span>
             <div class="cleanup-selection-actions">
@@ -1010,30 +1029,30 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
                 <div class="info-grid">
                   <div class="info-box"><div class="info-label">Cliente</div><div id="detail-customer" class="info-value"></div></div>
-                  <div class="info-box"><div class="info-label">Teléfono</div><div id="detail-phone" class="info-value"></div></div>
+                  <div class:list={['info-box', !canContactOrderCustomers && 'permission-hidden']}><div class="info-label">Teléfono</div><div id="detail-phone" class="info-value"></div></div>
                   <div class="info-box"><div class="info-label">Entrega</div><div id="detail-delivery" class="info-value"></div></div>
                   <div class="info-box"><div class="info-label">Resumen cliente</div><div id="detail-total" class="info-value"></div></div>
-                  <div id="detail-address-box" class="info-box" style="grid-column: 1 / -1;"><div class="info-label">Dirección</div><div id="detail-address" class="info-value"></div></div>
+                  <div id="detail-address-box" class:list={['info-box', !canContactOrderCustomers && 'permission-hidden']} style="grid-column: 1 / -1;"><div class="info-label">Dirección</div><div id="detail-address" class="info-value"></div></div>
                 </div>
 
-                <div class="status-always-visible">
+                <div class:list={['status-always-visible', !(canManageOrderStatus || canCancelDeleteOrders) && 'permission-hidden']}>
                   <div>
                     <label for="detail-status">Estado de la orden</label>
-                    <select id="detail-status">
-                      <option value="pending">Pendiente</option>
-                      <option value="confirmed">Confirmada</option>
-                              <option value="delivered">Entregada</option>
-                      <option value="cancelled">Cancelada</option>
+                    <select id="detail-status" disabled={!(canManageOrderStatus || canCancelDeleteOrders)}>
+                      <option value="pending" disabled={!canManageOrderStatus}>Pendiente</option>
+                      <option value="confirmed" disabled={!canManageOrderStatus}>Confirmada</option>
+                      <option value="delivered" disabled={!canManageOrderStatus}>Entregada</option>
+                      <option value="cancelled" disabled={!canCancelDeleteOrders}>Cancelada</option>
                     </select>
                   </div>
-                  <button id="save-order-btn" class="btn btn-primary" type="button">Guardar cambios</button>
+                  <button id="save-order-btn" class="btn btn-primary" type="button" disabled={!(canManageOrderStatus || canCancelDeleteOrders)}>Guardar cambios</button>
                 </div>
 
-                <div class="add-product-header">
+                <div class:list={['add-product-header', !canManageOrderItems && 'permission-hidden']}>
                   <h3 class="section-title">Agregar producto a la orden</h3>
                   <button id="toggle-add-product-btn" class="btn btn-secondary" type="button">+ Agregar producto</button>
                 </div>
-                <div id="add-product-panel" class="add-product-panel hidden">
+                <div id="add-product-panel" class:list={['add-product-panel hidden', !canManageOrderItems && 'permission-hidden']}>
                   <div class="form-grid">
                     <div>
                       <label for="add-product-search">Buscar producto del catálogo</label>
@@ -1067,25 +1086,25 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
                 <div id="detail-coupon" class="hidden"></div>
 
-                <div class="edit-order-header">
+                <div class:list={['edit-order-header', !(canContactOrderCustomers || canManageOrderShipping) && 'permission-hidden']}>
                   <h3 class="section-title">Editar Datos del Cliente</h3>
                   <button id="toggle-edit-order-btn" class="btn btn-secondary pz-admin-action-btn" type="button">
                     <AdminIcon name="edit" class="pz-admin-action-icon" />
                     <span data-edit-order-label>Editar Datos del Cliente</span>
                   </button>
                 </div>
-                <div id="edit-order-panel" class="edit-order-panel hidden">
+                <div id="edit-order-panel" class:list={['edit-order-panel hidden', !(canContactOrderCustomers || canManageOrderShipping) && 'permission-hidden']}>
                   <div class="form-grid two">
-                    <div><label for="edit-customer-name">Cliente</label><input id="edit-customer-name" type="text" /></div>
-                    <div><label for="edit-customer-phone">Teléfono</label><input id="edit-customer-phone" type="text" /></div>
-                    <div><label for="edit-delivery-method">Forma de entrega</label><select id="edit-delivery-method"><option value="delivery">Envío</option><option value="pickup">Recogida</option><option value="coordinate">Coordinar</option></select></div>
-                    <div id="edit-customer-address-wrap"><label for="edit-customer-address">Dirección / referencia</label><textarea id="edit-customer-address" placeholder="Dirección del cliente, referencia o instrucciones de entrega..."></textarea></div>
-                    <div id="edit-shipping-municipality-wrap"><label for="edit-shipping-municipality">Municipio</label><select id="edit-shipping-municipality"><option value="">Selecciona municipio</option></select></div>
-                    <div id="edit-shipping-zone-wrap"><label for="edit-shipping-zone">Zona de entrega</label><select id="edit-shipping-zone"><option value="">Selecciona zona</option></select></div>
-                    <div id="edit-shipping-cost-wrap"><label for="edit-shipping-cost">Costo de envío</label><input id="edit-shipping-cost" type="text" value="$0.00 USD" readonly /></div>
+                    <div class:list={[!canContactOrderCustomers && 'permission-hidden']}><label for="edit-customer-name">Cliente</label><input id="edit-customer-name" type="text" disabled={!canContactOrderCustomers} /></div>
+                    <div class:list={[!canContactOrderCustomers && 'permission-hidden']}><label for="edit-customer-phone">Teléfono</label><input id="edit-customer-phone" type="text" disabled={!canContactOrderCustomers} /></div>
+                    <div class:list={[!canManageOrderShipping && 'permission-hidden']}><label for="edit-delivery-method">Forma de entrega</label><select id="edit-delivery-method" disabled={!canManageOrderShipping}><option value="delivery">Envío</option><option value="pickup">Recogida</option><option value="coordinate">Coordinar</option></select></div>
+                    <div id="edit-customer-address-wrap" class:list={[!canContactOrderCustomers && 'permission-hidden']}><label for="edit-customer-address">Dirección / referencia</label><textarea id="edit-customer-address" placeholder="Dirección del cliente, referencia o instrucciones de entrega..." disabled={!canContactOrderCustomers}></textarea></div>
+                    <div id="edit-shipping-municipality-wrap" class:list={[!canManageOrderShipping && 'permission-hidden']}><label for="edit-shipping-municipality">Municipio</label><select id="edit-shipping-municipality" disabled={!canManageOrderShipping}><option value="">Selecciona municipio</option></select></div>
+                    <div id="edit-shipping-zone-wrap" class:list={[!canManageOrderShipping && 'permission-hidden']}><label for="edit-shipping-zone">Zona de entrega</label><select id="edit-shipping-zone" disabled={!canManageOrderShipping}><option value="">Selecciona zona</option></select></div>
+                    <div id="edit-shipping-cost-wrap" class:list={[!(canManageOrderShipping && canAdjustOrderPrice) && 'permission-hidden']}><label for="edit-shipping-cost">Costo de envío</label><input id="edit-shipping-cost" type="text" value="$0.00 USD" readonly /></div>
                   </div>
                   <div class="form-grid" style="margin-top:14px;">
-                    <div><label for="detail-notes">Observaciones del pedido</label><textarea id="detail-notes" placeholder="Ej: confirmado por WhatsApp, pendiente pago, entregar después de las 5pm..."></textarea></div>
+                    <div class:list={[!canContactOrderCustomers && 'permission-hidden']}><label for="detail-notes">Observaciones del pedido</label><textarea id="detail-notes" placeholder="Ej: confirmado por WhatsApp, pendiente pago, entregar después de las 5pm..." disabled={!canContactOrderCustomers}></textarea></div>
                     <div class="add-product-actions">
                       <button id="close-edit-order-btn" class="btn btn-secondary" type="button">Cerrar edición</button>
                     </div>
@@ -1098,14 +1117,14 @@ const isOrderDetailPage = Boolean(initialOrderId);
                   <h3 class="section-title">Acciones rápidas</h3>
                   <div class="quick-actions">
                     <button id="copy-order-btn" class="btn btn-secondary" type="button">Copiar resumen</button>
-                    <button id="whatsapp-order-btn" class="btn btn-secondary whatsapp-contact-btn pz-admin-action-btn success" type="button">
+                    <button id="whatsapp-order-btn" class:list={['btn btn-secondary whatsapp-contact-btn pz-admin-action-btn success', !canContactOrderCustomers && 'permission-hidden']} type="button" disabled={!canContactOrderCustomers}>
                       <AdminIcon name="whatsapp" class="pz-admin-action-icon" />
                       <span data-whatsapp-order-label>Contactar cliente</span>
                     </button>
-                    <button id="print-order-btn" class="btn btn-secondary" type="button">Imprimir pedido</button>
-                    <button id="mark-delivered-btn" class="btn btn-secondary" type="button">Marcar entregada</button>
-                    <button id="request-review-btn" class="btn btn-secondary" type="button">Pedir reseña</button>
-                    <button id="delete-cancelled-order-btn" class="btn btn-danger hidden" type="button">Eliminar pedido</button>
+                    <button id="print-order-btn" class:list={['btn btn-secondary', !canContactOrderCustomers && 'permission-hidden']} type="button" disabled={!canContactOrderCustomers}>Imprimir pedido</button>
+                    <button id="mark-delivered-btn" class:list={['btn btn-secondary', !canManageOrderStatus && 'permission-hidden']} type="button" disabled={!canManageOrderStatus}>Marcar entregada</button>
+                    <button id="request-review-btn" class:list={['btn btn-secondary', !canRequestOrderReviews && 'permission-hidden']} type="button" disabled={!canRequestOrderReviews}>Pedir reseña</button>
+                    <button id="delete-cancelled-order-btn" class:list={['btn btn-danger hidden', !canCancelDeleteOrders && 'permission-hidden']} type="button" disabled={!canCancelDeleteOrders}>Eliminar pedido</button>
                   </div>
 
                 </div>
@@ -1114,23 +1133,22 @@ const isOrderDetailPage = Boolean(initialOrderId);
           </div>
       </main>
 
-      <div id="order-delete-confirm-modal" class="order-confirm-modal hidden" role="dialog" aria-modal="true" aria-labelledby="order-delete-confirm-title" aria-hidden="true">
+      <div id="order-delete-confirm-modal" class:list={['order-confirm-modal hidden', !canCancelDeleteOrders && 'permission-hidden']} role="dialog" aria-modal="true" aria-labelledby="order-delete-confirm-title" aria-hidden="true">
         <div class="order-confirm-card">
           <div class="order-confirm-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M7 7h10l-.8 13H7.8L7 7Zm2-3h6l1 2h4v2H4V6h4l1-2Zm1 7h2v6h-2v-6Zm4 0h2v6h-2v-6Z"/></svg>
           </div>
           <h2 id="order-delete-confirm-title" class="order-confirm-title">Eliminar pedido</h2>
-          <p id="order-delete-confirm-message" class="order-confirm-message">Esta acción eliminará la orden y sus productos relacionados. No modifica el inventario.</p>
+          <p id="order-delete-confirm-message" class="order-confirm-message">Esta acción eliminará la orden y conciliará el inventario de forma segura.</p>
           <div id="order-delete-confirm-alert" class="alert order-confirm-alert hidden"></div>
           <div class="order-confirm-actions">
             <button id="order-delete-confirm-cancel" class="btn btn-secondary" type="button">Cancelar</button>
-            <button id="order-delete-confirm-secondary" class="btn btn-secondary hidden" type="button">Borrar sin devolver</button>
             <button id="order-delete-confirm-submit" class="btn btn-danger" type="button">Sí, borrar pedido</button>
           </div>
         </div>
       </div>
 
-      <div id="price-adjustment-modal" class="price-adjustment-modal hidden" role="dialog" aria-modal="true" aria-labelledby="price-adjustment-title" aria-hidden="true">
+      <div id="price-adjustment-modal" class:list={['price-adjustment-modal hidden', !canAdjustOrderPrice && 'permission-hidden']} role="dialog" aria-modal="true" aria-labelledby="price-adjustment-title" aria-hidden="true">
         <div class="price-adjustment-card" tabindex="-1">
           <div class="price-adjustment-heading">
             <div>
@@ -1189,22 +1207,45 @@ const isOrderDetailPage = Boolean(initialOrderId);
         </div>
       </div>
 
-      {isOrderDetailPage && (
+      {isOrderDetailPage && canCancelDeleteOrders && (
         <button id="floating-delete-order-btn" class="btn btn-danger detail-floating-delete hidden" type="button">
           Eliminar pedido
         </button>
       )}
     </div>
 
-    <script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreId, currentStoreName, adminOrdersPath, initialOrderId, isOrderDetailPage, publicStorePath }}>
+    <script define:vars={{
+      pocketbaseUrl,
+      currentStoreId,
+      currentStoreName,
+      adminOrdersPath,
+      initialOrderId,
+      isOrderDetailPage,
+      publicStorePath,
+      canManageOrderStatus,
+      canManageOrderItems,
+      canAdjustOrderPrice,
+      canCancelDeleteOrders,
+      canContactOrderCustomers,
+      canManageOrderReviews,
+      canRequestOrderReviews,
+      canManageOrderShipping,
+    }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const CURRENT_STORE_NAME = String(currentStoreName || '');
       const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
       const INITIAL_ORDER_ID = String(initialOrderId || '');
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
       const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
+      const CAN_MANAGE_ORDER_STATUS = canManageOrderStatus === true;
+      const CAN_MANAGE_ORDER_ITEMS = canManageOrderItems === true;
+      const CAN_ADJUST_ORDER_PRICE = canAdjustOrderPrice === true;
+      const CAN_CANCEL_DELETE_ORDERS = canCancelDeleteOrders === true;
+      const CAN_CONTACT_ORDER_CUSTOMERS = canContactOrderCustomers === true;
+      const CAN_MANAGE_ORDER_REVIEWS = canManageOrderReviews === true;
+      const CAN_REQUEST_ORDER_REVIEWS = canRequestOrderReviews === true;
+      const CAN_MANAGE_ORDER_SHIPPING = canManageOrderShipping === true;
       const adminView = document.getElementById('admin-view');
       const refreshBtn = document.getElementById('refresh-btn');
       const refreshMobileBtn = document.getElementById('refresh-mobile-btn');
@@ -1221,7 +1262,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const orderDeleteConfirmMessage = document.getElementById('order-delete-confirm-message');
       const orderDeleteConfirmAlert = document.getElementById('order-delete-confirm-alert');
       const orderDeleteConfirmCancel = document.getElementById('order-delete-confirm-cancel');
-      const orderDeleteConfirmSecondary = document.getElementById('order-delete-confirm-secondary');
       const orderDeleteConfirmSubmit = document.getElementById('order-delete-confirm-submit');
       const searchInput = document.getElementById('search-input');
       const statusFilter = document.getElementById('status-filter');
@@ -1333,7 +1373,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
       let orderAutoSaveRunning = false;
       let orderAutoSavePending = false;
       let pendingOrderDeleteAction = null;
-      let pendingOrderDeleteSecondaryAction = null;
       let storeSettingsRecord = null;
       const cleanupOrdersOpenBtnOriginalHtml = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.innerHTML : '';
       const cleanupOrdersOpenBtnOriginalClass = cleanupOrdersOpenBtn ? cleanupOrdersOpenBtn.className : '';
@@ -1603,7 +1642,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
       function closeOrderDeleteConfirm() {
         pendingOrderDeleteAction = null;
-        pendingOrderDeleteSecondaryAction = null;
         setOrderConfirmAlert('');
         orderDeleteConfirmModal?.classList.add('hidden');
         orderDeleteConfirmModal?.setAttribute('aria-hidden', 'true');
@@ -1611,27 +1649,16 @@ const isOrderDetailPage = Boolean(initialOrderId);
           orderDeleteConfirmSubmit.disabled = false;
           orderDeleteConfirmSubmit.textContent = 'Sí, borrar pedido';
         }
-        if (orderDeleteConfirmSecondary) {
-          orderDeleteConfirmSecondary.disabled = false;
-          orderDeleteConfirmSecondary.textContent = 'Borrar sin devolver';
-          orderDeleteConfirmSecondary.classList.add('hidden');
-        }
         if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
       }
-      function openOrderDeleteConfirm({ title, message, confirmText, action, secondaryText = '', secondaryAction = null }) {
+      function openOrderDeleteConfirm({ title, message, confirmText, action }) {
         pendingOrderDeleteAction = action;
-        pendingOrderDeleteSecondaryAction = secondaryAction;
         setOrderConfirmAlert('');
         if (orderDeleteConfirmTitle) orderDeleteConfirmTitle.textContent = title;
         if (orderDeleteConfirmMessage) orderDeleteConfirmMessage.textContent = message;
         if (orderDeleteConfirmSubmit) {
           orderDeleteConfirmSubmit.disabled = false;
           orderDeleteConfirmSubmit.textContent = confirmText;
-        }
-        if (orderDeleteConfirmSecondary) {
-          orderDeleteConfirmSecondary.disabled = false;
-          orderDeleteConfirmSecondary.textContent = secondaryText || 'Borrar sin devolver';
-          orderDeleteConfirmSecondary.classList.toggle('hidden', !secondaryAction);
         }
         if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
         orderDeleteConfirmModal?.classList.remove('hidden');
@@ -1643,7 +1670,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (orderDeleteConfirmSubmit) {
           orderDeleteConfirmSubmit.disabled = true;
         }
-        if (orderDeleteConfirmSecondary) orderDeleteConfirmSecondary.disabled = true;
         if (button) button.textContent = loadingText;
         if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = true;
         setOrderConfirmAlert('');
@@ -1656,34 +1682,136 @@ const isOrderDetailPage = Boolean(initialOrderId);
             orderDeleteConfirmSubmit.disabled = false;
             orderDeleteConfirmSubmit.textContent = orderDeleteConfirmTitle?.textContent?.includes('seleccionadas') ? 'Sí, borrar seleccionadas' : 'Sí, borrar pedido';
           }
-          if (orderDeleteConfirmSecondary) {
-            orderDeleteConfirmSecondary.disabled = false;
-            orderDeleteConfirmSecondary.textContent = 'Borrar sin devolver';
-          }
           if (orderDeleteConfirmCancel) orderDeleteConfirmCancel.disabled = false;
         }
       }
       async function confirmPendingOrderDelete() {
         await runPendingOrderDelete(pendingOrderDeleteAction, orderDeleteConfirmSubmit, 'Borrando...');
       }
-      async function confirmPendingOrderDeleteSecondary() {
-        await runPendingOrderDelete(pendingOrderDeleteSecondaryAction, orderDeleteConfirmSecondary, 'Borrando...');
-      }
       function showAdmin() { adminView.classList.remove('hidden'); }
-      function getAdminToken() { return ADMIN_AUTH_TOKEN; }
+      function getAdminToken() {
+        const authCookie = String(document.cookie || '')
+          .split(';')
+          .map((value) => value.trim())
+          .find((value) => value.startsWith('pb_auth='));
+        if (!authCookie) return '';
+        try {
+          const auth = JSON.parse(decodeURIComponent(authCookie.slice('pb_auth='.length)));
+          return String(auth?.token || '');
+        } catch {
+          return '';
+        }
+      }
       function clearAdminToken() { document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax'; }
 
+      function parseMutationJsonBody(body) {
+        if (typeof body !== 'string' || !body.trim()) return {};
+        try {
+          const parsed = JSON.parse(body);
+          return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (_) {
+          return {};
+        }
+      }
+      function orderPatchFieldAllowed(key) {
+        if (['customer_name', 'customer_phone', 'customer_email', 'customer_address', 'notes', 'customer_notes', 'admin_notes', 'whatsapp_sent'].includes(key)) {
+          return CAN_CONTACT_ORDER_CUSTOMERS;
+        }
+        if (['delivery_method', 'shipping_zone'].includes(key)) return CAN_MANAGE_ORDER_SHIPPING;
+        if (['shipping', 'shipping_usd', 'shipping_cup'].includes(key)) return CAN_MANAGE_ORDER_SHIPPING && CAN_ADJUST_ORDER_PRICE;
+        if (['subtotal', 'total', 'total_usd', 'usd_total'].includes(key)) return CAN_ADJUST_ORDER_PRICE;
+        if (['review_requested_at', 'review_request_count', 'review_skipped_at', 'review_completed_at'].includes(key)) return CAN_MANAGE_ORDER_REVIEWS;
+        // Estado, inventario y tokens solo se mutan mediante acciones privadas
+        // atomicas; nunca por PATCH directo desde el navegador.
+        return false;
+      }
+      function filterOrderPatchPayload(payload) {
+        return Object.fromEntries(Object.entries(payload || {}).filter(([key]) => orderPatchFieldAllowed(key)));
+      }
+      function assertOrderMutationAllowed(path, options = {}) {
+        const method = String(options.method || 'GET').toUpperCase();
+        if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+
+        if (/^\/api\/pz\/admin\/orders\/[^/]+\/transition(?:\?|$)/.test(path)) {
+          const status = String(parseMutationJsonBody(options.body).status || '').trim().toLowerCase();
+          const allowed = status === 'cancelled' ? CAN_CANCEL_DELETE_ORDERS : CAN_MANAGE_ORDER_STATUS;
+          if (!allowed) throw new Error('No tienes permiso para cambiar este estado.');
+          return;
+        }
+        if (/^\/api\/pz\/admin\/orders\/[^/]+\/receipt-token(?:\?|$)/.test(path)) {
+          if (method !== 'POST' || !CAN_CONTACT_ORDER_CUSTOMERS) {
+            throw new Error('No tienes permiso para generar el resumen del pedido.');
+          }
+          return;
+        }
+        if (/^\/api\/pz\/admin\/orders\/[^/]+\/review-token(?:\?|$)/.test(path)) {
+          if (method !== 'POST' || !CAN_MANAGE_ORDER_REVIEWS) {
+            throw new Error('No tienes permiso para generar el enlace de reseña.');
+          }
+          return;
+        }
+        if (/^\/api\/pz\/admin\/orders\/[^/]+\/items\/[^/]+\/price-adjustments(?:\/reset)?(?:\?|$)/.test(path)) {
+          if (!CAN_ADJUST_ORDER_PRICE) throw new Error('No tienes permiso para ajustar precios.');
+          return;
+        }
+        if (/^\/api\/pz\/admin\/orders\/[^/]+\/items(?:\/[^/]+(?:\/quantity)?)?(?:\?|$)/.test(path)) {
+          if (!CAN_MANAGE_ORDER_ITEMS) throw new Error('No tienes permiso para modificar articulos.');
+          return;
+        }
+        if (/^\/api\/pz\/admin\/orders\/[^/]+(?:\?|$)/.test(path)) {
+          if (method !== 'DELETE' || !CAN_CANCEL_DELETE_ORDERS) {
+            throw new Error('No tienes permiso para eliminar pedidos.');
+          }
+          return;
+        }
+        if (/^\/api\/collections\/orders\/records\/[^/?]+/.test(path)) {
+          if (method !== 'PATCH') throw new Error('Esta accion de pedidos no esta habilitada.');
+          const keys = Object.keys(parseMutationJsonBody(options.body));
+          if (!keys.length || keys.some((key) => !orderPatchFieldAllowed(key))) {
+            throw new Error('Uno o mas campos del pedido requieren otra accion o permiso.');
+          }
+          return;
+        }
+        throw new Error('Esta accion no esta habilitada para tu perfil.');
+      }
+      function redactOrderForCurrentPermissions(order) {
+        if (!order || typeof order !== 'object') return order;
+        const safe = { ...order };
+        if (!CAN_CONTACT_ORDER_CUSTOMERS) {
+          ['customer_phone', 'customer_email', 'customer_address', 'receipt_token']
+            .forEach((field) => delete safe[field]);
+          delete safe.customer;
+          if (safe.expand && typeof safe.expand === 'object') {
+            safe.expand = { ...safe.expand };
+            delete safe.expand.customer;
+          }
+        }
+        if (!CAN_MANAGE_ORDER_REVIEWS) delete safe.review_token;
+        return safe;
+      }
+      function redactDirectOrderApiResult(path, result) {
+        if (!/^\/api\/collections\/orders\/records(?:[/?]|$)/.test(path) || !result) return result;
+        if (Array.isArray(result.items)) {
+          return { ...result, items: result.items.map(redactOrderForCurrentPermissions) };
+        }
+        return redactOrderForCurrentPermissions(result);
+      }
       async function apiRequest(path, options = {}) {
+        assertOrderMutationAllowed(path, options);
         const headers = { ...(options.headers || {}) };
         const token = getAdminToken();
         if (token) headers.Authorization = `Bearer ${token}`;
         const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
         const result = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(result?.message || 'Error de comunicacion con la plataforma.');
-        return result;
+        if (!response.ok) throw new Error(result?.message || result?.error || 'Error de comunicacion con la plataforma.');
+        return redactDirectOrderApiResult(path, result);
       }
 
       async function loadStoreSettings() {
+        if (!CAN_MANAGE_ORDER_REVIEWS) {
+          storeSettingsRecord = null;
+          return;
+        }
         try {
           const result = await apiRequest(`/api/collections/settings/records?${withStoreFilter('filter=active=true&sort=-updated&perPage=1')}`);
           storeSettingsRecord = result.items?.[0] || null;
@@ -1843,8 +1971,10 @@ const isOrderDetailPage = Boolean(initialOrderId);
         const zoneLabel = isDelivery && zone ? `${[zone.municipality, zone.zone].filter(Boolean).join(' / ')} - ${formatUSD(zone.price_usd || 0)}` : '';
         const deliveryText = [deliveryLabels[method] || method || 'Sin forma', zoneLabel].filter(Boolean).join(' · ');
         if (detailDelivery) detailDelivery.textContent = deliveryText;
-        if (detailAddressBox) detailAddressBox.classList.toggle('hidden', !isDelivery);
-        if (detailAddress) detailAddress.textContent = isDelivery ? (editCustomerAddress?.value || selectedOrder.customer_address || 'Sin dirección / no aplica') : 'No aplica';
+        if (detailAddressBox) detailAddressBox.classList.toggle('hidden', !CAN_CONTACT_ORDER_CUSTOMERS || !isDelivery);
+        if (detailAddress) detailAddress.textContent = CAN_CONTACT_ORDER_CUSTOMERS && isDelivery
+          ? (editCustomerAddress?.value || selectedOrder.customer_address || 'Sin dirección / no aplica')
+          : '';
         if (detailTotal) {
           const subtotal = getEditorSubtotal() || Number(selectedOrder.total || 0) - getOrderShippingAmount(selectedOrder);
           const shipping = isDelivery ? Number(zone?.price_usd || selectedOrder.shipping || selectedOrder.shipping_usd || 0) : 0;
@@ -1890,26 +2020,31 @@ const isOrderDetailPage = Boolean(initialOrderId);
           payload.shipping_zone = nextShippingZone.id;
         }
 
-        return payload;
+        const filtered = filterOrderPatchPayload(payload);
+        return Object.keys(filtered).length ? filtered : null;
       }
 
       function updateOrderEditorPreviewBeforeAutoSave() {
         if (!selectedOrder) return;
         if (detailCustomer) detailCustomer.textContent = editCustomerName?.value.trim() || 'Sin nombre';
-        if (detailPhone) detailPhone.textContent = editCustomerPhone?.value.trim() || 'Sin teléfono';
+        if (detailPhone) detailPhone.textContent = CAN_CONTACT_ORDER_CUSTOMERS
+          ? (editCustomerPhone?.value.trim() || 'Sin teléfono')
+          : '';
         updateDeliveryEditorVisibility();
       }
 
       function scheduleOrderAutoSave() {
-        if (!selectedOrder || isOrderEditingLocked()) return;
+        if (!selectedOrder || isOrderEditingLocked() || (!CAN_CONTACT_ORDER_CUSTOMERS && !CAN_MANAGE_ORDER_SHIPPING)) return;
         updateOrderEditorPreviewBeforeAutoSave();
         clearTimeout(orderAutoSaveTimer);
         orderAutoSaveTimer = setTimeout(() => autoSaveOrderEditorFields(), 650);
       }
 
       async function autoSaveOrderEditorFields() {
-        if (!selectedOrder || isOrderEditingLocked()) return;
-        const phoneValidation = normalizeEditableCustomerPhone(editCustomerPhone?.value || '');
+        if (!selectedOrder || isOrderEditingLocked() || (!CAN_CONTACT_ORDER_CUSTOMERS && !CAN_MANAGE_ORDER_SHIPPING)) return;
+        const phoneValidation = CAN_CONTACT_ORDER_CUSTOMERS
+          ? normalizeEditableCustomerPhone(editCustomerPhone?.value || '')
+          : { isValid: true, phone: selectedOrder.customer_phone || '' };
         if (!phoneValidation.isValid) {
           setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de guardar.', 'error');
           return;
@@ -1938,8 +2073,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
           detailStatusBadge.className = getStatusClass(selectedOrder.status);
           detailStatusBadge.textContent = getStatusLabel(selectedOrder.status);
           detailCustomer.textContent = selectedOrder.customer_name || 'Sin nombre';
-          detailPhone.textContent = selectedOrder.customer_phone || 'Sin teléfono';
-          if (editCustomerPhone) editCustomerPhone.value = selectedOrder.customer_phone || '';
+          detailPhone.textContent = CAN_CONTACT_ORDER_CUSTOMERS ? (selectedOrder.customer_phone || 'Sin teléfono') : '';
+          if (editCustomerPhone) editCustomerPhone.value = CAN_CONTACT_ORDER_CUSTOMERS ? (selectedOrder.customer_phone || '') : '';
           updateShippingCostPreview();
           updateDeliveryLivePreview();
           renderStats();
@@ -2252,7 +2387,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
         return orders.filter((order) => {
           const matchesStatus = status === 'all' || normalizeStatus(order.status) === status;
           const matchesDelivery = delivery === 'all' || order.delivery_method === delivery;
-          const haystack = [order.order_number, order.customer_name, order.customer_phone, order.customer_address, getShippingZoneLabel(order)].join(' ').toLowerCase();
+          const contactSearch = CAN_CONTACT_ORDER_CUSTOMERS ? [order.customer_phone, order.customer_address] : [];
+          const haystack = [order.order_number, order.customer_name, ...contactSearch, getShippingZoneLabel(order)].join(' ').toLowerCase();
           const matchesSearch = !search || haystack.includes(search);
           return matchesStatus && matchesDelivery && matchesSearch;
         });
@@ -2310,7 +2446,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               </div>
               <div class="order-cell order-customer">
                 <span class="order-customer-name">${escapeHtml(order.customer_name || 'Cliente sin nombre')}</span>
-                <span class="order-subtext">${escapeHtml(order.customer_phone || 'Sin telefono')}</span>
+                ${CAN_CONTACT_ORDER_CUSTOMERS ? `<span class="order-subtext">${escapeHtml(order.customer_phone || 'Sin telefono')}</span>` : ''}
               </div>
               <div class="order-cell order-date-cell">${formatDateOnly(order.created)}</div>
               <div class="order-cell center order-total-cell"><span class="order-total-simple">${getOrderFinalTotal(order)}</span></div>
@@ -2318,7 +2454,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               <div class="order-cell center order-status-cell"><span class="order-status-chip status-${escapeHtml(statusClass)}">${escapeHtml(getStatusLabel(order.status))}</span></div>
               <div class="order-row-actions">
                 <button class="order-open-btn js-open-order" type="button" data-order-open="${escapeHtml(order.id)}">Abrir</button>
-                <button class="order-delete-btn js-delete-order" type="button" data-order-delete="${escapeHtml(order.id)}" aria-label="Borrar pedido">${deleteIcon}</button>
+                ${CAN_CANCEL_DELETE_ORDERS ? `<button class="order-delete-btn js-delete-order" type="button" data-order-delete="${escapeHtml(order.id)}" aria-label="Borrar pedido">${deleteIcon}</button>` : ''}
               </div>
             </article>`;
 
@@ -2459,17 +2595,19 @@ const isOrderDetailPage = Boolean(initialOrderId);
         detailStatusBadge.className = getStatusClass(order.status);
         detailStatusBadge.textContent = getStatusLabel(order.status);
         detailCustomer.textContent = order.customer_name || 'Sin nombre';
-        detailPhone.textContent = order.customer_phone || 'Sin teléfono';
+        detailPhone.textContent = CAN_CONTACT_ORDER_CUSTOMERS ? (order.customer_phone || 'Sin teléfono') : '';
         detailDelivery.textContent = deliveryText;
         detailTotal.innerHTML = renderOrderAdminSummary(order, selectedItems);
         renderDetailCoupon(order);
-        if (detailAddressBox) detailAddressBox.classList.toggle('hidden', !isDeliveryOrder);
-        detailAddress.textContent = isDeliveryOrder ? (order.customer_address || 'Sin dirección / no aplica') : 'No aplica';
+        if (detailAddressBox) detailAddressBox.classList.toggle('hidden', !CAN_CONTACT_ORDER_CUSTOMERS || !isDeliveryOrder);
+        detailAddress.textContent = CAN_CONTACT_ORDER_CUSTOMERS && isDeliveryOrder
+          ? (order.customer_address || 'Sin dirección / no aplica')
+          : '';
         detailStatus.value = normalizeStatus(order.status);
         detailNotes.value = order.notes || '';
         editCustomerName.value = order.customer_name || '';
-        editCustomerPhone.value = order.customer_phone || '';
-        editCustomerAddress.value = order.customer_address || '';
+        editCustomerPhone.value = CAN_CONTACT_ORDER_CUSTOMERS ? (order.customer_phone || '') : '';
+        editCustomerAddress.value = CAN_CONTACT_ORDER_CUSTOMERS ? (order.customer_address || '') : '';
         editDeliveryMethod.value = order.delivery_method || 'delivery';
 
         const currentZone = order.expand?.shipping_zone || getShippingZoneById(order.shipping_zone);
@@ -2487,6 +2625,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function setAddProductPanel(open) {
         if (!addProductPanel || !toggleAddProductBtn) return;
+        if (!CAN_MANAGE_ORDER_ITEMS) return;
         const locked = isProductEditingLocked();
         if (locked) {
           addProductPanel.classList.add('hidden');
@@ -2502,6 +2641,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function setEditOrderPanel(open) {
         if (!editOrderPanel || !toggleEditOrderBtn) return;
+        if (!CAN_CONTACT_ORDER_CUSTOMERS && !CAN_MANAGE_ORDER_SHIPPING) return;
         const locked = isOrderEditingLocked();
         if (locked) {
           editOrderPanel.classList.add('hidden');
@@ -2551,7 +2691,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       function updateProductEditorLockState() {
-        const locked = isProductEditingLocked();
+        const locked = !CAN_MANAGE_ORDER_ITEMS || isProductEditingLocked();
         [addProductSearch, addProductVariationSelect, addProductQuantity, addProductBtn].forEach((element) => {
           if (element) element.disabled = locked;
         });
@@ -2567,11 +2707,14 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function updateCustomerEditorLockState() {
         const locked = isOrderEditingLocked();
-        [editCustomerName, editCustomerPhone, editCustomerAddress, editDeliveryMethod, editShippingMunicipality, editShippingZone, detailNotes].forEach((element) => {
-          if (element) element.disabled = locked;
+        [editCustomerName, editCustomerPhone, editCustomerAddress, detailNotes].forEach((element) => {
+          if (element) element.disabled = locked || !CAN_CONTACT_ORDER_CUSTOMERS;
+        });
+        [editDeliveryMethod, editShippingMunicipality, editShippingZone].forEach((element) => {
+          if (element) element.disabled = locked || !CAN_MANAGE_ORDER_SHIPPING;
         });
         if (toggleEditOrderBtn) {
-          toggleEditOrderBtn.disabled = locked;
+          toggleEditOrderBtn.disabled = locked || (!CAN_CONTACT_ORDER_CUSTOMERS && !CAN_MANAGE_ORDER_SHIPPING);
           const editOrderLabel = toggleEditOrderBtn.querySelector('[data-edit-order-label]');
           const nextLabel = locked ? 'Datos bloqueados' : (editOrderPanel?.classList.contains('hidden') ? 'Editar Datos del Cliente' : 'Cerrar edición');
           if (editOrderLabel) editOrderLabel.textContent = nextLabel;
@@ -2600,6 +2743,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function updateReviewRequestButtonState() {
         if (!requestReviewBtn) return;
+        if (!CAN_REQUEST_ORDER_REVIEWS) {
+          requestReviewBtn.classList.add('permission-hidden');
+          requestReviewBtn.disabled = true;
+          return;
+        }
         requestReviewBtn.classList.remove('hidden');
         requestReviewBtn.disabled = true;
         requestReviewBtn.textContent = 'Pedir reseña';
@@ -2634,12 +2782,20 @@ const isOrderDetailPage = Boolean(initialOrderId);
       function updateStatusControlsState() {
         if (!selectedOrder || !detailStatus) return;
         const currentStatus = normalizeStatus(selectedOrder.status);
+        detailStatus.disabled = !CAN_MANAGE_ORDER_STATUS && !CAN_CANCEL_DELETE_ORDERS;
+        ['pending', 'confirmed'].forEach((status) => {
+          const option = detailStatus.querySelector(`option[value="${status}"]`);
+          if (option) option.disabled = !CAN_MANAGE_ORDER_STATUS;
+        });
         const deliveredOption = detailStatus.querySelector('option[value="delivered"]');
         if (deliveredOption) {
-          deliveredOption.disabled = !['confirmed', 'delivered'].includes(currentStatus);
+          deliveredOption.disabled = !CAN_MANAGE_ORDER_STATUS || !['confirmed', 'delivered'].includes(currentStatus);
         }
+        const cancelledOption = detailStatus.querySelector('option[value="cancelled"]');
+        if (cancelledOption) cancelledOption.disabled = !CAN_CANCEL_DELETE_ORDERS;
+        if (saveOrderBtn) saveOrderBtn.disabled = !CAN_MANAGE_ORDER_STATUS && !CAN_CANCEL_DELETE_ORDERS;
         if (markDeliveredBtn) {
-          markDeliveredBtn.disabled = currentStatus !== 'confirmed';
+          markDeliveredBtn.disabled = !CAN_MANAGE_ORDER_STATUS || currentStatus !== 'confirmed';
           markDeliveredBtn.textContent = currentStatus === 'delivered' ? 'Orden entregada' : 'Marcar entregada';
         }
         updateReviewRequestButtonState();
@@ -2647,7 +2803,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       function updateCancelledDeleteButtonState() {
-        const canDeleteFromSummary = selectedOrder && normalizeStatus(selectedOrder.status) === 'cancelled';
+        const canDeleteFromSummary = CAN_CANCEL_DELETE_ORDERS && selectedOrder && normalizeStatus(selectedOrder.status) === 'cancelled';
         if (deleteCancelledOrderBtn) deleteCancelledOrderBtn.classList.toggle('hidden', !canDeleteFromSummary);
         if (floatingDeleteOrderBtn) {
           const showFloatingDelete = Boolean(IS_ORDER_DETAIL_PAGE && selectedOrder && !canDeleteFromSummary);
@@ -2665,151 +2821,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
         return Number(order.shipping || order.shipping_usd || order.expand?.shipping_zone?.price_usd || 0);
       }
 
-
-      async function ensureSelectedItemsLoaded() {
-        if (!selectedOrder) return [];
-        if (selectedItems.length) return selectedItems;
-        const filter = encodeURIComponent(`order = "${selectedOrder.id}"`);
-        const result = await apiRequest(`/api/collections/order_items/records?filter=${filter}&sort=created&expand=product,variation,gift&perPage=100`);
-        selectedItems = result.items || [];
-        return selectedItems;
-      }
-
-      function getInventoryGroups(items = selectedItems) {
-        const groups = new Map();
-        items.forEach((item) => {
-          const quantity = Math.max(0, Math.floor(Number(item.quantity || 0)));
-          if (!quantity) return;
-          if (item.is_gift) {
-            if (!item.gift) return;
-            const key = `gift:${item.gift}`;
-            const existing = groups.get(key) || { key, type: 'gift', id: item.gift, giftId: item.gift, productName: item.product_name || item.expand?.gift?.name || 'Regalo', variationName: '', quantity: 0 };
-            existing.quantity += quantity;
-            groups.set(key, existing);
-            return;
-          }
-          if (!item.product) return;
-          const product = getItemProduct(item);
-          if (!productTracksStock(product)) return;
-          const variationId = item.variation || '';
-          const key = variationId ? `variation:${variationId}` : `product:${item.product}`;
-          const existing = groups.get(key) || {
-            key,
-            type: variationId ? 'variation' : 'product',
-            id: variationId || item.product,
-            productId: item.product,
-            variationId,
-            productName: item.product_name || 'Producto',
-            variationName: item.variation_name || '',
-            quantity: 0,
-          };
-          existing.quantity += quantity;
-          groups.set(key, existing);
-        });
-        return Array.from(groups.values());
-      }
-
-      async function getInventoryRecord(group) {
-        const collection = group.type === 'gift' ? 'gifts' : (group.type === 'variation' ? 'product_variations' : 'products');
-        return await apiRequest(`/api/collections/${collection}/records/${group.id}`);
-      }
-
-      async function patchInventoryStock(group, newStock) {
-        const collection = group.type === 'gift' ? 'gifts' : (group.type === 'variation' ? 'product_variations' : 'products');
-        return await apiRequest(`/api/collections/${collection}/records/${group.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stock: Math.max(0, Number(newStock || 0)) }),
-        });
-      }
-
-      async function deductInventoryForSelectedOrder() {
-        if (!selectedOrder) return;
-        const items = await ensureSelectedItemsLoaded();
-        const groups = getInventoryGroups(items);
-        if (!groups.length) return;
-
-        const snapshots = [];
-        for (const group of groups) {
-          const record = await getInventoryRecord(group);
-          const currentStock = Number(record.stock || 0);
-          const label = group.variationName ? `${group.productName} (${group.variationName})` : group.productName;
-          if (currentStock < group.quantity) {
-            throw new Error(`Stock insuficiente para ${label}. Disponible: ${currentStock}. Necesario: ${group.quantity}.`);
-          }
-          snapshots.push({ group, currentStock });
-        }
-
-        const changed = [];
-        try {
-          for (const snapshot of snapshots) {
-            await patchInventoryStock(snapshot.group, snapshot.currentStock - snapshot.group.quantity);
-            changed.push(snapshot);
-          }
-        } catch (error) {
-          for (const snapshot of changed.reverse()) {
-            try { await patchInventoryStock(snapshot.group, snapshot.currentStock); } catch (rollbackError) { }
-          }
-          throw new Error('No se pudo descontar inventario completo. Se intentó revertir cualquier cambio parcial.');
-        }
-      }
-
-      async function restoreInventoryForSelectedOrder() {
-        if (!selectedOrder) return;
-        const items = await ensureSelectedItemsLoaded();
-        const groups = getInventoryGroups(items);
-        for (const group of groups) {
-          const record = await getInventoryRecord(group);
-          await patchInventoryStock(group, Number(record.stock || 0) + Number(group.quantity || 0));
-        }
-      }
-
-      async function getOrderItemsForOrder(orderId) {
-        if (!orderId) return [];
-        const filter = encodeURIComponent(`order = "${orderId}"`);
-        const result = await apiRequest(`/api/collections/order_items/records?filter=${filter}&sort=created&expand=product,variation,gift&perPage=200`);
-        return result.items || [];
-      }
-
-      async function revertInventorySnapshots(snapshots = []) {
-        for (const snapshot of snapshots.slice().reverse()) {
-          try {
-            await patchInventoryStock(snapshot.group, snapshot.currentStock);
-          } catch (error) {
-            }
-        }
-      }
-
-      async function restoreInventoryForOrder(orderId) {
-        const items = await getOrderItemsForOrder(orderId);
-        const groups = getInventoryGroups(items);
-        if (!groups.length) return [];
-
-        const snapshots = [];
-        for (const group of groups) {
-          const record = await getInventoryRecord(group);
-          snapshots.push({ group, currentStock: Number(record.stock || 0) });
-        }
-
-        const changed = [];
-        try {
-          for (const snapshot of snapshots) {
-            await patchInventoryStock(snapshot.group, snapshot.currentStock + Number(snapshot.group.quantity || 0));
-            changed.push(snapshot);
-          }
-        } catch (error) {
-          await revertInventorySnapshots(changed);
-          throw new Error('No se pudo devolver el inventario. Se intentó revertir cualquier cambio parcial.');
-        }
-        return changed;
-      }
-
-      async function refreshInventoryAfterMovement() {
-        await loadProductCatalog();
-        if (selectedOrder) await reloadSelectedItems();
-        updateProductEditorLockState();
-        updateWhatsAppButtonState();
-      }
 
       function getAutomaticUnitPrice(item) {
         const explicit = Number(item?.unit_price_after_automatic_discount_usd);
@@ -2836,7 +2847,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
           const maxStockValue = getMaxQuantityForExistingItem(item);
           const maxStock = Number.isFinite(maxStockValue) && maxStockValue !== null ? maxStockValue : '';
           const productsLocked = isProductEditingLocked();
-          const quantityDisabled = productsLocked || isGiftItem;
+          const quantityDisabled = !CAN_MANAGE_ORDER_ITEMS || productsLocked || isGiftItem;
           const imageUrl = isGiftItem ? (item.expand?.gift?.image ? `${POCKETBASE_URL}/api/files/gifts/${item.expand.gift.id}/${Array.isArray(item.expand.gift.image) ? item.expand.gift.image[0] : item.expand.gift.image}` : '') : getProductImageUrlFromItem(item);
           const imageHtml = imageUrl
             ? `<img class="order-product-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.product_name || 'Producto')}" loading="lazy" style="width:46px!important;height:46px!important;border-radius:13px;object-fit:cover;display:block;" />`
@@ -2867,8 +2878,8 @@ const isOrderDetailPage = Boolean(initialOrderId);
                       <button class="item-qty-plus" type="button" ${quantityDisabled ? 'disabled' : ''} style="height:38px;border:0;border-radius:12px;background:#dcfce7;color:#166534;font-size:18px;font-weight:1000;">+</button>
                     </div>
                   </div>
-                  ${!isGiftItem ? `<button class="btn btn-secondary adjust-price-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${adjustmentAllowed ? '' : 'disabled'}>${item.has_manual_price_adjustment ? 'Editar ajuste' : 'Ajustar precio'}</button>` : ''}
-                  <button class="btn btn-danger delete-item-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${productsLocked ? 'disabled' : ''}>Borrar</button>
+                  ${CAN_ADJUST_ORDER_PRICE && !isGiftItem ? `<button class="btn btn-secondary adjust-price-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${adjustmentAllowed ? '' : 'disabled'}>${item.has_manual_price_adjustment ? 'Editar ajuste' : 'Ajustar precio'}</button>` : ''}
+                  ${CAN_MANAGE_ORDER_ITEMS ? `<button class="btn btn-danger delete-item-btn" type="button" data-item-id="${escapeHtml(item.id)}" ${productsLocked ? 'disabled' : ''}>Borrar</button>` : ''}
                 </div>
                 <span class="item-save-status" style="font-size:11px;color:#64748b;font-weight:850;">${productsLocked ? 'Cantidad y borrado bloqueados por inventario.' : 'El precio canónico es de solo lectura.'}</span>
               </div>
@@ -2955,7 +2966,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function saveSingleOrderItem(itemId) {
-        if (!selectedOrder || !itemId) return;
+        if (!CAN_MANAGE_ORDER_ITEMS || !selectedOrder || !itemId) return;
         if (isProductEditingLocked()) {
           setDetailAlert('Esta orden ya descontó inventario. La edición de productos está bloqueada por seguridad.', 'error');
           return;
@@ -3058,6 +3069,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       function openPriceAdjustment(itemId) {
+        if (!CAN_ADJUST_ORDER_PRICE) return;
         const item = selectedItems.find((entry) => entry.id === itemId);
         if (!item || item.is_gift || !['pending', 'confirmed', 'preparing'].includes(normalizeStatus(selectedOrder?.status))) return;
         adjustmentItem = item;
@@ -3125,7 +3137,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function submitPriceAdjustment() {
-        if (!selectedOrder || !adjustmentItem) return;
+        if (!CAN_ADJUST_ORDER_PRICE || !selectedOrder || !adjustmentItem) return;
         if (priceAdjustmentMode === 'reset') {
           await submitPriceAdjustmentReset();
           return;
@@ -3191,7 +3203,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function submitPriceAdjustmentReset() {
-        if (!selectedOrder || !adjustmentItem?.has_manual_price_adjustment) return;
+        if (!CAN_ADJUST_ORDER_PRICE || !selectedOrder || !adjustmentItem?.has_manual_price_adjustment) return;
         const reason = validatePriceAdjustmentReason();
         if (!reason) return;
         priceAdjustmentSubmit.disabled = true;
@@ -3213,7 +3225,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function addProductToOrder() {
-        if (!selectedOrder) return;
+        if (!CAN_MANAGE_ORDER_ITEMS || !selectedOrder) return;
         if (isProductEditingLocked()) {
           setDetailAlert('Esta orden ya descontó inventario. Para modificar productos, primero revierte/cambia el estado según el flujo seguro.', 'error');
           return;
@@ -3277,7 +3289,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function deleteOrderItem(itemId) {
-        if (!selectedOrder || !itemId) return;
+        if (!CAN_MANAGE_ORDER_ITEMS || !selectedOrder || !itemId) return;
         if (isProductEditingLocked()) {
           setDetailAlert('Esta orden ya descontó inventario. No puedes borrar productos sin revertir primero el inventario.', 'error');
           return;
@@ -3304,96 +3316,49 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       async function saveSelectedOrder(extraPayload = {}) {
         if (!selectedOrder) return;
-        saveOrderBtn.disabled = true;
-        const previousOrder = selectedOrder;
-        const previousStatus = normalizeStatus(previousOrder.status);
+        const previousStatus = normalizeStatus(selectedOrder.status);
         const nextStatus = normalizeStatus(extraPayload.status || detailStatus.value);
+        const canTransition = nextStatus === 'cancelled' ? CAN_CANCEL_DELETE_ORDERS : CAN_MANAGE_ORDER_STATUS;
+        if (!canTransition) {
+          detailStatus.value = previousStatus;
+          setDetailAlert('No tienes permiso para cambiar la orden a ese estado.', 'error');
+          return;
+        }
         if (nextStatus === 'delivered' && !['confirmed', 'delivered'].includes(previousStatus)) {
           detailStatus.value = previousStatus;
           setDetailAlert('Para marcar una orden como Entregada, primero debe estar Confirmada.', 'error');
-          saveOrderBtn.disabled = false;
           return;
         }
-        const phoneValidation = normalizeEditableCustomerPhone(editCustomerPhone?.value || '');
-        if (!phoneValidation.isValid) {
-          setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de guardar.', 'error');
-          saveOrderBtn.disabled = false;
+        if (nextStatus === previousStatus) {
+          setDetailAlert('La orden ya tiene ese estado.', 'info');
           return;
         }
-        const hadStockDeducted = orderHasStockDeducted(previousOrder);
-        const shouldDeductInventory = nextStatus === 'confirmed' && !hadStockDeducted;
-        const shouldRestoreInventory = hadStockDeducted && ['pending', 'cancelled'].includes(nextStatus);
 
-        if (shouldDeductInventory) {
-          setDetailAlert('Confirmando orden y descontando inventario...', 'info');
-        } else if (shouldRestoreInventory) {
-          setDetailAlert(nextStatus === 'cancelled' ? 'Cancelando orden y restaurando inventario...' : 'Volviendo la orden a pendiente y restaurando inventario...', 'info');
-        } else {
-          setDetailAlert('Guardando cambios...', 'info');
-        }
-
+        saveOrderBtn.disabled = true;
+        setDetailAlert(nextStatus === 'cancelled' ? 'Cancelando orden de forma segura...' : 'Actualizando estado e inventario...', 'info');
         try {
-          if (shouldDeductInventory) await deductInventoryForSelectedOrder();
-          if (shouldRestoreInventory) await restoreInventoryForSelectedOrder();
-
-          const nextDeliveryMethod = editDeliveryMethod.value;
-          const nextShippingZone = nextDeliveryMethod === 'delivery' ? getSelectedShippingZoneForEditor() : null;
-          const subtotal = selectedItems.reduce((sum, item) => sum + Number(item.line_total_usd || 0), 0);
-          const nextShippingAmount = nextDeliveryMethod === 'delivery' ? Number(nextShippingZone?.price_usd || selectedOrder.shipping || selectedOrder.shipping_usd || 0) : 0;
-          const nextTotal = subtotal + nextShippingAmount;
-
-          const payload = {
-            customer_name: editCustomerName.value.trim(),
-            customer_phone: phoneValidation.phone,
-            customer_address: editCustomerAddress.value.trim(),
-            delivery_method: nextDeliveryMethod,
-            shipping: nextShippingAmount,
-            shipping_usd: nextShippingAmount,
-            total: nextTotal,
-            total_usd: nextTotal,
-            status: nextStatus,
-            notes: detailNotes.value.trim(),
-            ...extraPayload,
-          };
-
-          if (nextStatus === 'delivered' && !hasValue(previousOrder.delivered_at) && !hasValue(payload.delivered_at)) {
-            payload.delivered_at = new Date().toISOString();
-          }
-
-          if (nextDeliveryMethod === 'delivery' && nextShippingZone?.id) {
-            payload.shipping_zone = nextShippingZone.id;
-          }
-
-          if (shouldDeductInventory) payload.stock_deducted = true;
-          if (shouldRestoreInventory) payload.stock_deducted = false;
-
-          const updatedOrder = await apiRequest(`/api/collections/orders/records/${selectedOrder.id}?expand=shipping_zone,currency`, {
-            method: 'PATCH',
+          const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/transition`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ status: nextStatus }),
           });
-          orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
-          selectedOrder = updatedOrder;
-          fillDetail(updatedOrder);
-          renderStats();
-          renderOrders();
-
-          if (shouldDeductInventory || shouldRestoreInventory) await refreshInventoryAfterMovement();
-
-          if (shouldDeductInventory) {
-            setDetailAlert('Orden confirmada correctamente. El inventario fue descontado y la edición de productos quedó bloqueada por seguridad.', 'success');
-          } else if (shouldRestoreInventory) {
-            setDetailAlert(nextStatus === 'cancelled' ? 'Orden cancelada correctamente. El inventario fue restaurado y la orden quedó liberada.' : 'Orden devuelta a pendiente correctamente. El inventario fue restaurado y la edición quedó liberada.', 'success');
+          if (result?.order?.id) {
+            await applyPrivateOrderMutation(result);
           } else {
-            setDetailAlert('Orden actualizada correctamente.', 'success');
+            const refreshed = await apiRequest(`/api/collections/orders/records/${selectedOrder.id}?expand=shipping_zone,currency`);
+            selectedOrder = refreshed;
+            orders = orders.map((order) => order.id === refreshed.id ? refreshed : order);
+            await reloadSelectedItems();
+            fillDetail(refreshed);
+            renderStats();
+            renderOrders();
           }
+          setDetailAlert(nextStatus === 'cancelled'
+            ? 'Orden cancelada correctamente; el inventario fue conciliado por el servidor.'
+            : 'Estado e inventario actualizados correctamente.', 'success');
         } catch (error) {
-          if (shouldDeductInventory || shouldRestoreInventory) {
-            detailStatus.value = previousStatus;
-            setDetailAlert(error?.message || 'No se pudo completar el movimiento de inventario. La orden no fue actualizada.', 'error');
-          } else {
-            setDetailAlert('No se pudo actualizar la orden. Revisa tu sesion admin o las reglas administrativas.', 'error');
-          }
+          detailStatus.value = previousStatus;
+          setDetailAlert(error?.message || 'No se pudo actualizar el estado de la orden.', 'error');
         } finally {
           saveOrderBtn.disabled = false;
         }
@@ -3406,11 +3371,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
         lines.push('');
         lines.push(`Orden: ${selectedOrder.order_number}`);
         lines.push(`Cliente: ${selectedOrder.customer_name || ''}`);
-        lines.push(`Teléfono: ${selectedOrder.customer_phone || ''}`);
+        if (CAN_CONTACT_ORDER_CUSTOMERS) lines.push(`Teléfono: ${selectedOrder.customer_phone || ''}`);
         lines.push(`Entrega: ${deliveryLabels[selectedOrder.delivery_method] || selectedOrder.delivery_method || ''}`);
         const zoneLabel = selectedOrder.delivery_method === 'delivery' ? getShippingZoneLabel(selectedOrder) : '';
         if (zoneLabel) lines.push(`Zona: ${zoneLabel}`);
-        if (selectedOrder.delivery_method === 'delivery' && selectedOrder.customer_address) lines.push(`Dirección: ${selectedOrder.customer_address}`);
+        if (CAN_CONTACT_ORDER_CUSTOMERS && selectedOrder.delivery_method === 'delivery' && selectedOrder.customer_address) {
+          lines.push(`Dirección: ${selectedOrder.customer_address}`);
+        }
         lines.push('');
         lines.push('Productos:');
         if (selectedItems.length) {
@@ -3447,6 +3414,11 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
       function updateWhatsAppButtonState() {
         if (!whatsappOrderBtn || !selectedOrder) return;
+        if (!CAN_CONTACT_ORDER_CUSTOMERS) {
+          whatsappOrderBtn.disabled = true;
+          whatsappOrderBtn.classList.add('permission-hidden');
+          return;
+        }
         const status = normalizeStatus(selectedOrder.status);
         const labels = {
           pending: 'Contactar cliente',
@@ -3502,7 +3474,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       function openWhatsAppOrder() {
-        if (!selectedOrder) return;
+        if (!CAN_CONTACT_ORDER_CUSTOMERS || !selectedOrder) return;
         const phoneValidation = normalizeStoredWhatsAppPhone(selectedOrder.customer_phone);
         if (!phoneValidation.isValid) {
           setDetailAlert('El teléfono del cliente no parece válido para WhatsApp. Revisa el número antes de contactar.', 'error');
@@ -3513,47 +3485,23 @@ const isOrderDetailPage = Boolean(initialOrderId);
         window.open(url, '_blank', 'noopener,noreferrer');
       }
 
-      function buildReceiptToken() {
-        const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        const cryptoValues = new Uint32Array(24);
-        if (window.crypto?.getRandomValues) {
-          window.crypto.getRandomValues(cryptoValues);
-          return Array.from(cryptoValues, (value) => characters[value % characters.length]).join('');
-        }
-        let token = '';
-        for (let i = 0; i < 24; i++) token += characters[Math.floor(Math.random() * characters.length)];
-        return token;
-      }
-
       function buildReceiptUrl(order) {
         if (!order?.order_number || !order?.receipt_token) return '';
         return `${window.location.origin}/orden/${encodeURIComponent(order.order_number)}/${encodeURIComponent(order.receipt_token)}`;
       }
 
       async function ensureSelectedOrderReceiptToken() {
-        if (!selectedOrder) return null;
+        if (!CAN_CONTACT_ORDER_CUSTOMERS || !selectedOrder) return null;
         if (selectedOrder.receipt_token) return selectedOrder;
-        const receiptToken = buildReceiptToken();
-        const updatedOrder = await apiRequest(`/api/collections/orders/records/${selectedOrder.id}?expand=shipping_zone,currency`, {
-          method: 'PATCH',
+        const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/receipt-token`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ receipt_token: receiptToken }),
+          body: JSON.stringify({}),
         });
+        const updatedOrder = { ...selectedOrder, ...(result?.order || {}) };
         selectedOrder = updatedOrder;
         orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
         return updatedOrder;
-      }
-
-      function buildReviewToken() {
-        const characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        const cryptoValues = new Uint32Array(28);
-        if (window.crypto?.getRandomValues) {
-          window.crypto.getRandomValues(cryptoValues);
-          return Array.from(cryptoValues, (value) => characters[value % characters.length]).join('');
-        }
-        let token = '';
-        for (let i = 0; i < 28; i++) token += characters[Math.floor(Math.random() * characters.length)];
-        return token;
       }
 
       function buildReviewUrl(order) {
@@ -3562,14 +3510,14 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function ensureSelectedOrderReviewToken() {
-        if (!selectedOrder) return null;
+        if (!CAN_MANAGE_ORDER_REVIEWS || !selectedOrder) return null;
         if (selectedOrder.review_token) return selectedOrder;
-        const reviewToken = buildReviewToken();
-        const updatedOrder = await apiRequest(`/api/collections/orders/records/${selectedOrder.id}?expand=shipping_zone,currency`, {
-          method: 'PATCH',
+        const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/review-token`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ review_token: reviewToken }),
+          body: JSON.stringify({}),
         });
+        const updatedOrder = { ...selectedOrder, ...(result?.order || {}) };
         selectedOrder = updatedOrder;
         orders = orders.map((order) => order.id === updatedOrder.id ? updatedOrder : order);
         return updatedOrder;
@@ -3632,7 +3580,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function openReviewWhatsApp() {
-        if (!selectedOrder) return;
+        if (!CAN_REQUEST_ORDER_REVIEWS || !selectedOrder) return;
         const currentStatus = normalizeStatus(selectedOrder.status);
         if (currentStatus !== 'delivered') {
           setDetailAlert('Solo puedes pedir reseña cuando la orden está Entregada.', 'error');
@@ -3702,7 +3650,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function printSelectedOrder() {
-        if (!selectedOrder) return;
+        if (!CAN_CONTACT_ORDER_CUSTOMERS || !selectedOrder) return;
         try {
           const orderWithReceipt = await ensureSelectedOrderReceiptToken();
           const receiptUrl = buildReceiptUrl(orderWithReceipt);
@@ -3714,7 +3662,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function markDelivered() {
-        if (!selectedOrder) return;
+        if (!CAN_MANAGE_ORDER_STATUS || !selectedOrder) return;
         if (normalizeStatus(selectedOrder.status) !== 'confirmed') {
           setDetailAlert('Para marcar una orden como Entregada, primero debe estar Confirmada.', 'error');
           return;
@@ -3723,48 +3671,31 @@ const isOrderDetailPage = Boolean(initialOrderId);
         await saveSelectedOrder({ status: 'delivered' });
       }
 
-      async function deleteOrderPermanentlyNoStock(orderId) {
-        if (!orderId) return;
-        await apiRequest(`/api/collections/orders/records/${orderId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'cancelled', stock_deducted: false }),
-        });
-        const filter = encodeURIComponent(`order = "${orderId}"`);
-        const itemsResult = await apiRequest(`/api/collections/order_items/records?filter=${filter}&perPage=200`);
-        const items = itemsResult.items || [];
-        for (const item of items) {
-          await apiRequest(`/api/pz/admin/orders/${orderId}/items/${item.id}`, { method: 'DELETE' });
-        }
-        await apiRequest(`/api/collections/orders/records/${orderId}`, { method: 'DELETE' });
+      async function deleteOrderPermanently(orderId) {
+        if (!CAN_CANCEL_DELETE_ORDERS || !orderId) return;
+        await apiRequest(`/api/pz/admin/orders/${orderId}`, { method: 'DELETE' });
       }
 
-      async function deleteOrderFromList(orderId, { restoreStock = false } = {}) {
+      async function deleteOrderFromList(orderId) {
+        if (!CAN_CANCEL_DELETE_ORDERS) throw new Error('No tienes permiso para eliminar pedidos.');
         const order = orders.find((item) => item.id === orderId);
         if (!order) throw new Error('No se encontró la orden seleccionada.');
-        let restoreSnapshots = [];
-        let deleteCompleted = false;
         try {
-          if (restoreStock) restoreSnapshots = await restoreInventoryForOrder(orderId);
-          await deleteOrderPermanentlyNoStock(orderId);
-          deleteCompleted = true;
+          await deleteOrderPermanently(orderId);
           orders = orders.filter((item) => item.id !== orderId);
           delete orderItemsByOrder[orderId];
           if (selectedOrder?.id === orderId) clearDetail();
           renderStats();
           renderOrders();
-          if (restoreStock) {
-            try { await refreshInventoryAfterMovement(); } catch (refreshError) { }
-          }
-          setOrdersAdminAlert(restoreStock ? 'Orden borrada correctamente. Inventario devuelto.' : 'Orden borrada correctamente.', 'success');
+          setOrdersAdminAlert('Orden borrada correctamente. El inventario fue conciliado por el servidor.', 'success');
         } catch (error) {
-          if (restoreStock && restoreSnapshots.length && !deleteCompleted) await revertInventorySnapshots(restoreSnapshots);
-          setOrdersAdminAlert(restoreStock ? 'No se pudo devolver el inventario o borrar la orden.' : 'No se pudo borrar la orden.', 'error');
+          setOrdersAdminAlert('No se pudo cancelar o borrar la orden.', 'error');
           throw error;
         }
       }
 
       function requestDeleteOrderFromList(orderId) {
+        if (!CAN_CANCEL_DELETE_ORDERS) return;
         const order = orders.find((item) => item.id === orderId);
         if (!order) {
           setOrdersAdminAlert('No se encontró la orden seleccionada.', 'error');
@@ -3774,20 +3705,18 @@ const isOrderDetailPage = Boolean(initialOrderId);
         if (['pending', 'cancelled', 'delivered'].includes(status)) {
           openOrderDeleteConfirm({
             title: 'Borrar pedido',
-            message: '¿Seguro que deseas borrar esta orden? Esta acción no afecta el inventario.',
+            message: '¿Seguro que deseas borrar esta orden? El servidor conciliará el inventario cuando corresponda.',
             confirmText: 'Sí, borrar pedido',
-            action: async () => deleteOrderFromList(orderId, { restoreStock: false }),
+            action: async () => deleteOrderFromList(orderId),
           });
           return;
         }
         if (status === 'confirmed') {
           openOrderDeleteConfirm({
             title: 'Borrar orden confirmada',
-            message: 'Esta orden está confirmada y pudo haber descontado inventario. ¿Deseas devolver los productos al inventario antes de borrar la orden?',
-            confirmText: 'Devolver inventario y borrar',
-            action: async () => deleteOrderFromList(orderId, { restoreStock: true }),
-            secondaryText: 'Borrar sin devolver',
-            secondaryAction: async () => deleteOrderFromList(orderId, { restoreStock: false }),
+            message: 'Esta orden pudo haber descontado inventario. El servidor lo restaurará de forma atómica antes de borrar.',
+            confirmText: 'Restaurar inventario y borrar',
+            action: async () => deleteOrderFromList(orderId),
           });
           return;
         }
@@ -3795,6 +3724,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function deleteCancelledOrderFromSummary() {
+        if (!CAN_CANCEL_DELETE_ORDERS) return;
         if (!selectedOrder) return;
         if (normalizeStatus(selectedOrder.status) !== 'cancelled') {
           setDetailAlert('Solo puedes eliminar desde el resumen cuando la orden está Cancelada.', 'error');
@@ -3803,7 +3733,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }
         openOrderDeleteConfirm({
           title: 'Eliminar pedido',
-          message: 'Esta acción eliminará la orden y sus productos relacionados. No modifica el inventario.',
+          message: 'Esta acción eliminará la orden y sus productos relacionados. El servidor conciliará el inventario cuando corresponda.',
           confirmText: 'Sí, borrar pedido',
           action: async () => {
             deleteCancelledOrderBtn.disabled = true;
@@ -3812,13 +3742,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
             setOrdersAdminAlert('');
             try {
               const deletedId = selectedOrder.id;
-              await deleteOrderPermanentlyNoStock(deletedId);
+              await deleteOrderPermanently(deletedId);
               orders = orders.filter((order) => order.id !== deletedId);
               clearDetail();
               renderStats();
               renderOrders();
               renderCleanupOrdersList();
-              setOrdersAdminAlert('Orden eliminada correctamente. El inventario no fue modificado.', 'success');
+              setOrdersAdminAlert('Orden eliminada correctamente. El inventario fue conciliado por el servidor.', 'success');
             } catch (error) {
               setDetailAlert('No se pudo eliminar la orden. Revisa las reglas administrativas de borrado.', 'error');
               throw error;
@@ -3831,17 +3761,18 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function deleteSelectedOrderFromDetailPage() {
+        if (!CAN_CANCEL_DELETE_ORDERS) return;
         if (!selectedOrder || !IS_ORDER_DETAIL_PAGE) return;
         openOrderDeleteConfirm({
           title: 'Eliminar pedido',
-          message: 'Esta acción elimina la orden y no modifica el inventario. Úsalo solo para limpieza administrativa o después de exportar tus órdenes.',
+          message: 'Esta acción elimina la orden y concilia el inventario de forma segura. Úsalo solo para limpieza administrativa o después de exportar tus órdenes.',
           confirmText: 'Sí, eliminar',
           action: async () => {
             floatingDeleteOrderBtn.disabled = true;
             floatingDeleteOrderBtn.textContent = 'Eliminando...';
             setDetailAlert('Eliminando pedido...', 'info');
             try {
-              await deleteOrderPermanentlyNoStock(selectedOrder.id);
+              await deleteOrderPermanently(selectedOrder.id);
               window.location.assign(ADMIN_ORDERS_PATH);
             } catch (error) {
               floatingDeleteOrderBtn.disabled = false;
@@ -3854,6 +3785,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       function openCleanupOrdersPanel() {
+        if (!CAN_CANCEL_DELETE_ORDERS) return;
         cleanupSelectionMode = true;
         cleanupOrdersPanel?.classList.remove('hidden');
         if (cleanupOrdersOpenBtn) {
@@ -3912,6 +3844,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       }
 
       async function deleteSelectedCleanupOrders() {
+        if (!CAN_CANCEL_DELETE_ORDERS) return;
         const ids = getCleanupSelectedOrderIds();
         if (!ids.length) {
           setOrdersAdminAlert('Selecciona al menos una orden para borrar.', 'error');
@@ -3919,7 +3852,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
         }
         openOrderDeleteConfirm({
           title: 'Borrar órdenes seleccionadas',
-          message: 'Esta acción eliminará las órdenes seleccionadas y sus productos relacionados. No modifica el inventario.',
+          message: 'Esta acción eliminará las órdenes seleccionadas y sus productos relacionados. El servidor conciliará el inventario cuando corresponda.',
           confirmText: 'Sí, borrar seleccionadas',
           action: async () => {
             cleanupDeleteSelectedBtn.disabled = true;
@@ -3927,7 +3860,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
             setOrdersAdminAlert('');
             try {
               for (const id of ids) {
-                await deleteOrderPermanentlyNoStock(id);
+                await deleteOrderPermanently(id);
               }
               orders = orders.filter((order) => !ids.includes(order.id));
               ids.forEach((id) => cleanupSelectedOrderIds.delete(id));
@@ -3935,7 +3868,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               renderStats();
               renderOrders();
               updateCleanupSelectionUI();
-              setOrdersAdminAlert('Órdenes borradas correctamente. El inventario no fue modificado.', 'success');
+              setOrdersAdminAlert('Órdenes borradas correctamente. El inventario fue conciliado por el servidor.', 'success');
             } catch (error) {
               setOrdersAdminAlert('No se pudieron borrar todas las órdenes. Revisa las reglas administrativas de borrado.', 'error');
               throw error;
@@ -4010,7 +3943,6 @@ const isOrderDetailPage = Boolean(initialOrderId);
       cleanupDeleteSelectedBtn?.addEventListener('click', deleteSelectedCleanupOrders);
       orderDeleteConfirmCancel?.addEventListener('click', closeOrderDeleteConfirm);
       orderDeleteConfirmSubmit?.addEventListener('click', confirmPendingOrderDelete);
-      orderDeleteConfirmSecondary?.addEventListener('click', confirmPendingOrderDeleteSecondary);
       document.addEventListener('keydown', (event) => {
         handlePriceAdjustmentKeydown(event);
         if (event.key === 'Escape' && !orderDeleteConfirmModal?.classList.contains('hidden')) closeOrderDeleteConfirm();
@@ -4021,9 +3953,9 @@ const isOrderDetailPage = Boolean(initialOrderId);
         ordersList.innerHTML = '<div class="empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
       } else if (getAdminToken()) {
         showAdmin();
-        loadProductCatalog();
-        loadShippingZones();
-        loadStoreSettings();
+        if (CAN_MANAGE_ORDER_ITEMS) loadProductCatalog();
+        if (CAN_MANAGE_ORDER_SHIPPING) loadShippingZones();
+        if (CAN_MANAGE_ORDER_REVIEWS) loadStoreSettings();
         loadOrders();
       } else {
         showAdmin();

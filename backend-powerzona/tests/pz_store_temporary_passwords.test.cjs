@@ -85,7 +85,7 @@ test('payload forzado exacto rechaza identidad y campos temporales inyectados', 
   assert.equal(users.parseSelfRevokePayload({ user_id: USER_ID }).error, 'invalid_payload');
 });
 
-test('acciones temporales rotan sesiones y auditoria Staff solo aplica al cambio forzado', () => {
+test('acciones temporales rotan sesiones y Staff audita también su propia seguridad', () => {
   assert.equal(users.sessionsMustBeRevoked('temporary_password_issued', {}, {}), true);
   assert.equal(users.sessionsMustBeRevoked('forced_password_changed', {}, {}), true);
   const staff = record({ role: 'store_staff', status: 'active', store: STORE_ID, email: 'staff@example.com' });
@@ -93,7 +93,10 @@ test('acciones temporales rotan sesiones y auditoria Staff solo aplica al cambio
   const snapshot = users.userSnapshot(staff);
   const audit = users.buildAuditValues(store, staff, staff, 'forced_password_changed', snapshot, snapshot, true, '');
   assert.equal(audit.actor_role_snapshot, 'store_staff');
-  assert.throws(() => users.buildAuditValues(store, staff, staff, 'self_password_changed', snapshot, snapshot, true, ''));
+  const own = users.buildAuditValues(store, staff, staff, 'self_password_changed', snapshot, snapshot, true, '');
+  assert.equal(own.actor_role_snapshot, 'store_staff');
+  const sessions = users.buildAuditValues(store, staff, staff, 'sessions_revoked', snapshot, snapshot, true, '');
+  assert.equal(sessions.actor_role_snapshot, 'store_staff');
 });
 
 test('auth temporal se ejecuta despues del dispositivo en login y refresh', () => {

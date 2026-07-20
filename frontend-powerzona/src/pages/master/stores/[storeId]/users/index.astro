@@ -6,6 +6,7 @@ import MasterShell from '../../../../../components/master/MasterShell.astro';
 import MasterStoreUsersView from '../../../../../components/master/MasterStoreUsersView.astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../../../lib/auth';
 import { listMasterStoreUsers } from '../../../../../lib/masterUsers';
+import { getMasterPrimaryAdminStatus } from '../../../../../lib/masterPrimaryAdmin';
 import { shouldUseCompactStoreUserList } from '../../../../../lib/masterUserListMode';
 import { resolveStorePlanPresentation } from '../../../../../lib/storePlanPresentation';
 import '../../../../../styles/master-users.css';
@@ -35,8 +36,12 @@ const statusParam = String(Astro.url.searchParams.get('status') || 'all');
 const role = ['all', 'store_admin', 'store_staff'].includes(roleParam) ? roleParam as any : 'all';
 const status = ['all', 'active', 'suspended'].includes(statusParam) ? statusParam as any : 'all';
 let initialData;
+let primaryAdmin;
 try {
-  initialData = await listMasterStoreUsers(storeId, { page, perPage: 10, search, role, status }, authPb);
+  [initialData, primaryAdmin] = await Promise.all([
+    listMasterStoreUsers(storeId, { page, perPage: 10, search, role, status }, authPb),
+    getMasterPrimaryAdminStatus(storeId, authPb),
+  ]);
 } catch (_) {
   return Astro.redirect('/master/stores');
 }
@@ -73,6 +78,6 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
 
 <Layout isMaster={true}>
   <MasterShell currentUrl={Astro.url.toString()} displayName={displayName} title="Usuarios" currentStore={currentStore}>
-    <MasterStoreUsersView store={currentStore} initialData={initialData} initialFilters={{ search: compactMode ? '' : search, role: compactMode ? 'all' : role, status }} showDeletedMessage={showDeletedMessage} />
+    <MasterStoreUsersView store={currentStore} initialData={initialData} primaryAdmin={primaryAdmin} initialFilters={{ search: compactMode ? '' : search, role: compactMode ? 'all' : role, status }} showDeletedMessage={showDeletedMessage} />
   </MasterShell>
 </Layout>

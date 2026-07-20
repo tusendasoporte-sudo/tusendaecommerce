@@ -1,7 +1,9 @@
 ---
 import MasterDialog from './MasterDialog.astro';
 import MasterIcon from './MasterIcon.astro';
+import MasterPrimaryAdminControl from './MasterPrimaryAdminControl.astro';
 import type { MasterStoreUser, MasterStoreUserPlan } from '../../lib/masterUsers';
+import type { MasterPrimaryAdminStatus } from '../../lib/masterPrimaryAdmin';
 import { formatMasterStoreUserCount, shouldUseCompactStoreUserList } from '../../lib/masterUserListMode';
 import type { MasterShellStoreContext } from './MasterShell.astro';
 
@@ -12,10 +14,11 @@ interface Props {
     plan: MasterStoreUserPlan;
     pagination: { page: number; per_page: number; total_items: number; total_pages: number };
   };
+  primaryAdmin: MasterPrimaryAdminStatus;
   initialFilters: { search: string; role: string; status: string };
   showDeletedMessage?: boolean;
 }
-const { store, initialData, initialFilters, showDeletedMessage = false } = Astro.props;
+const { store, initialData, primaryAdmin, initialFilters, showDeletedMessage = false } = Astro.props;
 const initials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
 const relative = (value?: string) => {
   const time = new Date(value || '').getTime();
@@ -34,7 +37,7 @@ const plan = initialData.plan;
 const compactMode = shouldUseCompactStoreUserList(plan.total_users);
 ---
 
-<section class="master-users-page" data-master-users-root data-store-id={store.id} data-compact-mode={String(compactMode)}>
+<section class="master-users-page" data-master-users-root data-store-id={store.id} data-compact-mode={String(compactMode)} data-primary-admin-id={primaryAdmin.primary_admin?.id || ''}>
   {showDeletedMessage && <p class="master-user-success" role="status" aria-live="polite" data-deleted-success>Usuario eliminado permanentemente.</p>}
   <header class="master-users-heading">
     <div class="master-users-identity">
@@ -53,6 +56,8 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
       <button class="master-btn master-btn--primary" type="button" data-open-create-user><MasterIcon name="user-plus" size={18} /> Crear usuario</button>
     </div>
   </header>
+
+  <MasterPrimaryAdminControl storeId={store.id} status={primaryAdmin} />
 
   <div class="master-users-metrics" data-users-metrics>
     <article class="master-users-metric"><span>Usuarios activos</span><strong data-metric-active>{plan.active_users} / {plan.max_active_users}</strong></article>
@@ -82,9 +87,9 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
         {initialData.users.length ? (
           <>
             <div class="master-table-wrap master-users-desktop"><table class="master-table"><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Dispositivos</th><th>Acciones</th></tr></thead><tbody>
-              {initialData.users.map((user) => <tr><td><div class="master-user-cell"><span class="master-user-avatar">{initials(user.display_name || user.email)}</span><div class="master-user-copy"><strong>{user.display_name || 'Sin nombre'}</strong><span>{user.email}</span>{accessLabel(user) && <em class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel(user)}</em>}</div></div></td><td>{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</td><td><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span></td><td>{relative(user.last_admin_activity_at)}</td><td>{user.authorized_device_count || 0} / {user.device_limit || plan.max_devices_per_user}</td><td><a class="master-btn master-btn--secondary" href={detailHref(user.id)}>Ver detalle</a></td></tr>)}
+              {initialData.users.map((user) => <tr><td><div class="master-user-cell"><span class="master-user-avatar">{initials(user.display_name || user.email)}</span><div class="master-user-copy"><strong>{user.display_name || 'Sin nombre'}</strong><span>{user.email}</span>{user.id === primaryAdmin.primary_admin?.id && <em class="master-primary-admin-badge">Administrador principal</em>}{accessLabel(user) && <em class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel(user)}</em>}</div></div></td><td>{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</td><td><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span></td><td>{relative(user.last_admin_activity_at)}</td><td>{user.authorized_device_count || 0} / {user.device_limit || plan.max_devices_per_user}</td><td><a class="master-btn master-btn--secondary" href={detailHref(user.id)}>Ver detalle</a></td></tr>)}
             </tbody></table></div>
-            <div class="master-users-mobile">{initialData.users.map((user) => <article class="master-user-mobile-card"><div class="master-user-mobile-card__top"><div class="master-user-cell"><span class="master-user-avatar">{initials(user.display_name || user.email)}</span><div class="master-user-copy"><strong>{user.display_name || 'Sin nombre'}</strong><span>{user.email}</span></div></div><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span></div><div><span class="master-pill master-pill--info">{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>{accessLabel(user) && <span class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel(user)}</span>}</div><div class="master-user-mobile-card__meta"><span>Último acceso<strong>{relative(user.last_admin_activity_at)}</strong></span><span>Dispositivos<strong>{user.authorized_device_count || 0} / {user.device_limit || plan.max_devices_per_user}</strong></span></div><div class="master-user-mobile-card__actions"><a class="master-btn master-btn--secondary" href={detailHref(user.id)}>Ver detalle</a><button class="master-icon-btn" type="button" aria-label="Más acciones" disabled><MasterIcon name="more" size={18} /></button></div></article>)}</div>
+            <div class="master-users-mobile">{initialData.users.map((user) => <article class="master-user-mobile-card"><div class="master-user-mobile-card__top"><div class="master-user-cell"><span class="master-user-avatar">{initials(user.display_name || user.email)}</span><div class="master-user-copy"><strong>{user.display_name || 'Sin nombre'}</strong><span>{user.email}</span>{user.id === primaryAdmin.primary_admin?.id && <em class="master-primary-admin-badge">Administrador principal</em>}</div></div><span class:list={['master-pill', user.status === 'active' ? 'master-pill--success' : 'master-pill--danger']}>{user.status === 'active' ? 'Activo' : 'Suspendido'}</span></div><div><span class="master-pill master-pill--info">{user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>{accessLabel(user) && <span class:list={['master-access-badge', { 'is-expired': user.temporary_password_state === 'expired' }]}>{accessLabel(user)}</span>}</div><div class="master-user-mobile-card__meta"><span>Último acceso<strong>{relative(user.last_admin_activity_at)}</strong></span><span>Dispositivos<strong>{user.authorized_device_count || 0} / {user.device_limit || plan.max_devices_per_user}</strong></span></div><div class="master-user-mobile-card__actions"><a class="master-btn master-btn--secondary" href={detailHref(user.id)}>Ver detalle</a><button class="master-icon-btn" type="button" aria-label="Más acciones" disabled><MasterIcon name="more" size={18} /></button></div></article>)}</div>
           </>
         ) : <div class="master-users-empty"><strong>Todavía no hay usuarios en esta tienda.</strong><button class="master-btn master-btn--primary" type="button" data-open-create-user>Crear usuario</button></div>}
       </div>
@@ -140,6 +145,7 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
     if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     const storeId = root.dataset.storeId || '';
     const compactMode = root.dataset.compactMode === 'true';
+    const primaryAdminId = root.dataset.primaryAdminId || '';
     const results = root.querySelector<HTMLElement>('[data-users-results]');
     const pagination = root.querySelector<HTMLElement>('[data-users-pagination]');
     const search = root.querySelector<HTMLInputElement>('[data-users-search]');
@@ -157,6 +163,7 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
     const userInitials = (value: string) => value.split(/\s+/).filter(Boolean).slice(0,2).map((part) => part[0]?.toUpperCase()).join('') || 'U';
     const relative = (value: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
     const access = (user: any) => user.temporary_password_state === 'expired' ? '<em class="master-access-badge is-expired">Contraseña temporal vencida</em>' : user.temporary_password_state === 'pending' ? '<em class="master-access-badge">Cambio de contraseña pendiente</em>' : '';
+    const primaryBadge = (user: any) => user.id === primaryAdminId ? '<em class="master-primary-admin-badge">Administrador principal</em>' : '';
     const href = (id: string) => `/master/stores/${encodeURIComponent(storeId)}/users/${encodeURIComponent(id)}`;
     const currentStatus = () => compactMode
       ? String(statusTabs.find((tab) => tab.getAttribute('aria-pressed') === 'true')?.dataset.statusValue || 'all')
@@ -164,8 +171,8 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
     function renderUsers(users: any[], deviceLimit: number) {
       if (!results) return;
       if (!users.length) { results.innerHTML = '<div class="master-users-empty"><strong>Todavía no hay usuarios en esta tienda.</strong><button class="master-btn master-btn--primary" type="button" data-open-create-user>Crear usuario</button></div>'; return; }
-      const rows = users.map((user) => `<tr><td><div class="master-user-cell"><span class="master-user-avatar">${escape(userInitials(user.display_name || user.email))}</span><div class="master-user-copy"><strong>${escape(user.display_name || 'Sin nombre')}</strong><span>${escape(user.email)}</span>${access(user)}</div></div></td><td>${user.role === 'store_admin' ? 'Administrador' : 'Personal'}</td><td><span class="master-pill ${user.status === 'active' ? 'master-pill--success' : 'master-pill--danger'}">${user.status === 'active' ? 'Activo' : 'Suspendido'}</span></td><td>${escape(relative(user.last_admin_activity_at))}</td><td>${Number(user.authorized_device_count || 0)} / ${Number(user.device_limit || deviceLimit)}</td><td><a class="master-btn master-btn--secondary" href="${href(user.id)}">Ver detalle</a></td></tr>`).join('');
-      const cards = users.map((user) => `<article class="master-user-mobile-card"><div class="master-user-mobile-card__top"><div class="master-user-cell"><span class="master-user-avatar">${escape(userInitials(user.display_name || user.email))}</span><div class="master-user-copy"><strong>${escape(user.display_name || 'Sin nombre')}</strong><span>${escape(user.email)}</span></div></div><span class="master-pill ${user.status === 'active' ? 'master-pill--success' : 'master-pill--danger'}">${user.status === 'active' ? 'Activo' : 'Suspendido'}</span></div><div><span class="master-pill master-pill--info">${user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>${access(user)}</div><div class="master-user-mobile-card__meta"><span>Último acceso<strong>${escape(relative(user.last_admin_activity_at))}</strong></span><span>Dispositivos<strong>${Number(user.authorized_device_count || 0)} / ${Number(user.device_limit || deviceLimit)}</strong></span></div><div class="master-user-mobile-card__actions"><a class="master-btn master-btn--secondary" href="${href(user.id)}">Ver detalle</a><button class="master-icon-btn" type="button" aria-label="Más acciones" disabled>•••</button></div></article>`).join('');
+      const rows = users.map((user) => `<tr><td><div class="master-user-cell"><span class="master-user-avatar">${escape(userInitials(user.display_name || user.email))}</span><div class="master-user-copy"><strong>${escape(user.display_name || 'Sin nombre')}</strong><span>${escape(user.email)}</span>${primaryBadge(user)}${access(user)}</div></div></td><td>${user.role === 'store_admin' ? 'Administrador' : 'Personal'}</td><td><span class="master-pill ${user.status === 'active' ? 'master-pill--success' : 'master-pill--danger'}">${user.status === 'active' ? 'Activo' : 'Suspendido'}</span></td><td>${escape(relative(user.last_admin_activity_at))}</td><td>${Number(user.authorized_device_count || 0)} / ${Number(user.device_limit || deviceLimit)}</td><td><a class="master-btn master-btn--secondary" href="${href(user.id)}">Ver detalle</a></td></tr>`).join('');
+      const cards = users.map((user) => `<article class="master-user-mobile-card"><div class="master-user-mobile-card__top"><div class="master-user-cell"><span class="master-user-avatar">${escape(userInitials(user.display_name || user.email))}</span><div class="master-user-copy"><strong>${escape(user.display_name || 'Sin nombre')}</strong><span>${escape(user.email)}</span>${primaryBadge(user)}</div></div><span class="master-pill ${user.status === 'active' ? 'master-pill--success' : 'master-pill--danger'}">${user.status === 'active' ? 'Activo' : 'Suspendido'}</span></div><div><span class="master-pill master-pill--info">${user.role === 'store_admin' ? 'Administrador' : 'Personal'}</span>${access(user)}</div><div class="master-user-mobile-card__meta"><span>Último acceso<strong>${escape(relative(user.last_admin_activity_at))}</strong></span><span>Dispositivos<strong>${Number(user.authorized_device_count || 0)} / ${Number(user.device_limit || deviceLimit)}</strong></span></div><div class="master-user-mobile-card__actions"><a class="master-btn master-btn--secondary" href="${href(user.id)}">Ver detalle</a><button class="master-icon-btn" type="button" aria-label="Más acciones" disabled>•••</button></div></article>`).join('');
       results.innerHTML = `<div class="master-table-wrap master-users-desktop"><table class="master-table"><thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Dispositivos</th><th>Acciones</th></tr></thead><tbody>${rows}</tbody></table></div><div class="master-users-mobile">${cards}</div>`;
     }
     function renderPages(page: number, total: number) {

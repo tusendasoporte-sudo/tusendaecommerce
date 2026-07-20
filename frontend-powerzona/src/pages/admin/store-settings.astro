@@ -10,6 +10,8 @@ import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro'
 import LandingQrSettings from '../../components/admin/LandingQrSettings.astro';
 import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -26,7 +28,18 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
-const expirationToolsEnabled = expirationToolsAccess.allowed === true;
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const effectivePermissions = storeAccessContext?.access.permissions || [];
+const canManageSettings = hasStorePermission({ permissions: effectivePermissions }, 'store.settings.manage');
+const canManageReviews = hasStorePermission({ permissions: effectivePermissions }, 'reviews.manage');
+const canContactOrderCustomers = hasStorePermission({ permissions: effectivePermissions }, 'orders.contact_customer');
+const canManageLanding = hasStorePermission({ permissions: effectivePermissions }, 'landing_qr.manage');
+const firstAllowedSettingsTab = canManageSettings ? 'generales' : (canManageReviews ? 'rating' : 'landing');
+const expirationFeatureVisible = hasStorePermission(
+  { permissions: storeAccessContext?.access.permissions },
+  'catalog.expirations.manage',
+);
+const expirationToolsEnabled = expirationFeatureVisible && expirationToolsAccess.allowed === true;
 const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
 const supportMessage = `Hola soporte de Tu Senda 84, necesito ayuda con los ajustes de tienda de ${currentStoreName} (${currentStoreSlug || 'sin-slug'}).`;
@@ -39,6 +52,7 @@ let footerPreviewSettings: any = {
   stored_name: currentStoreName,
 };
 try {
+  if (!canManageSettings) throw new Error('settings_preview_not_allowed');
   const previewRecord = await authPb.collection('settings').getFirstListItem(`store="${currentStoreId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}" && active=true`, {
     sort: '-updated',
     expand: 'default_currency',
@@ -3383,8 +3397,8 @@ try {
         storePlanValues={adminContext.store}
         activeSection="settings"
         mobileTitle="Ajustes"
-        mobileActionLabel="Guardar"
-        mobileActionEvent="pz:store-settings:save"
+        mobileActionLabel={canManageSettings ? 'Guardar' : ''}
+        mobileActionEvent={canManageSettings ? 'pz:store-settings:save' : ''}
       />
 
       <main class="main-wrap pz-admin-content-inner">
@@ -3401,15 +3415,15 @@ try {
         />
         <section id="admin-view">
           <div class="tabs">
-            <button class="tab-btn active" data-tab="generales" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg><span>Generales</span></button>
-            <button class="tab-btn" data-tab="footer" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg><span>Footer p&uacute;blico</span></button>
-            <button class="tab-btn" data-tab="monedas" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg><span>Monedas</span></button>
-            <button class="tab-btn" data-tab="horario" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg><span>Horarios</span></button>
-            <button class="tab-btn" data-tab="rating" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg><span>Rating y rese&ntilde;as</span></button>
-            <button class="tab-btn" data-tab="landing" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4V4Zm2 2v3h3V6H6Zm7-2h7v7h-7V4Zm2 2v3h3V6h-3ZM4 13h7v7H4v-7Zm2 2v3h3v-3H6Zm9-2h2v2h-2v-2Zm3 0h2v4h-2v-4Zm-5 4h2v3h-2v-3Zm3 1h2v2h-2v-2Zm3 1h1v1h-1v-1Z"/></svg><span>Landing QR</span></button>
+            {canManageSettings && <button class:list={['tab-btn', firstAllowedSettingsTab === 'generales' && 'active']} data-tab="generales" type="button"><span>Generales</span></button>}
+            {canManageSettings && <button class="tab-btn" data-tab="footer" type="button"><span>Footer p&uacute;blico</span></button>}
+            {canManageSettings && <button class="tab-btn" data-tab="monedas" type="button"><span>Monedas</span></button>}
+            {canManageSettings && <button class="tab-btn" data-tab="horario" type="button"><span>Horarios</span></button>}
+            {canManageReviews && <button class:list={['tab-btn', firstAllowedSettingsTab === 'rating' && 'active']} data-tab="rating" type="button"><span>Rating y rese&ntilde;as</span></button>}
+            {canManageLanding && <button class:list={['tab-btn', firstAllowedSettingsTab === 'landing' && 'active']} data-tab="landing" type="button"><span>Landing QR</span></button>}
           </div>
 
-          <section id="settings-general-summary-grid" class="admin-compact-summary admin-compact-summary--settings" aria-label="Resumen de ajustes generales">
+          <section id="settings-general-summary-grid" class:list={['admin-compact-summary admin-compact-summary--settings', !canManageSettings && 'hidden']} aria-label="Resumen de ajustes generales">
             <div class="admin-compact-summary__head">
               <span class="admin-compact-summary__icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24">
@@ -3456,7 +3470,7 @@ try {
             <article class="stat-card"><p class="stat-label">Accesos rápidos</p><p id="stat-shortcuts" class="stat-value">0</p></article>
           </div>
 
-          <section id="tab-generales" class="panel-card tab-panel settings-panel">
+          <section id="tab-generales" class:list={['panel-card tab-panel settings-panel', (!canManageSettings || firstAllowedSettingsTab !== 'generales') && 'hidden']}>
             <div class="general-settings-header">
               <div class="general-settings-header-copy">
                 <h2 class="section-title">Ajustes generales</h2>
@@ -3562,20 +3576,22 @@ try {
                         </div>
                       </div>
 
-                      {expirationToolsEnabled ? (
-                        <label class="rating-setting-row full" for="settings-notify-expiration-alerts">
-                          <span><strong>Alertas de vencimiento</strong><small>Recibe avisos a 90, 60 y 30 días, y el día del vencimiento.</small></span>
-                          <span class="switch-control"><input id="settings-notify-expiration-alerts" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-                        </label>
-                      ) : (
-                        <StoreCapabilityGate
-                          access={expirationToolsAccess}
-                          compact
-                          featureName="Vencimiento de productos"
-                          featureDescription="Gestiona fechas de vencimiento y recibe alertas con el plan Premium."
-                          preservationMessage="Disponible exclusivamente para tiendas Premium."
-                        />
-                      )}
+                      {expirationFeatureVisible ? (
+                        expirationToolsEnabled ? (
+                          <label class="rating-setting-row full" for="settings-notify-expiration-alerts">
+                            <span><strong>Alertas de vencimiento</strong><small>Recibe avisos a 90, 60 y 30 días, y el día del vencimiento.</small></span>
+                            <span class="switch-control"><input id="settings-notify-expiration-alerts" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
+                          </label>
+                        ) : (
+                          <StoreCapabilityGate
+                            access={expirationToolsAccess}
+                            compact
+                            featureName="Vencimiento de productos"
+                            featureDescription="Gestiona fechas de vencimiento y recibe alertas con el plan Premium."
+                            preservationMessage="Disponible exclusivamente para tiendas Premium."
+                          />
+                        )
+                      ) : null}
 
                       <label class="rating-setting-row full" for="settings-notify-low-stock">
                         <span><strong>Stock bajo</strong><small>Avisa cuando un producto o variacion tenga pocas unidades.</small></span>
@@ -3629,7 +3645,7 @@ try {
             </form>
           </section>
 
-          <section id="tab-footer" class="panel-card tab-panel hidden">
+          <section id="tab-footer" class="panel-card tab-panel hidden" aria-hidden={!canManageSettings}>
             <div class="section-head footer-section-head">
               <div>
                 <h2 class="section-title">Footer p&uacute;blico</h2>
@@ -3771,7 +3787,7 @@ try {
           </section>
 
 
-          <section id="tab-horario" class="tab-panel hidden">
+          <section id="tab-horario" class="tab-panel hidden" aria-hidden={!canManageSettings}>
             <div class="hours-workspace">
               <section class="admin-compact-summary admin-compact-summary--hours" aria-label="Resumen de horarios">
                 <div class="admin-compact-summary__head">
@@ -3891,7 +3907,7 @@ try {
           </section>
 
 
-          <section id="tab-rating" class="panel-card tab-panel hidden">
+          <section id="tab-rating" class:list={['panel-card tab-panel', (!canManageReviews || firstAllowedSettingsTab !== 'rating') && 'hidden']}>
             <div class="rating-tab-shell">
               <div class="rating-tab-title">
                 <h2 class="section-title">Rating y rese&ntilde;as</h2>
@@ -4108,18 +4124,17 @@ try {
           </section>
 
 
-          <section id="tab-landing" class="tab-panel settings-panel tab-panel--landing hidden">
-            <LandingQrSettings
+          <section id="tab-landing" class:list={['tab-panel settings-panel tab-panel--landing', (!canManageLanding || firstAllowedSettingsTab !== 'landing') && 'hidden']}>
+            {canManageLanding && <LandingQrSettings
               pocketbaseUrl={pocketbaseUrl}
               currentStoreId={currentStoreId}
               currentStoreSlug={currentStoreSlug}
               currentStoreName={currentStoreName}
-              adminAuthToken={adminAuthToken}
-            />
+            />}
           </section>
 
 
-          <section id="tab-monedas" class="panel-card tab-panel hidden">
+          <section id="tab-monedas" class="panel-card tab-panel hidden" aria-hidden={!canManageSettings}>
             <div class="currency-workspace">
               <div class="currency-summary-card">
                 <div class="currency-summary-main">
@@ -4505,12 +4520,29 @@ try {
       })();
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, adminAuthToken }}>
+    <script>
+      window.__pzStoreSettingsAuthToken = () => {
+        try {
+          const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+          if (!pair) return '';
+          const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+          return typeof parsed?.token === 'string' ? parsed.token : '';
+        } catch (_) { return ''; }
+      };
+    </script>
+
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, canManageSettings, canManageReviews, canManageLanding, firstAllowedSettingsTab }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
       const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-      const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+      const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '');
+      const ALLOWED_SETTINGS_TABS = new Set([
+        ...(canManageSettings === true ? ['generales', 'footer', 'monedas', 'horario'] : []),
+        ...(canManageReviews === true ? ['rating'] : []),
+        ...(canManageLanding === true ? ['landing'] : []),
+      ]);
+      const FIRST_ALLOWED_SETTINGS_TAB = String(firstAllowedSettingsTab || 'generales');
       let products = [];
       let categories = [];
       let visualItems = [];
@@ -5025,6 +5057,7 @@ try {
         }
       }
       function showTab(tab, options = {}) {
+        if (!ALLOWED_SETTINGS_TABS.has(tab)) tab = FIRST_ALLOWED_SETTINGS_TAB;
         activeTab = tab;
         const tabLabels = {
           generales: 'Ajustes generales',
@@ -5062,7 +5095,7 @@ try {
         if (options.centerTab !== false) centerTabButton(tab);
         document.body.classList.remove('pz-settings-resolving');
       }
-      function showAdmin() { adminView.classList.remove('hidden'); loadData().catch((error) => showAlert(featuredAlert, error.message || 'No se pudieron cargar los datos.', 'error')); }
+      function showAdmin() { adminView.classList.remove('hidden'); }
 
       markFeaturedBtn?.addEventListener('click', () => markFeatured().catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error')));
       refreshBtn?.addEventListener('click', () => loadData());
@@ -5150,14 +5183,15 @@ try {
       else if (window.location.hash === '#horario') showTab('horario');
       else if (window.location.hash === '#rating' || window.location.hash === '#rating-pending') showTab('rating', { hash: window.location.hash === '#rating-pending' ? '#rating-pending' : '#rating' });
       else if (window.location.hash === '#landing') showTab('landing');
-      else showTab('generales');
+      else showTab(FIRST_ALLOWED_SETTINGS_TAB);
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, canManageSettings, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
       (() => {
+        if (canManageSettings !== true) return;
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
         const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-        const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(adminAuthToken || '');
+        const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(window.__pzStoreSettingsAuthToken?.() || '');
         const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
         const form = document.getElementById('settings-form');
         window.addEventListener('pz:store-settings:save', () => {
@@ -6424,12 +6458,14 @@ try {
       })();
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, adminAuthToken, publicStorePath }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, canManageReviews, canContactOrderCustomers, publicStorePath }}>
       (() => {
+        if (canManageReviews !== true) return;
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
         const CURRENT_STORE_NAME = String(currentStoreName || '');
-        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const CAN_CONTACT_ORDER_CUSTOMERS = canContactOrderCustomers === true;
+        const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '');
         const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const DEFAULT_REVIEW_WHATSAPP_MESSAGE = "Hola {cliente}\n\nGracias por tu compra en {tienda}.\n\nNos ayudaria mucho si puedes dejar una resena sobre tu experiencia y los productos que recibiste.\n\nPuedes hacerlo aqui:\n{link_rese\u00f1a}\n\nGracias\n{tienda}";
@@ -6554,6 +6590,13 @@ try {
           query.set('perPage', '100');
           return query.toString();
         }
+        function redactReviewQueueOrder(order) {
+          if (!order || typeof order !== 'object' || CAN_CONTACT_ORDER_CUSTOMERS) return order;
+          const safe = { ...order };
+          ['customer_phone', 'customer_email', 'customer_address', 'receipt_token']
+            .forEach((field) => delete safe[field]);
+          return safe;
+        }
         function escapeHtml(value) {
           return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
@@ -6642,12 +6685,6 @@ try {
         function cleanWhatsAppPhone(value) {
           return String(value || '').replace(/\D/g, '');
         }
-        function generateReviewToken() {
-          const bytes = new Uint8Array(18);
-          if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
-          else Array.from(bytes).forEach((_, index) => { bytes[index] = Math.floor(Math.random() * 256); });
-          return Array.from(bytes, (byte) => byte.toString(36).padStart(2, '0')).join('').replace(/[^a-z0-9]/g, '').slice(0, 32);
-        }
         function orderHasReview(reviewOrderId) {
           if (!reviewsCollectionAvailable) return false;
           return reviews.some((review) => review.source === 'order_review_link' && String(review.order || '') === String(reviewOrderId || ''));
@@ -6660,10 +6697,6 @@ try {
           const delivered = new Date(order.delivered_at).getTime();
           if (!Number.isFinite(delivered)) return false;
           return Date.now() - delivered >= reviewDelayHours() * 3600000;
-        }
-        async function findDefaultCurrencyId() {
-          const result = await api('/api/collections/currencies/records?' + withStoreFilter('filter=active%3Dtrue&sort=code&page=1&perPage=1'));
-          return (result.items || [])[0]?.id || '';
         }
         async function createSettingsRecord() {
           const payload = {
@@ -6683,8 +6716,6 @@ try {
             review_whatsapp_message: fields.reviewWhatsappMessage?.value?.trim() || DEFAULT_REVIEW_WHATSAPP_MESSAGE,
             notify_review_pending: true,
           };
-          const defaultCurrencyId = await findDefaultCurrencyId();
-          if (defaultCurrencyId) payload.default_currency = defaultCurrencyId;
           return api('/api/collections/settings/records', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -6730,10 +6761,12 @@ try {
         async function loadReadyReviewOrders() {
           try {
             const result = await api('/api/collections/orders/records?' + orderParams('status = "delivered"'));
-            readyReviewOrders = (result.items || []).filter(orderReadyForReview);
+            readyReviewOrders = (result.items || []).map(redactReviewQueueOrder).filter(orderReadyForReview);
             renderReadyReviewOrders();
             if (!reviewsCollectionAvailable) {
               showMessage(readyOrdersAlertBox, 'Las rese\u00f1as no est\u00e1n disponibles en este momento. Contacta a soporte para activarlas.', 'info');
+            } else if (!CAN_CONTACT_ORDER_CUSTOMERS) {
+              showMessage(readyOrdersAlertBox, 'Puedes gestionar estas reseñas, pero solicitar por WhatsApp requiere el permiso Contactar clientes de pedidos.', 'info');
             } else {
               showMessage(readyOrdersAlertBox, '');
             }
@@ -6847,7 +6880,7 @@ try {
             <div class="rating-row-actions">
               <button class="rating-row-menu-btn" type="button" data-rating-menu-trigger aria-label="Abrir acciones">\u22EE</button>
               <div class="rating-floating-menu hidden" data-rating-menu>
-                <button class="js-ready-order-action" data-action="whatsapp" type="button">Pedir rese\u00f1a por WhatsApp</button>
+                ${CAN_CONTACT_ORDER_CUSTOMERS ? '<button class="js-ready-order-action" data-action="whatsapp" type="button">Pedir rese\u00f1a por WhatsApp</button>' : ''}
                 <button class="js-ready-order-action" data-action="skip" type="button">Ignorar</button>
               </div>
             </div>
@@ -6996,8 +7029,7 @@ try {
                 <div>
                   <p class="item-title">${escapeHtml(order.order_number || 'Orden')} \u00b7 ${escapeHtml(order.customer_name || 'Cliente sin nombre')}</p>
                   <p class="item-meta">
-                    Tel\u00e9fono: ${escapeHtml(order.customer_phone || 'Sin tel\u00e9fono')}
-                    \u00b7 Entregada: ${escapeHtml(formatDateTime(order.delivered_at))}
+                    ${CAN_CONTACT_ORDER_CUSTOMERS ? `Tel\u00e9fono: ${escapeHtml(order.customer_phone || 'Sin tel\u00e9fono')} \u00b7 ` : ''}Entregada: ${escapeHtml(formatDateTime(order.delivered_at))}
                     \u00b7 ${escapeHtml(timeAgoFrom(order.delivered_at))}
                     \u00b7 Total: ${escapeHtml(formatUsd(order.total ?? order.total_usd))}
                   </p>
@@ -7066,12 +7098,19 @@ try {
           });
         }
         async function requestReviewByWhatsApp(orderId) {
+          if (!CAN_CONTACT_ORDER_CUSTOMERS) throw new Error('No tienes permiso para contactar clientes de pedidos.');
           const order = readyReviewOrders.find((item) => item.id === orderId);
           if (!order) return;
-          const reviewToken = hasValue(order.review_token) ? String(order.review_token) : generateReviewToken();
+          let reviewToken = hasValue(order.review_token) ? String(order.review_token) : '';
           if (!hasValue(order.review_token)) {
-            await patchOrder(order.id, { review_token: reviewToken });
-            order.review_token = reviewToken;
+            const tokenResult = await api('/api/pz/admin/orders/' + encodeURIComponent(order.id) + '/review-token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+            Object.assign(order, tokenResult?.order || {});
+            reviewToken = String(order.review_token || '');
+            if (!reviewToken) throw new Error('No se pudo generar el enlace de reseña.');
           }
           const reviewLink = `${window.location.origin}${PUBLIC_STORE_PATH}/review/order/${encodeURIComponent(reviewToken)}`;
           const message = reviewRequestMessage(order, reviewLink);
@@ -7282,11 +7321,12 @@ try {
       })();
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, canManageSettings }}>
       (() => {
+        if (canManageSettings !== true) return;
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
-        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '');
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
         const TEMPORARILY_CLOSED_MESSAGE_DEFAULT = 'Estamos cerrados temporalmente. Vuelve pronto.';
@@ -7588,11 +7628,12 @@ try {
     </script>
 
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminAuthToken }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, canManageSettings }}>
       (() => {
+        if (canManageSettings !== true) return;
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
-        const ADMIN_AUTH_TOKEN = String(adminAuthToken || '');
+        const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '');
         const SYSTEM_CODES = ['USD', 'CUP', 'EUR', 'CASHAPP', 'ZELLE'];
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const state = { currencies: [], settingsRecord: null, search: '', editingId: '' };

@@ -1,0 +1,116 @@
+---
+export const prerender = false;
+
+import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import StoreTeamView from '../../components/admin/StoreTeamView.astro';
+import { getStoreAdminPath } from '../../lib/adminRoutes';
+import { isMasterAdmin, refreshAuthFromCookie } from '../../lib/auth';
+import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../lib/storeContext';
+import { getStoreAccessContext, getStoreTeamErrorMessage } from '../../lib/storeTeam';
+import '../../styles/global.css';
+import '../../styles/store-team.css';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+
+const pocketbaseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/$/, '');
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+
+let adminContext;
+try {
+  adminContext = await requireCurrentStoreForAdmin(authPb);
+} catch (error) {
+  if (isMasterAdmin(authPb.authStore.record as any)) return Astro.redirect('/master');
+  if (error instanceof StoreContextError && error.code === STORE_CONTEXT_ERRORS.MASTER_ADMIN) return Astro.redirect('/master');
+  return Astro.redirect('/login');
+}
+
+const authToken = authPb.authStore.token;
+const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const canonicalTeamPath = getStoreAdminPath(currentStoreSlug, 'team');
+const plansPath = `${getStoreAdminPath(currentStoreSlug, 'account')}#plan`;
+const requestedStoreSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
+
+if (requestedStoreSlug && requestedStoreSlug !== currentStoreSlug) {
+  return Astro.redirect(canonicalTeamPath);
+}
+
+let isPrimaryAdmin = false;
+let accessMessage = '';
+try {
+  const accessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: authToken });
+  isPrimaryAdmin = accessContext.access.is_primary_admin === true;
+  if (!isPrimaryAdmin) accessMessage = 'No tienes permiso para administrar el equipo de esta tienda.';
+} catch (error) {
+  accessMessage = getStoreTeamErrorMessage(error);
+}
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mi equipo | {currentStoreName}</title>
+    <meta name="robots" content="noindex,nofollow,noarchive" />
+    <link rel="canonical" href={canonicalTeamPath} />
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+    <style is:global>
+      html, body { min-height: 100%; margin: 0; }
+      body {
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 14% 0%, rgba(37, 99, 235, .15), transparent 30%),
+          radial-gradient(circle at 85% 8%, rgba(22, 163, 74, .10), transparent 25%),
+          linear-gradient(180deg, #f8fbff 0%, #eef3f9 48%, #e8eef7 100%);
+        color: #0f172a;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      @media (min-width: 1024px) {
+        body { padding-left: calc(var(--pz-admin-sidebar-width, 278px) + var(--pz-admin-content-gap, 30px)); }
+      }
+      .store-team-access-denied {
+        width: min(720px, calc(100% - 28px));
+        margin: 88px auto;
+        padding: 28px;
+        border: 1px solid #fecaca;
+        border-radius: 22px;
+        background: #fff;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, .09);
+      }
+      .store-team-access-denied h1 { margin: 0; font-size: 25px; font-weight: 1000; }
+      .store-team-access-denied p { margin: 10px 0 0; color: #64748b; line-height: 1.55; font-size: 14px; font-weight: 750; }
+      .store-team-access-denied a { display: inline-flex; margin-top: 18px; min-height: 40px; align-items: center; border-radius: 12px; background: #0f172a; color: #fff; padding: 0 14px; text-decoration: none; font-size: 12px; font-weight: 1000; }
+    </style>
+  </head>
+  <body>
+    <AdminSidebar
+      storeId={adminContext.storeId}
+      pocketbaseUrl={pocketbaseUrl}
+      authToken={authToken}
+      storeSlug={currentStoreSlug}
+      storeName={currentStoreName}
+      storePlanValues={adminContext.store}
+      activeSection="team"
+      mobileTitle="Mi equipo"
+    />
+
+    {isPrimaryAdmin ? (
+      <StoreTeamView
+        pocketbaseUrl={pocketbaseUrl}
+        storeSlug={currentStoreSlug}
+        plansPath={plansPath}
+      />
+    ) : (
+      <main class="store-team-access-denied">
+        <h1>No tienes permiso</h1>
+        <p>{accessMessage || 'Solo el Administrador principal puede administrar el equipo de esta tienda.'}</p>
+        <a href={getStoreAdminPath(currentStoreSlug)}>Volver al Resumen</a>
+      </main>
+    )}
+  </body>
+</html>

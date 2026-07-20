@@ -6,6 +6,8 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
+import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import { PRODUCT_EXPIRATION_BOTTLE_ICON_SVG } from '../../components/admin/productExpirationBottleIcon.js';
@@ -33,7 +35,16 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
-const expirationToolsEnabled = expirationToolsAccess.allowed === true;
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const reviewsFeatureVisible = hasStorePermission(
+  { permissions: storeAccessContext?.access.permissions },
+  'reviews.manage',
+);
+const expirationFeatureVisible = hasStorePermission(
+  { permissions: storeAccessContext?.access.permissions },
+  'catalog.expirations.manage',
+);
+const expirationToolsEnabled = expirationFeatureVisible && expirationToolsAccess.allowed === true;
 const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 ---
 
@@ -5453,9 +5464,9 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						<div id="status-grid" class="order-status-list"></div>
 					</section>
 
-					<section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>
+					{reviewsFeatureVisible && <section class="dashboard-block" aria-labelledby="dashboard-reviews-title"><div class="dashboard-block-head"><div><h2 id="dashboard-reviews-title" class="dashboard-block-title">Rating y reseñas</h2><p class="dashboard-block-subtitle">Resumen rápido de reputación, moderación y pedidos listos para solicitar opinión.</p></div><a class="pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={`${adminStoreSettingsPath}#rating`}><span class="pz-admin-btn__label">Gestionar rating y reseñas</span></a></div><div id="rating-summary-grid" class="status-grid"><div class="empty-state">Cargando rating y reseñas...</div></div><p id="rating-summary-note" class="page-subtitle hidden" style="margin-top: 10px;"></p></section>}
 
-					<section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title">
+					{expirationFeatureVisible && <section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title">
 						<div class="dashboard-block-head expiration-summary-head">
 							<div><h2 id="expiration-title" class="dashboard-block-title">Vencimiento de productos</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">{expirationToolsEnabled ? 'Los detalles se cargarán al llegar a esta sección.' : 'Disponible exclusivamente para tiendas Premium.'}</p></div>
 							{expirationToolsEnabled && <a class="expiration-preview-all pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminExpirationsPath}><span class="pz-admin-btn__label">Ver todos los vencimientos →</span></a>}
@@ -5480,14 +5491,13 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						) : (
 							<StoreCapabilityGate access={expirationToolsAccess} featureName="Vencimiento de productos" featureDescription="Gestiona fechas, alertas y productos vencidos con el plan Premium." preservationMessage="Disponible exclusivamente para tiendas Premium." compact />
 						)}
-					</section>
+					</section>}
 				</div>
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, adminAuthToken, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, expirationToolsEnabled, productExpirationBottleIconSvg }}>
+		<script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, expirationToolsEnabled, productExpirationBottleIconSvg }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
-			const SESSION_TOKEN = String(adminAuthToken || '');
 			const STORE_FILTER = String(currentStoreFilter || '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
 			const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
@@ -5497,7 +5507,6 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
 			const ADMIN_PAGEVIEWS_PATH = String(adminPageviewsPath || '/admin/pageviews');
 			const ANALYTICS_MAX_RETENTION_DAYS = 30;
-			const ANALYTICS_CLEANUP_INTERVAL_MS = 23 * 60 * 60 * 1000;
 			const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
 			const adminView = document.getElementById('admin-view');
 			const dashboardSubtitle = document.getElementById('dashboard-subtitle');
@@ -5619,7 +5628,14 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				adminView.classList.remove('hidden');
 			}
 
-			function getAdminToken() { return SESSION_TOKEN; }
+			function getAdminToken() {
+				try {
+					const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
+					if (!pair) return '';
+					const parsed = JSON.parse(decodeURIComponent(pair.slice('pb_auth='.length)));
+					return typeof parsed?.token === 'string' ? parsed.token : '';
+				} catch (_) { return ''; }
+			}
 			function clearAdminToken() { document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax'; }
 
 			function escapeHtml(value) {
@@ -5817,86 +5833,6 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				query.set('sort', 'created');
 
 				return query.toString();
-			}
-
-			function shouldRunAnalyticsCleanup() {
-				if (settingsRecord?.analytics_cleanup_enabled === false) return false;
-
-				const lastRunValue = String(settingsRecord?.analytics_cleanup_last_run_at || '').trim();
-				if (!lastRunValue) return true;
-
-				const lastRun = new Date(lastRunValue);
-				if (Number.isNaN(lastRun.getTime())) return true;
-
-				return Date.now() - lastRun.getTime() >= ANALYTICS_CLEANUP_INTERVAL_MS;
-			}
-
-			async function updateAnalyticsCleanupLastRun(dateIso) {
-				if (!settingsRecord?.id) return;
-
-				await apiRequest(`/api/collections/settings/records/${encodeURIComponent(settingsRecord.id)}`, {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						analytics_cleanup_last_run_at: dateIso,
-					}),
-				});
-
-				settingsRecord.analytics_cleanup_last_run_at = dateIso;
-			}
-
-			async function deleteOldAnalyticsEvents(cutoffIso) {
-				if (!CURRENT_STORE_ID || !cutoffIso) return 0;
-
-				let deleted = 0;
-
-				const filter = [
-					`store="${escapePbFilterValue(CURRENT_STORE_ID)}"`,
-					`created < "${escapePbFilterValue(cutoffIso)}"`,
-				].join(' && ');
-
-				for (let index = 0; index < 50; index += 1) {
-					const query = new URLSearchParams();
-					query.set('filter', filter);
-					query.set('fields', 'id');
-					query.set('sort', 'created');
-					query.set('page', '1');
-					query.set('perPage', '100');
-
-					const result = await apiRequest(`/api/collections/store_analytics_events/records?${query.toString()}`);
-					const ids = (result.items || []).map((item) => item.id).filter(Boolean);
-
-					if (!ids.length) break;
-
-					await Promise.all(ids.map((id) => (
-						apiRequest(`/api/collections/store_analytics_events/records/${encodeURIComponent(id)}`, {
-							method: 'DELETE',
-						})
-					)));
-
-					deleted += ids.length;
-
-					if (ids.length < 100) break;
-				}
-
-				return deleted;
-			}
-
-			async function runAnalyticsCleanupIfNeeded() {
-				try {
-					if (!settingsRecord) return;
-					if (!shouldRunAnalyticsCleanup()) return;
-
-					const cutoffIso = getAnalyticsCutoffIso();
-					await deleteOldAnalyticsEvents(cutoffIso);
-					await updateAnalyticsCleanupLastRun(new Date().toISOString());
-				} catch (error) {
-					}
-			}
-
-			function isReviewsCollectionMissing(error) {
-				const text = String(error?.message || error?.data?.message || error || '').toLowerCase();
-				return text.includes('reviews') || text.includes('collection') || text.includes('not found') || error?.status === 404;
 			}
 
 			function hasValue(value) {
@@ -7567,7 +7503,6 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (expirationProductsMeta && EXPIRATION_TOOLS_ENABLED) expirationProductsMeta.textContent = 'Cargando resumen privado...';
 
 				await loadSettingsRecord();
-				await runAnalyticsCleanupIfNeeded();
 
 				const [ordersResult, itemsResult, productsResult, analyticsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
@@ -7577,7 +7512,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 					loadExpirationSummary(),
 				]);
 
-				await loadRatingSupportData();
+				if (ratingSummaryGrid) await loadRatingSupportData();
 
 				orders = ordersResult || [];
 				orderItems = itemsResult || [];
