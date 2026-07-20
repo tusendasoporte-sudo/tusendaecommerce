@@ -36,9 +36,17 @@ const {
         <span>Cupos disponibles</span>
         <strong data-team-available-count>—</strong>
       </article>
-      <article class="store-team-summary__card">
-        <span>Plan actual</span>
-        <strong data-team-plan-label>—</strong>
+      <article class="store-team-summary__card store-team-plan-card is-plan-unknown" data-team-plan-card data-plan-code="unknown">
+        <div class="store-team-plan-card__topline">
+          <span class="store-team-plan-card__badge">Plan actual</span>
+          <svg class="store-team-plan-card__icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 3.75 27.25 12 23 25.75H9L4.75 12 16 3.75Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" />
+            <path d="m4.75 12 7.4 4.6L16 3.75l3.85 12.85 7.4-4.6M9 25.75h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <strong data-team-plan-label>Sin configurar</strong>
+        <span class="store-team-plan-card__limit" data-team-plan-limit>Límite no configurado</span>
+        <span class="store-team-plan-card__feature" data-team-plan-feature>Configuración del plan pendiente</span>
       </article>
     </section>
 
@@ -46,8 +54,6 @@ const {
       <span>Tu plan permite un solo usuario activo. Los accesos preservados permanecen inactivos y sus permisos se muestran en modo lectura.</span>
       <a href={plansPath}>Ver planes</a>
     </aside>
-
-    <div class="store-team-alert" role="status" aria-live="polite" data-team-alert hidden></div>
 
     <section class="store-team-panel" aria-labelledby="store-team-list-title">
       <div class="store-team-panel__head">
@@ -71,6 +77,31 @@ const {
       </div>
     </section>
   </div>
+
+  <div class="store-team-toast" role="status" aria-live="polite" aria-atomic="true" data-team-toast hidden>
+    <span class="store-team-toast__icon" aria-hidden="true">✓</span>
+    <span class="store-team-toast__message" data-team-toast-message></span>
+    <button class="store-team-toast__close" type="button" data-team-toast-close aria-label="Cerrar notificación">×</button>
+  </div>
+
+  <div class="store-team-menu-backdrop" data-team-menu-backdrop hidden></div>
+  <section
+    class="store-team-menu store-team-floating-menu"
+    id="store-team-floating-menu"
+    role="menu"
+    aria-label="Acciones del usuario"
+    data-team-floating-menu
+    hidden
+  >
+    <header class="store-team-floating-menu__head">
+      <div>
+        <span>Acciones de</span>
+        <strong data-team-menu-user>Usuario</strong>
+      </div>
+      <button type="button" data-team-menu-close aria-label="Cerrar acciones">×</button>
+    </header>
+    <div class="store-team-floating-menu__actions" data-team-floating-actions></div>
+  </section>
 
   <dialog class="store-team-dialog" data-team-editor-dialog aria-labelledby="store-team-editor-title">
     <form class="store-team-dialog__layout" data-team-editor-form>
@@ -277,13 +308,22 @@ const {
     };
     const client = { baseUrl: config.pocketbaseUrl, token: readAuthToken() };
     const list = root.querySelector<HTMLElement>('[data-team-list]');
-    const alertBox = root.querySelector<HTMLElement>('[data-team-alert]');
+    const toast = root.querySelector<HTMLElement>('[data-team-toast]');
+    const toastMessage = root.querySelector<HTMLElement>('[data-team-toast-message]');
     const activeCount = root.querySelector<HTMLElement>('[data-team-active-count]');
     const availableCount = root.querySelector<HTMLElement>('[data-team-available-count]');
     const planLabel = root.querySelector<HTMLElement>('[data-team-plan-label]');
+    const planCard = root.querySelector<HTMLElement>('[data-team-plan-card]');
+    const planLimit = root.querySelector<HTMLElement>('[data-team-plan-limit]');
+    const planFeature = root.querySelector<HTMLElement>('[data-team-plan-feature]');
     const planNotice = root.querySelector<HTMLElement>('[data-team-plan-notice]');
     const listSummary = root.querySelector<HTMLElement>('[data-team-list-summary]');
     const createButton = root.querySelector<HTMLButtonElement>('[data-team-create]');
+
+    const floatingMenu = root.querySelector<HTMLElement>('[data-team-floating-menu]');
+    const floatingActions = root.querySelector<HTMLElement>('[data-team-floating-actions]');
+    const floatingMenuUser = root.querySelector<HTMLElement>('[data-team-menu-user]');
+    const floatingMenuBackdrop = root.querySelector<HTMLElement>('[data-team-menu-backdrop]');
 
     const editorDialog = root.querySelector<HTMLDialogElement>('[data-team-editor-dialog]');
     const editorForm = root.querySelector<HTMLFormElement>('[data-team-editor-form]');
@@ -325,8 +365,17 @@ const {
     let pendingAction: TeamAction | null = null;
     let pendingActionUser: StoreTeamUser | null = null;
     let temporarySecret = '';
+    let activeMenuUser: StoreTeamUser | null = null;
+    let activeMenuTrigger: HTMLButtonElement | null = null;
+    let activeMenuScrollX = 0;
+    let activeMenuScrollY = 0;
+    let teamToastTimer: number | null = null;
     let userRefCounter = 0;
     const userByRef = new Map<string, StoreTeamUser>();
+    const lifecycleController = new AbortController();
+    const listenerOptions = { signal: lifecycleController.signal };
+    const teamWindow = window as typeof window & { PZ_STORE_TEAM_CLEANUP?: () => void };
+    teamWindow.PZ_STORE_TEAM_CLEANUP?.();
 
     const escapeHtml = (value: unknown) => String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -337,6 +386,7 @@ const {
 
     function openDialog(dialog: HTMLDialogElement | null) {
       if (!dialog) return;
+      closeFloatingMenu();
       if (typeof dialog.showModal === 'function') dialog.showModal();
       else dialog.setAttribute('open', '');
     }
@@ -353,6 +403,50 @@ const {
       element.hidden = !message;
       element.classList.toggle('is-error', tone === 'error');
       element.classList.toggle('is-success', tone === 'success');
+    }
+
+    function clearTeamToastTimer() {
+      if (teamToastTimer === null) return;
+      window.clearTimeout(teamToastTimer);
+      teamToastTimer = null;
+    }
+
+    function hideTeamToast(immediate = false) {
+      clearTeamToastTimer();
+      if (!toast || toast.hidden) return;
+      toast.classList.remove('is-visible');
+      if (immediate) {
+        toast.hidden = true;
+        toast.classList.remove('is-leaving');
+        if (toastMessage) toastMessage.textContent = '';
+        return;
+      }
+      toast.classList.add('is-leaving');
+      teamToastTimer = window.setTimeout(() => {
+        toast.hidden = true;
+        toast.classList.remove('is-leaving');
+        if (toastMessage) toastMessage.textContent = '';
+        teamToastTimer = null;
+      }, 180);
+    }
+
+    function showTeamToast(message = '', tone: 'info' | 'error' | 'success' = 'success') {
+      if (!toast || !toastMessage) return;
+      clearTeamToastTimer();
+      if (!message) {
+        hideTeamToast(true);
+        return;
+      }
+      toastMessage.textContent = message;
+      toast.classList.remove('is-leaving');
+      toast.classList.toggle('is-error', tone === 'error');
+      toast.classList.toggle('is-success', tone === 'success');
+      toast.hidden = false;
+      void toast.offsetWidth;
+      toast.classList.add('is-visible');
+      if (tone === 'success') {
+        teamToastTimer = window.setTimeout(() => hideTeamToast(), 3800);
+      }
     }
 
     function formatDate(value: unknown) {
@@ -393,34 +487,102 @@ const {
       return { label: 'Activo', className: 'is-active' };
     }
 
-    function closeMenus(except: HTMLElement | null = null) {
-      root.querySelectorAll<HTMLElement>('[data-team-menu]').forEach((menu) => {
-        if (menu !== except) menu.hidden = true;
-      });
-    }
-
-    function actionMenu(user: StoreTeamUser) {
+    function actionButtons(user: StoreTeamUser) {
       if (user.is_primary_admin) return '<span aria-label="Sin acciones destructivas"></span>';
       const suspended = String(user.status || '').toLowerCase() === 'suspended' || String(user.state || '').toLowerCase() === 'suspended';
       const blockedByPlan = user.blocked_by_plan === true || String(user.state || '').toLowerCase() === 'blocked_by_plan';
       const activationAction = suspended && !blockedByPlan
-        ? '<button type="button" data-team-action="reactivate">Reactivar</button>'
-        : (!suspended ? '<button class="is-danger" type="button" data-team-action="suspend">Suspender</button>' : '');
+        ? '<button type="button" role="menuitem" data-team-action="reactivate">Reactivar</button>'
+        : (!suspended ? '<button class="is-danger" type="button" role="menuitem" data-team-action="suspend">Suspender</button>' : '');
       return `
-        <button class="store-team-menu-button" type="button" aria-label="Abrir acciones" aria-expanded="false" data-team-menu-toggle>⋯</button>
-        <div class="store-team-menu" data-team-menu hidden>
-          <button type="button" data-team-action="edit">Editar usuario</button>
-          <button type="button" data-team-action="permissions">Permisos</button>
-          <button type="button" data-team-action="temporary">Restablecer acceso</button>
-          <button type="button" data-team-action="sessions">Cerrar sesiones</button>
-          <button type="button" data-team-action="devices">Revocar dispositivos</button>
-          ${activationAction}
-          <button type="button" data-team-action="audit">Ver auditoría</button>
-        </div>`;
+        <button type="button" role="menuitem" data-team-action="edit">Editar usuario</button>
+        <button type="button" role="menuitem" data-team-action="permissions">Permisos</button>
+        <button type="button" role="menuitem" data-team-action="temporary">Restablecer acceso</button>
+        <button type="button" role="menuitem" data-team-action="sessions">Cerrar sesiones</button>
+        <button type="button" role="menuitem" data-team-action="devices">Revocar dispositivos</button>
+        ${activationAction}
+        <button type="button" role="menuitem" data-team-action="audit">Ver auditoría</button>`;
+    }
+
+    function closeFloatingMenu(restoreFocus = false) {
+      const trigger = activeMenuTrigger;
+      if (floatingMenu) {
+        floatingMenu.hidden = true;
+        floatingMenu.inert = true;
+        floatingMenu.style.removeProperty('top');
+        floatingMenu.style.removeProperty('left');
+        floatingMenu.removeAttribute('data-placement');
+      }
+      if (floatingMenuBackdrop) floatingMenuBackdrop.hidden = true;
+      trigger?.setAttribute('aria-expanded', 'false');
+      activeMenuTrigger = null;
+      activeMenuUser = null;
+      activeMenuScrollX = 0;
+      activeMenuScrollY = 0;
+      if (floatingActions) floatingActions.replaceChildren();
+      if (restoreFocus && trigger?.isConnected) trigger.focus();
+    }
+
+    function positionFloatingMenu() {
+      if (!floatingMenu || !activeMenuTrigger || floatingMenu.hidden) return;
+      if (window.matchMedia('(max-width: 640px)').matches) {
+        floatingMenu.style.removeProperty('top');
+        floatingMenu.style.removeProperty('left');
+        floatingMenu.dataset.placement = 'sheet';
+        return;
+      }
+      const viewportMargin = 14;
+      const gap = 8;
+      const triggerRect = activeMenuTrigger.getBoundingClientRect();
+      const menuRect = floatingMenu.getBoundingClientRect();
+      const availableBelow = window.innerHeight - triggerRect.bottom - gap - viewportMargin;
+      const opensDown = availableBelow >= menuRect.height;
+      const preferredTop = opensDown
+        ? triggerRect.bottom + gap
+        : triggerRect.top - gap - menuRect.height;
+      const top = Math.min(
+        Math.max(viewportMargin, preferredTop),
+        Math.max(viewportMargin, window.innerHeight - menuRect.height - viewportMargin),
+      );
+      const left = Math.min(
+        Math.max(viewportMargin, triggerRect.right - menuRect.width),
+        Math.max(viewportMargin, window.innerWidth - menuRect.width - viewportMargin),
+      );
+      floatingMenu.style.top = `${Math.round(top)}px`;
+      floatingMenu.style.left = `${Math.round(left)}px`;
+      floatingMenu.dataset.placement = opensDown ? 'bottom' : 'top';
+    }
+
+    function openFloatingMenu(user: StoreTeamUser, trigger: HTMLButtonElement) {
+      if (!floatingMenu || !floatingActions) return;
+      if (activeMenuTrigger === trigger && !floatingMenu.hidden) {
+        closeFloatingMenu(true);
+        return;
+      }
+      closeFloatingMenu();
+      activeMenuUser = user;
+      activeMenuTrigger = trigger;
+      activeMenuScrollX = window.scrollX;
+      activeMenuScrollY = window.scrollY;
+      floatingActions.innerHTML = actionButtons(user);
+      if (floatingMenuUser) floatingMenuUser.textContent = user.display_name || 'este usuario';
+      floatingMenu.setAttribute('aria-label', `Acciones de ${user.display_name || 'usuario'}`);
+      floatingMenu.hidden = false;
+      floatingMenu.inert = false;
+      trigger.setAttribute('aria-expanded', 'true');
+      if (floatingMenuBackdrop) floatingMenuBackdrop.hidden = !window.matchMedia('(max-width: 640px)').matches;
+      positionFloatingMenu();
+      window.requestAnimationFrame(() => floatingActions.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true }));
+    }
+
+    function actionMenu(user: StoreTeamUser) {
+      if (user.is_primary_admin) return '<span aria-label="Sin acciones destructivas"></span>';
+      return `<button class="store-team-menu-button" type="button" aria-label="Abrir acciones de ${escapeHtml(user.display_name || 'usuario')}" aria-expanded="false" aria-haspopup="menu" aria-controls="store-team-floating-menu" data-team-menu-toggle>⋯</button>`;
     }
 
     function renderUsers() {
       if (!list) return;
+      closeFloatingMenu();
       userByRef.clear();
       if (!users.length) {
         list.innerHTML = '<p class="store-team-empty">Todavía no hay usuarios para mostrar.</p>';
@@ -463,13 +625,59 @@ const {
       }).join('');
     }
 
+    function planPresentation(plan: StoreTeamSummary['plan']) {
+      const rawCode = String(plan?.code || '').trim().toLowerCase();
+      const code = rawCode === 'premium'
+        ? 'premium'
+        : (['basic', 'basico', 'básico'].includes(rawCode) ? 'basic' : (rawCode === 'free' ? 'free' : 'unknown'));
+      const maxUsers = Math.max(0, Number(plan?.max_active_users || 0));
+      if (code === 'premium') {
+        return {
+          code,
+          label: plan?.label || 'Plan Premium',
+          limit: `Hasta ${maxUsers || 4} usuarios activos`,
+          feature: 'Funciones Premium habilitadas',
+        };
+      }
+      if (code === 'basic') {
+        return {
+          code,
+          label: plan?.label || 'Plan Básico',
+          limit: maxUsers === 1 ? '1 usuario activo' : `Hasta ${maxUsers || 1} usuarios activos`,
+          feature: 'Funciones esenciales habilitadas',
+        };
+      }
+      if (code === 'free') {
+        return {
+          code,
+          label: plan?.label || 'Plan Free',
+          limit: maxUsers === 1 ? '1 usuario activo' : `Hasta ${maxUsers || 1} usuarios activos`,
+          feature: 'Acceso inicial habilitado',
+        };
+      }
+      return {
+        code,
+        label: plan?.label || (rawCode ? `Plan ${rawCode}` : 'Sin configurar'),
+        limit: maxUsers > 0 ? `Hasta ${maxUsers} usuario${maxUsers === 1 ? '' : 's'} activo${maxUsers === 1 ? '' : 's'}` : 'Límite no configurado',
+        feature: 'Configuración del plan pendiente',
+      };
+    }
+
     function renderSummary() {
       if (!summary) return;
       const counts = summary.user_counts;
       currentPlanLimit = Math.max(0, Number(summary.plan?.max_active_users || 0));
+      const plan = planPresentation(summary.plan);
       if (activeCount) activeCount.textContent = formatStoreTeamActiveCount(counts.active, currentPlanLimit);
       if (availableCount) availableCount.textContent = String(counts.available);
-      if (planLabel) planLabel.textContent = summary.plan?.label || (summary.plan?.code ? `Plan ${summary.plan.code}` : 'Sin configurar');
+      if (planLabel) planLabel.textContent = plan.label;
+      if (planLimit) planLimit.textContent = plan.limit;
+      if (planFeature) planFeature.textContent = plan.feature;
+      if (planCard) {
+        planCard.dataset.planCode = plan.code;
+        planCard.classList.remove('is-plan-premium', 'is-plan-basic', 'is-plan-free', 'is-plan-unknown');
+        planCard.classList.add(`is-plan-${plan.code}`);
+      }
       if (listSummary) listSummary.textContent = `${counts.total} usuario${counts.total === 1 ? '' : 's'} registrado${counts.total === 1 ? '' : 's'}`;
       if (planNotice) planNotice.hidden = currentPlanLimit > 1;
       if (createButton) {
@@ -481,7 +689,7 @@ const {
     }
 
     async function loadTeam(successMessage = '') {
-      showMessage(alertBox);
+      hideTeamToast(true);
       if (list) list.innerHTML = '<p class="store-team-empty">Cargando usuarios…</p>';
       try {
         const [summaryResult, listResult] = await Promise.all([
@@ -492,10 +700,10 @@ const {
         users = listResult.users;
         renderSummary();
         renderUsers();
-        if (successMessage) showMessage(alertBox, successMessage, 'success');
+        if (successMessage) showTeamToast(successMessage, 'success');
       } catch (error) {
         if (list) list.innerHTML = '<p class="store-team-empty">No se pudo cargar el equipo.</p>';
-        showMessage(alertBox, getStoreTeamErrorMessage(error), 'error');
+        showTeamToast(getStoreTeamErrorMessage(error), 'error');
       }
     }
 
@@ -545,14 +753,14 @@ const {
         displayNameInput?.focus();
         return;
       }
-      showMessage(alertBox);
+      hideTeamToast(true);
       try {
         const result = await getStoreTeamUserDetail(user.id, client);
         resetEditor('edit', result.user);
         openDialog(editorDialog);
         (focusPermissions ? permissionInputs[0] : displayNameInput)?.focus();
       } catch (error) {
-        showMessage(alertBox, getStoreTeamErrorMessage(error), 'error');
+        showTeamToast(getStoreTeamErrorMessage(error), 'error');
       }
     }
 
@@ -580,6 +788,13 @@ const {
       temporary: { title: 'Restablecer acceso', description: 'Se cerrarán las sesiones actuales y se emitirá una contraseña temporal de un solo uso.', button: 'Emitir acceso', danger: true },
       sessions: { title: 'Cerrar sesiones', description: 'Todas las sesiones activas de este usuario se invalidarán.', button: 'Cerrar sesiones', danger: true },
       devices: { title: 'Revocar dispositivos', description: 'Los dispositivos administrativos autorizados deberán validarse nuevamente.', button: 'Revocar dispositivos', danger: true },
+    };
+    const ACTION_SUCCESS: Record<TeamAction, string> = {
+      suspend: 'Usuario suspendido',
+      reactivate: 'Usuario reactivado',
+      temporary: 'Acceso temporal emitido',
+      sessions: 'Sesiones cerradas',
+      devices: 'Dispositivos revocados',
     };
 
     function openAction(action: TeamAction, user: StoreTeamUser) {
@@ -634,13 +849,13 @@ const {
       }
     }
 
-    createButton?.addEventListener('click', () => openEditor());
+    createButton?.addEventListener('click', () => openEditor(), listenerOptions);
 
     templateSelect?.addEventListener('change', () => {
       const code = templateSelect.value as StorePermissionTemplateCode;
       if (code !== 'custom') selectedPermissions = getStorePermissionTemplatePermissions(code);
       syncPermissionInputs();
-    });
+    }, listenerOptions);
 
     permissionInputs.forEach((input) => {
       input.addEventListener('change', () => {
@@ -648,7 +863,7 @@ const {
         selectedPermissions = toggleStorePermission(selectedPermissions, input.value, input.checked);
         if (templateSelect) templateSelect.value = 'custom';
         syncPermissionInputs();
-      });
+      }, listenerOptions);
     });
 
     editorForm?.addEventListener('submit', async (event) => {
@@ -668,11 +883,11 @@ const {
         if (editingUser) {
           await updateStoreTeamUser(editingUser.id, payload, client);
           closeDialog(editorDialog);
-          await loadTeam('Usuario y permisos actualizados correctamente.');
+          await loadTeam('Usuario actualizado correctamente');
         } else {
           const response = await createStoreTeamUser(payload, client);
           closeDialog(editorDialog);
-          await loadTeam('Usuario creado correctamente.');
+          await loadTeam('Usuario creado correctamente');
           showTemporarySecret(response.temporary_password, response.temporary_password_expires_at);
         }
       } catch (error) {
@@ -680,7 +895,7 @@ const {
       } finally {
         editorSubmit.disabled = false;
       }
-    });
+    }, listenerOptions);
 
     actionForm?.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -699,7 +914,7 @@ const {
         closeDialog(actionDialog);
         pendingAction = null;
         pendingActionUser = null;
-        await loadTeam(completedAction === 'temporary' ? 'Acceso temporal emitido.' : 'Acción completada correctamente.');
+        await loadTeam(completedAction ? ACTION_SUCCESS[completedAction] : 'Acción completada correctamente');
         if (temporaryAccess) {
           showTemporarySecret(temporaryAccess.temporary_password, temporaryAccess.temporary_password_expires_at);
         }
@@ -708,7 +923,7 @@ const {
       } finally {
         actionSubmit.disabled = false;
       }
-    });
+    }, listenerOptions);
 
     list?.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -718,25 +933,28 @@ const {
       if (!user) return;
       const toggle = target?.closest<HTMLButtonElement>('[data-team-menu-toggle]');
       if (toggle) {
-        const menu = row?.querySelector<HTMLElement>('[data-team-menu]') || null;
-        const opening = menu?.hidden === true;
-        closeMenus(opening ? menu : null);
-        if (menu) menu.hidden = !opening;
-        toggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+        openFloatingMenu(user, toggle);
+      }
+    }, listenerOptions);
+
+    root.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[data-team-toast-close]')) hideTeamToast();
+      if (target?.closest('[data-team-menu-close], [data-team-menu-backdrop]')) {
+        closeFloatingMenu(true);
         return;
       }
       const actionButton = target?.closest<HTMLButtonElement>('[data-team-action]');
       const action = actionButton?.dataset.teamAction || '';
-      if (!action) return;
-      closeMenus();
-      if (action === 'edit') void openEditor(user);
-      else if (action === 'permissions') void openEditor(user, true);
-      else if (action === 'audit') void openAudit(user);
-      else if (['suspend', 'reactivate', 'temporary', 'sessions', 'devices'].includes(action)) openAction(action as TeamAction, user);
-    });
-
-    root.addEventListener('click', (event) => {
-      const target = event.target instanceof Element ? event.target : null;
+      const user = activeMenuUser;
+      if (action && user) {
+        closeFloatingMenu();
+        if (action === 'edit') void openEditor(user);
+        else if (action === 'permissions') void openEditor(user, true);
+        else if (action === 'audit') void openAudit(user);
+        else if (['suspend', 'reactivate', 'temporary', 'sessions', 'devices'].includes(action)) openAction(action as TeamAction, user);
+        return;
+      }
       if (target?.closest('[data-team-dialog-close]')) {
         closeDialog(target.closest('dialog'));
       }
@@ -744,12 +962,40 @@ const {
         closeDialog(secretDialog);
         clearTemporarySecret();
       }
-    });
+    }, listenerOptions);
 
     document.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null;
-      if (!target?.closest('[data-team-menu-toggle], [data-team-menu]')) closeMenus();
-    });
+      if (!target?.closest('[data-team-menu-toggle], [data-team-floating-menu], [data-team-menu-backdrop]')) closeFloatingMenu();
+    }, listenerOptions);
+
+    document.addEventListener('keydown', (event) => {
+      if (floatingMenu?.hidden !== false) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeFloatingMenu(true);
+        return;
+      }
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      const items = [...(floatingActions?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') || [])];
+      if (!items.length) return;
+      event.preventDefault();
+      const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+      const nextIndex = event.key === 'Home'
+        ? 0
+        : (event.key === 'End'
+          ? items.length - 1
+          : (event.key === 'ArrowDown'
+            ? (currentIndex + 1 + items.length) % items.length
+            : (currentIndex - 1 + items.length) % items.length));
+      items[nextIndex]?.focus();
+    }, listenerOptions);
+
+    window.addEventListener('resize', () => closeFloatingMenu(true), listenerOptions);
+    window.addEventListener('scroll', () => {
+      if (floatingMenu?.hidden !== false) return;
+      if (window.scrollX !== activeMenuScrollX || window.scrollY !== activeMenuScrollY) closeFloatingMenu(true);
+    }, { capture: true, signal: lifecycleController.signal });
 
     secretCopy?.addEventListener('click', async () => {
       if (!temporarySecret) return;
@@ -766,22 +1012,33 @@ const {
           selection?.addRange(range);
         }
       }
-    });
+    }, listenerOptions);
 
-    secretDialog?.addEventListener('cancel', () => clearTemporarySecret());
-    secretDialog?.addEventListener('close', () => clearTemporarySecret());
+    secretDialog?.addEventListener('cancel', () => clearTemporarySecret(), listenerOptions);
+    secretDialog?.addEventListener('close', () => clearTemporarySecret(), listenerOptions);
     editorDialog?.addEventListener('close', () => {
       editingUser = null;
       selectedPermissions = [];
       editorForm?.reset();
       showMessage(editorAlert);
-    });
+    }, listenerOptions);
     actionDialog?.addEventListener('close', () => {
       pendingAction = null;
       pendingActionUser = null;
       actionForm?.reset();
       showMessage(actionAlert);
-    });
+    }, listenerOptions);
+
+    function cleanupStoreTeamView() {
+      hideTeamToast(true);
+      closeFloatingMenu();
+      lifecycleController.abort();
+      if (teamWindow.PZ_STORE_TEAM_CLEANUP === cleanupStoreTeamView) delete teamWindow.PZ_STORE_TEAM_CLEANUP;
+    }
+
+    teamWindow.PZ_STORE_TEAM_CLEANUP = cleanupStoreTeamView;
+    document.addEventListener('astro:before-swap', cleanupStoreTeamView, { once: true, signal: lifecycleController.signal });
+    window.addEventListener('pagehide', cleanupStoreTeamView, { once: true, signal: lifecycleController.signal });
 
     void loadTeam();
   }

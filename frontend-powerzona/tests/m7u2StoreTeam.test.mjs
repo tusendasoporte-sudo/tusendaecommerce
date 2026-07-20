@@ -261,7 +261,7 @@ test('M7U2: vista funcional cubre estados, acciones, secreto único y downgrade 
   assert.match(view, /createButton\.disabled = !canCreateStoreTeamUser\(summary\)/);
   assert.match(view, /clearTemporarySecret\(\)/);
   assert.match(view, /secretValue\.textContent = ''/);
-  assert.match(view, /secretDialog\?\.addEventListener\('close', \(\) => clearTemporarySecret\(\)\)/);
+  assert.match(view, /secretDialog\?\.addEventListener\('close', \(\) => clearTemporarySecret\(\), listenerOptions\)/);
 });
 
 test('M7U2: UI no expone permisos reservados y aplica selección dependiente', () => {
@@ -291,4 +291,78 @@ test('M7U2: gating evita notificaciones sin permiso y mantiene responsive de tab
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.store-team-row \{[\s\S]*?border-radius: 16px/);
   assert.match(styles, /@media \(max-width: 640px\)/);
   assert.match(styles, /env\(safe-area-inset-bottom\)/);
+});
+
+test('M7U2-C1: usa una sola capa flotante, conserva el usuario objetivo y cubre todos los cierres', () => {
+  const view = read('../src/components/admin/StoreTeamView.astro');
+  const styles = read('../src/styles/store-team.css');
+  const markup = view.slice(0, view.indexOf('<script define:vars'));
+
+  assert.equal((markup.match(/data-team-floating-menu/g) || []).length, 1);
+  assert.equal(markup.includes('data-team-menu hidden'), false);
+  assert.match(markup, /role="menu"/);
+  assert.match(view, /aria-controls="store-team-floating-menu"/);
+  assert.match(view, /activeMenuUser = user/);
+  assert.match(view, /openFloatingMenu\(user, toggle\)/);
+  assert.match(view, /trigger\.setAttribute\('aria-expanded', 'true'\)/);
+  assert.match(view, /trigger\?\.setAttribute\('aria-expanded', 'false'\)/);
+  assert.match(view, /getBoundingClientRect\(\)/);
+  assert.match(view, /availableBelow >= menuRect\.height/);
+  assert.match(view, /opensDown \? 'bottom' : 'top'/);
+  assert.match(view, /viewportMargin = 14/);
+  assert.match(view, /event\.key === 'Escape'/);
+  assert.match(view, /window\.addEventListener\('resize', \(\) => closeFloatingMenu\(true\)/);
+  assert.match(view, /window\.addEventListener\('scroll',[\s\S]*?window\.scrollX !== activeMenuScrollX \|\| window\.scrollY !== activeMenuScrollY[\s\S]*?closeFloatingMenu\(true\)/);
+  assert.match(view, /focus\(\{ preventScroll: true \}\)/);
+  assert.match(view, /if \(!target\?\.closest\('\[data-team-menu-toggle\], \[data-team-floating-menu\], \[data-team-menu-backdrop\]'\)\) closeFloatingMenu\(\)/);
+  assert.match(view, /closeFloatingMenu\(\);[\s\S]*?dialog\.showModal/);
+  assert.match(view, /lifecycleController\.abort\(\)/);
+  assert.match(styles, /\.store-team-menu \{[\s\S]*?position: fixed;[\s\S]*?z-index: 1600/);
+  assert.doesNotMatch(styles, /\.store-team-actions \{[\s\S]*?position: relative/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.store-team-menu \{[\s\S]*?bottom: calc\(72px \+ env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles, /\.store-team-menu-backdrop \{[\s\S]*?position: fixed/);
+  assert.match(styles, /\.store-team-floating-menu__actions button \{[\s\S]*?min-height: 48px/);
+  assert.match(view, /class="is-danger"[^>]*data-team-action="suspend"/);
+});
+
+test('M7U2-C1: éxito usa un toast temporal único y los errores de formulario siguen persistentes', () => {
+  const view = read('../src/components/admin/StoreTeamView.astro');
+  const styles = read('../src/styles/store-team.css');
+  const markup = view.slice(0, view.indexOf('<script define:vars'));
+
+  assert.equal((markup.match(/data-team-toast(?:\s|>)/g) || []).length, 1);
+  assert.match(markup, /data-team-toast-close aria-label="Cerrar notificación"/);
+  assert.match(markup, /aria-live="polite"/);
+  assert.match(view, /function clearTeamToastTimer\(\)/);
+  assert.match(view, /window\.clearTimeout\(teamToastTimer\)/);
+  assert.match(view, /if \(tone === 'success'\) \{[\s\S]*?window\.setTimeout\(\(\) => hideTeamToast\(\), 3800\)/);
+  assert.match(view, /data-team-toast-close[^\n]*hideTeamToast\(\)/);
+  assert.match(view, /showTeamToast\(successMessage, 'success'\)/);
+  assert.match(view, /showMessage\(editorAlert, getStoreTeamErrorMessage\(error\), 'error'\)/);
+  assert.match(view, /showMessage\(actionAlert, getStoreTeamErrorMessage\(error\), 'error'\)/);
+  assert.doesNotMatch(view, /showTeamToast\(getStoreTeamErrorMessage\(error\), 'error'\)[\s\S]{0,180}setTimeout/);
+  assert.match(styles, /\.store-team-toast \{[\s\S]*?position: fixed/);
+  assert.match(styles, /\.store-team-toast\[hidden\] \{[\s\S]*?display: none;[\s\S]*?pointer-events: none/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.store-team-toast \{[\s\S]*?left: 50%/);
+});
+
+test('M7U2-C1: tarjeta de plan deriva Premium, Básico, Free y fallback sin consultas nuevas', () => {
+  const view = read('../src/components/admin/StoreTeamView.astro');
+  const styles = read('../src/styles/store-team.css');
+
+  assert.match(view, /data-team-plan-card data-plan-code="unknown"/);
+  assert.match(view, /class="store-team-plan-card__icon"[\s\S]*?aria-hidden="true"/);
+  assert.match(view, /Funciones Premium habilitadas/);
+  assert.match(view, /Plan Básico/);
+  assert.match(view, /Plan Free/);
+  assert.match(view, /Configuración del plan pendiente/);
+  assert.match(view, /planCard\.dataset\.planCode = plan\.code/);
+  assert.match(view, /classList\.add\(`is-plan-\$\{plan\.code\}`\)/);
+  assert.match(styles, /\.store-team-plan-card\.is-plan-premium \{[\s\S]*?linear-gradient\(135deg, #0b1739/);
+  assert.match(styles, /\.store-team-plan-card\.is-plan-basic \{/);
+  assert.match(styles, /\.store-team-plan-card\.is-plan-free \{/);
+  assert.match(styles, /\.store-team-plan-card\.is-plan-unknown/);
+  assert.equal(view.includes('PowerZona'), false);
+  assert.equal((view.match(/getStoreTeamSummary\(client\)/g) || []).length, 1);
+  assert.equal((view.match(/listStoreTeamUsers\(client\)/g) || []).length, 1);
 });
