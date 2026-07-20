@@ -1,28 +1,16 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 onRecordCreateRequest((e) => {
-  const lib = require(`${__hooks}/pz_product_expiration_lib.js`);
-  const safe = lib.validateDateWriteRequest(e, "products");
-  if (safe) lib.raiseExpirationRequestError(safe);
-  return e.next();
+  return require(`${__hooks}/pz_product_expiration_lib.js`).handleDateWriteRequest(e, "products");
 }, "products");
 onRecordUpdateRequest((e) => {
-  const lib = require(`${__hooks}/pz_product_expiration_lib.js`);
-  const safe = lib.validateDateWriteRequest(e, "products");
-  if (safe) lib.raiseExpirationRequestError(safe);
-  return e.next();
+  return require(`${__hooks}/pz_product_expiration_lib.js`).handleDateWriteRequest(e, "products");
 }, "products");
 onRecordCreateRequest((e) => {
-  const lib = require(`${__hooks}/pz_product_expiration_lib.js`);
-  const safe = lib.validateDateWriteRequest(e, "product_variations");
-  if (safe) lib.raiseExpirationRequestError(safe);
-  return e.next();
+  return require(`${__hooks}/pz_product_expiration_lib.js`).handleDateWriteRequest(e, "product_variations");
 }, "product_variations");
 onRecordUpdateRequest((e) => {
-  const lib = require(`${__hooks}/pz_product_expiration_lib.js`);
-  const safe = lib.validateDateWriteRequest(e, "product_variations");
-  if (safe) lib.raiseExpirationRequestError(safe);
-  return e.next();
+  return require(`${__hooks}/pz_product_expiration_lib.js`).handleDateWriteRequest(e, "product_variations");
 }, "product_variations");
 
 onRecordCreateRequest((e) => {

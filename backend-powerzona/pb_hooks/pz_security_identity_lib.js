@@ -10,6 +10,9 @@ const {
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const securityMonitoring = typeof __hooks === "undefined"
+  ? require("./pz_security_monitoring_lib.js")
+  : require(`${__hooks}/pz_security_monitoring_lib.js`);
 const SECURITY_SETTINGS_COLLECTION = "store_security_settings";
 const STORE_CUSTOMERS_COLLECTION = "store_customers";
 const STORE_CUSTOMER_PHONES_COLLECTION = "store_customer_phones";
@@ -18,7 +21,6 @@ const STORE_CUSTOMER_LINKS_COLLECTION = "store_customer_links";
 const SECURITY_EVENTS_COLLECTION = "store_security_events";
 const VISITOR_SESSIONS_COLLECTION = "store_visitor_sessions";
 const VISITOR_PAGEVIEWS_COLLECTION = "store_visitor_pageviews";
-const STORE_SECURITY_AUDIT_COLLECTION = "store_security_audit";
 const ORDERS_COLLECTION = "orders";
 const ORDER_ITEMS_COLLECTION = "order_items";
 const SHIPPING_ZONES_COLLECTION = "shipping_zones";
@@ -34,7 +36,6 @@ const LOG_MESSAGES = {
   PZ_SEC_ORDER_UPDATE_REBUILD_FAILED: "PowerZona security order update rebuild skipped safely.",
   PZ_SEC_ORDER_DELETE_REBUILD_FAILED: "PowerZona security order delete rebuild skipped safely.",
   PZ_SEC_CUSTOMER_IDENTITY_FAILED: "PowerZona security canonical customer operation skipped safely.",
-  PZ_SEC_CUSTOMER_AUTO_RESTORE_FAILED: "PowerZona security archived customer restore skipped safely.",
 };
 
 function logSecurity(level, code) {
@@ -294,37 +295,47 @@ function respondStorePermissionDenied(e, role, authStoreId, storeId) {
   return e.json(403, { ok: false, error: "permission_denied" });
 }
 
-function createSecurityAudit(app, storeId, action, actorId, subjectRecordId, reason, counts) {
-  const collection = app.findCollectionByNameOrId(STORE_SECURITY_AUDIT_COLLECTION);
-  const audit = new Record(collection, {});
-  const safeCounts = counts || {};
-
-  audit.set("store", storeId);
-  audit.set("action", action);
-  if (actorId) audit.set("actor", actorId);
-  audit.set("subject_record_id", String(subjectRecordId || "").slice(0, 40));
-  audit.set("reason_internal", sanitizeMergeReason(reason));
-  audit.set("orders_affected", Math.max(0, Number(safeCounts.orders_affected || 0)));
-  audit.set("events_affected", Math.max(0, Number(safeCounts.events_affected || 0)));
-  audit.set("phones_affected", Math.max(0, Number(safeCounts.phones_affected || 0)));
-  audit.set("devices_affected", Math.max(0, Number(safeCounts.devices_affected || 0)));
-  audit.set("sessions_affected", Math.max(0, Number(safeCounts.sessions_affected || 0)));
-  audit.set("pageviews_affected", Math.max(0, Number(safeCounts.pageviews_affected || 0)));
-  app.save(audit);
+function autoRestoreArchivedCustomer(app, storeId, customer) {
+  if (!customer || !getBoolean(customer, "archived")) return customer;
+  customer.set("archived", false);
+  customer.set("archived_at", "");
+  customer.set("archived_by", "");
+  customer.set("archive_reason", "");
+  app.save(customer);
+  securityMonitoring.createSecurityAudit(
+    app,
+    storeId,
+    "auto_restore_customer",
+    "",
+    customer.id,
+    "new order identity signal",
+    {}
+  );
+  return customer;
 }
 
-function autoRestoreArchivedCustomer(app, storeId, customer) {
-  if (!customer || !getBoolean(customer, "archived")) return;
-  try {
-    customer.set("archived", false);
-    customer.set("archived_at", "");
-    customer.set("archived_by", "");
-    customer.set("archive_reason", "");
-    app.save(customer);
-    createSecurityAudit(app, storeId, "auto_restore_customer", "", customer.id, "new order identity signal", {});
-  } catch (_) {
-    logSecurity("error", "PZ_SEC_CUSTOMER_AUTO_RESTORE_FAILED");
-  }
+function safeMergeAuditCount(value) {
+  const count = Number(value || 0);
+  if (!Number.isFinite(count) || count <= 0) return 0;
+  return Math.floor(count);
+}
+
+function createManualCustomerMergeAudit(app, storeId, actorId, result) {
+  const mergeResult = result || {};
+  return securityMonitoring.createSecurityAudit(
+    app,
+    storeId,
+    "security_customer_identity_merged",
+    actorId,
+    "",
+    "",
+    {
+      orders_affected: safeMergeAuditCount(mergeResult.orders_moved),
+      events_affected: safeMergeAuditCount(mergeResult.events_moved),
+      sessions_affected: safeMergeAuditCount(mergeResult.sessions_moved),
+      pageviews_affected: safeMergeAuditCount(mergeResult.pageviews_moved),
+    }
+  );
 }
 
 function resolveCanonicalCustomer(app, storeId, customerOrId) {
@@ -1333,7 +1344,7 @@ function registerOrderSecurityIdentity(orderId, receiptToken, browserTokenDigest
       ipCapture
     );
     try {
-      require(`${__hooks}/pz_security_monitoring_lib.js`).linkVisitorSessionToCustomerByBrowserToken(
+      securityMonitoring.linkVisitorSessionToCustomerByBrowserToken(
         txApp,
         txStoreId,
         browserTokenHmac,
@@ -2091,6 +2102,7 @@ function handleMergeCustomers(e) {
         createdBy,
         canonical.id
       );
+      createManualCustomerMergeAudit(txApp, parsed.storeId, createdBy, result);
     });
 
     if (!result) return e.json(404, { ok: false, error: "not_found" });
@@ -2173,5 +2185,7 @@ module.exports = {
     utf8ByteLength,
     isValidHmacSecretValue,
     isValidAesKeyValue,
+    autoRestoreArchivedCustomer,
+    createManualCustomerMergeAudit,
   },
 };

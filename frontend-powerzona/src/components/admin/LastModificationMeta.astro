@@ -1,0 +1,244 @@
+---
+import '../../styles/store-activity.css';
+
+interface Props {
+  resourceType?: string;
+  resourceId?: string;
+  pocketbaseUrl?: string;
+  enabled?: boolean;
+  showActor?: boolean;
+  controllerOnly?: boolean;
+  id?: string;
+  class?: string;
+  usefulEmptyState?: boolean;
+}
+
+const {
+  resourceType = '',
+  resourceId = '',
+  pocketbaseUrl = '',
+  enabled = true,
+  showActor = false,
+  controllerOnly = false,
+  id,
+  class: className = '',
+  usefulEmptyState = true,
+} = Astro.props;
+---
+
+<span
+  class="pz-last-modification-controller"
+  data-pz-last-modification-controller
+  data-api-base={String(pocketbaseUrl || '').replace(/\/+$/, '')}
+  data-enabled={enabled ? 'true' : 'false'}
+  data-show-actor={showActor ? 'true' : 'false'}
+  hidden
+></span>
+
+{!controllerOnly && (
+  <span
+    id={id}
+    class:list={['pz-last-modification', className]}
+    data-pz-last-modification
+    data-resource-type={resourceType}
+    data-resource-id={resourceId}
+    data-show-actor={showActor ? 'true' : undefined}
+    data-useful-empty={usefulEmptyState ? 'true' : 'false'}
+    aria-live="polite"
+  >
+    <span class="pz-last-modification__skeleton">Cargando última modificación…</span>
+  </span>
+)}
+
+<script>
+  import {
+    clearStoreLastModifiedCache,
+    getStoreLastModifiedBatch,
+    readPocketBaseAuthToken,
+    type StoreLastModifiedItem,
+  } from '../../lib/storeActivity';
+
+  type LastModificationWindow = typeof window & {
+    PZ_LAST_MODIFICATION_CLEANUP?: () => void;
+  };
+
+  const lastModificationWindow = window as LastModificationWindow;
+  lastModificationWindow.PZ_LAST_MODIFICATION_CLEANUP?.();
+
+  const lifecycleController = new AbortController();
+  const listenerOptions = { signal: lifecycleController.signal };
+  const pending = new Set<HTMLElement>();
+  const inFlight = new Set<string>();
+  let flushTimer: number | null = null;
+
+  function controllerConfig() {
+    const controller = document.querySelector<HTMLElement>('[data-pz-last-modification-controller][data-enabled="true"]');
+    return {
+      enabled: Boolean(controller),
+      baseUrl: String(controller?.dataset.apiBase || '').replace(/\/+$/, ''),
+      showActor: controller?.dataset.showActor === 'true',
+    };
+  }
+
+  function resourceFor(element: HTMLElement) {
+    const type = String(element.dataset.resourceType || '').trim().toLowerCase();
+    const id = String(element.dataset.resourceId || '').trim();
+    if (!type || !id) return null;
+    return { type, id, key: `${type}:${id}` };
+  }
+
+  function formatDate(value: unknown) {
+    const raw = String(value || '').trim();
+    const date = new Date(raw.replace(' ', 'T'));
+    if (!raw || !Number.isFinite(date.getTime())) return '';
+    return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  }
+
+  function appendLine(element: HTMLElement, value: string, className: string) {
+    const line = document.createElement('span');
+    line.className = className;
+    line.textContent = value;
+    element.append(line);
+  }
+
+  function renderItem(element: HTMLElement, item: StoreLastModifiedItem | null, showActor: boolean) {
+    element.replaceChildren();
+    element.dataset.lastModificationLoaded = 'true';
+    element.classList.remove('is-loading', 'is-error', 'is-empty');
+    if (!item) {
+      element.classList.add('is-empty');
+      if (element.dataset.usefulEmpty !== 'false') {
+        appendLine(element, 'Sin modificaciones registradas', 'pz-last-modification__meta');
+      }
+      return;
+    }
+    const created = formatDate(item.last_modified_at);
+    const deletedActor = item.actor_state === 'deleted';
+    let headline = created ? `Última actualización · ${created}` : 'Última actualización';
+    if (showActor && item.actor_name) {
+      const actor = deletedActor ? `${item.actor_name} · Usuario eliminado` : item.actor_name;
+      headline = created ? `Editado por ${actor} · ${created}` : `Editado por ${actor}`;
+    }
+    appendLine(element, headline, 'pz-last-modification__meta');
+    if (showActor && item.summary) appendLine(element, item.summary, 'pz-last-modification__summary');
+  }
+
+  function renderUnavailable(element: HTMLElement) {
+    element.replaceChildren();
+    element.dataset.lastModificationLoaded = 'true';
+    element.classList.remove('is-loading');
+    element.classList.add('is-error');
+    appendLine(element, 'Última modificación no disponible', 'pz-last-modification__meta');
+  }
+
+  async function flush() {
+    flushTimer = null;
+    const config = controllerConfig();
+    const elements = [...pending].filter((element) => element.isConnected);
+    pending.clear();
+    if (!config.enabled || !config.baseUrl) {
+      elements.forEach((element) => { element.hidden = true; });
+      return;
+    }
+    const byKey = new Map<string, { type: string; id: string; elements: HTMLElement[] }>();
+    elements.forEach((element) => {
+      const resource = resourceFor(element);
+      if (!resource || inFlight.has(resource.key)) return;
+      const current = byKey.get(resource.key) || { type: resource.type, id: resource.id, elements: [] };
+      current.elements.push(element);
+      byKey.set(resource.key, current);
+      element.classList.add('is-loading');
+    });
+    const entries = [...byKey.entries()].slice(0, 100);
+    if (!entries.length) return;
+    entries.forEach(([key]) => inFlight.add(key));
+    const token = readPocketBaseAuthToken();
+    if (!token) {
+      entries.forEach(([, value]) => value.elements.forEach(renderUnavailable));
+      entries.forEach(([key]) => inFlight.delete(key));
+      return;
+    }
+    try {
+      const result = await getStoreLastModifiedBatch(
+        entries.map(([, value]) => ({ type: value.type, id: value.id })),
+        { baseUrl: config.baseUrl, token, signal: lifecycleController.signal },
+      );
+      entries.forEach(([key, value]) => {
+        value.elements.forEach((element) => {
+          const elementShowActor = element.dataset.showActor === 'true' || config.showActor;
+          renderItem(element, result[key] || null, elementShowActor);
+        });
+      });
+    } catch (error) {
+      if ((error as any)?.name === 'AbortError') return;
+      entries.forEach(([, value]) => value.elements.forEach(renderUnavailable));
+    } finally {
+      entries.forEach(([key]) => inFlight.delete(key));
+    }
+    if (byKey.size > entries.length) {
+      [...byKey.entries()].slice(entries.length).forEach(([, value]) => value.elements.forEach(queue));
+    }
+  }
+
+  function scheduleFlush() {
+    if (flushTimer !== null) return;
+    flushTimer = window.setTimeout(() => void flush(), 30);
+  }
+
+  function queue(element: HTMLElement) {
+    if (!element.isConnected || element.dataset.lastModificationLoaded === 'true') return;
+    if (!resourceFor(element)) return;
+    pending.add(element);
+    scheduleFlush();
+  }
+
+  function discover(root: ParentNode = document) {
+    root.querySelectorAll<HTMLElement>('[data-pz-last-modification]').forEach(queue);
+  }
+
+  const observer = new MutationObserver((records) => {
+    records.forEach((record) => {
+      if (record.type === 'attributes' && record.target instanceof HTMLElement) {
+        record.target.removeAttribute('data-last-modification-loaded');
+        queue(record.target);
+        return;
+      }
+      record.addedNodes.forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        if (node.matches('[data-pz-last-modification]')) queue(node);
+        discover(node);
+      });
+    });
+  });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['data-resource-id', 'data-resource-type'],
+  });
+  discover();
+
+  document.addEventListener('pz:last-modification:refresh', () => {
+    clearStoreLastModifiedCache();
+    document.querySelectorAll<HTMLElement>('[data-pz-last-modification]').forEach((element) => {
+      element.removeAttribute('data-last-modification-loaded');
+      queue(element);
+    });
+  }, listenerOptions);
+
+  function cleanupLastModification() {
+    observer.disconnect();
+    if (flushTimer !== null) window.clearTimeout(flushTimer);
+    flushTimer = null;
+    pending.clear();
+    inFlight.clear();
+    lifecycleController.abort();
+    if (lastModificationWindow.PZ_LAST_MODIFICATION_CLEANUP === cleanupLastModification) {
+      delete lastModificationWindow.PZ_LAST_MODIFICATION_CLEANUP;
+    }
+  }
+
+  lastModificationWindow.PZ_LAST_MODIFICATION_CLEANUP = cleanupLastModification;
+  document.addEventListener('astro:before-swap', cleanupLastModification, { once: true, signal: lifecycleController.signal });
+  window.addEventListener('pagehide', cleanupLastModification, { once: true, signal: lifecycleController.signal });
+</script>

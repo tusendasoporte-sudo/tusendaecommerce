@@ -1,10 +1,13 @@
 ---
 import AdminSectionHeader from './AdminSectionHeader.astro';
+import LastModificationMeta from './LastModificationMeta.astro';
+import StoreActivityView from './StoreActivityView.astro';
 import {
   STORE_PERMISSION_CATALOG,
   STORE_PERMISSION_TEMPLATE_CODES,
   STORE_PERMISSION_TEMPLATES,
 } from '../../lib/storeTeamPermissions';
+import { STORE_TEAM_DELETE_REASONS } from '../../lib/storeTeamDeleteReasons';
 
 interface Props {
   pocketbaseUrl: string;
@@ -26,6 +29,36 @@ const {
       title="Mi equipo"
       description="Administra los accesos y permisos de tu tienda."
     />
+
+    <nav class="store-team-tabs" role="tablist" aria-label="Secciones de Mi equipo">
+      <button
+        class="store-team-tab"
+        id="store-team-users-tab"
+        type="button"
+        role="tab"
+        aria-selected="true"
+        aria-controls="store-team-users-panel"
+        data-team-tab="users"
+      >Usuarios</button>
+      <button
+        class="store-team-tab"
+        id="store-team-activity-tab"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="store-team-activity-panel"
+        tabindex="-1"
+        data-team-tab="activity"
+      >Actividad del equipo</button>
+    </nav>
+
+    <div
+      class="store-team-tab-panel"
+      id="store-team-users-panel"
+      role="tabpanel"
+      aria-labelledby="store-team-users-tab"
+      data-team-tab-panel="users"
+    >
 
     <section class="store-team-summary" aria-label="Resumen de usuarios">
       <article class="store-team-summary__card">
@@ -76,6 +109,31 @@ const {
         <p class="store-team-empty">Cargando usuarios…</p>
       </div>
     </section>
+    </div>
+
+    <div
+      class="store-team-tab-panel"
+      id="store-team-activity-panel"
+      role="tabpanel"
+      aria-labelledby="store-team-activity-tab"
+      data-team-tab-panel="activity"
+      hidden
+    >
+      <StoreActivityView
+        mode="team"
+        pocketbaseUrl={pocketbaseUrl}
+        storeSlug={storeSlug}
+        deferred={true}
+        embedded={true}
+      />
+    </div>
+
+    <LastModificationMeta
+      pocketbaseUrl={pocketbaseUrl}
+      enabled={true}
+      showActor={true}
+      controllerOnly={true}
+    />
   </div>
 
   <div class="store-team-toast" role="status" aria-live="polite" aria-atomic="true" data-team-toast hidden>
@@ -197,6 +255,80 @@ const {
     </form>
   </dialog>
 
+  <dialog
+    class="store-team-dialog"
+    data-team-delete-dialog
+    aria-labelledby="store-team-delete-title"
+    aria-describedby="store-team-delete-description"
+  >
+    <form class="store-team-dialog__layout" data-team-delete-form>
+      <header class="store-team-dialog__head">
+        <div>
+          <h2 id="store-team-delete-title">Eliminar usuario permanentemente</h2>
+          <p id="store-team-delete-description">Esta operación no permite restaurar la cuenta.</p>
+        </div>
+        <button class="store-team-dialog__close" type="button" data-team-delete-close aria-label="Cerrar">×</button>
+      </header>
+      <div class="store-team-dialog__body">
+        <div class="store-team-alert is-error" role="alert" data-team-delete-alert hidden></div>
+        <div class="store-team-delete-warning" data-team-delete-warning>
+          <strong data-team-delete-user>Usuario</strong>
+          <span>Esta acción eliminará su acceso, permisos, sesiones y dispositivos. Su historial de acciones permanecerá guardado y no podrá restaurarse.</span>
+          <span data-team-delete-active-warning hidden>Este usuario está activo. Su acceso se cerrará inmediatamente al confirmar.</span>
+        </div>
+        <div class="store-team-delete-confirmation">
+          <div class="store-team-delete-email-card">
+            <span>Correo del usuario</span>
+            <div>
+              <strong data-team-delete-email-value></strong>
+              <button class="store-team-secondary-button" type="button" data-team-delete-email-copy>Copiar correo</button>
+            </div>
+            <small data-team-delete-copy-feedback role="status" aria-live="polite"></small>
+          </div>
+          <div class="store-team-field">
+            <label for="store-team-delete-email">Escribe el correo completo para confirmar</label>
+            <input
+              id="store-team-delete-email"
+              name="confirmation_email"
+              type="email"
+              maxlength="180"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              required
+            />
+          </div>
+          <div class="store-team-field">
+            <label for="store-team-delete-reason">Motivo de eliminación</label>
+            <select
+              id="store-team-delete-reason"
+              name="reason_code"
+              required
+            >
+              <option value="">Seleccione un motivo</option>
+              {STORE_TEAM_DELETE_REASONS.map((reason) => <option value={reason.code}>{reason.label}</option>)}
+            </select>
+          </div>
+          <div class="store-team-field" data-team-delete-detail-field hidden>
+            <label for="store-team-delete-detail">Explique brevemente el motivo</label>
+            <textarea
+              id="store-team-delete-detail"
+              name="reason_detail"
+              minlength="8"
+              maxlength="300"
+              placeholder="Ej.: se creó una cuenta nueva con otro correo"
+            ></textarea>
+            <small>Mínimo 8 y máximo 300 caracteres.</small>
+          </div>
+        </div>
+      </div>
+      <footer class="store-team-dialog__foot">
+        <button class="store-team-secondary-button" type="button" data-team-delete-close>Cancelar</button>
+        <button class="store-team-danger-button" type="submit" data-team-delete-submit disabled>Eliminar permanentemente</button>
+      </footer>
+    </form>
+  </dialog>
+
   <dialog class="store-team-dialog" data-team-secret-dialog aria-labelledby="store-team-secret-title">
     <div class="store-team-dialog__layout">
       <header class="store-team-dialog__head">
@@ -255,6 +387,7 @@ const {
   import {
     createStoreTeamUser,
     canCreateStoreTeamUser,
+    deleteStoreTeamUser,
     formatStoreTeamActiveCount,
     getStoreTeamErrorMessage,
     getStoreTeamSummary,
@@ -270,6 +403,12 @@ const {
     type StoreTeamSummary,
     type StoreTeamUser,
   } from '../../lib/storeTeam';
+  import {
+    isStoreTeamDeleteReasonCode,
+    validateStoreTeamDeleteReason,
+    type StoreTeamDeleteReasonCode,
+  } from '../../lib/storeTeamDeleteReasons';
+  import { getStoreAdminPath } from '../../lib/adminRoutes';
   import {
     STORE_PERMISSION_TEMPLATE_CODES,
     STORE_PERMISSION_TEMPLATES,
@@ -306,8 +445,12 @@ const {
         return '';
       }
     };
-    const client = { baseUrl: config.pocketbaseUrl, token: readAuthToken() };
+    const lifecycleController = new AbortController();
+    const client = { baseUrl: config.pocketbaseUrl, token: readAuthToken(), signal: lifecycleController.signal };
     const list = root.querySelector<HTMLElement>('[data-team-list]');
+    const tabButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-team-tab]')];
+    const tabPanels = [...root.querySelectorAll<HTMLElement>('[data-team-tab-panel]')];
+    const activityView = root.querySelector<HTMLElement>('[data-store-activity-root]');
     const toast = root.querySelector<HTMLElement>('[data-team-toast]');
     const toastMessage = root.querySelector<HTMLElement>('[data-team-toast-message]');
     const activeCount = root.querySelector<HTMLElement>('[data-team-active-count]');
@@ -348,6 +491,22 @@ const {
     const actionReason = root.querySelector<HTMLTextAreaElement>('#store-team-action-reason');
     const actionSubmit = root.querySelector<HTMLButtonElement>('[data-team-action-submit]');
 
+    const deleteDialog = root.querySelector<HTMLDialogElement>('[data-team-delete-dialog]');
+    const deleteForm = root.querySelector<HTMLFormElement>('[data-team-delete-form]');
+    const deleteAlert = root.querySelector<HTMLElement>('[data-team-delete-alert]');
+    const deleteWarning = root.querySelector<HTMLElement>('[data-team-delete-warning]');
+    const deleteActiveWarning = root.querySelector<HTMLElement>('[data-team-delete-active-warning]');
+    const deleteUserLabel = root.querySelector<HTMLElement>('[data-team-delete-user]');
+    const deleteEmailValue = root.querySelector<HTMLElement>('[data-team-delete-email-value]');
+    const deleteEmailCopy = root.querySelector<HTMLButtonElement>('[data-team-delete-email-copy]');
+    const deleteCopyFeedback = root.querySelector<HTMLElement>('[data-team-delete-copy-feedback]');
+    const deleteEmail = root.querySelector<HTMLInputElement>('#store-team-delete-email');
+    const deleteReason = root.querySelector<HTMLSelectElement>('#store-team-delete-reason');
+    const deleteDetailField = root.querySelector<HTMLElement>('[data-team-delete-detail-field]');
+    const deleteDetail = root.querySelector<HTMLTextAreaElement>('#store-team-delete-detail');
+    const deleteSubmit = root.querySelector<HTMLButtonElement>('[data-team-delete-submit]');
+    const deleteCloseButtons = [...root.querySelectorAll<HTMLButtonElement>('[data-team-delete-close]')];
+
     const secretDialog = root.querySelector<HTMLDialogElement>('[data-team-secret-dialog]');
     const secretValue = root.querySelector<HTMLElement>('[data-team-secret-value]');
     const secretExpiration = root.querySelector<HTMLElement>('[data-team-secret-expiration]');
@@ -364,15 +523,17 @@ const {
     let selectedPermissions: StorePermission[] = [];
     let pendingAction: TeamAction | null = null;
     let pendingActionUser: StoreTeamUser | null = null;
+    let pendingDeleteUser: StoreTeamUser | null = null;
+    let deletingUser = false;
     let temporarySecret = '';
     let activeMenuUser: StoreTeamUser | null = null;
     let activeMenuTrigger: HTMLButtonElement | null = null;
     let activeMenuScrollX = 0;
     let activeMenuScrollY = 0;
     let teamToastTimer: number | null = null;
+    let deleteCopyTimer: number | null = null;
     let userRefCounter = 0;
     const userByRef = new Map<string, StoreTeamUser>();
-    const lifecycleController = new AbortController();
     const listenerOptions = { signal: lifecycleController.signal };
     const teamWindow = window as typeof window & { PZ_STORE_TEAM_CLEANUP?: () => void };
     teamWindow.PZ_STORE_TEAM_CLEANUP?.();
@@ -449,6 +610,26 @@ const {
       }
     }
 
+    function selectTeamTab(tabName: 'users' | 'activity') {
+      tabButtons.forEach((button) => {
+        const selected = button.dataset.teamTab === tabName;
+        button.setAttribute('aria-selected', selected ? 'true' : 'false');
+        button.tabIndex = selected ? 0 : -1;
+      });
+      tabPanels.forEach((panel) => {
+        panel.hidden = panel.dataset.teamTabPanel !== tabName;
+      });
+      closeFloatingMenu();
+      if (tabName === 'activity') {
+        activityView?.dispatchEvent(new CustomEvent('pz:store-activity:activate'));
+      }
+    }
+
+    function requestedTeamTab(): 'users' | 'activity' {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('tab') === 'activity' || window.location.hash === '#activity' ? 'activity' : 'users';
+    }
+
     function formatDate(value: unknown) {
       const raw = String(value || '').trim();
       if (!raw) return 'Sin actividad reciente';
@@ -457,12 +638,12 @@ const {
       return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
     }
 
-    function maskEmail(value: unknown) {
-      const email = String(value || '').trim();
-      const [local = '', domain = ''] = email.split('@');
-      if (!domain) return email || 'Sin correo';
-      const visible = local.slice(0, Math.min(2, local.length));
-      return `${visible}${'*'.repeat(Math.max(2, Math.min(6, local.length - visible.length)))}@${domain}`;
+    function syncEmailTitles() {
+      root.querySelectorAll<HTMLElement>('.store-team-row__email').forEach((element) => {
+        const truncated = element.scrollWidth > element.clientWidth;
+        if (truncated) element.title = element.textContent || '';
+        else element.removeAttribute('title');
+      });
     }
 
     function roleLabel(user: StoreTeamUser) {
@@ -488,7 +669,9 @@ const {
     }
 
     function actionButtons(user: StoreTeamUser) {
-      if (user.is_primary_admin) return '<span aria-label="Sin acciones destructivas"></span>';
+      if (user.is_primary_admin) {
+        return '<button type="button" role="menuitem" data-team-action="activity">Ver actividad</button>';
+      }
       const suspended = String(user.status || '').toLowerCase() === 'suspended' || String(user.state || '').toLowerCase() === 'suspended';
       const blockedByPlan = user.blocked_by_plan === true || String(user.state || '').toLowerCase() === 'blocked_by_plan';
       const activationAction = suspended && !blockedByPlan
@@ -501,7 +684,9 @@ const {
         <button type="button" role="menuitem" data-team-action="sessions">Cerrar sesiones</button>
         <button type="button" role="menuitem" data-team-action="devices">Revocar dispositivos</button>
         ${activationAction}
-        <button type="button" role="menuitem" data-team-action="audit">Ver auditoría</button>`;
+        <button type="button" role="menuitem" data-team-action="audit">Ver auditoría</button>
+        <button type="button" role="menuitem" data-team-action="activity">Ver actividad</button>
+        <button class="is-danger" type="button" role="menuitem" data-team-action="delete">Eliminar permanentemente</button>`;
     }
 
     function closeFloatingMenu(restoreFocus = false) {
@@ -576,7 +761,6 @@ const {
     }
 
     function actionMenu(user: StoreTeamUser) {
-      if (user.is_primary_admin) return '<span aria-label="Sin acciones destructivas"></span>';
       return `<button class="store-team-menu-button" type="button" aria-label="Abrir acciones de ${escapeHtml(user.display_name || 'usuario')}" aria-expanded="false" aria-haspopup="menu" aria-controls="store-team-floating-menu" data-team-menu-toggle>⋯</button>`;
     }
 
@@ -599,7 +783,7 @@ const {
           <article class="store-team-row" data-user-ref="${reference}">
             <div class="store-team-row__identity">
               <strong>${escapeHtml(user.display_name || 'Usuario sin nombre')}</strong>
-              <span title="Correo protegido">${escapeHtml(maskEmail(user.email))}</span>
+              <span class="store-team-row__email">${escapeHtml(user.email || 'Sin correo')}</span>
             </div>
             <div class="store-team-row__cell">
               <span class="store-team-cell-label">Rol y plantilla</span>
@@ -614,6 +798,14 @@ const {
               <span class="store-team-cell-label">Última actividad</span>
               <strong>${escapeHtml(formatDate(user.last_activity_at))}</strong>
               <small>${user.temporary_password_expires_at ? `Temporal hasta ${escapeHtml(formatDate(user.temporary_password_expires_at))}` : 'Acceso personal'}</small>
+              <span
+                class="pz-last-modification"
+                data-pz-last-modification
+                data-resource-type="team_user"
+                data-resource-id="${escapeHtml(user.id)}"
+                data-show-actor="true"
+                data-useful-empty="true"
+              ><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
             </div>
             <div class="store-team-row__cell">
               <span class="store-team-cell-label">Dispositivos</span>
@@ -623,6 +815,7 @@ const {
             <div class="store-team-actions">${actionMenu(user)}</div>
           </article>`;
       }).join('');
+      window.requestAnimationFrame(syncEmailTitles);
     }
 
     function planPresentation(plan: StoreTeamSummary['plan']) {
@@ -813,6 +1006,123 @@ const {
       actionReason?.focus();
     }
 
+    function isActiveDeletionTarget(user: StoreTeamUser) {
+      const status = String(user.status || '').toLowerCase();
+      const state = String(user.state || '').toLowerCase();
+      return status !== 'suspended' && !['suspended', 'blocked_by_plan'].includes(state) && user.blocked_by_plan !== true;
+    }
+
+    function clearDeleteCopyState() {
+      if (deleteCopyTimer !== null) window.clearTimeout(deleteCopyTimer);
+      deleteCopyTimer = null;
+      if (deleteEmailCopy) deleteEmailCopy.textContent = 'Copiar correo';
+      if (deleteCopyFeedback) deleteCopyFeedback.textContent = '';
+    }
+
+    function updateDeleteReasonDetail() {
+      const usesDetail = deleteReason?.value === 'other';
+      if (deleteDetailField) deleteDetailField.hidden = !usesDetail;
+      if (deleteDetail) {
+        deleteDetail.required = usesDetail;
+        if (!usesDetail) deleteDetail.value = '';
+      }
+    }
+
+    function deleteFormIsValid() {
+      if (!pendingDeleteUser) return false;
+      const confirmationEmail = deleteEmail?.value.trim().toLowerCase() || '';
+      const expectedEmail = String(pendingDeleteUser.email || '').trim().toLowerCase();
+      if (!confirmationEmail || confirmationEmail !== expectedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(confirmationEmail)) {
+        return false;
+      }
+      const reasonCode = deleteReason?.value || '';
+      const validated = validateStoreTeamDeleteReason(reasonCode, deleteDetail?.value || '');
+      return validated.ok;
+    }
+
+    function updateDeleteSubmitState() {
+      if (deleteSubmit) deleteSubmit.disabled = deletingUser || !deleteFormIsValid();
+    }
+
+    function resetDeleteFormState(clearTargetEmail = true) {
+      deleteForm?.reset();
+      if (deleteDetail) deleteDetail.value = '';
+      updateDeleteReasonDetail();
+      clearDeleteCopyState();
+      if (clearTargetEmail && deleteEmailValue) deleteEmailValue.textContent = '';
+      updateDeleteSubmitState();
+    }
+
+    async function copyPendingDeleteEmail() {
+      const email = String(pendingDeleteUser?.email || '').trim();
+      if (!email || !deleteEmailValue || deletingUser) return;
+      let copied = false;
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('clipboard_unavailable');
+        await navigator.clipboard.writeText(email);
+        copied = true;
+      } catch (_) {
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(deleteEmailValue);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        try { copied = document.execCommand('copy'); } catch (_) { copied = false; }
+        if (copied) selection?.removeAllRanges();
+      }
+      clearDeleteCopyState();
+      if (deleteEmailCopy) deleteEmailCopy.textContent = copied ? 'Correo copiado' : 'Correo seleccionado';
+      if (deleteCopyFeedback) {
+        deleteCopyFeedback.textContent = copied ? 'Correo copiado' : 'El correo quedó seleccionado para copiarlo manualmente.';
+      }
+      deleteCopyTimer = window.setTimeout(clearDeleteCopyState, 2400);
+    }
+
+    function setDeleteBusy(busy: boolean) {
+      deletingUser = busy;
+      if (deleteSubmit) {
+        deleteSubmit.textContent = busy ? 'Eliminando…' : 'Eliminar permanentemente';
+      }
+      deleteCloseButtons.forEach((button) => { button.disabled = busy; });
+      if (deleteEmail) deleteEmail.disabled = busy;
+      if (deleteReason) deleteReason.disabled = busy;
+      if (deleteDetail) deleteDetail.disabled = busy;
+      if (deleteEmailCopy) deleteEmailCopy.disabled = busy;
+      if (deleteDialog) {
+        if (busy) deleteDialog.setAttribute('aria-busy', 'true');
+        else deleteDialog.removeAttribute('aria-busy');
+      }
+      updateDeleteSubmitState();
+    }
+
+    function openDeleteDialog(user: StoreTeamUser) {
+      if (user.is_primary_admin) {
+        showTeamToast('El Administrador principal está protegido.', 'error');
+        return;
+      }
+      pendingDeleteUser = user;
+      resetDeleteFormState(false);
+      setDeleteBusy(false);
+      showMessage(deleteAlert);
+      if (deleteUserLabel) deleteUserLabel.textContent = user.display_name || 'Usuario';
+      if (deleteEmailValue) deleteEmailValue.textContent = user.email || 'Sin correo';
+      const isActive = isActiveDeletionTarget(user);
+      deleteWarning?.classList.toggle('is-active-user', isActive);
+      if (deleteActiveWarning) deleteActiveWarning.hidden = !isActive;
+      openDialog(deleteDialog);
+      deleteEmail?.focus();
+    }
+
+    function closeDeleteDialog() {
+      if (deletingUser) return;
+      closeDialog(deleteDialog);
+      pendingDeleteUser = null;
+      resetDeleteFormState();
+      showMessage(deleteAlert);
+      deleteWarning?.classList.remove('is-active-user');
+      if (deleteActiveWarning) deleteActiveWarning.hidden = true;
+    }
+
     async function runAction(reason: string) {
       if (!pendingAction || !pendingActionUser) return null;
       const user = pendingActionUser;
@@ -850,6 +1160,25 @@ const {
     }
 
     createButton?.addEventListener('click', () => openEditor(), listenerOptions);
+
+    tabButtons.forEach((button, index) => {
+      button.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const nextIndex = event.key === 'Home'
+          ? 0
+          : (event.key === 'End'
+            ? tabButtons.length - 1
+            : (event.key === 'ArrowRight'
+              ? (index + 1) % tabButtons.length
+              : (index - 1 + tabButtons.length) % tabButtons.length));
+        const next = tabButtons[nextIndex];
+        if (next?.dataset.teamTab === 'users' || next?.dataset.teamTab === 'activity') {
+          selectTeamTab(next.dataset.teamTab);
+          next.focus();
+        }
+      }, listenerOptions);
+    });
 
     templateSelect?.addEventListener('change', () => {
       const code = templateSelect.value as StorePermissionTemplateCode;
@@ -925,6 +1254,70 @@ const {
       }
     }, listenerOptions);
 
+    deleteForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (deletingUser || !pendingDeleteUser || !deleteSubmit) return;
+      const confirmationEmail = deleteEmail?.value.trim().toLowerCase() || '';
+      const expectedEmail = String(pendingDeleteUser.email || '').trim().toLowerCase();
+      if (!confirmationEmail) {
+        showMessage(deleteAlert, 'Escribe el correo del usuario para confirmar.', 'error');
+        deleteEmail?.focus();
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(confirmationEmail)) {
+        showMessage(deleteAlert, 'Escribe un correo válido.', 'error');
+        deleteEmail?.focus();
+        return;
+      }
+      if (!confirmationEmail || confirmationEmail !== expectedEmail) {
+        showMessage(deleteAlert, 'El correo de confirmación no coincide exactamente con el usuario.', 'error');
+        deleteEmail?.focus();
+        return;
+      }
+      const reasonCode = deleteReason?.value || '';
+      if (!isStoreTeamDeleteReasonCode(reasonCode)) {
+        showMessage(deleteAlert, 'Selecciona un motivo de eliminación.', 'error');
+        deleteReason?.focus();
+        return;
+      }
+      const validatedReason = validateStoreTeamDeleteReason(reasonCode, deleteDetail?.value || '');
+      if (!validatedReason.ok) {
+        showMessage(deleteAlert, getStoreTeamErrorMessage({ code: validatedReason.error }), 'error');
+        if (reasonCode === 'other') deleteDetail?.focus();
+        else deleteReason?.focus();
+        return;
+      }
+      if (!deleteForm.reportValidity()) return;
+      const userId = pendingDeleteUser.id;
+      setDeleteBusy(true);
+      showMessage(deleteAlert);
+      try {
+        await deleteStoreTeamUser(
+          userId,
+          confirmationEmail,
+          validatedReason.value.reason_code as StoreTeamDeleteReasonCode,
+          validatedReason.value.reason_detail,
+          client,
+        );
+        setDeleteBusy(false);
+        closeDeleteDialog();
+        document.dispatchEvent(new CustomEvent('pz:last-modification:refresh'));
+        await loadTeam('Usuario eliminado permanentemente');
+      } catch (error) {
+        showMessage(deleteAlert, getStoreTeamErrorMessage(error), 'error');
+        setDeleteBusy(false);
+      }
+    }, listenerOptions);
+
+    deleteEmail?.addEventListener('input', updateDeleteSubmitState, listenerOptions);
+    deleteReason?.addEventListener('change', () => {
+      updateDeleteReasonDetail();
+      showMessage(deleteAlert);
+      updateDeleteSubmitState();
+    }, listenerOptions);
+    deleteDetail?.addEventListener('input', updateDeleteSubmitState, listenerOptions);
+    deleteEmailCopy?.addEventListener('click', () => { void copyPendingDeleteEmail(); }, listenerOptions);
+
     list?.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const row = target?.closest<HTMLElement>('[data-user-ref]');
@@ -939,6 +1332,11 @@ const {
 
     root.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null;
+      const tab = target?.closest<HTMLButtonElement>('[data-team-tab]');
+      if (tab?.dataset.teamTab === 'users' || tab?.dataset.teamTab === 'activity') {
+        selectTeamTab(tab.dataset.teamTab);
+        return;
+      }
       if (target?.closest('[data-team-toast-close]')) hideTeamToast();
       if (target?.closest('[data-team-menu-close], [data-team-menu-backdrop]')) {
         closeFloatingMenu(true);
@@ -952,7 +1350,15 @@ const {
         if (action === 'edit') void openEditor(user);
         else if (action === 'permissions') void openEditor(user, true);
         else if (action === 'audit') void openAudit(user);
+        else if (action === 'activity') {
+          window.location.assign(getStoreAdminPath(config.storeSlug, `team/${encodeURIComponent(user.id)}/activity`));
+        }
+        else if (action === 'delete') openDeleteDialog(user);
         else if (['suspend', 'reactivate', 'temporary', 'sessions', 'devices'].includes(action)) openAction(action as TeamAction, user);
+        return;
+      }
+      if (target?.closest('[data-team-delete-close]')) {
+        closeDeleteDialog();
         return;
       }
       if (target?.closest('[data-team-dialog-close]')) {
@@ -1028,10 +1434,31 @@ const {
       actionForm?.reset();
       showMessage(actionAlert);
     }, listenerOptions);
+    deleteDialog?.addEventListener('cancel', (event) => {
+      if (deletingUser) {
+        event.preventDefault();
+        return;
+      }
+      pendingDeleteUser = null;
+      resetDeleteFormState();
+      showMessage(deleteAlert);
+    }, listenerOptions);
+    deleteDialog?.addEventListener('close', () => {
+      if (deletingUser) return;
+      pendingDeleteUser = null;
+      resetDeleteFormState();
+      showMessage(deleteAlert);
+      deleteWarning?.classList.remove('is-active-user');
+      if (deleteActiveWarning) deleteActiveWarning.hidden = true;
+    }, listenerOptions);
 
     function cleanupStoreTeamView() {
       hideTeamToast(true);
+      clearDeleteCopyState();
       closeFloatingMenu();
+      deletingUser = false;
+      setDeleteBusy(false);
+      closeDialog(deleteDialog);
       lifecycleController.abort();
       if (teamWindow.PZ_STORE_TEAM_CLEANUP === cleanupStoreTeamView) delete teamWindow.PZ_STORE_TEAM_CLEANUP;
     }
@@ -1039,7 +1466,12 @@ const {
     teamWindow.PZ_STORE_TEAM_CLEANUP = cleanupStoreTeamView;
     document.addEventListener('astro:before-swap', cleanupStoreTeamView, { once: true, signal: lifecycleController.signal });
     window.addEventListener('pagehide', cleanupStoreTeamView, { once: true, signal: lifecycleController.signal });
+    window.addEventListener('hashchange', () => {
+      selectTeamTab(requestedTeamTab());
+    }, listenerOptions);
+    window.addEventListener('popstate', () => selectTeamTab(requestedTeamTab()), listenerOptions);
 
+    selectTeamTab(requestedTeamTab());
     void loadTeam();
   }
 </script>

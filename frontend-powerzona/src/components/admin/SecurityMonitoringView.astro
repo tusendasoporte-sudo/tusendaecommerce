@@ -481,6 +481,16 @@ function observationActionValue(customer: SecurityCustomer) {
     <section class="info-grid" aria-label="Configuracion actual">
       <article class="monitoring-card">
         <h3>Resumen</h3>
+        {context === 'store' && settings.id && (
+          <span
+            class="pz-last-modification"
+            data-pz-last-modification
+            data-resource-type="security_settings"
+            data-resource-id={settings.id}
+            data-show-actor="true"
+            data-useful-empty="true"
+          ><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
+        )}
         <div class="fact-grid">
           <div class="fact-box">
             <span>Modo actual</span>
@@ -750,6 +760,9 @@ function observationActionValue(customer: SecurityCustomer) {
                 <div>
                   <strong>{blockScopeLabel(block.scope)}</strong>
                   <span>{blockSignalsLabel(block)}</span>
+                  {context === 'store' && (
+                    <span class="pz-last-modification" data-pz-last-modification data-resource-type="security_block" data-resource-id={block.id} data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
+                  )}
                 </div>
                 <dl>
                   <div><dt>Duracion</dt><dd>{blockDurationLabel(block.duration)}</dd></div>
@@ -1238,6 +1251,9 @@ function observationActionValue(customer: SecurityCustomer) {
                   <div class="table-cell main-cell" role="cell" data-label="Cliente">
                     <strong>{blockCustomerTitle(block)}</strong>
                     <span>{blockCustomerSubtitle(block)}</span>
+                    {context === 'store' && (
+                      <span class="pz-last-modification" data-pz-last-modification data-resource-type="security_block" data-resource-id={block.id} data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
+                    )}
                   </div>
                   <div class="table-cell" role="cell" data-label="Alcance">{blockScopeLabel(block.scope)}</div>
                   <div class="table-cell" role="cell" data-label="Senales">{blockSignalsLabel(block)}</div>

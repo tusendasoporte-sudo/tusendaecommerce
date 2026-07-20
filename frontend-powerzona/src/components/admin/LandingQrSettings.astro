@@ -35,6 +35,7 @@ const qrPngPath = `${publicPath}/qr.png`;
         <span class="landing-eyebrow">Resumen</span>
         <h3>Landing QR</h3>
         <p>Estado principal de la página de enlaces y QR de la tienda.</p>
+        <span class="pz-last-modification" data-pz-last-modification data-landing-last-modification data-resource-type="settings" data-resource-id="" data-show-actor="true" data-useful-empty="true" hidden><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
       </div>
     </div>
 
@@ -1189,6 +1190,7 @@ const qrPngPath = `${publicPath}/qr.png`;
     const activeCountLabel = root.querySelector('[data-summary-active-count]') || root.querySelector('[data-active-count]');
     const urlHostLabel = root.querySelector('[data-summary-fixed-url]') || root.querySelector('[data-url-host]');
     const saveButton = root.querySelector('[data-save-landing]');
+    const lastModification = root.querySelector('[data-landing-last-modification]');
 
     let settingsRecordId = '';
     let lastSettingsRecord = null;
@@ -1211,6 +1213,14 @@ const qrPngPath = `${publicPath}/qr.png`;
     let previewSubtitle = null;
     let previewHero = null;
     let previewLinks = null;
+
+    function syncLastModification(resourceId) {
+      const id = String(resourceId || '').trim();
+      if (!lastModification) return;
+      lastModification.hidden = !id;
+      if (id) lastModification.setAttribute('data-resource-id', id);
+      else lastModification.removeAttribute('data-resource-id');
+    }
 
     publicUrlFields.forEach((field) => {
       field.value = PUBLIC_URL;
@@ -1961,6 +1971,7 @@ const qrPngPath = `${publicPath}/qr.png`;
       if (!options.keepAlert) hideAlert();
       const record = await findLatestSettingsRecord();
       settingsRecordId = record?.id || '';
+      syncLastModification(settingsRecordId);
       lastSettingsRecord = record || {};
 
       const savedEnabled = isLandingQrEnabled(record?.landing_qr_enabled);
@@ -2085,6 +2096,7 @@ const qrPngPath = `${publicPath}/qr.png`;
         }
 
         settingsRecordId = verifyRecord.id;
+        syncLastModification(settingsRecordId);
         lastSettingsRecord = verifyRecord;
         lastSavedLandingQrEnabled = savedEnabled;
         currentHeroImageName = getSettingsFileName(verifyRecord?.landing_qr_hero_image);
@@ -2098,6 +2110,7 @@ const qrPngPath = `${publicPath}/qr.png`;
         renderHeroPreview();
         renderPreview();
         updateSummary();
+        document.dispatchEvent(new CustomEvent('pz:last-modification:refresh'));
         if (heroImageSaveUnavailable) {
           heroImageFieldAvailable = false;
           renderHeroPreview();

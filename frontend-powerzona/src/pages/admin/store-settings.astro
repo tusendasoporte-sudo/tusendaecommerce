@@ -7,6 +7,7 @@ import { CUBA_LOCATIONS } from '../../lib/cubaLocations';
 import PublicFooter from '../../components/PublicFooter.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import LandingQrSettings from '../../components/admin/LandingQrSettings.astro';
 import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
@@ -70,6 +71,7 @@ try {
     whatsapp_number: adminContext.store.owner_phone || '',
   };
 }
+const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
 ---
 <!doctype html>
 <html lang="es">
@@ -3475,6 +3477,15 @@ try {
               <div class="general-settings-header-copy">
                 <h2 class="section-title">Ajustes generales</h2>
                 <p class="section-subtitle">Configura la informaci&oacute;n principal de tu tienda p&uacute;blica.</p>
+                <LastModificationMeta
+                  id="settings-last-modification"
+                  resourceType="settings"
+                  resourceId={settingsResourceId}
+                  pocketbaseUrl={pocketbaseUrl}
+                  enabled={storeAccessContext?.access.is_primary_admin === true}
+                  showActor={storeAccessContext?.access.is_primary_admin === true}
+                  usefulEmptyState={true}
+                />
               </div>
               <button class="submit-btn general-settings-save-btn" type="submit" form="settings-form">Guardar ajustes</button>
             </div>
@@ -3521,7 +3532,7 @@ try {
               </details>
 
               <details class="general-settings-accordion">
-                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2H9.3A2.8 2.8 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span><div><h3>Notificaciones del admin</h3><p>Recibe avisos dentro del panel cuando ocurra algo importante en la tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-notifications" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
+                <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M12 22a2.8 2.8 0 0 0 2.7-2H9.3A2.8 2.8 0 0 0 12 22Zm7-6v-5a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z"/></svg></span><div><h3>Notificaciones del admin</h3><p>Recibe avisos dentro del panel cuando ocurra algo importante en la tienda.</p><span id="settings-notifications-last-modification" class="pz-last-modification" data-pz-last-modification data-settings-last-modification data-resource-type="settings" data-resource-id={settingsResourceId} data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando &uacute;ltima modificaci&oacute;n&hellip;</span></span></div></div><div class="general-settings-summary-meta"><span id="general-status-notifications" class="general-settings-badge pending">Pendiente</span><span class="general-settings-chevron">&#8964;</span></div></summary>
                 <div class="general-settings-body"><div class="general-settings-grid">
                   <label class="rating-setting-row full" for="settings-notifications-enabled"><span><strong>Activar notificaciones</strong><small>Mostrar avisos dentro del admin.</small></span><span class="switch-control"><input id="settings-notifications-enabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
                   <label class="rating-setting-row full" for="settings-notify-new-order"><span><strong>Nuevo pedido recibido</strong><small>Crear una alerta cuando entre un pedido nuevo.</small></span><span class="switch-control"><input id="settings-notify-new-order" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span></label>
@@ -3832,6 +3843,7 @@ try {
               <div>
                 <h2 class="section-title">Horario semanal</h2>
                 <p class="section-subtitle">Configura cuándo tu tienda aparece como disponible. Aunque está fuera de horario, los clientes pueden dejar su pedido para ser atendidos luego.</p>
+                <span id="settings-hours-last-modification" class="pz-last-modification" data-pz-last-modification data-settings-last-modification data-resource-type="settings" data-resource-id={settingsResourceId} data-show-actor="true" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando &uacute;ltima modificaci&oacute;n&hellip;</span></span>
               </div>
               <div class="settings-help-inline-actions">
                 <button class="settings-help-btn" type="button" data-help-key="schedule-main">L&eacute;eme</button>
@@ -6068,6 +6080,12 @@ try {
         }
         function renderSettings() {
           const record = settingsRecord || {};
+          document.querySelectorAll('#settings-last-modification, [data-settings-last-modification]').forEach((lastModification) => {
+            const resourceId = String(record.id || '').trim();
+            lastModification.hidden = !resourceId;
+            if (resourceId) lastModification.setAttribute('data-resource-id', resourceId);
+            else lastModification.removeAttribute('data-resource-id');
+          });
           clearSinglePreview('settings-logo-preview');
           clearSinglePreview('settings-cover-preview');
           fields.storeName.value = record.store_name || record.stored_name || 'PowerZona';
@@ -6892,6 +6910,7 @@ try {
               <div>
                 <p class="rating-compact-title">${escapeHtml(review.customer_name || 'Cliente')} \u00b7 \u2605 ${escapeHtml(Number(review.rating || 0).toFixed(1))}</p>
                 <p class="rating-compact-meta">${escapeHtml(review.comment || 'Sin comentario')}</p>
+                <span class="pz-last-modification" data-pz-last-modification data-resource-type="review" data-resource-id="${escapeHtml(review.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
               </div>
               ${reviewActionsMarkup(review)}
             </article>
@@ -6972,7 +6991,7 @@ try {
                 <tbody>
                   ${pageItems.map((review) => `
                     <tr data-review-id="${escapeHtml(review.id)}">
-                      <td><span class="rating-review-client">${escapeHtml(review.customer_name || 'Cliente')}</span><span class="rating-review-muted">${review.verified_purchase === true ? 'Compra verificada' : escapeHtml(reviewSourceLabel(review.source))}</span></td>
+                      <td><span class="rating-review-client">${escapeHtml(review.customer_name || 'Cliente')}</span><span class="rating-review-muted">${review.verified_purchase === true ? 'Compra verificada' : escapeHtml(reviewSourceLabel(review.source))}</span><span class="pz-last-modification" data-pz-last-modification data-resource-type="review" data-resource-id="${escapeHtml(review.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span></td>
                       <td>${escapeHtml(reviewProductOrType(review))}</td>
                       <td>${reviewStars(review.rating)}</td>
                       <td><span class="rating-review-comment">${escapeHtml(review.comment || 'Sin comentario')}</span></td>
@@ -6996,6 +7015,7 @@ try {
                   <div class="rating-review-product">${escapeHtml(reviewProductOrType(review))}</div>
                   <div class="rating-review-comment">${escapeHtml(review.comment || 'Sin comentario')}</div>
                   <div class="rating-review-date">${escapeHtml(reviewDate(review.created))}</div>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="review" data-resource-id="${escapeHtml(review.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </article>
               `).join('')}
             </div>
@@ -7831,6 +7851,7 @@ try {
                   <div class="currency-mobile-body">
                     <div class="currency-mobile-title"><strong class="currency-mobile-code">${escapeHtml(code)}</strong>${systemBadge}</div>
                     <div class="currency-mobile-name">${escapeHtml(currency.name || (isBase ? 'Dolar Americano' : code))}</div>
+                    <span class="pz-last-modification" data-pz-last-modification data-resource-type="currency" data-resource-id="${escapeHtml(currency.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                     ${isBase ? `<div class="currency-mobile-meta">${mobileMeta}</div>` : `<div class="currency-mobile-control-line">${mobileVisibilityControl}<span class="currency-mobile-rate">${formatRate(rate)}</span><div class="currency-mobile-actions">${mobileActionsMarkup}</div></div>`}
                     ${mobileDefaultMarkup ? `<div class="currency-mobile-default">${mobileDefaultMarkup}</div>` : ''}
                   </div>
@@ -7841,6 +7862,7 @@ try {
                   <div>
                     <p class="currency-code">${escapeHtml(code)} ${systemBadge}</p>
                     ${isBase ? `<p class="currency-name">${escapeHtml(currency.name || 'Dolar Americano')}</p><p class="currency-name">Moneda base del sistema</p>` : `<input class="currency-inline-input js-currency-name" type="text" value="${escapeHtml(currency.name || code)}" />`}
+                    <span class="pz-last-modification" data-pz-last-modification data-resource-type="currency" data-resource-id="${escapeHtml(currency.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                   </div>
                 </div>
                 <span>${isBase ? '<span class="currency-base-badge">Base</span>' : '<span class="currency-muted">-</span>'}</span>

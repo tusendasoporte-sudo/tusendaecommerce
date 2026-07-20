@@ -2,8 +2,10 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -12,6 +14,7 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
@@ -366,6 +369,12 @@ const masterSupportHref = masterSupportWhatsapp
         mobileTitle="Envíos"
         mobileActionLabel="Nuevo Municipio"
         mobileActionTarget="#new-zone-top-btn"
+      />
+      <LastModificationMeta
+        controllerOnly={true}
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
       />
       <main class="main-wrap pz-admin-content-inner">
         <header class="mobile-topbar">
@@ -778,7 +787,7 @@ const masterSupportHref = masterSupportWhatsapp
       }
       function renderZoneRow(zone){
         const isActive=zone.active!==false;
-        return `<article class="zone-row" data-zone-id="${zone.id}"><div><div class="zone-title">${escapeHtml(zone.zone||zone.municipality||'Zona general')}</div></div><div><span class="price-pill">${formatMoney(zone.price_usd)}</span></div><div><span class="status-pill ${isActive?'active':'inactive'}">${isActive?'Activa':'Oculta'}</span></div><div class="zone-note">${zone.note?escapeHtml(zone.note):'--'}</div><div class="zone-menu-wrap"><button class="kebab-btn js-menu" type="button" aria-label="Abrir opciones" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></button><div class="floating-menu" role="menu"><button class="menu-action js-edit" type="button" role="menuitem">Editar</button><button class="menu-action ${isActive?'danger':'green'} js-toggle" type="button" role="menuitem">${isActive?'Ocultar':'Activar'}</button><button class="menu-action danger js-delete" type="button" role="menuitem">Borrar</button></div></div></article>`;
+        return `<article class="zone-row" data-zone-id="${zone.id}"><div><div class="zone-title">${escapeHtml(zone.zone||zone.municipality||'Zona general')}</div><span class="pz-last-modification" data-pz-last-modification data-resource-type="shipping_zone" data-resource-id="${escapeHtml(zone.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span></div><div><span class="price-pill">${formatMoney(zone.price_usd)}</span></div><div><span class="status-pill ${isActive?'active':'inactive'}">${isActive?'Activa':'Oculta'}</span></div><div class="zone-note">${zone.note?escapeHtml(zone.note):'--'}</div><div class="zone-menu-wrap"><button class="kebab-btn js-menu" type="button" aria-label="Abrir opciones" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 6a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg></button><div class="floating-menu" role="menu"><button class="menu-action js-edit" type="button" role="menuitem">Editar</button><button class="menu-action ${isActive?'danger':'green'} js-toggle" type="button" role="menuitem">${isActive?'Ocultar':'Activar'}</button><button class="menu-action danger js-delete" type="button" role="menuitem">Borrar</button></div></div></article>`;
       }
       function closeZoneMenus(except=null){
         zonesList.querySelectorAll('.zone-menu-wrap.open').forEach((menu)=>{

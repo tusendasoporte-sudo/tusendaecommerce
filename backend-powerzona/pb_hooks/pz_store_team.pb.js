@@ -112,6 +112,16 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/store/team/delete",
+  (e) => require(`${__hooks}/pz_store_team_lib.js`).handleDelete(e),
+  (e) => require(`${__hooks}/pz_store_team_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog(),
+);
+
+routerAdd(
+  "POST",
   "/api/pz/store/team/audit",
   (e) => require(`${__hooks}/pz_store_team_lib.js`).handleAudit(e),
   (e) => require(`${__hooks}/pz_store_team_lib.js`).requireAuthenticatedUser(e),

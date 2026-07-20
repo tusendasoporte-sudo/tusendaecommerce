@@ -1,10 +1,12 @@
 ---
 import { refreshAuthFromCookie } from '../../../lib/auth';
-import { getPublicStorePath } from '../../../lib/adminRoutes';
+import { getPublicStorePath, getStoreAdminPath } from '../../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
+import { getStoreAccessContext } from '../../../lib/storeTeam';
 import AdminSidebar from '../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../../components/admin/AdminIcon.astro';
+import LastModificationMeta from '../../../components/admin/LastModificationMeta.astro';
 import { RAFFLE_TIME_ZONE } from '../../../lib/raffles';
 import '../../../styles/global.css';
 
@@ -14,8 +16,10 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona';
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const raffleTimeZone = RAFFLE_TIME_ZONE;
 ---
 
@@ -181,6 +185,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         flex: 0 0 auto;
       }
       .raffle-modal-head h2 { margin: 0; color: #0f172a; font-size: 22px; font-weight: 1000; letter-spacing: 0; }
+      .raffle-modal-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
       .raffle-form { display: grid; gap: 14px; }
       .raffle-form.hidden { display: none !important; }
       .raffle-form > .raffle-form-grid,
@@ -1635,6 +1640,12 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         mobileActionLabel="Actualizar"
         mobileActionTarget="#raffle-new-btn"
       />
+      <LastModificationMeta
+        controllerOnly={true}
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
+      />
 
       <main class="main-wrap pz-admin-content-inner">
         <AdminSectionHeader
@@ -1692,9 +1703,12 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
                       <p id="raffle-modal-kicker" class="raffle-row-slot">Rifa</p>
                       <h2 id="raffle-modal-title">Administrar rifa</h2>
                     </div>
-                    <button id="raffle-modal-close-btn" class="raffle-icon-btn pz-admin-icon-btn" type="button" aria-label="Cerrar">
-                      <AdminIcon name="close" class="pz-admin-action-icon" />
-                    </button>
+                    <div class="raffle-modal-head-actions">
+                      <a id="raffle-history-link" class="raffle-btn pz-admin-action-btn hidden" href={`${adminTeamActivityPath}?tab=activity`}>Ver historial</a>
+                      <button id="raffle-modal-close-btn" class="raffle-icon-btn pz-admin-icon-btn" type="button" aria-label="Cerrar">
+                        <AdminIcon name="close" class="pz-admin-action-icon" />
+                      </button>
+                    </div>
                   </div>
                   <input id="raffle-id" type="hidden" />
               <div class="raffle-form-grid">
@@ -2143,10 +2157,11 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       </div>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, currentStoreName, raffleTimeZone }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, publicStorePath, currentStoreName, raffleTimeZone, adminTeamActivityPath }}>
       (() => {
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
+        const ADMIN_TEAM_ACTIVITY_PATH = String(adminTeamActivityPath || '/admin/team');
         const ADMIN_AUTH_TOKEN = (() => {
           try {
             const pair = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth='));
@@ -2193,6 +2208,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         const modalTitle = document.getElementById('raffle-modal-title');
         const modalKicker = document.getElementById('raffle-modal-kicker');
         const modalCloseBtn = document.getElementById('raffle-modal-close-btn');
+        const raffleHistoryLink = document.getElementById('raffle-history-link');
         const raffleModalCard = modal?.querySelector('.raffle-modal-card');
         const dateModal = document.getElementById('raffle-date-modal');
         const dateModalTitle = document.getElementById('raffle-date-modal-title');
@@ -2354,6 +2370,15 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
 
         function escapeHtml(value) {
           return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
+        }
+
+        function activityHistoryPath(resourceType, resourceId) {
+          const params = new URLSearchParams({
+            tab: 'activity',
+            resource_type: String(resourceType || ''),
+            resource_id: String(resourceId || ''),
+          });
+          return `${ADMIN_TEAM_ACTIVITY_PATH}?${params.toString()}`;
         }
 
         function slugify(value) {
@@ -4042,6 +4067,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           const configured = raffle?.is_configured === true;
           if (modalTitle) modalTitle.textContent = `${configured ? 'Editar' : 'Configurar'} ${slotLabel(raffle)}`;
           if (modalKicker) modalKicker.textContent = 'Administrar rifa';
+          if (raffleHistoryLink) {
+            raffleHistoryLink.classList.remove('hidden');
+            raffleHistoryLink.setAttribute('href', activityHistoryPath('raffle', raffle.id));
+          }
           fields.id.value = raffle?.id || '';
           fields.title.value = configured ? (raffle?.title || '') : '';
           fields.accessCode.value = raffle?.access_code || '';
@@ -4089,6 +4118,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           modal?.setAttribute('aria-hidden', 'true');
           form?.reset();
           fields.id.value = '';
+          raffleHistoryLink?.classList.add('hidden');
           fields.groupInviteEnabled.checked = false;
           fields.groupInviteUrl.value = '';
           setGroupInvitePanel(false);
@@ -4239,6 +4269,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
                     <p class="raffle-row-slot">${escapeHtml(slotLabel(raffle))}</p>
                     <h3 class="raffle-row-title">${escapeHtml(titleText)}</h3>
                     <p class="raffle-row-meta raffle-row-access ${accessClass}">${escapeHtml(accessText)}</p>
+                    <span class="pz-last-modification" data-pz-last-modification data-resource-type="raffle" data-resource-id="${escapeHtml(raffle.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                   </div>
                   <div class="raffle-row-head-actions">
                     <button class="raffle-select-pill js-raffle-select ${isSelected ? 'is-selected' : ''}" type="button">
@@ -4258,6 +4289,10 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
                     ${adminIconSvg(raffle.is_configured === true ? 'edit' : 'settings', 'pz-admin-action-icon')}
                     <span>${escapeHtml(editText)}</span>
                   </button>
+                  <a class="raffle-btn pz-admin-action-btn" href="${escapeHtml(activityHistoryPath('raffle', raffle.id))}">
+                    ${adminIconSvg('view', 'pz-admin-action-icon')}
+                    <span>Ver historial</span>
+                  </a>
                   ${actionMenuHtml(raffle, status, fullHref)}
                 </div>
               </article>

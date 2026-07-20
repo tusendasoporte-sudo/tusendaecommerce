@@ -7,6 +7,9 @@ const {
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const storeActivity = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
 const SECURITY_SETTINGS_COLLECTION = "store_security_settings";
 const SECURITY_EVENTS_COLLECTION = "store_security_events";
 const VISITOR_SESSIONS_COLLECTION = "store_visitor_sessions";
@@ -32,6 +35,19 @@ const SECURITY_BLOCK_SCOPES = ["orders", "reviews", "raffles", "all_interactions
 const SECURITY_BLOCK_DURATIONS = ["hours_24", "days_7", "days_30", "permanent"];
 const SECURITY_BLOCK_STATUSES = ["all", "active", "expired", "revoked"];
 const SECURITY_BLOCK_MATCH_MODES = ["any", "all"];
+const SECURITY_ACTIVITY_SUMMARIES = Object.freeze({
+  archive_customer: "Perfil de Seguridad archivado",
+  restore_customer: "Perfil de Seguridad restaurado",
+  auto_restore_customer: "Perfil de Seguridad restaurado por el sistema",
+  delete_customer_profile: "Perfil de Seguridad eliminado",
+  customer_watch_enabled: "Observación de Seguridad activada",
+  customer_watch_disabled: "Observación de Seguridad desactivada",
+  block_created: "Bloqueo de Seguridad creado",
+  block_revoked: "Bloqueo de Seguridad revocado",
+  block_expired: "Bloqueo de Seguridad vencido",
+  ip_information_revealed: "Información protegida revelada de forma autorizada",
+  security_customer_identity_merged: "Identidades de Seguridad consolidadas",
+});
 const LOG_MESSAGES = {
   PZ_SEC_NAV_TRACK_SKIPPED: "PowerZona security navigation tracking skipped safely.",
   PZ_SEC_NAV_WRITE_SKIPPED: "PowerZona security navigation write skipped safely.",
@@ -942,20 +958,21 @@ function isAllowedCustomerDetailPayload(body) {
   return true;
 }
 
-function canUseStorePermission(role, authStoreId, storeId, auth, permission) {
-  const store = findRecordByIdSafe($app, STORES_COLLECTION, storeId);
+function canUseStorePermission(role, authStoreId, storeId, auth, permission, app) {
+  const permissionApp = app || $app;
+  const store = findRecordByIdSafe(permissionApp, STORES_COLLECTION, storeId);
   if (!store) return false;
   if (role === "master_admin") return true;
   if (!["store_admin", "store_staff"].includes(role) || !authStoreId || authStoreId !== storeId) return false;
-  return teamPermissions.hasStorePermission($app, auth, store, permission);
+  return teamPermissions.hasStorePermission(permissionApp, auth, store, permission);
 }
 
 function canReadStore(role, authStoreId, storeId, auth) {
   return canUseStorePermission(role, authStoreId, storeId, auth, "security.view");
 }
 
-function canManageStore(role, authStoreId, storeId, auth) {
-  return canUseStorePermission(role, authStoreId, storeId, auth, "security.manage");
+function canManageStore(role, authStoreId, storeId, auth, app) {
+  return canUseStorePermission(role, authStoreId, storeId, auth, "security.manage", app);
 }
 
 function respondStorePermissionDenied(e, role, authStoreId, storeId) {
@@ -1982,6 +1999,41 @@ function createSecurityAudit(app, storeId, action, actorId, subjectRecordId, rea
     audit.set("block_expires_at", String(safeBlockInfo.blockExpiresAt || ""));
   }
   app.save(audit);
+  const actor = actorId ? findRecordByIdSafe(app, "users", actorId) : null;
+  if (actorId && !actor) throw new Error("security_activity_actor_missing");
+  const stateChanges = {
+    archive_customer: { field: "profile_state", previous: "active", next: "archived" },
+    restore_customer: { field: "profile_state", previous: "archived", next: "active" },
+    auto_restore_customer: { field: "profile_state", previous: "archived", next: "active" },
+    delete_customer_profile: { field: "profile_state", previous: "existing", next: "deleted" },
+    customer_watch_enabled: { field: "observation_state", previous: "disabled", next: "enabled" },
+    customer_watch_disabled: { field: "observation_state", previous: "enabled", next: "disabled" },
+    block_created: { field: "block_state", previous: "inactive", next: "active" },
+    block_revoked: { field: "block_state", previous: "active", next: "revoked" },
+    block_expired: { field: "block_state", previous: "active", next: "expired" },
+    ip_information_revealed: { field: "protected_information_access", previous: "protected", next: "revealed_authorized" },
+    security_customer_identity_merged: { field: "customer_identity_state", previous: "separate", next: "merged" },
+  };
+  const change = stateChanges[action] || { field: "security_state", previous: "previous", next: "updated" };
+  storeActivity.createActivity(app, {
+    storeId,
+    actor,
+    origin: actor ? undefined : "system",
+    module: "security",
+    action,
+    severity: ["block_created", "block_revoked", "delete_customer_profile", "ip_information_revealed", "security_customer_identity_merged"].includes(action)
+      ? "critical"
+      : "important",
+    resourceType: "security",
+    resourceId: "",
+    resourceLabel: "Seguridad de la tienda",
+    changedFields: [change.field],
+    previousValues: { [change.field]: change.previous },
+    newValues: { [change.field]: change.next },
+    summary: SECURITY_ACTIVITY_SUMMARIES[action] || "Seguridad actualizada",
+    sourceEventKey: `security:${action}:${audit.id}`,
+  });
+  return audit;
 }
 
 function collectCanonicalAndAliasIds(app, storeId, canonicalId) {
@@ -2700,43 +2752,88 @@ function handleResolveIps(e) {
       if (!grouped[source].includes(id)) grouped[source].push(id);
     });
 
-    const recordMaps = {};
-    Object.keys(grouped).forEach((source) => {
-      recordMaps[source] = resolveSourceRecords($app, source, grouped[source]);
+    let outcome = null;
+    $app.runInTransaction((txApp) => {
+      const recordMaps = {};
+      Object.keys(grouped).forEach((source) => {
+        recordMaps[source] = resolveSourceRecords(txApp, source, grouped[source]);
+      });
+
+      const settingsByStore = {};
+      for (const item of items) {
+        const source = String(getBodyValue(item, "source") || "");
+        const id = String(getBodyValue(item, "id") || "");
+        const record = recordMaps[source] && recordMaps[source][id];
+        if (!record) {
+          outcome = { status: 404, error: "not_found" };
+          return;
+        }
+        const storeId = storeIdForRecord(record);
+        if (!canManageStore(role, userStore, storeId, auth, txApp)) {
+          const belongsToAnotherTenant = ["store_admin", "store_staff"].includes(role)
+            && !!userStore
+            && userStore !== storeId;
+          const storeExists = !!findRecordByIdSafe(txApp, STORES_COLLECTION, storeId);
+          outcome = belongsToAnotherTenant || !storeExists
+            ? { status: 404, error: "not_found" }
+            : { status: 403, error: "permission_denied" };
+          return;
+        }
+        if (!settingsByStore[storeId]) {
+          settingsByStore[storeId] = getReadableSecuritySettings(txApp, storeId, role);
+        }
+        if (!settingsByStore[storeId]) {
+          outcome = { status: 403, error: "unauthorized" };
+          return;
+        }
+      }
+      if (outcome) return;
+
+      const resolved = [];
+      const countsByStore = {};
+      const countFieldBySource = {
+        security_event: "events_affected",
+        visitor_session: "sessions_affected",
+        visitor_pageview: "pageviews_affected",
+      };
+      items.forEach((item) => {
+        const source = String(getBodyValue(item, "source") || "");
+        const id = String(getBodyValue(item, "id") || "");
+        const record = recordMaps[source][id];
+        const storeId = storeIdForRecord(record);
+        const settings = settingsByStore[storeId];
+        if (!settings || getString(settings, "ip_visibility") !== "full") return;
+
+        const ip = decryptIp(getString(record, encryptedFieldForSource(source)));
+        if (!ip) return;
+
+        resolved.push({ source, id, ip });
+        countsByStore[storeId] = countsByStore[storeId] || {};
+        const countField = countFieldBySource[source];
+        countsByStore[storeId][countField] = Number(countsByStore[storeId][countField] || 0) + 1;
+      });
+
+      const actorId = String((auth && auth.id) || getString(auth, "id") || "");
+      Object.keys(countsByStore).sort().forEach((storeId) => {
+        createSecurityAudit(
+          txApp,
+          storeId,
+          "ip_information_revealed",
+          actorId,
+          "",
+          "Acceso autorizado a información protegida",
+          countsByStore[storeId],
+          {}
+        );
+      });
+      outcome = { status: 200, items: resolved };
     });
 
-    const settingsByStore = {};
-    for (const item of items) {
-      const source = String(getBodyValue(item, "source") || "");
-      const id = String(getBodyValue(item, "id") || "");
-      const record = recordMaps[source] && recordMaps[source][id];
-      if (!record) return e.json(404, { ok: false, error: "not_found" });
-      const storeId = storeIdForRecord(record);
-      if (!canManageStore(role, userStore, storeId, auth)) {
-        return respondStorePermissionDenied(e, role, userStore, storeId);
-      }
-      if (!settingsByStore[storeId]) {
-        settingsByStore[storeId] = getReadableSecuritySettings($app, storeId, role);
-      }
-      if (!settingsByStore[storeId]) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!outcome) throw new Error("resolve_transaction_incomplete");
+    if (outcome.status !== 200) {
+      return e.json(outcome.status, { ok: false, error: outcome.error });
     }
-
-    const resolved = [];
-    items.forEach((item) => {
-      const source = String(getBodyValue(item, "source") || "");
-      const id = String(getBodyValue(item, "id") || "");
-      const record = recordMaps[source][id];
-      const storeId = storeIdForRecord(record);
-      const settings = settingsByStore[storeId];
-      if (!settings || getString(settings, "ip_visibility") !== "full") return;
-
-      const ip = decryptIp(getString(record, encryptedFieldForSource(source)));
-      if (!ip) return;
-
-      resolved.push({ source, id, ip });
-    });
-
-    return e.json(200, { ok: true, items: resolved });
+    return e.json(200, { ok: true, items: outcome.items });
   } catch (_) {
     logSecurity("error", "PZ_SEC_IP_RESOLVE_FAILED");
     return e.json(500, { ok: false, error: "resolve_failed" });
@@ -2851,6 +2948,7 @@ function linkVisitorSessionToCustomerByBrowserToken(app, storeId, browserTokenHm
 }
 
 module.exports = {
+  createSecurityAudit,
   handleTrackNavigation,
   handleResolveIps,
   handleSecurityActivityPage,

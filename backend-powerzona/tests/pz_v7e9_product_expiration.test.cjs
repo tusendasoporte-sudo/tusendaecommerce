@@ -323,29 +323,83 @@ test('Store Staff con permiso conserva el guardado Premium y V7E9 bloquea suspen
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', storeId, 'customer'), 'products').code, 'expiration_unauthorized');
 });
 
-test('primera fecha de variación elimina fecha general y no la restaura automáticamente', () => {
-  const storeId = 'storevalid00002';
-  const product = mutableRecord('productvalid002', { store: storeId, expiration_date: '2026-09-01' });
-  const variation = mutableRecord('variationvalid2', { product: product.id, expiration_date: '2026-08-20' });
-  const saved = [];
+test('primera fecha de variación elimina fecha general y deja un único evento central seguro', () => {
+  withFakePocketBaseRecord(() => {
+    const storeId = 'storevalid00002';
+    const product = mutableRecord('productvalid002', {
+      store: storeId,
+      name: 'Producto con fecha general',
+      expiration_date: '2026-09-01',
+      updated: '2026-07-20 10:00:00.000Z',
+    });
+    const variation = mutableRecord('variationvalid2', { product: product.id, expiration_date: '2026-08-20' });
+    const saved = [];
+    const app = {
+      findCollectionByNameOrId(name) { return { name }; },
+      findRecordById(collection, id) {
+        if (collection === 'stores' && id === storeId) return mutableRecord(storeId, { ...premiumStore(), primary_admin_user: 'adminvalidate02' });
+        if (collection === 'products' && id === product.id) return product;
+        throw new Error('not_found');
+      },
+      findRecordsByFilter() { return []; },
+      findFirstRecordByFilter(collection, _filter, params = {}) {
+        if (collection === 'store_activity_audit') {
+          const found = saved.find((item) => item._collectionName === collection
+            && item.store === params.store && item.source_event_key === params.source);
+          if (found) return found;
+        }
+        throw new Error('not_found');
+      },
+      save(item) { saved.push(item); return item; },
+      delete() {},
+    };
+    const event = {
+      app, record: variation,
+      auth: mutableRecord('adminvalidate02', { role: 'store_admin', status: 'active', store: storeId, display_name: 'Administradora' }),
+      requestInfo: () => ({ body: { expiration_date: '2026-08-20' } }),
+    };
+    assert.equal(expiration.validateDateWriteRequest(event, 'product_variations'), null);
+    assert.equal(product.expiration_date, '');
+    assert.equal(saved[0], product);
+    const central = saved[1];
+    assert.equal(central._collectionName, 'store_activity_audit');
+    assert.equal(central.action, 'product_expiration_cleared_for_variation');
+    assert.equal(central.module, 'catalog');
+    assert.equal(central.resource_type, 'product');
+    assert.equal(central.resource_id_snapshot, product.id);
+    assert.deepEqual(central.changed_fields_json, ['expiration_date']);
+    assert.deepEqual(central.previous_values_json, { expiration_date: '2026-09-01' });
+    assert.deepEqual(central.new_values_json, { expiration_date: '' });
+    assert.doesNotMatch(JSON.stringify(central), /password|token|cookie|full_ip|ip_address/i);
+
+    assert.equal(expiration.validateDateWriteRequest(event, 'product_variations'), null);
+    assert.equal(saved.length, 2, 'el producto ya limpio no genera un evento duplicado');
+  });
+});
+
+test('hook de fecha abre una sola transacción y restaura el app original', () => {
+  let transactions = 0;
+  let nestedTransactions = 0;
+  let appSeenByNext = null;
+  const txApp = {
+    isTransactional() { return true; },
+    runInTransaction() { nestedTransactions += 1; },
+  };
   const app = {
-    findRecordById(collection, id) {
-      if (collection === 'stores' && id === storeId) return mutableRecord(storeId, { ...premiumStore(), primary_admin_user: 'adminvalidate02' });
-      if (collection === 'products' && id === product.id) return product;
-      throw new Error('not_found');
-    },
-    findRecordsByFilter() { return []; },
-    save(item) { saved.push(item); },
-    delete() {},
+    isTransactional() { return false; },
+    runInTransaction(callback) { transactions += 1; callback(txApp); },
   };
   const event = {
-    app, record: variation,
-    auth: mutableRecord('adminvalidate02', { role: 'store_admin', status: 'active', store: storeId }),
-    requestInfo: () => ({ body: { expiration_date: '2026-08-20' } }),
+    app,
+    record: mutableRecord('productvalid003', {}),
+    requestInfo: () => ({ body: {} }),
+    next() { appSeenByNext = this.app; return 'saved'; },
   };
-  assert.equal(expiration.validateDateWriteRequest(event, 'product_variations'), null);
-  assert.equal(product.expiration_date, '');
-  assert.deepEqual(saved, [product]);
+  assert.equal(expiration.handleDateWriteRequest(event, 'products'), 'saved');
+  assert.equal(transactions, 1);
+  assert.equal(nestedTransactions, 0);
+  assert.equal(appSeenByNext, txApp);
+  assert.equal(event.app, app);
 });
 
 test('orden directa resuelve relaciones reales, devuelve error genérico y omite bloqueo en Básico', () => {
@@ -374,41 +428,101 @@ test('orden directa resuelve relaciones reales, devuelve error genérico y omite
   assert.equal(expiration.validateOrderItemRequest({ app, record: item }), null);
 });
 
-test('limpieza de downgrade se limita a la tienda y propaga fallos para rollback', () => {
-  const storeId = 'storecleanup001';
-  const targetProduct = mutableRecord('productclean001', { store: storeId, expiration_date: '2026-08-20' });
-  const otherProduct = mutableRecord('productclean002', { store: 'storecleanup002', expiration_date: '2026-08-20' });
-  const targetVariation = mutableRecord('variationclean1', { product: targetProduct.id, expiration_date: '2026-08-20' });
-  const otherVariation = mutableRecord('variationclean2', { product: otherProduct.id, expiration_date: '2026-08-20' });
-  const cycle = mutableRecord('cyclecleanup001', { store: storeId });
-  const expirationNotification = mutableRecord('notifcleanup001', { store: storeId, type: 'product_expired' });
-  const stockNotification = mutableRecord('notifcleanup002', { store: storeId, type: 'product_low_stock' });
-  const deleted = [];
-  const app = {
-    findRecordsByFilter(collection, _filter, _sort, _limit, _offset, params = {}) {
-      if (collection === 'products') return params.store === storeId ? [targetProduct] : [];
-      if (collection === 'product_variations') return [targetVariation, otherVariation];
-      if (collection === 'product_expiration_cycles') return [cycle];
-      if (collection === 'store_notifications') return [expirationNotification, stockNotification];
-      return [];
-    },
-    save() {},
-    delete(item) { deleted.push(item); },
-    db() { throw new Error('preview_not_available_in_unit_mock'); },
-  };
-  expiration.cleanupStoreExpirationData(app, storeId);
-  assert.equal(targetProduct.expiration_date, '');
-  assert.equal(targetVariation.expiration_date, '');
-  assert.equal(otherVariation.expiration_date, '2026-08-20');
-  assert.deepEqual(deleted, [cycle, expirationNotification]);
+test('limpieza de downgrade audita cada recurso, se limita a la tienda y propaga fallos', () => {
+  withFakePocketBaseRecord(() => {
+    const storeId = 'storecleanup001';
+    const actor = mutableRecord('mastercleanup01', { role: 'master_admin', display_name: 'Master QA' });
+    const auditContext = { actor, planAuditId: 'auditcleanup001' };
+    const targetProduct = mutableRecord('productclean001', {
+      store: storeId, name: 'Producto objetivo', expiration_date: '2026-08-20',
+    });
+    const otherProduct = mutableRecord('productclean002', {
+      store: 'storecleanup002', name: 'Producto ajeno', expiration_date: '2026-08-20',
+    });
+    const targetVariation = mutableRecord('variationclean1', {
+      product: targetProduct.id, variation_type: 'Sabor', value: 'Fresa', expiration_date: '2026-08-21',
+    });
+    const otherVariation = mutableRecord('variationclean2', {
+      product: otherProduct.id, expiration_date: '2026-08-20',
+    });
+    const cycle = mutableRecord('cyclecleanup001', { store: storeId });
+    const expirationNotification = mutableRecord('notifcleanup001', { store: storeId, type: 'product_expired' });
+    const stockNotification = mutableRecord('notifcleanup002', { store: storeId, type: 'product_low_stock' });
+    const deleted = [];
+    const saved = [];
+    const app = {
+      findCollectionByNameOrId(name) { return { name }; },
+      findRecordsByFilter(collection, _filter, _sort, _limit, _offset, params = {}) {
+        if (collection === 'products') return params.store === storeId ? [targetProduct] : [];
+        if (collection === 'product_variations') return [targetVariation, otherVariation];
+        if (collection === 'product_expiration_cycles') return [cycle];
+        if (collection === 'store_notifications') return [expirationNotification, stockNotification];
+        return [];
+      },
+      findFirstRecordByFilter(collection, _filter, params = {}) {
+        if (collection === 'store_activity_audit') {
+          const found = saved.find((item) => item._collectionName === collection
+            && item.store === params.store && item.source_event_key === params.source);
+          if (found) return found;
+        }
+        throw new Error('not_found');
+      },
+      save(item) { saved.push(item); return item; },
+      delete(item) { deleted.push(item); },
+      db() { throw new Error('preview_not_available_in_unit_mock'); },
+    };
+    expiration.cleanupStoreExpirationData(app, storeId, auditContext);
+    assert.equal(targetProduct.expiration_date, '');
+    assert.equal(targetVariation.expiration_date, '');
+    assert.equal(otherVariation.expiration_date, '2026-08-20');
+    assert.deepEqual(deleted, [cycle, expirationNotification]);
 
-  const failingProduct = mutableRecord('productclean003', { store: storeId, expiration_date: '2026-08-20' });
-  const failingApp = {
-    ...app,
-    findRecordsByFilter(collection) { return collection === 'products' ? [failingProduct] : []; },
-    save() { throw new Error('forced_cleanup_failure'); },
-  };
-  assert.throws(() => expiration.cleanupStoreExpirationData(failingApp, storeId), /forced_cleanup_failure/);
+    const centralEvents = saved.filter((item) => item._collectionName === 'store_activity_audit');
+    assert.equal(centralEvents.length, 2);
+    assert.deepEqual(
+      centralEvents.map((item) => item.action),
+      [
+        'product_expiration_cleared_for_plan_downgrade',
+        'product_variation_expiration_cleared_for_plan_downgrade',
+      ],
+    );
+    assert.deepEqual(centralEvents.map((item) => item.resource_type), ['product', 'product_variation']);
+    assert.deepEqual(centralEvents.map((item) => item.previous_values_json.expiration_date), ['2026-08-20', '2026-08-21']);
+    assert.ok(centralEvents.every((item) => item.new_values_json.expiration_date === ''));
+    assert.ok(centralEvents.every((item) => item.actor === actor.id && item.origin === 'master_admin'));
+    assert.equal(new Set(centralEvents.map((item) => item.source_event_key)).size, 2);
+    assert.doesNotMatch(JSON.stringify(centralEvents), /password|token|cookie|full_ip|ip_address/i);
+
+    targetProduct.expiration_date = '2026-08-20';
+    expiration.cleanupStoreExpirationData(app, storeId, auditContext);
+    assert.equal(
+      saved.filter((item) => item._collectionName === 'store_activity_audit').length,
+      2,
+      'reintento de la misma operación reutiliza el evento por recurso',
+    );
+
+    const unauditedProduct = mutableRecord('productclean004', { store: storeId, expiration_date: '2026-08-20' });
+    const unauditedApp = {
+      ...app,
+      findRecordsByFilter(collection) { return collection === 'products' ? [unauditedProduct] : []; },
+    };
+    assert.throws(
+      () => expiration.cleanupStoreExpirationData(unauditedApp, storeId),
+      /expiration_cleanup_audit_context_required/,
+    );
+    assert.equal(unauditedProduct.expiration_date, '2026-08-20');
+
+    const failingProduct = mutableRecord('productclean003', { store: storeId, expiration_date: '2026-08-20' });
+    const failingApp = {
+      ...app,
+      findRecordsByFilter(collection) { return collection === 'products' ? [failingProduct] : []; },
+      save() { throw new Error('forced_cleanup_failure'); },
+    };
+    assert.throws(
+      () => expiration.cleanupStoreExpirationData(failingApp, storeId, auditContext),
+      /forced_cleanup_failure/,
+    );
+  });
 });
 
 test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico', () => {
@@ -423,7 +537,10 @@ test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico
   assert.match(hooks, /raiseExpirationRequestError/);
   assert.match(management, /runInTransaction/);
   assert.match(management, /confirmExpirationCleanup !== true/);
-  assert.match(management, /cleanupStoreExpirationData\(txApp, store\.id\)/);
+  assert.match(
+    management,
+    /const audit = createAudit[\s\S]*cleanupStoreExpirationData\(txApp, store\.id, \{[\s\S]*actor,[\s\S]*planAuditId: audit\.id[\s\S]*createPlanActivity/,
+  );
   assert.match(migration, /UNIQUE INDEX[\s\S]*cycle_key/i);
   assert.doesNotMatch(hooks, /(?:threshold|expiration)[^\n]{0,40}\b7\b/i);
 });

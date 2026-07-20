@@ -6,6 +6,7 @@ import { getStoreAccessContext } from '../../lib/storeTeam';
 import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -1082,6 +1083,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="catalog" mobileTitle="Categorias" mobileActionLabel={canManageCategories ? 'Nueva categoria' : ''} mobileActionTarget={canManageCategories ? '#category-create-main-btn' : ''} />
+      <LastModificationMeta
+        controllerOnly={true}
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
+      />
 
       <main class="main-wrap admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
@@ -1886,6 +1893,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <div class="catalog-card-text">
                   <p class="category-child-title">${escapeHtml(subcategory.name)}</p>
                   <p class="category-child-meta">${productCount} productos · dentro de ${escapeHtml(category.name || 'categoría')}</p>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="subcategory" data-resource-id="${escapeHtml(subcategory.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </div>
               </div>
 
@@ -2148,6 +2156,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <p class="catalog-row-title">${escapeHtml(category.name || 'Categoria sin nombre')}</p>
                   <p class="catalog-row-meta">${escapeHtml(description)}</p>
                   <p class="catalog-mobile-meta">${children} subcategorias &middot; ${productCount} productos &middot; ${statusText}</p>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="category" data-resource-id="${escapeHtml(category.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </div>
               </div>
 
@@ -2202,6 +2211,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <div class="catalog-card-text">
                   <p class="catalog-row-title">${escapeHtml(subcategory.name)}</p>
                   <p class="catalog-row-meta">${escapeHtml(parent?.name || 'Sin categoría')} · ${productCount} productos</p>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="subcategory" data-resource-id="${escapeHtml(subcategory.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </div>
               </div>
 

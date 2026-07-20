@@ -9,6 +9,12 @@ const capabilities = typeof __hooks === "undefined"
 const masterUsers = typeof __hooks === "undefined"
   ? require("./pz_master_store_users_lib.js")
   : require(`${__hooks}/pz_master_store_users_lib.js`);
+const activityAudit = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const deleteReasons = typeof __hooks === "undefined"
+  ? require("./pz_store_team_delete_reasons_lib.js")
+  : require(`${__hooks}/pz_store_team_delete_reasons_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -52,6 +58,14 @@ const SAFE_ERRORS = new Set([
   "email_exists",
   "active_user_limit_reached",
   "primary_admin_protected",
+  "delete_confirmation_mismatch",
+  "delete_reason_required",
+  "delete_reason_invalid",
+  "delete_reason_detail_required",
+  "delete_reason_detail_too_short",
+  "delete_reason_detail_too_long",
+  "delete_reason_detail_invalid",
+  "user_delete_failed",
   "user_already_suspended",
   "user_already_active",
   "team_unavailable",
@@ -164,7 +178,12 @@ function statusForError(code) {
     "user_already_suspended",
     "user_already_active",
   ].includes(code)) return 409;
-  if (["invalid_payload", "invalid_email", "invalid_template", "invalid_permissions", "reserved_permission"].includes(code)) return 400;
+  if ([
+    "invalid_payload", "invalid_email", "invalid_template", "invalid_permissions", "reserved_permission",
+    "delete_confirmation_mismatch", "delete_reason_required", "delete_reason_invalid",
+    "delete_reason_detail_required", "delete_reason_detail_too_short", "delete_reason_detail_too_long",
+    "delete_reason_detail_invalid",
+  ].includes(code)) return 400;
   if (code === "team_unavailable") return 503;
   return 500;
 }
@@ -211,13 +230,22 @@ function teamReady(app) {
     const stores = app.findCollectionByNameOrId("stores");
     const access = app.findCollectionByNameOrId("store_user_access");
     const audit = app.findCollectionByNameOrId("store_user_audit");
+    const activity = app.findCollectionByNameOrId("store_activity_audit");
+    const reviews = app.findCollectionByNameOrId("store_activity_reviews");
     return !!stores.fields.getByName("primary_admin_user")
       && !!access.fields.getByName("permissions_json")
       && !!access.fields.getByName("template_code")
       && access.listRule === null
       && access.viewRule === null
       && !!audit.fields.getByName("previous_permissions_json")
-      && !!audit.fields.getByName("new_permissions_json");
+      && !!audit.fields.getByName("new_permissions_json")
+      && activity.listRule === null
+      && activity.viewRule === null
+      && activity.createRule === null
+      && activity.updateRule === null
+      && activity.deleteRule === null
+      && reviews.listRule === null
+      && reviews.viewRule === null;
   } catch (_) { return false; }
 }
 
@@ -414,6 +442,20 @@ function parseAction(body) {
   const reason = bodyValue(body, "reason");
   if (!isValidId(userId) || typeof reason !== "string" || reason.length > 500) return null;
   return { userId, reason: reason.trim() };
+}
+
+function parseDelete(body) {
+  if (!exactPayload(body, ["user_id", "confirmation_email", "reason_code", "reason_detail"])) return null;
+  const userId = bodyValue(body, "user_id");
+  const confirmationEmail = normalizeEmail(bodyValue(body, "confirmation_email"));
+  if (!isValidId(userId)) return null;
+  if (!confirmationEmail) throw codedError("delete_confirmation_mismatch");
+  const validatedReason = deleteReasons.validateStoreDeleteReason(
+    bodyValue(body, "reason_code"),
+    bodyValue(body, "reason_detail"),
+  );
+  if (!validatedReason.ok) throw codedError(validatedReason.error);
+  return { userId, confirmationEmail, deletionReason: validatedReason.value };
 }
 
 function parseAudit(body) {
@@ -633,7 +675,54 @@ function setAuditField(record, key, value) {
   record.set(key, value);
 }
 
-function createTeamAudit(app, store, actor, target, action, previous, next, reason, sessionsRevoked) {
+function createCentralTeamActivity(app, store, actor, target, action, previous, next, specializedAudit) {
+  const safeSnapshot = (snapshot) => {
+    if (!snapshot) return {};
+    return {
+      display_name: bounded(snapshot.display_name, 140),
+      role: STORE_ROLES.includes(snapshot.role) ? snapshot.role : "",
+      status: USER_STATUSES.includes(snapshot.status) ? snapshot.status : "",
+      template_code: TEMPLATE_CODES.includes(snapshot.template_code) ? snapshot.template_code : "",
+      permissions: Array.isArray(snapshot.permissions) ? snapshot.permissions.slice(0, MAX_ASSIGNABLE_PERMISSIONS) : [],
+    };
+  };
+  const before = safeSnapshot(previous);
+  const after = safeSnapshot(next);
+  const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+  const name = bounded(after.display_name || before.display_name || recordString(target, "display_name") || "Usuario del equipo", 140);
+  const summaries = {
+    team_user_created: `Creó el acceso de ${name}`,
+    team_user_updated: `Actualizó datos y permisos de ${name}`,
+    team_user_suspended: `Suspendió temporalmente a ${name}`,
+    team_user_reactivated: `Reactivó el acceso de ${name}`,
+    team_sessions_revoked: `Cerró las sesiones de ${name}`,
+    team_devices_revoked: `Revocó los dispositivos de ${name}`,
+    team_temporary_password_issued: `Emitió acceso temporal para ${name}`,
+    primary_admin_assigned: `Asignó a ${name} como Administrador principal`,
+    primary_admin_replaced: `Reemplazó al Administrador principal por ${name}`,
+    plan_access_locked: `Bloqueó por plan el acceso de ${name}`,
+    plan_access_restored: `Restauró por plan el acceso de ${name}`,
+  };
+  return activityAudit.createActivity(app, {
+    storeId: store.id,
+    actor,
+    origin: actor ? undefined : "system",
+    module: "team",
+    action,
+    severity: ["team_user_suspended", "team_user_updated", "primary_admin_assigned", "primary_admin_replaced", "plan_access_locked"].includes(action) ? "critical" : "important",
+    resourceType: "team_user",
+    resourceId: target && target.id,
+    resourceLabel: name,
+    changedFields: changed,
+    previousValues: before,
+    newValues: after,
+    summary: summaries[action] || `Actualizó el acceso de ${name}`,
+    sourceEventKey: `team:${action}:${specializedAudit.id}`,
+  });
+}
+
+function createTeamAudit(app, store, actor, target, action, previous, next, reason, sessionsRevoked, skipCentral) {
   if (!TEAM_AUDIT_ACTIONS.includes(action)) throw codedError("team_unavailable");
   const record = new Record(app.findCollectionByNameOrId("store_user_audit"), {});
   const actorName = bounded(recordString(actor, "display_name") || recordString(actor, "email") || "Sistema", 160);
@@ -667,6 +756,7 @@ function createTeamAudit(app, store, actor, target, action, previous, next, reas
   };
   Object.keys(values).forEach((key) => setAuditField(record, key, values[key]));
   app.save(record);
+  if (skipCentral !== true) createCentralTeamActivity(app, store, actor, target, action, previous, next, record);
   return record;
 }
 
@@ -742,7 +832,7 @@ function handleCreate(e) {
       const access = saveAccess(app, loaded.store, created.user, loaded.actor, context.parsed.templateCode, context.parsed.permissions);
       const next = userSnapshot(created.user, access);
       createTeamAudit(app, loaded.store, loaded.actor, created.user, "team_user_created", null, next, context.parsed.reason, false);
-      createTeamAudit(app, loaded.store, loaded.actor, created.user, "team_temporary_password_issued", next, next, context.parsed.reason, false);
+      createTeamAudit(app, loaded.store, loaded.actor, created.user, "team_temporary_password_issued", next, next, context.parsed.reason, false, true);
       response = {
         ok: true,
         user: teamUserResponse(app, loaded.store, created.user),
@@ -784,10 +874,10 @@ function handleUpdate(e) {
       const next = userSnapshot(target, access);
       createTeamAudit(app, loaded.store, loaded.actor, target, "team_user_updated", previous, next, context.parsed.reason, sessionsRevoked);
       if (previous.template_code !== next.template_code) {
-        createTeamAudit(app, loaded.store, loaded.actor, target, "team_template_changed", previous, next, context.parsed.reason, sessionsRevoked);
+        createTeamAudit(app, loaded.store, loaded.actor, target, "team_template_changed", previous, next, context.parsed.reason, sessionsRevoked, true);
       }
       if (previous.permissions.join("|") !== next.permissions.join("|")) {
-        createTeamAudit(app, loaded.store, loaded.actor, target, "team_permissions_changed", previous, next, context.parsed.reason, sessionsRevoked);
+        createTeamAudit(app, loaded.store, loaded.actor, target, "team_permissions_changed", previous, next, context.parsed.reason, sessionsRevoked, true);
       }
       response = { ok: true, user: teamUserResponse(app, loaded.store, target), sessions_revoked: sessionsRevoked };
     });
@@ -913,9 +1003,33 @@ function handleRevokeDevices(e) {
   } catch (error) { return sendError(e, error, "device_revocation_failed"); }
 }
 
+function handleDelete(e) {
+  const context = requestContext(e, parseDelete, true);
+  if (context.error) return sendError(e, context.error, "user_delete_failed");
+  let response = null;
+  try {
+    $app.runInTransaction((app) => {
+      lockStore(app, context.store.id);
+      const loaded = loadActorContext(app, context.actorId, true);
+      const target = loadTarget(app, loaded.store, context.parsed.userId);
+      response = masterUsers.deleteStoreUserTransactional(app, {
+        store: loaded.store,
+        actor: loaded.actor,
+        target,
+        confirmationEmail: context.parsed.confirmationEmail,
+        reasonCode: context.parsed.deletionReason.reason_code,
+        reasonDetail: context.parsed.deletionReason.reason_detail,
+      });
+    });
+    if (!response) throw codedError("user_delete_failed");
+    return e.json(200, response);
+  } catch (error) { return sendError(e, error, "user_delete_failed"); }
+}
+
 function auditResponse(record) {
   const previousPermissions = recordValue(record, "previous_permissions_json");
   const nextPermissions = recordValue(record, "new_permissions_json");
+  const deletionReason = deleteReasons.parseStoredDeleteReason(recordString(record, "reason"));
   return {
     action: TEAM_AUDIT_ACTIONS.includes(recordString(record, "action")) ? recordString(record, "action") : "",
     actor_name: bounded(recordString(record, "actor_name_snapshot"), 160),
@@ -925,7 +1039,12 @@ function auditResponse(record) {
     previous_permissions: Array.isArray(previousPermissions) ? previousPermissions : [],
     new_permissions: Array.isArray(nextPermissions) ? nextPermissions : [],
     sessions_revoked: recordBool(record, "sessions_revoked"),
-    reason: bounded(recordString(record, "reason"), 500),
+    reason: deletionReason.structured
+      ? `${deletionReason.reason_label_snapshot}${deletionReason.reason_detail ? `: ${deletionReason.reason_detail}` : ""}`
+      : deletionReason.legacy_reason,
+    reason_code: deletionReason.reason_code,
+    reason_label_snapshot: deletionReason.reason_label_snapshot,
+    reason_detail: deletionReason.reason_detail,
     created: safeDate(record, "created"),
   };
 }
@@ -1019,6 +1138,7 @@ module.exports = {
   handleAccessContext,
   handleAudit,
   handleCreate,
+  handleDelete,
   handleDetail,
   handleIssueTemporaryAccess,
   handleList,
@@ -1033,6 +1153,7 @@ module.exports = {
   parseAction,
   parseAudit,
   parseCreate,
+  parseDelete,
   parseEmpty,
   parseTarget,
   parseUpdate,

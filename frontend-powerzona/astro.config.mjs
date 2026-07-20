@@ -6,6 +6,9 @@ const isProductionBuild = process.env.NODE_ENV === 'production' || process.argv.
 
 export default defineConfig({
   output: 'server',
+  devToolbar: {
+    enabled: process.env.PZ_VISUAL_TEST !== '1',
+  },
   security: {
     checkOrigin: true,
     allowedDomains: [

@@ -6,6 +6,7 @@ import { getStoreAccessContext } from '../../lib/storeTeam';
 import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -2575,6 +2576,12 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         mobileActionLabel="Nueva promocion"
         mobileActionTarget="#promotion-new-btn"
       />
+      <LastModificationMeta
+        controllerOnly={true}
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
+      />
 
       <main class="main-wrap pz-admin-content-inner">
         <AdminSectionHeader
@@ -4445,6 +4452,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                     ${escapeHtml(typeLabel)} · Acción: ${escapeHtml(actionLabel)} · Orden ${Number(item.sort_order || 0)}
                     ${attachment ? ` · Archivo: ${escapeHtml(attachment)}` : ''}
                   </p>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="visual_item" data-resource-id="${escapeHtml(item.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </div>
 
                 <div class="marketing-quick-actions">
@@ -4666,6 +4674,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
               <div class="promotion-row-copy">
                 <p class="promotion-row-title">${escapeHtml(item.name || 'Sin nombre')}</p>
                 <p class="promotion-row-meta">${escapeHtml(promotionTargetLabel(item))}${item.badge_text ? ` · ${escapeHtml(item.badge_text)}` : ''}</p>
+                <span class="pz-last-modification" data-pz-last-modification data-resource-type="promotion" data-resource-id="${escapeHtml(item.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
               </div>
             </div>
             <div class="promotion-row-actions">
@@ -5049,6 +5058,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
                   </p>
                   <p class="coupon-row-meta">${escapeHtml(scopeLabel)} · ${escapeHtml(discountLabel)} · ${escapeHtml(targetLabel)}</p>
                   ${message ? `<p class="coupon-row-message">${escapeHtml(message)}</p>` : ''}
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="coupon" data-resource-id="${escapeHtml(item.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                   <div class="coupon-row-actions-secondary">
                     <button class="pz-admin-btn pz-admin-btn--ghost pz-admin-btn--compact js-coupon-copy" type="button">
                       <span class="pz-admin-btn__label">Copiar enlace</span>

@@ -7,6 +7,7 @@ import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../components/admin/AdminIcon.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -24,6 +25,7 @@ const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
@@ -52,6 +54,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 const orderQueryId = String(Astro.url.searchParams.get('order') || '').trim();
 const initialOrderId = String(Astro.params.id || orderQueryId || '').trim();
 const isOrderDetailPage = Boolean(initialOrderId);
+const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
+  ? `${adminTeamActivityPath}?${new URLSearchParams({ tab: 'activity', resource_type: 'order', resource_id: initialOrderId })}`
+  : `${adminTeamActivityPath}?tab=activity`;
 ---
 
 <!doctype html>
@@ -910,6 +915,12 @@ const isOrderDetailPage = Boolean(initialOrderId);
 
     <div class="app-shell pz-admin-content">
       <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle="Pedidos" mobileActionLabel="Actualizar" mobileActionTarget="#refresh-btn" />
+      <LastModificationMeta
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
+        controllerOnly={true}
+      />
 
       <main id="admin-view" class="orders-main pz-admin-content-inner">
         <header class="mobile-topbar">
@@ -1024,7 +1035,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               <div id="order-detail" class="hidden">
                 <div class="detail-title">
                   <div><h2 id="detail-order-number"></h2><p id="detail-created" class="page-subtitle"></p></div>
-                  <div class="detail-title-actions"><span id="detail-status-badge" class="badge"></span><button id="close-detail-btn" class="close-detail-btn" type="button" title="Cerrar resumen">×</button></div>
+                  <div class="detail-title-actions"><a id="order-history-link" class="btn btn-secondary" href={adminOrderHistoryPath}>Ver historial</a><span id="detail-status-badge" class="badge"></span><button id="close-detail-btn" class="close-detail-btn" type="button" title="Cerrar resumen">×</button></div>
                 </div>
 
                 <div class="info-grid">
@@ -1219,6 +1230,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       currentStoreId,
       currentStoreName,
       adminOrdersPath,
+      adminTeamActivityPath,
       initialOrderId,
       isOrderDetailPage,
       publicStorePath,
@@ -1235,6 +1247,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const CURRENT_STORE_NAME = String(currentStoreName || '');
       const ADMIN_ORDERS_PATH = String(adminOrdersPath || '/admin/orders');
+      const ADMIN_TEAM_ACTIVITY_PATH = String(adminTeamActivityPath || '/admin/team');
       const INITIAL_ORDER_ID = String(initialOrderId || '');
       const IS_ORDER_DETAIL_PAGE = Boolean(isOrderDetailPage);
       const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
@@ -1278,6 +1291,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
       const orderDetail = document.getElementById('order-detail');
       const detailActionsArea = document.getElementById('detail-actions-area');
       const detailOrderNumber = document.getElementById('detail-order-number');
+      const orderHistoryLink = document.getElementById('order-history-link');
       const detailCreated = document.getElementById('detail-created');
       const detailStatusBadge = document.getElementById('detail-status-badge');
       const detailCustomer = document.getElementById('detail-customer');
@@ -2443,6 +2457,7 @@ const isOrderDetailPage = Boolean(initialOrderId);
               <div class="order-cell order-main">
                 <span class="order-number">${escapeHtml(order.order_number || '')}</span>
                 ${itemsSummary ? `<span class="order-items-summary">${escapeHtml(itemsSummary)}</span>` : '<span class="order-items-summary">Sin resumen de productos</span>'}
+                <span class="pz-last-modification" data-pz-last-modification data-resource-type="order" data-resource-id="${escapeHtml(order.id)}" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
               </div>
               <div class="order-cell order-customer">
                 <span class="order-customer-name">${escapeHtml(order.customer_name || 'Cliente sin nombre')}</span>
@@ -2590,6 +2605,13 @@ const isOrderDetailPage = Boolean(initialOrderId);
       function fillDetail(order) {
         const isDeliveryOrder = order.delivery_method === 'delivery';
         const deliveryText = [deliveryLabels[order.delivery_method] || order.delivery_method || 'Sin forma', isDeliveryOrder ? getShippingZoneLabel(order) : ''].filter(Boolean).join(' · ');
+        const orderId = String(order?.id || '').trim();
+        if (orderHistoryLink) {
+          const params = /^[a-z0-9]{15}$/.test(orderId)
+            ? new URLSearchParams({ tab: 'activity', resource_type: 'order', resource_id: orderId })
+            : new URLSearchParams({ tab: 'activity' });
+          orderHistoryLink.setAttribute('href', `${ADMIN_TEAM_ACTIVITY_PATH}?${params.toString()}`);
+        }
         detailOrderNumber.textContent = order.order_number;
         detailCreated.textContent = formatDate(order.created);
         detailStatusBadge.className = getStatusClass(order.status);

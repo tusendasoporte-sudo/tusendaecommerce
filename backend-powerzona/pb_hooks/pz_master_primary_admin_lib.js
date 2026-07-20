@@ -6,6 +6,9 @@ const capabilities = typeof __hooks === "undefined"
 const storePermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const activityAudit = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const MAX_ASSIGNABLE_PERMISSIONS = 28;
@@ -672,6 +675,45 @@ function createAudit(app, store, actor, target, action, previous, next, reason) 
   const values = buildAuditValues(store, actor, target, action, previous, next, reason);
   Object.keys(values).forEach((key) => setAuditField(audit, key, values[key]));
   app.save(audit);
+  const before = previous ? {
+    display_name: bounded(previous.display_name, 140),
+    role: STORE_ROLES.includes(previous.role) ? previous.role : "",
+    status: ["active", "suspended"].includes(previous.status) ? previous.status : "",
+    template_code: TEMPLATE_CODES.includes(previous.template_code) ? previous.template_code : "",
+    permissions: Array.isArray(previous.permissions) ? previous.permissions.slice(0, MAX_ASSIGNABLE_PERMISSIONS) : [],
+  } : {};
+  const after = next ? {
+    display_name: bounded(next.display_name, 140),
+    role: STORE_ROLES.includes(next.role) ? next.role : "",
+    status: ["active", "suspended"].includes(next.status) ? next.status : "",
+    template_code: TEMPLATE_CODES.includes(next.template_code) ? next.template_code : "",
+    permissions: Array.isArray(next.permissions) ? next.permissions.slice(0, MAX_ASSIGNABLE_PERMISSIONS) : [],
+  } : {};
+  const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+  const name = bounded(after.display_name || before.display_name || recordString(target, "display_name") || "Usuario del equipo", 140);
+  const summaries = {
+    primary_admin_assigned: `Asignó a ${name} como Administrador principal`,
+    primary_admin_replaced: `Reemplazó al Administrador principal por ${name}`,
+    team_user_updated: `Actualizó el acceso anterior de ${name}`,
+    team_user_suspended: `Suspendió el acceso anterior de ${name}`,
+    plan_access_locked: `Bloqueó por plan el acceso de ${name}`,
+  };
+  activityAudit.createActivity(app, {
+    storeId: store.id,
+    actor,
+    module: "team",
+    action,
+    severity: ["primary_admin_assigned", "primary_admin_replaced", "team_user_suspended", "plan_access_locked"].includes(action) ? "critical" : "important",
+    resourceType: "team_user",
+    resourceId: target.id,
+    resourceLabel: name,
+    changedFields: changed,
+    previousValues: before,
+    newValues: after,
+    summary: summaries[action] || `Actualizó a ${name}`,
+    sourceEventKey: `team:${action}:${audit.id}`,
+  });
   return audit;
 }
 

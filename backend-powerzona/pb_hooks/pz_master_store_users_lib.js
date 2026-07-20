@@ -6,6 +6,12 @@ const capabilities = typeof __hooks === "undefined"
 const storePermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const activityAudit = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const deleteReasons = typeof __hooks === "undefined"
+  ? require("./pz_store_team_delete_reasons_lib.js")
+  : require(`${__hooks}/pz_store_team_delete_reasons_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -80,6 +86,12 @@ const SAFE_CODES = new Set([
   "forced_password_change_failed",
   "delete_confirmation_mismatch",
   "delete_reason_required",
+  "delete_reason_too_short",
+  "delete_reason_invalid",
+  "delete_reason_detail_required",
+  "delete_reason_detail_too_short",
+  "delete_reason_detail_too_long",
+  "delete_reason_detail_invalid",
   "user_delete_failed",
 ]);
 
@@ -294,6 +306,7 @@ function parseDeletePayload(body) {
   if (!isValidRecordId(storeId) || !isValidRecordId(userId)) return invalid("invalid_payload");
   if (!confirmationEmail) return invalid("delete_confirmation_mismatch");
   if (typeof reason !== "string" || !reason.trim()) return invalid("delete_reason_required");
+  if (reason.trim().length < 8) return invalid("delete_reason_too_short");
   if (reason.length > 500) return invalid("invalid_payload");
   return valid({ storeId, userId, confirmationEmail, reason: reason.trim() });
 }
@@ -722,12 +735,62 @@ function buildAuditValues(store, actor, target, action, previous, next, sessions
   };
 }
 
-function createAudit(app, store, actor, target, action, previous, next, sessionsRevoked, reason) {
+function centralUserActivity(app, store, actor, target, action, previous, next, sessionsRevoked, specializedAudit, deletionReason) {
+  const before = {};
+  const after = {};
+  const safeKeys = ["display_name", "role", "status"];
+  safeKeys.forEach((key) => {
+    if (previous && previous[key] !== undefined && previous[key] !== "") before[key] = previous[key];
+    if (next && next[key] !== undefined && next[key] !== "") after[key] = next[key];
+  });
+  if (sessionsRevoked === true) after.sessions_revoked = true;
+  if (action === "user_deleted" && deletionReason) {
+    after.reason_code = deletionReason.reason_code;
+    after.reason_label_snapshot = deletionReason.reason_label_snapshot;
+    if (deletionReason.reason_detail) after.reason_detail = deletionReason.reason_detail;
+  }
+  const changed = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key]));
+  if (sessionsRevoked === true && !changed.includes("sessions_revoked")) changed.push("sessions_revoked");
+  const targetName = bounded(
+    (next && next.display_name) || (previous && previous.display_name)
+      || recordString(target, "display_name") || "Usuario del equipo",
+    140,
+  );
+  const summaries = {
+    user_created: `Creó el acceso de ${targetName}`,
+    user_updated: `Actualizó el acceso de ${targetName}`,
+    password_changed: `Restableció el acceso de ${targetName}`,
+    sessions_revoked: `Cerró las sesiones de ${targetName}`,
+    self_password_changed: "Cambió su contraseña",
+    temporary_password_issued: `Emitió acceso temporal para ${targetName}`,
+    forced_password_changed: "Completó el cambio de contraseña temporal",
+    user_deleted: `Eliminó permanentemente a ${targetName}`,
+  };
+  return activityAudit.createActivity(app, {
+    storeId: store.id,
+    actor,
+    module: "team",
+    action,
+    severity: action === "user_deleted" ? "critical" : (["password_changed", "sessions_revoked", "temporary_password_issued"].includes(action) ? "important" : "normal"),
+    resourceType: "team_user",
+    resourceId: target && target.id,
+    resourceLabel: targetName,
+    changedFields: changed,
+    previousValues: before,
+    newValues: after,
+    summary: summaries[action] || `Actualizó a ${targetName}`,
+    sourceEventKey: `team:${action}:${specializedAudit.id}`,
+  });
+}
+
+function createAudit(app, store, actor, target, action, previous, next, sessionsRevoked, reason, deletionReason) {
   if (!AUDIT_ACTIONS.includes(action)) throw codedError("user_management_unavailable");
   const record = new Record(app.findCollectionByNameOrId(AUDIT_COLLECTION), {});
   const values = buildAuditValues(store, actor, target, action, previous, next, sessionsRevoked, reason);
   Object.keys(values).forEach((key) => record.set(key, values[key]));
   app.save(record);
+  centralUserActivity(app, store, actor, target, action, previous, next, sessionsRevoked, record, deletionReason);
   return record;
 }
 
@@ -741,7 +804,8 @@ function relationFieldType(field) {
 }
 
 function isOwnedDeviceUserRelation(collectionName, fieldName) {
-  return collectionName === "store_user_devices" && fieldName === "user";
+  return (collectionName === "store_user_devices" || collectionName === "store_user_access")
+    && fieldName === "user";
 }
 
 function userRelationInventory(app) {
@@ -818,6 +882,26 @@ function loadTargetDevices(app, userId) {
   ) || [];
 }
 
+function loadTargetAccessRecords(app, storeId, userId) {
+  return app.findRecordsByFilter(
+    "store_user_access",
+    "store = {:storeId} && user = {:userId}",
+    "id",
+    10,
+    0,
+    { storeId, userId }
+  ) || [];
+}
+
+function deleteTargetAccessRecords(app, storeId, userId) {
+  const records = loadTargetAccessRecords(app, storeId, userId);
+  records.forEach((record) => {
+    try { app.delete(record); } catch (_) { throw codedError("user_delete_failed"); }
+  });
+  if (loadTargetAccessRecords(app, storeId, userId).length) throw codedError("user_delete_failed");
+  return records.length;
+}
+
 function clearDeviceAuditRelations(app, devices) {
   devices.forEach((device) => {
     for (let batch = 0; batch < 1000; batch += 1) {
@@ -853,6 +937,7 @@ function auditPermissions(record, key) {
 }
 
 function mapAudit(record) {
+  const deletionReason = deleteReasons.parseStoredDeleteReason(recordString(record, "reason"));
   return {
     id: String(record.id || recordString(record, "id")).slice(0, 15),
     action: VISIBLE_AUDIT_ACTIONS.includes(recordString(record, "action")) ? recordString(record, "action") : "",
@@ -873,7 +958,12 @@ function mapAudit(record) {
     previous_permissions: auditPermissions(record, "previous_permissions_json"),
     new_permissions: auditPermissions(record, "new_permissions_json"),
     sessions_revoked: recordValue(record, "sessions_revoked") === true,
-    reason: bounded(recordString(record, "reason"), 500),
+    reason: deletionReason.structured
+      ? `${deletionReason.reason_label_snapshot}${deletionReason.reason_detail ? `: ${deletionReason.reason_detail}` : ""}`
+      : deletionReason.legacy_reason,
+    reason_code: deletionReason.reason_code,
+    reason_label_snapshot: deletionReason.reason_label_snapshot,
+    reason_detail: deletionReason.reason_detail,
     created: safeDate(record, "created"),
   };
 }
@@ -915,6 +1005,12 @@ function statusForCode(code) {
     "current_password_invalid",
     "delete_confirmation_mismatch",
     "delete_reason_required",
+    "delete_reason_too_short",
+    "delete_reason_invalid",
+    "delete_reason_detail_required",
+    "delete_reason_detail_too_short",
+    "delete_reason_detail_too_long",
+    "delete_reason_detail_invalid",
   ].includes(code)) return 400;
   return 500;
 }
@@ -1623,6 +1719,87 @@ function handleRevokeSessions(e) {
   }
 }
 
+function deleteStoreUserTransactional(app, options) {
+  const input = options && typeof options === "object" ? options : {};
+  const store = input.store;
+  const actor = input.actor;
+  const user = input.target;
+  if (!store || !actor || !targetBelongsToStore(user, store.id)) throw codedError("user_not_found");
+  const snapshot = userSnapshot(user);
+  if (isPrimaryAdminUser(store, user)) throw codedError("primary_admin_replacement_required");
+  if (recordString(actor, "role") !== "master_admin" && actor.id === user.id) {
+    throw codedError("primary_admin_replacement_required");
+  }
+  if (normalizeEmail(input.confirmationEmail) !== snapshot.email) {
+    throw codedError("delete_confirmation_mismatch");
+  }
+  let deletionReason = null;
+  let reason = "";
+  if (recordString(actor, "role") === "master_admin" && !input.reasonCode) {
+    reason = bounded(input.reason, 500).trim();
+    if (!reason) throw codedError("delete_reason_required");
+    if (reason.length < 8) throw codedError("delete_reason_too_short");
+  } else {
+    const validatedReason = deleteReasons.validateStoreDeleteReason(input.reasonCode, input.reasonDetail);
+    if (!validatedReason.ok) throw codedError(validatedReason.error);
+    deletionReason = validatedReason.value;
+    reason = deleteReasons.serializeDeleteReason(deletionReason);
+    if (!reason) throw codedError("delete_reason_invalid");
+  }
+
+  const counts = storeUserCounts(app, store.id);
+  if (projectedActiveAdminsAfterDeletion(counts, snapshot) < 1) {
+    throw codedError("last_active_admin_required");
+  }
+
+  // The specialized record and its central counterpart are written before
+  // relations are detached; both keep historical snapshots after auth delete.
+  const deletionAudit = createAudit(
+    app,
+    store,
+    actor,
+    user,
+    "user_deleted",
+    snapshot,
+    null,
+    true,
+    reason,
+    deletionReason
+  );
+
+  try {
+    user.refreshTokenKey();
+    app.save(user);
+  } catch (_) { throw codedError("user_delete_failed"); }
+
+  const devices = loadTargetDevices(app, user.id);
+  assertNoUnexpectedRequiredUserRelations(app, user.id);
+  clearOptionalUserRelations(app, user.id);
+  clearDeviceAuditRelations(app, devices);
+
+  devices.forEach((device) => {
+    try { app.delete(device); } catch (_) { throw codedError("user_delete_failed"); }
+  });
+  if (loadTargetDevices(app, user.id).length) throw codedError("user_delete_failed");
+  deleteTargetAccessRecords(app, store.id, user.id);
+
+  try { app.delete(user); } catch (_) { throw codedError("user_delete_failed"); }
+  if (findRecord(app, "users", user.id)) throw codedError("user_delete_failed");
+  const persistedAudit = findRecord(app, AUDIT_COLLECTION, deletionAudit.id);
+  if (!persistedAudit || recordString(persistedAudit, "action") !== "user_deleted") {
+    throw codedError("user_delete_failed");
+  }
+  const central = activityAudit.findActivityBySource(app, store.id, `team:user_deleted:${deletionAudit.id}`);
+  if (!central) throw codedError("user_delete_failed");
+
+  return {
+    ok: true,
+    user_deleted: true,
+    user_id: user.id,
+    sessions_revoked: true,
+  };
+}
+
 function handleDelete(e) {
   const context = requestContext(e, parseDeletePayload);
   if (context.error) return sendError(e, context.error, "user_delete_failed");
@@ -1631,63 +1808,13 @@ function handleDelete(e) {
     $app.runInTransaction((txApp) => {
       const loaded = loadTransactionContext(txApp, context.actorId, context.parsed.storeId);
       const user = loadTarget(txApp, context.parsed.userId, loaded.store.id);
-      const snapshot = userSnapshot(user);
-      if (isPrimaryAdminUser(loaded.store, user)) {
-        throw codedError("primary_admin_replacement_required");
-      }
-      if (context.parsed.confirmationEmail !== snapshot.email) {
-        throw codedError("delete_confirmation_mismatch");
-      }
-      if (!context.parsed.reason) throw codedError("delete_reason_required");
-
-      const counts = storeUserCounts(txApp, loaded.store.id);
-      if (projectedActiveAdminsAfterDeletion(counts, snapshot) < 1) {
-        throw codedError("last_active_admin_required");
-      }
-
-      const deletionAudit = createAudit(
-        txApp,
-        loaded.store,
-        loaded.actor,
-        user,
-        "user_deleted",
-        snapshot,
-        null,
-        true,
-        context.parsed.reason
-      );
-
-      const devices = loadTargetDevices(txApp, user.id);
-      assertNoUnexpectedRequiredUserRelations(txApp, user.id);
-      clearOptionalUserRelations(txApp, user.id);
-      clearDeviceAuditRelations(txApp, devices);
-
-      devices.forEach((device) => {
-        try {
-          txApp.delete(device);
-        } catch (_) {
-          throw codedError("user_delete_failed");
-        }
+      response = deleteStoreUserTransactional(txApp, {
+        store: loaded.store,
+        actor: loaded.actor,
+        target: user,
+        confirmationEmail: context.parsed.confirmationEmail,
+        reason: context.parsed.reason,
       });
-      if (loadTargetDevices(txApp, user.id).length) throw codedError("user_delete_failed");
-
-      try {
-        txApp.delete(user);
-      } catch (_) {
-        throw codedError("user_delete_failed");
-      }
-      if (findRecord(txApp, "users", context.parsed.userId)) throw codedError("user_delete_failed");
-      const persistedAudit = findRecord(txApp, AUDIT_COLLECTION, deletionAudit.id);
-      if (!persistedAudit || recordString(persistedAudit, "action") !== "user_deleted") {
-        throw codedError("user_delete_failed");
-      }
-
-      response = {
-        ok: true,
-        user_deleted: true,
-        user_id: context.parsed.userId,
-        sessions_revoked: true,
-      };
     });
     if (!response) throw codedError("user_delete_failed");
     return e.json(200, response);
@@ -1777,6 +1904,7 @@ module.exports = {
   USER_STATUSES,
   auditActorRole,
   buildAuditValues,
+  deleteStoreUserTransactional,
   exactPayload,
   enforceTemporaryPasswordAuthentication,
   handleAudit,

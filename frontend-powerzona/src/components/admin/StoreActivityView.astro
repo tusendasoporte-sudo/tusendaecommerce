@@ -1,0 +1,829 @@
+---
+import '../../styles/store-activity.css';
+
+interface Props {
+  mode: 'team' | 'user' | 'self';
+  pocketbaseUrl: string;
+  storeSlug: string;
+  userId?: string;
+  userName?: string;
+  deferred?: boolean;
+  embedded?: boolean;
+}
+
+const {
+  mode,
+  pocketbaseUrl,
+  storeSlug,
+  userId = '',
+  userName = '',
+  deferred = false,
+  embedded = false,
+} = Astro.props;
+
+const title = mode === 'team'
+  ? 'Actividad del equipo'
+  : (mode === 'self' ? 'Mi actividad' : `Actividad de ${userName || 'este usuario'}`);
+const description = mode === 'team'
+  ? 'Consulta, revisa y corrige los cambios administrativos confirmados en tu tienda.'
+  : (mode === 'self'
+      ? 'Consulta únicamente los cambios administrativos realizados con tu cuenta.'
+      : 'Consulta el historial operativo de este integrante sin alterar los eventos originales.');
+const canReview = mode !== 'self';
+const activityInstance = `store-activity-${mode}-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<section
+  class:list={['store-activity-view', embedded && 'is-embedded']}
+  data-store-activity-root
+  data-activity-instance={activityInstance}
+  data-activity-mode={mode}
+  data-api-base={String(pocketbaseUrl || '').replace(/\/+$/, '')}
+  data-store-slug={storeSlug}
+  data-user-id={userId}
+  data-deferred={deferred ? 'true' : 'false'}
+  aria-labelledby={`${activityInstance}-title`}
+>
+  <header class="store-activity-heading">
+    <div>
+      <span class="store-activity-heading__kicker">Auditoría operativa</span>
+      <h2 id={`${activityInstance}-title`} data-activity-title>{title}</h2>
+      <p>{description}</p>
+    </div>
+    <button class="store-activity-refresh" type="button" data-activity-refresh aria-label="Actualizar actividad">
+      Actualizar
+    </button>
+  </header>
+
+  {mode === 'team' && (
+    <section class="store-activity-summary" aria-label="Resumen de actividad del equipo">
+      <article><span>Cambios hoy</span><strong data-activity-summary="changes_today">—</strong></article>
+      <article><span>Pendientes de revisar</span><strong data-activity-summary="pending_review">—</strong></article>
+      <article><span>Cambios críticos</span><strong data-activity-summary="critical_changes">—</strong></article>
+      <article><span>Usuarios con actividad</span><strong data-activity-summary="active_users">—</strong></article>
+    </section>
+  )}
+
+  {mode === 'user' && (
+    <section class="store-activity-summary is-user-report" aria-label="Resumen de actividad del usuario">
+      <article><span>Cambios totales</span><strong data-activity-user-summary="total_changes">—</strong></article>
+      <article><span>Productos</span><strong data-activity-user-summary="products">—</strong></article>
+      <article><span>Pedidos</span><strong data-activity-user-summary="orders">—</strong></article>
+      <article><span>Precios y stock</span><strong data-activity-user-summary="price_stock">—</strong></article>
+      <article><span>Vencimientos</span><strong data-activity-user-summary="expirations">—</strong></article>
+      <article><span>Última actividad</span><strong class="is-date" data-activity-user-summary="last_activity">—</strong></article>
+      <article><span>Cambios críticos</span><strong data-activity-user-summary="critical_changes">—</strong></article>
+      <article><span>Pendientes de revisar</span><strong data-activity-user-summary="pending_review">—</strong></article>
+    </section>
+  )}
+
+  <div class="store-activity-resource-filter" data-activity-resource-filter hidden>
+    <span>Mostrando el historial del elemento seleccionado.</span>
+    <button type="button" data-activity-resource-filter-clear>Quitar filtro</button>
+  </div>
+
+  <details class="store-activity-filters" data-activity-filter-details open>
+    <summary>Filtros de actividad</summary>
+    <form class="store-activity-filter-form" data-activity-filter-form>
+      {mode === 'team' && (
+        <label>
+          <span>Usuario</span>
+          <select name="user_ref" data-activity-user-filter>
+            <option value="">Todos</option>
+          </select>
+        </label>
+      )}
+      <label>
+        <span>Sección</span>
+        <select name="module">
+          <option value="">Todas</option>
+          <option value="catalog">Catálogo</option>
+          <option value="orders">Pedidos</option>
+          <option value="shipping">Envíos</option>
+          <option value="marketing">Marketing</option>
+          <option value="operation">Operación</option>
+          <option value="security">Seguridad</option>
+          <option value="team">Equipo</option>
+          <option value="settings">Ajustes</option>
+          <option value="plan">Plan</option>
+        </select>
+      </label>
+      <label>
+        <span>Acción</span>
+        <input name="action" type="text" maxlength="80" placeholder="Ej.: product_updated" autocomplete="off" />
+      </label>
+      <label>
+        <span>Severidad</span>
+        <select name="severity">
+          <option value="">Todas</option>
+          <option value="normal">Normal</option>
+          <option value="important">Importante</option>
+          <option value="critical">Crítica</option>
+        </select>
+      </label>
+      {canReview && (
+        <label>
+          <span>Revisión</span>
+          <select name="review_status">
+            <option value="">Todas</option>
+            <option value="pending">Pendiente</option>
+            <option value="reviewed">Revisado</option>
+            <option value="requires_correction">Requiere corrección</option>
+          </select>
+        </label>
+      )}
+      <label>
+        <span>Desde</span>
+        <input name="date_from" type="date" />
+      </label>
+      <label>
+        <span>Hasta</span>
+        <input name="date_to" type="date" />
+      </label>
+      <label class="store-activity-filter-form__search">
+        <span>Buscar</span>
+        <input name="search" type="search" maxlength="120" placeholder="Acción o elemento" autocomplete="off" />
+      </label>
+      <div class="store-activity-filter-form__actions">
+        <button class="store-activity-button is-secondary" type="reset" data-activity-clear>Limpiar</button>
+        <button class="store-activity-button is-primary" type="submit">Aplicar</button>
+      </div>
+    </form>
+  </details>
+
+  <div class="store-activity-alert" role="alert" data-activity-alert hidden></div>
+
+  <section class="store-activity-list-panel" aria-label="Historial de actividad">
+    <div class="store-activity-list" data-activity-list aria-live="polite">
+      <div class="store-activity-skeleton" aria-label="Cargando actividad">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+    <nav class="store-activity-pagination" aria-label="Paginación de actividad" data-activity-pagination hidden>
+      <button type="button" data-activity-page="previous">Anterior</button>
+      <span data-activity-page-label>Página 1 de 1</span>
+      <button type="button" data-activity-page="next">Siguiente</button>
+    </nav>
+  </section>
+
+  <dialog class="store-activity-dialog" data-activity-detail-dialog aria-labelledby={`${activityInstance}-detail-title`}>
+    <div class="store-activity-dialog__layout">
+      <header class="store-activity-dialog__head">
+        <div>
+          <span class="store-activity-heading__kicker">Detalle inmutable</span>
+          <h3 id={`${activityInstance}-detail-title`} data-activity-detail-title>Cambio administrativo</h3>
+        </div>
+        <button type="button" data-activity-dialog-close aria-label="Cerrar">×</button>
+      </header>
+      <div class="store-activity-dialog__body">
+        <div class="store-activity-alert" role="alert" data-activity-detail-alert hidden></div>
+        <dl class="store-activity-detail-meta" data-activity-detail-meta></dl>
+        <section class="store-activity-detail-summary">
+          <h4>Resumen</h4>
+          <p data-activity-detail-summary></p>
+        </section>
+        <section class="store-activity-changes" aria-labelledby={`${activityInstance}-changes-title`}>
+          <h4 id={`${activityInstance}-changes-title`}>Campos modificados</h4>
+          <div data-activity-detail-changes></div>
+        </section>
+        {canReview && (
+          <section class="store-activity-review-detail" data-activity-review-detail>
+            <h4>Revisión</h4>
+            <p data-activity-review-copy></p>
+          </section>
+        )}
+      </div>
+      <footer class="store-activity-dialog__foot">
+        <a class="store-activity-button is-secondary" href="#" data-activity-open-resource hidden>Abrir elemento</a>
+        {canReview && <button class="store-activity-button is-secondary" type="button" data-activity-detail-correction>Requiere corrección</button>}
+        {canReview && <button class="store-activity-button is-primary" type="button" data-activity-detail-review>Marcar revisado</button>}
+        <button class="store-activity-button is-secondary" type="button" data-activity-dialog-close>Cerrar</button>
+      </footer>
+    </div>
+  </dialog>
+
+  {canReview && (
+    <dialog class="store-activity-dialog is-compact" data-activity-correction-dialog aria-labelledby={`${activityInstance}-correction-title`}>
+      <form class="store-activity-dialog__layout" data-activity-correction-form>
+        <header class="store-activity-dialog__head">
+          <div>
+            <span class="store-activity-heading__kicker">Seguimiento</span>
+            <h3 id={`${activityInstance}-correction-title`} data-activity-review-dialog-title>Requiere corrección</h3>
+          </div>
+          <button type="button" data-activity-dialog-close aria-label="Cerrar">×</button>
+        </header>
+        <div class="store-activity-dialog__body">
+          <p class="store-activity-dialog__explanation" data-activity-review-dialog-explanation>Describe qué debe corregirse. El evento original permanecerá sin cambios.</p>
+          <div class="store-activity-alert" role="alert" data-activity-correction-alert hidden></div>
+          <label class="store-activity-correction-field">
+            <span data-activity-review-note-label>Nota obligatoria</span>
+            <textarea name="note" minlength="8" maxlength="1000" required placeholder="Ej.: verificar el precio y guardar el valor correcto"></textarea>
+            <small>Mínimo 8 y máximo 1000 caracteres.</small>
+          </label>
+        </div>
+        <footer class="store-activity-dialog__foot">
+          <button class="store-activity-button is-secondary" type="button" data-activity-dialog-close>Cancelar</button>
+          <button class="store-activity-button is-danger" type="submit" data-activity-correction-submit>Marcar requiere corrección</button>
+        </footer>
+      </form>
+    </dialog>
+  )}
+</section>
+
+<script>
+  import {
+    STORE_ACTIVITY_PAGE_SIZE,
+    getStoreActivityDetail,
+    getStoreActivityErrorMessage,
+    getStoreActivityResourcePath,
+    getStoreActivitySummary,
+    getStoreActivityUserReport,
+    getStoreSelfActivity,
+    listStoreActivity,
+    readPocketBaseAuthToken,
+    reviewStoreActivity,
+    type StoreActivityEvent,
+    type StoreActivityFilters,
+    type StoreActivityPagination,
+    type StoreActivityReviewStatus,
+    type StoreActivityUserMetrics,
+  } from '../../lib/storeActivity';
+
+  type ActivityMode = 'team' | 'user' | 'self';
+  type ActivityWindow = typeof window & { PZ_STORE_ACTIVITY_CLEANUP?: () => void };
+
+  const activityWindow = window as ActivityWindow;
+  activityWindow.PZ_STORE_ACTIVITY_CLEANUP?.();
+  const viewCleanups: Array<() => void> = [];
+
+  const escapeHtml = (value: unknown) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  function formatDate(value: unknown, fallback = 'Sin fecha registrada') {
+    const raw = String(value || '').trim();
+    const parsed = new Date(raw.replace(' ', 'T'));
+    if (!raw || !Number.isFinite(parsed.getTime())) return fallback;
+    return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
+  }
+
+  function moduleLabel(value: unknown) {
+    const labels: Record<string, string> = {
+      catalog: 'Catálogo',
+      orders: 'Pedidos',
+      shipping: 'Envíos',
+      marketing: 'Marketing',
+      operation: 'Operación',
+      security: 'Seguridad',
+      team: 'Equipo',
+      settings: 'Ajustes',
+      plan: 'Plan',
+      activity: 'Actividad',
+    };
+    const key = String(value || '').toLowerCase();
+    return labels[key] || 'Administración';
+  }
+
+  function severityLabel(value: unknown) {
+    const normalized = String(value || '').toLowerCase();
+    if (normalized === 'critical') return 'Crítico';
+    if (normalized === 'important') return 'Importante';
+    return 'Normal';
+  }
+
+  function reviewLabel(value: unknown) {
+    const normalized = String(value || '').toLowerCase();
+    if (normalized === 'reviewed') return 'Revisado';
+    if (normalized === 'requires_correction') return 'Requiere corrección';
+    return 'Pendiente';
+  }
+
+  function openDialog(dialog: HTMLDialogElement | null) {
+    if (!dialog) return;
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  }
+
+  function closeDialog(dialog: HTMLDialogElement | null) {
+    if (!dialog) return;
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+  }
+
+  function initStoreActivity(root: HTMLElement) {
+    if (root.dataset.activityInitialized === 'true') return;
+    root.dataset.activityInitialized = 'true';
+    const mode = (root.dataset.activityMode || 'team') as ActivityMode;
+    const baseUrl = String(root.dataset.apiBase || '').replace(/\/+$/, '');
+    const storeSlug = String(root.dataset.storeSlug || '');
+    const userId = String(root.dataset.userId || '');
+    const deferred = root.dataset.deferred === 'true';
+    const lifecycleController = new AbortController();
+    const listenerOptions = { signal: lifecycleController.signal };
+    const safeResourceTypes = new Set([
+      'product', 'product_variation', 'category', 'subcategory', 'order', 'order_item',
+      'shipping_method', 'shipping_zone', 'promotion', 'coupon', 'gift', 'raffle',
+      'raffle_entry', 'review', 'visual_item', 'settings', 'currency', 'security_settings',
+      'security_block', 'team_user', 'activity', 'store_plan',
+    ]);
+    const pageParams = new URLSearchParams(window.location.search);
+    const requestedResourceType = String(pageParams.get('resource_type') || '').trim().toLowerCase();
+    const requestedResourceId = String(pageParams.get('resource_id') || '').trim();
+    let resourceTypeFilter = mode === 'team' && safeResourceTypes.has(requestedResourceType) ? requestedResourceType : '';
+    let resourceIdFilter = mode === 'team' && /^[a-z0-9]{15}$/.test(requestedResourceId) ? requestedResourceId : '';
+    if (!resourceTypeFilter || !resourceIdFilter) {
+      resourceTypeFilter = '';
+      resourceIdFilter = '';
+    }
+
+    const form = root.querySelector<HTMLFormElement>('[data-activity-filter-form]');
+    const list = root.querySelector<HTMLElement>('[data-activity-list]');
+    const alert = root.querySelector<HTMLElement>('[data-activity-alert]');
+    const pagination = root.querySelector<HTMLElement>('[data-activity-pagination]');
+    const pageLabel = root.querySelector<HTMLElement>('[data-activity-page-label]');
+    const previousPage = root.querySelector<HTMLButtonElement>('[data-activity-page="previous"]');
+    const nextPage = root.querySelector<HTMLButtonElement>('[data-activity-page="next"]');
+    const userFilter = root.querySelector<HTMLSelectElement>('[data-activity-user-filter]');
+    const title = root.querySelector<HTMLElement>('[data-activity-title]');
+    const refreshButton = root.querySelector<HTMLButtonElement>('[data-activity-refresh]');
+    const resourceFilterNotice = root.querySelector<HTMLElement>('[data-activity-resource-filter]');
+
+    const detailDialog = root.querySelector<HTMLDialogElement>('[data-activity-detail-dialog]');
+    const detailTitle = root.querySelector<HTMLElement>('[data-activity-detail-title]');
+    const detailAlert = root.querySelector<HTMLElement>('[data-activity-detail-alert]');
+    const detailMeta = root.querySelector<HTMLElement>('[data-activity-detail-meta]');
+    const detailSummary = root.querySelector<HTMLElement>('[data-activity-detail-summary]');
+    const detailChanges = root.querySelector<HTMLElement>('[data-activity-detail-changes]');
+    const reviewCopy = root.querySelector<HTMLElement>('[data-activity-review-copy]');
+    const openResource = root.querySelector<HTMLAnchorElement>('[data-activity-open-resource]');
+    const detailReview = root.querySelector<HTMLButtonElement>('[data-activity-detail-review]');
+    const detailCorrection = root.querySelector<HTMLButtonElement>('[data-activity-detail-correction]');
+
+    const correctionDialog = root.querySelector<HTMLDialogElement>('[data-activity-correction-dialog]');
+    const correctionForm = root.querySelector<HTMLFormElement>('[data-activity-correction-form]');
+    const correctionAlert = root.querySelector<HTMLElement>('[data-activity-correction-alert]');
+    const correctionSubmit = root.querySelector<HTMLButtonElement>('[data-activity-correction-submit]');
+    const reviewDialogTitle = root.querySelector<HTMLElement>('[data-activity-review-dialog-title]');
+    const reviewDialogExplanation = root.querySelector<HTMLElement>('[data-activity-review-dialog-explanation]');
+    const reviewNoteLabel = root.querySelector<HTMLElement>('[data-activity-review-note-label]');
+
+    let events: StoreActivityEvent[] = [];
+    let currentPage = 1;
+    let currentPagination: StoreActivityPagination = { page: 1, per_page: STORE_ACTIVITY_PAGE_SIZE, total_items: 0, total_pages: 1 };
+    let loading = false;
+    let activated = !deferred;
+    let eventRefCounter = 0;
+    let actorRefCounter = 0;
+    let selectedEvent: StoreActivityEvent | null = null;
+    const eventByRef = new Map<string, StoreActivityEvent>();
+    const actorByRef = new Map<string, string>();
+
+    function syncResourceFilterNotice() {
+      if (resourceFilterNotice) resourceFilterNotice.hidden = !(resourceTypeFilter && resourceIdFilter);
+    }
+
+    function clearResourceFilter() {
+      resourceTypeFilter = '';
+      resourceIdFilter = '';
+      syncResourceFilterNotice();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('resource_type');
+      url.searchParams.delete('resource_id');
+      window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    const client = () => ({
+      baseUrl,
+      token: readPocketBaseAuthToken(),
+      signal: lifecycleController.signal,
+    });
+
+    function showMessage(element: HTMLElement | null, message = '', tone: 'error' | 'success' = 'error') {
+      if (!element) return;
+      element.textContent = message;
+      element.hidden = !message;
+      element.classList.toggle('is-success', tone === 'success');
+    }
+
+    function readFilters(): StoreActivityFilters {
+      const data = form ? new FormData(form) : new FormData();
+      const actorReference = String(data.get('user_ref') || '');
+      return {
+        user_id: actorByRef.get(actorReference) || '',
+        module: String(data.get('module') || ''),
+        action: String(data.get('action') || '').trim(),
+        severity: String(data.get('severity') || ''),
+        review_status: mode === 'self' ? '' : String(data.get('review_status') || ''),
+        resource_type: resourceTypeFilter,
+        resource_id: resourceIdFilter,
+        date_from: String(data.get('date_from') || ''),
+        date_to: String(data.get('date_to') || ''),
+        search: String(data.get('search') || '').trim(),
+        page: currentPage,
+        per_page: STORE_ACTIVITY_PAGE_SIZE,
+      };
+    }
+
+    function renderTeamSummary(summary: Record<string, unknown>) {
+      root.querySelectorAll<HTMLElement>('[data-activity-summary]').forEach((element) => {
+        const key = String(element.dataset.activitySummary || '');
+        element.textContent = String(Math.max(0, Number(summary[key] || 0)));
+      });
+    }
+
+    function renderUserSummary(summary: StoreActivityUserMetrics) {
+      root.querySelectorAll<HTMLElement>('[data-activity-user-summary]').forEach((element) => {
+        const key = String(element.dataset.activityUserSummary || '') as keyof StoreActivityUserMetrics;
+        const value = summary[key];
+        element.textContent = key === 'last_activity'
+          ? formatDate(value, 'Sin actividad')
+          : String(Math.max(0, Number(value || 0)));
+      });
+    }
+
+    function syncActorFilter(actors: Array<{ value: string; label: string; state: string }>) {
+      if (!userFilter) return;
+      const previousRealValue = actorByRef.get(userFilter.value) || '';
+      actorByRef.clear();
+      userFilter.replaceChildren(new Option('Todos', ''));
+      actors.forEach((actor) => {
+        const reference = `activity-actor-${++actorRefCounter}`;
+        actorByRef.set(reference, actor.value);
+        userFilter.add(new Option(actor.label, reference));
+        if (actor.value === previousRealValue) userFilter.value = reference;
+      });
+    }
+
+    function compactChanges(event: StoreActivityEvent) {
+      const comparable = event.changes.filter((change) => change.before || change.after);
+      const visible = event.action === 'user_deleted'
+        ? [
+            ...comparable.filter((change) => ['reason_label_snapshot', 'reason_detail'].includes(change.field)),
+            ...comparable.filter((change) => !['reason_label_snapshot', 'reason_detail', 'reason_code'].includes(change.field)),
+          ].slice(0, 2)
+        : comparable.slice(0, 2);
+      if (!visible.length) return '';
+      return `<p class="store-activity-item__changes">${visible.map((change) => {
+        const transition = change.before && change.after
+          ? `${escapeHtml(change.before)} → ${escapeHtml(change.after)}`
+          : escapeHtml(change.after || change.before);
+        return `<span><strong>${escapeHtml(change.label)}:</strong> ${transition}</span>`;
+      }).join('')}</p>`;
+    }
+
+    function renderEvents() {
+      if (!list) return;
+      eventByRef.clear();
+      if (!events.length) {
+        list.innerHTML = '<p class="store-activity-empty">No hay cambios que coincidan con estos filtros.</p>';
+        return;
+      }
+      list.innerHTML = events.map((event) => {
+        const reference = `activity-event-${++eventRefCounter}`;
+        eventByRef.set(reference, event);
+        const actorState = event.actor.is_deleted
+          ? '<span class="store-activity-actor-state">Usuario eliminado</span>'
+          : (event.actor.is_system ? '<span class="store-activity-actor-state is-system">Sistema</span>' : '');
+        const route = getStoreActivityResourcePath(storeSlug, event.resource);
+        const resourceAction = route
+          ? `<a class="store-activity-link" href="${escapeHtml(route)}">Abrir ${escapeHtml(event.resource.label || 'elemento')}</a>`
+          : `<span class="store-activity-resource-missing">${event.action === 'user_deleted' ? 'Usuario eliminado' : 'Elemento eliminado'}</span>`;
+        const review = mode === 'self'
+          ? ''
+          : `<span class="store-activity-pill is-review-${escapeHtml(event.review.status)}">${escapeHtml(reviewLabel(event.review.status))}</span>`;
+        const reviewAction = mode !== 'self' && event.can_review && event.review.status !== 'reviewed'
+          ? `<button class="store-activity-link is-button" type="button" data-activity-quick-review>Marcar revisado</button>`
+          : '';
+        return `<article class="store-activity-item" data-activity-event-ref="${reference}">
+          <div class="store-activity-item__actor">
+            <strong>${escapeHtml(event.actor.name || 'Sistema')}</strong>
+            ${actorState}
+            <small>${escapeHtml(formatDate(event.created))}</small>
+          </div>
+          <div class="store-activity-item__content">
+            <div class="store-activity-item__topline">
+              <span>${escapeHtml(moduleLabel(event.module))}</span>
+              ${event.resource.label ? `<small>${escapeHtml(event.resource.label)}</small>` : ''}
+            </div>
+            <p class="store-activity-item__summary">${escapeHtml(event.summary)}</p>
+            ${compactChanges(event)}
+          </div>
+          <div class="store-activity-item__status">
+            <span class="store-activity-pill is-${escapeHtml(event.severity)}">${escapeHtml(severityLabel(event.severity))}</span>
+            ${review}
+          </div>
+          <div class="store-activity-item__actions">
+            <button class="store-activity-link is-button" type="button" data-activity-view-change>Ver cambio</button>
+            ${resourceAction}
+            ${reviewAction}
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    function renderPagination() {
+      if (!pagination || !pageLabel || !previousPage || !nextPage) return;
+      pagination.hidden = currentPagination.total_pages <= 1 && currentPagination.total_items === 0;
+      pageLabel.textContent = `Página ${currentPagination.page} de ${currentPagination.total_pages}`;
+      previousPage.disabled = currentPagination.page <= 1;
+      nextPage.disabled = currentPagination.page >= currentPagination.total_pages;
+    }
+
+    function loadingMarkup() {
+      return '<div class="store-activity-skeleton" aria-label="Cargando actividad"><span></span><span></span><span></span></div>';
+    }
+
+    async function loadActivity() {
+      if (!activated || loading) return;
+      loading = true;
+      showMessage(alert);
+      refreshButton?.setAttribute('aria-busy', 'true');
+      if (refreshButton) refreshButton.disabled = true;
+      if (list) list.innerHTML = loadingMarkup();
+      try {
+        const filters = readFilters();
+        if (filters.date_from && filters.date_to && filters.date_from > filters.date_to) {
+          throw new Error('La fecha inicial no puede ser posterior a la fecha final.');
+        }
+        if (mode === 'team') {
+          const [summaryResponse, response] = await Promise.all([
+            getStoreActivitySummary(filters, client()),
+            listStoreActivity(filters, client()),
+          ]);
+          renderTeamSummary(summaryResponse.summary);
+          events = response.items;
+          currentPagination = response.pagination;
+          syncActorFilter(response.actors);
+        } else if (mode === 'user') {
+          const response = await getStoreActivityUserReport(userId, filters, client());
+          events = response.items;
+          currentPagination = response.pagination;
+          renderUserSummary(response.summary);
+          if (title && response.user.display_name) {
+            title.textContent = `Actividad de ${response.user.display_name}${response.user.state === 'deleted' ? ' — usuario eliminado' : ''}`;
+          }
+        } else {
+          const response = await getStoreSelfActivity(filters, client());
+          events = response.items;
+          currentPagination = response.pagination;
+        }
+        renderEvents();
+        renderPagination();
+      } catch (error) {
+        if ((error as any)?.name === 'AbortError') return;
+        const message = error instanceof Error && error.message.startsWith('La fecha')
+          ? error.message
+          : getStoreActivityErrorMessage(error);
+        showMessage(alert, message);
+        if (list) list.innerHTML = '<p class="store-activity-empty">No se pudo cargar la actividad.</p>';
+      } finally {
+        loading = false;
+        refreshButton?.removeAttribute('aria-busy');
+        if (refreshButton) refreshButton.disabled = false;
+      }
+    }
+
+    function metaRow(label: string, value: string, className = '') {
+      return value ? `<div${className ? ` class="${className}"` : ''}><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>` : '';
+    }
+
+    function renderDetail(event: StoreActivityEvent) {
+      selectedEvent = event;
+      if (detailTitle) detailTitle.textContent = event.action === 'user_deleted'
+        ? 'Usuario eliminado'
+        : (event.resource.label || 'Cambio administrativo');
+      if (detailSummary) detailSummary.textContent = event.summary;
+      if (detailMeta) {
+        const actor = event.actor.is_deleted ? `${event.actor.name} · Usuario eliminado` : event.actor.name;
+        detailMeta.innerHTML = [
+          metaRow('Actor', actor),
+          metaRow('Fecha', formatDate(event.created)),
+          metaRow('Sección', moduleLabel(event.module)),
+          metaRow('Acción', event.action.replace(/_/g, ' ')),
+          metaRow('Severidad', severityLabel(event.severity), `is-${event.severity}`),
+          metaRow('Elemento', event.resource.label || (event.resource.exists ? 'Elemento administrativo' : 'Elemento eliminado')),
+        ].join('');
+      }
+      if (detailChanges) {
+        const visibleChanges = event.changes.filter((change) => change.before || change.after);
+        detailChanges.innerHTML = visibleChanges.length
+          ? visibleChanges.map((change) => `<article class="store-activity-change-row">
+              <strong>${escapeHtml(change.label)}</strong>
+              <div><span>Antes</span><p>${escapeHtml(change.before || 'Sin valor')}</p></div>
+              <div><span>Después</span><p>${escapeHtml(change.after || 'Sin valor')}</p></div>
+            </article>`).join('')
+          : '<p class="store-activity-empty is-compact">Este evento no incluye valores comparables.</p>';
+      }
+      if (mode !== 'self' && reviewCopy) {
+        const reviewedAt = event.review.reviewed_at ? ` · ${formatDate(event.review.reviewed_at)}` : '';
+        const note = event.review.note ? ` — ${event.review.note}` : '';
+        reviewCopy.textContent = `${reviewLabel(event.review.status)}${reviewedAt}${note}`;
+      }
+      const route = getStoreActivityResourcePath(storeSlug, event.resource);
+      if (openResource) {
+        openResource.hidden = !route;
+        if (route) openResource.href = route;
+        else openResource.removeAttribute('href');
+      }
+      if (detailReview) {
+        detailReview.hidden = !event.can_review || event.review.status === 'reviewed';
+        detailReview.disabled = false;
+      }
+      if (detailCorrection) {
+        detailCorrection.hidden = !event.can_review;
+        detailCorrection.disabled = false;
+      }
+      showMessage(detailAlert);
+      openDialog(detailDialog);
+    }
+
+    async function openDetail(event: StoreActivityEvent) {
+      showMessage(detailAlert);
+      if (mode === 'self') {
+        renderDetail(event);
+        return;
+      }
+      renderDetail(event);
+      try {
+        const response = await getStoreActivityDetail(event.id, client());
+        renderDetail(response.item);
+      } catch (error) {
+        if ((error as any)?.name === 'AbortError') return;
+        showMessage(detailAlert, getStoreActivityErrorMessage(error));
+      }
+    }
+
+    async function markReviewed(event: StoreActivityEvent, trigger?: HTMLButtonElement | null) {
+      if (mode === 'self' || !event.can_review) return;
+      if (event.review.status === 'requires_correction') {
+        openReviewDialog(event, 'reviewed');
+        return;
+      }
+      if (trigger) trigger.disabled = true;
+      showMessage(detailAlert);
+      try {
+        const response = await reviewStoreActivity(event.id, 'reviewed', '', client());
+        const reviewedEvent = response.item || { ...event, review: response.review };
+        selectedEvent = reviewedEvent;
+        if (detailDialog?.open) renderDetail(reviewedEvent);
+        await loadActivity();
+        showMessage(alert, 'Cambio marcado como revisado.', 'success');
+      } catch (error) {
+        showMessage(detailDialog?.open ? detailAlert : alert, getStoreActivityErrorMessage(error));
+      } finally {
+        if (trigger) trigger.disabled = false;
+      }
+    }
+
+    function openReviewDialog(event: StoreActivityEvent, status: 'reviewed' | 'requires_correction') {
+      if (mode === 'self' || !correctionDialog || !correctionForm) return;
+      selectedEvent = event;
+      correctionForm.reset();
+      correctionDialog.dataset.reviewStatus = status;
+      const closingCorrection = status === 'reviewed';
+      if (reviewDialogTitle) reviewDialogTitle.textContent = closingCorrection ? 'Marcar como revisado' : 'Requiere corrección';
+      if (reviewDialogExplanation) {
+        reviewDialogExplanation.textContent = closingCorrection
+          ? 'Añade una nota de cierre. La observación anterior y el evento original permanecerán en el historial.'
+          : 'Describe qué debe corregirse. El evento original permanecerá sin cambios.';
+      }
+      if (reviewNoteLabel) reviewNoteLabel.textContent = closingCorrection ? 'Nueva nota de cierre' : 'Nota obligatoria';
+      if (correctionSubmit) {
+        correctionSubmit.textContent = closingCorrection ? 'Guardar y marcar revisado' : 'Marcar requiere corrección';
+        correctionSubmit.classList.toggle('is-danger', !closingCorrection);
+        correctionSubmit.classList.toggle('is-primary', closingCorrection);
+      }
+      showMessage(correctionAlert);
+      openDialog(correctionDialog);
+      correctionForm.querySelector<HTMLTextAreaElement>('textarea[name="note"]')?.focus();
+    }
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      currentPage = 1;
+      void loadActivity();
+    }, listenerOptions);
+
+    form?.addEventListener('reset', () => {
+      clearResourceFilter();
+      window.setTimeout(() => {
+        currentPage = 1;
+        void loadActivity();
+      }, 0);
+    }, listenerOptions);
+
+    refreshButton?.addEventListener('click', () => void loadActivity(), listenerOptions);
+    root.querySelector('[data-activity-resource-filter-clear]')?.addEventListener('click', () => {
+      clearResourceFilter();
+      currentPage = 1;
+      void loadActivity();
+    }, listenerOptions);
+    previousPage?.addEventListener('click', () => {
+      if (currentPagination.page <= 1) return;
+      currentPage = currentPagination.page - 1;
+      void loadActivity();
+    }, listenerOptions);
+    nextPage?.addEventListener('click', () => {
+      if (currentPagination.page >= currentPagination.total_pages) return;
+      currentPage = currentPagination.page + 1;
+      void loadActivity();
+    }, listenerOptions);
+
+    list?.addEventListener('click', (clickEvent) => {
+      const target = clickEvent.target instanceof Element ? clickEvent.target : null;
+      const row = target?.closest<HTMLElement>('[data-activity-event-ref]');
+      const event = eventByRef.get(row?.dataset.activityEventRef || '');
+      if (!event) return;
+      if (target?.closest('[data-activity-view-change]')) void openDetail(event);
+      if (target?.closest('[data-activity-quick-review]')) {
+        void markReviewed(event, target.closest<HTMLButtonElement>('[data-activity-quick-review]'));
+      }
+    }, listenerOptions);
+
+    root.addEventListener('click', (clickEvent) => {
+      const target = clickEvent.target instanceof Element ? clickEvent.target : null;
+      if (target?.closest('[data-activity-dialog-close]')) closeDialog(target.closest('dialog'));
+    }, listenerOptions);
+
+    detailReview?.addEventListener('click', () => {
+      if (selectedEvent) void markReviewed(selectedEvent, detailReview);
+    }, listenerOptions);
+
+    detailCorrection?.addEventListener('click', () => {
+      if (!selectedEvent || mode === 'self') return;
+      openReviewDialog(selectedEvent, 'requires_correction');
+    }, listenerOptions);
+
+    correctionForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (mode === 'self' || !selectedEvent || !correctionSubmit) return;
+      const reviewStatus = correctionDialog?.dataset.reviewStatus === 'reviewed'
+        ? 'reviewed'
+        : 'requires_correction';
+      const note = correctionForm.querySelector<HTMLTextAreaElement>('textarea[name="note"]')?.value.trim() || '';
+      if (note.length < 8) {
+        showMessage(correctionAlert, 'Escribe una nota de al menos 8 caracteres.');
+        return;
+      }
+      correctionSubmit.disabled = true;
+      correctionDialog?.setAttribute('aria-busy', 'true');
+      showMessage(correctionAlert);
+      try {
+        const response = await reviewStoreActivity(selectedEvent.id, reviewStatus as StoreActivityReviewStatus, note, client());
+        const correctedEvent = response.item || { ...selectedEvent, review: response.review };
+        selectedEvent = correctedEvent;
+        closeDialog(correctionDialog);
+        if (detailDialog?.open) renderDetail(correctedEvent);
+        await loadActivity();
+        showMessage(
+          alert,
+          reviewStatus === 'reviewed' ? 'Corrección cerrada y cambio marcado como revisado.' : 'El cambio quedó marcado para corrección.',
+          'success',
+        );
+      } catch (error) {
+        showMessage(correctionAlert, getStoreActivityErrorMessage(error));
+      } finally {
+        correctionSubmit.disabled = false;
+        correctionDialog?.removeAttribute('aria-busy');
+      }
+    }, listenerOptions);
+
+    correctionDialog?.addEventListener('cancel', (event) => {
+      if (correctionDialog.getAttribute('aria-busy') === 'true') event.preventDefault();
+    }, listenerOptions);
+
+    root.addEventListener('pz:store-activity:activate', () => {
+      if (activated) return;
+      activated = true;
+      void loadActivity();
+    }, listenerOptions);
+
+    const cleanup = () => {
+      lifecycleController.abort();
+      closeDialog(detailDialog);
+      closeDialog(correctionDialog);
+      eventByRef.clear();
+      actorByRef.clear();
+      delete root.dataset.activityInitialized;
+    };
+    viewCleanups.push(cleanup);
+    syncResourceFilterNotice();
+    if (activated) void loadActivity();
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-store-activity-root]').forEach(initStoreActivity);
+
+  function cleanupStoreActivityViews() {
+    viewCleanups.splice(0).forEach((cleanup) => cleanup());
+    if (activityWindow.PZ_STORE_ACTIVITY_CLEANUP === cleanupStoreActivityViews) {
+      delete activityWindow.PZ_STORE_ACTIVITY_CLEANUP;
+    }
+  }
+
+  activityWindow.PZ_STORE_ACTIVITY_CLEANUP = cleanupStoreActivityViews;
+  document.addEventListener('astro:before-swap', cleanupStoreActivityViews, { once: true });
+  window.addEventListener('pagehide', cleanupStoreActivityViews, { once: true });
+</script>

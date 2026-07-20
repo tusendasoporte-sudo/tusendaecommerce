@@ -3,8 +3,10 @@ import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import { PRODUCT_EXPIRATION_BOTTLE_ICON_SVG } from '../../components/admin/productExpirationBottleIcon.js';
 import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import '../../styles/global.css';
@@ -19,8 +21,10 @@ const currentStoreName = adminContext.store.name || adminContext.store.title || 
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
+const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
 const expirationToolsEnabled = expirationToolsAccess.allowed === true;
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
 const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 const requestedView = Astro.url.searchParams.get('view') === 'upcoming' ? 'upcoming' : 'expired';
 const requestedRangeValue = Number(Astro.url.searchParams.get('range') || 30);
@@ -156,6 +160,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         font-weight: 1000;
         white-space: nowrap;
       }
+      .expiration-row-actions { display: grid; gap: 6px; }
       .expiration-empty { margin: 0; padding: 34px 20px; color: var(--expiration-muted); text-align: center; font-size: 13px; font-weight: 850; }
       .expiration-pagination { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; border-top: 1px solid var(--expiration-border); padding: 14px 18px; }
       .expiration-page-button { min-width: 38px; min-height: 38px; border: 1px solid var(--expiration-border); border-radius: 11px; background: #fff; color: #334155; padding: 0 11px; font-size: 12px; font-weight: 950; }
@@ -179,12 +184,13 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         .expiration-product { grid-column: 1 / -1; }
         .expiration-mode, .expiration-date, .expiration-status-cell { display: grid; gap: 3px; }
         .expiration-cell-label { display: inline; }
-        .expiration-edit { grid-column: 2; grid-row: 2 / span 3; align-self: center; }
+        .expiration-row-actions { grid-column: 2; grid-row: 2 / span 3; align-self: center; }
         .expiration-pagination { justify-content: center; border: 1px solid var(--expiration-border); border-radius: 16px; background: #fff; margin-top: 10px; }
       }
       @media (max-width: 480px) {
         .expiration-row { grid-template-columns: minmax(0, 1fr); }
-        .expiration-edit { grid-column: 1; grid-row: auto; width: 100%; }
+        .expiration-row-actions { grid-column: 1; grid-row: auto; width: 100%; }
+        .expiration-edit { width: 100%; }
         .expiration-filter { padding-inline: 10px; }
       }
 
@@ -403,6 +409,12 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       pocketbaseUrl={pocketbaseUrl}
       authToken={adminAuthToken}
     />
+    <LastModificationMeta
+      pocketbaseUrl={pocketbaseUrl}
+      enabled={storeAccessContext?.access.is_primary_admin === true}
+      showActor={storeAccessContext?.access.is_primary_admin === true}
+      controllerOnly={true}
+    />
 
     <div class="expiration-page-shell admin-view">
       <main class="expiration-page-main">
@@ -457,10 +469,11 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, expirationToolsEnabled, requestedView, requestedRange, requestedPage, requestedQuery, requestedProduct, requestedVariation, productExpirationBottleIconSvg }}>
+    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, adminTeamActivityPath, expirationToolsEnabled, requestedView, requestedRange, requestedPage, requestedQuery, requestedProduct, requestedVariation, productExpirationBottleIconSvg }}>
       (() => {
         if (expirationToolsEnabled !== true) return;
         const root = document.querySelector('[data-expiration-page-root]');
+        const ADMIN_TEAM_ACTIVITY_PATH = String(adminTeamActivityPath || '/admin/team');
         const list = document.querySelector('[data-expiration-list]');
         const meta = document.querySelector('[data-expiration-meta]');
         const pagination = document.querySelector('[data-expiration-pagination]');
@@ -494,6 +507,15 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 
         function escapeHtml(value) {
           return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function activityHistoryPath(resourceType, resourceId) {
+          const params = new URLSearchParams({
+            tab: 'activity',
+            resource_type: String(resourceType || ''),
+            resource_id: String(resourceId || ''),
+          });
+          return `${ADMIN_TEAM_ACTIVITY_PATH}?${params.toString()}`;
         }
 
         function formatDate(value) {
@@ -586,16 +608,18 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
             const variations = Array.isArray(item?.affected_variations) ? item.affected_variations : [];
             const isContext = contextProduct && String(item?.product_id || '') === contextProduct;
             const variationLabel = variations[0]?.name || 'Sin nombre';
+            const lastModificationType = item?.mode === 'variations' && variations[0]?.id ? 'product_variation' : 'product';
+            const lastModificationId = lastModificationType === 'product_variation' ? variations[0].id : item?.product_id;
             const productSubtitle = item?.mode === 'variations' ? `Variación: ${variationLabel}` : 'Producto general';
             const mode = item?.mode === 'variations' ? 'Por variación' : 'General';
             const dateLabel = status.className === 'is-expired' ? 'Venció' : 'Vence';
             return `
               <article class="expiration-row ${status.className} ${status.rowClassName}${isContext ? ' is-context' : ''}">
-                <div class="expiration-product"><span class="expiration-product-icon" aria-hidden="true">${PRODUCT_EXPIRATION_BOTTLE_ICON_SVG}</span><div class="expiration-product-copy"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${escapeHtml(productSubtitle)}</small></div></div>
+                <div class="expiration-product"><span class="expiration-product-icon" aria-hidden="true">${PRODUCT_EXPIRATION_BOTTLE_ICON_SVG}</span><div class="expiration-product-copy"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${escapeHtml(productSubtitle)}</small><span class="pz-last-modification" data-pz-last-modification data-resource-type="${lastModificationType}" data-resource-id="${escapeHtml(lastModificationId || '')}" data-show-actor="true" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span></div></div>
                 <div class="expiration-mode"><span class="expiration-cell-label">Modalidad</span><span>${escapeHtml(mode)}</span></div>
                 <div class="expiration-date"><span class="expiration-cell-label">Fecha</span><span>${dateLabel}: ${escapeHtml(formatDate(item?.expiration_date))}</span></div>
                 <div class="expiration-status-cell"><span class="expiration-cell-label">Estado</span><span class="expiration-status">${status.className === 'is-expired' ? '<span aria-hidden="true">!</span>' : ''}${escapeHtml(status.label)}</span></div>
-                <a class="expiration-edit" href="${escapeHtml(editUrl(item))}">Editar producto</a>
+                <div class="expiration-row-actions"><a class="expiration-edit" href="${escapeHtml(editUrl(item))}">Editar producto</a><a class="expiration-edit" href="${escapeHtml(activityHistoryPath(lastModificationType, lastModificationId))}">Ver historial</a></div>
               </article>
             `;
           }).join('');

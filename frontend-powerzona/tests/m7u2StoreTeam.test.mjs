@@ -255,7 +255,8 @@ test('M7U2: vista funcional cubre estados, acciones, secreto único y downgrade 
   assert.match(view, /Cerrar sesiones/);
   assert.match(view, /Revocar dispositivos/);
   assert.match(view, /Ver auditoría/);
-  assert.equal(view.includes('data-team-action="delete"'), false);
+  assert.equal(view.includes('data-team-action="delete"'), true);
+  assert.match(view, /if \(user\.is_primary_admin\) \{[\s\S]*?data-team-action="activity"[\s\S]*?\}/);
   assert.match(view, /Tu plan permite un solo usuario activo/);
   assert.match(view, /permisos se muestran en modo lectura/);
   assert.match(view, /createButton\.disabled = !canCreateStoreTeamUser\(summary\)/);

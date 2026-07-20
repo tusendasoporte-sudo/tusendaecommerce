@@ -182,17 +182,24 @@ function transactionFixture({ configured = false, extraActive = 0 } = {}) {
   }
   const accesses = [];
   const audits = [];
+  const activities = [];
   const locks = [];
   const collections = {
     store_user_access: { name: 'store_user_access', fields: { getByName: () => ({}) } },
     store_user_audit: { name: 'store_user_audit', fields: { getByName: () => ({}) } },
+    store_activity_audit: { name: 'store_activity_audit', fields: { getByName: () => ({}) } },
   };
 
   class FakeRecord {
     constructor(collection) {
       this._collection = collection;
       this.values = {};
-      this.id = `${collection.name === 'store_user_access' ? 'access' : 'audit'}${String(accesses.length + audits.length + 1).padStart(9, '0')}`.slice(0, 15);
+      const prefix = collection.name === 'store_user_access'
+        ? 'access'
+        : collection.name === 'store_activity_audit'
+          ? 'activity'
+          : 'audit';
+      this.id = `${prefix}${String(accesses.length + audits.length + activities.length + 1).padStart(9, '0')}`.slice(0, 15);
     }
     collection() { return this._collection; }
     get(key) { return this.values[key]; }
@@ -218,8 +225,11 @@ function transactionFixture({ configured = false, extraActive = 0 } = {}) {
       return collections[name];
     },
     findFirstRecordByFilter(collection, _filter, params) {
-      if (collection !== 'store_user_access') throw new Error('not_found');
-      const value = accesses.find((entry) => entry.store === params.storeId && entry.user === params.userId);
+      const value = collection === 'store_user_access'
+        ? accesses.find((entry) => entry.store === params.storeId && entry.user === params.userId)
+        : collection === 'store_activity_audit'
+          ? activities.find((entry) => entry.store === params.store && entry.source_event_key === params.source)
+          : null;
       if (!value) throw new Error('not_found');
       return value;
     },
@@ -248,6 +258,7 @@ function transactionFixture({ configured = false, extraActive = 0 } = {}) {
     save(record) {
       if (record._collection?.name === 'store_user_access' && !accesses.includes(record)) accesses.push(record);
       if (record._collection?.name === 'store_user_audit' && !audits.includes(record)) audits.push(record);
+      if (record._collection?.name === 'store_activity_audit' && !activities.includes(record)) activities.push(record);
       return record;
     },
   };
@@ -260,6 +271,7 @@ function transactionFixture({ configured = false, extraActive = 0 } = {}) {
     nextPrimary,
     accesses,
     audits,
+    activities,
     locks,
     restore() {
       global.Record = previousRecord;
@@ -279,6 +291,7 @@ test('asignar bloquea tienda, cierra sesiones del nuevo principal y audita atóm
     assert.equal(fixture.locks.length, 1);
     assert.match(fixture.locks[0].sql, /UPDATE stores SET id = id/);
     assert.deepEqual(fixture.audits.map((entry) => entry.action), ['primary_admin_assigned']);
+    assert.deepEqual(fixture.activities.map((entry) => entry.action), ['primary_admin_assigned']);
     assert.equal(fixture.audits[0].sessions_revoked, true);
     assert.equal(fixture.audits[0].new_permissions_json.includes('team.manage'), true);
     assert.equal(fixture.audits[0].new_permissions_json.includes('primary_admin.replace'), false);
@@ -308,6 +321,10 @@ test('reemplazar cierra ambas sesiones y deja al anterior con plantilla validada
       'security.view',
     ]);
     assert.deepEqual(fixture.audits.map((entry) => entry.action), [
+      'primary_admin_replaced',
+      'team_user_updated',
+    ]);
+    assert.deepEqual(fixture.activities.map((entry) => entry.action), [
       'primary_admin_replaced',
       'team_user_updated',
     ]);
@@ -419,5 +436,6 @@ test('edición y borrado Master genéricos exigen primero el reemplazo del princ
   assert.equal(masterUsers.isPrimaryAdminUser(currentStore, user(NEW_PRIMARY_ID)), false);
   const source = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_master_store_users_lib.js'), 'utf8');
   assert.match(source, /next\.role !== "store_admin" \|\| next\.status !== "active"/);
-  assert.match(source, /function handleDelete[\s\S]*isPrimaryAdminUser\(loaded\.store, user\)[\s\S]*primary_admin_replacement_required/);
+  assert.match(source, /function handleDelete[\s\S]*deleteStoreUserTransactional/);
+  assert.match(source, /function deleteStoreUserTransactional[\s\S]*isPrimaryAdminUser\(store, user\)[\s\S]*primary_admin_replacement_required/);
 });

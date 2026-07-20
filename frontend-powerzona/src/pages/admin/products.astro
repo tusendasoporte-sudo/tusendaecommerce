@@ -8,6 +8,7 @@ import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../components/admin/AdminIcon.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.astro';
 import '../../styles/global.css';
 
@@ -53,6 +54,7 @@ const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
+const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
@@ -251,6 +253,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       .editor-card { padding: 0; overflow: hidden; margin-bottom: 18px; }
       .editor-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 20px 22px; border-bottom: 1px solid var(--border); background: linear-gradient(180deg, rgba(248,250,252,.92), rgba(255,255,255,.72)); }
+      .editor-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
       .editor-title { margin: 0; font-size: 20px; font-weight: 1000; letter-spacing: -.03em; }
       .editor-subtitle { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; font-weight: 800; }
       .editor-body { padding: 20px 22px 22px; }
@@ -2656,6 +2659,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="products" mobileTitle="Productos" mobileActionLabel={canCreateProducts ? 'Nuevo producto' : ''} mobileActionTarget={canCreateProducts ? '#new-product-btn' : ''} />
+      <LastModificationMeta
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
+        controllerOnly={true}
+      />
 
       <main class="admin-main pz-admin-content-inner">
         <header class="topbar mobile-topbar">
@@ -2681,7 +2690,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <h2 id="editor-title" class="editor-title">Nuevo producto</h2>
                 <p id="editor-subtitle" class="editor-subtitle">Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.</p>
               </div>
-              <button id="editor-close-btn" class="mini-btn" type="button">← Volver a productos</button>
+              <div class="editor-head-actions">
+                <a id="product-history-link" class="mini-btn hidden" href={`${adminTeamActivityPath}?tab=activity`}>Ver historial</a>
+                <button id="editor-close-btn" class="mini-btn" type="button">← Volver a productos</button>
+              </div>
             </div>
             <div class="editor-body">
               <form id="product-form">
@@ -3282,6 +3294,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       canManageProductStock,
       canManageProductImages,
       canManageCategories,
+      adminTeamActivityPath,
     }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -3295,6 +3308,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const CAN_MANAGE_PRODUCT_STOCK = canManageProductStock === true;
       const CAN_MANAGE_PRODUCT_IMAGES = canManageProductImages === true;
       const CAN_MANAGE_CATEGORIES = canManageCategories === true;
+      const ADMIN_TEAM_ACTIVITY_PATH = String(adminTeamActivityPath || '/admin/team');
       const TRACK_STOCK_FIELD = 'track_stock';
       const PRODUCT_PAGE_SIZE = 7;
       const PRODUCT_IMAGE_PHYSICAL_LIMIT = 4;
@@ -3402,6 +3416,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let duplicateProductToastTimer = null;
       const editorTitle = document.getElementById('editor-title');
       const editorSubtitle = document.getElementById('editor-subtitle');
+      const productHistoryLink = document.getElementById('product-history-link');
       const mobileTopbarTitle = document.getElementById('mobile-topbar-title');
       const editorCloseBtn = document.getElementById('editor-close-btn');
       const productCancelBtn = document.getElementById('product-cancel-btn');
@@ -5119,6 +5134,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function setCatalogOverviewVisible(isVisible) {
         catalogOverview?.classList.toggle('hidden', !isVisible);
       }
+      function syncProductHistoryLink(productId = '') {
+        if (!productHistoryLink) return;
+        const id = String(productId || '').trim();
+        const available = /^[a-z0-9]{15}$/.test(id);
+        productHistoryLink.classList.toggle('hidden', !available);
+        if (!available) {
+          productHistoryLink.setAttribute('href', `${ADMIN_TEAM_ACTIVITY_PATH}?tab=activity`);
+          return;
+        }
+        const params = new URLSearchParams({ tab: 'activity', resource_type: 'product', resource_id: id });
+        productHistoryLink.setAttribute('href', `${ADMIN_TEAM_ACTIVITY_PATH}?${params.toString()}`);
+      }
       function closeProductEditor() {
         productEditor.classList.add('hidden');
         setCatalogOverviewVisible(true);
@@ -5134,6 +5161,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetProductForm();
         editorTitle.textContent = 'Nuevo producto';
         editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
+        syncProductHistoryLink();
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Nuevo producto';
         if (productHasVariationsOption) productHasVariationsOption.classList.add('hidden');
         productEditor.classList.remove('hidden');
@@ -5151,6 +5179,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Editar producto';
         productIdInput.value = product.id;
+        syncProductHistoryLink(product.id);
         productNameInput.value = product.name || '';
         productSlugInput.value = product.slug || '';
         productCategoryInput.value = product.category || '';
@@ -5430,6 +5459,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
             await loadProducts();
             productIdInput.value = created.id;
+            syncProductHistoryLink(created.id);
             const freshCreatedProduct = products.find((item) => item.id === created.id) || created;
             renderCurrentImages(freshCreatedProduct);
             editorTitle.textContent = 'Producto creado';
@@ -5925,6 +5955,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <div>
                   <p class="product-title${canOpenEditor ? ' js-product-open' : ''}"${canOpenEditor ? ' role="button" tabindex="0" title="Gestionar producto"' : ''}>${escapeHtml(product.name || 'Producto sin nombre')}</p>
                   <p class="product-meta">${escapeHtml([product.slug, refText].filter(Boolean).join(' · '))}</p>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="product" data-resource-id="${escapeHtml(product.id)}" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                   <div class="product-badges">
                     ${product.featured ? '<span class="mini-pill featured">Destacado</span>' : ''}
                     ${hasActiveOffer ? '<span class="mini-pill danger">Oferta</span>' : ''}

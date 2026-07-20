@@ -43,6 +43,7 @@ import {
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
 import SecurityMonitoringView from '../../../../components/admin/SecurityMonitoringView.astro';
+import LastModificationMeta from '../../../../components/admin/LastModificationMeta.astro';
 import '../../../../styles/global.css';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -356,6 +357,12 @@ try {
       storeId={currentStoreId}
       pocketbaseUrl={pocketbaseUrl}
       authToken={adminAuthToken}
+    />
+    <LastModificationMeta
+      controllerOnly={true}
+      pocketbaseUrl={pocketbaseUrl}
+      enabled={storeAccess.access.is_primary_admin === true}
+      showActor={storeAccess.access.is_primary_admin === true}
     />
 
     <div class="app-shell admin-view">

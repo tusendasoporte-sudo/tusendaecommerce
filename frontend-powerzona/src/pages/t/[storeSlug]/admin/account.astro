@@ -3,6 +3,7 @@ export const prerender = false;
 
 import AdminDialog from '../../../../components/admin/AdminDialog.astro';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
+import StoreActivityView from '../../../../components/admin/StoreActivityView.astro';
 import { getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { isMasterAdmin, isStoreStaff, refreshAuthFromCookie } from '../../../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
@@ -88,6 +89,15 @@ const planPresentation = resolveStorePlanPresentation(adminContext.store);
             <div><dt>Rol</dt><dd>{roleLabel}</dd></div>
             <div><dt>Estado</dt><dd><span class="pz-account-badge">Activo</span></dd></div>
           </dl>
+        </section>
+
+        <section id="my-activity" class="pz-account-card" aria-label="Mi actividad">
+          <StoreActivityView
+            mode="self"
+            pocketbaseUrl={String(import.meta.env.PUBLIC_POCKETBASE_URL || '')}
+            storeSlug={storeSlug}
+            embedded={true}
+          />
         </section>
 
         <section class="pz-account-card" aria-labelledby="account-password-title">

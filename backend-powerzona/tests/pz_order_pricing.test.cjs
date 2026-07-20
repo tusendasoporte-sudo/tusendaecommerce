@@ -8,6 +8,29 @@ const pricing = require('../pb_hooks/pz_order_pricing_lib.js');
 const priceWatch = require('../pb_hooks/pz_master_price_watch_lib.js');
 const teamPermissions = require('../pb_hooks/pz_store_team_permissions_lib.js');
 
+const hadPocketBaseRecord = Object.prototype.hasOwnProperty.call(global, 'Record');
+const originalPocketBaseRecord = global.Record;
+let fixtureRecordSequence = 0;
+
+class FixturePocketBaseRecord {
+  constructor(collection, values = {}) {
+    fixtureRecordSequence += 1;
+    this.id = `auditprice${String(fixtureRecordSequence).padStart(5, '0')}`;
+    this.__collectionName = collection && collection.name;
+    Object.assign(this, values);
+  }
+
+  get(key) { return this[key]; }
+  getString(key) { return String(this[key] || ''); }
+  set(key, value) { this[key] = value; }
+}
+
+global.Record = FixturePocketBaseRecord;
+test.after(() => {
+  if (hadPocketBaseRecord) global.Record = originalPocketBaseRecord;
+  else delete global.Record;
+});
+
 const IDS = Object.freeze({
   store: 'storeprice00001',
   otherStore: 'storeprice00002',
@@ -142,6 +165,7 @@ function fixtureTables(overrides = {}) {
     gifts: [],
     orders: [],
     order_items: [],
+    store_activity_audit: [],
     ...overrides,
   };
 }
@@ -167,7 +191,25 @@ function fixtureApp(overrides = {}) {
       }
       return rows.slice(offset, offset + limit);
     },
-    save(record) { return record; },
+    findFirstRecordByFilter(collection, _filter, params = {}) {
+      const found = (tables[collection] || []).find((item) => {
+        if (params.store && item.store !== params.store) return false;
+        if (params.user && item.user !== params.user) return false;
+        if (params.source && item.source_event_key !== params.source) return false;
+        return true;
+      });
+      if (!found) throw new Error('not_found');
+      return found;
+    },
+    findCollectionByNameOrId(collection) {
+      if (!Object.prototype.hasOwnProperty.call(tables, collection)) throw new Error('collection_not_found');
+      return { name: collection };
+    },
+    save(record) {
+      const collection = record && record.__collectionName;
+      if (collection && !tables[collection].includes(record)) tables[collection].push(record);
+      return record;
+    },
     delete(record) {
       for (const rows of Object.values(tables)) {
         if (!Array.isArray(rows)) continue;
@@ -545,12 +587,14 @@ test('transicion oficial mueve producto, variacion y regalo una sola vez y resta
   assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 8);
   assert.equal(app.tables.product_variations.find((row) => row.id === IDS.variation).stock, 5);
   assert.equal(app.tables.gifts[0].stock, 3);
+  assert.equal(app.tables.store_activity_audit.length, 1);
 
   const idempotent = pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'confirmed', new Date('2026-07-19T10:01:00.000Z'));
   assert.equal(idempotent.inventory_action, 'unchanged');
   assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 8);
   assert.equal(app.tables.product_variations.find((row) => row.id === IDS.variation).stock, 5);
   assert.equal(app.tables.gifts[0].stock, 3);
+  assert.equal(app.tables.store_activity_audit.length, 1, 'una transición sin cambios no crea actividad');
 
   const delivered = pricing.transitionPrivateOrder(app, masterAuth(), order.id, 'delivered', new Date('2026-07-19T10:02:00.000Z'));
   assert.equal(delivered.order.status, 'delivered');
@@ -563,6 +607,11 @@ test('transicion oficial mueve producto, variacion y regalo una sola vez y resta
   assert.equal(app.tables.products.find((row) => row.id === IDS.product).stock, 10);
   assert.equal(app.tables.product_variations.find((row) => row.id === IDS.variation).stock, 8);
   assert.equal(app.tables.gifts[0].stock, 4);
+  assert.deepEqual(
+    app.tables.store_activity_audit.map((event) => event.action),
+    ['order_status_changed', 'order_status_changed', 'order_status_changed'],
+  );
+  assert.ok(app.tables.store_activity_audit.every((event) => event.store === IDS.store && event.module === 'orders'));
 });
 
 test('transicion oficial cierra payload, estados y entrega; valida todo el inventario antes de escribir', () => {
@@ -639,10 +688,16 @@ test('tokens oficiales son criptograficos, idempotentes, de payload vacio y la r
     securityApi: { randomStringWithAlphabet() { throw new Error('must preserve token'); } },
   });
   assert.deepEqual(receiptAgain, receipt);
+  assert.equal(app.tables.store_activity_audit.length, 1, 'reutilizar token no duplica actividad');
   const review = pricing.ensurePrivateOrderToken(app, masterAuth(), order.id, { field: 'review_token', securityApi });
   assert.deepEqual(review, { ok: true, order: { id: order.id, review_token: 'V'.repeat(40) } });
   assert.deepEqual(calls.map((call) => call.length), [32, 40]);
   assert.ok(calls.every((call) => call.alphabet === 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'));
+  assert.deepEqual(
+    app.tables.store_activity_audit.map((event) => event.action),
+    ['order_customer_access_issued', 'order_review_access_issued'],
+  );
+  assert.doesNotMatch(JSON.stringify(app.tables.store_activity_audit), /R{32}|V{40}|receipt_token|review_token/);
 
   order.status = 'confirmed';
   order.review_token = '';
@@ -677,6 +732,10 @@ test('acciones oficiales resuelven permisos granulares por accion y ocultan orde
   for (const permission of [
     'orders.status.manage', 'orders.cancel_delete', 'orders.contact_customer', 'reviews.manage',
   ]) assert.ok(seen.includes(permission), `${permission}: ${seen.join(',')}`);
+  assert.deepEqual(
+    app.tables.store_activity_audit.map((event) => event.action),
+    ['order_status_changed', 'order_cancelled', 'order_customer_access_issued', 'order_review_access_issued', 'order_deleted'],
+  );
 
   const crossApp = fixtureApp();
   crossApp.tables.orders.push(mutableRecord(IDS.order, { store: IDS.store, status: 'pending', stock_deducted: false }));
@@ -708,6 +767,8 @@ test('borrado oficial restaura inventario y elimina items, uso de cupon y orden 
   assert.equal(app.tables.order_items.length, 0);
   assert.equal(app.tables.manual_coupon_usages.length, 0);
   assert.equal(coupon.used_count, 0);
+  assert.deepEqual(app.tables.store_activity_audit.map((event) => event.action), ['order_deleted']);
+  assert.equal(app.tables.store_activity_audit[0].resource_id_snapshot, IDS.order);
 });
 
 test('endpoint, migracion y checkout cierran escritura publica y garantizan una transaccion unica', () => {

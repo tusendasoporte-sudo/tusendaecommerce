@@ -9,6 +9,9 @@ const plans = typeof __hooks === "undefined"
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const storeActivity = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
 
 const CAPABILITY = "product_expiration_tools_enabled";
 const CYCLES_COLLECTION = "product_expiration_cycles";
@@ -285,6 +288,30 @@ function resolveDateRequestRecords(e, collectionName) {
   return { storeId, store: findRecord(app, "stores", storeId), product, variation: record };
 }
 
+function createProductExpirationAutoClearActivity(app, e, resolved, previousDate, nextVariationDate) {
+  const product = resolved && resolved.product;
+  const variation = resolved && resolved.variation;
+  const storeId = resolved && resolved.storeId;
+  if (!product || !variation || !storeId || !previousDate) return null;
+  const productLabel = boundedText(recordString(product, "name") || "Producto", 180);
+  const productVersion = boundedText(recordString(product, "updated") || previousDate, 60).replace(/\s+/g, "T");
+  return storeActivity.createActivity(app, {
+    storeId,
+    actor: requestAuthRecord(e),
+    module: "catalog",
+    action: "product_expiration_cleared_for_variation",
+    severity: "important",
+    resourceType: "product",
+    resourceId: recordString(product, "id") || String(product.id || ""),
+    resourceLabel: productLabel,
+    changedFields: ["expiration_date"],
+    previousValues: { expiration_date: previousDate },
+    newValues: { expiration_date: "" },
+    summary: `Eliminó el vencimiento general de ${productLabel} al definir uno por variación`,
+    sourceEventKey: `expiration:auto-clear:${String(product.id || "")}:${String(variation.id || "")}:${productVersion}:${nextVariationDate}`,
+  });
+}
+
 function validateDateWriteRequest(e, collectionName) {
   const body = requestBody(e);
   if (!bodyHas(body, "expiration_date")) return null;
@@ -324,9 +351,36 @@ function validateDateWriteRequest(e, collectionName) {
       clearEntityExpirationState(e.app, "products", resolved.product.id);
       resolved.product.set("expiration_date", "");
       e.app.save(resolved.product);
+      createProductExpirationAutoClearActivity(e.app, e, resolved, productDate, normalized);
     }
   }
   return null;
+}
+
+function appIsTransactional(app) {
+  if (!app || typeof app.isTransactional !== "function") return false;
+  try { return app.isTransactional() === true; } catch (_) { return false; }
+}
+
+function handleDateWriteRequest(e, collectionName) {
+  const originalApp = e && e.app;
+  let result;
+  const run = (app) => {
+    try { e.app = app; } catch (_) {}
+    const safe = validateDateWriteRequest(e, collectionName);
+    if (safe) raiseExpirationRequestError(safe);
+    result = e.next();
+  };
+  try {
+    if (originalApp && typeof originalApp.runInTransaction === "function" && !appIsTransactional(originalApp)) {
+      originalApp.runInTransaction(run);
+    } else {
+      run(originalApp);
+    }
+    return result;
+  } finally {
+    try { e.app = originalApp; } catch (_) {}
+  }
 }
 
 function settingsStore(app, record) {
@@ -829,20 +883,76 @@ function getStoreExpirationCleanupPreview(app, storeId) {
   return { products, variations, notifications, cycles };
 }
 
-function cleanupStoreExpirationData(app, storeId) {
+function expirationCleanupAuditContext(options) {
+  const source = options && typeof options === "object" ? options : {};
+  const actor = source.actor || null;
+  const actorId = String(actor && actor.id || "").trim();
+  const planAuditId = String(source.planAuditId || source.plan_audit_id || "").trim();
+  if (recordString(actor, "role") !== "master_admin"
+    || !RECORD_ID_PATTERN.test(actorId)
+    || !RECORD_ID_PATTERN.test(planAuditId)) {
+    throw new Error("expiration_cleanup_audit_context_required");
+  }
+  return { actor, planAuditId };
+}
+
+function expirationCleanupLabel(collectionName, record, product) {
+  if (collectionName === "products") return boundedText(recordString(record, "name") || "Producto", 180);
+  const type = boundedText(recordString(record, "variation_type") || "Variación", 80);
+  const value = boundedText(recordString(record, "value") || "Sin valor", 80);
+  const productName = boundedText(recordString(product, "name"), 80);
+  return boundedText(`${type}: ${value}${productName ? ` · ${productName}` : ""}`, 180);
+}
+
+function createExpirationDowngradeCleanupActivity(app, context, storeId, collectionName, record, product, previousDate) {
+  const isProduct = collectionName === "products";
+  const resourceType = isProduct ? "product" : "product_variation";
+  const label = expirationCleanupLabel(collectionName, record, product);
+  return storeActivity.createActivity(app, {
+    storeId,
+    actor: context.actor,
+    module: "catalog",
+    action: `${resourceType}_expiration_cleared_for_plan_downgrade`,
+    severity: "critical",
+    resourceType,
+    resourceId: String(record.id || ""),
+    resourceLabel: label,
+    changedFields: ["expiration_date"],
+    previousValues: { expiration_date: previousDate },
+    newValues: { expiration_date: "" },
+    summary: `Eliminó el vencimiento de ${label} por cambio de plan`,
+    sourceEventKey: `expiration:downgrade:${context.planAuditId}:${collectionName}:${String(record.id || "")}`,
+  });
+}
+
+function cleanupStoreExpirationData(app, storeId, options) {
+  const auditContext = expirationCleanupAuditContext(options);
   const before = getStoreExpirationCleanupPreview(app, storeId);
   const products = findAllRecordsStrict(app, "products", "store = {:store}", "id", { store: storeId });
   const productIds = new Set(products.map((product) => product.id));
+  const productsById = new Map(products.map((product) => [String(product.id || ""), product]));
   products.forEach((product) => {
-    if (!recordString(product, "expiration_date")) return;
+    const rawDate = recordString(product, "expiration_date");
+    if (!rawDate) return;
+    const previousDate = normalizeCivilDate(rawDate, true) || "Configurado";
     product.set("expiration_date", "");
     app.save(product);
+    createExpirationDowngradeCleanupActivity(
+      app, auditContext, storeId, "products", product, product, previousDate
+    );
   });
   findAllRecordsStrict(app, "product_variations", "", "id", {}).forEach((variation) => {
-    if (!productIds.has(relationId(variation, "product"))) return;
-    if (!recordString(variation, "expiration_date")) return;
+    const productId = relationId(variation, "product");
+    if (!productIds.has(productId)) return;
+    const rawDate = recordString(variation, "expiration_date");
+    if (!rawDate) return;
+    const previousDate = normalizeCivilDate(rawDate, true) || "Configurado";
     variation.set("expiration_date", "");
     app.save(variation);
+    createExpirationDowngradeCleanupActivity(
+      app, auditContext, storeId, "product_variations", variation,
+      productsById.get(productId) || null, previousDate
+    );
   });
   findAllRecordsStrict(app, CYCLES_COLLECTION, "store = {:store}", "id", { store: storeId }).forEach((cycle) => app.delete(cycle));
   findAllRecordsStrict(app, "store_notifications", "store = {:store}", "id", { store: storeId })
@@ -858,6 +968,8 @@ module.exports = {
   THRESHOLDS,
   cleanupStoreExpirationData,
   continueAfterExpirationSideEffect,
+  createExpirationDowngradeCleanupActivity,
+  createProductExpirationAutoClearActivity,
   cycleKey,
   currentThreshold,
   daysUntilExpiration,
@@ -866,6 +978,7 @@ module.exports = {
   filterAdminExpirationItems,
   getStoreExpirationCleanupPreview,
   handleAdminExpirationQuery,
+  handleDateWriteRequest,
   handleExpirationRecordChange,
   handleExpirationRecordDelete,
   havanaTodayKey,

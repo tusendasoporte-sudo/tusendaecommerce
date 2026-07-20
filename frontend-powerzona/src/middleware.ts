@@ -17,7 +17,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
   if (!normalized || normalized === 'pageviews' || normalized === 'profits') return { any: ['analytics.view'] };
   if (normalized === 'account' || normalized === 'change-temporary-password') return null;
-  if (normalized === 'team') return { primary: true };
+  if (normalized === 'team' || normalized.startsWith('team/')) return { primary: true };
   if (normalized === 'products' || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
   if (normalized === 'orders' || normalized.startsWith('orders/')) return { any: ['orders.view'] };
   if (normalized === 'shipping') return { any: ['shipping.manage'] };

@@ -27,6 +27,17 @@ function deletePayload(overrides = {}) {
   };
 }
 
+function functionSource(source, name) {
+  const start = source.indexOf(`function ${name}`);
+  assert.notEqual(start, -1, `falta function ${name}`);
+  const candidates = [
+    source.indexOf('\nfunction ', start + 1),
+    source.indexOf('\nmodule.exports', start + 1),
+  ].filter((value) => value >= 0);
+  const end = candidates.length ? Math.min(...candidates) : source.length;
+  return source.slice(start, end).trim();
+}
+
 test('endpoint privado POST de eliminacion esta registrado con auth limite y no-store', () => {
   assert.match(hook, /"POST",\s*"\/api\/pz\/master\/store-users\/delete"/s);
   assert.match(hook, /handleDelete/);
@@ -84,24 +95,38 @@ test('migracion agrega user_deleted y down restaura exactamente acciones previas
 });
 
 test('orden transaccional audita limpia referencias dispositivos y borra fisicamente', () => {
-  const transaction = lib.slice(lib.indexOf('function handleDelete'), lib.indexOf('function handleAudit'));
+  const transaction = functionSource(lib, 'deleteStoreUserTransactional');
+  const handler = functionSource(lib, 'handleDelete');
   const ordered = [
-    'loadTransactionContext',
-    'loadTarget',
+    'userSnapshot',
     'projectedActiveAdminsAfterDeletion',
     'createAudit',
+    'user.refreshTokenKey',
     'assertNoUnexpectedRequiredUserRelations',
     'clearOptionalUserRelations',
     'clearDeviceAuditRelations',
-    'txApp.delete(device)',
-    'txApp.delete(user)',
-    'findRecord(txApp, "users"',
+    'app.delete(device)',
+    'deleteTargetAccessRecords',
+    'app.delete(user)',
+    'findRecord(app, "users"',
+    'findActivityBySource',
   ].map((token) => transaction.indexOf(token));
   assert.equal(ordered.every((value) => value >= 0), true);
   assert.deepEqual([...ordered].sort((a, b) => a - b), ordered);
-  assert.match(transaction, /\$app\.runInTransaction/);
+  assert.match(handler, /\$app\.runInTransaction/);
+  assert.match(handler, /deleteStoreUserTransactional/);
   assert.match(transaction, /user_deleted: true/);
   assert.match(transaction, /sessions_revoked: true/);
+  const accessCleanup = functionSource(lib, 'deleteTargetAccessRecords');
+  const accessLoader = functionSource(lib, 'loadTargetAccessRecords');
+  assert.match(accessLoader, /store_user_access/);
+  assert.match(accessCleanup, /loadTargetAccessRecords/);
+  assert.match(accessCleanup, /app\.delete\(record\)/);
+  assert.match(accessCleanup, /loadTargetAccessRecords[\s\S]*loadTargetAccessRecords/);
+  const specializedAudit = functionSource(lib, 'createAudit');
+  const centralAudit = functionSource(lib, 'centralUserActivity');
+  assert.match(specializedAudit, /centralUserActivity/);
+  assert.match(centralAudit, /createActivity/);
 });
 
 test('inventario dinamico limpia opcionales y falla cerrado ante requeridas inesperadas', () => {

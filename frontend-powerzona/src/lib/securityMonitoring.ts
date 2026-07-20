@@ -420,6 +420,7 @@ export type SecurityVisitorDetailResult = {
 
 export type SecuritySettingsView = Pick<
   StoreSecuritySettings,
+  | 'id'
   | 'mode'
   | 'retention_days'
   | 'ip_visibility'

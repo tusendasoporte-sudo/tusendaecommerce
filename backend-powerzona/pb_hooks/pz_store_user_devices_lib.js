@@ -3,6 +3,9 @@
 const capabilities = typeof __hooks === "undefined"
   ? require("./pz_store_capabilities_lib.js")
   : require(`${__hooks}/pz_store_capabilities_lib.js`);
+const activityAudit = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
 
 const DEVICE_COLLECTION = "store_user_devices";
 const AUDIT_COLLECTION = "store_user_device_audit";
@@ -402,6 +405,22 @@ function createAudit(app, store, targetUser, device, actor, action, sessionsRevo
   const values = buildAuditValues(store, targetUser, device, actor, action, sessionsRevoked, reason);
   Object.keys(values).forEach((key) => audit.set(key, values[key]));
   app.save(audit);
+  const targetName = bounded(recordString(targetUser, "display_name") || "Usuario del equipo", 140);
+  activityAudit.createActivity(app, {
+    storeId: store.id,
+    actor,
+    module: "team",
+    action,
+    severity: action === "device_revoked" ? "important" : "normal",
+    resourceType: "team_user",
+    resourceId: targetUser.id,
+    resourceLabel: targetName,
+    changedFields: ["devices", ...(sessionsRevoked ? ["sessions_revoked"] : [])],
+    previousValues: { device_status: action === "device_revoked" ? "authorized" : "not_authorized" },
+    newValues: { device_status: action === "device_revoked" ? "revoked" : "authorized", sessions_revoked: sessionsRevoked === true },
+    summary: action === "device_revoked" ? `Revocó un dispositivo de ${targetName}` : `Autorizó un dispositivo para ${targetName}`,
+    sourceEventKey: `team:${action}:${audit.id}`,
+  });
   return audit;
 }
 

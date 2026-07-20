@@ -9,6 +9,9 @@ const expiration = typeof __hooks === "undefined"
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const storeActivity = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
 
 const CHECKOUT_PATH = "/api/pz/checkout/orders";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
@@ -1711,6 +1714,41 @@ function requireLockedPrivateOrder(app, auth, orderId, permissionKey) {
   return current;
 }
 
+function orderActivityLabel(order) {
+  const number = bounded(recordString(order, "order_number"), 60);
+  return number ? `Pedido ${number}` : "Pedido";
+}
+
+function orderActivityVersion(order, item, fallback) {
+  return bounded(
+    recordString(item, "updated")
+      || recordString(order, "updated")
+      || fallback
+      || (item && item.id)
+      || order.id,
+    100
+  );
+}
+
+function createOrderActivity(app, order, auth, values) {
+  const input = values || {};
+  return storeActivity.createActivity(app, {
+    storeId: relationId(order, "store"),
+    actor: auth,
+    module: "orders",
+    action: input.action,
+    severity: input.severity || "important",
+    resourceType: "order",
+    resourceId: order.id,
+    resourceLabel: orderActivityLabel(order),
+    changedFields: input.changedFields || [],
+    previousValues: input.previousValues || {},
+    newValues: input.newValues || {},
+    summary: input.summary,
+    sourceEventKey: input.sourceEventKey,
+  });
+}
+
 function addInventoryGroup(groups, key, record, quantity) {
   const existing = groups.get(key);
   if (existing) {
@@ -1811,6 +1849,8 @@ function transitionPrivateOrder(app, auth, orderId, nextStatus, now) {
   const permission = nextStatus === "cancelled" ? "orders.cancel_delete" : "orders.status.manage";
   const order = requireLockedPrivateOrder(app, auth, orderId, permission);
   const currentStatus = recordString(order, "status").toLowerCase();
+  const previousStockDeducted = recordBool(order, "stock_deducted");
+  const previousDeliveredAt = recordString(order, "delivered_at");
   if (nextStatus === "delivered" && !["confirmed", "delivered"].includes(currentStatus)) {
     throw privateMutationError("invalid_status_transition", 409);
   }
@@ -1820,7 +1860,40 @@ function transitionPrivateOrder(app, auth, orderId, nextStatus, now) {
     const deliveredAt = now instanceof Date ? now : new Date();
     order.set("delivered_at", deliveredAt.toISOString());
   }
+  const nextStockDeducted = recordBool(order, "stock_deducted");
+  const nextDeliveredAt = recordString(order, "delivered_at");
+  const changedFields = [];
+  const previousValues = {};
+  const newValues = {};
+  if (currentStatus !== nextStatus) {
+    changedFields.push("status");
+    previousValues.status = currentStatus;
+    newValues.status = nextStatus;
+  }
+  if (previousStockDeducted !== nextStockDeducted) {
+    changedFields.push("inventory_state");
+    previousValues.inventory_reserved = previousStockDeducted;
+    newValues.inventory_reserved = nextStockDeducted;
+  }
+  if (previousDeliveredAt !== nextDeliveredAt) {
+    changedFields.push("delivered_at");
+    previousValues.delivered_at = previousDeliveredAt;
+    newValues.delivered_at = nextDeliveredAt;
+  }
+  if (!changedFields.length) return sanitizedTransitionResponse(order, inventoryAction);
   app.save(order);
+  const version = orderActivityVersion(order, null, `${currentStatus}:${nextStatus}`);
+  createOrderActivity(app, order, auth, {
+    action: nextStatus === "cancelled" ? "order_cancelled" : "order_status_changed",
+    severity: nextStatus === "cancelled" ? "critical" : "important",
+    changedFields,
+    previousValues,
+    newValues,
+    summary: nextStatus === "cancelled"
+      ? `Canceló ${orderActivityLabel(order)}`
+      : `Cambió el estado de ${orderActivityLabel(order)} a ${nextStatus}`,
+    sourceEventKey: `orders:status:${order.id}:${version}:${currentStatus}:${nextStatus}`,
+  });
   return sanitizedTransitionResponse(order, inventoryAction);
 }
 
@@ -1851,6 +1924,19 @@ function ensurePrivateOrderToken(app, auth, orderId, options) {
     token = secureUniqueOrderToken(app, field, field === "review_token" ? 40 : 32, config.securityApi);
     order.set(field, token);
     app.save(order);
+    const reviewAccess = field === "review_token";
+    const version = orderActivityVersion(order, null, reviewAccess ? "review_access" : "customer_access");
+    createOrderActivity(app, order, auth, {
+      action: reviewAccess ? "order_review_access_issued" : "order_customer_access_issued",
+      severity: "important",
+      changedFields: [reviewAccess ? "review_access_link" : "customer_access_link"],
+      previousValues: { access_link_issued: false },
+      newValues: { access_link_issued: true },
+      summary: reviewAccess
+        ? `Generó el enlace de reseña de ${orderActivityLabel(order)}`
+        : `Generó el enlace de acceso de ${orderActivityLabel(order)}`,
+      sourceEventKey: `orders:${reviewAccess ? "review_access" : "customer_access"}:${order.id}:${version}`,
+    });
   }
   const responseOrderValue = { id: order.id };
   responseOrderValue[field] = token;
@@ -1870,6 +1956,10 @@ function deleteCouponUsagesForOrder(app, order) {
 
 function deletePrivateOrder(app, auth, orderId) {
   const order = requireLockedPrivateOrder(app, auth, orderId, "orders.cancel_delete");
+  const previousStatus = recordString(order, "status");
+  const previousStockDeducted = recordBool(order, "stock_deducted");
+  const previousTotal = recordNumber(order, "total");
+  const sourceVersion = orderActivityVersion(order, null, order.id);
   if (recordBool(order, "stock_deducted")) {
     moveOrderInventory(app, order, 1);
     order.set("stock_deducted", false);
@@ -1882,6 +1972,21 @@ function deletePrivateOrder(app, auth, orderId) {
     app.delete(item);
   });
   deleteCouponUsagesForOrder(app, order);
+  createOrderActivity(app, order, auth, {
+    action: "order_deleted",
+    severity: "critical",
+    changedFields: ["state"],
+    previousValues: {
+      state: "existing",
+      status: previousStatus,
+      inventory_reserved: previousStockDeducted,
+      total_usd: previousTotal,
+      item_count: items.length,
+    },
+    newValues: { state: "deleted" },
+    summary: `Eliminó permanentemente ${orderActivityLabel(order)}`,
+    sourceEventKey: `orders:deleted:${order.id}:${sourceVersion}`,
+  });
   app.delete(order);
   return { ok: true, deleted: true };
 }
@@ -2041,11 +2146,28 @@ function handleOrderItemQuantity(e) {
     requireProductEditingOpen(order);
     const item = requirePrivateItem(app, order, itemId);
     if (recordBool(item, "is_gift")) throw privateMutationError("gift_quantity_locked", 409);
+    const previousQuantity = recordNumber(item, "quantity");
+    const productName = bounded(recordString(item, "product_name") || "Producto", 180);
+    if (previousQuantity === quantity) {
+      const items = findRecordsStrict(app, "order_items", "order = {:order}", "created", 1000, 0, { order: order.id });
+      return privateMutationResponse(app, { order, items });
+    }
     validateStoredLineStock(app, item, quantity);
     if (!recordJson(order, "economic_snapshot_json")) freezeLegacyLineEconomics(item);
     item.set("quantity", quantity);
     app.save(item);
-    return privateMutationResponse(app, recalculateOrderEconomics(app, order));
+    const result = recalculateOrderEconomics(app, order);
+    const version = orderActivityVersion(order, item, `${previousQuantity}:${quantity}`);
+    createOrderActivity(app, order, e.auth, {
+      action: "order_item_quantity_changed",
+      severity: "important",
+      changedFields: ["item_quantity"],
+      previousValues: { product_name: productName, quantity: previousQuantity },
+      newValues: { product_name: productName, quantity },
+      summary: `Cambió la cantidad de ${productName} en ${orderActivityLabel(order)}`,
+      sourceEventKey: `orders:item_quantity:${order.id}:${item.id}:${version}`,
+    });
+    return privateMutationResponse(app, result);
   });
 }
 
@@ -2063,13 +2185,17 @@ function handleOrderItemAdd(e) {
     requireProductEditingOpen(order);
     const existing = findRecordsStrict(app, "order_items", "order = {:order}", "created", 1000, 0, { order: order.id })
       .find((item) => !recordBool(item, "is_gift") && relationId(item, "product") === productId && relationId(item, "variation") === variationId);
+    let changedItem = null;
+    let previousQuantity = 0;
     if (existing) {
+      previousQuantity = recordNumber(existing, "quantity");
       const nextQuantity = recordNumber(existing, "quantity") + quantity;
       parsePositiveQuantity(nextQuantity);
       validateStoredLineStock(app, existing, nextQuantity);
       if (!recordJson(order, "economic_snapshot_json")) freezeLegacyLineEconomics(existing);
       existing.set("quantity", nextQuantity);
       app.save(existing);
+      changedItem = existing;
     } else {
       const store = findRecord(app, "stores", relationId(order, "store"));
       if (!store) throw privateMutationError("order_not_found", 404);
@@ -2081,8 +2207,24 @@ function handleOrderItemAdd(e) {
       const record = new Record(app.findCollectionByNameOrId("order_items"), {});
       applyCanonicalItemValues(record, baseline, order.id, storedCurrencyForOrder(app, order));
       app.save(record);
+      changedItem = record;
     }
-    return privateMutationResponse(app, recalculateOrderEconomics(app, order));
+    const result = recalculateOrderEconomics(app, order);
+    const productName = bounded(recordString(changedItem, "product_name") || "Producto", 180);
+    const nextQuantity = recordNumber(changedItem, "quantity");
+    const version = orderActivityVersion(order, changedItem, `${previousQuantity}:${nextQuantity}`);
+    createOrderActivity(app, order, e.auth, {
+      action: existing ? "order_item_quantity_changed" : "order_item_added",
+      severity: "important",
+      changedFields: [existing ? "item_quantity" : "items"],
+      previousValues: existing ? { product_name: productName, quantity: previousQuantity } : {},
+      newValues: { product_name: productName, quantity: nextQuantity },
+      summary: existing
+        ? `Aumentó la cantidad de ${productName} en ${orderActivityLabel(order)}`
+        : `Agregó ${productName} a ${orderActivityLabel(order)}`,
+      sourceEventKey: `orders:${existing ? "item_quantity" : "item_added"}:${order.id}:${changedItem.id}:${version}`,
+    });
+    return privateMutationResponse(app, result);
   });
 }
 
@@ -2093,8 +2235,21 @@ function handleOrderItemDelete(e) {
     const order = requirePrivateOrder(app, e.auth, orderId, "orders.items.manage");
     requireProductEditingOpen(order);
     const item = requirePrivateItem(app, order, itemId);
+    const productName = bounded(recordString(item, "product_name") || "Producto", 180);
+    const previousQuantity = recordNumber(item, "quantity");
+    const itemVersion = orderActivityVersion(order, item, item.id);
     app.delete(item);
-    return privateMutationResponse(app, recalculateOrderEconomics(app, order));
+    const result = recalculateOrderEconomics(app, order);
+    createOrderActivity(app, order, e.auth, {
+      action: "order_item_removed",
+      severity: "important",
+      changedFields: ["items"],
+      previousValues: { product_name: productName, quantity: previousQuantity },
+      newValues: {},
+      summary: `Eliminó ${productName} de ${orderActivityLabel(order)}`,
+      sourceEventKey: `orders:item_removed:${order.id}:${item.id}:${itemVersion}`,
+    });
+    return privateMutationResponse(app, result);
   });
 }
 
@@ -2121,9 +2276,19 @@ function handleOrderItemAdjustment(e) {
     item.set("manual_adjusted_at", adjustedAt);
     app.save(item);
     const result = recalculateOrderEconomics(app, order);
-    createPriceAdjustmentAudit(app, order, item, e.auth, {
+    const adjustmentAudit = createPriceAdjustmentAudit(app, order, item, e.auth, {
       action: "adjust", automaticUnit, previousFinal, newFinal: finalUnit,
       reasonCode: reason.code, reasonText: reason.text,
+    });
+    const productName = bounded(recordString(item, "product_name") || "Producto", 180);
+    createOrderActivity(app, order, e.auth, {
+      action: "order_item_price_adjusted",
+      severity: "critical",
+      changedFields: ["final_unit_price_usd"],
+      previousValues: { product_name: productName, final_unit_price_usd: previousFinal },
+      newValues: { product_name: productName, final_unit_price_usd: finalUnit, reason_code: reason.code },
+      summary: `Ajustó manualmente el precio de ${productName} en ${orderActivityLabel(order)}`,
+      sourceEventKey: `orders:price_adjustment:${adjustmentAudit.id}`,
     });
     return privateMutationResponse(app, result);
   });
@@ -2151,11 +2316,21 @@ function handleOrderItemAdjustmentReset(e) {
     item.set("manual_adjusted_at", "");
     app.save(item);
     const result = recalculateOrderEconomics(app, order);
-    createPriceAdjustmentAudit(app, order, item, e.auth, {
+    const adjustmentAudit = createPriceAdjustmentAudit(app, order, item, e.auth, {
       action: "reset", automaticUnit, previousFinal, newFinal: automaticUnit,
       unitAdjustment: previousUnitAdjustment,
       totalAdjustment: previousTotalAdjustment,
       reasonCode: reason.code, reasonText: reason.text,
+    });
+    const productName = bounded(recordString(item, "product_name") || "Producto", 180);
+    createOrderActivity(app, order, e.auth, {
+      action: "order_item_price_adjustment_reset",
+      severity: "critical",
+      changedFields: ["final_unit_price_usd"],
+      previousValues: { product_name: productName, final_unit_price_usd: previousFinal },
+      newValues: { product_name: productName, final_unit_price_usd: automaticUnit, reason_code: reason.code },
+      summary: `Restableció el precio de ${productName} en ${orderActivityLabel(order)}`,
+      sourceEventKey: `orders:price_adjustment:${adjustmentAudit.id}`,
     });
     return privateMutationResponse(app, result);
   });

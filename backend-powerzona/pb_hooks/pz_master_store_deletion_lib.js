@@ -15,6 +15,7 @@ const COUNT_KEYS = [
   "customer_devices", "customer_links", "user_devices", "user_device_audit",
   "visitor_sessions", "visitor_pageviews",
   "security_events", "security_blocks", "security_audit", "security_settings",
+  "activity_reviews", "activity_audit",
   "price_watches", "price_events", "master_notifications", "settings", "categories",
   "subcategories", "currencies", "shipping_zones", "visual_items",
 ];
@@ -25,6 +26,7 @@ const DIRECT_STORE_COLLECTIONS = [
   "store_analytics_events", "store_customer_devices", "store_customer_links",
   "store_customer_phones", "store_customers", "store_notifications", "store_security_audit",
   "store_security_blocks", "store_security_events", "store_security_settings",
+  "store_activity_reviews", "store_activity_audit",
   "store_user_device_audit", "store_user_devices",
   "store_visitor_pageviews", "store_visitor_sessions", "store_visual_items", "subcategories",
   "users",
@@ -246,6 +248,8 @@ function buildCounts(app, storeId) {
       (SELECT COUNT(*) FROM store_security_blocks WHERE store = {:storeId}) AS securityBlocks,
       (SELECT COUNT(*) FROM store_security_audit WHERE store = {:storeId}) AS securityAudit,
       (SELECT COUNT(*) FROM store_security_settings WHERE store = {:storeId}) AS securitySettings,
+      (SELECT COUNT(*) FROM store_activity_reviews WHERE store = {:storeId}) AS activityReviews,
+      (SELECT COUNT(*) FROM store_activity_audit WHERE store = {:storeId}) AS activityAudit,
       (SELECT COUNT(*) FROM master_product_watches WHERE store = {:storeId}) AS priceWatches,
       (SELECT COUNT(*) FROM master_product_price_events
         WHERE store = {:storeId}
@@ -267,7 +271,8 @@ function buildCounts(app, storeId) {
     customers: 0, customerPhones: 0, customerDevices: 0, customerLinks: 0,
     userDevices: 0, userDeviceAudit: 0,
     visitorSessions: 0, visitorPageviews: 0, securityEvents: 0, securityBlocks: 0,
-    securityAudit: 0, securitySettings: 0, priceWatches: 0, priceEvents: 0,
+    securityAudit: 0, securitySettings: 0, activityReviews: 0, activityAudit: 0,
+    priceWatches: 0, priceEvents: 0,
     masterNotifications: 0, settings: 0, categories: 0, subcategories: 0,
     currencies: 0, shippingZones: 0, visualItems: 0,
   }) || {};
@@ -298,6 +303,8 @@ function buildCounts(app, storeId) {
     security_blocks: nonNegativeInteger(row.securityBlocks),
     security_audit: nonNegativeInteger(row.securityAudit),
     security_settings: nonNegativeInteger(row.securitySettings),
+    activity_reviews: nonNegativeInteger(row.activityReviews),
+    activity_audit: nonNegativeInteger(row.activityAudit),
     price_watches: nonNegativeInteger(row.priceWatches),
     price_events: nonNegativeInteger(row.priceEvents),
     master_notifications: nonNegativeInteger(row.masterNotifications),
@@ -614,6 +621,8 @@ function executeDeletionPlan(app, storeId, counts) {
   deleted += deleteExpected(app, "master_product_watches", "store = {:storeId}", storeId, counts.price_watches);
 
   deleted += deleteExpected(app, "manual_coupon_usages", "coupon.store = {:storeId} || order.store = {:storeId}", storeId, counts.coupon_usages);
+  deleted += deleteExpected(app, "store_activity_reviews", "store = {:storeId}", storeId, counts.activity_reviews);
+  deleted += deleteExpected(app, "store_activity_audit", "store = {:storeId}", storeId, counts.activity_audit);
   deleted += deleteExpected(app, "order_items", "order.store = {:storeId}", storeId, counts.order_items);
   deleted += deleteExpected(app, "reviews", "store = {:storeId}", storeId, counts.reviews);
   deleted += deleteExpected(app, "product_variations", "product.store = {:storeId}", storeId, counts.product_variations);

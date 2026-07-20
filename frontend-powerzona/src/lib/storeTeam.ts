@@ -4,6 +4,10 @@ import {
   type StorePermission,
   type StorePermissionTemplateCode,
 } from './storeTeamPermissions.ts';
+import {
+  validateStoreTeamDeleteReason,
+  type StoreTeamDeleteReasonCode,
+} from './storeTeamDeleteReasons.ts';
 
 export const STORE_TEAM_API_PATHS = Object.freeze({
   accessContext: '/api/pz/store/access/context',
@@ -17,6 +21,7 @@ export const STORE_TEAM_API_PATHS = Object.freeze({
   issueTemporaryAccess: '/api/pz/store/team/issue-temporary-access',
   revokeSessions: '/api/pz/store/team/revoke-sessions',
   revokeDevices: '/api/pz/store/team/revoke-devices',
+  delete: '/api/pz/store/team/delete',
   audit: '/api/pz/store/team/audit',
 });
 
@@ -102,6 +107,9 @@ export type StoreTeamAuditEntry = {
   action: string;
   actor_name: string;
   reason: string;
+  reason_code?: StoreTeamDeleteReasonCode | '';
+  reason_label_snapshot?: string;
+  reason_detail?: string;
   created: string;
   previous_template_code?: string;
   new_template_code?: string;
@@ -135,6 +143,14 @@ export type StoreTeamTemporaryAccessResponse = {
   [key: string]: unknown;
 };
 
+export type StoreTeamDeleteResponse = {
+  ok: true;
+  user_deleted: true;
+  user_id: string;
+  sessions_revoked: true;
+  [key: string]: unknown;
+};
+
 const ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: 'Tu sesión venció. Inicia sesión nuevamente.',
   unauthorized: 'No tienes permiso para administrar este equipo.',
@@ -159,6 +175,16 @@ const ERROR_MESSAGES: Record<string, string> = {
   team_update_failed: 'No se pudo actualizar el usuario.',
   session_revocation_failed: 'No se pudieron cerrar las sesiones.',
   device_revocation_failed: 'No se pudieron revocar los dispositivos.',
+  delete_confirmation_mismatch: 'El correo de confirmación no coincide con el usuario.',
+  delete_reason_required: 'Selecciona un motivo de eliminación.',
+  delete_reason_invalid: 'Selecciona un motivo válido.',
+  delete_reason_detail_required: 'Explica brevemente el motivo.',
+  delete_reason_detail_too_short: 'La explicación debe tener al menos 8 caracteres.',
+  delete_reason_detail_too_long: 'La explicación no puede superar 300 caracteres.',
+  delete_reason_detail_invalid: 'La explicación contiene caracteres no permitidos.',
+  last_active_admin_required: 'La tienda debe conservar al menos un administrador activo.',
+  primary_admin_replacement_required: 'El Administrador principal está protegido y debe reemplazarse desde Master Admin.',
+  user_delete_failed: 'No se pudo eliminar el usuario. No se aplicó ningún cambio.',
   audit_load_failed: 'No se pudo cargar la auditoría.',
 };
 
@@ -412,6 +438,32 @@ export function revokeStoreTeamUserSessions(userId: string, reason: string, opti
 
 export function revokeStoreTeamUserDevices(userId: string, reason: string, options: StoreTeamClientOptions) {
   return userAction(STORE_TEAM_API_PATHS.revokeDevices, userId, reason, options);
+}
+
+export async function deleteStoreTeamUser(
+  userId: string,
+  confirmationEmail: string,
+  reasonCode: StoreTeamDeleteReasonCode,
+  reasonDetail: string,
+  options: StoreTeamClientOptions,
+): Promise<StoreTeamDeleteResponse> {
+  const email = text(confirmationEmail).toLowerCase();
+  if (!email) throw new StoreTeamApiError('delete_confirmation_mismatch', 400, null);
+  const validatedReason = validateStoreTeamDeleteReason(reasonCode, reasonDetail);
+  if (!validatedReason.ok) throw new StoreTeamApiError(validatedReason.error, 400, null);
+  const result = await postStoreTeam<any>(options, STORE_TEAM_API_PATHS.delete, {
+    user_id: requiredUserId(userId),
+    confirmation_email: email,
+    reason_code: validatedReason.value.reason_code,
+    reason_detail: validatedReason.value.reason_detail,
+  });
+  return {
+    ...result,
+    ok: true,
+    user_deleted: result?.user_deleted === true,
+    user_id: text(result?.user_id || userId),
+    sessions_revoked: result?.sessions_revoked === true,
+  } as StoreTeamDeleteResponse;
 }
 
 export async function getStoreTeamUserAudit(

@@ -321,9 +321,17 @@ test('downgrade y autenticación conservan status pero invalidan sesiones', () =
   assert.match(source, /Failed to authenticate\./);
 });
 
-test('no existe eliminación física en la API de tienda', () => {
+test('M7U2-C2 registra eliminación física solo para principal y delega el servicio compartido', () => {
   const routeSource = fs.readFileSync(path.join(hooks, 'pz_store_team.pb.js'), 'utf8');
   const libSource = fs.readFileSync(path.join(hooks, 'pz_store_team_lib.js'), 'utf8');
-  assert.doesNotMatch(routeSource, /team\/delete/);
-  assert.doesNotMatch(libSource, /function handleDelete/);
+  const masterSource = fs.readFileSync(path.join(hooks, 'pz_master_store_users_lib.js'), 'utf8');
+  assert.match(routeSource, /"POST"\s*,\s*"\/api\/pz\/store\/team\/delete"/s);
+  assert.match(routeSource, /handleDelete/);
+  assert.match(routeSource, /\$apis\.requireAuth\(\)/);
+  assert.match(routeSource, /\$apis\.bodyLimit\(4096\)/);
+  assert.match(libSource, /function handleDelete/);
+  assert.match(libSource, /primary_admin_user/);
+  assert.match(libSource, /deleteStoreUserTransactional/);
+  assert.match(masterSource, /handleDelete[\s\S]*deleteStoreUserTransactional/);
+  assert.equal((`${libSource}\n${masterSource}`.match(/function deleteStoreUserTransactional\s*\(/g) || []).length, 1);
 });

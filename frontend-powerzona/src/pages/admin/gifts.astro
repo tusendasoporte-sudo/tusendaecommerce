@@ -2,9 +2,11 @@
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreAccessContext } from '../../lib/storeTeam';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../components/admin/AdminIcon.astro';
+import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
@@ -13,6 +15,7 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminCatalogPath = getStoreAdminPath(currentStoreSlug, 'catalog');
@@ -331,6 +334,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
     <div class="app-shell pz-admin-content">
       <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="gifts" mobileTitle="Regalos" mobileActionLabel="Nuevo regalo" mobileActionTarget="#new-gift-btn" />
+      <LastModificationMeta
+        controllerOnly={true}
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccessContext?.access.is_primary_admin === true}
+        showActor={storeAccessContext?.access.is_primary_admin === true}
+      />
 
       <main class="admin-main pz-admin-content-inner">
         <div class="mobile-topbar">
@@ -940,12 +949,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const orderIndex = gifts.findIndex((item) => item.id === gift.id);
           const description = gift.description || `Desde ${money(gift.min_order_usd)} USD`;
           return `
-            <article class="gift-row">
+            <article class="gift-row" data-gift-id="${escapeHtml(gift.id)}">
               <div class="gift-main">
                 <img class="gift-thumb" src="${escapeHtml(thumbUrl(gift))}" alt="${escapeHtml(gift.name || 'Regalo')}" />
                 <div style="min-width:0;">
                   <h3 class="gift-name">${escapeHtml(gift.name || 'Regalo sin nombre')}</h3>
                   <p class="gift-desc">${escapeHtml(description)}</p>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="gift" data-resource-id="${escapeHtml(gift.id)}" data-show-actor="true" data-useful-empty="false"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                 </div>
               </div>
               <div class="gift-cell">Desde ${money(gift.min_order_usd)} USD</div>

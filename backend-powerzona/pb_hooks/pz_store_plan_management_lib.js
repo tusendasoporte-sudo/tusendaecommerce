@@ -9,6 +9,9 @@ const productExpiration = typeof __hooks === "undefined"
 const storeTeam = typeof __hooks === "undefined"
   ? require("./pz_store_team_lib.js")
   : require(`${__hooks}/pz_store_team_lib.js`);
+const storeActivity = typeof __hooks === "undefined"
+  ? require("./pz_store_activity_audit_lib.js")
+  : require(`${__hooks}/pz_store_activity_audit_lib.js`);
 
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const AUDIT_COLLECTION = "store_plan_audit";
@@ -321,6 +324,41 @@ function createAudit(app, store, actor, action, previous, next, durationMonths, 
   audit.set("duration_months", durationMonths);
   audit.set("reason", reason);
   app.save(audit);
+  return audit;
+}
+
+function createPlanActivity(app, store, actor, audit, action, previous, next) {
+  const changedFields = [];
+  if (previous.plan !== next.plan) changedFields.push("plan");
+  if (previous.plan_started_at !== next.plan_started_at) changedFields.push("plan_started_at");
+  if (previous.plan_expires_at !== next.plan_expires_at) changedFields.push("plan_expires_at");
+  if (previous.plan_is_permanent !== next.plan_is_permanent) changedFields.push("plan_is_permanent");
+  const label = PLAN_ACTION_LABELS[action] || "Plan actualizado";
+  return storeActivity.createActivity(app, {
+    storeId: store.id,
+    actor,
+    module: "plan",
+    action,
+    severity: action === "plan_renewed" ? "important" : "critical",
+    resourceType: "store_plan",
+    resourceId: store.id,
+    resourceLabel: boundedString(recordString(store, "name") || "Tienda", 140),
+    changedFields,
+    previousValues: {
+      plan: previous.plan,
+      plan_started_at: previous.plan_started_at,
+      plan_expires_at: previous.plan_expires_at,
+      plan_is_permanent: previous.plan_is_permanent,
+    },
+    newValues: {
+      plan: next.plan,
+      plan_started_at: next.plan_started_at,
+      plan_expires_at: next.plan_expires_at,
+      plan_is_permanent: next.plan_is_permanent,
+    },
+    summary: `${label} por Master Admin`,
+    sourceEventKey: `plan:${action}:${audit.id}`,
+  });
 }
 
 function permanenceAction(previous, next) {
@@ -417,11 +455,16 @@ function handlePlanChange(e) {
       }, new Date(), actorId);
       applyValues(store, values);
       txApp.save(store);
-      const expirationCleanupResult = requiresExpirationCleanup
-        ? productExpiration.cleanupStoreExpirationData(txApp, store.id)
-        : null;
       const next = storeSnapshot(store);
-      createAudit(txApp, store, actor, permanenceAction(previous, next), previous, next, parsed.durationMonths, parsed.reason);
+      const action = permanenceAction(previous, next);
+      const audit = createAudit(txApp, store, actor, action, previous, next, parsed.durationMonths, parsed.reason);
+      const expirationCleanupResult = requiresExpirationCleanup
+        ? productExpiration.cleanupStoreExpirationData(txApp, store.id, {
+          actor,
+          planAuditId: audit.id,
+        })
+        : null;
+      createPlanActivity(txApp, store, actor, audit, action, previous, next);
       const teamAccessTransition = storeTeam.reconcilePlanAccess(
         txApp,
         store,
@@ -464,7 +507,8 @@ function handlePlanRenew(e) {
       applyValues(store, values);
       txApp.save(store);
       const next = storeSnapshot(store);
-      createAudit(txApp, store, actor, "plan_renewed", previous, next, parsed.months, parsed.reason);
+      const audit = createAudit(txApp, store, actor, "plan_renewed", previous, next, parsed.months, parsed.reason);
+      createPlanActivity(txApp, store, actor, audit, "plan_renewed", previous, next);
       const teamAccessTransition = storeTeam.reconcilePlanAccess(
         txApp,
         store,
