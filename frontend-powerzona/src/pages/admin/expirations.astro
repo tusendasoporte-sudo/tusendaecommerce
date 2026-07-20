@@ -4,6 +4,7 @@ import { refreshAuthFromCookie } from '../../lib/auth';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import { getStoreAccessContext } from '../../lib/storeTeam';
+import { hasStorePermission } from '../../lib/storeTeamPermissions';
 import AdminSectionHeader from '../../components/admin/AdminSectionHeader.astro';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import LastModificationMeta from '../../components/admin/LastModificationMeta.astro';
@@ -25,6 +26,15 @@ const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
 const expirationToolsEnabled = expirationToolsAccess.allowed === true;
 const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const expirationPermissionContext = storeAccessContext
+  ? {
+      permissions: storeAccessContext.access.permissions,
+      is_primary_admin: storeAccessContext.access.is_primary_admin,
+      blocked_by_plan: storeAccessContext.access.blocked_by_plan,
+    }
+  : { permissions: [], blocked_by_plan: true };
+const canEditExpirationProducts = hasStorePermission(expirationPermissionContext, 'catalog.products.edit');
+const canViewExpirationHistory = storeAccessContext?.access.is_primary_admin === true;
 const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 const requestedView = Astro.url.searchParams.get('view') === 'upcoming' ? 'upcoming' : 'expired';
 const requestedRangeValue = Number(Astro.url.searchParams.get('range') || 30);
@@ -469,7 +479,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       </main>
     </div>
 
-    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, adminTeamActivityPath, expirationToolsEnabled, requestedView, requestedRange, requestedPage, requestedQuery, requestedProduct, requestedVariation, productExpirationBottleIconSvg }}>
+    <script define:vars={{ pocketbaseUrl, adminProductsPath, adminExpirationsPath, adminTeamActivityPath, expirationToolsEnabled, canEditExpirationProducts, canViewExpirationHistory, requestedView, requestedRange, requestedPage, requestedQuery, requestedProduct, requestedVariation, productExpirationBottleIconSvg }}>
       (() => {
         if (expirationToolsEnabled !== true) return;
         const root = document.querySelector('[data-expiration-page-root]');
@@ -494,6 +504,8 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         }
         const productsPath = String(adminProductsPath || '/admin/products');
         const pagePath = String(adminExpirationsPath || '/admin/expirations');
+        const CAN_EDIT_EXPIRATION_PRODUCTS = canEditExpirationProducts === true;
+        const CAN_VIEW_EXPIRATION_HISTORY = canViewExpirationHistory === true;
         const PRODUCT_EXPIRATION_BOTTLE_ICON_SVG = String(productExpirationBottleIconSvg || '');
         const recordIdPattern = /^[a-z0-9]{15}$/;
         const contextProduct = recordIdPattern.test(String(requestedProduct || '')) ? String(requestedProduct) : '';
@@ -613,13 +625,24 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
             const productSubtitle = item?.mode === 'variations' ? `Variación: ${variationLabel}` : 'Producto general';
             const mode = item?.mode === 'variations' ? 'Por variación' : 'General';
             const dateLabel = status.className === 'is-expired' ? 'Venció' : 'Vence';
+            const lastModificationMarkup = CAN_VIEW_EXPIRATION_HISTORY
+              ? `<span class="pz-last-modification" data-pz-last-modification data-resource-type="${lastModificationType}" data-resource-id="${escapeHtml(lastModificationId || '')}" data-show-actor="true" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>`
+              : '';
+            const rowActions = [
+              CAN_EDIT_EXPIRATION_PRODUCTS
+                ? `<a class="expiration-edit" href="${escapeHtml(editUrl(item))}">Editar producto</a>`
+                : '',
+              CAN_VIEW_EXPIRATION_HISTORY
+                ? `<a class="expiration-edit" href="${escapeHtml(activityHistoryPath(lastModificationType, lastModificationId))}">Ver historial</a>`
+                : '',
+            ].filter(Boolean).join('');
             return `
               <article class="expiration-row ${status.className} ${status.rowClassName}${isContext ? ' is-context' : ''}">
-                <div class="expiration-product"><span class="expiration-product-icon" aria-hidden="true">${PRODUCT_EXPIRATION_BOTTLE_ICON_SVG}</span><div class="expiration-product-copy"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${escapeHtml(productSubtitle)}</small><span class="pz-last-modification" data-pz-last-modification data-resource-type="${lastModificationType}" data-resource-id="${escapeHtml(lastModificationId || '')}" data-show-actor="true" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span></div></div>
+                <div class="expiration-product"><span class="expiration-product-icon" aria-hidden="true">${PRODUCT_EXPIRATION_BOTTLE_ICON_SVG}</span><div class="expiration-product-copy"><strong>${escapeHtml(item?.name || 'Producto sin nombre')}</strong><small>${escapeHtml(productSubtitle)}</small>${lastModificationMarkup}</div></div>
                 <div class="expiration-mode"><span class="expiration-cell-label">Modalidad</span><span>${escapeHtml(mode)}</span></div>
                 <div class="expiration-date"><span class="expiration-cell-label">Fecha</span><span>${dateLabel}: ${escapeHtml(formatDate(item?.expiration_date))}</span></div>
                 <div class="expiration-status-cell"><span class="expiration-cell-label">Estado</span><span class="expiration-status">${status.className === 'is-expired' ? '<span aria-hidden="true">!</span>' : ''}${escapeHtml(status.label)}</span></div>
-                <div class="expiration-row-actions"><a class="expiration-edit" href="${escapeHtml(editUrl(item))}">Editar producto</a><a class="expiration-edit" href="${escapeHtml(activityHistoryPath(lastModificationType, lastModificationId))}">Ver historial</a></div>
+                <div class="expiration-row-actions">${rowActions}</div>
               </article>
             `;
           }).join('');

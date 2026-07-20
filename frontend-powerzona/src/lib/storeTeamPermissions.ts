@@ -169,10 +169,7 @@ export const STORE_PERMISSION_DEPENDENCIES: Readonly<Partial<Record<StorePermiss
   'orders.price_adjustment': Object.freeze(['orders.view']),
   'orders.cancel_delete': Object.freeze(['orders.view']),
   'orders.contact_customer': Object.freeze(['orders.view']),
-  'promotions.manage': Object.freeze(['catalog.view']),
-  'coupons.manage': Object.freeze(['catalog.view']),
   'reviews.manage': Object.freeze(['orders.view']),
-  'analytics.view': Object.freeze(['orders.view', 'catalog.view']),
   'security.manage': Object.freeze(['security.view']),
 });
 
@@ -211,9 +208,11 @@ const MARKETING_PROMOTIONS_PERMISSIONS = Object.freeze([
   'analytics.view',
   'landing_qr.manage',
 ] satisfies StorePermission[]);
-const READ_ONLY_PERMISSIONS = Object.freeze(
-  STORE_PERMISSION_KEYS.filter((key) => key.endsWith('.view')),
-);
+const READ_ONLY_PERMISSIONS = Object.freeze([
+  'catalog.view',
+  'orders.view',
+  'analytics.view',
+] satisfies StorePermission[]);
 
 export const STORE_PERMISSION_TEMPLATES: Readonly<Record<StorePermissionTemplateCode, StorePermissionTemplate>> = Object.freeze({
   secondary_admin: Object.freeze({

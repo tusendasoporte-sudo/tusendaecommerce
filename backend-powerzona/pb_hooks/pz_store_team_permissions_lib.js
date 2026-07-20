@@ -77,10 +77,7 @@ const PERMISSION_DEPENDENCIES = Object.freeze({
   "orders.price_adjustment": Object.freeze(["orders.view"]),
   "orders.cancel_delete": Object.freeze(["orders.view"]),
   "orders.contact_customer": Object.freeze(["orders.view"]),
-  "promotions.manage": Object.freeze(["catalog.view"]),
-  "coupons.manage": Object.freeze(["catalog.view"]),
   "reviews.manage": Object.freeze(["orders.view"]),
-  "analytics.view": Object.freeze(["orders.view", "catalog.view"]),
   "security.manage": Object.freeze(["security.view"]),
 });
 
@@ -204,7 +201,11 @@ const PERMISSION_TEMPLATES = Object.freeze({
   read_only: frozenTemplate(
     "read_only",
     "Solo lectura",
-    ASSIGNABLE_PERMISSION_KEYS.filter((key) => key.endsWith(".view")),
+    [
+      "catalog.view",
+      "orders.view",
+      "analytics.view",
+    ],
   ),
   custom: frozenTemplate("custom", "Personalizado", []),
 });

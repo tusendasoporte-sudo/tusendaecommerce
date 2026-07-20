@@ -36,14 +36,21 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
 const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const dashboardPermissionContext = { permissions: storeAccessContext?.access.permissions };
+const canViewDashboardOrders = hasStorePermission(dashboardPermissionContext, 'orders.view');
+const canViewDashboardCatalog = hasStorePermission(dashboardPermissionContext, 'catalog.view');
+if (!canViewDashboardOrders || !canViewDashboardCatalog) {
+  return Astro.redirect(adminPageviewsPath);
+}
 const reviewsFeatureVisible = hasStorePermission(
-  { permissions: storeAccessContext?.access.permissions },
+  dashboardPermissionContext,
   'reviews.manage',
 );
 const expirationFeatureVisible = hasStorePermission(
-  { permissions: storeAccessContext?.access.permissions },
+  dashboardPermissionContext,
   'catalog.expirations.manage',
 );
+const landingQrAnalyticsVisible = hasStorePermission(dashboardPermissionContext, 'landing_qr.manage');
 const expirationToolsEnabled = expirationFeatureVisible && expirationToolsAccess.allowed === true;
 const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 ---
@@ -5244,7 +5251,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="recurrent" aria-selected="false">Recurrentes</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="pageviews" aria-selected="false">Páginas vistas</button>
 								<button class="visit-analytics-tab" type="button" data-analytics-tab="products" aria-selected="false">Productos más vistos</button>
-								<button class="visit-analytics-tab" type="button" data-analytics-tab="landingqr" aria-selected="false">Landing QR</button>
+								{landingQrAnalyticsVisible && <button class="visit-analytics-tab" type="button" data-analytics-tab="landingqr" aria-selected="false">Landing QR</button>}
 							</div>
 						</div>
 
@@ -5282,7 +5289,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 							<p id="most-viewed-products-meta" class="mini-panel-meta">Cargando...</p>
 						</div>
 
-						<div class="visit-analytics-panel" data-analytics-panel="landingqr">
+						{landingQrAnalyticsVisible && <div class="visit-analytics-panel" data-analytics-panel="landingqr">
 							<section class="analytics-landing-panel">
 								<header class="analytics-landing-header">
 									<div class="analytics-landing-badge" aria-hidden="true">
@@ -5363,7 +5370,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 									<div id="traffic-landing-clicks-list" class="landing-click-list"></div>
 								</section>
 							</section>
-						</div>
+						</div>}
 					</section>
 
 					<section class="business-summary-card dashboard-business-block" aria-labelledby="dashboard-main-title">
@@ -5496,11 +5503,12 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			</section>
 		</main>
 
-		<script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, expirationToolsEnabled, productExpirationBottleIconSvg }}>
+		<script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId, adminExpirationsPath, adminOrdersPath, adminPageviewsPath, expirationToolsEnabled, productExpirationBottleIconSvg, landingQrAnalyticsVisible }}>
 			const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			const STORE_FILTER = String(currentStoreFilter || '');
 			const CURRENT_STORE_ID = String(currentStoreId || '');
 			const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
+			const LANDING_QR_ANALYTICS_VISIBLE = landingQrAnalyticsVisible === true;
 			const PRODUCT_EXPIRATION_BOTTLE_ICON_SVG = String(productExpirationBottleIconSvg || '');
 			const ORDER_ITEMS_STORE_FILTER = CURRENT_STORE_ID ? `filter=order.store%3D%22${encodeURIComponent(CURRENT_STORE_ID)}%22` : '';
 			const ADMIN_EXPIRATIONS_PATH = String(adminExpirationsPath || '/admin/expirations');
@@ -5575,7 +5583,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			let orders = [];
 			let orderItems = [];
 			let products = [];
-			let analyticsEvents = [];
+			let analyticsSummary = null;
 			let reviews = [];
 			let settingsRecord = null;
 			let reviewsCollectionAvailable = true;
@@ -5810,29 +5818,17 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				return Math.max(1, Math.min(ANALYTICS_MAX_RETENTION_DAYS, Math.floor(configured)));
 			}
 
-			function getAnalyticsCutoffDate() {
-				const date = new Date();
-				date.setDate(date.getDate() - getAnalyticsRetentionDays());
-				return date;
-			}
-
-			function getAnalyticsCutoffIso() {
-				return getAnalyticsCutoffDate().toISOString();
-			}
-
-			function buildAnalyticsEventsQuery() {
-				if (!CURRENT_STORE_ID) return 'sort=created';
-
-				const filter = [
-					`store="${escapePbFilterValue(CURRENT_STORE_ID)}"`,
-					`created >= "${escapePbFilterValue(getAnalyticsCutoffIso())}"`,
-				].join(' && ');
-
-				const query = new URLSearchParams();
-				query.set('filter', filter);
-				query.set('sort', 'created');
-
-				return query.toString();
+			async function fetchAnalyticsSummary() {
+				const result = await apiRequest('/api/pz/store/analytics/summary', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						range: normalizeSummaryRange(selectedRange),
+						pages_page: 1,
+					}),
+				});
+				if (result?.ok !== true) throw new Error('No se pudo cargar el resumen de analíticas.');
+				return result;
 			}
 
 			function hasValue(value) {
@@ -5866,13 +5862,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			}
 
 			async function loadSettingsRecord() {
-				try {
-					const settingsRecords = await loadAllRecords('settings');
-					settingsRecord = (settingsRecords || []).find((record) => record.active === true) || settingsRecords?.[0] || null;
-				} catch (error) {
-					settingsRecord = null;
-				}
-
+				settingsRecord = null;
 				return settingsRecord;
 			}
 
@@ -6127,64 +6117,18 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			}
 
 			function computeTrafficAnalytics() {
-				const days = getAnalyticsRangeDays();
-				const daySet = new Set(days);
-				const grouped = new Map(days.map((day) => [day, {
-					day,
-					label: shortDayLabel(day),
-					pageViews: 0,
-					visitors: new Set(),
-					visitorSessions: new Map(),
-				}]));
-				const periodVisitors = new Set();
-				const periodVisitorSessions = new Map();
-
-				analyticsEvents.forEach((event) => {
-					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
-					if (!daySet.has(day)) return;
-
-					const bucket = grouped.get(day);
-					if (!bucket) return;
-
-					const eventType = String(event.event_type || 'pageview').trim().toLowerCase();
-
-					if (eventType === 'pageview') {
-						bucket.pageViews += 1;
-					}
-
-					const visitor = String(event.visitor_id || '').trim();
-					const session = String(event.session_id || '').trim();
-
-					if (visitor) {
-						bucket.visitors.add(visitor);
-						periodVisitors.add(visitor);
-						if (!bucket.visitorSessions.has(visitor)) bucket.visitorSessions.set(visitor, new Set());
-						if (!periodVisitorSessions.has(visitor)) periodVisitorSessions.set(visitor, new Set());
-						bucket.visitorSessions.get(visitor).add(session || `legacy-${day}`);
-						periodVisitorSessions.get(visitor).add(session || `legacy-${day}`);
-					}
-				});
-
-				const series = days.map((day) => {
-					const bucket = grouped.get(day);
-					const recurrentVisitors = Array.from(bucket?.visitorSessions?.values() || [])
-						.filter((sessions) => sessions.size >= 2)
-						.length;
-					return {
-						day,
-						label: shortDayLabel(day),
-						pageViews: bucket?.pageViews || 0,
-						uniqueVisitors: bucket?.visitors?.size || 0,
-						recurrentVisitors,
-					};
-				});
-
-				const totalPageViews = series.reduce((sum, item) => sum + item.pageViews, 0);
-				const totalUniqueVisitors = periodVisitors.size;
-				const totalRecurrentVisitors = Array.from(periodVisitorSessions.values())
-					.filter((sessions) => sessions.size >= 2)
-					.length;
-				const divisor = Math.max(series.length, 1);
+				const daily = Array.isArray(analyticsSummary?.daily) ? analyticsSummary.daily : [];
+				const series = daily.map((item) => ({
+					day: String(item?.day || ''),
+					label: String(item?.label || shortDayLabel(item?.day || '')),
+					pageViews: Number(item?.pageviews || 0),
+					uniqueVisitors: Number(item?.visitors || 0),
+					recurrentVisitors: Number(item?.recurrent_visitors || 0),
+				}));
+				const totalPageViews = Number(analyticsSummary?.metrics?.pageviews || 0);
+				const totalUniqueVisitors = Number(analyticsSummary?.metrics?.visitors || 0);
+				const totalRecurrentVisitors = Number(analyticsSummary?.metrics?.recurrent_visitors || 0);
+				const divisor = Math.max(Number(analyticsSummary?.period_days || series.length || 1), 1);
 
 				return {
 					series,
@@ -6192,8 +6136,8 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 					totalUniqueVisitors,
 					totalRecurrentVisitors,
 					averagePageViews: totalPageViews / divisor,
-					averageUniqueVisitors: series.reduce((sum, item) => sum + item.uniqueVisitors, 0) / divisor,
-					averageRecurrentVisitors: series.reduce((sum, item) => sum + item.recurrentVisitors, 0) / divisor,
+					averageUniqueVisitors: totalUniqueVisitors / divisor,
+					averageRecurrentVisitors: totalRecurrentVisitors / divisor,
 				};
 			}
 
@@ -6553,16 +6497,6 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				initializeTrafficChartTooltips();
 			}
 
-			function isLandingQrViewEvent(event) {
-				const eventType = String(event?.event_type || 'pageview').trim().toLowerCase();
-				const pageType = String(event?.page_type || '').trim().toLowerCase();
-				return eventType === 'landing_qr_view' || (eventType === 'pageview' && pageType === 'landing_qr');
-			}
-
-			function isLandingQrClickEvent(event) {
-				return String(event?.event_type || '').trim().toLowerCase() === 'landing_qr_click';
-			}
-
 			const LANDING_QR_TYPE_LABELS = {
 				store: 'Tienda',
 				whatsapp: 'WhatsApp',
@@ -6756,55 +6690,25 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			}
 
 			function computeLandingQrAnalytics() {
-				const days = getAnalyticsRangeDays();
-				const grouped = new Map(days.map((day) => [day, {
-					day,
-					label: shortDayLabel(day),
-					views: 0,
-					clicks: 0,
-				}]));
-				const buttonCounts = new Map();
-				let views = 0;
-				let clicks = 0;
-
-				getAnalyticsEventsForSelectedRange().forEach((event) => {
-					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
-					const bucket = grouped.get(day);
-
-					if (isLandingQrViewEvent(event)) {
-						views += 1;
-						if (bucket) bucket.views += 1;
-						return;
-					}
-
-					if (!isLandingQrClickEvent(event)) return;
-
-					clicks += 1;
-					if (bucket) bucket.clicks += 1;
-
-					const linkId = String(event.link_id || event.link_label || event.link_type || 'link').trim() || 'link';
-					const label = String(event.link_label || 'Enlace').trim() || 'Enlace';
-					const type = normalizeLandingQrLinkType(event.link_type || event.icon || 'link');
-					const current = buttonCounts.get(linkId) || {
-						link_id: linkId,
-						label,
-						type,
-						typeLabel: getLandingQrTypeLabel(type),
-						clicks: 0,
-					};
-					current.clicks += 1;
-					buttonCounts.set(linkId, current);
-				});
-
-				const clicksByButton = Array.from(buttonCounts.values())
+				const landing = LANDING_QR_ANALYTICS_VISIBLE ? analyticsSummary?.landing_qr : null;
+				const clicksByButton = (Array.isArray(landing?.top_buttons) ? landing.top_buttons : [])
+					.map((item) => {
+						const type = normalizeLandingQrLinkType(item?.link_type || 'link');
+						return {
+							label: String(item?.link_label || 'Enlace'),
+							type,
+							typeLabel: getLandingQrTypeLabel(type),
+							clicks: Number(item?.clicks || 0),
+						};
+					})
 					.sort((a, b) => b.clicks - a.clicks || a.label.localeCompare(b.label));
 
 				return {
-					views,
-					clicks,
+					views: Number(landing?.views || 0),
+					clicks: Number(landing?.clicks || 0),
 					topButton: clicksByButton[0] || null,
 					clicksByButton,
-					series: days.map((day) => grouped.get(day) || { day, label: shortDayLabel(day), views: 0, clicks: 0 }),
+					series: [],
 				};
 			}
 
@@ -6827,7 +6731,11 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 					trafficLandingTopButtonIcon.style.setProperty('--link-bg', topButtonBackground);
 					trafficLandingTopButtonIcon.innerHTML = getLandingQrIconSvg(topButtonType);
 				}
-				if (trafficLandingChart) trafficLandingChart.innerHTML = createLandingQrChartMarkup(metrics.series);
+				if (trafficLandingChart) {
+					trafficLandingChart.innerHTML = metrics.series.length
+						? createLandingQrChartMarkup(metrics.series)
+						: '<div class="visit-analytics-empty">El resumen diario de Landing QR no está disponible para este periodo.</div>';
+				}
 				initializeTrafficChartTooltips();
 
 				if (trafficLandingClicksMeta) {
@@ -6870,38 +6778,16 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				}).join('');
 			}
 
-			function getAnalyticsEventsForSelectedRange() {
-				const days = getAnalyticsRangeDays();
-				const daySet = new Set(days);
-
-				return analyticsEvents.filter((event) => {
-					const day = String(event.day || '').slice(0, 10) || localDayKey(event.created);
-					return daySet.has(day);
-				});
-			}
-
-			function getProductNameById(productId) {
-				const product = products.find((item) => String(item.id || '') === String(productId || ''));
-				return product?.name || product?.title || 'Producto sin nombre';
-			}
-
 			function getMostViewedProducts() {
-				const counts = new Map();
-
-				getAnalyticsEventsForSelectedRange().forEach((event) => {
-					const pageType = String(event.page_type || '').trim().toLowerCase();
-					const eventType = String(event.event_type || 'pageview').trim().toLowerCase();
-					if (pageType !== 'product' || eventType !== 'pageview') return;
-
-					const productId = String(event.entity_id || event.page_id || '').trim();
-					if (!productId) return;
-
-					const current = counts.get(productId) || { productId, name: getProductNameById(productId), views: 0 };
-					current.views += 1;
-					counts.set(productId, current);
-				});
-
-				return Array.from(counts.values())
+				return (Array.isArray(analyticsSummary?.top_viewed_products) ? analyticsSummary.top_viewed_products : [])
+					.map((item) => ({
+						name: String(item?.name || 'Producto sin nombre'),
+						slug: String(item?.slug || ''),
+						active: item?.active !== false,
+						views: Number(item?.views || 0),
+						publicPath: String(item?.public_path || ''),
+					}))
+					.filter((item) => item.views > 0)
 					.sort((a, b) => b.views - a.views || a.name.localeCompare(b.name))
 					.slice(0, 5);
 			}
@@ -7502,13 +7388,11 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				if (expirationProductsList) expirationProductsList.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">El detalle se cargará al llegar a esta sección.</div>';
 				if (expirationProductsMeta && EXPIRATION_TOOLS_ENABLED) expirationProductsMeta.textContent = 'Cargando resumen privado...';
 
-				await loadSettingsRecord();
-
 				const [ordersResult, itemsResult, productsResult, analyticsResult] = await Promise.all([
 					loadAllRecords('orders', 'sort=-created&expand=shipping_zone,currency'),
 					loadAllRecords('order_items', `${ORDER_ITEMS_STORE_FILTER}${ORDER_ITEMS_STORE_FILTER ? '&' : ''}sort=-created&expand=product,variation`),
 					loadAllRecords('products', 'sort=name&expand=category,subcategory'),
-					loadAllRecords('store_analytics_events', buildAnalyticsEventsQuery()),
+					fetchAnalyticsSummary(),
 					loadExpirationSummary(),
 				]);
 
@@ -7517,7 +7401,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				orders = ordersResult || [];
 				orderItems = itemsResult || [];
 				products = productsResult || [];
-				analyticsEvents = analyticsResult || [];
+				analyticsSummary = analyticsResult || null;
 				renderDashboard();
 				setupExpirationLazyLoading();
 			}
@@ -7641,10 +7525,15 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			});
 
 			periodButtons.forEach((button) => {
-				button.addEventListener('click', () => {
+				button.addEventListener('click', async () => {
 					selectedRange = normalizeSummaryRange(button.dataset.range || '7');
 					persistSummaryRange(selectedRange);
 					syncSummaryRangeButtons();
+					try {
+						analyticsSummary = await fetchAnalyticsSummary();
+					} catch (_) {
+						analyticsSummary = null;
+					}
 					renderDashboard();
 				});
 			});
@@ -7694,7 +7583,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				orders = [];
 				orderItems = [];
 				products = [];
-				analyticsEvents = [];
+				analyticsSummary = null;
 				closeSidebar();
 				document.cookie = 'pb_auth=; Path=/; Max-Age=0; SameSite=Lax';
 				window.location.assign('/login');

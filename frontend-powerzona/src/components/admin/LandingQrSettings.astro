@@ -2013,16 +2013,23 @@ const qrPngPath = `${publicPath}/qr.png`;
           heroImageFieldAvailable = true;
         }
 
-        const basePayload = {
-          store: CURRENT_STORE_ID,
-          active: true,
-          store_name: CURRENT_STORE_NAME,
+        const landingPayload = {
           landing_qr_enabled: expectedEnabled,
           landing_qr_title: cleanText(titleField?.value, 80),
           landing_qr_subtitle: cleanText(subtitleField?.value, 140),
           landing_qr_accent_color: FALLBACK_ACCENT,
           landing_qr_links: safeLinks,
         };
+        // Store metadata belongs to record creation. Omitting it from PATCH
+        // keeps Landing QR updates inside the granular landing_qr.manage gate.
+        const basePayload = targetSettingsId
+          ? landingPayload
+          : {
+              store: CURRENT_STORE_ID,
+              active: true,
+              store_name: CURRENT_STORE_NAME,
+              ...landingPayload,
+            };
 
         const saveJsonPayload = () => (
           targetSettingsId

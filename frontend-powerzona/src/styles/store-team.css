@@ -969,6 +969,15 @@
   }
 }
 
+@media (max-width: 1023px) {
+  .store-team-page {
+    padding:
+      calc(var(--pz-admin-mobile-topbar-offset, 118px) + env(safe-area-inset-top, 0px))
+      24px
+      calc(var(--pz-admin-mobile-bottom-offset, 126px) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 @media (max-width: 900px) {
   .store-team-table__header {
     display: none;
@@ -1010,7 +1019,10 @@
 
 @media (max-width: 640px) {
   .store-team-page {
-    padding: 14px 14px 112px;
+    padding:
+      calc(var(--pz-admin-mobile-topbar-offset, 118px) + env(safe-area-inset-top, 0px))
+      14px
+      calc(var(--pz-admin-mobile-bottom-offset, 126px) + env(safe-area-inset-bottom, 0px));
   }
 
   .store-team-toast {

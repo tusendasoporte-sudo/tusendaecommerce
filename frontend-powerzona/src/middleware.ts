@@ -11,11 +11,17 @@ import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } 
 import { getStoreAccessContext } from './lib/storeTeam';
 import { hasStorePermission, type StorePermission } from './lib/storeTeamPermissions';
 
-type AdminAccessRule = Readonly<{ any?: readonly StorePermission[]; primary?: boolean }>;
+type AdminAccessRule = Readonly<{
+  any?: readonly StorePermission[];
+  all?: readonly StorePermission[];
+  primary?: boolean;
+}>;
 
 function adminAccessRule(section: string): AdminAccessRule | null {
   const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
-  if (!normalized || normalized === 'pageviews' || normalized === 'profits') return { any: ['analytics.view'] };
+  if (!normalized) return { all: ['analytics.view', 'orders.view', 'catalog.view'] };
+  if (normalized === 'pageviews') return { any: ['analytics.view'] };
+  if (normalized === 'profits') return { all: ['orders.view', 'catalog.view'] };
   if (normalized === 'account' || normalized === 'change-temporary-password') return null;
   if (normalized === 'team' || normalized.startsWith('team/')) return { primary: true };
   if (normalized === 'products' || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
@@ -36,8 +42,9 @@ function adminAccessRule(section: string): AdminAccessRule | null {
 
 function firstAllowedAdminPath(storeSlug: string, access: { permissions: readonly StorePermission[] }) {
   const candidates: ReadonlyArray<readonly [StorePermission, string]> = [
-    ['analytics.view', ''],
+    ['analytics.view', 'pageviews'],
     ['orders.view', 'orders'],
+    ['catalog.expirations.manage', 'expirations'],
     ['catalog.view', 'products'],
     ['shipping.manage', 'shipping'],
     ['gifts.manage', 'gifts'],
@@ -170,7 +177,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
       };
       const allowed = accessRule.primary === true
         ? storeAccess.access.is_primary_admin === true
-        : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission));
+        : accessRule.all?.length
+          ? accessRule.all.every((permission) => hasStorePermission(permissionContext, permission))
+          : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission));
       if (!allowed) {
         const fallback = firstAllowedAdminPath(currentStoreSlug, storeAccess.access);
         if (!requestedSection && fallback && fallback !== canonicalAdminPath) return context.redirect(fallback);

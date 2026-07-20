@@ -209,7 +209,8 @@ test('sidebars integran rutas sin crear layouts paralelos ni quinto boton movil'
   assert.match(sidebar, /adminAccountPath/);
   assert.match(sidebar, />Mi cuenta</);
   const mobileBottom = sidebar.slice(sidebar.indexOf('<nav class="pz-admin-mobile-bottom-nav"'), sidebar.indexOf('</nav>', sidebar.indexOf('<nav class="pz-admin-mobile-bottom-nav"')));
-  assert.equal((mobileBottom.match(/<a class=\{mobileBottomClass/g) || []).length, 4);
+  assert.match(sidebar, /const mobileBottomItems = mobileBottomCandidates[\s\S]*?\.slice\(0, 4\)/);
+  assert.match(mobileBottom, /mobileBottomItems\.map\(\(item\) => <a/);
   assert.doesNotMatch(mobileBottom, /Mi cuenta/);
 });
 

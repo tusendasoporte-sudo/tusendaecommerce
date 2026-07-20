@@ -614,6 +614,7 @@ const canManageStoreSettings = hasStorePermission(organizationPermissionContext,
       function assertOrganizationMutationAllowed(path, options = {}) {
         const method = String(options.method || 'GET').toUpperCase();
         if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (path === '/api/pz/store/marketing/selectors' && method === 'POST') return;
         if (/^\/api\/collections\/products\/records(?:\/|\?|$)/.test(path)) {
           if (!CAN_MANAGE_PRODUCT_VISIBILITY) throw new Error('No tienes permiso para cambiar productos destacados.');
           return;
@@ -656,6 +657,32 @@ const canManageStoreSettings = hasStorePermission(organizationPermissionContext,
           page += 1;
         } while (page <= totalPages);
         return items;
+      }
+      async function loadMarketingCategories() {
+        const categoriesById = new Map();
+        let taxonomyPage = 1;
+        while (taxonomyPage <= 100000) {
+          const result = await apiRequest('/api/pz/store/marketing/selectors', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taxonomy_page: taxonomyPage, taxonomy_per_page: 100 }),
+          });
+          if (result?.ok !== true) throw new Error('No se pudieron cargar los selectores de marketing.');
+          (Array.isArray(result.categories) ? result.categories : []).forEach((item) => {
+            const category = {
+              id: String(item.ref || ''),
+              ref: String(item.ref || ''),
+              name: String(item.name || ''),
+              slug: String(item.slug || ''),
+              public_path: String(item.public_path || ''),
+              active: item.visible !== false,
+            };
+            if (category.id) categoriesById.set(category.id, category);
+          });
+          if (result?.taxonomy?.categories_has_more !== true) return Array.from(categoriesById.values());
+          taxonomyPage += 1;
+        }
+        throw new Error('La taxonomía de marketing supera el límite operativo.');
       }
       function parseProductImageOrder(product) {
         const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
@@ -1032,9 +1059,13 @@ const canManageStoreSettings = hasStorePermission(organizationPermissionContext,
         products = CAN_MANAGE_PRODUCT_VISIBILITY
           ? await loadAllRecords('products', 'sort=featured_order,name')
           : [];
-        categories = CAN_MANAGE_PROMOTIONS || CAN_MANAGE_PRODUCT_VISIBILITY
-          ? await loadAllRecords('categories', 'sort=order,name')
-          : [];
+        if (CAN_MANAGE_PROMOTIONS) {
+          categories = await loadMarketingCategories();
+        } else if (CAN_MANAGE_PRODUCT_VISIBILITY) {
+          categories = await loadAllRecords('categories', 'sort=order,name');
+        } else {
+          categories = [];
+        }
         visualItems = [];
         if (CAN_MANAGE_PROMOTIONS) {
           try {

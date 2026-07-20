@@ -2627,7 +2627,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
 
         <section id="admin-view" class="hidden">
           <div class="tabs">
-            {canManageProductVisibility && <button class="tab-btn" data-tab="destacados" type="button">Destacados</button>}
             {canManagePromotions && <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>}
             {canManageCoupons && <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>}
             {canManageRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
@@ -2984,7 +2983,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
             </form>
           </section>
 
-          <section id="tab-destacados" class:list={['tab-panel', !canManageProductVisibility && 'permission-hidden']}>
+          <section id="tab-destacados" class="tab-panel permission-hidden">
             <section class="admin-compact-summary admin-compact-summary--marketing" aria-label="Resumen de destacados visuales">
               <div class="admin-compact-summary__head">
                 <span class="admin-compact-summary__icon" aria-hidden="true">
@@ -3840,9 +3839,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       let visualItems = [];
       let automaticPromotions = [];
       let manualCoupons = [];
-      let manualCouponUsages = [];
       const ALLOWED_MARKETING_TABS = [
-        CAN_MANAGE_PRODUCT_VISIBILITY ? 'destacados' : '',
         CAN_MANAGE_PROMOTIONS ? 'promociones' : '',
         CAN_MANAGE_COUPONS ? 'cupones' : '',
         CAN_MANAGE_PROMOTIONS ? 'visuales' : '',
@@ -3858,6 +3855,8 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       let couponInitialSnapshot = '';
       let couponNoticeTimer = null;
       let isSavingCoupon = false;
+      let marketingSelectorSearchTimer = null;
+      let marketingSelectorSearchRequestId = 0;
       const adminBlockModes = { featured: 'edit', visual: 'closed' };
       const promotionGroupOrder = ['buy_x_pay_y', 'volume_discount', 'product_discount', 'category_discount', 'subcategory_discount', 'cart_subtotal_discount'];
       const PROMOTION_GROUP_VISIBLE_LIMIT = 10;
@@ -4064,6 +4063,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       function assertMarketingMutationAllowed(path, options = {}) {
         const method = String(options.method || 'GET').toUpperCase();
         if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (path === '/api/pz/store/marketing/selectors' && method === 'POST') return;
         if (/^\/api\/collections\/automatic_promotions\/records(?:\/|\?|$)/.test(path)) {
           if (!CAN_MANAGE_PROMOTIONS) throw new Error('No tienes permiso para gestionar promociones.');
           return;
@@ -4093,6 +4093,120 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         if (!response.ok) throw new Error(pocketBaseErrorMessage(result));
         return result;
       }
+      function mergeSelectorItems(current, incoming) {
+        const merged = new Map((Array.isArray(current) ? current : []).map((item) => [item.id, item]));
+        (Array.isArray(incoming) ? incoming : []).forEach((item) => {
+          if (item?.id) merged.set(item.id, item);
+        });
+        return Array.from(merged.values());
+      }
+      async function loadMarketingSelectors(options = {}) {
+        const search = String(options.search || '').trim().slice(0, 100);
+        const refs = Array.from(new Set(Array.isArray(options.refs) ? options.refs.map(String) : []))
+          .filter((ref) => /^[a-z0-9]{15}$/.test(ref))
+          .slice(0, 100);
+        const taxonomyPage = Number.isInteger(options.taxonomyPage) && options.taxonomyPage > 0
+          ? options.taxonomyPage
+          : null;
+        const taxonomyPerPage = Number.isInteger(options.taxonomyPerPage)
+          && options.taxonomyPerPage > 0
+          && options.taxonomyPerPage <= 100
+          ? options.taxonomyPerPage
+          : null;
+        const payload = {};
+        if (search) payload.search = search;
+        if (refs.length) payload.refs = refs;
+        if (taxonomyPage !== null) payload.taxonomy_page = taxonomyPage;
+        if (taxonomyPerPage !== null) payload.taxonomy_per_page = taxonomyPerPage;
+        const result = await apiRequest('/api/pz/store/marketing/selectors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (result?.ok !== true) throw new Error('No se pudieron cargar los selectores de marketing.');
+
+        const nextProducts = (Array.isArray(result.products) ? result.products : []).map((item) => ({
+          id: String(item.ref || ''),
+          ref: String(item.ref || ''),
+          name: String(item.name || ''),
+          slug: String(item.slug || ''),
+          public_path: String(item.public_path || ''),
+          thumbnail_url: String(item.thumbnail_url || ''),
+          category: String(item.category_ref || ''),
+          category_name: String(item.category_name || ''),
+          subcategory: String(item.subcategory_ref || ''),
+          subcategory_name: String(item.subcategory_name || ''),
+          active: item.visible !== false,
+        })).filter((item) => item.id);
+        const nextCategories = (Array.isArray(result.categories) ? result.categories : []).map((item) => ({
+          id: String(item.ref || ''),
+          ref: String(item.ref || ''),
+          name: String(item.name || ''),
+          slug: String(item.slug || ''),
+          public_path: String(item.public_path || ''),
+          active: item.visible !== false,
+        })).filter((item) => item.id);
+        const nextSubcategories = (Array.isArray(result.subcategories) ? result.subcategories : []).map((item) => ({
+          id: String(item.ref || ''),
+          ref: String(item.ref || ''),
+          name: String(item.name || ''),
+          slug: String(item.slug || ''),
+          public_path: String(item.public_path || ''),
+          category: String(item.category_ref || ''),
+          category_name: String(item.category_name || ''),
+          active: item.visible !== false,
+        })).filter((item) => item.id);
+        if (options.replace === true) {
+          products = nextProducts;
+          categories = nextCategories;
+          subcategories = nextSubcategories;
+        } else {
+          products = mergeSelectorItems(products, nextProducts);
+          categories = mergeSelectorItems(categories, nextCategories);
+          subcategories = mergeSelectorItems(subcategories, nextSubcategories);
+        }
+        return result;
+      }
+      async function loadAllMarketingSelectors() {
+        let taxonomyPage = 1;
+        let replace = true;
+        while (taxonomyPage <= 100000) {
+          const result = await loadMarketingSelectors({
+            replace,
+            taxonomyPage,
+            taxonomyPerPage: 100,
+          });
+          replace = false;
+          if (result?.taxonomy?.has_more !== true) return;
+          taxonomyPage += 1;
+        }
+        throw new Error('La taxonomía de marketing supera el límite operativo.');
+      }
+      async function hydrateReferencedMarketingSelectors() {
+        const refs = Array.from(new Set([
+          ...automaticPromotions.flatMap((item) => [item?.product, item?.category, item?.subcategory]),
+          ...manualCoupons.flatMap((item) => [item?.product, item?.category, item?.subcategory]),
+          ...visualItems.flatMap((item) => [item?.product, item?.category, item?.subcategory]),
+        ].map(String).filter((ref) => /^[a-z0-9]{15}$/.test(ref))));
+        for (let index = 0; index < refs.length; index += 100) {
+          await loadMarketingSelectors({ refs: refs.slice(index, index + 100) });
+        }
+      }
+      function scheduleMarketingProductSearch(input, renderResults) {
+        if (marketingSelectorSearchTimer) window.clearTimeout(marketingSelectorSearchTimer);
+        const search = String(input?.value || '').trim();
+        const requestId = ++marketingSelectorSearchRequestId;
+        renderResults();
+        if (search.length < 2) return;
+        marketingSelectorSearchTimer = window.setTimeout(async () => {
+          try {
+            await loadMarketingSelectors({ search });
+            if (requestId === marketingSelectorSearchRequestId) renderResults();
+          } catch (_) {
+            // The local sanitized cache remains usable if the remote search fails.
+          }
+        }, 250);
+      }
       function withStoreFilter(params = '') {
         if (!STORE_FILTER) return params;
         const query = new URLSearchParams(params || '');
@@ -4116,23 +4230,12 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         } while (page <= totalPages);
         return items;
       }
-      function parseProductImageOrder(product) {
-        const images = Array.isArray(product?.images) ? product.images.filter(Boolean) : [];
-        let stored = [];
-        try {
-          stored = Array.isArray(JSON.parse(product?.image_order || '[]')) ? JSON.parse(product?.image_order || '[]') : [];
-        } catch (_) {
-          stored = [];
-        }
-        const ordered = stored.filter((name) => images.includes(name));
-        images.forEach((name) => { if (!ordered.includes(name)) ordered.push(name); });
-        return ordered;
-      }
       function productImageUrl(product) {
-        const images = parseProductImageOrder(product);
-        const firstImage = images[0] || '';
-        if (!product?.id || !firstImage) return '';
-        return `${POCKETBASE_URL}/api/files/products/${encodeURIComponent(product.id)}/${encodeURIComponent(firstImage)}?thumb=160x160`;
+        const thumbnail = String(product?.thumbnail_url || '').trim();
+        if (!thumbnail) return '';
+        if (thumbnail.startsWith('/')) return `${POCKETBASE_URL}${thumbnail}`;
+        if (/^https:\/\//i.test(thumbnail)) return thumbnail;
+        return '';
       }
       function visualImageUrl(item) {
         const image = Array.isArray(item?.image) ? item.image[0] : item?.image;
@@ -4145,7 +4248,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
       function thumbMarkup(url, fallback = 'BOX') {
         if (!url) return `<span class="thumb placeholder">${fallback}</span>`;
-        return `<img class="thumb" src="${url}" alt="" loading="lazy" />`;
+        return `<img class="thumb" src="${escapeHtml(url)}" alt="" loading="lazy" />`;
       }
       function formatUsd(value) { return `$${Number(value || 0).toFixed(2)} USD`; }
       function readOnlyVisualRow(item) {
@@ -4163,39 +4266,37 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         `;
       }
       function renderStats() {
-        document.getElementById('stat-featured').textContent = String(products.filter((p) => p.featured === true).length);
-        document.getElementById('stat-promos').textContent = String(visualItems.filter((item) => item.type === 'promo_visual').length);
-        document.getElementById('stat-shortcuts').textContent = String(visualItems.filter((item) => item.type === 'acceso_rapido').length);
+        const featuredStat = document.getElementById('stat-featured');
+        const promosStat = document.getElementById('stat-promos');
+        const shortcutsStat = document.getElementById('stat-shortcuts');
+        if (featuredStat) featuredStat.textContent = '0';
+        if (promosStat) promosStat.textContent = String(visualItems.filter((item) => item.type === 'promo_visual').length);
+        if (shortcutsStat) shortcutsStat.textContent = String(visualItems.filter((item) => item.type === 'acceso_rapido').length);
         updateFeaturedVisualSummary();
       }
       function updateFeaturedVisualSummary() {
-        const featured = products.filter((product) => product.featured === true);
-        const visible = featured.filter((product) => product.active !== false);
-        const hidden = featured.filter((product) => product.active === false);
         const totalNode = document.getElementById('featured-summary-total');
         const visibleNode = document.getElementById('featured-summary-visible');
         const hiddenNode = document.getElementById('featured-summary-hidden');
-        if (totalNode) totalNode.textContent = String(featured.length);
-        if (visibleNode) visibleNode.textContent = String(visible.length);
-        if (hiddenNode) hiddenNode.textContent = String(hidden.length);
+        if (totalNode) totalNode.textContent = '0';
+        if (visibleNode) visibleNode.textContent = '0';
+        if (hiddenNode) hiddenNode.textContent = '0';
       }
       function renderProductSelect() {
         const available = products.filter((product) => product.active !== false);
         featuredProductSelect.innerHTML = '<option value="">Selecciona un producto</option>' + available
           .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
-          .map((product) => `<option value="${product.id}">${escapeHtml(product.name || 'Sin nombre')} · ${formatUsd(product.base_price_usd)}</option>`).join('');
+          .map((product) => `<option value="${product.id}">${escapeHtml(product.name || 'Sin nombre')}</option>`).join('');
         renderFeaturedProductResults();
       }
       function productCategoryText(product) {
-        const category = product.expand?.category?.name || categories.find((item) => item.id === product.category)?.name || '';
-        const subcategory = product.expand?.subcategory?.name || product.subcategory_name || '';
+        const category = product.category_name || categories.find((item) => item.id === product.category)?.name || '';
+        const subcategory = product.subcategory_name || subcategories.find((item) => item.id === product.subcategory)?.name || '';
         return [category, subcategory].filter(Boolean).join(' · ');
       }
       function productSearchText(product) {
         return normalizeSearchText([
           product.name,
-          product.internal_ref,
-          product.sku,
           product.slug,
           productCategoryText(product),
         ].filter(Boolean).join(' '));
@@ -4209,7 +4310,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         }
         const matches = products
           .filter((product) => product.active !== false)
-          .filter((product) => product.featured !== true)
           .filter((product) => productSearchText(product).includes(query))
           .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
           .slice(0, 12);
@@ -4220,10 +4320,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         featuredProductResults.innerHTML = matches.map((product) => {
           const categoryText = productCategoryText(product);
           const meta = [
-            formatUsd(product.base_price_usd),
-            `Stock: ${Number(product.stock || 0)}`,
             product.active === false ? 'Oculto' : 'Visible',
-            product.internal_ref ? `Ref: ${product.internal_ref}` : '',
             categoryText,
           ].filter(Boolean).join(' · ');
           return `
@@ -4248,9 +4345,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         }).join('');
       }
       function getFeaturedProductsSorted() {
-        return products
-          .filter((product) => product.featured === true)
-          .sort((a, b) => (Number(a.featured_order || 0) - Number(b.featured_order || 0)) || String(a.name || '').localeCompare(String(b.name || '')));
+        return [];
       }
       function getVisualItemsSorted(type) {
         return visualItems
@@ -4334,12 +4429,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           const isVisible = product.active !== false;
           const statusLabel = isVisible ? 'Visible' : 'Oculto';
           const statusClass = isVisible ? 'pill-visible' : 'pill-hidden';
-          const metaParts = [
-            `Ref: ${escapeHtml(product.ref || product.sku || product.internal_ref || product.id || 'Sin ref')}`,
-            formatUsd(product.base_price_usd),
-            `Stock: ${Number(product.stock || 0)}`,
-            `Orden ${Number(product.featured_order || 0)}`,
-          ];
+          const metaParts = [productCategoryText(product), isVisible ? 'Visible' : 'Oculto'];
           const metaHtml = metaParts.filter(Boolean).join(' &middot; ');
           return `
             <article class="item-row" data-product-id="${product.id}">
@@ -4565,7 +4655,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         }
         promotionProductResults.innerHTML = matches.map((product) => {
           const selected = product.id === promotionProduct?.value;
-          const meta = [formatUsd(product.base_price_usd), productCategoryText(product), product.internal_ref ? `Ref ${product.internal_ref}` : ''].filter(Boolean).join(' · ');
+          const meta = [productCategoryText(product), product.active === false ? 'Oculto' : 'Visible'].filter(Boolean).join(' · ');
           return `
             <article class="featured-result-row">
               <div>
@@ -4945,7 +5035,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           .slice(0, 12);
         couponProductResults.innerHTML = matches.length ? matches.map((product) => {
           const selected = product.id === couponProduct?.value;
-          const meta = [formatUsd(product.base_price_usd), productCategoryText(product), product.internal_ref ? `Ref ${product.internal_ref}` : ''].filter(Boolean).join(' · ');
+          const meta = [productCategoryText(product), product.active === false ? 'Oculto' : 'Visible'].filter(Boolean).join(' · ');
           return `<article class="featured-result-row"><div><p class="featured-result-title">${escapeHtml(product.name || 'Sin nombre')}</p><p class="featured-result-meta">${escapeHtml(meta)}</p></div><button class="mini-btn ${selected ? '' : 'primary'} js-coupon-product-select" data-product-id="${product.id}" type="button">${selected ? 'Seleccionado' : 'Seleccionar'}</button></article>`;
         }).join('') : '<div class="empty-state">No se encontraron productos.</div>';
       }
@@ -5259,28 +5349,31 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         if (!CAN_MANAGE_COUPONS) return;
         const item = manualCoupons.find((coupon) => coupon.id === id);
         if (!item || !couponHistoryList) return;
-        const rows = manualCouponUsages.filter((usage) => usage.coupon === id);
         if (couponHistorySubtitle) couponHistorySubtitle.textContent = `${item.code || 'Cupón'} · ${couponUsageLabel(item)}`;
-        couponHistoryList.innerHTML = rows.length ? rows.map((usage) => `
+        couponHistoryList.innerHTML = `
           <article class="item-row">
             <div class="item-main">
               <span class="thumb placeholder">#</span>
               <div>
-                <p class="item-title">Orden ${escapeHtml(usage.order_number || 'Sin número')}</p>
-                <p class="item-meta">Cliente: ${escapeHtml(usage.customer_name || 'No registrado')} · Descuento: ${formatUsd(Number(usage.discount_usd || 0) + Number(usage.shipping_discount_usd || 0))} · Fecha: ${escapeHtml(localDateInputValue(usage.created) || '')}</p>
+                <p class="item-title">Resumen de uso</p>
+                <p class="item-meta">${escapeHtml(couponUsageLabel(item))}. El historial individual está protegido y no se expone desde Marketing.</p>
               </div>
             </div>
           </article>
-        `).join('') : '<div class="empty-state">Todavía no hay usos para este cupón.</div>';
+        `;
         closePromotionMenus();
         couponHistoryModal?.classList.remove('hidden');
         couponHistoryModal?.setAttribute('aria-hidden', 'false');
       }
       function closeCouponHistory() { couponHistoryModal?.classList.add('hidden'); couponHistoryModal?.setAttribute('aria-hidden', 'true'); }
       async function loadData() {
-        products = await loadAllRecords('products', 'sort=featured_order,name');
-        categories = await loadAllRecords('categories', 'sort=order,name');
-        subcategories = await loadAllRecords('subcategories', 'sort=order,name');
+        if (CAN_MANAGE_PROMOTIONS || CAN_MANAGE_COUPONS) {
+          await loadAllMarketingSelectors();
+        } else {
+          products = [];
+          categories = [];
+          subcategories = [];
+        }
         if (CAN_MANAGE_PROMOTIONS) try {
           automaticPromotions = await loadAllRecords('automatic_promotions', 'sort=priority,-updated');
         } catch (error) {
@@ -5293,16 +5386,14 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
           manualCoupons = [];
           showAlert(couponAlert, 'Los cupones manuales no están disponibles. Contacta a soporte para activarlos.', 'error');
         }
-        if (CAN_MANAGE_COUPONS) try {
-          manualCouponUsages = await loadAllRecords('manual_coupon_usages', 'sort=-created');
-        } catch (error) {
-          manualCouponUsages = [];
-        }
         if (CAN_MANAGE_PROMOTIONS) try {
           visualItems = await loadAllRecords('store_visual_items', 'sort=sort_order,title');
         } catch (error) {
           visualItems = [];
           showAlert(visualAlert, 'La configuración visual no está disponible. Contacta a soporte para activarla.', 'error');
+        }
+        if (CAN_MANAGE_PROMOTIONS || CAN_MANAGE_COUPONS) {
+          await hydrateReferencedMarketingSelectors();
         }
         renderAll();
       }
@@ -5315,9 +5406,6 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         const product = products.find((item) => item.id === productId);
         if (!product) {
           return showAlert(featuredAlert, 'No se encontró el producto seleccionado.', 'error');
-        }
-        if (product.featured === true) {
-          return showAlert(featuredAlert, 'Este producto ya está en destacados.', 'info');
         }
         const formData = new FormData();
         formData.append('featured', 'true');
@@ -5343,9 +5431,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         await loadData();
       }
       function nextFeaturedOrder() {
-        return products
-          .filter((product) => product.featured === true)
-          .reduce((max, item) => Math.max(max, Number(item.featured_order || 0)), 0) + 1;
+        return 1;
       }
       function nextVisualOrder() {
         return visualItems.reduce((max, item) => Math.max(max, Number(item.sort_order || 0)), 0) + 1;
@@ -5843,7 +5929,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       }
 
       function marketingTabAllowed(tab) {
-        if (tab === 'destacados') return CAN_MANAGE_PRODUCT_VISIBILITY;
+        if (tab === 'destacados') return false;
         if (tab === 'cupones') return CAN_MANAGE_COUPONS;
         if (['promociones', 'visuales', 'cintillo'].includes(tab)) return CAN_MANAGE_PROMOTIONS;
         return false;
@@ -5875,7 +5961,9 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       sidebarOverlay?.addEventListener('click', closeSidebar);
       document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeSidebar(); });
       markFeaturedBtn?.addEventListener('click', () => markFeatured().catch((error) => showAlert(featuredAlert, error.message || 'No se pudo marcar destacado.', 'error')));
-      featuredProductSearch?.addEventListener('input', renderFeaturedProductResults);
+      featuredProductSearch?.addEventListener('input', () => {
+        scheduleMarketingProductSearch(featuredProductSearch, renderFeaturedProductResults);
+      });
       featuredProductResults?.addEventListener('click', (event) => {
         const button = event.target.closest('.js-featured-result-add');
         if (!button || button.disabled) return;
@@ -5955,7 +6043,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       promotionProductSearch?.addEventListener('input', () => {
         if (promotionProduct && promotionProductSearch.value.trim() !== getPromotionSelectedProduct()?.name) promotionProduct.value = '';
         renderPromotionProductSelected();
-        renderPromotionProductResults();
+        scheduleMarketingProductSearch(promotionProductSearch, renderPromotionProductResults);
         updatePromotionFormState();
       });
       promotionProductResults?.addEventListener('click', (event) => {
@@ -6003,7 +6091,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       couponProductSearch?.addEventListener('input', () => {
         if (couponProduct && couponProductSearch.value.trim() !== getCouponSelectedProduct()?.name) couponProduct.value = '';
         renderCouponProductSelected();
-        renderCouponProductResults();
+        scheduleMarketingProductSearch(couponProductSearch, renderCouponProductResults);
         updateCouponFormState();
       });
       couponProductResults?.addEventListener('click', (event) => {

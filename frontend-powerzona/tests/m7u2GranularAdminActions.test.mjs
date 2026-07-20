@@ -72,17 +72,20 @@ test('M7U2: Pedidos separa permisos por accion y usa transicion atomica', () => 
   assert.match(source, /CAN_MANAGE_ORDER_ITEMS \? `<button class="btn btn-danger delete-item-btn"/);
 });
 
-test('M7U2: bottom-nav mantiene cuatro destinos y cada modulo es condicional', () => {
+test('M7U2: bottom-nav mantiene cuatro destinos autorizados por perfil', () => {
   const source = read('../src/components/admin/AdminSidebar.astro');
   const start = source.indexOf('<nav class="pz-admin-mobile-bottom-nav"');
   const end = source.indexOf('</nav>', start);
   const bottom = source.slice(start, end);
 
-  assert.equal((bottom.match(/<a /g) || []).length, 4);
-  assert.match(bottom, /canShowOverviewNav && <a/);
-  assert.match(bottom, /canShowOrdersNav && <a/);
-  assert.match(bottom, /canShowShippingNav && <a/);
-  assert.match(bottom, /canShowSettingsGroup && <a/);
+  assert.match(source, /const mobileBottomCandidates: Array<MobileBottomItem \| false> = \[/);
+  for (const gate of [
+    'canShowOverviewNav', 'canShowOrdersNav', 'canShowShippingNav', 'canShowSettingsGroup',
+    'canShowCatalogNav', 'canShowGiftsNav', 'canShowMarketingGroup', 'canShowSecurityNav',
+  ]) assert.match(source, new RegExp(`${gate} && \\{`));
+  assert.match(source, /const mobileBottomItems = mobileBottomCandidates[\s\S]*?\.slice\(0, 4\)/);
+  assert.match(bottom, /mobileBottomItems\.map\(\(item\) => <a/);
+  assert.match(bottom, /href=\{item\.href\}/);
   assert.equal(/data-[^=]*(permission|token)/i.test(bottom), false);
 });
 
@@ -137,9 +140,13 @@ test('M7U2: Promos aisla promociones, cupones, rifas y destacados', () => {
   assert.equal(source.includes('const ADMIN_AUTH_TOKEN'), false);
   assert.match(source, /function assertMarketingMutationAllowed\(path, options = \{\}\)/);
   assert.match(source, /assertMarketingMutationAllowed\(path, options\);[\s\S]*?fetch\(`/);
+  assert.match(source, /apiRequest\('\/api\/pz\/store\/marketing\/selectors',[\s\S]*?body: JSON\.stringify\(payload\)/);
+  assert.match(source, /scheduleMarketingProductSearch\(promotionProductSearch, renderPromotionProductResults\)/);
+  assert.match(source, /await hydrateReferencedMarketingSelectors\(\)/);
   assert.match(source, /if \(CAN_MANAGE_PROMOTIONS\) try \{[\s\S]*?loadAllRecords\('automatic_promotions'/);
   assert.match(source, /if \(CAN_MANAGE_COUPONS\) try \{[\s\S]*?loadAllRecords\('manual_coupons'/);
-  assert.match(source, /if \(CAN_MANAGE_COUPONS\) try \{[\s\S]*?loadAllRecords\('manual_coupon_usages'/);
+  assert.doesNotMatch(source, /loadAllRecords\('(products|categories|subcategories|manual_coupon_usages)'/);
+  assert.doesNotMatch(source, /base_price_usd|internal_ref|\bstock\b|\bsku\b|customer_name|order_number/);
   assert.match(source, /canManageRaffles && <a class="tab-btn"/);
   assert.match(source, /!canManagePromotions && 'permission-hidden'/);
 });
@@ -155,6 +162,9 @@ test('M7U2: Organizacion no mezcla promociones con visibilidad de productos', ()
   assert.match(source, /function assertOrganizationMutationAllowed\(path, options = \{\}\)/);
   assert.match(source, /assertOrganizationMutationAllowed\(path, options\);[\s\S]*?fetch\(`/);
   assert.match(source, /products = CAN_MANAGE_PRODUCT_VISIBILITY[\s\S]*?loadAllRecords\('products'/);
+  assert.match(source, /if \(CAN_MANAGE_PROMOTIONS\) \{[\s\S]*?categories = await loadMarketingCategories\(\)/);
+  assert.match(source, /body: JSON\.stringify\(\{ taxonomy_page: taxonomyPage, taxonomy_per_page: 100 \}\)/);
+  assert.match(source, /result\?\.taxonomy\?\.categories_has_more !== true/);
   assert.match(source, /if \(CAN_MANAGE_PROMOTIONS\) \{[\s\S]*?loadAllRecords\('store_visual_items'/);
   assert.match(source, /!canManageProductVisibility && 'permission-hidden'/);
   assert.match(source, /!canManagePromotions && 'permission-hidden'/);
@@ -182,7 +192,10 @@ test('M7U2: Ajustes separa settings, reviews y landing y genera review token en 
 
 test('M7U2: Resumen no muta analitica y no consulta reseñas sin permiso', () => {
   const source = read('../src/pages/admin/index.astro');
-  assert.ok(source.includes("hasStorePermission(\n  { permissions: storeAccessContext?.access.permissions },\n  'reviews.manage',"));
+  assert.ok(source.includes("hasStorePermission(\n  dashboardPermissionContext,\n  'reviews.manage',"));
+  assert.match(source, /if \(!canViewDashboardOrders \|\| !canViewDashboardCatalog\) \{[\s\S]*?Astro\.redirect\(adminPageviewsPath\)/);
+  assert.match(source, /\{landingQrAnalyticsVisible && <button[^>]+data-analytics-tab="landingqr"/);
+  assert.doesNotMatch(source, /loadAllRecords\('settings'/);
   assert.match(source, /\{reviewsFeatureVisible && <section class="dashboard-block" aria-labelledby="dashboard-reviews-title">/);
   assert.match(source, /if \(ratingSummaryGrid\) await loadRatingSupportData\(\);/);
   assert.doesNotMatch(source, /deleteOldAnalyticsEvents|runAnalyticsCleanupIfNeeded|analytics_cleanup_last_run_at/);

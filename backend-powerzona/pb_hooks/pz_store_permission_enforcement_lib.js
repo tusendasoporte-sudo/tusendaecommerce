@@ -15,13 +15,11 @@ const READ_PERMISSIONS = Object.freeze({
   shipping_zones: "shipping.manage",
   automatic_promotions: "promotions.manage",
   manual_coupons: "coupons.manage",
-  manual_coupon_usages: "coupons.manage",
   gifts: "gifts.manage",
   raffles: "raffles.manage",
   raffle_entries: "raffles.manage",
   reviews: "reviews.manage",
   store_notifications: "notifications.view",
-  store_analytics_events: "analytics.view",
   store_security_settings: "security.view",
   store_security_events: "security.view",
   store_security_blocks: "security.view",
@@ -29,14 +27,24 @@ const READ_PERMISSIONS = Object.freeze({
   store_customers: "security.view",
 });
 
+const READ_ALL_PERMISSIONS = Object.freeze({
+  manual_coupon_usages: Object.freeze(["coupons.manage", "orders.view"]),
+});
+
+// Store users consume analytics through the aggregate endpoint. Raw events
+// remain private even when the actor owns the tenant and has analytics.view.
+const DENIED_STORE_READS = Object.freeze({
+  store_analytics_events: "analytics.view",
+});
+
 const READ_ANY_PERMISSIONS = Object.freeze({
   settings: Object.freeze([
     "catalog.view", "orders.view", "shipping.manage", "promotions.manage", "coupons.manage",
-    "gifts.manage", "raffles.manage", "reviews.manage", "notifications.view", "analytics.view",
+    "gifts.manage", "raffles.manage", "reviews.manage", "notifications.view",
     "landing_qr.manage", "store.settings.manage", "security.view",
   ]),
   store_visual_items: Object.freeze(["promotions.manage", "gifts.manage", "landing_qr.manage"]),
-  currencies: Object.freeze(["catalog.view", "orders.view", "analytics.view", "store.settings.manage"]),
+  currencies: Object.freeze(["catalog.view", "orders.view", "store.settings.manage"]),
 });
 
 const DENY_PERMISSION = "__mutation_denied__";
@@ -53,6 +61,51 @@ const ORDER_CONTACT_PRIVATE_FIELDS = Object.freeze([
   "customer",
 ]);
 const ORDER_REVIEW_PRIVATE_FIELDS = Object.freeze(["review_token"]);
+const COUPON_USAGE_CONTACT_PRIVATE_FIELDS = Object.freeze([
+  "customer_name",
+  "customer_phone",
+  "customer_email",
+  "customer_address",
+]);
+const PUBLIC_PRODUCT_PRIVATE_FIELDS = Object.freeze([
+  "cost_usd",
+  "profit_margin",
+  "internal_ref",
+  "expiration_date",
+  "supplier",
+  "supplier_id",
+  "provider",
+  "provider_id",
+  "vendor",
+  "vendor_id",
+  "proveedor",
+]);
+const PUBLIC_VARIATION_PRIVATE_FIELDS = Object.freeze([
+  "cost_usd",
+  "internal_ref",
+  "expiration_date",
+  "supplier",
+  "supplier_id",
+  "provider",
+  "provider_id",
+  "vendor",
+  "vendor_id",
+  "proveedor",
+]);
+const PUBLIC_PRODUCT_QUERY_FIELDS = Object.freeze([
+  "id", "store", "name", "slug", "description", "images", "image_order", "category", "subcategory",
+  "base_price_usd", "regular_price_usd", "offer_price_usd", "is_offer", "stock", "track_stock",
+  "allow_preorder", "featured", "featured_order", "active", "only_usd", "delivery_mode",
+  "has_variations", "variation_view", "extra_info", "related_products", "created", "updated",
+]);
+const PUBLIC_VARIATION_QUERY_FIELDS = Object.freeze([
+  "id", "product", "variation_type", "value", "price_usd", "extra_price", "image", "sort_order",
+  "allow_preorder", "stock", "track_stock", "active", "is_offer", "offer_price_usd", "created", "updated",
+]);
+const PUBLIC_EXPAND_COLLECTIONS = Object.freeze({
+  products: Object.freeze({ category: "categories", subcategory: "subcategories" }),
+  settings: Object.freeze({ default_currency: "currencies" }),
+});
 const ORDER_EXPAND_COLLECTIONS = Object.freeze([
   "order_items",
   "manual_coupon_usages",
@@ -82,7 +135,6 @@ const MUTATION_PERMISSIONS = Object.freeze({
   shipping_zones: "shipping.manage",
   automatic_promotions: "promotions.manage",
   manual_coupons: "coupons.manage",
-  manual_coupon_usages: "coupons.manage",
   gifts: "gifts.manage",
   raffles: "raffles.manage",
   raffle_entries: "raffles.manage",
@@ -139,6 +191,56 @@ const REVIEW_SETTINGS_FIELDS = Object.freeze([
   "show_verified_badge",
   "notify_review_pending",
 ]);
+const LANDING_QR_PUBLIC_SETTINGS_FIELDS = Object.freeze([
+  "whatsapp_number",
+  "welcome_text",
+  "logo_image",
+]);
+const PUBLIC_SETTINGS_PRIVATE_FIELDS = Object.freeze([
+  "analytics_retention_days",
+  "business_notes",
+  "low_stock_threshold",
+  "maintenance_mode",
+  "order_prefix",
+  "pending_order_hours",
+  "product_expiring_critical_days",
+  "product_expiring_days_before",
+]);
+const PUBLIC_SETTINGS_FUNCTIONAL_FIELDS = Object.freeze([
+  "notifications_enabled",
+  "notify_review_pending",
+]);
+const SETTINGS_QUERY_META_FIELDS = Object.freeze([
+  "id", "store", "active", "collectionid", "collectionname", "created", "updated",
+]);
+const MARKETING_QUERY_FIELDS = Object.freeze({
+  automatic_promotions: Object.freeze([
+    "id", "store", "name", "active", "type", "scope", "discount_type", "discount_value",
+    "buy_qty", "pay_qty", "min_qty", "min_subtotal_usd", "product", "category", "subcategory",
+    "starts_at", "ends_at", "badge_text", "priority", "stackable", "created", "updated",
+  ]),
+  manual_coupons: Object.freeze([
+    "id", "store", "code", "name", "customer_message", "active", "scope", "discount_type",
+    "discount_value", "min_subtotal_usd", "product", "category", "subcategory", "starts_at",
+    "ends_at", "unlimited_uses", "max_uses", "used_count", "created", "updated",
+  ]),
+  store_visual_items: Object.freeze([
+    "id", "store", "type", "title", "description", "image", "button_text", "action_type",
+    "target_url", "whatsapp_message", "category", "attachment", "sort_order", "active", "created", "updated",
+  ]),
+  gifts: Object.freeze([
+    "id", "store", "name", "description", "image", "min_order_usd", "stock", "sort_order",
+    "active", "created", "updated",
+  ]),
+  raffles: Object.freeze([
+    "id", "store", "title", "slug", "description", "conditions", "access_code", "images",
+    "prizes_json", "prizes_display_mode", "starts_at", "closes_at", "draw_at", "status",
+    "winner_number", "no_winner_number", "result_published_at", "no_winner_expires_at", "finalized_at",
+    "link_enabled", "show_in_store", "visible", "slot_number", "is_configured",
+    "selection_manually_closed", "reset_at", "winner_message", "whatsapp_group_invite_enabled",
+    "whatsapp_group_invite_url", "store_featured_prize_ids", "created", "updated",
+  ]),
+});
 
 function recordValue(record, key) {
   if (!record) return undefined;
@@ -204,6 +306,95 @@ function requestBody(e) {
     const info = e.requestInfo();
     return info && info.body && typeof info.body === "object" ? info.body : {};
   } catch (_) { return {}; }
+}
+
+function requestQuery(e) {
+  try {
+    const info = e.requestInfo();
+    return info && info.query && typeof info.query === "object" ? info.query : {};
+  } catch (_) { return {}; }
+}
+
+function queryValue(query, key) {
+  if (!query) return "";
+  if (typeof query.get === "function") {
+    try {
+      const value = query.get(key);
+      if (value !== undefined && value !== null) return value;
+    } catch (_) {}
+  }
+  return query[key] === undefined || query[key] === null ? "" : query[key];
+}
+
+function filterQueryFields(value) {
+  if (value === "" || value === null || value === undefined) return [];
+  if (typeof value !== "string" || value.length > 4096) return null;
+  let visible = "";
+  let quote = "";
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (quote) {
+      if (char === "\\") {
+        index += 1;
+      } else if (char === quote) {
+        quote = "";
+      }
+      visible += " ";
+      continue;
+    }
+    if (char === "\"" || char === "'") {
+      quote = char;
+      visible += " ";
+      continue;
+    }
+    visible += char;
+  }
+  if (quote) return null;
+  const literals = new Set(["and", "false", "null", "or", "true"]);
+  const fields = [];
+  const matches = visible.match(/[@A-Za-z_][@A-Za-z0-9_.:]*/g) || [];
+  matches.forEach((raw) => {
+    const field = raw.toLowerCase();
+    if (!literals.has(field) && !fields.includes(field)) fields.push(field);
+  });
+  return fields;
+}
+
+function sortQueryFields(value) {
+  if (value === "" || value === null || value === undefined) return [];
+  if (typeof value !== "string" || value.length > 1024) return null;
+  const fields = [];
+  for (const rawPart of value.split(",")) {
+    const part = rawPart.trim();
+    if (!/^[+-]?[A-Za-z_][A-Za-z0-9_]*$/.test(part)) return null;
+    const field = part.replace(/^[+-]/, "").toLowerCase();
+    if (!fields.includes(field)) fields.push(field);
+  }
+  return fields;
+}
+
+function projectionQueryFields(value) {
+  if (value === "" || value === null || value === undefined) return [];
+  if (typeof value !== "string" || value.length > 2048) return null;
+  const fields = [];
+  for (const rawPart of value.split(",")) {
+    const field = rawPart.trim().toLowerCase();
+    if (!/^[a-z_][a-z0-9_]*$/.test(field)) return null;
+    if (!fields.includes(field)) fields.push(field);
+  }
+  return fields;
+}
+
+function expandQueryFields(value) {
+  if (value === "" || value === null || value === undefined) return [];
+  if (typeof value !== "string" || value.length > 1024) return null;
+  const fields = [];
+  for (const rawPart of value.split(",")) {
+    const field = rawPart.trim().toLowerCase();
+    if (!/^[a-z_][a-z0-9_]*$/.test(field)) return null;
+    if (!fields.includes(field)) fields.push(field);
+  }
+  return fields;
 }
 
 function bodyKeys(e) {
@@ -393,8 +584,14 @@ function settingsFieldPermission(key) {
     return "promotions.manage";
   }
   if (normalized === "notify_expiration_alerts") return "catalog.expirations.manage";
-  if (SETTINGS_META_FIELDS.includes(normalizedBodyKey(key))) return "";
+  if (SETTINGS_META_FIELDS.some((field) => field.toLowerCase() === normalized)) return "";
   return "store.settings.manage";
+}
+
+function settingsReadFieldPermission(key) {
+  const normalized = normalizedBodyKey(key).toLowerCase();
+  if (LANDING_QR_PUBLIC_SETTINGS_FIELDS.includes(normalized)) return "landing_qr.manage";
+  return settingsFieldPermission(key);
 }
 
 function requiredSettingsPermissions(keys, operation, body) {
@@ -416,6 +613,9 @@ function mutationPermissions(collection, operation, keys, body) {
   // Direct order-item mutations can alter economic snapshots. Store users
   // must use the canonical private endpoints instead.
   if (collection === "order_items") return [DENY_PERMISSION];
+  // Coupon usage is an order-derived ledger. Only the canonical pricing
+  // service may create or remove rows; store REST mutations always fail.
+  if (collection === "manual_coupon_usages") return [DENY_PERMISSION];
   const permission = MUTATION_PERMISSIONS[collection];
   return permission ? [permission] : [];
 }
@@ -604,9 +804,247 @@ function expandedOrderRecords(record) {
 function eventResultRecords(e) {
   const records = [];
   if (e && e.record) records.push(e.record);
-  if (e && Array.isArray(e.records)) records.push(...e.records.filter(Boolean));
-  if (e && e.result && Array.isArray(e.result.items)) records.push(...e.result.items.filter(Boolean));
+  const append = (value) => {
+    if (!value) return;
+    try {
+      Array.from(value).filter(Boolean).forEach((record) => records.push(record));
+      return;
+    } catch (_) {}
+    const length = Number(value.length);
+    if (!Number.isInteger(length) || length < 0) return;
+    for (let index = 0; index < length; index += 1) {
+      if (value[index]) records.push(value[index]);
+    }
+  };
+  if (e) append(e.records);
+  if (e && e.result) append(e.result.items);
   return records;
+}
+
+function recordCollectionName(record, fallback) {
+  try { return String(record.collection().name || fallback || ""); } catch (_) {}
+  const direct = recordString(record, "collectionName") || recordString(record, "collection_name");
+  return direct || String(fallback || "");
+}
+
+function recordFieldNames(record) {
+  try {
+    const collection = record.collection();
+    if (collection && collection.fields && typeof collection.fields.fieldNames === "function") {
+      return Array.from(collection.fields.fieldNames() || []).map(String).filter(Boolean);
+    }
+  } catch (_) {}
+  try {
+    if (typeof record.fieldsData === "function") {
+      const data = record.fieldsData();
+      if (data && typeof data === "object") return Object.keys(data).filter(Boolean);
+    }
+  } catch (_) {}
+  if (!record || typeof record !== "object") return [];
+  return Object.keys(record).filter((key) => (
+    key !== "expand"
+    && key !== "hidden"
+    && !key.startsWith("_")
+    && typeof record[key] !== "function"
+  ));
+}
+
+function expandedEntries(record) {
+  const entries = [];
+  if (!record || typeof record !== "object") return entries;
+  let expanded = record.expand;
+  if (typeof expanded === "function") {
+    try { expanded = record.expand(); } catch (_) { expanded = null; }
+  }
+  if (expanded && typeof expanded === "object") {
+    Object.keys(expanded).forEach((field) => {
+      const value = expanded[field];
+      const records = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
+      if (records.length) entries.push({ field, records });
+    });
+  }
+  if (typeof record.expandedAll === "function") {
+    recordFieldNames(record).forEach((field) => {
+      try {
+        const values = Array.from(record.expandedAll(field) || []).filter(Boolean);
+        const known = entries.find((entry) => entry.field === field);
+        if (known) {
+          values.forEach((value) => {
+            if (!known.records.includes(value)) known.records.push(value);
+          });
+        } else if (values.length) entries.push({ field, records: values });
+      } catch (_) {}
+    });
+  }
+  return entries;
+}
+
+function expandedChildren(record) {
+  const children = [];
+  expandedEntries(record).forEach((entry) => {
+    entry.records.forEach((value) => {
+      if (!children.includes(value)) children.push(value);
+    });
+  });
+  return children;
+}
+
+function walkRecordTree(record, fallbackCollection, visitor, seen) {
+  if (!record || typeof record !== "object") return;
+  const inspected = seen || [];
+  if (inspected.includes(record)) return;
+  inspected.push(record);
+  visitor(record, recordCollectionName(record, fallbackCollection));
+  expandedChildren(record).forEach((child) => walkRecordTree(child, "", visitor, inspected));
+}
+
+function redactSettingsRecord(app, auth, record) {
+  if (!storeUser(auth) || !record) return false;
+  const store = findRecord(app, "stores", relationId(auth, "store"));
+  if (!store) return false;
+  const effective = permissions.resolveEffectiveStorePermissions(app, auth, store);
+  if (permissions.isPrimaryAdmin(app, auth, store) || effective.includes("store.settings.manage")) return false;
+  const allowed = new Set(effective);
+  const hidden = recordFieldNames(record).filter((field) => {
+    const required = settingsReadFieldPermission(field);
+    return required && !allowed.has(required);
+  });
+  return hidePublicFields(record, hidden);
+}
+
+function isPublicSettingsPrivateField(field) {
+  const normalized = normalizedBodyKey(field).toLowerCase();
+  if (PUBLIC_SETTINGS_FUNCTIONAL_FIELDS.includes(normalized)) return false;
+  return PUBLIC_SETTINGS_PRIVATE_FIELDS.includes(normalized)
+    || normalized.startsWith("notify_")
+    || normalized.startsWith("notification_");
+}
+
+function redactAnonymousSettingsRecord(record) {
+  if (!record) return false;
+  const hidden = recordFieldNames(record).filter(isPublicSettingsPrivateField);
+  return hidePublicFields(record, hidden);
+}
+
+function redactSettingsRead(e, collection) {
+  const auth = e && e.auth;
+  let changed = false;
+  eventResultRecords(e).forEach((record) => {
+    walkRecordTree(record, collection, (candidate, name) => {
+      if (name !== "settings") return;
+      if (publicProductConsumer(auth)) changed = redactAnonymousSettingsRecord(candidate) || changed;
+      else if (storeUser(auth)) changed = redactSettingsRecord(e.app, auth, candidate) || changed;
+    });
+  });
+  return changed;
+}
+
+function publicProductConsumer(auth) {
+  if (!auth) return true;
+  return recordString(auth, "role") === "customer";
+}
+
+function redactPublicProductRecord(record, collection) {
+  if (collection === "products") return hidePublicFields(record, PUBLIC_PRODUCT_PRIVATE_FIELDS);
+  if (collection === "product_variations") return hidePublicFields(record, PUBLIC_VARIATION_PRIVATE_FIELDS);
+  return false;
+}
+
+function redactPublicProductRead(e, collection) {
+  if (!publicProductConsumer(e && e.auth)) return false;
+  let changed = false;
+  eventResultRecords(e).forEach((record) => {
+    walkRecordTree(record, collection, (candidate, name) => {
+      changed = redactPublicProductRecord(candidate, name) || changed;
+    });
+  });
+  return changed;
+}
+
+function removeExpansion(record, field) {
+  let changed = false;
+  let expanded = record && record.expand;
+  if (typeof expanded === "function") {
+    try {
+      expanded = record.expand();
+      if (expanded && Object.prototype.hasOwnProperty.call(expanded, field)
+        && typeof record.setExpand === "function") {
+        delete expanded[field];
+        record.setExpand(expanded);
+        changed = true;
+      }
+    } catch (_) {}
+  } else if (expanded && Object.prototype.hasOwnProperty.call(expanded, field)) {
+    delete expanded[field];
+    changed = true;
+  }
+  // Older runtimes without setExpand cannot surgically remove an expanded
+  // child, so fail closed by hiding its relation field as a last resort.
+  return changed ? true : hidePublicFields(record, [field]);
+}
+
+function redactPublicRestrictedExpansions(record, collection, seen) {
+  if (!record || typeof record !== "object") return false;
+  const inspected = seen || [];
+  if (inspected.includes(record)) return false;
+  inspected.push(record);
+  const allowed = PUBLIC_EXPAND_COLLECTIONS[collection] || {};
+  let changed = false;
+  expandedEntries(record).forEach((entry) => {
+    const childCollection = allowed[entry.field];
+    const invalid = !childCollection || entry.records.some((child) => {
+      const actual = recordCollectionName(child, childCollection);
+      return actual !== childCollection;
+    });
+    if (invalid) {
+      changed = removeExpansion(record, entry.field) || changed;
+      return;
+    }
+    entry.records.forEach((child) => {
+      changed = redactPublicRestrictedExpansions(child, childCollection, inspected) || changed;
+    });
+  });
+  return changed;
+}
+
+function collectionReadAllowed(allowed, collection) {
+  if (DENIED_STORE_READS[collection]) return false;
+  const all = READ_ALL_PERMISSIONS[collection];
+  if (all) return all.every((permission) => allowed.has(permission));
+  const exact = READ_PERMISSIONS[collection];
+  if (exact) return allowed.has(exact);
+  const any = READ_ANY_PERMISSIONS[collection];
+  if (any) return any.some((permission) => allowed.has(permission));
+  // Expansions are an opt-in surface. An unclassified child collection must
+  // never inherit the parent collection's permission implicitly.
+  return false;
+}
+
+function redactRestrictedExpansions(e, collection) {
+  const auth = e && e.auth;
+  if (!storeUser(auth)) return false;
+  const store = findRecord(e.app, "stores", relationId(auth, "store"));
+  if (!store) return false;
+  const allowed = new Set(permissions.resolveEffectiveStorePermissions(e.app, auth, store));
+  const seen = [];
+  let changed = false;
+  const inspect = (record, fallback) => {
+    if (!record || typeof record !== "object" || seen.includes(record)) return;
+    seen.push(record);
+    expandedEntries(record).forEach((entry) => {
+      const restricted = entry.records.some((child) => {
+        const name = recordCollectionName(child, "");
+        return !!name && !collectionReadAllowed(allowed, name);
+      });
+      if (restricted) {
+        changed = removeExpansion(record, entry.field) || changed;
+        return;
+      }
+      entry.records.forEach((child) => inspect(child, recordCollectionName(child, fallback)));
+    });
+  };
+  eventResultRecords(e).forEach((record) => inspect(record, collection));
+  return changed;
 }
 
 function redactOrderRead(e, collection) {
@@ -631,14 +1069,172 @@ function redactOrderRead(e, collection) {
   return changed;
 }
 
+function redactCouponUsageRead(e, collection) {
+  const auth = e && e.auth;
+  if (!storeUser(auth)) return false;
+  const store = findRecord(e.app, "stores", relationId(auth, "store"));
+  if (!store) return false;
+  const effective = permissions.resolveEffectiveStorePermissions(e.app, auth, store);
+  if (effective.includes("orders.contact_customer")) return false;
+  let changed = false;
+  eventResultRecords(e).forEach((record) => {
+    walkRecordTree(record, collection, (candidate, name) => {
+      if (name === "manual_coupon_usages") {
+        changed = hidePublicFields(candidate, COUPON_USAGE_CONTACT_PRIVATE_FIELDS) || changed;
+      }
+    });
+  });
+  return changed;
+}
+
+function fieldPathContains(field, restrictedFields) {
+  const restricted = new Set(restrictedFields.map((value) => String(value).toLowerCase()));
+  return String(field || "").toLowerCase().split(/[.:]/).some((part) => restricted.has(part));
+}
+
+function unreadableRelationTraversal(field, collection, allowed) {
+  const normalized = String(field || "").toLowerCase();
+  if (!normalized.includes(".") && !normalized.includes(":")) return false;
+  const root = normalized.split(/[.:]/, 1)[0];
+  const childCollection = RELATION_COLLECTIONS[collection] && RELATION_COLLECTIONS[collection][root];
+  return !childCollection || !collectionReadAllowed(allowed, childCollection);
+}
+
+function assertSafeReadQuery(e, collection) {
+  const auth = e && e.auth;
+  const isPublic = publicProductConsumer(auth);
+  const isStore = storeUser(auth);
+  const marketingFields = MARKETING_QUERY_FIELDS[collection];
+  let store = null;
+  let effective = [];
+  let primary = false;
+  if (isStore) {
+    store = findRecord(e.app, "stores", relationId(auth, "store"));
+    if (store) {
+      effective = permissions.resolveEffectiveStorePermissions(e.app, auth, store);
+      primary = permissions.isPrimaryAdmin(e.app, auth, store);
+    }
+  }
+  const settingsGuarded = collection === "settings"
+    && (isPublic || (isStore && !primary && !effective.includes("store.settings.manage")));
+  const ordersGuarded = isStore && collection === "orders" && store
+    && (!effective.includes("orders.contact_customer") || !effective.includes("reviews.manage"));
+  const usageGuarded = isStore && collection === "manual_coupon_usages" && store
+    && !effective.includes("orders.contact_customer");
+  const relatedOrderGuarded = isStore && store && !primary
+    && ["order_items", "reviews"].includes(collection);
+  const guarded = settingsGuarded
+    || (isStore && !!marketingFields && !primary)
+    || ordersGuarded
+    || usageGuarded
+    || relatedOrderGuarded
+    || (isPublic && ["products", "product_variations"].includes(collection));
+  if (!guarded) return true;
+
+  const query = requestQuery(e);
+  const filterFields = filterQueryFields(queryValue(query, "filter"));
+  const sortFields = sortQueryFields(queryValue(query, "sort"));
+  const projectionFields = projectionQueryFields(queryValue(query, "fields"));
+  const expandFields = expandQueryFields(queryValue(query, "expand"));
+  if (!filterFields || !sortFields || !projectionFields || !expandFields) denyPermission("query.restricted");
+  const referenced = [...new Set([...filterFields, ...sortFields, ...projectionFields])];
+
+  if (collection === "settings") {
+    if (isStore && !primary && !effective.includes("store.settings.manage")) {
+      const allowed = new Set(effective);
+      const queryable = (field) => {
+        if (field.includes(".") || field.includes(":")) return false;
+        if (SETTINGS_QUERY_META_FIELDS.includes(field)) return true;
+        const required = settingsReadFieldPermission(field);
+        return !required || allowed.has(required);
+      };
+      if (expandFields.length || referenced.some((field) => !queryable(field))) {
+        denyPermission("query.restricted");
+      }
+    } else if (isPublic) {
+      if (referenced.some((field) => (
+        field.includes(".")
+        || field.includes(":")
+        || isPublicSettingsPrivateField(field)
+      )) || expandFields.some((field) => field !== "default_currency")) {
+        denyPermission("query.restricted");
+      }
+    }
+  }
+
+  if (isStore && marketingFields && !primary) {
+    if (expandFields.length
+      || referenced.some((field) => !marketingFields.includes(field))) {
+      denyPermission("query.restricted");
+    }
+  }
+
+  if (isStore && collection === "orders" && store) {
+    const restricted = [];
+    if (!effective.includes("orders.contact_customer")) restricted.push(...ORDER_CONTACT_PRIVATE_FIELDS);
+    if (!effective.includes("reviews.manage")) restricted.push(...ORDER_REVIEW_PRIVATE_FIELDS);
+    if (referenced.some((field) => (
+      field.includes(".")
+      || field.includes(":")
+      || fieldPathContains(field, restricted)
+    ))) {
+      denyPermission("query.restricted");
+    }
+  }
+
+  if (relatedOrderGuarded) {
+    const restricted = [];
+    if (!effective.includes("orders.contact_customer")) restricted.push(...ORDER_CONTACT_PRIVATE_FIELDS);
+    if (!effective.includes("reviews.manage")) restricted.push(...ORDER_REVIEW_PRIVATE_FIELDS);
+    const allowed = new Set(effective);
+    if (referenced.some((field) => (
+      field.includes(":")
+      || field.split(".").length > 2
+      || fieldPathContains(field, restricted)
+      || unreadableRelationTraversal(field, collection, allowed)
+    ))) denyPermission("query.restricted");
+  }
+
+  if (isStore && collection === "manual_coupon_usages" && store
+    && !effective.includes("orders.contact_customer")) {
+    if (referenced.some((field) => (
+      field.includes(".")
+      || field.includes(":")
+      || fieldPathContains(field, COUPON_USAGE_CONTACT_PRIVATE_FIELDS)
+    ))) denyPermission("query.restricted");
+  }
+
+  if (isPublic && collection === "products"
+    && (referenced.some((field) => !PUBLIC_PRODUCT_QUERY_FIELDS.includes(field))
+      || expandFields.some((field) => !["category", "subcategory"].includes(field)))) {
+    denyPermission("query.restricted");
+  }
+  if (isPublic && collection === "product_variations"
+    && (referenced.some((field) => !PUBLIC_VARIATION_QUERY_FIELDS.includes(field))
+      || expandFields.length)) {
+    denyPermission("query.restricted");
+  }
+  return true;
+}
+
 function enforceRead(e, collection) {
   const name = collectionName(e, collection);
+  assertSafeReadQuery(e, name);
+  const deniedPermission = DENIED_STORE_READS[name];
+  if (deniedPermission && storeIdentity(e && e.auth)) denyPermission(deniedPermission);
   const permission = READ_PERMISSIONS[name];
+  const allPermissions = READ_ALL_PERMISSIONS[name];
   const anyPermissions = READ_ANY_PERMISSIONS[name];
-  const result = permission
-    ? enforce(e, [permission], name)
-    : (anyPermissions ? enforceAny(e, anyPermissions, name) : e.next());
+  const result = allPermissions
+    ? enforce(e, allPermissions, name)
+    : (permission
+      ? enforce(e, [permission], name)
+      : (anyPermissions ? enforceAny(e, anyPermissions, name) : e.next()));
+  redactRestrictedExpansions(e, name);
   redactOrderRead(e, name);
+  redactCouponUsageRead(e, name);
+  redactSettingsRead(e, name);
+  redactPublicProductRead(e, name);
   if (name !== "store_notifications" || !storeUser(e && e.auth)) return result;
   const store = findRecord(e.app, "stores", relationId(e.auth, "store"));
   if (!store || permissions.hasStorePermission(e.app, e.auth, store, "catalog.expirations.manage")) return result;
@@ -650,6 +1246,36 @@ function enforceRead(e, collection) {
     e.result.items = e.result.items.filter((record) => !isExpirationNotification(record));
   }
   return result;
+}
+
+function enrichAuth(e) {
+  let info = e && e.requestInfo;
+  if (typeof info === "function") {
+    try { info = info(); } catch (_) { info = null; }
+  }
+  return info && info.auth || null;
+}
+
+// Request hooks are the authorization boundary. RecordEnrich is the reliable
+// PocketBase serialization boundary for per-field redaction (list, view,
+// mutation responses, expands and realtime). Apply the same redactors here
+// before e.next(), as required by PocketBase's enrich lifecycle.
+function enforceEnrich(e, collection) {
+  const name = collectionName(e, collection);
+  const context = {
+    app: e && e.app,
+    auth: enrichAuth(e),
+    record: e && e.record,
+  };
+  if (publicProductConsumer(context.auth)) {
+    redactPublicRestrictedExpansions(context.record, name);
+  }
+  redactRestrictedExpansions(context, name);
+  redactOrderRead(context, name);
+  redactCouponUsageRead(context, name);
+  redactSettingsRead(context, name);
+  redactPublicProductRead(context, name);
+  return e.next();
 }
 
 function enforceMutation(e, collection, operation) {
@@ -664,6 +1290,7 @@ function enforceMutation(e, collection, operation) {
   const body = requestBody(e);
   assertTenantAndRelationIntegrity(e, name, operation);
   if (name === "store_analytics_events") denyPermission("analytics.view");
+  if (name === "manual_coupon_usages") denyPermission("coupons.manage");
   if (name === "store_notifications") {
     if (operation === "create") {
       const store = findRecord(e.app, "stores", relationId(e.auth, "store"));
@@ -685,7 +1312,9 @@ function enforceMutation(e, collection, operation) {
       }
     }
   }
-  return enforce(e, mutationPermissions(name, operation, keys, body), name);
+  const result = enforce(e, mutationPermissions(name, operation, keys, body), name);
+  if (name === "settings") redactSettingsRead(e, name);
+  return result;
 }
 
 function realtimeCollectionName(topic) {
@@ -694,11 +1323,40 @@ function realtimeCollectionName(topic) {
   return clean.split("/", 1)[0];
 }
 
+function realtimeTopicQuery(topic) {
+  const value = String(topic || "");
+  const question = value.indexOf("?");
+  if (question < 0) return {};
+  const raw = value.slice(question + 1);
+  if (!raw || raw.length > 2048 || raw.includes("#")) return null;
+  const query = {};
+  for (const pair of raw.split("&")) {
+    if (!pair) return null;
+    const equals = pair.indexOf("=");
+    const rawKey = equals < 0 ? pair : pair.slice(0, equals);
+    const rawValue = equals < 0 ? "" : pair.slice(equals + 1);
+    let key = "";
+    let decoded = "";
+    try {
+      key = decodeURIComponent(rawKey.replace(/\+/g, " ")).trim().toLowerCase();
+      decoded = decodeURIComponent(rawValue.replace(/\+/g, " "));
+    } catch (_) {
+      return null;
+    }
+    if (!["expand", "fields"].includes(key) || Object.prototype.hasOwnProperty.call(query, key)) return null;
+    query[key] = decoded;
+  }
+  return query;
+}
+
 function hasCollectionReadAccess(app, auth, collection) {
   if (!storeIdentity(auth)) return true;
   if (!storeUser(auth) || collection === "*") return false;
+  if (DENIED_STORE_READS[collection]) return false;
   const store = findRecord(app, "stores", relationId(auth, "store"));
   if (!store) return false;
+  const all = READ_ALL_PERMISSIONS[collection];
+  if (all) return all.every((permission) => permissions.hasStorePermission(app, auth, store, permission));
   const exact = READ_PERMISSIONS[collection];
   if (exact) return permissions.hasStorePermission(app, auth, store, exact);
   const any = READ_ANY_PERMISSIONS[collection];
@@ -713,15 +1371,30 @@ function hasCollectionReadAccess(app, auth, collection) {
 
 function enforceRealtimeSubscribe(e) {
   const auth = e && e.auth;
-  if (!storeIdentity(auth)) return e.next();
+  const storeActor = !!storeIdentity(auth);
+  const publicActor = publicProductConsumer(auth);
+  if (!storeActor && !publicActor) return e.next();
   const subscriptions = e.subscriptions;
   const length = Number(subscriptions && subscriptions.length);
   if (!Number.isInteger(length) || length < 0) denyPermission("");
   for (let index = 0; index < length; index += 1) {
-    const collection = realtimeCollectionName(subscriptions[index]);
-    if (!collection || !hasCollectionReadAccess(e.app, auth, collection)) {
-      denyPermission(READ_PERMISSIONS[collection] || "");
+    const topic = subscriptions[index];
+    const collection = realtimeCollectionName(topic);
+    if (!collection || (storeActor && !hasCollectionReadAccess(e.app, auth, collection))) {
+      denyPermission(
+        DENIED_STORE_READS[collection]
+        || (READ_ALL_PERMISSIONS[collection] && READ_ALL_PERMISSIONS[collection][0])
+        || READ_PERMISSIONS[collection]
+        || "",
+      );
     }
+    const query = realtimeTopicQuery(topic);
+    if (!query || (collection === "*" && Object.keys(query).length)) denyPermission("query.restricted");
+    assertSafeReadQuery({
+      app: e.app,
+      auth,
+      requestInfo: () => ({ query }),
+    }, collection);
   }
   return e.next();
 }
@@ -774,8 +1447,23 @@ function enforceRealtimeMessage(e) {
   // authenticated connection whose live identity no longer validates (record
   // removed or tokenKey rotated) must instead stop here.
   if (!auth && recordString(connectedAuth, "id")) return;
-  if (!storeIdentity(auth)) return e.next();
   const collection = realtimeCollectionName(e && e.message && e.message.name);
+  if (!storeIdentity(auth)) {
+    const publicPayload = realtimePayload(e.message);
+    const publicRecord = publicPayload && publicPayload.record;
+    let publicChanged = false;
+    if (publicRecord && publicProductConsumer(auth)) {
+      publicChanged = redactPublicRestrictedExpansions(publicRecord, collection) || publicChanged;
+      walkRecordTree(publicRecord, collection, (candidate, name) => {
+        publicChanged = redactPublicProductRecord(candidate, name) || publicChanged;
+        if (name === "settings") {
+          publicChanged = redactAnonymousSettingsRecord(candidate) || publicChanged;
+        }
+      });
+    }
+    if (publicChanged) e.message.data = JSON.stringify(publicPayload);
+    return e.next();
+  }
   if (!collection || !hasCollectionReadAccess(e.app, auth, collection)) return;
   const payload = realtimePayload(e.message);
   const record = payload && payload.record;
@@ -794,6 +1482,9 @@ function enforceRealtimeMessage(e) {
   } else if (collection === "store_notifications") {
     return;
   }
+  if (payload && record && redactRestrictedExpansions({ app: e.app, auth, record }, collection)) {
+    e.message.data = JSON.stringify(payload);
+  }
   if (payload && record && ["orders", ...ORDER_EXPAND_COLLECTIONS].includes(collection)) {
     const store = findRecord(e.app, "stores", relationId(auth, "store"));
     const hidden = orderReadRedactionFields(e.app, auth, store);
@@ -806,20 +1497,40 @@ function enforceRealtimeMessage(e) {
     }
     if (changed) e.message.data = JSON.stringify(payload);
   }
+  if (payload && record) {
+    let settingsChanged = false;
+    walkRecordTree(record, collection, (candidate, name) => {
+      if (name === "settings") {
+        settingsChanged = redactSettingsRecord(e.app, auth, candidate) || settingsChanged;
+      }
+    });
+    settingsChanged = redactCouponUsageRead({ app: e.app, auth, record }, collection) || settingsChanged;
+    if (settingsChanged) e.message.data = JSON.stringify(payload);
+  }
   return e.next();
 }
 
 module.exports = {
+  COUPON_USAGE_CONTACT_PRIVATE_FIELDS,
+  DENIED_STORE_READS,
   MUTATION_PERMISSIONS,
   PRODUCT_FIELD_PERMISSIONS,
+  PUBLIC_PRODUCT_PRIVATE_FIELDS,
+  PUBLIC_SETTINGS_PRIVATE_FIELDS,
+  PUBLIC_VARIATION_PRIVATE_FIELDS,
+  READ_ALL_PERMISSIONS,
   READ_ANY_PERMISSIONS,
   READ_PERMISSIONS,
   DENY_PERMISSION,
   ORDER_CONTACT_PRIVATE_FIELDS,
   ORDER_REVIEW_PRIVATE_FIELDS,
+  MARKETING_QUERY_FIELDS,
   bodyKeys,
+  collectionReadAllowed,
+  assertSafeReadQuery,
   assertTenantAndRelationIntegrity,
   enforceMutation,
+  enforceEnrich,
   enforceAny,
   enforceRead,
   enforceRealtimeMessage,
@@ -831,14 +1542,25 @@ module.exports = {
   mutationKeys,
   orderReadRedactionFields,
   productFieldPermission,
+  filterQueryFields,
+  sortQueryFields,
   recordStoreId,
+  redactPublicProductRead,
+  redactPublicRestrictedExpansions,
+  redactCouponUsageRead,
+  redactAnonymousSettingsRecord,
+  redactRestrictedExpansions,
+  redactSettingsRead,
+  redactSettingsRecord,
   redactOrderRead,
   relationIds,
   requiredOrderPermissions,
   requiredProductPermissions,
   requiredSettingsPermissions,
   realtimeCollectionName,
+  realtimeTopicQuery,
   realtimeAuth,
   sanitizePublicNotificationCreate,
+  settingsReadFieldPermission,
   settingsFieldPermission,
 };

@@ -123,10 +123,22 @@ test('las plantillas mantienen alcance seguro y custom puede quedar vacío', () 
   assert.equal(permissions.resolveTemplatePermissions('catalog_inventory').includes('catalog.products.delete'), false);
   assert.equal(permissions.resolveTemplatePermissions('catalog_inventory').includes('catalog.products.price'), true);
   assert.equal(permissions.resolveTemplatePermissions('orders_shipping').includes('orders.price_adjustment'), false);
-  assert.equal(permissions.resolveTemplatePermissions('marketing_promotions').includes('analytics.view'), true);
-  assert.equal(permissions.resolveTemplatePermissions('marketing_promotions').includes('orders.view'), true);
-  assert.equal(permissions.resolveTemplatePermissions('marketing_promotions').includes('catalog.view'), true);
-  assert.equal(permissions.resolveTemplatePermissions('read_only').every((key) => key.endsWith('.view')), true);
+  assert.deepEqual(permissions.resolveTemplatePermissions('marketing_promotions'), [
+    'promotions.manage',
+    'coupons.manage',
+    'gifts.manage',
+    'raffles.manage',
+    'analytics.view',
+    'landing_qr.manage',
+  ]);
+  assert.deepEqual(permissions.resolveTemplatePermissions('read_only'), [
+    'catalog.view',
+    'orders.view',
+    'analytics.view',
+  ]);
+  assert.deepEqual(permissions.PERMISSION_DEPENDENCIES['analytics.view'], undefined);
+  assert.deepEqual(permissions.PERMISSION_DEPENDENCIES['promotions.manage'], undefined);
+  assert.deepEqual(permissions.PERMISSION_DEPENDENCIES['coupons.manage'], undefined);
   assert.deepEqual(permissions.resolveTemplatePermissions('custom'), []);
   assert.throws(() => permissions.resolveTemplatePermissions('super_admin'), /invalid_permissions/);
 });

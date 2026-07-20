@@ -37,6 +37,7 @@ const TEAM_AUDIT_ACTIONS = Object.freeze([
   "team_user_suspended",
   "team_user_reactivated",
   "team_permissions_changed",
+  "team_permissions_normalized",
   "team_template_changed",
   "team_sessions_revoked",
   "team_devices_revoked",

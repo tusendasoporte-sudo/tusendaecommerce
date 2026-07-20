@@ -48,6 +48,7 @@ const {
 const planPresentation = resolveStorePlanPresentation(storePlanValues);
 
 const adminBasePath = getStoreAdminPath(storeSlug);
+const adminPageviewsPath = getStoreAdminPath(storeSlug, 'pageviews');
 const adminCatalogPath = getStoreAdminPath(storeSlug, 'catalog');
 const adminProductsPath = getStoreAdminPath(storeSlug, 'products');
 const adminOrdersPath = getStoreAdminPath(storeSlug, 'orders');
@@ -55,6 +56,7 @@ const adminStoreSettingsPath = getStoreAdminPath(storeSlug, 'store-settings');
 const adminGiftsPath = getStoreAdminPath(storeSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(storeSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(storeSlug, 'promos');
+const adminOrganizationPath = getStoreAdminPath(storeSlug, 'organization');
 const adminRafflesPath = getStoreAdminPath(storeSlug, 'promos/raffles');
 const adminNotificationsPath = getStoreAdminPath(storeSlug, 'notifications');
 const adminSecurityPath = getStoreAdminPath(storeSlug, 'security');
@@ -95,22 +97,52 @@ const mobileTopbarClass = `pz-admin-mobile-topbar${hasMobileAction ? ' has-actio
 const resolvedMobileActionAriaLabel = mobileActionAriaLabel || mobileActionLabel || 'Acción principal';
 const hasMobileBack = Boolean(mobileBackHref && mobileBackLabel);
 
-const mobileBottomClass = (target: 'overview' | 'orders' | 'shipping' | 'settings') => {
-  const directMatch =
+type MobileBottomTarget =
+  | 'overview'
+  | 'orders'
+  | 'shipping'
+  | 'settings'
+  | 'catalog'
+  | 'products'
+  | 'gifts'
+  | 'marketing'
+  | 'security'
+  | 'notifications'
+  | 'team'
+  | 'account'
+  | 'activity'
+  | 'public';
+
+const mobileBottomTargetIsActive = (target: MobileBottomTarget) =>
     (target === 'overview' && activeSection === 'overview') ||
     (target === 'orders' && activeSection === 'orders') ||
     (target === 'shipping' && activeSection === 'shipping') ||
-    (target === 'settings' && activeSection === 'settings');
+    (target === 'settings' && activeSection === 'settings') ||
+    (target === 'catalog' && activeSection === 'catalog') ||
+    (target === 'products' && activeSection === 'products') ||
+    (target === 'gifts' && activeSection === 'gifts') ||
+    (target === 'marketing' && ['marketing', 'organization'].includes(activeSection || '')) ||
+    (target === 'security' && activeSection === 'security') ||
+    (target === 'notifications' && activeSection === 'notifications') ||
+    (target === 'team' && activeSection === 'team') ||
+    (target === 'account' && activeSection === 'account');
+
+const mobileBottomClass = (target: MobileBottomTarget) => {
+  const directMatch = mobileBottomTargetIsActive(target);
+  const hasSelectedSpecificMatch = mobileBottomItems.some((item) => (
+    item.target !== 'settings' && mobileBottomTargetIsActive(item.target)
+  ));
 
   const fallbackSettingsActive =
     target === 'settings' &&
-    !['overview', 'orders', 'shipping', 'security', 'team', 'account'].includes(activeSection || '');
+    !hasSelectedSpecificMatch &&
+    !['overview', 'orders', 'shipping', 'settings', 'security', 'team', 'account'].includes(activeSection || '');
 
   return `pz-admin-mobile-bottom-nav__link${directMatch || fallbackSettingsActive ? ' is-active' : ''}`;
 };
 
 const isSettingsActive = activeSection === 'settings';
-const isMarketingVisualActive = activeSection === 'marketing';
+const isMarketingVisualActive = activeSection === 'marketing' || activeSection === 'organization';
 const normalizedSubsection = activeSubsection === 'schedule' ? 'horario' : activeSubsection;
 const supportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const supportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
@@ -141,6 +173,9 @@ const canShowModule = (permission: StorePermission) =>
 const canShowOrdersNav = canShowModule('orders.view');
 const canShowCatalogNav = canShowModule('catalog.view');
 const canShowOverviewNav = canShowModule('analytics.view');
+const canShowOperationalOverview = canShowOverviewNav && canShowOrdersNav && canShowCatalogNav;
+const adminOverviewPath = canShowOperationalOverview ? adminBasePath : adminPageviewsPath;
+const adminOverviewLabel = canShowOperationalOverview ? 'Resumen' : 'Analíticas';
 const canShowGiftsNav = canShowModule('gifts.manage');
 const canShowShippingNav = canShowModule('shipping.manage');
 const canShowStoreSettingsNav = canShowModule('store.settings.manage');
@@ -150,7 +185,8 @@ const canShowSettingsGroup = canShowStoreSettingsNav || canShowReviewsNav || can
 const canShowPromotionsNav = canShowModule('promotions.manage');
 const canShowCouponsNav = canShowModule('coupons.manage');
 const canShowRafflesNav = canShowModule('raffles.manage');
-const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav;
+const canShowProductVisibilityNav = canShowModule('catalog.products.visibility');
+const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav || canShowProductVisibilityNav;
 const canShowNotificationsNav = canShowModule('notifications.view');
 
 let canShowSecurityNav = false;
@@ -164,6 +200,76 @@ if (canShowModule('security.view')) {
     canShowSecurityNav = false;
   }
 }
+
+type MobileBottomItem = {
+  target: MobileBottomTarget;
+  href: string;
+  label: string;
+  iconPath: string;
+  external?: boolean;
+};
+
+const mobileBottomCandidates: Array<MobileBottomItem | false> = [
+  canShowOverviewNav && {
+    target: 'overview', href: adminOverviewPath, label: adminOverviewLabel,
+    iconPath: 'M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z',
+  },
+  canShowOrdersNav && {
+    target: 'orders', href: adminOrdersPath, label: 'Pedidos',
+    iconPath: 'M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z',
+  },
+  canShowShippingNav && {
+    target: 'shipping', href: adminShippingPath, label: 'Envíos',
+    iconPath: 'M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z',
+  },
+  canShowSettingsGroup && {
+    target: 'settings', href: adminStoreSettingsPath, label: 'Ajustes',
+    iconPath: 'M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z',
+  },
+  canShowCatalogNav && {
+    target: 'catalog', href: adminCatalogPath, label: 'Categorías',
+    iconPath: 'M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z',
+  },
+  canShowCatalogNav && {
+    target: 'products', href: adminProductsPath, label: 'Productos',
+    iconPath: 'M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z',
+  },
+  canShowGiftsNav && {
+    target: 'gifts', href: adminGiftsPath, label: 'Regalos',
+    iconPath: 'M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Z',
+  },
+  canShowMarketingGroup && {
+    target: 'marketing', href: adminPromosPath, label: 'Promos',
+    iconPath: 'M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z',
+  },
+  canShowSecurityNav && {
+    target: 'security', href: adminSecurityPath, label: 'Seguridad',
+    iconPath: 'M12 2 5 5v6c0 4.4 2.9 8.5 7 9.9 4.1-1.4 7-5.5 7-9.9V5l-7-3Zm0 2.2 5 2.2V11c0 3.3-2 6.5-5 7.7-3-1.2-5-4.4-5-7.7V6.4l5-2.2Z',
+  },
+  canShowNotificationsNav && {
+    target: 'notifications', href: adminNotificationsPath, label: 'Avisos',
+    iconPath: 'M12 22a2.8 2.8 0 0 0 2.7-2h-5.4A2.8 2.8 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 1 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Z',
+  },
+  isPrimaryAdmin && {
+    target: 'team', href: adminTeamPath, label: 'Equipo',
+    iconPath: 'M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8.5 1a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM1 21v-2a6 6 0 0 1 12 0v2H1Z',
+  },
+  {
+    target: 'account', href: adminAccountPath, label: 'Cuenta',
+    iconPath: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-8 9a8 8 0 0 1 16 0H4Z',
+  },
+  {
+    target: 'activity', href: `${adminAccountPath}#my-activity`, label: 'Actividad',
+    iconPath: 'M4 4h16v2H4V4Zm0 7h10v2H4v-2Zm0 7h16v2H4v-2Zm13-8 4 3-4 3v-6Z',
+  },
+  {
+    target: 'public', href: publicStorePath, label: 'Tienda', external: true,
+    iconPath: 'M12 5c5 0 9 5.2 9 7s-4 7-9 7-9-5.2-9-7 4-7 9-7Zm0 3.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 0 0 12 8.5Z',
+  },
+];
+const mobileBottomItems = mobileBottomCandidates
+  .filter((item): item is MobileBottomItem => item !== false)
+  .slice(0, 4);
 
 const navClass = (section: string) => `pz-admin-sidebar__nav-item${activeSection === section ? ' is-active' : ''}`;
 const settingsToggleClass = `pz-admin-sidebar__nav-item pz-admin-sidebar__settings-toggle${isSettingsActive ? ' is-active' : ''}`;
@@ -207,7 +313,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
     <p class="pz-admin-sidebar__section-label">Principal</p>
     <nav class="pz-admin-sidebar__nav-list">
-      {canShowOverviewNav && <a class={navClass('overview')} href={adminBasePath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>Resumen</span></a>}
+      {canShowOverviewNav && <a class={navClass('overview')} href={adminOverviewPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>{adminOverviewLabel}</span></a>}
       {canShowOrdersNav && <a class={navClass('orders')} href={adminOrdersPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>}
       {canShowCatalogNav && <a class={navClass('catalog')} href={adminCatalogPath}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>}
     </nav>
@@ -240,7 +346,7 @@ const marketingVisualSubClass = (subsection: string) => {
       <div class="pz-admin-sidebar__settings-group">
         <button class={marketingVisualToggleClass} type="button" aria-expanded={isMarketingVisualActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-marketing-visual-subnav" data-marketing-visual-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Z"/></svg></span><span>Promociones</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
         <div id="pz-admin-sidebar-marketing-visual-subnav" class={marketingVisualSubnavClass} aria-label="Secciones de marketing y organización visual">
-          {canShowPromotionsNav && <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={`${adminPromosPath}#destacados`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>}
+          {canShowProductVisibilityNav && <a class={marketingVisualSubClass('destacados')} data-marketing-visual-subitem="destacados" href={adminOrganizationPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 2 2.9 6 6.6.9-4.8 4.7 1.1 6.6L12 17.1l-5.8 3.1 1.1-6.6-4.8-4.7 6.6-.9L12 2Z"/></svg></span><span>Destacados visuales</span></a>}
           {canShowPromotionsNav && <a class={marketingVisualSubClass('promociones')} data-marketing-visual-subitem="promociones" href={`${adminPromosPath}#promociones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v4H4V5Zm0 6h7v8H4v-8Zm9 0h7v8h-7v-8Zm4.8-7.8 1.4 1.4L5.6 18.2l-1.4-1.4L17.8 3.2Z"/></svg></span><span>Promociones automáticas</span></a>}
           {canShowCouponsNav && <a class={marketingVisualSubClass('cupones')} data-marketing-visual-subitem="cupones" href={`${adminPromosPath}#cupones`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4V5Zm5 3h2v2H9V8Zm0 4h2v2H9v-2Zm0 4h2v2H9v-2Zm5.5-7.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm0 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg></span><span>Cupones</span></a>}
           {canShowRafflesNav && <a class={marketingVisualSubClass('rifas')} data-marketing-visual-subitem="rifas" href={adminRafflesPath}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h14v10H5V10Zm3 2v2h8v-2H8Zm0 4v2h5v-2H8Zm9-13 2 2-2 2-2-2 2-2ZM7 3l2 2-2 2-2-2 2-2Z"/></svg></span><span>Rifas</span></a>}
@@ -367,41 +473,19 @@ const marketingVisualSubClass = (subsection: string) => {
 )}
 
 <nav class="pz-admin-mobile-bottom-nav" aria-label="Navegación móvil principal del admin">
-  {canShowOverviewNav && <a class={mobileBottomClass('overview')} href={adminBasePath}>
+  {mobileBottomItems.map((item) => <a
+    class={mobileBottomClass(item.target)}
+    href={item.href}
+    target={item.external ? '_blank' : undefined}
+    rel={item.external ? 'noopener noreferrer' : undefined}
+  >
     <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
-        <path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"></path>
+        <path d={item.iconPath}></path>
       </svg>
     </span>
-    <span>Resumen</span>
-  </a>}
-
-  {canShowOrdersNav && <a class={mobileBottomClass('orders')} href={adminOrdersPath}>
-    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"></path>
-      </svg>
-    </span>
-    <span>Pedidos</span>
-  </a>}
-
-  {canShowShippingNav && <a class={mobileBottomClass('shipping')} href={adminShippingPath}>
-    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path>
-      </svg>
-    </span>
-    <span>Envíos</span>
-  </a>}
-
-  {canShowSettingsGroup && <a class={mobileBottomClass('settings')} href={adminStoreSettingsPath}>
-    <span class="pz-admin-mobile-bottom-nav__icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path>
-      </svg>
-    </span>
-    <span>Ajustes</span>
-  </a>}
+    <span>{item.label}</span>
+  </a>)}
 </nav>
 
 <AdminDialog />

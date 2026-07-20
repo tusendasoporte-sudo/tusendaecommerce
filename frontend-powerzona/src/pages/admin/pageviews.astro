@@ -1,7 +1,7 @@
 ---
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getStoreAdminPath } from '../../lib/adminRoutes';
-import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import '../../styles/global.css';
 
@@ -12,7 +12,6 @@ const adminAuthToken = authPb.authStore.token;
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
-const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 ---
 
@@ -1211,7 +1210,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
       </main>
     </section>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreFilter, currentStoreId }}>
+    <script define:vars={{ pocketbaseUrl }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const ADMIN_TOKEN = (() => {
         try {
@@ -1221,8 +1220,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
           return typeof parsed?.token === 'string' ? parsed.token : '';
         } catch (_) { return ''; }
       })();
-      const STORE_FILTER = String(currentStoreFilter || '');
-      const CURRENT_STORE_ID = String(currentStoreId || '');
       const SUMMARY_RANGE_STORAGE_KEY = 'pz_admin_summary_range';
       const ANALYTICS_MAX_RETENTION_DAYS = 30;
       const PAGEVIEWS_PAGE_SIZE = 10;
@@ -1239,11 +1236,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
       const pageviewsNextButton = document.querySelector('[data-pageviews-next]');
       const rangeButtons = Array.from(document.querySelectorAll('.pageviews-period-tab'));
       let selectedRange = normalizeRange(readInitialRange());
-      let analyticsEvents = [];
-      let products = [];
-      let categories = [];
-      let subcategories = [];
-      let settingsRecord = null;
+      let analyticsSummary = null;
 
       const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
         '&': '&amp;',
@@ -1314,27 +1307,26 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
 
       const getPageDetailLabel = (row) => {
         const pageType = normalizeText(row.pageType);
-        const entityId = normalizeText(row.entityId);
         const path = normalizeText(row.path);
         const fallbackFromPath = titleFromSlug(path);
+        const safeDetail = normalizeText(row.detail || row.label);
+
+        if (safeDetail) return safeDetail;
 
         if (pageType === 'store_home' || pageType === 'home') {
           return 'Tienda principal';
         }
 
         if (pageType === 'product') {
-          const productName = getMapName(window.productsById, entityId) || normalizeText(row.label);
-          return productName || fallbackFromPath || 'Producto visitado';
+          return fallbackFromPath || 'Producto visitado';
         }
 
         if (pageType === 'category') {
-          const categoryName = getMapName(window.categoriesById, entityId) || normalizeText(row.label);
-          return categoryName || fallbackFromPath || 'Categoría visitada';
+          return fallbackFromPath || 'Categoría visitada';
         }
 
         if (pageType === 'subcategory') {
-          const subcategoryName = getMapName(window.subcategoriesById, entityId) || normalizeText(row.label);
-          return subcategoryName || fallbackFromPath || 'Subcategoría visitada';
+          return fallbackFromPath || 'Subcategoría visitada';
         }
 
         if (pageType === 'checkout') {
@@ -1353,23 +1345,24 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
           return 'Página de enlaces QR';
         }
 
-        return normalizeText(row.label) || fallbackFromPath || 'Página visitada';
+        return fallbackFromPath || 'Página visitada';
       };
 
       const normalizePageviewRow = (item) => {
-        const pageType = item.pageType || item.page_type || item.type || 'other';
-        const entityId = item.entityId || item.entity_id || '';
-        const path = getSafePublicPath(item.path || item.url || item.href || '');
-        const key = item.key || `${pageType}:${entityId || path}`;
+        const pageType = item.page_type || item.pageType || item.type || 'other';
+        const path = getSafePublicPath(item.public_path || item.path || '');
+        const name = normalizeText(item.name || item.label);
+        const detail = normalizeText(item.detail);
+        const key = `${pageType}:${path}:${name}:${detail}`;
 
         return {
           key,
           pageType,
-          entityId,
           path,
-          label: item.label || item.name || '',
-          views: Number(item.views || item.count || item.total || 0),
-          lastVisited: item.lastVisited || item.last_visited || item.created || '',
+          label: name,
+          detail,
+          views: Number(item.visits || item.views || 0),
+          lastVisited: item.last_visited_at || item.lastVisited || '',
           lastVisitedLabel: item.lastVisitedLabel || item.last_visited_label || item.formattedLastVisited || '',
         };
       };
@@ -1395,9 +1388,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         }
       };
 
-      function escapePbFilterValue(value) {
-        return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-      }
       function getAdminToken() { return ADMIN_TOKEN; }
       async function apiRequest(path, options = {}) {
         const headers = { ...(options.headers || {}) };
@@ -1407,24 +1397,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         const result = await response.json().catch(() => null);
         if (!response.ok) throw new Error(result?.message || 'Error de comunicación con la plataforma.');
         return result;
-      }
-      async function loadAllRecords(collection, params = '') {
-        let page = 1;
-        const perPage = 200;
-        let items = [];
-        let totalPages = 1;
-        const query = new URLSearchParams(params || '');
-        const collectionHasStore = collection !== 'order_items' && collection !== 'product_variations' && collection !== 'manual_coupon_usages';
-        if (collectionHasStore && STORE_FILTER && !query.has('filter')) query.set('filter', STORE_FILTER);
-        do {
-          query.set('page', String(page));
-          query.set('perPage', String(perPage));
-          const result = await apiRequest(`/api/collections/${collection}/records?${query.toString()}`);
-          items = items.concat(result.items || []);
-          totalPages = result.totalPages || 1;
-          page += 1;
-        } while (page <= totalPages);
-        return items;
       }
       function normalizeRange(value) {
         const raw = String(value || '').trim().toLowerCase();
@@ -1460,9 +1432,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         } catch (_) {}
       }
       function getAnalyticsRetentionDays() {
-        const configured = Number(settingsRecord?.analytics_retention_days ?? ANALYTICS_MAX_RETENTION_DAYS);
-        if (!Number.isFinite(configured) || configured <= 0) return ANALYTICS_MAX_RETENTION_DAYS;
-        return Math.max(1, Math.min(ANALYTICS_MAX_RETENTION_DAYS, Math.floor(configured)));
+        return ANALYTICS_MAX_RETENTION_DAYS;
       }
       function getSelectedRangeDays() {
         const range = normalizeRange(selectedRange);
@@ -1488,32 +1458,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
           return localDayKey(date);
         });
       }
-      function getAnalyticsCutoffIso() {
-        const date = new Date();
-        date.setHours(0, 0, 0, 0);
-        date.setDate(date.getDate() - (getAnalyticsRetentionDays() - 1));
-        return date.toISOString();
-      }
-      function buildAnalyticsEventsQuery() {
-        if (!CURRENT_STORE_ID) return 'sort=created';
-        const filter = [
-          `store="${escapePbFilterValue(CURRENT_STORE_ID)}"`,
-          `created >= "${escapePbFilterValue(getAnalyticsCutoffIso())}"`,
-        ].join(' && ');
-        const query = new URLSearchParams();
-        query.set('filter', filter);
-        query.set('sort', 'created');
-        return query.toString();
-      }
-      async function loadSettingsRecord() {
-        try {
-          const settingsRecords = await loadAllRecords('settings');
-          settingsRecord = (settingsRecords || []).find((record) => record.active === true) || settingsRecords?.[0] || null;
-        } catch (_) {
-          settingsRecord = null;
-        }
-        return settingsRecord;
-      }
       function syncRangeButtons() {
         const normalized = normalizeRange(selectedRange);
         rangeButtons.forEach((button) => {
@@ -1522,10 +1466,6 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
           button.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
       }
-      function getProductName(productId) {
-        const product = products.find((item) => String(item.id || '') === String(productId || ''));
-        return String(product?.name || product?.title || '').trim();
-      }
       function normalizePageType(pageType) {
         const key = String(pageType || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
         if (!key) return 'other';
@@ -1533,113 +1473,12 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         if (['landingqr', 'qr_landing'].includes(key)) return 'landing_qr';
         return key;
       }
-      function getPageEntityId(event) {
-        return String(event?.entity_id || event?.page_id || '').trim();
-      }
-      function getPagePath(event) {
-        const rawPath = String(event?.path || event?.page_path || event?.url || '').trim();
-        if (!rawPath) return '';
-        if (/^https?:\/\//i.test(rawPath)) {
-          try {
-            const parsed = new URL(rawPath);
-            return `${parsed.pathname}${parsed.search}` || rawPath;
-          } catch (_) {
-            return rawPath;
-          }
-        }
-        return rawPath;
-      }
-      function getPageVisitKey(event) {
-        const pageType = normalizePageType(event?.page_type || event?.entity_type);
-        const entityId = getPageEntityId(event);
-        const path = getPagePath(event);
-        if (entityId) return `${pageType}:${entityId}`;
-        if (path) return `${pageType}:${path}`;
-        return `${pageType}:unknown`;
-      }
-      function getPageTypeLabel(pageType) {
-        const key = normalizePageType(pageType);
-        const labels = {
-          store_home: 'Inicio de tienda',
-          product: 'Producto',
-          category: 'Categoría',
-          subcategory: 'Subcategoría',
-          gifts: 'Regalos',
-          search: 'Buscar',
-          checkout: 'Checkout',
-          landing_qr: 'Landing QR',
-          other: 'Página pública',
-        };
-        return labels[key] || 'Página pública';
-      }
-      function getPageDisplayName(event) {
-        const pageType = normalizePageType(event?.page_type || event?.entity_type);
-        const entityId = getPageEntityId(event);
-        const path = getPagePath(event);
-        if (pageType === 'store_home') return 'Inicio de tienda';
-        if (pageType === 'product') {
-          const productName = getProductName(entityId);
-          return productName ? `Producto: ${productName}` : 'Producto';
-        }
-        if (pageType === 'category') return 'Categoría';
-        if (pageType === 'subcategory') return 'Subcategoría';
-        if (pageType === 'gifts') return 'Regalos';
-        if (pageType === 'search') return 'Buscar';
-        if (pageType === 'checkout') return 'Checkout';
-        if (pageType === 'landing_qr') return 'Landing QR';
-        return path || 'Página pública';
-      }
-      function getEventDay(event) {
-        return String(event?.day || '').slice(0, 10) || localDayKey(event?.created);
-      }
-      function getEventCreatedTime(event) {
-        if (!event?.created) return 0;
-        const time = new Date(event.created).getTime();
-        return Number.isFinite(time) ? time : 0;
-      }
       function formatCount(value) {
         return Number(value || 0).toLocaleString('es-US');
       }
       function formatViews(value) {
         const views = Number(value || 0);
         return `${formatCount(views)} visita${views === 1 ? '' : 's'}`;
-      }
-      function getPageviewEventsForSelectedRange() {
-        const daySet = new Set(getRangeDays());
-        return analyticsEvents.filter((event) => {
-          const eventType = String(event?.event_type || 'pageview').trim().toLowerCase();
-          if (eventType !== 'pageview') return false;
-          return daySet.has(getEventDay(event));
-        });
-      }
-      function getPageVisitsSummary() {
-        const counts = new Map();
-        getPageviewEventsForSelectedRange().forEach((event) => {
-          const key = getPageVisitKey(event);
-          const pageType = normalizePageType(event?.page_type || event?.entity_type);
-          const entityId = getPageEntityId(event);
-          const path = getPagePath(event);
-          const createdTime = getEventCreatedTime(event);
-          const current = counts.get(key) || {
-            key,
-            pageType,
-            typeLabel: getPageTypeLabel(pageType),
-            entityId,
-            label: getPageDisplayName(event),
-            path,
-            views: 0,
-            lastVisited: '',
-            lastVisitedTime: 0,
-          };
-          current.views += 1;
-          if (!current.path && path) current.path = path;
-          if (createdTime > current.lastVisitedTime) {
-            current.lastVisited = event.created;
-            current.lastVisitedTime = createdTime;
-          }
-          counts.set(key, current);
-        });
-        return Array.from(counts.values()).sort((a, b) => b.views - a.views || a.label.localeCompare(b.label, 'es'));
       }
       function getSvgIcon(paths) {
         return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths}</svg>`;
@@ -1681,12 +1520,16 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         if (pageType === 'store_home') return 'Inicio de tienda';
         return getPageDetailLabel(row);
       }
-      function renderPageviewsKpis(summary) {
+      function renderPageviewsKpis(summary, payload = analyticsSummary) {
         if (!kpiGrid) return;
-        const totalViews = summary.reduce((sum, page) => sum + Number(page.views || 0), 0);
-        const average = totalViews / Math.max(getRangeDays().length, 1);
-        const topPage = getTopPageMetricLabel(summary[0]);
-        const topViews = Number(summary[0]?.views || 0);
+        const pagesPayload = payload?.pages || {};
+        const totalViews = Number(payload?.metrics?.pageviews || 0);
+        const uniquePages = Number(pagesPayload.total_items ?? pagesPayload.total ?? summary.length);
+        const periodDays = Math.max(1, Number(payload?.period_days || getSelectedRangeDays()));
+        const average = totalViews / periodDays;
+        const topItem = Array.isArray(payload?.top_pages) ? payload.top_pages[0] : summary[0];
+        const topPage = getTopPageMetricLabel(topItem);
+        const topViews = Number(topItem?.visits || topItem?.views || 0);
         kpiGrid.innerHTML = `
           <article class="pageviews-metric-block">
             <span class="pageviews-metric-icon">${getMetricIcon('eye')}</span>
@@ -1701,7 +1544,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
             <span class="pageviews-metric-icon">${getMetricIcon('users')}</span>
             <div class="pageviews-metric-copy">
               <p>Páginas únicas</p>
-              <strong>${escapeHtml(formatCount(summary.length))}</strong>
+              <strong>${escapeHtml(formatCount(uniquePages))}</strong>
               <small>Agrupadas por página</small>
             </div>
           </article>
@@ -1736,15 +1579,16 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
             return getPageDetailLabel(a).localeCompare(getPageDetailLabel(b), 'es');
           });
 
-        const totalRows = rows.length;
-        const totalPages = Math.max(1, Math.ceil(totalRows / PAGEVIEWS_PAGE_SIZE));
+        const pagesPayload = analyticsSummary?.pages || {};
+        const pageSize = Math.max(1, Number(pagesPayload.per_page || pagesPayload.perPage || PAGEVIEWS_PAGE_SIZE));
+        const totalRows = Math.max(0, Number(pagesPayload.total_items ?? pagesPayload.totalItems ?? pagesPayload.total ?? rows.length));
+        const totalPages = Math.max(1, Number(pagesPayload.total_pages ?? pagesPayload.totalPages ?? Math.ceil(totalRows / pageSize)));
+        const responsePage = Number(pagesPayload.page || pageviewsCurrentPage);
+        pageviewsCurrentPage = Math.max(1, Math.min(totalPages, Number.isFinite(responsePage) ? responsePage : 1));
 
-        if (pageviewsCurrentPage > totalPages) pageviewsCurrentPage = totalPages;
-        if (pageviewsCurrentPage < 1) pageviewsCurrentPage = 1;
-
-        const start = (pageviewsCurrentPage - 1) * PAGEVIEWS_PAGE_SIZE;
-        const end = start + PAGEVIEWS_PAGE_SIZE;
-        const visibleRows = rows.slice(start, end);
+        const start = (pageviewsCurrentPage - 1) * pageSize;
+        const end = start + rows.length;
+        const visibleRows = rows;
 
         if (pageviewsEmpty) pageviewsEmpty.hidden = totalRows > 0;
         if (pageviewsTable) pageviewsTable.hidden = totalRows === 0;
@@ -1840,11 +1684,8 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
         syncRangeButtons();
         persistRange(selectedRange);
         updateUrlRange();
-        const summary = getPageVisitsSummary();
-        window.productsById = window.productsById || new Map(products.map((product) => [product.id, product]));
-        window.categoriesById = window.categoriesById || new Map(categories.map((category) => [category.id, category]));
-        window.subcategoriesById = window.subcategoriesById || new Map(subcategories.map((subcategory) => [subcategory.id, subcategory]));
-        renderPageviewsKpis(summary);
+        const summary = Array.isArray(analyticsSummary?.pages?.items) ? analyticsSummary.pages.items : [];
+        renderPageviewsKpis(summary, analyticsSummary);
         renderPageviewsList(summary);
       }
       async function loadPageviews() {
@@ -1852,34 +1693,36 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
           if (pageviewsList) pageviewsList.innerHTML = '<div class="pageviews-empty">Falta PUBLIC_POCKETBASE_URL.</div>';
           return;
         }
-        await loadSettingsRecord();
-        const [analyticsResult, productsResult, categoriesResult, subcategoriesResult] = await Promise.all([
-          loadAllRecords('store_analytics_events', buildAnalyticsEventsQuery()),
-          loadAllRecords('products', 'fields=id,name,title&sort=name'),
-          loadAllRecords('categories', 'fields=id,name,slug,store&sort=name'),
-          loadAllRecords('subcategories', 'fields=id,name,slug,store&sort=name'),
-        ]);
-        analyticsEvents = analyticsResult || [];
-        products = productsResult || [];
-        categories = categoriesResult || [];
-        subcategories = subcategoriesResult || [];
+        if (pageviewsList) pageviewsList.innerHTML = '<div class="pageviews-empty">Cargando páginas visitadas...</div>';
+        const result = await apiRequest('/api/pz/store/analytics/summary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            range: normalizeRange(selectedRange),
+            pages_page: pageviewsCurrentPage,
+          }),
+        });
+        if (result?.ok !== true) throw new Error('No se pudo cargar el resumen de analíticas.');
+        analyticsSummary = result;
         renderPageviews();
       }
       rangeButtons.forEach((button) => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
           selectedRange = normalizeRange(button.dataset.pageviewsPeriod || '7');
           pageviewsCurrentPage = 1;
           expandedRouteKey = '';
-          renderPageviews();
+          await loadPageviews();
         });
       });
-      pageviewsPrevButton?.addEventListener('click', () => {
+      pageviewsPrevButton?.addEventListener('click', async () => {
         pageviewsCurrentPage -= 1;
-        rerenderCurrentPageviewsList();
+        expandedRouteKey = '';
+        await loadPageviews();
       });
-      pageviewsNextButton?.addEventListener('click', () => {
+      pageviewsNextButton?.addEventListener('click', async () => {
         pageviewsCurrentPage += 1;
-        rerenderCurrentPageviewsList();
+        expandedRouteKey = '';
+        await loadPageviews();
       });
       pageviewsList?.addEventListener('click', async (event) => {
         const target = event.target;

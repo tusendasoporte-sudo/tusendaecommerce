@@ -88,8 +88,21 @@ test('M7U2: plantillas rápidas respetan alcance y cambios manuales pasan a Pers
   assert.equal(STORE_PERMISSION_TEMPLATES.catalog_inventory.permissions.includes('catalog.expirations.manage'), true);
   assert.equal(STORE_PERMISSION_TEMPLATES.orders_shipping.permissions.includes('orders.price_adjustment'), false);
   assert.equal(STORE_PERMISSION_TEMPLATES.marketing_promotions.permissions.includes('landing_qr.manage'), true);
-  assert.deepEqual(resolvePermissionDependencies(['analytics.view']), ['catalog.view', 'orders.view', 'analytics.view']);
-  assert.equal(STORE_PERMISSION_TEMPLATES.read_only.permissions.every((key) => key.endsWith('.view')), true);
+  assert.deepEqual(resolvePermissionDependencies(['analytics.view']), ['analytics.view']);
+  assert.deepEqual(STORE_PERMISSION_TEMPLATES.marketing_promotions.permissions, [
+    'promotions.manage',
+    'coupons.manage',
+    'gifts.manage',
+    'raffles.manage',
+    'analytics.view',
+    'landing_qr.manage',
+  ]);
+  assert.deepEqual(STORE_PERMISSION_TEMPLATES.read_only.permissions, [
+    'catalog.view',
+    'orders.view',
+    'analytics.view',
+  ]);
+  assert.equal(STORE_PERMISSION_TEMPLATES.read_only.permissions.includes('security.view'), false);
   assert.deepEqual(STORE_PERMISSION_TEMPLATES.custom.permissions, []);
   const manuallyChanged = toggleStorePermission(STORE_PERMISSION_TEMPLATES.read_only.permissions, 'shipping.manage', true);
   assert.equal(detectStorePermissionTemplate(manuallyChanged), 'custom');
@@ -236,7 +249,8 @@ test('M7U2: ruta canónica, alias legacy y sidebar exclusivo del principal', () 
   const bottomStart = sidebar.indexOf('<nav class="pz-admin-mobile-bottom-nav"');
   const bottomEnd = sidebar.indexOf('</nav>', bottomStart);
   const bottom = sidebar.slice(bottomStart, bottomEnd);
-  assert.equal((bottom.match(/<a /g) || []).length, 4);
+  assert.match(sidebar, /const mobileBottomItems = mobileBottomCandidates[\s\S]*?\.slice\(0, 4\)/);
+  assert.match(bottom, /mobileBottomItems\.map\(\(item\) => <a/);
   assert.equal(bottom.includes('Mi equipo'), false);
 });
 

@@ -71,7 +71,7 @@ function replacePayload(overrides = {}) {
     user_id: NEW_PRIMARY_ID,
     previous_user_mode: 'keep_active',
     template_code: 'read_only',
-    permissions: ['catalog.view', 'orders.view', 'notifications.view', 'analytics.view', 'security.view'],
+    permissions: ['catalog.view', 'orders.view', 'analytics.view'],
     reason: 'Reemplazo de emergencia aprobado',
     confirmation: primary.REPLACEMENT_CONFIRMATION,
     ...overrides,
@@ -100,9 +100,7 @@ test('la plantilla del anterior se normaliza y nunca admite permisos reservados'
   assert.deepEqual(readOnly.permissions, [
     'analytics.view',
     'catalog.view',
-    'notifications.view',
     'orders.view',
-    'security.view',
   ]);
   const customized = primary.permissionSelection('read_only', ['catalog.products.edit']);
   assert.equal(customized.templateCode, 'custom');
@@ -316,9 +314,7 @@ test('reemplazar cierra ambas sesiones y deja al anterior con plantilla validada
     assert.deepEqual(fixture.accesses[0].permissions_json, [
       'analytics.view',
       'catalog.view',
-      'notifications.view',
       'orders.view',
-      'security.view',
     ]);
     assert.deepEqual(fixture.audits.map((entry) => entry.action), [
       'primary_admin_replaced',

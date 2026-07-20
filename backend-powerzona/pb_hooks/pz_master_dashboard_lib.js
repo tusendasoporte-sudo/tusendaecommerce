@@ -1163,8 +1163,15 @@ function handleStoreActivitySummary(e) {
 }
 
 module.exports = {
+  ANALYTICS_TIME_ZONE,
+  buildPeriod,
   handleOrderReadonlyDetail,
   handleStoreAnalyticsDetail,
   handleStoreActivitySummary,
+  publicEntityPath,
+  queryLandingQr,
+  queryPages,
+  queryTopViewedProducts,
+  queryTraffic,
   requireAuthenticatedUser,
 };
