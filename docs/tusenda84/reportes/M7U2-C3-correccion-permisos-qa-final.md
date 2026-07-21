@@ -2,7 +2,7 @@ REPORTE FINAL — PROMPT ID: M7U2-C3
 
 Fecha de ejecución: 20 de julio de 2026
 
-Estado documental: **EN REVISIÓN**
+Estado documental actual: **COMPLETADO** — cierre confirmado posteriormente por Kraken el 20 de julio de 2026; source de cierre V114.
 
 Matriz asociada: `docs/tusenda84/reportes/M7U2-C3-matriz-final-permisos.md`
 
@@ -172,3 +172,15 @@ No se ejecutó `git add`, commit, push, merge, deploy ni modificación de Coolif
 No queda un bloqueo técnico reproducible dentro del alcance M7U2-C3. El único pendiente es la validación manual final y la confirmación explícita de Kraken; por esa razón M7U2, C1, C2, C2F1 y C3 no se marcan como completados.
 
 EN REVISIÓN — M7U2 PENDIENTE DE VALIDACIÓN MANUAL FINAL Y CONFIRMACIÓN DE KRAKEN
+
+## 30. Cierre confirmado posteriormente
+
+Kraken confirmó expresamente el cierre de M7U2 el **20 de julio de 2026**, con **V114** como source de cierre. Se conservan sin cambios los conteos, resultados, evidencias y la línea de estado histórica anterior, que describen fielmente la situación al momento de ejecutar M7U2-C3.
+
+- M7U2 — Mi equipo y permisos granulares: **COMPLETADO**.
+- M7U2-C1 — **COMPLETADO**.
+- M7U2-C2 — **COMPLETADO**.
+- M7U2-C2F1 — **COMPLETADO**.
+- M7U2-C3 — **COMPLETADO**.
+
+COMPLETADO — CIERRE CONFIRMADO EXPRESAMENTE POR KRAKEN — 20 DE JULIO DE 2026 — SOURCE V114

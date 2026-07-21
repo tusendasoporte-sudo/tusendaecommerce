@@ -87,6 +87,9 @@ test('acepta exclusivamente fechas civiles inequívocas', () => {
   assert.equal(expiration.normalizeCivilDate('20/08/2026', false), null);
   assert.equal(expiration.normalizeCivilDate('2026-08-20T12:00:00Z', true), null);
   assert.equal(expiration.normalizeCivilDate('2026-08-20 00:00:00.000Z', true), '2026-08-20');
+  assert.equal(expiration.normalizeCivilDate(null, true), '');
+  assert.equal(expiration.normalizeCivilDate('', true), '');
+  assert.equal(expiration.normalizeCivilDate('   ', true), '');
 });
 
 test('bloquea a las 00:00 del propio día civil de La Habana', () => {
@@ -244,9 +247,41 @@ test('cambio o borrado de fecha elimina el ciclo y la notificación anteriores',
     assert.equal(app.tables.product_expiration_cycles.length, 1);
     assert.equal(app.tables.store_notifications.length, 1);
 
+    app.tables.products.push(mutableRecord('productalert008', {
+      store: store.id,
+      name: 'Otro ciclo pendiente',
+      expiration_date: '2026-08-07',
+    }));
+
     product.original = () => mutableRecord(product.id, { store: store.id, name: 'Ciclo', expiration_date: '2026-08-06' });
     product.expiration_date = '';
     expiration.handleExpirationRecordChange({ app, record: product, requestInfo: () => ({ body: { expiration_date: '' } }) }, 'products');
+    assert.equal(app.tables.product_expiration_cycles.length, 0);
+    assert.equal(app.tables.store_notifications.length, 0);
+  });
+});
+
+test('borrar la última fecha individual limpia su estado sin restaurar fecha general ni crear alertas', () => {
+  withFakePocketBaseRecord(() => {
+    const store = mutableRecord('storealert00005', { ...premiumStore(), slug: 'variaciones', status: 'active' });
+    const product = mutableRecord('productalert009', { store: store.id, name: 'Lotes', has_variations: true, expiration_date: '' });
+    const variation = mutableRecord('variationalert4', {
+      product: product.id,
+      variation_type: 'Lote',
+      value: 'A',
+      expiration_date: '2026-08-06',
+    });
+    const app = alertApp({ stores: [store], products: [product], variations: [variation] });
+    expiration.processStoreExpirationAlerts(app, store, '2026-07-17T12:00:00Z');
+    assert.equal(app.tables.product_expiration_cycles.length, 1);
+    assert.equal(app.tables.store_notifications.length, 1);
+
+    variation.original = () => mutableRecord(variation.id, { product: product.id, expiration_date: '2026-08-06' });
+    variation.expiration_date = '';
+    expiration.handleExpirationRecordChange({ app, record: variation }, 'product_variations');
+
+    assert.equal(product.expiration_date, '');
+    assert.equal(variation.expiration_date, '');
     assert.equal(app.tables.product_expiration_cycles.length, 0);
     assert.equal(app.tables.store_notifications.length, 0);
   });
@@ -285,6 +320,7 @@ test('Store Staff con permiso conserva el guardado Premium y V7E9 bloquea suspen
   const staff = mutableRecord('staffvalidate01', { role: 'store_staff', status: 'active', store: storeId });
   const product = mutableRecord('productstaff001', { store: storeId, expiration_date: '' });
   const variation = mutableRecord('variationstaff1', { product: product.id, expiration_date: '' });
+  let permissionEnabled = true;
   const app = {
     findRecordById(collection, id) {
       if (collection === 'stores' && id === storeId) return mutableRecord(storeId, { ...premiumStore(), primary_admin_user: 'primarystaff001' });
@@ -293,7 +329,7 @@ test('Store Staff con permiso conserva el guardado Premium y V7E9 bloquea suspen
     },
     findRecordsByFilter(collection) { return collection === 'users' ? [staff] : []; },
     findFirstRecordByFilter(collection) {
-      if (collection === 'store_user_access') {
+      if (collection === 'store_user_access' && permissionEnabled) {
         return mutableRecord('accessstaff0001', {
           store: storeId,
           user: 'staffvalidate01',
@@ -317,10 +353,25 @@ test('Store Staff con permiso conserva el guardado Premium y V7E9 bloquea suspen
 
   assert.equal(expiration.validateDateWriteRequest(event(product, { name: 'Sin cambiar fecha' }), 'products'), null);
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }), 'products'), null);
+  assert.equal(product.expiration_date, '2026-08-20');
+  product.expiration_date = '';
   assert.equal(expiration.validateDateWriteRequest(event(variation, { expiration_date: '2026-08-21' }), 'product_variations'), null);
+
+  for (const emptyValue of [null, '', '   ']) {
+    product.expiration_date = '2026-08-20';
+    assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: emptyValue }), 'products'), null);
+    assert.equal(product.expiration_date, '', `normaliza ${String(emptyValue)} como ausencia`);
+  }
+  product.expiration_date = '2026-08-20';
+  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20T12:00:00Z' }), 'products').code, 'invalid_expiration_date');
+  assert.equal(product.expiration_date, '2026-08-20', 'un valor inválido no muta el registro');
+
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'suspended'), 'products').code, 'expiration_unauthorized');
   assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', 'otherstore00001'), 'products').code, 'expiration_not_found');
-  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', storeId, 'customer'), 'products').code, 'expiration_unauthorized');
+  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', storeId, 'customer'), 'products').code, 'permission_denied');
+  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }, 'active', '', 'master_admin'), 'products').code, 'expiration_unauthorized');
+  permissionEnabled = false;
+  assert.equal(expiration.validateDateWriteRequest(event(product, { expiration_date: '2026-08-20' }), 'products').code, 'permission_denied');
 });
 
 test('primera fecha de variación elimina fecha general y deja un único evento central seguro', () => {
@@ -529,7 +580,9 @@ test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico
   const root = path.resolve(__dirname, '..');
   const hooks = readFileSync(path.join(root, 'pb_hooks', 'pz_product_expiration.pb.js'), 'utf8');
   const management = readFileSync(path.join(root, 'pb_hooks', 'pz_store_plan_management_lib.js'), 'utf8');
+  const expirationLib = readFileSync(path.join(root, 'pb_hooks', 'pz_product_expiration_lib.js'), 'utf8');
   const migration = readFileSync(path.join(root, 'pb_migrations', '1784304000_v7e9_product_expiration_cycles.js'), 'utf8');
+  const zeroDayMigration = readFileSync(path.join(root, 'pb_migrations', '1784596000_v7e9_c3_zero_day_threshold.js'), 'utf8');
   assert.match(hooks, /\/api\/pz\/admin\/product-expirations/);
   assert.match(hooks, /onRecordCreateRequest\([\s\S]*order_items/);
   assert.match(hooks, /cronAdd\([\s\S]*8 \* \* \* \*/);
@@ -542,5 +595,11 @@ test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico
     /const audit = createAudit[\s\S]*cleanupStoreExpirationData\(txApp, store\.id, \{[\s\S]*actor,[\s\S]*planAuditId: audit\.id[\s\S]*createPlanActivity/,
   );
   assert.match(migration, /UNIQUE INDEX[\s\S]*cycle_key/i);
+  assert.match(zeroDayMigration, /field\.required = false/);
+  assert.match(zeroDayMigration, /field\.required = true/);
   assert.doesNotMatch(hooks, /(?:threshold|expiration)[^\n]{0,40}\b7\b/i);
+  assert.match(expirationLib, /teamPermissions\.hasStorePermission\([\s\S]*?"catalog\.expirations\.manage"/);
+  assert.doesNotMatch(expirationLib, /\["store_admin",\s*"store_staff"\]/);
+  assert.match(expirationLib, /e\.record\.set\("expiration_date", normalized \|\| ""\)/);
+  assert.match(expirationLib, /if \(currentDate && resolved && resolved\.store\) processStoreExpirationAlerts/);
 });

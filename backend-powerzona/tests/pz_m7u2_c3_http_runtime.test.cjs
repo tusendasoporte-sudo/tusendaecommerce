@@ -354,6 +354,9 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
     store: null,
     user: null,
     access: null,
+    primaryUser: null,
+    primaryPassword: runtimePassword(`primary-${item.key}`),
+    primaryToken: '',
     oldToken: '',
     currentToken: '',
     category: null,
@@ -482,6 +485,34 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
       });
     }
 
+    for (const fixture of fixtures) {
+      fixture.primaryUser = await firstCreate('users', {
+        email: `${slugPrefix}-${fixture.key}-primary@example.test`,
+        password: fixture.primaryPassword,
+        passwordConfirm: fixture.primaryPassword,
+        display_name: `${prefix} ${fixture.key} Primary`,
+        role: 'store_admin',
+        status: 'active',
+        store: fixture.store.id,
+        emailVisibility: true,
+      });
+      const assigned = await firstRequest('/api/pz/master/primary-admin/assign', {
+        token: masterAuth.data.token,
+        body: {
+          store_id: fixture.store.id,
+          user_id: fixture.primaryUser.id,
+          reason: `${prefix} assign primary ${fixture.key}`,
+        },
+      });
+      assertStatus(assigned, 200, `asignar principal ${fixture.key}`);
+      const primaryAuth = await firstRequest('/api/collections/users/auth-with-password', {
+        body: { identity: fixture.primaryUser.email, password: fixture.primaryPassword },
+        headers: { 'X-PZ-Admin-Device': 'P'.repeat(43) },
+      });
+      assertStatus(primaryAuth, 200, `login principal ${fixture.key}`);
+      fixture.primaryToken = primaryAuth.data.token;
+    }
+
     const fixtureByKey = Object.fromEntries(fixtures.map((fixture) => [fixture.key, fixture]));
     ordersReader.user = await firstCreate('users', {
       email: ordersReader.email,
@@ -564,7 +595,7 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
       const expirationPatch = await firstRequest(
         `/api/collections/products/records/${fixture.product.id}`,
         {
-          token: masterAuth.data.token,
+          token: fixture.primaryToken,
           method: 'PATCH',
           body: { expiration_date: '2099-12-31' },
         },

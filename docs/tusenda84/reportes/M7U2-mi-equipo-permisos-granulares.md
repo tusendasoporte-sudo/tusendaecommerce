@@ -1,5 +1,9 @@
 REPORTE FINAL — PROMPT ID: M7U2
 
+Estado: **COMPLETADO**
+
+Cierre confirmado expresamente por Kraken el **20 de julio de 2026**. Source de cierre: **V114**.
+
 ## 1. Preflight
 
 - Repositorio confirmado: `E:\Trabajo\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt`.
@@ -280,11 +284,16 @@ Después de verificarlo, se eliminó `frontend-powerzona/dist` y `frontend-power
 
 No se ejecutó `git add`, commit, push, merge, checkout/cambio de rama, deploy, ni cambios en Coolify o Cloudflare. Tampoco se generó o actualizó la bitácora PDF.
 
-## 25. Pendientes reales
+## 25. Cierre confirmado
 
-- Revisión visual/funcional humana final y confirmación explícita de Kraken.
-- M7U2 no se marca como completado hasta esa confirmación.
-- V7E9 continúa en revisión; sus pendientes funcionales previos de fecha vacía/eliminación y responsive no se reabrieron en esta tarea.
-- Las advertencias SSR de `getStaticPaths()` no bloquean el build, pero pueden limpiarse en una tarea de mantenimiento independiente.
+Kraken confirmó expresamente el cierre funcional y técnico el **20 de julio de 2026**, tomando **V114** como source de cierre. Esta confirmación posterior no altera los conteos, evidencias ni resultados históricos consignados en las secciones anteriores.
 
-EN REVISIÓN — M7U2 PENDIENTE DE QA FINAL Y CONFIRMACIÓN DE KRAKEN
+- M7U2 — Mi equipo y permisos granulares: **COMPLETADO**.
+- M7U2-C1 — **COMPLETADO**.
+- M7U2-C2 — **COMPLETADO**.
+- M7U2-C2F1 — **COMPLETADO**.
+- M7U2-C3 — **COMPLETADO**.
+- V7E9 continúa en revisión y conserva sus pendientes propios.
+- Las advertencias SSR históricas de `getStaticPaths()` no bloquearon el cierre.
+
+COMPLETADO — M7U2 CONFIRMADO EXPRESAMENTE POR KRAKEN EL 20 DE JULIO DE 2026 — SOURCE V114

@@ -110,6 +110,7 @@ function normalizeCivilDate(value, allowPocketBaseDateTime) {
     raw = value.toISOString();
   }
   const text = String(raw || "").trim();
+  if (!text) return "";
   const candidate = allowPocketBaseDateTime === true ? text.slice(0, 10) : text;
   const match = CIVIL_DATE_PATTERN.exec(candidate);
   if (!match) return null;
@@ -241,12 +242,9 @@ function requestAuthRecord(e) {
 
 function authCanManageStore(e, storeId) {
   const auth = requestAuthRecord(e);
-  const role = recordString(auth, "role");
-  if (role === "master_admin") return recordString(auth, "status").toLowerCase() !== "suspended";
-  if (!authBelongsToActiveStore(e, storeId)) return false;
   const app = e && e.app ? e.app : (typeof $app === "undefined" ? null : $app);
   const store = findRecord(app, "stores", storeId);
-  return !!store && teamPermissions.hasStorePermission(
+  return !!auth && recordString(auth, "role") !== "master_admin" && !!store && teamPermissions.hasStorePermission(
     app,
     auth,
     store,
@@ -254,20 +252,10 @@ function authCanManageStore(e, storeId) {
   );
 }
 
-function authBelongsToActiveStore(e, storeId) {
-  const auth = requestAuthRecord(e);
-  const role = recordString(auth, "role");
-  if (role === "master_admin") return recordString(auth, "status").toLowerCase() !== "suspended";
-  return ["store_admin", "store_staff"].includes(role)
-    && relationId(auth, "store") === storeId
-    && recordString(auth, "status").toLowerCase() !== "suspended";
-}
-
 function authBelongsToAnotherStore(e, storeId) {
   const auth = requestAuthRecord(e);
-  return ["store_admin", "store_staff"].includes(recordString(auth, "role"))
-    && relationId(auth, "store")
-    && relationId(auth, "store") !== storeId;
+  const authStoreId = relationId(auth, "store");
+  return !!authStoreId && authStoreId !== storeId;
 }
 
 function variationsForProduct(app, productId) {
@@ -324,9 +312,10 @@ function validateDateWriteRequest(e, collectionName) {
     return safeRequestError("expiration_management_unavailable", "La fecha de vencimiento no está disponible temporalmente.", "expiration_date", 503);
   }
   if (authBelongsToAnotherStore(e, resolved.storeId)) {
-    return safeRequestError("expiration_not_found", "No se encontrÃ³ el recurso solicitado.", "expiration_date", 404);
+    return safeRequestError("expiration_not_found", "No se encontró el recurso solicitado.", "expiration_date", 404);
   }
-  if (!authBelongsToActiveStore(e, resolved.storeId)) {
+  const auth = requestAuthRecord(e);
+  if (!auth || recordString(auth, "role") === "master_admin" || recordString(auth, "status").toLowerCase() !== "active") {
     return safeRequestError("expiration_unauthorized", "No tienes permiso para modificar esta fecha.", "expiration_date", 403);
   }
   if (!storeExpirationEnabled(resolved.store)) {
@@ -334,6 +323,10 @@ function validateDateWriteRequest(e, collectionName) {
   }
   if (!authCanManageStore(e, resolved.storeId)) {
     return safeRequestError("permission_denied", "No tienes permiso para modificar esta fecha.", "expiration_date", 403);
+  }
+
+  if (e && e.record && typeof e.record.set === "function") {
+    e.record.set("expiration_date", normalized || "");
   }
 
   if (collectionName === "products" && normalized) {
@@ -348,11 +341,17 @@ function validateDateWriteRequest(e, collectionName) {
   if (collectionName === "product_variations" && normalized) {
     const productDate = normalizeCivilDate(recordValue(resolved.product, "expiration_date"), true) || "";
     if (productDate) {
-      clearEntityExpirationState(e.app, "products", resolved.product.id);
+      clearEntityExpirationState(e.app, "products", resolved.product.id, { strict: true });
       resolved.product.set("expiration_date", "");
       e.app.save(resolved.product);
       createProductExpirationAutoClearActivity(e.app, e, resolved, productDate, normalized);
     }
+  }
+
+  const original = originalRecord(e.record);
+  const previousDate = original ? normalizeCivilDate(recordValue(original, "expiration_date"), true) || "" : "";
+  if (original && previousDate !== normalized) {
+    clearEntityExpirationState(e.app, collectionName, e.record.id, { strict: true });
   }
   return null;
 }
@@ -370,6 +369,14 @@ function handleDateWriteRequest(e, collectionName) {
     const safe = validateDateWriteRequest(e, collectionName);
     if (safe) raiseExpirationRequestError(safe);
     result = e.next();
+    const body = requestBody(e);
+    if (bodyHas(body, "expiration_date")) {
+      const currentDate = normalizeCivilDate(recordValue(e.record, "expiration_date"), true) || "";
+      if (currentDate) {
+        const resolved = resolveDateRequestRecords(e, collectionName);
+        if (resolved && resolved.store) processStoreExpirationAlerts(app, resolved.store, new Date());
+      }
+    }
   };
   try {
     if (originalApp && typeof originalApp.runInTransaction === "function" && !appIsTransactional(originalApp)) {
@@ -393,9 +400,10 @@ function validateExpirationSettingsRequest(e) {
   if (!bodyHas(body, "notify_expiration_alerts")) return null;
   const resolved = settingsStore(e.app, e.record);
   if (resolved.store && authBelongsToAnotherStore(e, resolved.storeId)) {
-    return safeRequestError("expiration_not_found", "No se encontrÃ³ el recurso solicitado.", "notify_expiration_alerts", 404);
+    return safeRequestError("expiration_not_found", "No se encontró el recurso solicitado.", "notify_expiration_alerts", 404);
   }
-  if (!resolved.store || !authBelongsToActiveStore(e, resolved.storeId)) {
+  const auth = requestAuthRecord(e);
+  if (!resolved.store || !auth || recordString(auth, "role") === "master_admin" || recordString(auth, "status").toLowerCase() !== "active") {
     return safeRequestError("expiration_unauthorized", "No tienes permiso para modificar estas alertas.", "notify_expiration_alerts", 403);
   }
   if (!storeExpirationEnabled(resolved.store)) {
@@ -496,10 +504,12 @@ function handleAdminExpirationQuery(e) {
   setPrivateHeaders(e);
   try {
     const info = e.requestInfo();
-    const role = recordString(info.auth, "role");
-    if (!info.auth || !["store_admin", "store_staff"].includes(role)) return e.json(403, { ok: false, error: "unauthorized" });
+    if (!info.auth || recordString(info.auth, "role") === "master_admin" || recordString(info.auth, "status").toLowerCase() !== "active") {
+      return e.json(403, { ok: false, error: "unauthorized" });
+    }
     const storeId = relationId(info.auth, "store");
-    const store = findRecord($app, "stores", storeId);
+    const app = e && e.app ? e.app : $app;
+    const store = findRecord(app, "stores", storeId);
     if (!store || !storeExpirationEnabled(store)) return e.json(403, { ok: false, error: "premium_required" });
     if (!authCanManageStore(e, storeId)) return e.json(403, { ok: false, error: "permission_denied" });
     const parsed = parseAdminQueryPayload(info.body || {});
@@ -790,18 +800,20 @@ function deleteRecordSafe(app, record) {
   try { app.delete(record); return true; } catch (_) { return false; }
 }
 
-function clearEntityExpirationState(app, entityCollection, entityId) {
+function clearEntityExpirationState(app, entityCollection, entityId, options) {
+  const strict = options && options.strict === true;
+  const remove = (record) => strict ? (app.delete(record), true) : deleteRecordSafe(app, record);
   const cycles = findRecords(app, CYCLES_COLLECTION, "entity_collection = {:collection} && entity_id = {:id}", "", 500, 0, {
     collection: entityCollection,
     id: entityId,
   });
   const notificationIds = new Set(cycles.map((cycle) => relationId(cycle, "notification")).filter(Boolean));
-  cycles.forEach((cycle) => deleteRecordSafe(app, cycle));
+  cycles.forEach((cycle) => remove(cycle));
   notificationIds.forEach((notificationId) => {
     const remaining = findRecords(app, CYCLES_COLLECTION, "notification = {:notification}", "created", 500, 0, { notification: notificationId });
     if (!remaining.length) {
       const notification = findRecord(app, "store_notifications", notificationId);
-      if (notification) deleteRecordSafe(app, notification);
+      if (notification) remove(notification);
       return;
     }
     const notification = findRecord(app, "store_notifications", notificationId);
@@ -838,7 +850,7 @@ function handleExpirationRecordChange(e, collectionName) {
   const entityCollection = collectionName;
   clearEntityExpirationState(e.app, entityCollection, record.id);
   const resolved = resolveDateRequestRecords(e, collectionName);
-  if (resolved && resolved.store) processStoreExpirationAlerts(e.app, resolved.store, new Date());
+  if (currentDate && resolved && resolved.store) processStoreExpirationAlerts(e.app, resolved.store, new Date());
 }
 
 function handleExpirationRecordDelete(e, collectionName) {

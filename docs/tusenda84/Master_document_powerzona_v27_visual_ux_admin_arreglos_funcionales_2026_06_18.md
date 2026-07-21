@@ -25,6 +25,7 @@ Esta sección sirve como mapa rápido para saber qué partes ya quedaron cerrada
 ### 0.1 Bloques cerrados
 
 ```txt
+✅ M7U2 — Mi equipo y permisos granulares (incluye C1, C2, C2F1 y C3). COMPLETADO; confirmado expresamente por Kraken el 20 de julio de 2026; Source de cierre V114.
 ✅ Documentación base del proyecto.
 ✅ Backend inicial en PocketBase.
 ✅ Colecciones principales de PocketBase.

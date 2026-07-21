@@ -24,7 +24,6 @@ const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
 const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
-const expirationToolsEnabled = expirationToolsAccess.allowed === true;
 const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
 const expirationPermissionContext = storeAccessContext
   ? {
@@ -33,7 +32,9 @@ const expirationPermissionContext = storeAccessContext
       blocked_by_plan: storeAccessContext.access.blocked_by_plan,
     }
   : { permissions: [], blocked_by_plan: true };
-const canEditExpirationProducts = hasStorePermission(expirationPermissionContext, 'catalog.products.edit');
+const expirationPermissionGranted = hasStorePermission(expirationPermissionContext, 'catalog.expirations.manage');
+const expirationToolsEnabled = expirationPermissionGranted && expirationToolsAccess.allowed === true;
+const canEditExpirationProducts = expirationPermissionGranted;
 const canViewExpirationHistory = storeAccessContext?.access.is_primary_admin === true;
 const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 const requestedView = Astro.url.searchParams.get('view') === 'upcoming' ? 'upcoming' : 'expired';
@@ -87,7 +88,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       .hidden { display: none !important; }
 
       .expiration-page-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
-      .expiration-page-main { min-width: 0; padding-bottom: 104px; }
+      .expiration-page-main { min-width: 0; padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
       .expiration-workspace { display: grid; min-width: 0; gap: 16px; }
       .expiration-toolbar {
         display: grid;
@@ -102,9 +103,9 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         box-shadow: 0 16px 42px rgba(15, 23, 42, .07);
       }
       .expiration-tabs,
-      .expiration-ranges { display: flex; min-width: 0; align-items: center; gap: 8px; flex-wrap: nowrap; }
+      .expiration-ranges { display: flex; min-width: 0; align-items: center; gap: 8px; flex-wrap: wrap; }
       .expiration-filter {
-        min-height: 40px;
+        min-height: 44px;
         border: 1px solid var(--expiration-border);
         border-radius: 999px;
         background: #f8fafc;
@@ -158,7 +159,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       .expiration-variations li { color: #475569; font-size: 11.5px; line-height: 1.4; font-weight: 750; overflow-wrap: anywhere; }
       .expiration-edit {
         display: inline-flex;
-        min-height: 38px;
+        min-height: 44px;
         align-items: center;
         justify-content: center;
         border: 1px solid #bfdbfe;
@@ -173,7 +174,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       .expiration-row-actions { display: grid; gap: 6px; }
       .expiration-empty { margin: 0; padding: 34px 20px; color: var(--expiration-muted); text-align: center; font-size: 13px; font-weight: 850; }
       .expiration-pagination { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 7px; flex-wrap: wrap; border-top: 1px solid var(--expiration-border); padding: 14px 18px; }
-      .expiration-page-button { min-width: 38px; min-height: 38px; border: 1px solid var(--expiration-border); border-radius: 11px; background: #fff; color: #334155; padding: 0 11px; font-size: 12px; font-weight: 950; }
+      .expiration-page-button { min-width: 44px; min-height: 44px; border: 1px solid var(--expiration-border); border-radius: 11px; background: #fff; color: #334155; padding: 0 11px; font-size: 12px; font-weight: 950; }
       .expiration-page-button.is-active { border-color: #0f172a; background: #0f172a; color: #fff; }
 
       @media (min-width: 1024px) {
@@ -181,7 +182,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         .expiration-page-shell { padding: var(--pz-admin-content-top, 28px) var(--pz-admin-content-right, 32px) var(--pz-admin-content-bottom, 48px) 0; }
       }
       @media (max-width: 820px) {
-        .expiration-page-shell { padding: 14px 14px 112px; }
+        .expiration-page-shell { padding: 14px 14px calc(112px + env(safe-area-inset-bottom, 0px)); }
         .expiration-toolbar { align-items: stretch; border-radius: 18px; }
         .expiration-tabs, .expiration-ranges { width: 100%; }
         .expiration-filter { flex: 1 1 auto; }
@@ -265,7 +266,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         gap: 14px;
         flex-wrap: nowrap;
       }
-      .expiration-filter { min-height: 40px; box-shadow: none; }
+      .expiration-filter { min-height: 44px; box-shadow: none; }
       .expiration-filter.is-active { box-shadow: none; }
       .expiration-filter[aria-pressed="true"] { border-color: #0f172a; background: #0f172a; color: #fff; }
       .expiration-search {
@@ -288,7 +289,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       }
       .expiration-search-input {
         min-width: 0;
-        min-height: 40px;
+        min-height: 44px;
         flex: 1 1 auto;
         border: 1px solid #cbd5e1;
         border-radius: 11px;
@@ -301,7 +302,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       .expiration-search-input::placeholder { color: #94a3b8; }
       .expiration-search-submit,
       .expiration-search-clear {
-        min-height: 40px;
+        min-height: 44px;
         border-radius: 11px;
         padding: 0 12px;
         font-size: 12px;
@@ -367,6 +368,20 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
       .expiration-page-button[aria-current="page"] { border-color: #0f172a; background: #0f172a; color: #fff; }
       .expiration-page-button:disabled { cursor: not-allowed; opacity: .48; }
       .expiration-pagination[hidden] { display: none; }
+
+      .expiration-permission-denied {
+        display: grid;
+        min-width: 0;
+        gap: 10px;
+        border: 1px solid #dbe3ee;
+        border-radius: 18px;
+        background: #fff;
+        padding: clamp(24px, 6vw, 42px);
+        color: #334155;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, .05);
+      }
+      .expiration-permission-denied h2 { margin: 0; color: #0f172a; font-size: clamp(20px, 4vw, 26px); overflow-wrap: anywhere; }
+      .expiration-permission-denied p { margin: 0; max-width: 680px; line-height: 1.6; font-weight: 700; overflow-wrap: anywhere; }
 
       @media (max-width: 820px) {
         .expiration-workspace { overflow: hidden; border-radius: 18px; }
@@ -437,7 +452,12 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           <a slot="action" class="expiration-back-action" href={adminBasePath}>← Volver al Resumen</a>
         </AdminSectionHeader>
 
-        {expirationToolsEnabled ? (
+        {!expirationPermissionGranted ? (
+          <section class="expiration-permission-denied" role="alert" aria-labelledby="expiration-permission-title">
+            <h2 id="expiration-permission-title">Acceso a vencimientos no autorizado</h2>
+            <p>Tu perfil no tiene el permiso para gestionar vencimientos. Solicita acceso al Administrador principal de tu tienda.</p>
+          </section>
+        ) : expirationToolsEnabled ? (
           <section class="expiration-workspace" data-expiration-page-root>
             <div class="expiration-toolbar" aria-label="Filtros de vencimiento">
               <div class="expiration-controls">

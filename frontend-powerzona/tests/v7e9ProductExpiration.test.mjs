@@ -79,6 +79,10 @@ test('V7E9-C2: página independiente usa gate SSR, búsqueda segura y paginació
   const wrapper = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/expirations.astro', import.meta.url), 'utf8');
   assert.match(wrapper, /import AdminExpirations from '\.\.\/\.\.\/\.\.\/admin\/expirations\.astro'/);
   assert.match(page, /resolveStoreCapabilityAccess\(adminContext\.store, 'product_expiration_tools_enabled'\)/);
+  assert.match(page, /hasStorePermission\(expirationPermissionContext, 'catalog\.expirations\.manage'\)/);
+  assert.match(page, /expirationPermissionGranted && expirationToolsAccess\.allowed === true/);
+  assert.match(page, /!expirationPermissionGranted \? \(/);
+  assert.match(page, /Acceso a vencimientos no autorizado/);
   assert.match(page, /expirationToolsEnabled \? \(/);
   assert.match(page, /if \(expirationToolsEnabled !== true\) return/);
   assert.match(page, /\/api\/pz\/admin\/product-expirations/);
@@ -193,7 +197,7 @@ test('V7E9-C3: el Resumen limita el frasco dinamico y conserva filas compactas',
   assert.match(standalone, /class="expiration-list-card"/);
 });
 
-test('V7E9-C4: controles alineados e icono de frasco compartido en ambas vistas', () => {
+test('V7E9-C4/C3 final: controles alineados, táctiles e icono compartido en ambas vistas', () => {
   const dashboard = readFileSync(new URL('../src/pages/admin/index.astro', import.meta.url), 'utf8');
   const page = readFileSync(new URL('../src/pages/admin/expirations.astro', import.meta.url), 'utf8');
   const wrapper = readFileSync(new URL('../src/pages/t/[storeSlug]/admin/expirations.astro', import.meta.url), 'utf8');
@@ -204,11 +208,15 @@ test('V7E9-C4: controles alineados e icono de frasco compartido en ambas vistas'
   assert.match(dashboard, /class="expiration-preview-actions"[\s\S]*?class="expiration-summary-filters"/);
   assert.match(dashboard, /\.expiration-summary-filters \{[\s\S]*?display: flex;/);
   assert.match(dashboard, /\.expiration-summary-filters \.expiration-btn \{[\s\S]*?min-height: 40px;/);
+  assert.match(dashboard, /@media \(max-width: 760px\) \{[\s\S]*?\.expiration-page-button \{ min-height: 44px; \}/);
   assert.match(dashboard, /\.expiration-tabs \{\s*overflow-x: visible;/);
 
   assert.match(page, /\.expiration-toolbar \{[\s\S]*?display: grid;[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(page, /\.expiration-controls \{[\s\S]*?display: flex;[\s\S]*?flex-wrap: nowrap;/);
-  assert.match(page, /\.expiration-filter \{[\s\S]*?min-height: 40px;/);
+  assert.match(page, /\.expiration-filter \{[\s\S]*?min-height: 44px;/);
+  assert.match(page, /\.expiration-edit \{[\s\S]*?min-height: 44px;/);
+  assert.match(page, /\.expiration-page-button \{ min-width: 44px; min-height: 44px;/);
+  assert.match(page, /\.expiration-search-input \{[\s\S]*?min-height: 44px;/);
   assert.match(page, /<div class="expiration-controls">[\s\S]*?data-expiration-ranges[\s\S]*?<\/div>[\s\S]*?<form class="expiration-search"/);
   assert.match(page, /ranges\.hidden = view === 'expired'/);
   assert.match(page, /@media \(max-width: 820px\) \{[\s\S]*?\.expiration-controls \{[\s\S]*?display: grid;[\s\S]*?\.expiration-ranges \{[\s\S]*?grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
@@ -344,4 +352,27 @@ test('V7E9-C2: paginadores cubren cortes 0/1/5/6/12 y 10/11 sin render masivo', 
   assert.match(page, /if \(total <= 1\) \{[\s\S]*?pagination\.hidden = true/);
   assert.match(page, /Math\.min\(page \* 10, total\)/);
   assert.match(page, /page = 1;[\s\S]*?syncControls\(\);[\s\S]*?load\(\)/);
+});
+
+test('V7E9-C3 final: responsive estructural y footer toleran móvil y nombres largos', () => {
+  const dashboard = readFileSync(new URL('../src/pages/admin/index.astro', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../src/pages/admin/expirations.astro', import.meta.url), 'utf8');
+  const footer = readFileSync(new URL('../src/components/PublicFooter.astro', import.meta.url), 'utf8');
+  const product = readFileSync(new URL('../src/pages/producto/[slug].astro', import.meta.url), 'utf8');
+
+  assert.match(page, /html, body \{[^}]*min-width: 0;[^}]*overflow-x: hidden;/);
+  assert.match(page, /\.expiration-page-main \{[^}]*min-width: 0;[^}]*safe-area-inset-bottom/);
+  assert.match(page, /\.expiration-tabs,[\s\S]*?\.expiration-ranges \{[^}]*flex-wrap: wrap;/);
+  assert.match(page, /\.expiration-workspace \{[^}]*min-width: 0;/);
+  assert.match(page, /\.expiration-list-card \{[\s\S]*?min-width: 0;/);
+  assert.match(dashboard, /\.expiration-item \{[\s\S]*?min-width: 0;[\s\S]*?max-width: 100%;/);
+  assert.match(dashboard, /\.expiration-preview-all \{[\s\S]*?min-height: 44px;[\s\S]*?white-space: normal;[\s\S]*?overflow-wrap: anywhere;/);
+
+  assert.match(footer, /\.pz-public-footer \{[^}]*max-width: 100%;[^}]*min-width: 0;[^}]*overflow: hidden;/);
+  assert.match(footer, /\.pz-footer-main \{[^}]*max-width: 100%;[^}]*min-width: 0;/);
+  assert.match(footer, /\.pz-footer-brand-copy h2 \{[^}]*max-width: 100%;[^}]*overflow-wrap: anywhere;[^}]*word-break: break-word;/);
+  assert.match(footer, /\.pz-footer-info, \.pz-footer-contact \{ min-width: 0; max-width: 100%; \}/);
+  assert.match(product, /<PublicFooter settings=\{settings\} \/>/);
+  assert.match(product, /Producto no disponible/);
+  assert.equal(/expiration_date|fecha de vencimiento|venció el/i.test(product.slice(product.indexOf('<div class="product-unavailable-card">'), product.indexOf('</div>', product.indexOf('<div class="product-unavailable-card">')))), false);
 });

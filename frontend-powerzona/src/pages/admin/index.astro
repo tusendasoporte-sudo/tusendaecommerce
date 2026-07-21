@@ -2844,7 +2844,10 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				width: fit-content;
 				max-width: 100%;
 				flex: 0 0 auto;
-				min-height: 40px;
+				min-height: 44px;
+				white-space: normal;
+				text-align: center;
+				overflow-wrap: anywhere;
 				box-shadow: none;
 			}
 
@@ -2884,6 +2887,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 			}
 
 			.expiration-item {
+				min-width: 0;
 				max-width: 100%;
 				padding: 13px 14px;
 				border: 1px solid #e2e8f0;
@@ -3086,6 +3090,8 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				.expiration-date-cell { white-space: normal; }
 				.expiration-side { width: 100%; }
 				.expiration-view { width: 100%; }
+				.expiration-view,
+				.expiration-page-button { min-height: 44px; }
 				.expiration-summary-footer { align-items: stretch; }
 				.expiration-results-meta { width: 100%; }
 				.expiration-pagination { width: 100%; justify-content: center; }
