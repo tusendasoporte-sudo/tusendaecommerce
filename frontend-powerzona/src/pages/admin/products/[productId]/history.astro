@@ -1,0 +1,247 @@
+---
+import { refreshAuthFromCookie } from '../../../../lib/auth';
+import { getStoreAdminPath } from '../../../../lib/adminRoutes';
+import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
+import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
+import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
+import '../../../../styles/global.css';
+
+const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
+const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = await requireCurrentStoreForAdmin(authPb);
+const authToken = authPb.authStore.token;
+const storeSlug = String(adminContext.store.slug || '');
+const productId = /^[a-z0-9]{15}$/.test(String(Astro.params.productId || '')) ? String(Astro.params.productId) : '';
+const requestedVariation = /^[a-z0-9]{15}$/.test(String(Astro.url.searchParams.get('variation') || '')) ? String(Astro.url.searchParams.get('variation')) : '';
+const returnContext = Astro.url.searchParams.get('from') === 'expirations' ? 'expirations' : 'products';
+const productsPath = getStoreAdminPath(storeSlug, 'products');
+const expirationsPath = getStoreAdminPath(storeSlug, 'expirations');
+const returnPath = returnContext === 'expirations' ? expirationsPath : productsPath;
+const returnLabel = returnContext === 'expirations' ? 'Volver a Vencimientos' : 'Volver a Productos';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+Astro.response.headers.set('Referrer-Policy', 'no-referrer');
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Historial del producto | PowerZona Admin</title>
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <style is:global>
+      :root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #0f172a; background: #eef3f9; }
+      * { box-sizing: border-box; }
+      html, body { min-width: 0; min-height: 100%; margin: 0; overflow-x: hidden; }
+      body { background: radial-gradient(circle at 12% 0%, rgba(37,99,235,.13), transparent 31%), linear-gradient(180deg,#f8fbff,#eef3f9); }
+      .product-history-shell { width: min(1480px, 100%); margin: 0 auto; padding: 24px; }
+      .product-history-main { min-width: 0; padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+      .history-back { display: inline-flex; min-height: 42px; align-items: center; border: 1px solid #cbd5e1; border-radius: 11px; background: #fff; color: #334155; padding: 0 14px; font-size: 12px; font-weight: 900; text-decoration: none; }
+      .history-card { min-width: 0; overflow: hidden; border: 1px solid #dbe3ef; border-radius: 20px; background: rgba(255,255,255,.97); box-shadow: 0 16px 42px rgba(15,23,42,.065); }
+      .history-product { display: grid; grid-template-columns: 88px minmax(0,1fr) auto; gap: 16px; align-items: center; padding: 20px; }
+      .history-product__image { width: 88px; height: 88px; display: grid; place-items: center; overflow: hidden; border-radius: 16px; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 900; text-align: center; }
+      .history-product__image img { width: 100%; height: 100%; object-fit: cover; }
+      .history-product__copy { min-width: 0; }
+      .history-product__copy h2 { margin: 0; overflow-wrap: anywhere; font-size: clamp(20px,3vw,29px); }
+      .history-product__meta { display: flex; min-width: 0; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
+      .history-pill { display: inline-flex; min-height: 25px; align-items: center; border-radius: 999px; background: #eff6ff; color: #1d4ed8; padding: 0 9px; font-size: 10px; font-weight: 950; }
+      .history-pill.is-muted { background: #f1f5f9; color: #475569; }
+      .history-pill.is-hidden { background: #fff1f2; color: #be123c; }
+      .history-edit { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; border-radius: 11px; background: #0f172a; color: #fff; padding: 0 15px; font-size: 12px; font-weight: 950; text-decoration: none; white-space: nowrap; }
+      .history-controls { display: grid; grid-template-columns: minmax(0,2fr) minmax(220px,.8fr); gap: 12px; border-top: 1px solid #e2e8f0; padding: 16px 20px; }
+      .history-scopes { display: flex; min-width: 0; gap: 7px; flex-wrap: wrap; }
+      .history-filter { min-height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #475569; padding: 0 11px; font-size: 11px; font-weight: 900; cursor: pointer; }
+      .history-filter[aria-pressed="true"] { border-color: #0f172a; background: #0f172a; color: #fff; }
+      .history-variation { min-width: 0; min-height: 42px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; padding: 0 11px; font-weight: 850; }
+      .history-alert, .history-empty { margin: 0; padding: 22px; color: #64748b; text-align: center; font-size: 13px; font-weight: 800; }
+      .history-alert.is-error { color: #991b1b; background: #fff1f2; }
+      .history-list { display: grid; min-width: 0; border-top: 1px solid #e2e8f0; }
+      .history-event { display: grid; min-width: 0; grid-template-columns: minmax(135px,.65fr) minmax(0,2.2fr); gap: 16px; border-bottom: 1px solid #e8edf4; padding: 18px 20px; }
+      .history-event:last-child { border-bottom: 0; }
+      .history-event__actor { display: grid; align-content: start; gap: 4px; min-width: 0; }
+      .history-event__actor strong { overflow-wrap: anywhere; font-size: 13px; }
+      .history-event__actor time, .history-event__actor small { color: #64748b; font-size: 10px; font-weight: 750; }
+      .history-event__content { display: grid; min-width: 0; gap: 7px; }
+      .history-event__content h3 { margin: 0; overflow-wrap: anywhere; font-size: 14px; }
+      .history-event__content > p { margin: 0; color: #475569; font-size: 12px; line-height: 1.5; font-weight: 750; overflow-wrap: anywhere; }
+      .history-event__element { color: #2563eb; font-size: 10px; font-weight: 950; text-transform: uppercase; }
+      .history-changes { display: grid; gap: 7px; margin-top: 3px; }
+      .history-change { display: grid; min-width: 0; grid-template-columns: minmax(115px,.7fr) repeat(2,minmax(0,1fr)); gap: 8px; border: 1px solid #e2e8f0; border-radius: 11px; padding: 8px; }
+      .history-change > strong { align-self: center; overflow-wrap: anywhere; font-size: 10px; }
+      .history-change div { min-width: 0; border-radius: 8px; background: #f8fafc; padding: 7px; }
+      .history-change span { display: block; color: #94a3b8; font-size: 8px; font-weight: 950; text-transform: uppercase; }
+      .history-change p { margin: 3px 0 0; color: #334155; font-size: 10px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
+      .history-pagination { display: flex; min-height: 60px; align-items: center; justify-content: center; gap: 12px; border-top: 1px solid #e2e8f0; padding: 10px; }
+      .history-pagination button { min-height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; padding: 0 13px; font-weight: 900; }
+      .history-pagination button:disabled { opacity: .45; }
+      .history-pagination span { color: #64748b; font-size: 11px; font-weight: 900; }
+      .history-filter:focus-visible, .history-variation:focus-visible, .history-edit:focus-visible, .history-back:focus-visible, .history-pagination button:focus-visible { outline: 3px solid rgba(37,99,235,.3); outline-offset: 2px; }
+      @media (min-width: 1025px) { .product-history-shell { padding: var(--pz-admin-content-top,28px) var(--pz-admin-content-right,32px) 48px 0; } }
+      @media (max-width: 760px) {
+        .product-history-shell { padding: 14px 14px calc(110px + env(safe-area-inset-bottom,0px)); }
+        .history-product { grid-template-columns: 68px minmax(0,1fr); padding: 16px; }
+        .history-product__image { width: 68px; height: 68px; }
+        .history-edit { grid-column: 1 / -1; width: 100%; }
+        .history-controls { grid-template-columns: minmax(0,1fr); padding: 14px; }
+        .history-variation { width: 100%; }
+        .history-event { grid-template-columns: minmax(0,1fr); gap: 10px; padding: 15px; }
+        .history-event__actor { grid-template-columns: minmax(0,1fr) auto; }
+        .history-event__actor small { grid-column: 1 / -1; }
+        .history-change { grid-template-columns: repeat(2,minmax(0,1fr)); }
+        .history-change > strong { grid-column: 1 / -1; }
+      }
+      @media (max-width: 460px) { .history-change { grid-template-columns: minmax(0,1fr); } .history-change > strong { grid-column: auto; } }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell pz-admin-content">
+      <AdminSidebar storeId={adminContext.storeId} pocketbaseUrl={pocketbaseUrl} authToken={authToken} storeSlug={storeSlug} storeName={adminContext.store.name || storeSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="products" mobileTitle="Historial" />
+      <main class="product-history-main pz-admin-content-inner">
+        <div class="product-history-shell">
+          <AdminSectionHeader kicker="Catálogo" title="Historial del producto" description="Cambios del producto seleccionado y sus variaciones." titleId="product-history-title">
+            <a slot="action" class="history-back" href={returnPath}>← {returnLabel}</a>
+          </AdminSectionHeader>
+          <section class="history-card" data-product-history-root>
+            <div class="history-product" data-history-product>
+              <div class="history-product__image" data-history-image>Sin imagen</div>
+              <div class="history-product__copy"><h2 data-history-name>Cargando producto...</h2><div class="history-product__meta" data-history-meta></div></div>
+              <a class="history-edit" href={`${productsPath}?product=${encodeURIComponent(productId)}`}>Editar producto</a>
+            </div>
+            <div class="history-controls">
+              <div class="history-scopes" data-history-scopes aria-label="Filtros del historial">
+                <button class="history-filter" type="button" data-scope="all" aria-pressed="true">Todo</button>
+                <button class="history-filter" type="button" data-scope="product">Producto general</button>
+                <button class="history-filter" type="button" data-scope="variations">Variaciones</button>
+                <button class="history-filter" type="button" data-scope="expirations">Vencimientos</button>
+                <button class="history-filter" type="button" data-scope="price_stock">Precio y stock</button>
+                <button class="history-filter" type="button" data-scope="visibility">Visibilidad</button>
+                <button class="history-filter" type="button" data-scope="images">Imágenes</button>
+                <button class="history-filter" type="button" data-scope="category">Categoría</button>
+              </div>
+              <select class="history-variation" data-history-variation aria-label="Filtrar por variación"><option value="">Todas las variaciones</option></select>
+            </div>
+            <p class="history-alert" data-history-alert aria-live="polite">Cargando historial privado...</p>
+            <div class="history-list" data-history-list></div>
+            <nav class="history-pagination" data-history-pagination aria-label="Paginación del historial" hidden>
+              <button type="button" data-page="previous">Anterior</button><span data-page-label>Página 1 de 1</span><button type="button" data-page="next">Siguiente</button>
+            </nav>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script define:vars={{ pocketbaseUrl, productId, requestedVariation }}>
+      const ROOT = document.querySelector('[data-product-history-root]');
+      if (ROOT) {
+        const API_BASE = String(pocketbaseUrl || '').replace(/\/$/, '');
+        const PRODUCT_ID = String(productId || '');
+        const REQUESTED_VARIATION = String(requestedVariation || '');
+        const alert = ROOT.querySelector('[data-history-alert]');
+        const list = ROOT.querySelector('[data-history-list]');
+        const pagination = ROOT.querySelector('[data-history-pagination]');
+        const pageLabel = ROOT.querySelector('[data-page-label]');
+        const variationSelect = ROOT.querySelector('[data-history-variation]');
+        let scope = 'all';
+        let variationId = REQUESTED_VARIATION;
+        let page = 1;
+        let totalPages = 1;
+
+        const token = () => {
+          const cookie = String(document.cookie || '').split(';').map((value) => value.trim()).find((value) => value.startsWith('pb_auth=')) || '';
+          try {
+            const parsed = JSON.parse(decodeURIComponent(cookie.slice('pb_auth='.length)));
+            if (typeof parsed?.token === 'string') return parsed.token;
+          } catch (_) {}
+          return '';
+        };
+        const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+        const label = (field) => ({ expiration_date:'Fecha de vencimiento', base_price_usd:'Precio', regular_price_usd:'Precio regular', offer_price_usd:'Precio oferta', price_usd:'Precio', cost_usd:'Costo', stock:'Stock', track_stock:'Control de stock', allow_preorder:'Preventa', active:'Visibilidad', images:'Imágenes', image:'Imagen', image_order:'Orden de imágenes', category:'Categoría', subcategory:'Subcategoría', has_variations:'Modalidad' }[field] || String(field || '').replace(/_/g, ' '));
+        const actionLabel = (action) => ({ variation_manual_hidden:'Ocultó manualmente', variation_manual_activated:'Activó manualmente', variation_expiration_corrected:'Corrigió la fecha de vencimiento', product_unit_reactivated:'Restauró la disponibilidad', product_unit_expired:'Quedó oculto por vencimiento', product_created:'Creó el producto', product_updated:'Actualizó el producto', product_variation_created:'Creó la variación', product_variation_updated:'Actualizó la variación', product_variation_deleted:'Eliminó la variación' }[action] || String(action || 'Cambio administrativo').replace(/_/g, ' '));
+        const valueText = (value) => {
+          if (value === undefined || value === null || value === '') return 'Sin valor';
+          if (value === true) return 'Sí';
+          if (value === false) return 'No';
+          if (Array.isArray(value)) return value.length ? `${value.length} elemento(s)` : 'Sin elementos';
+          if (typeof value === 'object') return 'Configuración actualizada';
+          return String(value).slice(0, 500);
+        };
+        const formatDate = (value) => {
+          const date = new Date(value);
+          return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle:'medium', timeStyle:'short' }).format(date) : 'Fecha no disponible';
+        };
+        async function post(path, body) {
+          const response = await fetch(`${API_BASE}${path}`, { method:'POST', headers:{ Authorization:`Bearer ${token()}`, 'Content-Type':'application/json', Accept:'application/json' }, body:JSON.stringify(body), cache:'no-store', credentials:'omit' });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || result?.ok !== true) throw new Error(result?.error || 'history_unavailable');
+          return result;
+        }
+        function setAlert(message = '', error = false) {
+          alert.textContent = message;
+          alert.hidden = !message;
+          alert.classList.toggle('is-error', error);
+        }
+        function renderSummary(result) {
+          const product = result.product || {};
+          ROOT.querySelector('[data-history-name]').textContent = product.name || 'Producto';
+          const image = ROOT.querySelector('[data-history-image]');
+          image.innerHTML = product.image_url ? `<img src="${escapeHtml(`${API_BASE}${product.image_url}`)}" alt="" />` : 'Sin imagen';
+          ROOT.querySelector('[data-history-meta]').innerHTML = [
+            `<span class="history-pill">${escapeHtml(product.category || 'Sin categoría')}</span>`,
+            `<span class="history-pill is-muted">${product.mode === 'variations' ? 'Por variaciones' : 'Producto general'}</span>`,
+            `<span class="history-pill ${product.active ? '' : 'is-hidden'}">${product.active ? 'Visible' : 'Oculto'}</span>`,
+            product.state === 'deleted' ? '<span class="history-pill is-hidden">Producto eliminado</span>' : '',
+          ].join('');
+          variationSelect.innerHTML = '<option value="">Todo el producto</option>' + (product.variations || []).map((variation) => `<option value="${escapeHtml(variation.id)}">${escapeHtml(variation.name)}${variation.state === 'deleted' ? ' - eliminada' : ''}</option>`).join('');
+          if ((product.variations || []).some((variation) => variation.id === variationId)) variationSelect.value = variationId;
+          else variationId = '';
+          const allowed = result.permissions || {};
+          ROOT.querySelector('[data-scope="price_stock"]').hidden = !allowed.price && !allowed.stock;
+          ROOT.querySelector('[data-scope="expirations"]').hidden = !allowed.expirations;
+          ROOT.querySelector('[data-scope="images"]').hidden = !allowed.images;
+          ROOT.querySelector('[data-scope="category"]').hidden = !allowed.category;
+          ROOT.querySelector('[data-scope="visibility"]').hidden = !allowed.visibility;
+        }
+        function renderEvents(events) {
+          if (!events.length) { list.innerHTML = '<p class="history-empty">No hay eventos para este filtro.</p>'; return; }
+          list.innerHTML = events.map((event) => `<article class="history-event">
+            <div class="history-event__actor"><strong>${escapeHtml(event.actor || 'Sistema')}</strong><time>${escapeHtml(formatDate(event.created))}</time>${event.actor_state === 'deleted' ? '<small>Usuario eliminado</small>' : ''}</div>
+            <div class="history-event__content"><span class="history-event__element">${escapeHtml(event.variation_label || event.element || 'Producto')}</span><h3>${escapeHtml(actionLabel(event.action))}</h3><p>${escapeHtml(event.summary || '')}</p>
+              ${(event.changes || []).length ? `<div class="history-changes">${event.changes.map((change) => `<div class="history-change"><strong>${escapeHtml(label(change.field))}</strong><div><span>Antes</span><p>${escapeHtml(valueText(change.before))}</p></div><div><span>Después</span><p>${escapeHtml(valueText(change.after))}</p></div></div>`).join('')}</div>` : ''}
+            </div></article>`).join('');
+        }
+        function renderPagination(info) {
+          totalPages = Number(info?.total_pages || 1);
+          page = Number(info?.page || 1);
+          pagination.hidden = Number(info?.total_items || 0) === 0;
+          pageLabel.textContent = `Página ${page} de ${totalPages}`;
+          pagination.querySelector('[data-page="previous"]').disabled = page <= 1;
+          pagination.querySelector('[data-page="next"]').disabled = page >= totalPages;
+        }
+        async function loadList() {
+          setAlert('Cargando historial privado...');
+          list.innerHTML = '';
+          try {
+            const result = await post('/api/pz/store/products/history/list', { product_id:PRODUCT_ID, variation_id:variationId, scope, page, per_page:20 });
+            renderEvents(result.events || []);
+            renderPagination(result.pagination || {});
+            setAlert('');
+          } catch (_) { setAlert('No se pudo cargar este historial. Revisa tu sesion y permisos.', true); }
+        }
+        ROOT.querySelector('[data-history-scopes]').addEventListener('click', (event) => {
+          const button = event.target.closest('[data-scope]');
+          if (!button || button.hidden) return;
+          scope = button.dataset.scope || 'all'; page = 1;
+          ROOT.querySelectorAll('[data-scope]').forEach((item) => item.setAttribute('aria-pressed', item === button ? 'true' : 'false'));
+          void loadList();
+        });
+        variationSelect.addEventListener('change', () => { variationId = variationSelect.value; page = 1; void loadList(); });
+        pagination.addEventListener('click', (event) => { const button = event.target.closest('[data-page]'); if (!button || button.disabled) return; page += button.dataset.page === 'previous' ? -1 : 1; void loadList(); });
+        if (!API_BASE || !PRODUCT_ID || !token()) setAlert('No se pudo validar la sesión administrativa.', true);
+        else post('/api/pz/store/products/history/summary', { product_id:PRODUCT_ID, variation_id:variationId }).then((result) => { renderSummary(result); void loadList(); }).catch(() => setAlert('El producto no existe o no pertenece a esta tienda.', true));
+      }
+    </script>
+  </body>
+</html>

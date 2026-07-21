@@ -24,7 +24,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   if (normalized === 'profits') return { all: ['orders.view', 'catalog.view'] };
   if (normalized === 'account' || normalized === 'change-temporary-password') return null;
   if (normalized === 'team' || normalized.startsWith('team/')) return { primary: true };
-  if (normalized === 'products' || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
+  if (normalized === 'products' || normalized.startsWith('products/') || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
   if (normalized === 'orders' || normalized.startsWith('orders/')) return { any: ['orders.view'] };
   if (normalized === 'shipping') return { any: ['shipping.manage'] };
   if (normalized === 'gifts') return { any: ['gifts.manage'] };

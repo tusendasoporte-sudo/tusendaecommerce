@@ -489,8 +489,11 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
           : (event.actor.is_system ? '<span class="store-activity-actor-state is-system">Sistema</span>' : '');
         const route = getStoreActivityResourcePath(storeSlug, event.resource);
         const resourceAction = route
-          ? `<a class="store-activity-link" href="${escapeHtml(route)}">Abrir ${escapeHtml(event.resource.label || 'elemento')}</a>`
+          ? `<a class="store-activity-link" href="${escapeHtml(route)}" aria-label="Abrir ${escapeHtml(event.resource.label || 'elemento')}">Abrir</a>`
           : `<span class="store-activity-resource-missing">${event.action === 'user_deleted' ? 'Usuario eliminado' : 'Elemento eliminado'}</span>`;
+        const productHistoryAction = event.resource.history_path
+          ? `<a class="store-activity-link" href="${escapeHtml(event.resource.history_path)}">Ver historial</a>`
+          : '';
         const review = mode === 'self'
           ? ''
           : `<span class="store-activity-pill is-review-${escapeHtml(event.review.status)}">${escapeHtml(reviewLabel(event.review.status))}</span>`;
@@ -506,7 +509,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
           <div class="store-activity-item__content">
             <div class="store-activity-item__topline">
               <span>${escapeHtml(moduleLabel(event.module))}</span>
-              ${event.resource.label ? `<small>${escapeHtml(event.resource.label)}</small>` : ''}
+              ${event.resource.label ? `<small title="${escapeHtml(event.resource.label)}">${escapeHtml(event.resource.label)}</small>` : ''}
             </div>
             <p class="store-activity-item__summary">${escapeHtml(event.summary)}</p>
             ${compactChanges(event)}
@@ -516,9 +519,9 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
             ${review}
           </div>
           <div class="store-activity-item__actions">
-            <button class="store-activity-link is-button" type="button" data-activity-view-change>Ver cambio</button>
             ${resourceAction}
-            ${reviewAction}
+            ${productHistoryAction}
+            ${productHistoryAction ? '<button class="store-activity-link is-button" type="button" data-activity-view-change>Ver detalle</button>' : `<button class="store-activity-link is-button" type="button" data-activity-view-change>Ver cambio</button>${reviewAction}`}
           </div>
         </article>`;
       }).join('');

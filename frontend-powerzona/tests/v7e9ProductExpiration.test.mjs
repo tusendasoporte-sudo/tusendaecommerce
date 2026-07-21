@@ -48,11 +48,12 @@ test('V7E9: filtra una variación y bloquea el producto si todas las vendibles v
   assert.equal(filterPublicCatalogByExpirationAccess([product], allExpired, true, '2026-07-17T12:00:00Z').products.length, 0);
 });
 
-test('V7E9: validación viva cubre producto y variación sin revelar vencimiento', () => {
+test('V7E9: validación viva consume el contrato público sin depender de fechas privadas', () => {
   const validator = readFileSync(new URL('../public/cart-live-validator.js', import.meta.url), 'utf8');
-  assert.match(validator, /America\/Havana/);
-  assert.match(validator, /expirationDateExpired\(product\.expiration_date\)/);
-  assert.match(validator, /expirationDateExpired\(variation\.expiration_date\)/);
+  assert.equal(validator.includes('America/Havana'), false);
+  assert.equal(validator.includes('expirationDateExpired'), false);
+  assert.equal(validator.includes('PZ_PRODUCT_EXPIRATION_ENABLED'), false);
+  assert.match(validator, /product\.has_variations !== true/);
   assert.equal(validator.includes('vencido por fecha'), false);
 });
 

@@ -3,10 +3,20 @@
 
   const CACHE_TTL_MS = 12000;
   const INVALID_STATUSES = new Set(['out_of_stock', 'unavailable', 'variation_unavailable']);
+  const PRIVATE_CART_FIELDS = ['cost_usd', 'variation_cost_usd', 'variation_ref', 'internal_ref', 'expiration_date'];
   let activeValidationPromise = null;
   let lastFingerprint = '';
   let lastValidatedAt = 0;
   let lastResult = null;
+
+  function sanitizeCartItem(item) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+    const safeItem = { ...item };
+    PRIVATE_CART_FIELDS.forEach((field) => {
+      delete safeItem[field];
+    });
+    return safeItem;
+  }
 
   function number(value, fallback = 0) {
     const parsed = Number(value);
@@ -108,7 +118,7 @@
 
   function productStoreMatches(product, currentStoreId) {
     const productStoreId = relationId(product?.store || product?.store_id);
-    return !(currentStoreId && productStoreId && productStoreId !== currentStoreId);
+    return !currentStoreId || productStoreId === currentStoreId;
   }
 
   function itemStoreMatches(item, currentStoreId) {
@@ -124,45 +134,16 @@
     const subcategory = firstExpanded(product.expand?.subcategory);
     if (product.category && category && category.active === false) return false;
     if (product.subcategory && subcategory && subcategory.active === false) return false;
-    if (expirationEnabled() && expirationDateExpired(product.expiration_date)) return false;
     return true;
-  }
-
-  function expirationEnabled() {
-    return window.PZ_PRODUCT_EXPIRATION_ENABLED === true;
-  }
-
-  function civilDate(value) {
-    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || '').trim());
-    if (!match) return '';
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    const day = Number(match[3]);
-    const parsed = new Date(Date.UTC(year, month - 1, day));
-    return parsed.getUTCFullYear() === year && parsed.getUTCMonth() + 1 === month && parsed.getUTCDate() === day
-      ? `${match[1]}-${match[2]}-${match[3]}`
-      : '';
-  }
-
-  function havanaToday() {
-    const parts = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
-      timeZone: 'America/Havana', year: 'numeric', month: '2-digit', day: '2-digit',
-    }).formatToParts(new Date());
-    const mapped = {};
-    parts.forEach((part) => { if (part.type !== 'literal') mapped[part.type] = part.value; });
-    return `${mapped.year}-${mapped.month}-${mapped.day}`;
-  }
-
-  function expirationDateExpired(value) {
-    const date = civilDate(value);
-    return Boolean(date) && date <= havanaToday();
   }
 
   function getProductPrice(product) {
     const basePrice = Math.max(0, number(product?.base_price_usd || product?.public_price_usd || 0));
     const regularPrice = Math.max(0, number(product?.regular_price_usd || basePrice || 0));
     const offerPrice = Math.max(0, number(product?.offer_price_usd || 0));
-    const activePrice = product?.is_offer === true && offerPrice > 0 ? offerPrice : basePrice;
+    const offerCeiling = regularPrice > 0 ? regularPrice : basePrice;
+    const validOffer = product?.is_offer === true && offerPrice > 0 && offerPrice < offerCeiling;
+    const activePrice = validOffer ? offerPrice : basePrice;
     const displayRegularPrice = regularPrice > 0 ? regularPrice : activePrice;
     const isOffer = activePrice > 0 && displayRegularPrice > activePrice;
     return {
@@ -173,10 +154,11 @@
     };
   }
 
-  function getVariationPrice(product, variation) {
-    const regularPrice = Math.max(0, number(variation?.price_usd ?? variation?.precio_usd ?? product?.base_price_usd ?? 0));
+  function getVariationPrice(variation) {
+    const regularPrice = Math.max(0, number(variation?.price_usd ?? variation?.precio_usd ?? 0));
     const offerPrice = Math.max(0, number(variation?.offer_price_usd || 0));
-    const activePrice = variation?.is_offer === true && offerPrice > 0 ? offerPrice : regularPrice;
+    const validOffer = variation?.is_offer === true && offerPrice > 0 && offerPrice < regularPrice;
+    const activePrice = validOffer ? offerPrice : regularPrice;
     const displayRegularPrice = regularPrice > 0 ? regularPrice : activePrice;
     const isOffer = activePrice > 0 && displayRegularPrice > activePrice;
     return {
@@ -221,7 +203,7 @@
 
   function unavailableItem(item, status, message, reason, options, flags) {
     const next = {
-      ...item,
+      ...sanitizeCartItem(item),
       stock: 0,
       preorder: false,
       cart_validation_status: status,
@@ -313,7 +295,7 @@
       return unavailableItem(item, 'variation_unavailable', 'Variacion no disponible.', 'variation_required', options, flags);
     }
 
-    const next = { ...item };
+    const next = sanitizeCartItem(item);
     const messages = [];
     flags.itemPriceChanged = false;
     flags.itemQuantityAdjusted = false;
@@ -333,9 +315,10 @@
     changedField(next, 'allow_preorder', allowPreorder, flags, { rules: true });
     const image = productImage(product, options);
     if (image) changedField(next, 'image', image, flags);
-    changedField(next, 'cost_usd', number(product.cost_usd || 0), flags, { price: true });
-
     const priceInfo = getProductPrice(product);
+    if (priceInfo.activePrice <= 0) {
+      return unavailableItem(next, 'unavailable', `${itemTitle(next)} ya no esta disponible.`, 'invalid_price', options, flags);
+    }
     updatePrice(next, priceInfo, messages, flags);
 
     if (tracksStock && stock <= 0 && !preorder) {
@@ -357,15 +340,15 @@
       return unavailableItem(item, 'unavailable', `${itemTitle(item)} ya no esta disponible.`, 'product_unavailable', options, flags);
     }
 
+    if (product.has_variations !== true) {
+      return unavailableItem(item, 'variation_unavailable', 'Variacion no disponible.', 'variation_mode_disabled', options, flags);
+    }
+
     const variation = await fetchRecord('product_variations', item.variation_id, options);
     if (!variation || variation.active === false || relationId(variation.product) !== String(product.id || '')) {
       return unavailableItem(item, 'variation_unavailable', 'Variacion no disponible.', 'variation_unavailable', options, flags);
     }
-    if (expirationEnabled() && expirationDateExpired(variation.expiration_date)) {
-      return unavailableItem(item, 'variation_unavailable', 'Este producto ya no esta disponible.', 'variation_unavailable', options, flags);
-    }
-
-    const next = { ...item };
+    const next = sanitizeCartItem(item);
     const messages = [];
     flags.itemPriceChanged = false;
     flags.itemQuantityAdjusted = false;
@@ -380,7 +363,6 @@
       changedField(next, 'variation_label', label, flags);
       changedField(next, 'variation_name', label, flags);
     }
-    changedField(next, 'variation_ref', variation.ref || variation.internal_ref || variation.sku || '', flags);
     const image = variationImage(variation, options) || productImage(product, options);
     if (image) changedField(next, 'image', image, flags);
 
@@ -392,10 +374,10 @@
     changedField(next, 'stock', stock, flags, { stock: true });
     changedField(next, 'preorder', preorder, flags, { rules: true });
     changedField(next, 'allow_preorder', allowPreorder, flags, { rules: true });
-    changedField(next, 'cost_usd', number(variation.cost_usd || 0), flags, { price: true });
-    changedField(next, 'variation_cost_usd', number(variation.cost_usd || 0), flags, { price: true });
-
-    const priceInfo = getVariationPrice(product, variation);
+    const priceInfo = getVariationPrice(variation);
+    if (priceInfo.activePrice <= 0) {
+      return unavailableItem(next, 'variation_unavailable', 'Variacion no disponible.', 'invalid_variation_price', options, flags);
+    }
     updatePrice(next, priceInfo, messages, flags);
 
     if (tracksStock && stock <= 0 && !preorder) {
@@ -407,9 +389,11 @@
   }
 
   async function runValidation(cart, options = {}) {
-    const sourceCart = Array.isArray(cart) ? cart : [];
+    const rawCart = Array.isArray(cart) ? cart : [];
+    const removedPrivateFields = rawCart.some((item) => PRIVATE_CART_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(item || {}, field)));
+    const sourceCart = rawCart.map(sanitizeCartItem);
     const flags = {
-      changed: false,
+      changed: removedPrivateFields,
       requiresReview: false,
       availabilityChanged: false,
       quantityAdjusted: false,
@@ -422,7 +406,7 @@
 
     for (const item of sourceCart) {
       if (isGiftItem(item)) {
-        validatedCart.push(item);
+        validatedCart.push(sanitizeCartItem(item));
       } else if (item?.variation_id) {
         validatedCart.push(await validateVariationItem(item, options, flags));
       } else {
@@ -476,7 +460,10 @@
       && Date.now() - lastValidatedAt < CACHE_TTL_MS;
     if (canUseCache) return { ...lastResult, skipped: true };
 
-    if (activeValidationPromise) return activeValidationPromise;
+    if (activeValidationPromise) {
+      if (options.force !== true) return activeValidationPromise;
+      try { await activeValidationPromise; } catch (_) { /* La nueva validacion reintenta. */ }
+    }
 
     activeValidationPromise = runValidation(sourceCart, options)
       .then((result) => {
@@ -493,13 +480,14 @@
   }
 
   function defaultSaveCart(cart) {
+    const safeCart = Array.isArray(cart) ? cart.map(sanitizeCartItem) : [];
     if (window.PZCartStorage?.writeCart) {
-      window.PZCartStorage.writeCart(cart);
+      window.PZCartStorage.writeCart(safeCart);
       window.dispatchEvent(new Event('cart-updated'));
       return;
     }
     const key = window.PZ_CART_STORAGE_KEY || `tusenda84_cart_${window.PZ_CURRENT_STORE_ID || 'powerzona'}`;
-    localStorage.setItem(key, JSON.stringify(Array.isArray(cart) ? cart : []));
+    localStorage.setItem(key, JSON.stringify(safeCart));
     window.dispatchEvent(new Event('cart-updated'));
   }
 
@@ -558,8 +546,21 @@
   }
 
   function getValidCartItems(cart) {
-    return (Array.isArray(cart) ? cart : []).filter((item) => !isCartItemUnavailable(item));
+    return (Array.isArray(cart) ? cart : []).map(sanitizeCartItem).filter((item) => !isCartItemUnavailable(item));
   }
+
+  function resetCache() {
+    lastFingerprint = '';
+    lastValidatedAt = 0;
+    lastResult = null;
+  }
+
+  window.addEventListener('storage', resetCache);
+  window.addEventListener('pageshow', resetCache);
+  window.addEventListener('focus', resetCache);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resetCache();
+  });
 
   window.PZCartLiveValidator = {
     validateCartAgainstStore,
@@ -567,5 +568,6 @@
     isCartItemUnavailable,
     getCartValidationSummary,
     getValidCartItems,
+    resetCache,
   };
 })();

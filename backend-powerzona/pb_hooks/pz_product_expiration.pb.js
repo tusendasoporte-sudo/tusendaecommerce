@@ -41,7 +41,7 @@ onRecordCreateRequest((e) => {
 }, "settings");
 
 onRecordAfterCreateSuccess((e) => {
-  return require(`${__hooks}/pz_product_expiration_lib.js`).continueAfterExpirationSideEffect(e, "products", "change");
+  return require(`${__hooks}/pz_product_expiration_lib.js`).continueAfterExpirationSideEffect(e, "products", "create");
 }, "products");
 onRecordAfterUpdateSuccess((e) => {
   return require(`${__hooks}/pz_product_expiration_lib.js`).continueAfterExpirationSideEffect(e, "products", "change");
@@ -51,7 +51,7 @@ onRecordAfterDeleteSuccess((e) => {
 }, "products");
 
 onRecordAfterCreateSuccess((e) => {
-  return require(`${__hooks}/pz_product_expiration_lib.js`).continueAfterExpirationSideEffect(e, "product_variations", "change");
+  return require(`${__hooks}/pz_product_expiration_lib.js`).continueAfterExpirationSideEffect(e, "product_variations", "create");
 }, "product_variations");
 onRecordAfterUpdateSuccess((e) => {
   return require(`${__hooks}/pz_product_expiration_lib.js`).continueAfterExpirationSideEffect(e, "product_variations", "change");

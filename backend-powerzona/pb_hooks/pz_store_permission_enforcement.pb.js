@@ -1,5 +1,10 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+routerUse(new Middleware(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforcePublicProductReadCachePolicy(e),
+  -900,
+));
+
 onRecordsListRequest(
   (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRead(e),
   "products", "product_variations", "categories", "subcategories", "orders", "order_items",

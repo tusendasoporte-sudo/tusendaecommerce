@@ -56,6 +56,7 @@ export type StoreActivityResource = {
   route_key: string;
   id_snapshot: string;
   path: string;
+  history_path: string;
 };
 
 export type StoreActivityChange = {
@@ -378,6 +379,7 @@ export function normalizeStoreActivityEvent(value: any): StoreActivityEvent {
       route_key: text(resourceValue.route_key || value?.route_key || resourceType).toLowerCase(),
       id_snapshot: resourceId,
       path: text(resourceValue.path || value?.resource_path),
+      history_path: text(resourceValue.history_path || value?.product_history_path),
     },
     review: {
       status: normalizedReviewStatus(reviewValue.status || value?.review_status),

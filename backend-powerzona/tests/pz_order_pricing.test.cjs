@@ -308,6 +308,69 @@ test('variacion usa su precio real y rechaza ausencia, otro producto y otra tien
   }
 });
 
+test('checkout pagina todas las variaciones y alcanza una unidad valida despues del primer lote', () => {
+  const app = fixtureApp();
+  const originalFind = app.findRecordsByFilter.bind(app);
+  const filler = mutableRecord('variationpage01', {
+    product: IDS.variationProduct,
+    active: false,
+    price_usd: 0,
+    stock: 0,
+  });
+  const target = mutableRecord('variationpage02', {
+    product: IDS.variationProduct,
+    variation_type: 'Lote',
+    value: 'Segundo lote',
+    active: true,
+    price_usd: 19,
+    stock: 3,
+  });
+  const calls = [];
+  app.findRecordsByFilter = (collection, filter, sort, limit, offset, params = {}) => {
+    if (collection === 'product_variations' && params.product === IDS.variationProduct) {
+      calls.push({ sort, limit, offset });
+      if (offset === 0) return new Array(500).fill(filler);
+      if (offset === 500) return [target];
+      return [];
+    }
+    return originalFind(collection, filter, sort, limit, offset, params);
+  };
+
+  const plan = pricing.buildCheckoutPlan(
+    app,
+    parsed({ product_id: IDS.variationProduct, variation_id: target.id, quantity: 1 }),
+    new Date('2026-07-18T12:00:00Z'),
+  );
+  assert.equal(plan.totals.items[0].variation_id, target.id);
+  assert.equal(plan.totals.items[0].unit_price_original_usd, 19);
+  assert.deepEqual(calls, [
+    { sort: 'sort_order,id', limit: 500, offset: 0 },
+    { sort: 'sort_order,id', limit: 500, offset: 500 },
+  ]);
+});
+
+test('has_variations=false vende el padre aunque conserve variaciones y nunca acepta variation_id', () => {
+  const app = fixtureApp();
+  const retained = mutableRecord('variationkeep01', {
+    product: IDS.product,
+    variation_type: 'Archivada',
+    value: 'Retenida',
+    active: true,
+    price_usd: 999,
+    stock: 100,
+    expiration_date: '2000-01-01',
+  });
+  app.tables.product_variations.push(retained);
+  const parentPlan = pricing.buildCheckoutPlan(app, parsed({ product_id: IDS.product, variation_id: '', quantity: 2 }), new Date('2026-07-18T12:00:00Z'));
+  assert.equal(parentPlan.totals.items[0].unit_price_original_usd, 10);
+  assert.equal(parentPlan.totals.items[0].variation_id, '');
+  assert.throws(() => pricing.buildCheckoutPlan(
+    app,
+    parsed({ product_id: IDS.product, variation_id: retained.id, quantity: 1 }),
+    new Date('2026-07-18T12:00:00Z'),
+  ), /order_unavailable/);
+});
+
 test('ofertas, promociones, cupones y moneda mixta se calculan desde registros actuales', () => {
   const base = fixtureTables();
   base.products[0].is_offer = true;
@@ -663,6 +726,44 @@ test('inventario oficial rechaza relaciones cruzadas de producto, variacion o re
     );
     assert.equal(order.status, 'pending');
   }
+});
+
+test('inventario no reserva una unidad que cambió de modo y sí permite restaurar la reserva histórica', () => {
+  const app = fixtureApp();
+  const order = mutableRecord(IDS.order, { store: IDS.store, status: 'pending', stock_deducted: false });
+  const item = mutableRecord(IDS.itemVariation, {
+    order: order.id,
+    product: IDS.variationProduct,
+    variation: IDS.variation,
+    gift: '',
+    is_gift: false,
+    quantity: 2,
+  });
+  app.tables.orders.push(order);
+  app.tables.order_items.push(item);
+  const variation = app.tables.product_variations.find((entry) => entry.id === IDS.variation);
+  const product = app.tables.products.find((entry) => entry.id === IDS.variationProduct);
+
+  pricing.moveOrderInventory(app, order, -1);
+  assert.equal(variation.stock, 6);
+  product.has_variations = false;
+  pricing.moveOrderInventory(app, order, 1);
+  assert.equal(variation.stock, 8, 'la restauración conserva la referencia histórica');
+  assert.throws(
+    () => pricing.moveOrderInventory(app, order, -1),
+    (error) => error.privateCode === 'order_inventory_invalid' && error.status === 409,
+  );
+  assert.equal(variation.stock, 8);
+
+  item.product = IDS.product;
+  item.variation = '';
+  const parent = app.tables.products.find((entry) => entry.id === IDS.product);
+  parent.has_variations = true;
+  assert.throws(
+    () => pricing.moveOrderInventory(app, order, -1),
+    (error) => error.privateCode === 'order_inventory_invalid' && error.status === 409,
+  );
+  assert.equal(parent.stock, 10);
 });
 
 test('tokens oficiales son criptograficos, idempotentes, de payload vacio y la reseña exige entrega', () => {

@@ -15,7 +15,7 @@ const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
 const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
 const POCKETBASE_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase');
 const TEMP_ROOT = path.join(BACKEND_DIR, '.tmp');
-const TEMP_PREFIX = 'V7E9C3QA_';
+const TEMP_PREFIX = 'V7E9C3F2R2QA_';
 const LOOPBACK = '127.0.0.1';
 const EXPIRATION_NOTIFICATION_TYPES = [
   'product_expiring_soon',
@@ -177,7 +177,7 @@ function assertOwnedTempDirectory(directory) {
   const resolvedRoot = path.resolve(TEMP_ROOT);
   const resolvedDirectory = path.resolve(directory);
   assert.equal(path.dirname(resolvedDirectory), resolvedRoot, `directorio temporal fuera de alcance: ${resolvedDirectory}`);
-  assert.match(path.basename(resolvedDirectory), /^V7E9C3QA_[A-Za-z0-9_-]+$/);
+  assert.match(path.basename(resolvedDirectory), /^V7E9C3F2R2QA_[A-Za-z0-9_-]+$/);
 }
 
 async function apiRequest(baseUrl, route, { token = '', body, headers = {}, method = body === undefined ? 'GET' : 'POST' } = {}) {
@@ -207,7 +207,7 @@ function close(actual, expected, label) {
   assert.ok(Math.abs(Number(actual) - Number(expected)) < 0.000001, `${label}: ${actual} != ${expected}`);
 }
 
-test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrade', { timeout: 180000 }, async () => {
+test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, permisos, tenant y cleanup', { timeout: 180000 }, async () => {
   assert.equal(fs.existsSync(POCKETBASE_EXE), true, `falta binario PocketBase: ${POCKETBASE_EXE}`);
   fs.mkdirSync(TEMP_ROOT, { recursive: true });
   const tempDirectory = fs.mkdtempSync(path.join(TEMP_ROOT, TEMP_PREFIX));
@@ -219,8 +219,8 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
 
   const stamp = Date.now();
   const suffix = `${stamp.toString(36)}${Math.random().toString(36).slice(2, 7)}`.toLowerCase();
-  const prefix = `V7E9C3QA_${stamp}`;
-  const slugPrefix = `v7e9c3qa-${suffix}`;
+  const prefix = `V7E9C3F2R2QA_${stamp}`;
+  const slugPrefix = `v7e9c3f2r2qa-${suffix}`;
   const superEmail = `${slugPrefix}-super@example.test`;
   const superPassword = runtimePassword('superuser');
   const passwords = {
@@ -259,6 +259,10 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
       return request(`/api/collections/${collection}/records/${id}`, { token, method: 'PATCH', body });
     }
 
+    async function deleteRecord(collection, id, token) {
+      return request(`/api/collections/${collection}/records/${id}`, { token, method: 'DELETE' });
+    }
+
     async function readRecord(collection, id) {
       const result = await request(`/api/collections/${collection}/records/${id}`, { token: superToken });
       assertStatus(result, 200, `leer ${collection}/${id}`);
@@ -294,11 +298,15 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
       });
     }
 
-    async function expirationEndpoint(token) {
+    async function expirationEndpoint(token, view = 'summary', query = '', windowDays = 30) {
       return request('/api/pz/admin/product-expirations', {
         token,
-        body: { view: 'summary', window_days: 30, page: 1, page_size: 10, query: '' },
+        body: { view, window_days: windowDays, page: 1, page_size: 10, query },
       });
+    }
+
+    async function productHistory(token, route, body) {
+      return request(`/api/pz/store/products/history/${route}`, { token, body });
     }
 
     const auth = await request('/api/collections/_superusers/auth-with-password', {
@@ -377,15 +385,21 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
     const expirationPermissions = permissionCatalog.normalizePermissions(['catalog.expirations.manage']);
     const memberCreated = await teamCreate('expiration-member', expirationPermissions);
     assertStatus(memberCreated, 200, 'crear adicional con permiso granular');
+    const viewerCreated = await teamCreate('catalog-viewer', ['catalog.view']);
+    assertStatus(viewerCreated, 200, 'crear adicional con solo lectura de catálogo');
     const deniedCreated = await teamCreate('denied-member', []);
     assertStatus(deniedCreated, 200, 'crear adicional sin permiso granular');
     const member = memberCreated.data.user;
+    const viewer = viewerCreated.data.user;
     const deniedMember = deniedCreated.data.user;
     const memberAuth = await login(member, memberCreated.data.temporary_password, 'E'.repeat(43));
+    const viewerAuth = await login(viewer, viewerCreated.data.temporary_password, 'G'.repeat(43));
     const deniedAuth = await login(deniedMember, deniedCreated.data.temporary_password, 'F'.repeat(43));
     assertStatus(memberAuth, 200, 'login adicional con permiso');
+    assertStatus(viewerAuth, 200, 'login adicional de solo lectura');
     assertStatus(deniedAuth, 200, 'login adicional sin permiso');
     const memberToken = memberAuth.data.token;
+    const viewerToken = viewerAuth.data.token;
     const deniedToken = deniedAuth.data.token;
 
     const usd = await createRecord('currencies', {
@@ -419,6 +433,16 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
         delivery_mode: 'both',
         ...extra,
       });
+    }
+
+    async function publicList(collection, filter = '') {
+      const query = new URLSearchParams({ page: '1', perPage: '100' });
+      if (filter) query.set('filter', filter);
+      return request(`/api/collections/${collection}/records?${query}`);
+    }
+
+    async function publicDetail(collection, id) {
+      return request(`/api/collections/${collection}/records/${id}`);
     }
 
     const expirationFilter = EXPIRATION_NOTIFICATION_TYPES.map((type) => `type="${type}"`).join(' || ');
@@ -537,24 +561,308 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
     const expiredProduct = await createProduct('expired-product');
     const today = havanaCivilDate(0);
     assertStatus(await patchRecord('products', expiredProduct.id, { expiration_date: today }, tokens.premium), 200, 'configurar producto vencido');
+    const expiredPublicList = await publicList('products', `id="${expiredProduct.id}"`);
+    assertStatus(expiredPublicList, 200, 'listado público responde sin unidad vencida');
+    assert.equal(expiredPublicList.data.items.length, 0, 'producto general vencido desaparece del listado público');
+    const expiredPublicDetail = await publicDetail('products', expiredProduct.id);
+    assertStatus(expiredPublicDetail, 404, 'detalle público vencido usa fallback no encontrado');
+    assert.match(
+      String(expiredPublicDetail.headers['cache-control'] || ''),
+      /private|no-store/i,
+      `detalle vencido sin no-store; headers=${JSON.stringify(expiredPublicDetail.headers)} body=${expiredPublicDetail.raw}`,
+    );
+    assert.equal(expiredPublicDetail.raw.includes(today), false, 'detalle público no revela fecha privada');
     const rejectedProductCheckout = await checkout(expiredProduct);
     assertStatus(rejectedProductCheckout, 422, 'checkout rechaza producto vencido');
     assert.deepEqual(rejectedProductCheckout.data, { ok: false, error: 'order_unavailable' });
     assert.equal(rejectedProductCheckout.raw.includes(today), false, 'respuesta no revela fecha');
     assert.equal(/expir|venc/i.test(rejectedProductCheckout.raw), false, 'respuesta no revela motivo');
 
+    const futurePublicProduct = await createProduct('future-public-product');
+    assertStatus(await patchRecord('products', futurePublicProduct.id, { expiration_date: havanaCivilDate(15) }, tokens.premium), 200, 'configurar producto futuro');
+    const futurePublicDetail = await publicDetail('products', futurePublicProduct.id);
+    assertStatus(futurePublicDetail, 200, 'producto futuro permanece público');
+    assert.equal(Object.prototype.hasOwnProperty.call(futurePublicDetail.data, 'expiration_date'), false, 'fecha futura se redacta públicamente');
+    const undatedPublicProduct = await createProduct('undated-public-product');
+    assertStatus(await publicDetail('products', undatedPublicProduct.id), 200, 'producto sin fecha permanece público');
+
     const commerceVariationProduct = await createProduct('commerce-variation', storePremium, { has_variations: true, stock: 0 });
     const expiredVariation = await createRecord('product_variations', {
       store: storePremium.id, product: commerceVariationProduct.id, variation_type: 'Talla', value: `${prefix} Expired`,
-      active: true, price_usd: 12, stock: 8,
+      active: false, price_usd: 12, stock: 8,
     });
     const validVariation = await createRecord('product_variations', {
       store: storePremium.id, product: commerceVariationProduct.id, variation_type: 'Talla', value: `${prefix} Valid`,
       active: true, price_usd: 14, stock: 8,
     });
-    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: today }, memberToken), 200, 'configurar variacion vencida');
+    const undatedVariation = await createRecord('product_variations', {
+      store: storePremium.id, product: commerceVariationProduct.id, variation_type: 'Talla', value: `${prefix} Undated`,
+      active: true, price_usd: 15, stock: 8,
+    });
+    const inactiveVariation = await createRecord('product_variations', {
+      store: storePremium.id, product: commerceVariationProduct.id, variation_type: 'Talla', value: `${prefix} Inactive`,
+      active: false, price_usd: 16, stock: 8,
+    });
+    const upcomingDate = havanaCivilDate(10);
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: today }, memberToken), 200, 'configurar variacion vencida oculta');
+    const rejectedActivation = await patchRecord('product_variations', expiredVariation.id, { active: true }, tokens.premium);
+    assertStatus(rejectedActivation, [400, 409, 422], 'activar una variacion vencida se rechaza');
+    assert.match(rejectedActivation.raw, /variation_expired_cannot_activate|fecha de vencimiento/i);
+    assert.equal((await readRecord('product_variations', expiredVariation.id)).active, false, 'el rechazo conserva la variacion oculta');
+    assertStatus(await patchRecord('product_variations', validVariation.id, { expiration_date: upcomingDate }, memberToken), 200, 'configurar variacion próxima');
+    assertStatus(await patchRecord('product_variations', inactiveVariation.id, { expiration_date: today }, memberToken), 200, 'configurar variación manualmente oculta y vencida');
+    assertStatus(await patchRecord('product_variations', inactiveVariation.id, { expiration_date: havanaCivilDate(5) }, memberToken), 200, 'corregir fecha sin activar conserva ocultación manual');
+    assert.equal((await readRecord('product_variations', inactiveVariation.id)).active, false);
     assertStatus(await checkout(commerceVariationProduct, expiredVariation), 422, 'checkout rechaza variacion vencida');
+    assertStatus(await checkout(commerceVariationProduct, inactiveVariation), 422, 'checkout rechaza variación manualmente oculta');
+    assert.equal((await listRecords('order_items', `variation="${inactiveVariation.id}" || variation="${expiredVariation.id}"`)).length, 0, 'ningún order_item conserva unidades no vendibles');
     assertStatus(await checkout(commerceVariationProduct, validVariation), 200, 'otra variacion vendible conserva producto disponible');
+
+    const mixedPublicProducts = await publicList('products', `id="${commerceVariationProduct.id}"`);
+    assertStatus(mixedPublicProducts, 200, 'contenedor mixed permanece público');
+    assert.equal(mixedPublicProducts.data.items.length, 1, 'una variación vigente conserva visible el padre');
+    const mixedPublicVariations = await publicList('product_variations', `product="${commerceVariationProduct.id}"`);
+    assertStatus(mixedPublicVariations, 200, 'variaciones públicas se filtran por unidad');
+    assert.deepEqual(
+      mixedPublicVariations.data.items.map((item) => item.id).sort(),
+      [validVariation.id, undatedVariation.id].sort(),
+      'vencida e inactiva no son seleccionables públicamente',
+    );
+    assert.ok(mixedPublicVariations.data.items.every((item) => !Object.prototype.hasOwnProperty.call(item, 'expiration_date')));
+
+    const mixedExpired = await expirationEndpoint(tokens.premium, 'expired', 'commerce-variation');
+    const mixedUpcoming = await expirationEndpoint(tokens.premium, 'upcoming', 'commerce-variation');
+    assertStatus(mixedExpired, 200, 'V7E9 lista variación vencida');
+    assertStatus(mixedUpcoming, 200, 'V7E9 lista variación próxima');
+    assert.equal(mixedExpired.data.total_items, 0);
+    assert.equal(mixedUpcoming.data.total_items, 1);
+    assert.equal(mixedUpcoming.data.items[0].mode, 'variations');
+    assert.equal(mixedUpcoming.data.items[0].product_id, commerceVariationProduct.id);
+    assert.match(mixedUpcoming.data.items[0].affected_variations[0].name, /Valid$/);
+    assert.equal(mixedExpired.data.items.some((item) => item.affected_variations.length === 0), false, 'padre no aparece como unidad V7E9');
+
+    let mixedCycles = await listRecords('product_expiration_cycles', `product="${commerceVariationProduct.id}"`);
+    assert.deepEqual(mixedCycles.map((cycle) => cycle.entity_id).sort(), [validVariation.id]);
+    const mixedNotificationIds = [...new Set(mixedCycles.map((cycle) => cycle.notification))];
+    assert.equal(mixedNotificationIds.length, 1, 'solo la variación activa usa notificación');
+    for (const notificationId of mixedNotificationIds) {
+      const notification = await readRecord('store_notifications', notificationId);
+      assert.equal(notification.metadata_json.variation_ids.length, 1);
+    }
+    assertStatus(await patchRecord('product_variations', validVariation.id, { expiration_date: upcomingDate }, memberToken), 200, 'repetir fecha no duplica alerta');
+    assert.equal((await listRecords('product_expiration_cycles', `product="${commerceVariationProduct.id}"`)).length, 1);
+
+    const foreignVariation = await createRecord('product_variations', {
+      store: storeOther.id, product: otherProduct.id, variation_type: 'Talla', value: `${prefix} Foreign`,
+      active: true, price_usd: 9, stock: 4,
+    });
+    assertStatus(await checkout(commerceVariationProduct, foreignVariation), 422, 'variation_id de otro producto/tenant se rechaza');
+
+    const disabledMode = await patchRecord('products', commerceVariationProduct.id, {
+      has_variations: false,
+      base_price_usd: 19,
+      regular_price_usd: 19,
+      stock: 3,
+    }, tokens.premium);
+    assertStatus(disabledMode, 200, 'desactivar variaciones guarda false real');
+    assert.equal(disabledMode.data.has_variations, false);
+    assert.equal((await listRecords('product_expiration_cycles', `product="${commerceVariationProduct.id}"`)).length, 0, 'modo padre limpia ciclos de variaciones');
+    for (const variation of [expiredVariation, validVariation, inactiveVariation]) {
+      assert.ok(String((await readRecord('product_variations', variation.id)).expiration_date || ''), 'desactivar conserva fechas de variaciones');
+    }
+    const hiddenVariations = await publicList('product_variations', `product="${commerceVariationProduct.id}"`);
+    assertStatus(hiddenVariations, 200, 'listado público de variaciones desactivadas responde vacío');
+    assert.equal(hiddenVariations.data.items.length, 0);
+    assertStatus(await checkout(commerceVariationProduct, validVariation), 422, 'variation_id retenido se rechaza en modo padre');
+    const parentModeCheckout = await checkout(await readRecord('products', commerceVariationProduct.id), null, true);
+    assertStatus(parentModeCheckout, 200, 'modo padre usa su unidad canónica');
+    close(parentModeCheckout.data.items[0].unit_price_final_usd, 19, 'modo padre usa precio padre');
+    const retainedVariationParentAdd = await request(`/api/pz/admin/orders/${parentModeCheckout.data.order.id}/items`, {
+      token: tokens.premium,
+      body: { product_id: commerceVariationProduct.id, quantity: 1 },
+    });
+    assertStatus(retainedVariationParentAdd, 200, 'Pedidos Admin ignora variaciones conservadas y agrega el padre');
+    close(retainedVariationParentAdd.data.items[0].unit_price_final_usd, 19, 'Pedidos Admin conserva precio padre en modo general');
+    assertStatus(await request(`/api/pz/admin/orders/${parentModeCheckout.data.order.id}/items`, {
+      token: tokens.premium,
+      body: { product_id: commerceVariationProduct.id, variation_id: validVariation.id, quantity: 1 },
+    }), 422, 'Pedidos Admin rechaza variation_id retenido cuando has_variations=false');
+
+    const enabledMode = await patchRecord('products', commerceVariationProduct.id, { has_variations: true }, tokens.premium);
+    assertStatus(enabledMode, 200, 'reactivar variaciones válidas');
+    assert.equal(enabledMode.data.has_variations, true);
+    mixedCycles = await listRecords('product_expiration_cycles', `product="${commerceVariationProduct.id}"`);
+    assert.deepEqual(mixedCycles.map((cycle) => cycle.entity_id).sort(), [validVariation.id], 'reactivar recalcula solo alertas vigentes y activas');
+    assertStatus(await patchRecord('product_variations', validVariation.id, { expiration_date: upcomingDate }, memberToken), 200, 'recalcular reactivado sigue idempotente');
+    assert.equal((await listRecords('product_expiration_cycles', `product="${commerceVariationProduct.id}"`)).length, 1, 'reactivar no duplica ciclos');
+    assertStatus(await checkout(commerceVariationProduct, expiredVariation), 422, 'reactivar mantiene bloqueada la vencida');
+    assertStatus(await checkout(commerceVariationProduct, validVariation), 200, 'reactivar restaura variación vigente');
+
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, {
+      expiration_date: havanaCivilDate(12),
+      active: true,
+    }, tokens.premium), 200, 'corregir fecha y activar en la misma operación');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: today }, memberToken), 200, 'volver a fecha vencida registra transición');
+    assertStatus(await checkout(commerceVariationProduct, expiredVariation), 422, 'unidad manualmente activa y vencida no se vende');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: havanaCivilDate(12) }, memberToken), 200, 'corregir una unidad activa registra reactivación');
+    const modeActivities = await listRecords(
+      'store_activity_audit',
+      `store="${storePremium.id}" && resource_id_snapshot="${commerceVariationProduct.id}"`,
+    );
+    assert.equal(modeActivities.filter((event) => event.action === 'product_variations_disabled').length, 1);
+    assert.equal(modeActivities.filter((event) => event.action === 'product_variations_enabled').length, 1);
+    const unitActivities = await listRecords(
+      'store_activity_audit',
+      `store="${storePremium.id}" && resource_id_snapshot="${expiredVariation.id}"`,
+    );
+    assert.ok(unitActivities.some((event) => event.action === 'product_unit_expired'));
+    assert.ok(unitActivities.some((event) => event.action === 'product_unit_reactivated'));
+
+    assertStatus(await patchRecord('product_variations', validVariation.id, { price_usd: 14.25 }, tokens.premium), 200, 'crear cambio de precio para historial');
+    for (let index = 0; index < 22; index += 1) {
+      assertStatus(
+        await patchRecord('product_variations', validVariation.id, { stock: 20 + index }, tokens.premium),
+        200,
+        `crear evento paginado ${index + 1}`,
+      );
+    }
+
+    const historyAuditCountBefore = (await listRecords(
+      'store_activity_audit',
+      `store="${storePremium.id}" && parent_product_id_snapshot="${commerceVariationProduct.id}"`,
+    )).length;
+    const historySummary = await productHistory(tokens.premium, 'summary', { product_id: commerceVariationProduct.id });
+    assertStatus(historySummary, 200, 'resumen privado del historial');
+    assert.equal(historySummary.data.product.id, commerceVariationProduct.id);
+    assert.equal(historySummary.data.product.mode, 'variations');
+    assert.ok(historySummary.data.product.variations.some((item) => item.id === validVariation.id));
+    assert.equal(historySummary.data.permissions.price, true);
+
+    const historyPageOne = await productHistory(tokens.premium, 'list', {
+      product_id: commerceVariationProduct.id,
+      scope: 'all',
+      page: 1,
+      per_page: 20,
+    });
+    assertStatus(historyPageOne, 200, 'historial paginado del producto');
+    assert.equal(historyPageOne.data.pagination.per_page, 20);
+    assert.equal(historyPageOne.data.events.length, 20);
+    assert.ok(historyPageOne.data.pagination.total_items > 20);
+    assert.ok(historyPageOne.data.pagination.total_pages >= 2);
+    assert.ok(historyPageOne.data.events.some((event) => event.variation_id === validVariation.id));
+
+    const variationHistory = await productHistory(tokens.premium, 'list', {
+      product_id: commerceVariationProduct.id,
+      variation_id: validVariation.id,
+      scope: 'variations',
+      page: 1,
+      per_page: 20,
+    });
+    assertStatus(variationHistory, 200, 'historial filtrado por variación');
+    assert.ok(variationHistory.data.events.length > 0);
+    assert.ok(variationHistory.data.events.every((event) => event.variation_id === validVariation.id));
+
+    const expirationOnlyHistory = await productHistory(memberToken, 'list', {
+      product_id: commerceVariationProduct.id,
+      scope: 'all',
+      page: 1,
+      per_page: 20,
+    });
+    assertStatus(expirationOnlyHistory, 200, 'adicional de vencimientos consulta historial limitado');
+    assert.equal(expirationOnlyHistory.data.scope, 'expirations');
+    assert.ok(expirationOnlyHistory.data.events.length > 0);
+    assert.ok(expirationOnlyHistory.data.events.every((event) => event.changes.every((change) => (
+      change.field !== 'price_usd' && change.field !== 'stock' && change.field !== 'active'
+    ))));
+
+    const priceHistory = await productHistory(tokens.premium, 'list', {
+      product_id: commerceVariationProduct.id,
+      variation_id: validVariation.id,
+      scope: 'price_stock',
+      page: 1,
+      per_page: 50,
+    });
+    assertStatus(priceHistory, 200, 'principal consulta cambios de precio y stock');
+    const priceEvent = priceHistory.data.events.find((event) => event.changes.some((change) => change.field === 'price_usd'));
+    assert.ok(priceEvent, 'el historial conserva el cambio de precio');
+    const priceDetail = await productHistory(tokens.premium, 'detail', {
+      product_id: commerceVariationProduct.id,
+      event_id: priceEvent.id,
+    });
+    assertStatus(priceDetail, 200, 'detalle del evento dentro del producto');
+    assert.ok(priceDetail.data.event.changes.some((change) => change.field === 'price_usd'));
+    assertStatus(await productHistory(memberToken, 'detail', {
+      product_id: commerceVariationProduct.id,
+      event_id: priceEvent.id,
+    }), 404, 'permiso solo vencimientos no abre detalle de precio');
+    const viewerPriceDetail = await productHistory(viewerToken, 'detail', {
+      product_id: commerceVariationProduct.id,
+      event_id: priceEvent.id,
+    });
+    assertStatus(viewerPriceDetail, 200, 'lector de catálogo abre evento no sensible');
+    assert.equal(viewerPriceDetail.data.event.changes.some((change) => change.field === 'price_usd'), false, 'precio se redacta sin permiso');
+
+    const expirationEvent = expirationOnlyHistory.data.events[0];
+    assertStatus(await productHistory(viewerToken, 'detail', {
+      product_id: commerceVariationProduct.id,
+      event_id: expirationEvent.id,
+    }), 404, 'lector sin vencimientos no abre detalle de vencimiento');
+    assertStatus(await productHistory(deniedToken, 'summary', { product_id: commerceVariationProduct.id }), 403, 'usuario sin catálogo no consulta historial');
+    assertStatus(await productHistory(tokens.premium, 'summary', { product_id: otherProduct.id }), 404, 'producto de otro tenant no se revela');
+    assertStatus(await productHistory(tokens.premium, 'detail', {
+      product_id: otherProduct.id,
+      event_id: priceEvent.id,
+    }), 404, 'evento no puede cruzarse con otro producto o tenant');
+    const historyAuditCountAfter = (await listRecords(
+      'store_activity_audit',
+      `store="${storePremium.id}" && parent_product_id_snapshot="${commerceVariationProduct.id}"`,
+    )).length;
+    assert.equal(historyAuditCountAfter, historyAuditCountBefore, 'consultar historial no genera actividad de éxito');
+
+    const historicalProduct = await createProduct('historical-deleted-product', storePremium, { has_variations: true, stock: 0 });
+    const historicalVariation = await createRecord('product_variations', {
+      store: storePremium.id,
+      product: historicalProduct.id,
+      variation_type: 'Edición',
+      value: `${prefix} Eliminada`,
+      active: true,
+      price_usd: 18,
+      stock: 3,
+    });
+    assertStatus(await patchRecord('product_variations', historicalVariation.id, { stock: 4 }, tokens.premium), 200, 'crear snapshot histórico de variación');
+    assertStatus(await deleteRecord('product_variations', historicalVariation.id, tokens.premium), 204, 'eliminar variación histórica');
+    const deletedVariationSummary = await productHistory(tokens.premium, 'summary', {
+      product_id: historicalProduct.id,
+      variation_id: historicalVariation.id,
+    });
+    assertStatus(deletedVariationSummary, 200, 'historial conserva variación eliminada');
+    assert.ok(deletedVariationSummary.data.product.variations.some((item) => item.id === historicalVariation.id && item.state === 'deleted'));
+    assertStatus(await deleteRecord('products', historicalProduct.id, tokens.premium), 204, 'eliminar producto histórico');
+    const deletedProductSummary = await productHistory(tokens.premium, 'summary', { product_id: historicalProduct.id });
+    assertStatus(deletedProductSummary, 200, 'historial conserva producto eliminado');
+    assert.equal(deletedProductSummary.data.product.state, 'deleted');
+
+    const inheritedProduct = await createProduct('inherited-product', storePremium, { has_variations: true, stock: 0 });
+    const inheritedOne = await createRecord('product_variations', {
+      store: storePremium.id, product: inheritedProduct.id, variation_type: 'Sabor', value: `${prefix} Heredada A`,
+      active: true, price_usd: 11, stock: 2,
+    });
+    const inheritedTwo = await createRecord('product_variations', {
+      store: storePremium.id, product: inheritedProduct.id, variation_type: 'Sabor', value: `${prefix} Heredada B`,
+      active: true, price_usd: 13, stock: 2,
+    });
+    const inheritedInactive = await createRecord('product_variations', {
+      store: storePremium.id, product: inheritedProduct.id, variation_type: 'Sabor', value: `${prefix} Heredada inactiva`,
+      active: false, price_usd: 15, stock: 2,
+    });
+    assertStatus(await patchRecord('products', inheritedProduct.id, { expiration_date: firstDate }, memberToken), 200, 'fecha general se hereda por unidad activa');
+    const inheritedCycles = await listRecords('product_expiration_cycles', `product="${inheritedProduct.id}"`);
+    assert.deepEqual(inheritedCycles.map((cycle) => cycle.entity_id).sort(), [inheritedOne.id, inheritedTwo.id].sort());
+    assert.equal(inheritedCycles.some((cycle) => cycle.entity_id === inheritedProduct.id || cycle.entity_id === inheritedInactive.id), false);
+    const inheritedRows = await expirationEndpoint(tokens.premium, 'upcoming', 'inherited-product');
+    assertStatus(inheritedRows, 200, 'V7E9 lista herencia por variación');
+    assert.equal(inheritedRows.data.total_items, 2);
+    assert.ok(inheritedRows.data.items.every((item) => item.mode === 'variations' && item.affected_variations.length === 1));
 
     const canonicalProduct = await createProduct('canonical-product', storePremium, { base_price_usd: 17, regular_price_usd: 17 });
     const canonicalCheckout = await checkout(canonicalProduct, null, true);
@@ -562,6 +870,30 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
     assert.equal(canonicalCheckout.data.items[0].product_name, canonicalProduct.name);
     close(canonicalCheckout.data.items[0].unit_price_final_usd, 17, 'precio final canonico');
     const canonicalOrder = canonicalCheckout.data.order;
+    const adminParentAdd = await request(`/api/pz/admin/orders/${canonicalOrder.id}/items`, {
+      token: tokens.premium,
+      body: { product_id: futurePublicProduct.id, quantity: 1 },
+    });
+    assertStatus(adminParentAdd, 200, 'Pedidos Admin agrega padre sin variation_id');
+    const parentAdminItem = adminParentAdd.data.items.find((item) => item.product === futurePublicProduct.id);
+    assert.ok(parentAdminItem && !parentAdminItem.variation);
+    close(parentAdminItem.unit_price_final_usd, 10, 'Pedidos Admin usa precio canónico del padre');
+    assertStatus(await request(`/api/pz/admin/orders/${canonicalOrder.id}/items`, {
+      token: tokens.premium,
+      body: { product_id: commerceVariationProduct.id, quantity: 1 },
+    }), 422, 'Pedidos Admin exige variación cuando el modo está activo');
+    assertStatus(await request(`/api/pz/admin/orders/${canonicalOrder.id}/items`, {
+      token: tokens.premium,
+      body: { product_id: commerceVariationProduct.id, variation_id: inactiveVariation.id, quantity: 1 },
+    }), 422, 'Pedidos Admin rechaza variación manualmente oculta');
+    const adminVariationAdd = await request(`/api/pz/admin/orders/${canonicalOrder.id}/items`, {
+      token: tokens.premium,
+      body: { product_id: commerceVariationProduct.id, variation_id: validVariation.id, quantity: 1 },
+    });
+    assertStatus(adminVariationAdd, 200, 'Pedidos Admin agrega una variación vendible');
+    const variationAdminItem = adminVariationAdd.data.items.find((item) => item.variation === validVariation.id);
+    assert.ok(variationAdminItem);
+    close(variationAdminItem.unit_price_final_usd, 14.25, 'Pedidos Admin usa precio canónico de la variación');
     const directManipulation = await request('/api/collections/order_items/records', {
       body: {
         order: canonicalOrder.id,
@@ -590,6 +922,26 @@ test('V7E9-C3 HTTP runtime valida borrado, permisos, comercio, precio y downgrad
       `store="${storePremium.id}" && actor="${member.id}" && resource_id_snapshot="${memberProduct.id}"`,
     );
     assert.ok(memberActivities.length >= 2, 'actividad registra al adicional como actor');
+    const deletedMember = await request('/api/pz/store/team/delete', {
+      token: tokens.premium,
+      body: {
+        user_id: member.id,
+        confirmation_email: member.email,
+        reason_code: 'access_no_longer_needed',
+        reason_detail: '',
+      },
+    });
+    assertStatus(deletedMember, 200, 'eliminar actor histórico de prueba');
+    const deletedActorHistory = await productHistory(tokens.premium, 'list', {
+      product_id: memberProduct.id,
+      scope: 'expirations',
+      page: 1,
+      per_page: 20,
+    });
+    assertStatus(deletedActorHistory, 200, 'historial resuelve actor eliminado por snapshot');
+    assert.ok(deletedActorHistory.data.events.some((event) => (
+      event.actor === member.display_name && event.actor_state === 'deleted'
+    )));
 
     const downgradeProduct = await createProduct('downgrade-product', storePremium, { base_price_usd: 23, regular_price_usd: 23, stock: 11 });
     const downgradeVariationProduct = await createProduct('downgrade-variation-product', storePremium, { has_variations: true, stock: 0 });

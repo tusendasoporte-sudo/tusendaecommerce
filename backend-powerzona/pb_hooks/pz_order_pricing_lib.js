@@ -3,9 +3,9 @@
 const priceWatch = typeof __hooks === "undefined"
   ? require("./pz_master_price_watch_lib.js")
   : require(`${__hooks}/pz_master_price_watch_lib.js`);
-const expiration = typeof __hooks === "undefined"
-  ? require("./pz_product_expiration_lib.js")
-  : require(`${__hooks}/pz_product_expiration_lib.js`);
+const commerce = typeof __hooks === "undefined"
+  ? require("./pz_product_commerce_lib.js")
+  : require(`${__hooks}/pz_product_commerce_lib.js`);
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
@@ -154,6 +154,21 @@ function findRecord(app, collection, id) {
 
 function findRecordsStrict(app, collection, filter, sort, limit, offset, params) {
   return app.findRecordsByFilter(collection, filter || "", sort || "", limit || 200, offset || 0, params || {}) || [];
+}
+
+function findAllRecordsStrict(app, collection, filter, sort, params) {
+  const records = [];
+  const batchSize = 500;
+  let offset = 0;
+  while (true) {
+    const batch = Array.from(findRecordsStrict(
+      app, collection, filter, sort || "id", batchSize, offset, params
+    ));
+    records.push(...batch);
+    if (batch.length < batchSize) break;
+    offset += batch.length;
+  }
+  return records;
 }
 
 function originalRecord(record) {
@@ -721,38 +736,52 @@ function calculateCartWithManualCoupon(cart, promotions, coupon, deliveryMethod,
 }
 
 function variationsForProduct(app, productId) {
-  return findRecordsStrict(app, "product_variations", "product = {:product}", "sort_order", 500, 0, { product: productId });
+  return findAllRecordsStrict(
+    app,
+    "product_variations",
+    "product = {:product}",
+    "sort_order,id",
+    { product: productId }
+  );
 }
 
-function productTaxonomyAvailable(app, storeId, product) {
-  for (const collection of ["categories", "subcategories"]) {
-    const id = relationId(product, collection === "categories" ? "category" : "subcategory");
-    if (!id) continue;
-    const record = findRecord(app, collection, id);
-    if (!record || relationId(record, "store") !== storeId || recordValue(record, "active") === false) return false;
-  }
-  return true;
+function productTaxonomyRecords(app, product) {
+  const categoryId = relationId(product, "category");
+  const subcategoryId = relationId(product, "subcategory");
+  return {
+    category: categoryId ? findRecord(app, "categories", categoryId) : null,
+    subcategory: subcategoryId ? findRecord(app, "subcategories", subcategoryId) : null,
+  };
+}
+
+function productLineAvailability(app, store, product, variations, variation, variationId, quantity, now) {
+  const taxonomy = productTaxonomyRecords(app, product);
+  return commerce.evaluateUnitAvailability({
+    store,
+    product,
+    variations,
+    variation,
+    variationId,
+    category: taxonomy.category,
+    subcategory: taxonomy.subcategory,
+    quantity,
+    now,
+  });
 }
 
 function resolveProductLine(app, store, requested, now) {
   const product = findRecord(app, "products", requested.productId);
-  if (!product || relationId(product, "store") !== store.id || recordValue(product, "active") === false
-    || !productTaxonomyAvailable(app, store.id, product)) throw codedError("order_unavailable", 422);
+  if (!product || relationId(product, "store") !== store.id) throw codedError("order_unavailable", 422);
   const variations = variationsForProduct(app, product.id);
-  const usesVariations = recordBool(product, "has_variations") || variations.length > 0;
   const variation = requested.variationId ? variations.find((entry) => entry.id === requested.variationId) || null : null;
-  if ((usesVariations && !variation) || (!usesVariations && requested.variationId) || (variation && recordValue(variation, "active") === false)) {
-    throw codedError("order_unavailable", 422);
-  }
-  const price = priceWatch.effectiveCommercialPrice(product, variation);
-  if (!(number(price && price.effective) > 0)) throw codedError("order_unavailable", 422);
-  const tracksStock = recordValue(product, "track_stock") !== false;
-  const stockRecord = variation || product;
-  const allowPreorder = recordBool(stockRecord, "allow_preorder") || (!variation && recordBool(product, "allow_preorder"));
-  const stock = recordNumber(stockRecord, "stock");
-  if (tracksStock && !allowPreorder && (stock <= 0 || requested.quantity > stock)) throw codedError("order_unavailable", 422);
-  const availability = expiration.evaluateCommercialAvailability({ store, product, variations, variation, now });
+  const availability = productLineAvailability(
+    app, store, product, variations, variation, requested.variationId, requested.quantity, now
+  );
   if (!availability.available) throw codedError("order_unavailable", 422);
+  const price = availability.price;
+  const stock = availability.stock;
+  const tracksStock = availability.track_stock;
+  const allowPreorder = availability.preorder;
   const variationLabel = variation
     ? bounded(`${recordString(variation, "variation_type") || "Variacion"}: ${recordString(variation, "value") || "Sin valor"}`, 180)
     : "";
@@ -1758,8 +1787,10 @@ function addInventoryGroup(groups, key, record, quantity) {
   groups.set(key, { key, record, quantity });
 }
 
-function orderInventoryGroups(app, order) {
+function orderInventoryGroups(app, order, options) {
   const storeId = relationId(order, "store");
+  const store = findRecord(app, "stores", storeId);
+  const requireAvailable = options && options.requireAvailable === true;
   const items = findRecordsStrict(app, "order_items", "order = {:order}", "created", 10000, 0, { order: order.id });
   const groups = new Map();
   items.forEach((item) => {
@@ -1783,13 +1814,24 @@ function orderInventoryGroups(app, order) {
     if (!productId || giftId) throw privateMutationError("order_inventory_invalid", 409);
     const product = findRecord(app, "products", productId);
     if (!product || relationId(product, "store") !== storeId) throw privateMutationError("order_inventory_invalid", 409);
+    const variations = variationsForProduct(app, product.id);
+    const variation = variationId ? variations.find((entry) => entry.id === variationId) || null : null;
+    if (requireAvailable) {
+      if (!store) throw privateMutationError("order_inventory_invalid", 409);
+      const availability = productLineAvailability(
+        app, store, product, variations, variation, variationId, quantity, new Date()
+      );
+      if (!availability.available) {
+        const code = availability.reason === "stock_unavailable" ? "insufficient_stock" : "order_inventory_invalid";
+        throw privateMutationError(code, 409);
+      }
+    }
     if (recordValue(product, "track_stock") === false) return;
     if (!variationId) {
       addInventoryGroup(groups, `product:${product.id}`, product, quantity);
       return;
     }
 
-    const variation = findRecord(app, "product_variations", variationId);
     if (!variation || relationId(variation, "product") !== product.id) {
       throw privateMutationError("order_inventory_invalid", 409);
     }
@@ -1799,7 +1841,7 @@ function orderInventoryGroups(app, order) {
 }
 
 function moveOrderInventory(app, order, direction) {
-  const groups = orderInventoryGroups(app, order);
+  const groups = orderInventoryGroups(app, order, { requireAvailable: direction < 0 });
   groups.forEach((group) => {
     const stock = Number(recordValue(group.record, "stock"));
     if (!Number.isFinite(stock) || stock < 0 || !Number.isInteger(stock)) {
@@ -2006,12 +2048,22 @@ function parsePositiveQuantity(value) {
 }
 
 function validateStoredLineStock(app, item, quantity) {
+  const order = findRecord(app, "orders", relationId(item, "order"));
   const product = findRecord(app, "products", relationId(item, "product"));
-  if (!product || recordValue(product, "track_stock") === false) return;
-  const variation = relationId(item, "variation") ? findRecord(app, "product_variations", relationId(item, "variation")) : null;
-  const stockRecord = variation || product;
-  if (recordBool(stockRecord, "allow_preorder") || (!variation && recordBool(product, "allow_preorder"))) return;
-  if (recordNumber(stockRecord, "stock") < quantity) throw privateMutationError("insufficient_stock", 422);
+  const store = order ? findRecord(app, "stores", relationId(order, "store")) : null;
+  if (!order || !store || !product || relationId(product, "store") !== store.id) {
+    throw privateMutationError("invalid_product", 422);
+  }
+  const variations = variationsForProduct(app, product.id);
+  const variationId = relationId(item, "variation");
+  const variation = variationId ? variations.find((entry) => entry.id === variationId) || null : null;
+  const availability = productLineAvailability(
+    app, store, product, variations, variation, variationId, quantity, new Date()
+  );
+  if (!availability.available) {
+    if (availability.reason === "stock_unavailable") throw privateMutationError("insufficient_stock", 422);
+    throw privateMutationError("invalid_product", 422);
+  }
 }
 
 function adjustmentReason(body) {

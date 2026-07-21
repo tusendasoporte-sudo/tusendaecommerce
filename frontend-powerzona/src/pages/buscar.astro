@@ -53,7 +53,15 @@ const searchItems = [
     isOffer: !product.has_variations && Boolean(product.is_offer) && Number(product.regular_price_usd || 0) > Number(product.base_price_usd || 0),
     pricePrefix: product.has_variations && Number(product.variation_price_min_usd || product.public_price_usd || 0) > 0 ? 'DESDE:' : '',
     onlyUsd: Boolean(product.only_usd),
-    searchText: normalizeText([product.name, product.slug, product.description, product.short_description, product.internal_ref, getCategoryNameById(product.category), getSubcategoryNameById(product.subcategory)].join(' ')),
+    searchText: normalizeText([
+      product.name,
+      product.slug,
+      product.description,
+      product.short_description,
+      ...(Array.isArray(product.variation_public_labels) ? product.variation_public_labels : []),
+      getCategoryNameById(product.category),
+      getSubcategoryNameById(product.subcategory),
+    ].join(' ')),
   })),
   ...categories.map((category) => ({
     type: 'Categoría',

@@ -282,7 +282,7 @@ function listWhere(filters, storeId) {
 const ACTIVITY_ROW_MODEL = Object.freeze({
   id: "", actor: "", actor_id_snapshot: "", actor_name_snapshot: "", actor_role_snapshot: "",
   origin: "", module: "", action: "", severity: "", resource_type: "",
-  resource_id_snapshot: "", resource_label_snapshot: "", changed_fields_json: "",
+  resource_id_snapshot: "", parent_product_id_snapshot: "", variation_id_snapshot: "", resource_label_snapshot: "", changed_fields_json: "",
   previous_values_json: "", new_values_json: "", summary: "", created: "",
   review_status: "", review_note: "", reviewed_at: "", reviewed_by_name: "",
 });
@@ -292,6 +292,7 @@ function activitySelect() {
     SELECT
       a.id, a.actor, a.actor_id_snapshot, a.actor_name_snapshot, a.actor_role_snapshot,
       a.origin, a.module, a.action, a.severity, a.resource_type, a.resource_id_snapshot,
+      a.parent_product_id_snapshot, a.variation_id_snapshot,
       a.resource_label_snapshot, a.changed_fields_json, a.previous_values_json,
       a.new_values_json, a.summary, a.created,
       COALESCE(r.status, 'pending') AS review_status,
@@ -362,9 +363,14 @@ function resourcePath(store, row, exists) {
   const slug = safeStoreSlug(store);
   const id = encodeURIComponent(text(row.resource_id_snapshot, 80));
   const base = `/t/${slug}/admin`;
+  if (text(row.resource_type, 80) === "product_variation") {
+    const parentProductId = text(row.parent_product_id_snapshot, 15);
+    return RECORD_ID_PATTERN.test(parentProductId)
+      ? `${base}/products?product=${encodeURIComponent(parentProductId)}`
+      : `${base}/products`;
+  }
   const routes = {
     product: `${base}/products?product=${id}`,
-    product_variation: `${base}/products`,
     category: `${base}/catalog/category/${id}`,
     subcategory: `${base}/catalog`,
     order: `${base}/orders/${id}`,
@@ -390,6 +396,17 @@ function resourcePath(store, row, exists) {
   return routes[text(row.resource_type, 80)] || "";
 }
 
+function productHistoryPath(store, row) {
+  const type = text(row.resource_type, 80);
+  const productId = type === "product"
+    ? text(row.resource_id_snapshot, 15)
+    : (type === "product_variation" ? text(row.parent_product_id_snapshot, 15) : "");
+  if (!RECORD_ID_PATTERN.test(productId)) return "";
+  const variationId = type === "product_variation" ? text(row.variation_id_snapshot || row.resource_id_snapshot, 15) : "";
+  const base = `/t/${safeStoreSlug(store)}/admin/products/${encodeURIComponent(productId)}/history?from=products`;
+  return RECORD_ID_PATTERN.test(variationId) ? `${base}&variation=${encodeURIComponent(variationId)}` : base;
+}
+
 function mapActivity(row, context, options) {
   const actorSnapshot = text(row.actor_id_snapshot, 40);
   const actorRelation = text(row.actor, 40);
@@ -413,6 +430,7 @@ function mapActivity(row, context, options) {
     resource_label: text(row.resource_label_snapshot, 180),
     resource_state: exists ? "active" : "deleted",
     resource_path: resourcePath(context.store, row, exists),
+    product_history_path: productHistoryPath(context.store, row),
     changed_fields: parseJsonArray(row.changed_fields_json),
     previous_values: previous,
     new_values: next,

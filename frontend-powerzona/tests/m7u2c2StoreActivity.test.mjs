@@ -327,13 +327,13 @@ test('M7U2-C2: detalles enlazan al centro de historial sin exponer IDs ni redire
   assert.match(team, /params\.get\('tab'\) === 'activity'/);
   assert.match(products, /id="product-history-link"[\s\S]*?>Ver historial</);
   assert.match(products, /syncProductHistoryLink\(product\.id\)/);
-  assert.match(products, /resource_type: 'product', resource_id: id/);
+  assert.match(products, /PRODUCT_HISTORY_BASE_PATH[\s\S]*?\/history\?from=products/);
   assert.match(orders, /resource_type: 'order', resource_id: initialOrderId/);
   assert.match(orders, /href=\{adminOrderHistoryPath\}>Ver historial/);
   assert.match(orders, /id="order-history-link"[\s\S]*?function fillDetail[\s\S]*?resource_id: orderId/);
-  assert.match(expirations, /activityHistoryPath\(lastModificationType, lastModificationId\)/);
+  assert.match(expirations, /productHistoryPath\(item\?\.product_id, isVariationUnit \? variation\?\.id : ''\)/);
   assert.match(raffles, /activityHistoryPath\('raffle', raffle\.id\)/);
-  [products, expirations, raffles].forEach((source) => {
+  [raffles].forEach((source) => {
     assert.match(source, /new URLSearchParams\(\{[\s\S]*?resource_type:[\s\S]*?resource_id:/);
   });
 });

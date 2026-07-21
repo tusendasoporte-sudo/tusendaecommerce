@@ -12,22 +12,31 @@ const PRODUCT_IMAGE_MAX_WIDTH = 1000;
 const PRODUCT_IMAGE_MAX_HEIGHT = 1020;
 const JPEG_TARGET_BYTES = 500_000;
 const JPEG_QUALITIES = [82, 78, 74, 70];
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'private, no-store, max-age=0',
+  'Pragma': 'no-cache',
+  'X-Content-Type-Options': 'nosniff',
+};
+
+function notFound() {
+  return new Response('Not found', { status: 404, headers: NO_STORE_HEADERS });
+}
 
 export const GET: APIRoute = async ({ params }) => {
   const storeSlug = cleanSeoText(params.storeSlug).toLowerCase();
   const productSlug = cleanSeoText(params.slug).replace(/\.jpe?g$/i, '');
 
   if (!storeSlug || !productSlug) {
-    return new Response('Not found', { status: 404 });
+    return notFound();
   }
 
   try {
     const store = await getStoreBySlug(storeSlug);
-    if (!store) return new Response('Not found', { status: 404 });
+    if (!store) return notFound();
 
     const storeQuery = { storeId: store.id, store };
     const settings = await getSettings(storeQuery);
-    if (isStoreTemporarilyClosed(settings)) return new Response('Not found', { status: 404 });
+    if (isStoreTemporarilyClosed(settings)) return notFound();
 
     const product = await getProductBySlug(productSlug, storeQuery);
     const productImageUrl = product.imageUrls?.[0] || '';
@@ -36,12 +45,11 @@ export const GET: APIRoute = async ({ params }) => {
     return new Response(jpg, {
       headers: {
         'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800',
-        'X-Content-Type-Options': 'nosniff',
+        ...NO_STORE_HEADERS,
       },
     });
   } catch (_) {
-    return new Response('Not found', { status: 404 });
+    return notFound();
   }
 };
 

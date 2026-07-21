@@ -3,6 +3,9 @@
 const permissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const commerce = typeof __hooks === "undefined"
+  ? require("./pz_product_commerce_lib.js")
+  : require(`${__hooks}/pz_product_commerce_lib.js`);
 
 const READ_PERMISSIONS = Object.freeze({
   products: "catalog.view",
@@ -100,7 +103,7 @@ const PUBLIC_PRODUCT_QUERY_FIELDS = Object.freeze([
 ]);
 const PUBLIC_VARIATION_QUERY_FIELDS = Object.freeze([
   "id", "product", "variation_type", "value", "price_usd", "extra_price", "image", "sort_order",
-  "allow_preorder", "stock", "track_stock", "active", "is_offer", "offer_price_usd", "created", "updated",
+  "allow_preorder", "stock", "active", "is_offer", "offer_price_usd", "created", "updated",
 ]);
 const PUBLIC_EXPAND_COLLECTIONS = Object.freeze({
   products: Object.freeze({ category: "categories", subcategory: "subcategories" }),
@@ -241,6 +244,11 @@ const MARKETING_QUERY_FIELDS = Object.freeze({
     "whatsapp_group_invite_url", "store_featured_prize_ids", "created", "updated",
   ]),
 });
+const PRODUCT_PROMOTION_TYPES = Object.freeze([
+  "buy_x_pay_y",
+  "volume_discount",
+  "product_discount",
+]);
 
 function recordValue(record, key) {
   if (!record) return undefined;
@@ -286,6 +294,34 @@ function originalRecord(record) {
 
 function findRecord(app, collection, id) {
   try { return app.findRecordById(collection, id); } catch (_) { return null; }
+}
+
+function findRecords(app, collection, filter, params) {
+  const records = [];
+  const batchSize = 500;
+  let offset = 0;
+  try {
+    while (true) {
+      const batch = Array.from(app.findRecordsByFilter(
+        collection,
+        filter,
+        "sort_order,id",
+        batchSize,
+        offset,
+        params || {},
+      ) || []);
+      records.push(...batch);
+      if (batch.length < batchSize) break;
+      offset += batch.length;
+    }
+    return records;
+  } catch (_) { return []; }
+}
+
+function findRecordPage(app, collection, filter, sort, limit, offset) {
+  try {
+    return Array.from(app.findRecordsByFilter(collection, filter, sort, limit, offset) || []);
+  } catch (_) { return []; }
 }
 
 function storeUser(auth) {
@@ -961,6 +997,192 @@ function redactPublicProductRead(e, collection) {
   return changed;
 }
 
+function publicProductContext(app, collection, record, cache) {
+  if (!app || !record || !["products", "product_variations"].includes(collection)) return null;
+  const product = collection === "products"
+    ? record
+    : findRecord(app, "products", relationId(record, "product"));
+  if (!product) return null;
+  const cacheKey = recordString(product, "id");
+  if (cache && cache.has(cacheKey)) {
+    const cached = cache.get(cacheKey);
+    if (collection === "product_variations"
+      && !cached.variations.some((variation) => recordString(variation, "id") === recordString(record, "id"))) {
+      cached.variations.push(record);
+    }
+    return cached;
+  }
+  const store = findRecord(app, "stores", relationId(product, "store"));
+  if (!store) return null;
+  const productId = cacheKey;
+  const variations = findRecords(app, "product_variations", "product = {:product}", { product: productId });
+  if (collection === "product_variations"
+    && !variations.some((variation) => recordString(variation, "id") === recordString(record, "id"))) {
+    variations.push(record);
+  }
+  const categoryId = relationId(product, "category");
+  const subcategoryId = relationId(product, "subcategory");
+  const context = {
+    product,
+    store,
+    variations,
+    category: categoryId ? findRecord(app, "categories", categoryId) : null,
+    subcategory: subcategoryId ? findRecord(app, "subcategories", subcategoryId) : null,
+  };
+  if (cache) cache.set(cacheKey, context);
+  return context;
+}
+
+function publicProductRecordAvailable(app, collection, record, now, cache) {
+  const context = publicProductContext(app, collection, record, cache);
+  if (!context) return false;
+  const units = commerce.buildProductUnits(context.product, context.variations);
+  const candidates = collection === "products"
+    ? units
+    : units.filter((unit) => unit.variation_id === recordString(record, "id"));
+  return candidates.some((unit) => commerce.evaluateUnitAvailability({
+    store: context.store,
+    product: context.product,
+    variations: context.variations,
+    unit,
+    category: context.category,
+    subcategory: context.subcategory,
+    quantity: 1,
+    now,
+  }).available);
+}
+
+function productScopedPromotion(record) {
+  const type = recordString(record, "type").toLowerCase();
+  const scope = recordString(record, "scope").toLowerCase();
+  if (type === "cart_subtotal_discount" || scope === "cart") return false;
+  return scope === "product" || PRODUCT_PROMOTION_TYPES.includes(type);
+}
+
+function publicPromotionRecordAvailable(app, record, now, cache) {
+  if (!record || recordValue(record, "active") === false) return false;
+  if (!productScopedPromotion(record)) return true;
+  const product = findRecord(app, "products", relationId(record, "product"));
+  if (!product) return false;
+  const promotionStoreId = relationId(record, "store");
+  if (!promotionStoreId || promotionStoreId !== relationId(product, "store")) return false;
+  return publicProductRecordAvailable(app, "products", product, now, cache);
+}
+
+function publicListCandidates(e, collection) {
+  const query = requestQuery(e);
+  const rawFilter = String(queryValue(query, "filter") || "").trim();
+  const rawSort = String(queryValue(query, "sort") || "").trim();
+  const filter = rawFilter ? `(${rawFilter}) && active = true` : "active = true";
+  const sort = rawSort || "-created";
+  const records = [];
+  const batchSize = 500;
+  for (let offset = 0; ; offset += batchSize) {
+    const batch = findRecordPage(e.app, collection, filter, sort, batchSize, offset);
+    records.push(...batch);
+    if (batch.length < batchSize) break;
+  }
+  return records;
+}
+
+function applyRequestedExpands(e, records) {
+  if (!records.length || !e.app || typeof e.app.expandRecords !== "function") return;
+  const raw = String(queryValue(requestQuery(e), "expand") || "").trim();
+  if (!raw) return;
+  const expands = raw.split(",").map((value) => value.trim()).filter(Boolean);
+  if (!expands.length) return;
+  try { e.app.expandRecords(records, expands); } catch (_) {}
+}
+
+function setPublicUnavailableHeaders(e) {
+  try {
+    const headers = e.response.header();
+    headers.set("Cache-Control", "private, no-store, max-age=0");
+    headers.set("Pragma", "no-cache");
+    headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  } catch (_) {}
+}
+
+function enforcePublicProductReadCachePolicy(e) {
+  const request = e && e.request;
+  const method = String(request && request.method || "").toUpperCase();
+  const path = String(request && request.url && request.url.path || "");
+  const isPublicProductRead = /^\/api\/collections\/(products|product_variations)\/records(?:\/[a-zA-Z0-9_-]+)?\/?$/.test(path);
+  if (method === "GET" && isPublicProductRead) {
+    const headers = e.response.header();
+    headers.set("Cache-Control", "private, no-store, max-age=0");
+    headers.set("Pragma", "no-cache");
+  }
+  return e.next();
+}
+
+function respondPublicUnavailable(e) {
+  const payload = {
+    code: 404,
+    message: "The requested resource wasn't found.",
+    data: {},
+  };
+  setPublicUnavailableHeaders(e);
+  if (e && typeof e.json === "function") {
+    e.json(404, payload);
+    return true;
+  }
+  denyIsolation();
+  return true;
+}
+
+function filterPublicProductRead(e, collection) {
+  if (!publicProductConsumer(e && e.auth) || !["products", "product_variations"].includes(collection)) return false;
+  const now = new Date();
+  const cache = new Map();
+  const available = (record) => publicProductRecordAvailable(e.app, collection, record, now, cache);
+  if (e.record && !available(e.record)) {
+    return respondPublicUnavailable(e);
+  }
+  if (e.result && Array.isArray(e.result.items)
+    && Number.isInteger(Number(e.result.page)) && Number.isInteger(Number(e.result.perPage))) {
+    const page = Math.max(1, Number(e.result.page));
+    const perPage = Math.max(1, Number(e.result.perPage));
+    const filtered = publicListCandidates(e, collection).filter(available);
+    const items = filtered.slice((page - 1) * perPage, page * perPage);
+    applyRequestedExpands(e, items);
+    e.result.items = items;
+    e.result.totalItems = filtered.length;
+    e.result.totalPages = Math.ceil(filtered.length / perPage);
+    e.records = items;
+    return false;
+  }
+  if (Array.isArray(e.records)) e.records = e.records.filter(available);
+  if (e.result && Array.isArray(e.result.items)) e.result.items = e.result.items.filter(available);
+  return false;
+}
+
+function filterPublicPromotionRead(e, collection) {
+  if (!publicProductConsumer(e && e.auth) || collection !== "automatic_promotions") return false;
+  const now = new Date();
+  const cache = new Map();
+  const available = (record) => publicPromotionRecordAvailable(e.app, record, now, cache);
+  if (e.record && !available(e.record)) {
+    return respondPublicUnavailable(e);
+  }
+  if (e.result && Array.isArray(e.result.items)
+    && Number.isInteger(Number(e.result.page)) && Number.isInteger(Number(e.result.perPage))) {
+    const page = Math.max(1, Number(e.result.page));
+    const perPage = Math.max(1, Number(e.result.perPage));
+    const filtered = publicListCandidates(e, collection).filter(available);
+    const items = filtered.slice((page - 1) * perPage, page * perPage);
+    applyRequestedExpands(e, items);
+    e.result.items = items;
+    e.result.totalItems = filtered.length;
+    e.result.totalPages = Math.ceil(filtered.length / perPage);
+    e.records = items;
+    return false;
+  }
+  if (Array.isArray(e.records)) e.records = e.records.filter(available);
+  if (e.result && Array.isArray(e.result.items)) e.result.items = e.result.items.filter(available);
+  return false;
+}
+
 function removeExpansion(record, field) {
   let changed = false;
   let expanded = record && record.expand;
@@ -1128,7 +1350,7 @@ function assertSafeReadQuery(e, collection) {
     || ordersGuarded
     || usageGuarded
     || relatedOrderGuarded
-    || (isPublic && ["products", "product_variations"].includes(collection));
+    || (isPublic && ["products", "product_variations", "automatic_promotions"].includes(collection));
   if (!guarded) return true;
 
   const query = requestQuery(e);
@@ -1162,7 +1384,8 @@ function assertSafeReadQuery(e, collection) {
     }
   }
 
-  if (isStore && marketingFields && !primary) {
+  if ((isStore && marketingFields && !primary)
+    || (isPublic && collection === "automatic_promotions")) {
     if (expandFields.length
       || referenced.some((field) => !marketingFields.includes(field))) {
       denyPermission("query.restricted");
@@ -1222,6 +1445,12 @@ function enforceRead(e, collection) {
   assertSafeReadQuery(e, name);
   const deniedPermission = DENIED_STORE_READS[name];
   if (deniedPermission && storeIdentity(e && e.auth)) denyPermission(deniedPermission);
+  // RecordsListRequestEvent/RecordViewRequestEvent already contain the records
+  // selected by PocketBase.  The default handler serializes them during
+  // e.next(), so public commercial filtering must happen before advancing the
+  // hook chain; mutating e.result/e.records afterwards is too late for HTTP.
+  if (filterPublicProductRead(e, name)) return;
+  if (filterPublicPromotionRead(e, name)) return;
   const permission = READ_PERMISSIONS[name];
   const allPermissions = READ_ALL_PERMISSIONS[name];
   const anyPermissions = READ_ANY_PERMISSIONS[name];
@@ -1453,6 +1682,13 @@ function enforceRealtimeMessage(e) {
     const publicRecord = publicPayload && publicPayload.record;
     let publicChanged = false;
     if (publicRecord && publicProductConsumer(auth)) {
+      if (["products", "product_variations"].includes(collection)) {
+        const canonical = findRecord(e.app, collection, recordString(publicRecord, "id"));
+        if (!canonical || !publicProductRecordAvailable(e.app, collection, canonical, new Date())) return;
+      } else if (collection === "automatic_promotions") {
+        const canonical = findRecord(e.app, collection, recordString(publicRecord, "id"));
+        if (!canonical || !publicPromotionRecordAvailable(e.app, canonical, new Date())) return;
+      }
       publicChanged = redactPublicRestrictedExpansions(publicRecord, collection) || publicChanged;
       walkRecordTree(publicRecord, collection, (candidate, name) => {
         publicChanged = redactPublicProductRecord(candidate, name) || publicChanged;
@@ -1535,6 +1771,9 @@ module.exports = {
   enforceRead,
   enforceRealtimeMessage,
   enforceRealtimeSubscribe,
+  enforcePublicProductReadCachePolicy,
+  filterPublicPromotionRead,
+  filterPublicProductRead,
   hasCollectionReadAccess,
   mutationPermissions,
   isExpirationNotification,
@@ -1542,6 +1781,8 @@ module.exports = {
   mutationKeys,
   orderReadRedactionFields,
   productFieldPermission,
+  publicProductRecordAvailable,
+  publicPromotionRecordAvailable,
   filterQueryFields,
   sortQueryFields,
   recordStoreId,

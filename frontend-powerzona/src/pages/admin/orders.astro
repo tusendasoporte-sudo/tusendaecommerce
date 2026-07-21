@@ -1225,6 +1225,21 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
       )}
     </div>
 
+    <script>
+      import {
+        getSellableProductVariations,
+        productUsesVariations,
+        todayCivilDate,
+        variationUnitPrice,
+      } from '../../lib/adminStoreProducts';
+
+      Object.defineProperty(globalThis, 'pzAdminStoreProducts', {
+        value: Object.freeze({ getSellableProductVariations, productUsesVariations, todayCivilDate, variationUnitPrice }),
+        configurable: true,
+        enumerable: false,
+        writable: false,
+      });
+    </script>
     <script define:vars={{
       pocketbaseUrl,
       currentStoreId,
@@ -2109,12 +2124,42 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         return productVariations.filter((variation) => variation.product === productId);
       }
 
+      function productUsesVariationMode(product) {
+        return globalThis.pzAdminStoreProducts?.productUsesVariations
+          ? globalThis.pzAdminStoreProducts.productUsesVariations(product)
+          : Boolean(product?.has_variations);
+      }
+
+      function getSellableVariationsForProduct(product) {
+        const owned = getVariationsForProduct(product?.id);
+        if (!productUsesVariationMode(product)) return [];
+        if (globalThis.pzAdminStoreProducts?.getSellableProductVariations) {
+          return globalThis.pzAdminStoreProducts.getSellableProductVariations(product, owned);
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        return owned.filter((variation) => variation.active !== false
+          && Number(variation.price_usd || 0) > 0
+          && (!variation.expiration_date || String(variation.expiration_date).slice(0, 10) > today));
+      }
+
+      function parentProductUnavailableReason(product) {
+        if (!product || product.active === false) return 'Producto no disponible';
+        if (!(Number(product.base_price_usd || 0) > 0)) return 'Producto sin precio de venta valido';
+        const today = globalThis.pzAdminStoreProducts?.todayCivilDate?.() || new Date().toISOString().slice(0, 10);
+        const expirationDate = String(product.expiration_date || '').slice(0, 10);
+        if (expirationDate && expirationDate <= today) return 'Producto no disponible por vencimiento';
+        if (productTracksStock(product) && !product.allow_preorder && !(Number(product.stock || 0) > 0)) return 'Producto sin stock disponible';
+        return '';
+      }
+
       function getVariationLabel(variation) {
         return [variation.variation_type, variation.value].filter(Boolean).join(': ') || 'Variación';
       }
 
       function getVariationUnitPrice(product, variation) {
-        return Math.max(0, Number(variation?.price_usd ?? variation?.precio_usd ?? 0));
+        return globalThis.pzAdminStoreProducts?.variationUnitPrice
+          ? globalThis.pzAdminStoreProducts.variationUnitPrice(variation)
+          : Math.max(0, Number(variation?.price_usd ?? variation?.precio_usd ?? 0));
       }
 
       function getStockValue(record) {
@@ -2245,10 +2290,10 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
 
       function getAddProductCurrentStock() {
         if (!selectedAddProduct) return null;
-        const variations = getVariationsForProduct(selectedAddProduct.id);
+        const usesVariations = productUsesVariationMode(selectedAddProduct);
         const variation = productVariations.find((item) => item.id === addProductVariationSelect.value);
-        if (variations.length && variation) return getAvailableStockForProductSelection(selectedAddProduct, variation);
-        if (!variations.length) return getAvailableStockForProductSelection(selectedAddProduct, null);
+        if (usesVariations && variation) return getAvailableStockForProductSelection(selectedAddProduct, variation);
+        if (!usesVariations) return getAvailableStockForProductSelection(selectedAddProduct, null);
         return null;
       }
 
@@ -2313,7 +2358,9 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         }
 
         addProductResults.innerHTML = matches.map((product) => {
-          const variationsCount = getVariationsForProduct(product.id).length;
+          const variationsCount = productUsesVariationMode(product)
+            ? getSellableVariationsForProduct(product).length
+            : 0;
           return `
             <button class="item-row add-product-result" type="button" data-product-id="${escapeHtml(product.id)}" style="width:100%; grid-template-columns:1fr auto; text-align:left; border:1px solid #e2e8f0; background:#fff;">
               <div>
@@ -2341,8 +2388,10 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         addProductResults.classList.add('hidden');
         addProductQuantity.value = '1';
 
-        const variations = getVariationsForProduct(product.id);
-        if (variations.length) {
+        const usesVariations = productUsesVariationMode(product);
+        const variations = getSellableVariationsForProduct(product);
+        addProductVariationSelect.value = '';
+        if (usesVariations && variations.length) {
           addProductVariationWrap.classList.remove('hidden');
           addProductVariationSelect.innerHTML = '<option value="">Selecciona una variación</option>' + variations.map((variation) => `
             <option value="${escapeHtml(variation.id)}">${escapeHtml(getVariationLabel(variation))} · ${productTracksStock(product) ? `Stock: ${Number(variation.stock || 0)}` : 'Sin stock descontable'} · ${formatUSD(getVariationUnitPrice(product, variation))}</option>
@@ -2350,6 +2399,12 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           addProductPriceDisplay.textContent = formatUSD(product.base_price_usd || 0);
           addProductQuantity.removeAttribute('max');
           addProductPreview.textContent = `Producto seleccionado: ${product.name}. Selecciona una variación para cargar precio y stock.`;
+        } else if (usesVariations) {
+          addProductVariationWrap.classList.add('hidden');
+          addProductVariationSelect.innerHTML = '<option value="">Producto no disponible</option>';
+          addProductPriceDisplay.textContent = formatUSD(0);
+          addProductQuantity.removeAttribute('max');
+          addProductPreview.textContent = 'Producto no disponible: no tiene variaciones activas, vigentes y vendibles.';
         } else {
           addProductVariationWrap.classList.add('hidden');
           addProductVariationSelect.innerHTML = '<option value="">Sin variaciones</option>';
@@ -2364,7 +2419,8 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
 
       function handleAddVariationChange() {
         if (!selectedAddProduct) return;
-        const variation = productVariations.find((item) => item.id === addProductVariationSelect.value);
+        const variation = getSellableVariationsForProduct(selectedAddProduct)
+          .find((item) => item.id === addProductVariationSelect.value);
         if (!variation) {
           addProductPriceDisplay.textContent = formatUSD(selectedAddProduct.base_price_usd || 0);
           addProductPreview.textContent = `Producto seleccionado: ${selectedAddProduct.name}. Selecciona una variación para cargar precio y stock.`;
@@ -3260,11 +3316,21 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           return;
         }
 
-        const productVariationsForSelected = getVariationsForProduct(product.id);
-        const variation = productVariations.find((item) => item.id === addProductVariationSelect.value);
-        if (productVariationsForSelected.length && !variation) {
+        const usesVariations = productUsesVariationMode(product);
+        const sellableVariations = getSellableVariationsForProduct(product);
+        const variation = usesVariations
+          ? sellableVariations.find((item) => item.id === addProductVariationSelect.value) || null
+          : null;
+        if (usesVariations && !variation) {
           setDetailAlert('Este producto tiene variaciones. Selecciona una variación antes de agregarlo.', 'error');
           return;
+        }
+        if (!usesVariations) {
+          const unavailable = parentProductUnavailableReason(product);
+          if (unavailable) {
+            setDetailAlert(unavailable, 'error');
+            return;
+          }
         }
         if (variation && getVariationUnitPrice(product, variation) <= 0) {
           setDetailAlert('Esta variación no tiene precio de venta válido.', 'error');
@@ -3290,14 +3356,12 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
             }
           }
 
+          const payload = { product_id: product.id, quantity };
+          if (usesVariations && variation) payload.variation_id = variation.id;
           const result = await apiRequest(`/api/pz/admin/orders/${selectedOrder.id}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              product_id: product.id,
-              variation_id: variation?.id || '',
-              quantity,
-            }),
+            body: JSON.stringify(payload),
           });
 
           setAddProductPanel(false);
@@ -3932,7 +3996,11 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
       editCustomerPhone?.addEventListener('input', scheduleOrderAutoSave);
       editCustomerAddress?.addEventListener('input', scheduleOrderAutoSave);
       detailNotes?.addEventListener('input', scheduleOrderAutoSave);
-      toggleAddProductBtn?.addEventListener('click', () => setAddProductPanel(addProductPanel?.classList.contains('hidden')));
+      toggleAddProductBtn?.addEventListener('click', async () => {
+        const opening = addProductPanel?.classList.contains('hidden');
+        if (opening) await loadProductCatalog();
+        setAddProductPanel(opening);
+      });
       closeAddProductBtn?.addEventListener('click', () => setAddProductPanel(false));
       addProductBtn.addEventListener('click', addProductToOrder);
       addProductSearch.addEventListener('input', renderProductSearchResults);

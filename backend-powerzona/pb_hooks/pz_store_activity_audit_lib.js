@@ -165,6 +165,11 @@ function recordString(record, key, max) {
   return text(value, max || 1000);
 }
 
+function recordBool(record, key) {
+  const value = recordValue(record, key);
+  return value === true || value === 1 || value === "1" || String(value || "").toLowerCase() === "true";
+}
+
 function relationId(record, key) {
   const value = recordValue(record, key);
   if (Array.isArray(value)) return text(value[0] && value[0].id || value[0], 80);
@@ -423,6 +428,8 @@ function buildActivityValues(app, input) {
     severity,
     resource_type: text(values.resourceType || values.resource_type, 80) || moduleName,
     resource_id_snapshot: text(values.resourceId || values.resource_id_snapshot, 80),
+    parent_product_id_snapshot: text(values.parentProductId || values.parent_product_id_snapshot, 80),
+    variation_id_snapshot: text(values.variationId || values.variation_id_snapshot, 80),
     resource_label_snapshot: text(values.resourceLabel || values.resource_label_snapshot, 180),
     changed_fields_json: normalizeChangedFields(values.changedFields || values.changed_fields, previous, next),
     previous_values_json: previous,
@@ -582,21 +589,35 @@ function createRecordMutationActivity(app, e, operation, collection, beforeRecor
   const changedFields = [...new Set([...diff.changed, ...markerFields])].sort();
   if (operation === "update" && !changedFields.length) return null;
   const label = resourceLabel(operation === "delete" ? (beforeRecord || record) : record, config);
+  const previousActive = recordBool(beforeRecord || originalRecord(record), "active");
+  const nextActive = recordBool(record, "active");
+  let action = `${config.resourceType}_${operation === "create" ? "created" : operation === "delete" ? "deleted" : "updated"}`;
+  let summary = operationSummary(operation, config, label, changedFields);
+  if (collection === "product_variations" && operation === "update" && previousActive !== nextActive) {
+    action = nextActive ? "variation_manual_activated" : "variation_manual_hidden";
+    summary = nextActive ? `Activó manualmente ${label}` : `Ocultó manualmente ${label}`;
+  }
+  const parentProductId = collection === "product_variations"
+    ? relationId(record, "product") || relationId(beforeRecord, "product")
+    : (collection === "products" ? recordId(record || beforeRecord) : "");
+  const variationId = collection === "product_variations" ? recordId(record || beforeRecord) : "";
   const severity = changedFields.some((field) => (config.criticalFields || []).includes(field))
     || operation === "delete" ? "critical" : (operation === "create" ? "important" : "normal");
   return createActivity(app, {
     storeId,
     actor: e.auth,
     module: config.module,
-    action: `${config.resourceType}_${operation === "create" ? "created" : operation === "delete" ? "deleted" : "updated"}`,
+    action,
     severity,
     resourceType: config.resourceType,
     resourceId: recordId(record || beforeRecord),
+    parentProductId,
+    variationId,
     resourceLabel: label,
     changedFields,
     previousValues: diff.previous,
     newValues: diff.next,
-    summary: operationSummary(operation, config, label, changedFields),
+    summary,
     sourceEventKey: requestSourceKey(e, collection, operation, record || beforeRecord, {
       ...diff,
       comparison: { previous: comparisonBefore, next: comparisonAfter },

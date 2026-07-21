@@ -4,7 +4,6 @@ import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 import SocialMeta from '../components/SocialMeta.astro';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
-import { productExpirationEnabled } from '../lib/productExpiration';
 
 const {
 	isBazar = false,
@@ -16,7 +15,6 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const hideStoreFloatingUi = Boolean(isBazar || isMaster || hideStoreFloatingUiProp);
 const currentStore = hideStoreFloatingUi ? { id: '', slug: '' } : await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
-const expirationToolsEnabled = !hideStoreFloatingUi && productExpirationEnabled(currentStore);
 const currentStoreSlug = currentStore.slug || 'powerzona';
 const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
 const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
@@ -49,11 +47,20 @@ const contentContainerClass = isMaster
 				const legacyCartStorageKey = 'powerzona_cart';
 				const legacyCheckoutCartStorageKey = 'powerzona_checkout_cart';
 				const shouldMigrateLegacy = storeSlug === 'powerzona' || !String(publicPathPrefix || '').trim();
+				const sanitizeCartItem = (item) => {
+					if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
+					const safeItem = { ...item };
+					['cost_usd', 'variation_cost_usd', 'variation_ref', 'internal_ref', 'expiration_date'].forEach((field) => {
+						delete safeItem[field];
+					});
+					return safeItem;
+				};
+				const sanitizeCart = (cart) => Array.isArray(cart) ? cart.map(sanitizeCartItem).filter(Boolean) : [];
 
 				function parseCart(value) {
 					try {
 						const parsed = JSON.parse(value || '[]');
-						return Array.isArray(parsed) ? parsed : [];
+						return sanitizeCart(parsed);
 					} catch (_) {
 						return [];
 					}
@@ -75,17 +82,24 @@ const contentContainerClass = isMaster
 				function readCart() {
 					migrateLegacyCart();
 					const currentRawCart = localStorage.getItem(cartStorageKey);
-					if (currentRawCart !== null) return parseCart(currentRawCart);
+					if (currentRawCart !== null) {
+						const currentCart = parseCart(currentRawCart);
+						const safePayload = JSON.stringify(currentCart);
+						if (currentRawCart !== safePayload) localStorage.setItem(cartStorageKey, safePayload);
+						return currentCart;
+					}
 					const checkoutBackup = parseCart(sessionStorage.getItem(checkoutCartStorageKey));
 					if (checkoutBackup.length) {
-						localStorage.setItem(cartStorageKey, JSON.stringify(checkoutBackup));
+						const safePayload = JSON.stringify(checkoutBackup);
+						localStorage.setItem(cartStorageKey, safePayload);
+						sessionStorage.setItem(checkoutCartStorageKey, safePayload);
 						return checkoutBackup;
 					}
 					return [];
 				}
 
 				function writeCart(cart) {
-					const safeCart = Array.isArray(cart) ? cart : [];
+					const safeCart = sanitizeCart(cart);
 					const payload = JSON.stringify(safeCart);
 					localStorage.setItem(cartStorageKey, payload);
 					if (safeCart.length) sessionStorage.setItem(checkoutCartStorageKey, payload);
@@ -102,7 +116,7 @@ const contentContainerClass = isMaster
 
 				window.addEventListener('storage', (event) => {
 					if (event.key === cartStorageKey) {
-						if (event.newValue !== null && parseCart(event.newValue).length === 0) {
+						if (event.newValue === null || parseCart(event.newValue).length === 0) {
 							sessionStorage.removeItem(checkoutCartStorageKey);
 							sessionStorage.removeItem(legacyCheckoutCartStorageKey);
 						}
@@ -137,10 +151,9 @@ const contentContainerClass = isMaster
 		</main>
 
 		{!hideStoreFloatingUi && <script is:inline src="/cart-promotions.js"></script>}
-		{!hideStoreFloatingUi && <script define:vars={{ pocketbaseUrl, currentStoreId, publicPathPrefix, expirationToolsEnabled }}>
+		{!hideStoreFloatingUi && <script define:vars={{ pocketbaseUrl, currentStoreId, publicPathPrefix }}>
 			window.PZ_POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
 			window.PZ_CURRENT_STORE_ID = currentStoreId || '';
-			window.PZ_PRODUCT_EXPIRATION_ENABLED = expirationToolsEnabled === true;
 			window.PZ_PUBLIC_PATH_PREFIX = publicPathPrefix || '';
 			window.PZ_PROMOTIONS_READY = window.PZPromotions?.loadActivePromotions(window.PZ_POCKETBASE_URL, window.PZ_CURRENT_STORE_ID).then((promotions) => {
 				window.PZ_AUTOMATIC_PROMOTIONS = promotions;

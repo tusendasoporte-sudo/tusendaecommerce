@@ -315,7 +315,7 @@ function buildSnapshot(app, productOrId) {
     : productOrId;
   if (!product || !isValidRecordId(product.id)) return null;
   const variations = variationRows(app, product.id);
-  const hasVariations = recordBoolean(product, "has_variations") || variations.length > 0;
+  const hasVariations = recordBoolean(product, "has_variations");
   return {
     has_variations: hasVariations,
     product: hasVariations

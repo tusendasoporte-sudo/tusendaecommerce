@@ -109,12 +109,14 @@ test('M7U2-C3: Landing QR reserva metadatos para create y usa PATCH granular', (
   assert.match(source, /targetSettingsId[\s\S]*?method: 'PATCH', body: JSON\.stringify\(basePayload\)/);
 });
 
-test('M7U2-C3: V7E9 usa su permiso propio y reserva el historial al principal', () => {
+test('M7U2-C3: V7E9 usa su permiso propio y limita el historial granular en backend', () => {
   const source = read('../src/pages/admin/expirations.astro');
   assert.match(source, /const expirationPermissionGranted = hasStorePermission\(expirationPermissionContext, 'catalog\.expirations\.manage'\)/);
   assert.match(source, /const canEditExpirationProducts = expirationPermissionGranted/);
-  assert.match(source, /const canViewExpirationHistory = storeAccessContext\?\.access\.is_primary_admin === true/);
+  assert.match(source, /const canViewExpirationHistory = expirationPermissionGranted/);
   assert.match(source, /CAN_EDIT_EXPIRATION_PRODUCTS[\s\S]*?Editar producto/);
-  assert.match(source, /CAN_VIEW_EXPIRATION_HISTORY[\s\S]*?Ver historial/);
+  assert.match(source, /CAN_VIEW_EXPIRATION_HISTORY[\s\S]*?Historial/);
+  assert.match(source, /productHistoryPath\(item\?\.product_id, isVariationUnit \? variation\?\.id : ''\)/);
+  assert.doesNotMatch(source, /activityHistoryPath/);
   assert.match(source, /const lastModificationMarkup = CAN_VIEW_EXPIRATION_HISTORY/);
 });

@@ -1,7 +1,6 @@
 import { pb, getPocketBaseFileUrl } from './pocketbase';
 import { getCurrentStore } from './stores';
 import { getPublicProductImageNames } from './productImageLimits';
-import { filterPublicCatalogByExpiration, isPublicProductAllowedByExpiration } from './productExpiration';
 
 type StoreQueryOptions = {
   storeId?: string;
@@ -35,11 +34,6 @@ async function resolveStoreId(options?: StoreQueryInput) {
   if (typeof options === 'string') return options;
   if (options?.storeId) return options.storeId;
   return (await getCurrentStore()).id;
-}
-
-async function resolveStore(options?: StoreQueryInput) {
-  if (typeof options === 'object' && options?.store) return options.store;
-  return getCurrentStore();
 }
 
 async function storeFilter(baseFilter: string, options?: StoreQueryInput) {
@@ -151,10 +145,57 @@ function orderedFileValues(files: string[], orderValue: any) {
   return order.filter((filename) => files.includes(filename)).concat(files.filter((filename) => !order.includes(filename)));
 }
 
+function publicTaxonomyRecord(record: any) {
+  if (!record) return null;
+  return {
+    id: record.id || '',
+    name: record.name || '',
+    slug: record.slug || '',
+    active: record.active === true,
+    category: record.category || '',
+  };
+}
+
+function publicProductRecord(product: any) {
+  return {
+    id: product?.id || '',
+    store: product?.store || '',
+    name: product?.name || '',
+    slug: product?.slug || '',
+    description: product?.description || '',
+    images: normalizeFileValue(product?.images),
+    image_order: product?.image_order ?? [],
+    category: product?.category || '',
+    subcategory: product?.subcategory || '',
+    base_price_usd: Number(product?.base_price_usd || 0),
+    regular_price_usd: Number(product?.regular_price_usd || 0),
+    offer_price_usd: Number(product?.offer_price_usd || 0),
+    is_offer: product?.is_offer === true,
+    stock: Number(product?.stock || 0),
+    track_stock: product?.track_stock !== false,
+    allow_preorder: product?.allow_preorder === true,
+    featured: product?.featured === true,
+    featured_order: Number(product?.featured_order || 0),
+    active: product?.active === true,
+    only_usd: product?.only_usd === true,
+    delivery_mode: product?.delivery_mode || 'both',
+    has_variations: product?.has_variations === true,
+    variation_view: product?.variation_view || 'buttons',
+    extra_info: product?.extra_info ?? [],
+    related_products: product?.related_products ?? [],
+    created: product?.created || '',
+    updated: product?.updated || '',
+    expand: {
+      category: publicTaxonomyRecord(product?.expand?.category),
+      subcategory: publicTaxonomyRecord(product?.expand?.subcategory),
+    },
+  };
+}
+
 function addProductImages(product: any, options?: StoreQueryInput) {
   const store = typeof options === 'object' ? options.store : null;
   return {
-    ...product,
+    ...publicProductRecord(product),
     imageUrls: getPublicProductImageNames(product, store).map((filename: string) =>
       getPocketBaseFileUrl('products', product.id, filename)
     ),
@@ -163,7 +204,21 @@ function addProductImages(product: any, options?: StoreQueryInput) {
 
 function addVariationImages(variation: any) {
   return {
-    ...variation,
+    id: variation?.id || '',
+    product: variation?.product || '',
+    variation_type: variation?.variation_type || '',
+    value: variation?.value || '',
+    price_usd: Number(variation?.price_usd ?? variation?.precio_usd ?? 0),
+    extra_price: Number(variation?.extra_price || 0),
+    image: variation?.image ?? '',
+    sort_order: Number(variation?.sort_order || 0),
+    allow_preorder: variation?.allow_preorder === true,
+    stock: Number(variation?.stock || 0),
+    active: variation?.active !== false,
+    is_offer: variation?.is_offer === true,
+    offer_price_usd: Number(variation?.offer_price_usd || 0),
+    created: variation?.created || '',
+    updated: variation?.updated || '',
     imageUrls: normalizeFileValue(variation.image).map((filename: string) =>
       getPocketBaseFileUrl('product_variations', variation.id, filename)
     ),
@@ -180,20 +235,17 @@ function variationPublicPrice(variation: any) {
 
 function addVariationPriceSummary(products: any[], variations: any[]) {
   const byProduct = new Map<string, number[]>();
-  const allByProduct = new Map<string, number[]>();
   const activeCountByProduct = new Map<string, number>();
   const availableCountByProduct = new Map<string, number>();
   const availableStockByProduct = new Map<string, number>();
   const availablePreorderByProduct = new Map<string, boolean>();
+  const publicLabelsByProduct = new Map<string, string[]>();
   const productsById = new Map(products.map((product) => [product.id, product]));
   variations.forEach((variation) => {
     if (!variation?.product || variation.active === false) return;
     activeCountByProduct.set(variation.product, (activeCountByProduct.get(variation.product) || 0) + 1);
     const price = variationPublicPrice(variation);
     if (price <= 0) return;
-    const allCurrent = allByProduct.get(variation.product) || [];
-    allCurrent.push(price);
-    allByProduct.set(variation.product, allCurrent);
     const product = productsById.get(variation.product);
     const tracksStock = product?.track_stock !== false;
     if (tracksStock && Number(variation.stock || 0) <= 0 && !variation.allow_preorder) return;
@@ -203,63 +255,59 @@ function addVariationPriceSummary(products: any[], variations: any[]) {
     const current = byProduct.get(variation.product) || [];
     current.push(price);
     byProduct.set(variation.product, current);
+    const label = [variation.variation_type, variation.value]
+      .map((part) => String(part || '').trim())
+      .filter(Boolean)
+      .join(': ');
+    if (label) {
+      const labels = publicLabelsByProduct.get(variation.product) || [];
+      if (!labels.includes(label)) labels.push(label);
+      publicLabelsByProduct.set(variation.product, labels);
+    }
   });
 
-  return products.map((product) => {
+  return products.flatMap((product) => {
     const availablePrices = byProduct.get(product.id) || [];
-    const fallbackPrices = allByProduct.get(product.id) || [];
-    const prices = availablePrices.length ? availablePrices : fallbackPrices;
-    if (!product?.has_variations) return product;
+    if (!product?.has_variations) return [product];
     const activeVariationCount = activeCountByProduct.get(product.id) || 0;
     const availableVariationCount = availableCountByProduct.get(product.id) || 0;
     const variationPublicAvailable = activeVariationCount > 0 && availableVariationCount > 0;
     const variationPublicStock = availableStockByProduct.get(product.id) || 0;
     const variationPublicAllowPreorder = availablePreorderByProduct.get(product.id) === true;
-    if (!prices.length) {
-      return {
-        ...product,
-        variation_active_count: activeVariationCount,
-        variation_available_count: availableVariationCount,
-        variation_public_available: variationPublicAvailable,
-        variation_public_stock: variationPublicStock,
-        variation_public_allow_preorder: variationPublicAllowPreorder,
-      };
-    }
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    const hasDifferentPrices = prices.some((price) => price !== minPrice);
-    return {
+    if (!variationPublicAvailable || !availablePrices.length) return [];
+    const minPrice = Math.min(...availablePrices);
+    const maxPrice = Math.max(...availablePrices);
+    const hasDifferentPrices = availablePrices.some((price) => price !== minPrice);
+    return [{
       ...product,
       variation_price_min_usd: minPrice,
       variation_price_max_usd: maxPrice,
-      variation_price_count: prices.length,
+      variation_price_count: availablePrices.length,
       variation_active_count: activeVariationCount,
       variation_available_count: availableVariationCount,
       variation_public_available: variationPublicAvailable,
       variation_public_stock: variationPublicStock,
       variation_public_allow_preorder: variationPublicAllowPreorder,
+      variation_public_labels: publicLabelsByProduct.get(product.id) || [],
       variation_has_different_prices: hasDifferentPrices,
       public_price_usd: minPrice,
       public_price_prefix: 'DESDE:',
-    };
+    }];
   });
 }
 
-async function attachVariationPriceSummary(products: any[], options?: StoreQueryInput) {
-  const store = await resolveStore(options);
-  const generalFiltered = filterPublicCatalogByExpiration(products, [], store).products;
-  const productIds = generalFiltered
+async function attachVariationPriceSummary(products: any[]) {
+  const productIds = products
     .filter((product) => product?.has_variations && product?.id)
     .map((product) => product.id);
-  if (!productIds.length) return generalFiltered;
+  if (!productIds.length) return products;
 
   const variations = await pb.collection('product_variations').getFullList({
     filter: productIds.map((id) => `product="${escapePocketBaseValue(id)}"`).join(' || '),
     sort: 'sort_order,variation_type,value',
   });
 
-  const filtered = filterPublicCatalogByExpiration(generalFiltered, variations, store);
-  return addVariationPriceSummary(filtered.products, filtered.variations);
+  return addVariationPriceSummary(products, variations);
 }
 
 export async function getProducts(options?: StoreQueryInput) {
@@ -271,7 +319,7 @@ export async function getProducts(options?: StoreQueryInput) {
 
   return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map((product) => addProductImages(product, options)), options);
+    .map((product) => addProductImages(product, options)));
 }
 
 export async function getFeaturedProducts(options?: StoreQueryInput) {
@@ -283,7 +331,7 @@ export async function getFeaturedProducts(options?: StoreQueryInput) {
 
   return attachVariationPriceSummary(products
     .filter(isProductPublicVisible)
-    .map((product) => addProductImages(product, options)), options);
+    .map((product) => addProductImages(product, options)));
 }
 
 function addVisualItemFiles(item: any) {
@@ -593,21 +641,10 @@ export async function getProductBySlug(slug: string, options?: StoreQueryInput) 
     throw new Error('Producto no disponible en el catálogo público.');
   }
 
-  const store = await resolveStore(options);
-  const variations = product.has_variations === true
-    ? await pb.collection('product_variations').getFullList({
-      filter: `product="${escapePocketBaseValue(product.id)}" && active=true`,
-      sort: 'sort_order,variation_type,value',
-    })
-    : [];
-  if (!isPublicProductAllowedByExpiration(product, variations, store)) {
-    throw new Error('Producto no disponible en el catálogo público.');
-  }
-
   return addProductImages(product, options);
 }
 
-export async function getProductVariations(productId: string, options?: StoreQueryInput) {
+export async function getProductVariations(productId: string, _options?: StoreQueryInput) {
   if (!productId) return [];
 
   const filter = `product="${productId}" && active=true`;
@@ -616,9 +653,7 @@ export async function getProductVariations(productId: string, options?: StoreQue
     sort: 'sort_order,variation_type,value',
   });
 
-  const store = await resolveStore(options);
-  const placeholderProduct = { id: productId, has_variations: true, track_stock: false };
-  return filterPublicCatalogByExpiration([placeholderProduct], variations, store).variations.map(addVariationImages);
+  return variations.map(addVariationImages);
 }
 
 export async function getShippingZones(options?: StoreQueryInput) {

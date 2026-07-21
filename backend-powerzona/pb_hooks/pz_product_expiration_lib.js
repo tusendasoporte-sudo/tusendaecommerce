@@ -12,6 +12,9 @@ const teamPermissions = typeof __hooks === "undefined"
 const storeActivity = typeof __hooks === "undefined"
   ? require("./pz_store_activity_audit_lib.js")
   : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const commerce = typeof __hooks === "undefined"
+  ? require("./pz_product_commerce_lib.js")
+  : require(`${__hooks}/pz_product_commerce_lib.js`);
 
 const CAPABILITY = "product_expiration_tools_enabled";
 const CYCLES_COLLECTION = "product_expiration_cycles";
@@ -62,6 +65,11 @@ function relationId(record, key) {
 function originalRecord(record) {
   if (!record || typeof record.original !== "function") return null;
   try { return record.original(); } catch (_) { return null; }
+}
+
+function recordIsNew(record) {
+  if (!record || typeof record.isNew !== "function") return false;
+  try { return record.isNew() === true; } catch (_) { return false; }
 }
 
 function boundedText(value, max) {
@@ -172,30 +180,32 @@ function evaluateCommercialAvailability(input) {
   const selectedVariation = source.variation || null;
   if (!storeExpirationEnabled(store)) return { available: true, reason: "capability_inactive", mode: "none" };
 
-  const generalDate = normalizeCivilDate(recordValue(product, "expiration_date"), true) || "";
-  const ownDates = variations
-    .map((variation) => normalizeCivilDate(recordValue(variation, "expiration_date"), true) || "")
-    .filter(Boolean);
-  const mode = ownDates.length ? "variations" : generalDate ? "general" : "none";
-
-  if (mode === "general" && isExpired(generalDate, source.now)) {
-    return { available: false, reason: "product_expired", mode };
+  const usesVariations = commerce.usesVariations(product);
+  const units = commerce.buildProductUnits(product, variations);
+  const mode = usesVariations ? "variations" : "general";
+  if (!usesVariations) {
+    if (selectedVariation) return { available: false, reason: "variation_forbidden", mode };
+    const unit = units[0] || null;
+    const date = commerce.effectiveUnitExpirationDate(product, unit, variations);
+    if (date && isExpired(date, source.now)) return { available: false, reason: "product_expired", mode };
+    return { available: true, reason: "available", mode: date ? mode : "none" };
   }
-  if (selectedVariation && mode === "variations") {
-    const ownDate = normalizeCivilDate(recordValue(selectedVariation, "expiration_date"), true) || "";
-    if (ownDate && isExpired(ownDate, source.now)) {
-      return { available: false, reason: "variation_expired", mode };
-    }
+
+  if (selectedVariation) {
+    const variationId = recordString(selectedVariation, "id");
+    const unit = units.find((candidate) => candidate.variation_id === variationId) || null;
+    if (!unit) return { available: false, reason: "variation_unavailable", mode };
+    const date = commerce.effectiveUnitExpirationDate(product, unit, variations);
+    if (date && isExpired(date, source.now)) return { available: false, reason: "variation_expired", mode };
     return { available: true, reason: "available", mode };
   }
-  if (!selectedVariation && recordBool(product, "has_variations") && mode === "variations") {
-    const candidates = variations.filter((variation) => variationOtherwiseSellable(product, variation));
-    if (candidates.length && candidates.every((variation) => {
-      const date = normalizeCivilDate(recordValue(variation, "expiration_date"), true) || "";
-      return date && isExpired(date, source.now);
-    })) {
-      return { available: false, reason: "all_sellable_variations_expired", mode };
-    }
+
+  const candidates = units.filter((unit) => variationOtherwiseSellable(product, unit.variation));
+  if (candidates.length && candidates.every((unit) => {
+    const date = commerce.effectiveUnitExpirationDate(product, unit, variations);
+    return date && isExpired(date, source.now);
+  })) {
+    return { available: false, reason: "all_sellable_variations_expired", mode };
   }
   return { available: true, reason: "available", mode };
 }
@@ -222,12 +232,20 @@ function raiseExpirationRequestError(safe) {
   const error = safe || {};
   const message = String(error.message || "No se pudo completar la operación.");
   const data = {};
-  data[String(error.field || "expiration_date")] = new ValidationError(String(error.code || "invalid_expiration_date"), message);
+  const code = String(error.code || "invalid_expiration_date");
+  data[String(error.field || "expiration_date")] = typeof ValidationError === "function"
+    ? new ValidationError(code, message)
+    : { code, message };
   const status = Number(error.status) || 400;
   if (status === 404 && typeof NotFoundError === "function") throw new NotFoundError(message, data);
   if (status === 403 && typeof ForbiddenError === "function") throw new ForbiddenError(message, data);
   if (status >= 500 && typeof InternalServerError === "function") throw new InternalServerError(message, data);
-  throw new BadRequestError(message, data);
+  if (typeof BadRequestError === "function") throw new BadRequestError(message, data);
+  const fallback = new Error(code);
+  fallback.code = code;
+  fallback.status = status;
+  fallback.data = data;
+  throw fallback;
 }
 
 function requestAuthRecord(e) {
@@ -259,7 +277,13 @@ function authBelongsToAnotherStore(e, storeId) {
 }
 
 function variationsForProduct(app, productId) {
-  return findRecords(app, "product_variations", "product = {:product}", "sort_order", 500, 0, { product: productId });
+  return findAllRecordsStrict(
+    app,
+    "product_variations",
+    "product = {:product}",
+    "sort_order,id",
+    { product: productId }
+  );
 }
 
 function resolveDateRequestRecords(e, collectionName) {
@@ -300,6 +324,313 @@ function createProductExpirationAutoClearActivity(app, e, resolved, previousDate
   });
 }
 
+function recordSnapshot(record, keys) {
+  const snapshot = { id: recordString(record, "id") || String(record && record.id || "") };
+  (keys || []).forEach((key) => {
+    const value = recordValue(record, key);
+    if (value !== undefined) snapshot[key] = value;
+  });
+  return snapshot;
+}
+
+function productCommerceSnapshot(record) {
+  return recordSnapshot(record, [
+    "store", "name", "active", "has_variations", "track_stock", "allow_preorder",
+    "base_price_usd", "price_usd", "price", "cost_usd", "stock", "expiration_date",
+  ]);
+}
+
+function variationCommerceSnapshot(record) {
+  return recordSnapshot(record, [
+    "product", "variation_type", "value", "active", "price_usd", "cost_usd", "stock",
+    "allow_preorder", "expiration_date",
+  ]);
+}
+
+function replaceVariationSnapshot(variations, variation) {
+  const targetId = recordString(variation, "id") || String(variation && variation.id || "");
+  let replaced = false;
+  const result = (variations || []).map((candidate) => {
+    if ((recordString(candidate, "id") || String(candidate && candidate.id || "")) !== targetId) return variationCommerceSnapshot(candidate);
+    replaced = true;
+    return variationCommerceSnapshot(variation);
+  });
+  if (!replaced && targetId) result.push(variationCommerceSnapshot(variation));
+  return result;
+}
+
+function unitExpirationStates(product, variations, now) {
+  const productSnapshot = productCommerceSnapshot(product);
+  const variationSnapshots = (variations || []).map(variationCommerceSnapshot);
+  const productName = boundedText(recordString(productSnapshot, "name") || "Producto", 160);
+  const states = new Map();
+  commerce.buildProductUnits(productSnapshot, variationSnapshots).forEach((unit) => {
+    if (unit.active === false) return;
+    const variation = unit.variation || null;
+    const date = normalizeCivilDate(
+      commerce.effectiveUnitExpirationDate(productSnapshot, unit, variationSnapshots),
+      true
+    ) || "";
+    const variationName = variation
+      ? `${recordString(variation, "variation_type") || "Variación"}: ${recordString(variation, "value") || "Sin valor"}`
+      : "";
+    const entityCollection = unit.kind === "variation" ? "product_variations" : "products";
+    states.set(`${entityCollection}:${unit.entity_id}`, {
+      kind: unit.kind,
+      id: unit.entity_id,
+      productId: unit.product_id,
+      productName,
+      variationName: boundedText(variationName, 160),
+      date,
+      expired: Boolean(date && isExpired(date, now)),
+    });
+  });
+  return states;
+}
+
+function expirationTransitionContext(e, collectionName, now) {
+  const record = e && e.record;
+  const original = originalRecord(record);
+  if (!record || !original || recordIsNew(record)) return null;
+  const resolved = resolveDateRequestRecords(e, collectionName);
+  if (!resolved || !resolved.product) return null;
+  const currentVariations = variationsForProduct(e.app, resolved.product.id);
+  const beforeProduct = collectionName === "products"
+    ? productCommerceSnapshot(original)
+    : productCommerceSnapshot(resolved.product);
+  const beforeVariations = collectionName === "product_variations"
+    ? replaceVariationSnapshot(currentVariations, original)
+    : currentVariations.map(variationCommerceSnapshot);
+  return {
+    now,
+    before: unitExpirationStates(beforeProduct, beforeVariations, now),
+  };
+}
+
+function currentUnitExpirationStates(e, collectionName, now) {
+  const resolved = resolveDateRequestRecords(e, collectionName);
+  if (!resolved || !resolved.product) return new Map();
+  let variations = variationsForProduct(e.app, resolved.product.id);
+  if (collectionName === "product_variations") variations = replaceVariationSnapshot(variations, e.record);
+  return unitExpirationStates(resolved.product, variations, now);
+}
+
+function administrativeActor(e) {
+  const actor = requestAuthRecord(e);
+  const role = recordString(actor, "role");
+  const status = recordString(actor, "status").toLowerCase();
+  if (!actor || !["master_admin", "store_admin", "store_staff"].includes(role)) return null;
+  if (role !== "master_admin" && status !== "active") return null;
+  return actor;
+}
+
+function createUnitExpirationTransitionActivities(app, e, context, collectionName) {
+  const actor = administrativeActor(e);
+  if (!actor || !context) return [];
+  const after = currentUnitExpirationStates(e, collectionName, context.now);
+  const version = boundedText(
+    recordString(e && e.record, "updated") || context.now.toISOString(),
+    80
+  ).replace(/\s+/g, "T");
+  const created = [];
+  context.before.forEach((previous, key) => {
+    const next = after.get(key);
+    if (!next || previous.expired === next.expired) return;
+    const action = next.expired ? "product_unit_expired" : "product_unit_reactivated";
+    const isVariation = next.kind === "variation";
+    const label = boundedText(isVariation
+      ? `${next.productName} · ${next.variationName}`
+      : next.productName, 180);
+    const storeId = relationId(resolveDateRequestRecords(e, collectionName).product, "store");
+    if (!storeId) return;
+    created.push(storeActivity.createActivity(app, {
+      storeId,
+      actor,
+      module: "catalog",
+      action,
+      severity: next.expired ? "critical" : "important",
+      resourceType: isVariation ? "product_variation" : "product",
+      resourceId: next.id,
+      parentProductId: next.productId,
+      variationId: isVariation ? next.id : "",
+      resourceLabel: label,
+      changedFields: ["expiration_date"],
+      previousValues: { expiration_date: previous.date, expired: previous.expired },
+      newValues: { expiration_date: next.date, expired: next.expired },
+      summary: next.expired ? `${label} quedó fuera de venta por vencimiento` : `${label} volvió a estar vigente`,
+      sourceEventKey: `expiration:unit:${action}:${next.id}:${previous.date || "none"}:${next.date || "none"}:${version}`,
+    }));
+    if (isVariation && !next.expired) {
+      created.push(storeActivity.createActivity(app, {
+        storeId,
+        actor,
+        module: "catalog",
+        action: "variation_expiration_corrected",
+        severity: "important",
+        resourceType: "product_variation",
+        resourceId: next.id,
+        parentProductId: next.productId,
+        variationId: next.id,
+        resourceLabel: label,
+        changedFields: ["expiration_date"],
+        previousValues: { expiration_date: previous.date, expired: previous.expired },
+        newValues: { expiration_date: next.date, expired: next.expired },
+        summary: `Corrigió el vencimiento de ${label}`,
+        sourceEventKey: `expiration:variation:corrected:${next.id}:${previous.date || "none"}:${next.date || "none"}:${version}`,
+      }));
+    }
+  });
+  if (collectionName === "product_variations"
+    && !created.some((activity) => recordString(activity, "action") === "variation_expiration_corrected")) {
+    const original = originalRecord(e && e.record);
+    const previousDate = original ? normalizeCivilDate(recordValue(original, "expiration_date"), true) || "" : "";
+    const nextDate = normalizeCivilDate(recordValue(e && e.record, "expiration_date"), true) || "";
+    if (previousDate !== nextDate && isExpired(previousDate, context.now) && !isExpired(nextDate, context.now)) {
+      const resolved = resolveDateRequestRecords(e, collectionName);
+      const storeId = resolved && resolved.product ? relationId(resolved.product, "store") : "";
+      const productName = boundedText(recordString(resolved && resolved.product, "name") || "Producto", 160);
+      const variationName = boundedText(
+        `${recordString(e.record, "variation_type") || "Variación"}: ${recordString(e.record, "value") || "Sin valor"}`,
+        160
+      );
+      const label = boundedText(`${productName} · ${variationName}`, 180);
+      if (storeId) {
+        created.push(storeActivity.createActivity(app, {
+          storeId,
+          actor,
+          module: "catalog",
+          action: "variation_expiration_corrected",
+          severity: "important",
+          resourceType: "product_variation",
+          resourceId: e.record.id,
+          parentProductId: resolved.product.id,
+          variationId: e.record.id,
+          resourceLabel: label,
+          changedFields: ["expiration_date"],
+          previousValues: { expiration_date: previousDate, expired: true },
+          newValues: { expiration_date: nextDate, expired: false },
+          summary: `Corrigió el vencimiento de ${label}`,
+          sourceEventKey: `expiration:variation:corrected:${e.record.id}:${previousDate || "none"}:${nextDate || "none"}:${version}`,
+        }));
+      }
+    }
+  }
+  return created;
+}
+
+function finiteRecordNumber(record, key) {
+  const raw = recordValue(record, key);
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw && typeof raw.string === "function" ? raw.string() : raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function configuredPrice(record, keys) {
+  for (const key of keys) {
+    const raw = recordValue(record, key);
+    if (raw === null || raw === undefined || raw === "") continue;
+    return finiteRecordNumber(record, key);
+  }
+  return null;
+}
+
+function nonNegativeOptionalNumber(record, key) {
+  const raw = recordValue(record, key);
+  if (raw === null || raw === undefined || raw === "") return true;
+  const value = finiteRecordNumber(record, key);
+  return value !== null && value >= 0;
+}
+
+function parentCommerceConfigurationValid(product) {
+  const price = configuredPrice(product, ["base_price_usd", "price_usd", "price"]);
+  if (!(price > 0) || !nonNegativeOptionalNumber(product, "cost_usd")) return false;
+  if (recordValue(product, "track_stock") !== false) {
+    const stock = finiteRecordNumber(product, "stock");
+    if (stock === null || stock < 0) return false;
+  }
+  return true;
+}
+
+function variationCommerceConfigurationValid(product, variation) {
+  if (!variation || recordValue(variation, "active") === false) return false;
+  if (relationId(variation, "product") !== (recordString(product, "id") || String(product.id || ""))) return false;
+  const price = configuredPrice(variation, ["price_usd", "price"]);
+  if (!(price > 0) || !nonNegativeOptionalNumber(variation, "cost_usd")) return false;
+  if (recordValue(product, "track_stock") !== false) {
+    const stock = finiteRecordNumber(variation, "stock");
+    if (stock === null || stock < 0) return false;
+  }
+  return true;
+}
+
+function variationModeTransition(e, collectionName) {
+  if (collectionName !== "products") return null;
+  const body = requestBody(e);
+  const original = originalRecord(e && e.record);
+  if (!original || recordIsNew(e && e.record) || !bodyHas(body, "has_variations")) return null;
+  const previous = commerce.usesVariations(original);
+  const next = commerce.usesVariations(e.record);
+  return previous === next ? null : { previous, next };
+}
+
+function validateVariationModeTransition(e, collectionName) {
+  const transition = variationModeTransition(e, collectionName);
+  if (!transition) return null;
+  if (!transition.next && !parentCommerceConfigurationValid(e.record)) {
+    return safeRequestError(
+      "parent_commerce_invalid",
+      "Configura un precio y stock válidos para dejar de usar variaciones.",
+      "has_variations"
+    );
+  }
+  if (transition.next) {
+    const validVariation = variationsForProduct(e.app, e.record.id)
+      .some((variation) => variationCommerceConfigurationValid(e.record, variation));
+    if (!validVariation) {
+      return safeRequestError(
+        "valid_variation_required",
+        "Crea al menos una variación activa con precio y stock válidos.",
+        "has_variations"
+      );
+    }
+  }
+  return null;
+}
+
+function clearProductExpirationState(app, product, options) {
+  if (!product) return 0;
+  let removed = clearEntityExpirationState(app, "products", recordString(product, "id") || product.id, options);
+  variationsForProduct(app, recordString(product, "id") || product.id).forEach((variation) => {
+    removed += clearEntityExpirationState(app, "product_variations", variation.id, options);
+  });
+  return removed;
+}
+
+function createVariationModeActivity(app, e, transition) {
+  const actor = administrativeActor(e);
+  const product = e && e.record;
+  const storeId = relationId(product, "store");
+  if (!actor || !transition || !product || !storeId) return null;
+  const action = transition.next ? "product_variations_enabled" : "product_variations_disabled";
+  const label = boundedText(recordString(product, "name") || "Producto", 180);
+  const version = boundedText(recordString(product, "updated") || `${transition.previous}-${transition.next}`, 80).replace(/\s+/g, "T");
+  return storeActivity.createActivity(app, {
+    storeId,
+    actor,
+    module: "catalog",
+    action,
+    severity: "important",
+    resourceType: "product",
+    resourceId: recordString(product, "id") || String(product.id || ""),
+    resourceLabel: label,
+    changedFields: ["has_variations"],
+    previousValues: { has_variations: transition.previous },
+    newValues: { has_variations: transition.next },
+    summary: transition.next ? `Activó las variaciones de ${label}` : `Dejó de usar variaciones en ${label}`,
+    sourceEventKey: `commerce:variation-mode:${String(product.id || "")}:${version}:${transition.next ? "enabled" : "disabled"}`,
+  });
+}
+
 function validateDateWriteRequest(e, collectionName) {
   const body = requestBody(e);
   if (!bodyHas(body, "expiration_date")) return null;
@@ -329,19 +660,23 @@ function validateDateWriteRequest(e, collectionName) {
     e.record.set("expiration_date", normalized || "");
   }
 
-  if (collectionName === "products" && normalized) {
+  if (collectionName === "products" && normalized && commerce.usesVariations(e.record)) {
     const hasVariationDates = variationsForProduct(e.app, e.record.id).some((variation) => {
-      return Boolean(normalizeCivilDate(recordValue(variation, "expiration_date"), true));
+      return recordValue(variation, "active") !== false
+        && Boolean(normalizeCivilDate(recordValue(variation, "expiration_date"), true));
     });
-    if (hasVariationDates) {
+    const activatingVariations = variationModeTransition(e, collectionName);
+    if (hasVariationDates && !(activatingVariations && activatingVariations.next)) {
       return safeRequestError("expiration_modes_conflict", "Elimina las fechas de las variaciones antes de usar una fecha general.");
     }
   }
 
-  if (collectionName === "product_variations" && normalized) {
+  if (collectionName === "product_variations" && normalized
+    && commerce.usesVariations(resolved.product)
+    && recordValue(e.record, "active") !== false) {
     const productDate = normalizeCivilDate(recordValue(resolved.product, "expiration_date"), true) || "";
     if (productDate) {
-      clearEntityExpirationState(e.app, "products", resolved.product.id, { strict: true });
+      clearProductExpirationState(e.app, resolved.product, { strict: true });
       resolved.product.set("expiration_date", "");
       e.app.save(resolved.product);
       createProductExpirationAutoClearActivity(e.app, e, resolved, productDate, normalized);
@@ -351,7 +686,36 @@ function validateDateWriteRequest(e, collectionName) {
   const original = originalRecord(e.record);
   const previousDate = original ? normalizeCivilDate(recordValue(original, "expiration_date"), true) || "" : "";
   if (original && previousDate !== normalized) {
-    clearEntityExpirationState(e.app, collectionName, e.record.id, { strict: true });
+    if (collectionName === "products" || commerce.usesVariations(resolved.product)) {
+      clearProductExpirationState(e.app, resolved.product, { strict: true });
+    } else {
+      clearEntityExpirationState(e.app, collectionName, e.record.id, { strict: true });
+    }
+  }
+  return null;
+}
+
+function validateVariationActivationState(e, collectionName, now) {
+  if (collectionName !== "product_variations" || !e || !e.record) return null;
+  const body = requestBody(e);
+  const original = originalRecord(e.record);
+  const explicitlyActivating = bodyHas(body, "active") && recordBool(e.record, "active");
+  const creatingActive = !original && recordValue(e.record, "active") !== false;
+  if (!explicitlyActivating && !creatingActive) return null;
+  const resolved = resolveDateRequestRecords(e, collectionName);
+  if (!resolved || !resolved.product || !resolved.store) {
+    return safeRequestError("expiration_management_unavailable", "La variación no está disponible temporalmente.", "active", 503);
+  }
+  if (!storeExpirationEnabled(resolved.store) || !commerce.usesVariations(resolved.product)) return null;
+  const variations = replaceVariationSnapshot(variationsForProduct(e.app, resolved.product.id), e.record);
+  const status = commerce.variationEffectiveStatus(resolved.product, e.record, variations, now || new Date());
+  if (status.expired) {
+    return safeRequestError(
+      "variation_expired_cannot_activate",
+      "No puedes activar esta variación porque su fecha de vencimiento ya pasó. Corrige o elimina la fecha antes de activarla.",
+      "active",
+      409,
+    );
   }
   return null;
 }
@@ -366,16 +730,54 @@ function handleDateWriteRequest(e, collectionName) {
   let result;
   const run = (app) => {
     try { e.app = app; } catch (_) {}
+    const body = requestBody(e);
+    const now = new Date();
+    const transitionContext = expirationTransitionContext(e, collectionName, now);
+    const modeTransition = variationModeTransition(e, collectionName);
+    const modeSafe = validateVariationModeTransition(e, collectionName);
+    if (modeSafe) raiseExpirationRequestError(modeSafe);
+    const activationSafe = validateVariationActivationState(e, collectionName, now);
+    if (activationSafe) raiseExpirationRequestError(activationSafe);
     const safe = validateDateWriteRequest(e, collectionName);
     if (safe) raiseExpirationRequestError(safe);
-    result = e.next();
-    const body = requestBody(e);
-    if (bodyHas(body, "expiration_date")) {
-      const currentDate = normalizeCivilDate(recordValue(e.record, "expiration_date"), true) || "";
-      if (currentDate) {
-        const resolved = resolveDateRequestRecords(e, collectionName);
-        if (resolved && resolved.store) processStoreExpirationAlerts(app, resolved.store, new Date());
+    const original = originalRecord(e.record);
+    const activeChanged = Boolean(original && bodyHas(body, "active")
+      && recordBool(original, "active") !== recordBool(e.record, "active"));
+    if (activeChanged && collectionName === "product_variations"
+      && !recordBool(original, "active") && recordBool(e.record, "active")) {
+      const resolved = resolveDateRequestRecords(e, collectionName);
+      const variationDate = normalizeCivilDate(recordValue(e.record, "expiration_date"), true) || "";
+      const productDate = resolved && normalizeCivilDate(recordValue(resolved.product, "expiration_date"), true) || "";
+      if (resolved && commerce.usesVariations(resolved.product) && variationDate && productDate) {
+        clearProductExpirationState(app, resolved.product, { strict: true });
+        resolved.product.set("expiration_date", "");
+        app.save(resolved.product);
+        createProductExpirationAutoClearActivity(app, e, resolved, productDate, variationDate);
       }
+    }
+    if (modeTransition) {
+      const productVariations = variationsForProduct(app, e.record.id);
+      if (modeTransition.next && productVariations.some((variation) => (
+        recordValue(variation, "active") !== false
+        && Boolean(normalizeCivilDate(recordValue(variation, "expiration_date"), true))
+      ))) {
+        e.record.set("expiration_date", "");
+      }
+      clearProductExpirationState(app, e.record, { strict: true });
+    } else if (activeChanged) {
+      const resolved = resolveDateRequestRecords(e, collectionName);
+      if (resolved && (collectionName === "products" || commerce.usesVariations(resolved.product))) {
+        clearProductExpirationState(app, resolved.product, { strict: true });
+      } else {
+        clearEntityExpirationState(app, collectionName, e.record.id, { strict: true });
+      }
+    }
+    result = e.next();
+    if (bodyHas(body, "expiration_date") || modeTransition || activeChanged) {
+      const resolved = resolveDateRequestRecords(e, collectionName);
+      if (resolved && resolved.store) processStoreExpirationAlerts(app, resolved.store, now);
+      createUnitExpirationTransitionActivities(app, e, transitionContext, collectionName);
+      if (modeTransition) createVariationModeActivity(app, e, modeTransition);
     }
   };
   try {
@@ -422,7 +824,7 @@ function loadProductVariationsForStore(app, products) {
     .filter((variation) => productIds.has(relationId(variation, "product")));
 }
 
-function productExpirationGroups(app, storeId, now) {
+function productExpirationUnits(app, storeId, now) {
   const products = findRecords(app, "products", "store = {:store}", "name", 10000, 0, { store: storeId });
   const variations = loadProductVariationsForStore(app, products);
   const variationsByProduct = {};
@@ -431,26 +833,40 @@ function productExpirationGroups(app, storeId, now) {
     if (!variationsByProduct[productId]) variationsByProduct[productId] = [];
     variationsByProduct[productId].push(variation);
   });
-  return products.map((product) => {
-    const dates = [];
-    const general = normalizeCivilDate(recordValue(product, "expiration_date"), true) || "";
-    if (general) dates.push({ kind: "product", id: product.id, name: recordString(product, "name"), date: general, days: daysUntilExpiration(general, now) });
-    (variationsByProduct[product.id] || []).forEach((variation) => {
-      const date = normalizeCivilDate(recordValue(variation, "expiration_date"), true) || "";
+  const result = [];
+  products.forEach((product) => {
+    const productVariations = variationsByProduct[product.id] || [];
+    commerce.buildProductUnits(product, productVariations).forEach((unit) => {
+      if (unit.active === false) return;
+      const date = normalizeCivilDate(
+        commerce.effectiveUnitExpirationDate(product, unit, productVariations),
+        true
+      ) || "";
       if (!date) return;
-      const name = [recordString(variation, "variation_type") || "Variación", recordString(variation, "value") || "Sin valor"].join(": ");
-      dates.push({ kind: "variation", id: variation.id, name, date, days: daysUntilExpiration(date, now) });
+      const variation = unit.variation || null;
+      const name = unit.kind === "variation"
+        ? [recordString(variation, "variation_type") || "Variación", recordString(variation, "value") || "Sin valor"].join(": ")
+        : recordString(product, "name");
+      result.push({
+        product,
+        variation,
+        kind: unit.kind,
+        id: unit.entity_id,
+        name,
+        date,
+        days: daysUntilExpiration(date, now),
+      });
     });
-    return { product, dates };
-  }).filter((group) => group.dates.length);
+  });
+  return result;
 }
 
-function expirationSummary(groups) {
+function expirationSummary(units) {
   let expired = 0;
   let upcoming30 = 0;
-  groups.forEach((group) => {
-    if (group.dates.some((item) => item.days <= 0)) expired += 1;
-    else if (group.dates.some((item) => item.days > 0 && item.days <= 30)) upcoming30 += 1;
+  (units || []).forEach((unit) => {
+    if (unit.days <= 0) expired += 1;
+    else if (unit.days <= 30) upcoming30 += 1;
   });
   return { expired_products: expired, upcoming_30_products: upcoming30 };
 }
@@ -514,32 +930,30 @@ function handleAdminExpirationQuery(e) {
     if (!authCanManageStore(e, storeId)) return e.json(403, { ok: false, error: "permission_denied" });
     const parsed = parseAdminQueryPayload(info.body || {});
     if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
-    const groups = productExpirationGroups($app, storeId, new Date());
-    const summary = expirationSummary(groups);
+    const units = productExpirationUnits(app, storeId, new Date());
+    const summary = expirationSummary(units);
     if (parsed.view === "summary") return e.json(200, { ok: true, summary, page: 1, page_size: parsed.pageSize, total_pages: 1, total_items: 0, items: [] });
 
-    const selected = filterAdminExpirationItems(groups.map((group) => {
-      const hasExpired = group.dates.some((item) => item.days <= 0);
-      const affected = parsed.view === "expired"
-        ? group.dates.filter((item) => item.days <= 0)
-        : hasExpired ? [] : group.dates.filter((item) => item.days > 0 && item.days <= parsed.windowDays);
-      if (!affected.length) return null;
-      affected.sort((left, right) => left.days - right.days || left.name.localeCompare(right.name));
-      const primary = affected[0];
+    const selected = filterAdminExpirationItems(units.filter((unit) => (
+      parsed.view === "expired"
+        ? unit.days <= 0
+        : unit.days > 0 && unit.days <= parsed.windowDays
+    )).map((unit) => {
+      const isVariation = unit.kind === "variation";
       return {
-        product_id: String(group.product.id || "").slice(0, 15),
-        name: boundedText(recordString(group.product, "name") || "Producto", 160),
-        mode: affected.some((item) => item.kind === "variation") ? "variations" : "general",
-        expiration_date: primary.date,
-        days_left: primary.days,
-        affected_variations: affected.filter((item) => item.kind === "variation").map((item) => ({
-          id: String(item.id || "").slice(0, 15),
-          name: boundedText(item.name, 160),
-          expiration_date: item.date,
-          days_left: item.days,
-        })),
+        product_id: String(unit.product.id || "").slice(0, 15),
+        name: boundedText(recordString(unit.product, "name") || "Producto", 160),
+        mode: isVariation ? "variations" : "general",
+        expiration_date: unit.date,
+        days_left: unit.days,
+        affected_variations: isVariation ? [{
+          id: String(unit.id || "").slice(0, 15),
+          name: boundedText(unit.name, 160),
+          expiration_date: unit.date,
+          days_left: unit.days,
+        }] : [],
       };
-    }).filter(Boolean).sort((left, right) => left.days_left - right.days_left || left.name.localeCompare(right.name)), parsed.query);
+    }).sort((left, right) => left.days_left - right.days_left || left.name.localeCompare(right.name)), parsed.query);
     const totalItems = selected.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / parsed.pageSize));
     const page = Math.min(parsed.page, totalPages);
@@ -683,9 +1097,9 @@ function fillNotification(notification, store, product, candidates, threshold) {
   notification.set("message", boundedText(message, 600));
   notification.set("status", "unread");
   notification.set("priority", spec.priority);
-  notification.set("target_url", safeTarget(store, product.id, candidates.length === 1 && candidates[0].kind === "variation" ? candidates[0].id : ""));
+  notification.set("target_url", safeTarget(store, product.id, candidates[0].kind === "variation" ? candidates[0].id : ""));
   notification.set("entity_collection", candidates[0].kind === "variation" ? "product_variations" : "products");
-  notification.set("entity_id", `${String(product.id || "").slice(0, 15)}_${candidates[0].kind}_${threshold}_${date}`.slice(0, 80));
+  notification.set("entity_id", String(candidates[0].id || "").slice(0, 80));
   notification.set("metadata_json", {
     source: "v7e9_product_expiration",
     product_id: product.id,
@@ -704,17 +1118,18 @@ function createNotification(app, store, product, candidates, threshold) {
   return notification;
 }
 
-function existingGroupNotification(app, store, product, candidate, threshold) {
+function existingUnitNotification(app, store, product, candidate, threshold) {
   const entityCollection = candidate.kind === "variation" ? "product_variations" : "products";
   const cycles = findRecords(app, CYCLES_COLLECTION, `
     store = {:store} && product = {:product} && expiration_date = {:date}
-      && threshold = {:threshold} && entity_collection = {:collection}
+      && threshold = {:threshold} && entity_collection = {:collection} && entity_id = {:id}
   `, "created", 50, 0, {
     store: store.id,
     product: product.id,
     date: candidate.date,
     threshold,
     collection: entityCollection,
+    id: candidate.id,
   });
   for (const cycle of cycles) {
     const notification = findRecord(app, "store_notifications", relationId(cycle, "notification"));
@@ -743,40 +1158,21 @@ function createCycle(app, store, product, candidate, threshold, notification) {
 
 function processStoreExpirationAlerts(app, store, now) {
   if (!store || !storeExpirationEnabled(store) || !expirationSettingsEnabled(app, store.id)) return { notifications: 0, cycles: 0 };
-  const groups = productExpirationGroups(app, store.id, now);
+  const units = productExpirationUnits(app, store.id, now);
   let notificationCount = 0;
   let cycleCount = 0;
-  groups.forEach((group) => {
-    const due = group.dates.filter((item) => currentThreshold(item.days) !== null && !cycleExists(
-      app,
-      cycleKey(store.id, item.kind === "variation" ? "product_variations" : "products", item.id, item.date, currentThreshold(item.days))
-    ));
-    const grouped = {};
-    due.forEach((item) => {
-      const threshold = currentThreshold(item.days);
-      const key = `${item.kind}:${item.date}:${threshold}`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(item);
-    });
-    Object.keys(grouped).forEach((key) => {
-      const candidates = grouped[key];
-      const threshold = currentThreshold(candidates[0].days);
-      let notification = existingGroupNotification(app, store, group.product, candidates[0], threshold);
-      if (!notification) {
-        notification = createNotification(app, store, group.product, candidates, threshold);
-        notificationCount += 1;
-      }
-      candidates.forEach((candidate) => {
-        if (createCycle(app, store, group.product, candidate, threshold, notification)) cycleCount += 1;
-      });
-      if (notificationCount === 0 || candidates[0].kind === "variation") {
-        const allCandidates = group.dates.filter((item) => item.kind === candidates[0].kind
-          && item.date === candidates[0].date
-          && currentThreshold(item.days) === threshold);
-        fillNotification(notification, store, group.product, allCandidates, threshold);
-        app.save(notification);
-      }
-    });
+  units.forEach((candidate) => {
+    const threshold = currentThreshold(candidate.days);
+    if (threshold === null) return;
+    const entityCollection = candidate.kind === "variation" ? "product_variations" : "products";
+    const key = cycleKey(store.id, entityCollection, candidate.id, candidate.date, threshold);
+    if (cycleExists(app, key)) return;
+    let notification = existingUnitNotification(app, store, candidate.product, candidate, threshold);
+    if (!notification) {
+      notification = createNotification(app, store, candidate.product, [candidate], threshold);
+      notificationCount += 1;
+    }
+    if (createCycle(app, store, candidate.product, candidate, threshold, notification)) cycleCount += 1;
   });
   return { notifications: notificationCount, cycles: cycleCount };
 }
@@ -840,29 +1236,44 @@ function clearEntityExpirationState(app, entityCollection, entityId, options) {
   return cycles.length;
 }
 
-function handleExpirationRecordChange(e, collectionName) {
+function handleExpirationRecordChange(e, collectionName, action) {
   const record = e && e.record;
   if (!record) return;
   const currentDate = normalizeCivilDate(recordValue(record, "expiration_date"), true) || "";
   const original = originalRecord(record);
   const previousDate = original ? normalizeCivilDate(recordValue(original, "expiration_date"), true) || "" : "";
-  if (original ? currentDate === previousDate : !currentDate) return;
-  const entityCollection = collectionName;
-  clearEntityExpirationState(e.app, entityCollection, record.id);
+  const dateChanged = original ? currentDate !== previousDate : Boolean(currentDate);
+  const activeChanged = Boolean(original && recordBool(original, "active") !== recordBool(record, "active"));
+  const modeChanged = Boolean(collectionName === "products" && original
+    && commerce.usesVariations(original) !== commerce.usesVariations(record));
+  const createdActiveVariation = Boolean(collectionName === "product_variations" && action === "create"
+    && recordValue(record, "active") !== false);
+  if (!dateChanged && !activeChanged && !modeChanged && !createdActiveVariation) return;
   const resolved = resolveDateRequestRecords(e, collectionName);
-  if (currentDate && resolved && resolved.store) processStoreExpirationAlerts(e.app, resolved.store, new Date());
+  if (resolved && (collectionName === "products" || commerce.usesVariations(resolved.product))) {
+    clearProductExpirationState(e.app, resolved.product);
+  } else {
+    clearEntityExpirationState(e.app, collectionName, record.id);
+  }
+  if (resolved && resolved.store) processStoreExpirationAlerts(e.app, resolved.store, new Date());
 }
 
 function handleExpirationRecordDelete(e, collectionName) {
   const record = e && e.record;
   if (!record) return;
-  clearEntityExpirationState(e.app, collectionName, record.id);
+  const resolved = resolveDateRequestRecords(e, collectionName);
+  if (resolved && (collectionName === "products" || commerce.usesVariations(resolved.product))) {
+    clearProductExpirationState(e.app, resolved.product);
+  } else {
+    clearEntityExpirationState(e.app, collectionName, record.id);
+  }
+  if (resolved && resolved.store) processStoreExpirationAlerts(e.app, resolved.store, new Date());
 }
 
 function continueAfterExpirationSideEffect(e, collectionName, action) {
   try {
     if (action === "delete") handleExpirationRecordDelete(e, collectionName);
-    else handleExpirationRecordChange(e, collectionName);
+    else handleExpirationRecordChange(e, collectionName, action);
   } catch (_) {
     try { e.app.logger().error("PowerZona expiration side effect continued safely.", "code", "PZ_EXPIRATION_SIDE_EFFECT_FAILED"); } catch (_) {}
   }
@@ -928,6 +1339,8 @@ function createExpirationDowngradeCleanupActivity(app, context, storeId, collect
     severity: "critical",
     resourceType,
     resourceId: String(record.id || ""),
+    parentProductId: String(product && product.id || ""),
+    variationId: isProduct ? "" : String(record.id || ""),
     resourceLabel: label,
     changedFields: ["expiration_date"],
     previousValues: { expiration_date: previousDate },
@@ -999,6 +1412,7 @@ module.exports = {
   parseAdminQueryPayload,
   processAllExpirationAlerts,
   processStoreExpirationAlerts,
+  productExpirationUnits,
   raiseExpirationRequestError,
   requireAuthenticatedUser(e) {
     setPrivateHeaders(e);
@@ -1008,6 +1422,8 @@ module.exports = {
   storeExpirationEnabled,
   validateDateWriteRequest,
   validateExpirationSettingsRequest,
+  validateVariationActivationState,
   validateOrderItemRequest,
+  validateVariationModeTransition,
   variationOtherwiseSellable,
 };

@@ -54,7 +54,6 @@ const adminGiftsPath = getStoreAdminPath(currentStoreSlug, 'gifts');
 const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
-const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const masterSupportWhatsapp = String(import.meta.env.PUBLIC_MASTER_SUPPORT_WHATSAPP || '').replace(/[^0-9]/g, '');
 const masterSupportEmail = String(import.meta.env.PUBLIC_MASTER_SUPPORT_EMAIL || '').trim();
@@ -1702,6 +1701,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         background: rgba(148, 163, 184, 0.18) !important;
         color: #475569 !important;
       }
+      #variation-manager .status-badge.hidden-expired {
+        background: #fee2e2 !important;
+        color: #b91c1c !important;
+      }
       #variation-manager .variation-mini-actions {
         display: flex !important;
         justify-content: flex-end !important;
@@ -2691,7 +2694,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <p id="editor-subtitle" class="editor-subtitle">Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.</p>
               </div>
               <div class="editor-head-actions">
-                <a id="product-history-link" class="mini-btn hidden" href={`${adminTeamActivityPath}?tab=activity`}>Ver historial</a>
+                <a id="product-history-link" class="mini-btn hidden">Ver historial</a>
                 <button id="editor-close-btn" class="mini-btn" type="button">← Volver a productos</button>
               </div>
             </div>
@@ -2844,7 +2847,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <div id="product-stock-field" class:list={['field', !canManageProductStock && 'hidden']}>
                     <label for="product-stock">Stock</label>
                     <input id="product-stock" type="number" min="0" step="1" placeholder="0" />
-                    <p id="product-stock-help" class="form-help">Si el producto usa variaciones, el stock real de venta saldrá de las variaciones.</p>
+                    <p id="product-stock-help" class="form-help">El stock del padre se conserva y vuelve a utilizarse al desactivar variaciones.</p>
                   </div>
                   {expirationFeatureVisible ? (expirationToolsEnabled ? (
                     <div class="field">
@@ -2959,7 +2962,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-track-stock" type="checkbox" checked disabled={!canManageProductStock} /> Descontar stock en órdenes</label>
                       <label id="product-has-variations-option" class="check-card hidden"><input id="product-has-variations" type="checkbox" /> Usa variaciones</label>
                     </div>
-                    <p class="form-help">Si activas “Descontar stock”, las órdenes descontarán inventario. Si el producto usa variaciones, el stock del producto padre será la suma de las variaciones.</p>
+                    <p class="form-help">Cada variación usa su propio stock. El precio, costo y stock del padre se conservan para cuando desactives variaciones.</p>
                   </div>
                   <div id="product-variation-view-field" class="field full hidden">
                     <label for="product-variation-view">Vista de variaciones en tienda</label>
@@ -2983,7 +2986,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       </span>
                       <div>
                         <h3 class="variation-title pz-variations-title">Variaciones del producto</h3>
-                        <p id="variation-manager-help" class="variation-subtitle pz-variations-help">Gestiona las variaciones de tu producto. La primera variación será la opción inicial para el cliente; usa las flechas para cambiarla.<br />El stock del producto padre se calcula con la suma de variaciones.</p>
+                        <p id="variation-manager-help" class="variation-subtitle pz-variations-help">Gestiona las variaciones como unidades independientes. La primera variación será la opción inicial para el cliente; usa las flechas para cambiarla.<br />El precio, costo y stock del padre se conservan para cuando desactives variaciones.</p>
                       </div>
                     </div>
                     <div class="variation-actions pz-variations-actions" style="margin-top:0;">
@@ -3175,7 +3178,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <p id="stat-visible" class="admin-compact-summary__value">0</p>
                 </article>
                 <article class="admin-compact-summary__item is-warn">
-                  <p class="admin-compact-summary__label">Sin stock</p>
+                  <p class="admin-compact-summary__label">Sin stock general</p>
                   <p id="stat-stockout" class="admin-compact-summary__value">0</p>
                 </article>
                 <article class="admin-compact-summary__item is-muted">
@@ -3183,7 +3186,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   <p id="stat-hidden" class="admin-compact-summary__value">0</p>
                 </article>
                 <article class="admin-compact-summary__item is-purple">
-                  <p class="admin-compact-summary__label">Con oferta</p>
+                  <p class="admin-compact-summary__label">Con oferta general</p>
                   <p id="stat-offers" class="admin-compact-summary__value">0</p>
                 </article>
               </div>
@@ -3220,8 +3223,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <label for="stock-filter">Stock</label>
                 <select id="stock-filter">
                   <option value="">Todos</option>
-                  <option value="in-stock">En stock</option>
-                  <option value="out-stock">Sin stock</option>
+                  <option value="in-stock">En stock general</option>
+                  <option value="out-stock">Sin stock general</option>
                 </select>
               </div>
               <button id="refresh-btn" class="action-btn pz-admin-action-btn filter-field" type="button">Actualizar</button>
@@ -3271,10 +3274,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         buildProductImageDropFeedback,
         classifyProductImageDrop,
       } from '../../lib/productImageLimitsCore.js';
+      import {
+        getVariationEffectiveStatus,
+        todayCivilDate,
+      } from '../../lib/adminStoreProducts';
 
       Object.defineProperty(globalThis, 'pzProductImageDropCore', {
         value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop }),
         configurable: false,
+        enumerable: false,
+        writable: false,
+      });
+      Object.defineProperty(globalThis, 'pzAdminStoreProducts', {
+        value: Object.freeze({ getVariationEffectiveStatus, todayCivilDate }),
+        configurable: true,
         enumerable: false,
         writable: false,
       });
@@ -3294,7 +3307,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       canManageProductStock,
       canManageProductImages,
       canManageCategories,
-      adminTeamActivityPath,
     }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
@@ -3308,7 +3320,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const CAN_MANAGE_PRODUCT_STOCK = canManageProductStock === true;
       const CAN_MANAGE_PRODUCT_IMAGES = canManageProductImages === true;
       const CAN_MANAGE_CATEGORIES = canManageCategories === true;
-      const ADMIN_TEAM_ACTIVITY_PATH = String(adminTeamActivityPath || '/admin/team');
+      const PRODUCT_HISTORY_BASE_PATH = `/t/${encodeURIComponent(String(currentStoreSlug || ''))}/admin/products`;
       const TRACK_STOCK_FIELD = 'track_stock';
       const PRODUCT_PAGE_SIZE = 7;
       const PRODUCT_IMAGE_PHYSICAL_LIMIT = 4;
@@ -3322,6 +3334,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let subcategories = [];
       let products = [];
       let productVariations = [];
+      let persistedHasVariations = false;
+      let variationModeConfirmationPending = false;
       let pendingUrlVariationId = '';
       let selectedRelatedProductIds = [];
       let modalRelatedProductIds = [];
@@ -4243,15 +4257,46 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (product && Object.prototype.hasOwnProperty.call(product, TRACK_STOCK_FIELD)) return product[TRACK_STOCK_FIELD] !== false;
         return productTrackStockInput ? productTrackStockInput.checked : true;
       }
-      function getVariationStockSum() {
-        return productVariations.reduce((sum, item) => sum + Math.max(0, Math.floor(Number(item.stock || 0))), 0);
+      function variationIsModeEligible(variation) {
+        if (!variation || variation.active === false) return false;
+        const price = Number(variation.price_usd ?? variation.precio_usd ?? 0);
+        if (!Number.isFinite(price) || price <= 0) return false;
+        if (!productTracksStock()) return true;
+        const stock = Number(variation.stock);
+        return Number.isFinite(stock) && stock >= 0;
+      }
+      function hasModeEligibleVariation() {
+        return productVariations.some(variationIsModeEligible);
+      }
+      function parentCommercialValidationMessage() {
+        const priceRaw = String(productPriceInput?.value ?? '').trim();
+        const price = Number(priceRaw);
+        if (!priceRaw || !Number.isFinite(price) || price <= 0) {
+          return 'Para dejar de usar variaciones, escribe un precio del producto mayor que 0.';
+        }
+        const costRaw = String(productCostInput?.value ?? '').trim();
+        const cost = costRaw ? Number(costRaw) : 0;
+        if (!Number.isFinite(cost) || cost < 0) {
+          return 'Para dejar de usar variaciones, escribe un costo válido mayor o igual que 0.';
+        }
+        if (productTracksStock()) {
+          const stockRaw = String(productStockInput?.value ?? '').trim();
+          const stock = Number(stockRaw);
+          if (!stockRaw || !Number.isFinite(stock) || stock < 0) {
+            return 'Para dejar de usar variaciones, escribe un stock válido mayor o igual que 0.';
+          }
+        }
+        const offerState = getValidOfferState();
+        if (offerState.enabled && !offerState.valid) {
+          return 'Para dejar de usar variaciones, corrige la oferta del producto: debe ser mayor que 0 y menor que el precio normal.';
+        }
+        return '';
       }
       function sortedStrings(values) {
         return [...values].filter(Boolean).map(String).sort();
       }
       function createProductSnapshot() {
-        const productUsesVariations = Boolean(productHasVariationsInput?.checked);
-        const offerState = productUsesVariations ? { enabled: false, valid: false } : getValidOfferState();
+        const offerState = getValidOfferState();
         const fileState = productImageSlotFiles.map((file) => file ? `${file.name}:${file.size}:${file.lastModified}` : '');
         return JSON.stringify({
           name: productNameInput?.value?.trim() || '',
@@ -4261,7 +4306,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           price_usd: Number(readRegularPriceInput() || 0),
           is_offer: Boolean(productIsOfferInput?.checked),
           offer_price_usd: offerState.enabled ? Number(productOfferPriceInput?.value || 0) : 0,
-          cost_usd: productUsesVariations ? 0 : Number(productCostInput?.value || 0),
+          cost_usd: Number(productCostInput?.value || 0),
           stock: Number(productStockInput?.value || 0),
           delivery_mode: productDeliveryModeInput?.value || 'both',
           expiration_date: productExpirationDateInput?.value || '',
@@ -4352,7 +4397,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setDisabled([productImagesMultipleInput], !CAN_MANAGE_PRODUCT_IMAGES);
         if (productExpirationDateInput) {
           const hasVariationDates = productVariations.some((variation) => Boolean(dateForInput(variation.expiration_date)));
-          productExpirationDateInput.disabled = !EXPIRATION_TOOLS_ENABLED || hasVariationDates;
+          const usesVariations = Boolean(productHasVariationsInput?.checked);
+          productExpirationDateInput.disabled = !EXPIRATION_TOOLS_ENABLED || (usesVariations && hasVariationDates);
         }
 
         const isEditingVariation = Boolean(variationIdInput?.value);
@@ -4377,8 +4423,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function variationHasMinimumData() {
         if (!productIdInput?.value) return false;
         if (!variationValueInput?.value?.trim()) return false;
-        if (CAN_MANAGE_PRODUCT_PRICE && Number(variationPriceInput?.value || 0) <= 0) return false;
-        if (CAN_MANAGE_PRODUCT_STOCK && productTracksStock() && variationStockInput?.value === '') return false;
+        const price = Number(variationPriceInput?.value);
+        if (CAN_MANAGE_PRODUCT_PRICE && (!Number.isFinite(price) || price <= 0)) return false;
+        if (CAN_MANAGE_PRODUCT_STOCK && productTracksStock()) {
+          const stockRaw = String(variationStockInput?.value ?? '').trim();
+          const stock = Number(stockRaw);
+          if (!stockRaw || !Number.isFinite(stock) || stock < 0) return false;
+        }
         return true;
       }
       function hasVariationChanges() {
@@ -4403,7 +4454,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const useVariations = isEditing && productHasVariationsInput ? productHasVariationsInput.checked : false;
         const stockRaw = productStockInput.value;
         const hasValidStock = stockRaw !== '' && Number.isFinite(Number(stockRaw)) && Number(stockRaw) >= 0;
-        const offerState = useVariations ? { enabled: false, valid: false } : getValidOfferState();
+        const offerState = getValidOfferState();
         updateOfferFieldState();
 
         if (productHasVariationsOption) productHasVariationsOption.classList.toggle('hidden', !isEditing);
@@ -4413,19 +4464,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productStockInput.disabled = !CAN_MANAGE_PRODUCT_STOCK || !trackStock || useVariations;
         productStockInput.required = CAN_MANAGE_PRODUCT_STOCK && trackStock && !useVariations;
         if (trackStock && useVariations) {
-          productStockInput.value = String(getVariationStockSum());
-          if (productStockHelp) productStockHelp.textContent = 'Stock automático: suma del stock de las variaciones.';
+          if (productStockHelp) productStockHelp.textContent = 'El stock del padre está conservado y volverá a utilizarse al desactivar variaciones.';
         } else if (trackStock) {
           if (productStockHelp) productStockHelp.textContent = 'Requerido porque este producto descuenta stock y no usa variaciones.';
         } else {
-          productStockInput.value = '0';
-          if (productStockHelp) productStockHelp.textContent = 'Este producto no descuenta stock en órdenes.';
+          if (productStockHelp) productStockHelp.textContent = 'Este producto no descuenta stock en órdenes. El valor se conserva por si vuelves a activarlo.';
         }
 
         if (variationStockInput) {
           variationStockInput.disabled = !trackStock;
           variationStockInput.required = trackStock;
-          if (!trackStock) variationStockInput.value = '0';
         }
         if (variationStockHelp) {
           variationStockHelp.textContent = trackStock ? 'Requerido porque el producto padre descuenta stock.' : 'No requerido porque el producto padre no descuenta stock.';
@@ -4445,15 +4493,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productPriceInput?.closest('.price-offer-card')?.classList.toggle('uses-variations', useVariations);
         if (productPriceHelp) {
           productPriceHelp.textContent = useVariations
-            ? 'Este producto usa variaciones. Los precios, costos y ofertas se configuran dentro de cada variacion.'
+            ? 'Cada variación usa su propio precio. El precio, costo, stock y oferta del padre permanecen conservados.'
             : 'Producto sin variaciones: este precio se usa para la compra.';
         }
 
         const missingName = !name;
         const missingStock = CAN_MANAGE_PRODUCT_STOCK && trackStock && !useVariations && !hasValidStock;
-        const invalidOffer = CAN_MANAGE_PRODUCT_PRICE && offerState.enabled && !offerState.valid;
+        const invalidOffer = CAN_MANAGE_PRODUCT_PRICE && !useVariations && offerState.enabled && !offerState.valid;
+        const missingValidVariation = useVariations && !hasModeEligibleVariation();
+        const invalidParentConfiguration = !useVariations ? parentCommercialValidationMessage() : '';
         const isDirtyEnough = isEditing ? hasProductChanges() : true;
-        productSaveBtn.disabled = isSavingProduct || missingName || missingStock || invalidOffer || !isDirtyEnough;
+        productSaveBtn.disabled = isSavingProduct || missingName || missingStock || invalidOffer || missingValidVariation || Boolean(invalidParentConfiguration) || !isDirtyEnough;
         productSaveBtn.textContent = isSavingProduct ? 'Guardando...' : 'Guardar producto';
         if (editorSideSaveBtn) {
           editorSideSaveBtn.disabled = productSaveBtn.disabled;
@@ -4464,6 +4514,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         applyProductPermissionState();
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
+          else if (missingValidVariation) setFormAlert('Crea o conserva al menos una variación activa con precio válido antes de activar este modo.', 'info');
+          else if (invalidParentConfiguration) setFormAlert(invalidParentConfiguration, 'info');
           else if (missingStock) setFormAlert('Este producto descuenta stock. Escribe un stock válido.', 'info');
           else if (invalidOffer) setFormAlert('El precio de oferta debe ser menor que el Precio USD.', 'info');
           else setFormAlert('');
@@ -4493,11 +4545,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function updateEditorPreview() {
         if (!editorPreviewName || !editorPreviewPrice) return;
         const name = productNameInput?.value?.trim() || 'Nombre del producto';
-        const offerState = getValidOfferState();
-        const priceValue = offerState.valid ? offerState.offerPrice : readRegularPriceInput();
-        const stockNumber = Number(productStockInput?.value || 0);
+        const hasVariations = Boolean(productHasVariationsInput?.checked);
         const tracksStock = productTrackStockInput?.checked !== false;
-        const hasVariations = Boolean(productHasVariationsInput?.checked) || productVariations.length > 0;
+        const previewVariation = hasVariations ? productVariations.find(variationIsModeEligible) : null;
+        const parentOfferState = getValidOfferState();
+        const variationRegularPrice = Math.max(0, Number(previewVariation?.price_usd ?? previewVariation?.precio_usd ?? 0));
+        const variationOfferPrice = Math.max(0, Number(previewVariation?.offer_price_usd || 0));
+        const variationOfferEnabled = Boolean(previewVariation?.is_offer) && variationOfferPrice > 0 && variationOfferPrice < variationRegularPrice;
+        const offerState = hasVariations
+          ? {
+            enabled: variationOfferEnabled,
+            valid: variationOfferEnabled,
+            regularPrice: variationRegularPrice,
+            offerPrice: variationOfferPrice,
+          }
+          : parentOfferState;
+        const priceValue = offerState.valid ? offerState.offerPrice : offerState.regularPrice;
+        const stockNumber = hasVariations ? Number(previewVariation?.stock || 0) : Number(productStockInput?.value || 0);
         const variationCount = productVariations.length;
         const previewImageUrl = getEditorPreviewImageUrl();
         if (editorPreviewThumb) {
@@ -4521,10 +4585,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           setPreviewChip(editorPreviewStock, 'Sin stock', 'warning');
         }
         setPreviewChip(editorPreviewOffer, offerState.enabled ? 'Con oferta' : 'Sin oferta', offerState.enabled ? 'danger' : 'neutral');
-        const variationText = variationCount > 0
-          ? `Variaciones: ${variationCount} ${variationCount === 1 ? 'opción' : 'opciones'}`
-          : (hasVariations ? 'Variaciones: Con variaciones' : 'Variaciones: Sin variaciones');
-        setPreviewChip(editorPreviewVariations, variationText, variationCount > 0 || hasVariations ? 'variation' : 'neutral');
+        const variationText = hasVariations
+          ? (variationCount > 0
+            ? `Variaciones: ${variationCount} ${variationCount === 1 ? 'opción' : 'opciones'}`
+            : 'Variaciones: Sin opciones válidas')
+          : 'Variaciones: Sin variaciones';
+        setPreviewChip(editorPreviewVariations, variationText, hasVariations ? 'variation' : 'neutral');
       }
 
       function readRegularPriceInput() {
@@ -4591,18 +4657,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!productIsOfferInput || !productOfferPriceInput) return;
         const useVariations = Boolean(productHasVariationsInput?.checked);
         if (useVariations) {
-          productIsOfferInput.checked = false;
           productIsOfferInput.disabled = true;
           productOfferPriceInput.disabled = true;
           productOfferPriceInput.required = false;
-          productOfferPriceInput.value = '';
           productPriceInput.disabled = true;
           productPriceInput.classList.add('is-locked');
           if (productCostInput) {
             productCostInput.disabled = true;
             productCostInput.classList.add('is-locked');
           }
-          const variationsMessage = 'Este producto usa variaciones. Los precios, costos y ofertas se configuran dentro de cada variacion.';
+          const variationsMessage = 'Cada variación usa su propio precio. La configuración comercial del padre se conserva para cuando desactives variaciones.';
           if (productOfferHelp) productOfferHelp.textContent = variationsMessage;
           if (productOfferCompactSubtitle) productOfferCompactSubtitle.textContent = variationsMessage;
           syncProductOfferCompact();
@@ -4621,7 +4685,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productOfferPriceInput.required = state.enabled;
         if (state.enabled && state.regularPrice > 0) productPriceInput.value = state.regularPrice.toFixed(2);
         if (!state.enabled) {
-          productOfferPriceInput.value = '';
           if (productOfferHelp) productOfferHelp.textContent = 'Activa Oferta y escribe un precio menor al Precio USD.';
           syncProductOfferCompact();
           return;
@@ -4747,24 +4810,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function updateExpirationModeState() {
         if (!EXPIRATION_TOOLS_ENABLED) return;
+        const usesVariations = Boolean(productHasVariationsInput?.checked);
         const hasVariationDates = productVariations.some((variation) => Boolean(dateForInput(variation.expiration_date)));
-        if (hasVariationDates && productExpirationDateInput?.value) productExpirationDateInput.value = '';
         const hasGeneralDate = Boolean(productExpirationDateInput?.value);
         if (productExpirationDateInput) {
-          productExpirationDateInput.disabled = hasVariationDates;
-          productExpirationDateInput.title = hasVariationDates
+          productExpirationDateInput.disabled = usesVariations && hasVariationDates;
+          productExpirationDateInput.title = usesVariations && hasVariationDates
             ? 'Quita primero las fechas de vencimiento de todas las variaciones.'
             : '';
         }
         if (productExpirationHelp) {
-          productExpirationHelp.textContent = hasVariationDates
+          productExpirationHelp.textContent = usesVariations && hasVariationDates
             ? 'Este producto usa fechas por variación. Quita todas esas fechas para habilitar una fecha general.'
-            : 'La fecha general no puede combinarse con fechas por variación.';
+            : usesVariations
+              ? 'La fecha general no puede combinarse con fechas por variación.'
+              : 'La fecha general vuelve a aplicarse porque el producto no usa variaciones.';
         }
         if (variationExpirationHelp) {
-          variationExpirationHelp.textContent = hasGeneralDate
-            ? 'Al guardar esta fecha se quitará la fecha general del producto, previa confirmación.'
-            : 'Opcional. Usa esta fecha cuando cada variación o lote vence en un día diferente.';
+          variationExpirationHelp.textContent = !usesVariations
+            ? 'Las fechas de variaciones se conservan, pero no se aplican mientras este modo esté desactivado.'
+            : hasGeneralDate
+              ? 'Al guardar esta fecha se quitará la fecha general del producto, previa confirmación.'
+              : 'Opcional. Usa esta fecha cuando cada variación o lote vence en un día diferente.';
         }
       }
       function renderVariations() {
@@ -4794,7 +4861,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           </div>
         `;
         const rows = sorted.map((variation, index) => {
+          const product = products.find((item) => item.id === currentProductId) || {
+            id: currentProductId,
+            has_variations: Boolean(productHasVariationsInput?.checked),
+            expiration_date: productExpirationDateInput?.value || '',
+          };
+          const state = globalThis.pzAdminStoreProducts?.getVariationEffectiveStatus
+            ? globalThis.pzAdminStoreProducts.getVariationEffectiveStatus(product, variation, productVariations)
+            : {
+                effective_status: variation.active === false ? 'hidden_manual' : 'active',
+                effective_status_label: variation.active === false ? 'Oculta manualmente' : 'Activa',
+                can_activate: true,
+                expired: false,
+              };
           const active = variation.active !== false;
+          const statusClass = state.effective_status === 'active'
+            ? 'active'
+            : (state.effective_status === 'hidden_expired' ? 'hidden-expired' : 'hidden-state');
           const stockNumber = Number(variation.stock || 0);
           const preorder = Boolean(variation.allow_preorder);
           const regularPrice = Number(variation.price_usd || 0);
@@ -4831,7 +4914,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <div class="variation-stat variation-status-cell">
                 <span class="variation-stat-label">Estado</span>
                 <span class="variation-stat-value">
-                  <span class="status-badge ${active ? 'active' : 'hidden-state'}">${active ? 'Activa' : 'Oculta'}</span>
+                  <span class="status-badge ${statusClass}">${escapeHtml(state.effective_status_label)}</span>
+                  ${state.effective_status === 'hidden_manual' && state.expired ? '<span class="status-badge hidden-expired">Vencida</span>' : ''}
                 </span>
               </div>
               <div class="variation-mini-actions">
@@ -4856,10 +4940,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       ${adminIconSvg('copy', 'pz-admin-dropdown-item-icon')}
                       <span>Duplicar variacion</span>
                     </button>` : ''}
-                    ${CAN_MANAGE_PRODUCT_VISIBILITY ? `<button class="pz-admin-dropdown-item" type="button" data-variation-action="toggle">
-                      ${adminIconSvg(active ? 'hide' : 'visible', 'pz-admin-dropdown-item-icon')}
-                      <span>${active ? 'Ocultar variacion' : 'Mostrar variacion'}</span>
-                    </button>` : ''}
+                    ${CAN_MANAGE_PRODUCT_VISIBILITY && state.effective_status !== 'disabled_by_parent_mode' ? (state.effective_status === 'hidden_expired' || (!active && !state.can_activate)
+                      ? `<button class="pz-admin-dropdown-item" type="button" data-variation-action="correct-expiration">
+                          ${adminIconSvg('edit', 'pz-admin-dropdown-item-icon')}
+                          <span>Corregir fecha</span>
+                        </button>`
+                      : `<button class="pz-admin-dropdown-item" type="button" data-variation-action="toggle">
+                          ${adminIconSvg(active ? 'hide' : 'visible', 'pz-admin-dropdown-item-icon')}
+                          <span>${active ? 'Ocultar variacion' : 'Activar variacion'}</span>
+                        </button>`) : ''}
                     ${CAN_DELETE_PRODUCTS ? `<button class="pz-admin-dropdown-item danger" type="button" data-variation-action="delete">
                       ${adminIconSvg('delete', 'pz-admin-dropdown-item-icon')}
                       <span>Borrar variacion</span>
@@ -4953,6 +5042,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!CAN_MANAGE_PRODUCT_VISIBILITY) return;
         const variation = productVariations.find((item) => item.id === variationId);
         if (!variation) return;
+        const product = products.find((item) => item.id === productIdInput.value) || null;
+        const state = product && globalThis.pzAdminStoreProducts?.getVariationEffectiveStatus
+          ? globalThis.pzAdminStoreProducts.getVariationEffectiveStatus(product, variation, productVariations)
+          : null;
+        if (variation.active === false && state?.can_activate === false) {
+          setVariationAlert('Corrige o elimina la fecha de vencimiento antes de activar esta variacion.', 'error');
+          openVariationEditor(variationId);
+          variationExpirationDateInput?.focus();
+          return;
+        }
         const formData = new FormData();
         formData.append('active', variation.active === false ? 'true' : 'false');
         await apiRequest(`/api/collections/product_variations/records/${variationId}`, { method: 'PATCH', body: formData });
@@ -4980,31 +5079,47 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       async function syncProductVariationFlag() {
         const currentProductId = productIdInput.value;
-        if (!currentProductId) return;
-        const hasVariations = productHasVariationsInput.checked || productVariations.length > 0;
-        productHasVariationsInput.checked = hasVariations;
-        const trackStock = productTracksStock();
-        const syncedStock = trackStock && hasVariations ? getVariationStockSum() : Math.max(0, Math.floor(Number(productStockInput.value || 0)));
-        productStockInput.value = String(syncedStock);
+        if (!currentProductId) return false;
+        const hasVariations = Boolean(productHasVariationsInput.checked);
+        if (hasVariations && !hasModeEligibleVariation()) {
+          setFormAlert('Crea o conserva al menos una variación activa con precio válido antes de activar este modo.', 'error');
+          updateProductFormState();
+          return false;
+        }
+        if (!hasVariations) {
+          const parentError = parentCommercialValidationMessage();
+          if (parentError) {
+            setFormAlert(parentError, 'error');
+            updateProductFormState();
+            return false;
+          }
+        }
         const formData = new FormData();
         formData.append('has_variations', hasVariations ? 'true' : 'false');
         formData.append('variation_view', hasVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons');
-        formData.append('stock', String(syncedStock));
         await apiRequest(`/api/collections/products/records/${currentProductId}`, {
           method: 'PATCH',
           body: filterProductMutationBodyForAccess(formData),
         });
-        products = products.map((item) => item.id === currentProductId ? { ...item, has_variations: hasVariations, variation_view: hasVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons', stock: syncedStock } : item);
+        persistedHasVariations = hasVariations;
+        products = products.map((item) => item.id === currentProductId ? { ...item, has_variations: hasVariations, variation_view: hasVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons' } : item);
+        try {
+          const snapshot = JSON.parse(productInitialSnapshot || '{}');
+          if (snapshot && typeof snapshot === 'object') {
+            snapshot.has_variations = hasVariations;
+            snapshot.variation_view = hasVariations ? (productVariationViewInput?.value || 'buttons') : 'buttons';
+            productInitialSnapshot = JSON.stringify(snapshot);
+          }
+        } catch (_) {}
         updateProductFormState();
+        return true;
       }
       async function setupVariationManager(product) {
         if (!variationManager) return;
         variationManager.classList.remove('hidden');
         closeVariationModal();
         if (variationManagerHelp) {
-          variationManagerHelp.textContent = productTracksStock(product)
-            ? `Variaciones de ${product.name || 'este producto'}. La primera variacion sera la opcion inicial para el cliente; usa las flechas para cambiarla. El stock del producto padre se calcula con la suma de variaciones.`
-            : `Variaciones de ${product.name || 'este producto'}. La primera variacion sera la opcion inicial para el cliente; usa las flechas para cambiarla.`;
+          variationManagerHelp.textContent = `Variaciones de ${product.name || 'este producto'}. Cada una conserva su propio precio y stock. Los valores del padre quedan guardados para cuando desactives variaciones.`;
         }
         resetVariationEditor();
         try {
@@ -5035,19 +5150,30 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           throw new Error('El producto padre no pertenece a esta tienda.');
         }
         if (!value) throw new Error('Escribe el valor de la variación. Ej: Chocolate.');
-        if (CAN_MANAGE_PRODUCT_PRICE && Number(variationPriceInput.value || 0) <= 0) throw new Error('Escribe un precio de venta válido para la variación.');
-        if (CAN_MANAGE_PRODUCT_STOCK && productTracksStock() && variationStockInput.value === '') throw new Error('Escribe el stock de la variación o desactiva Descontar stock en el producto padre.');
+        const variationPrice = Number(variationPriceInput.value);
+        if (CAN_MANAGE_PRODUCT_PRICE && (!Number.isFinite(variationPrice) || variationPrice <= 0)) throw new Error('Escribe un precio de venta válido para la variación.');
+        const variationStockRaw = String(variationStockInput.value ?? '').trim();
+        const variationStock = Number(variationStockRaw);
+        if (CAN_MANAGE_PRODUCT_STOCK && productTracksStock() && (!variationStockRaw || !Number.isFinite(variationStock) || variationStock < 0)) throw new Error('Escribe un stock válido mayor o igual que 0 para la variación.');
         const variationOfferState = getValidVariationOfferState();
         if (CAN_MANAGE_PRODUCT_PRICE && variationOfferState.enabled && !variationOfferState.valid) throw new Error('El precio de oferta de la variacion debe ser mayor que 0 y menor que el precio normal.');
+        if (variationActiveInput.checked && EXPIRATION_TOOLS_ENABLED) {
+          const today = globalThis.pzAdminStoreProducts?.todayCivilDate?.() || new Date().toISOString().slice(0, 10);
+          const finalDate = variationExpirationDateInput?.value || '';
+          if (finalDate && finalDate <= today) {
+            variationExpirationDateInput?.focus();
+            throw new Error('No puedes activar esta variacion porque su fecha de vencimiento ya paso. Corrige o elimina la fecha antes de activarla.');
+          }
+        }
         const formData = new FormData();
         formData.append('product', currentProductId);
         formData.append('variation_type', type);
         formData.append('value', value);
-        formData.append('price_usd', String(Math.max(0, Number(variationPriceInput.value || 0))));
+        formData.append('price_usd', String(Math.max(0, variationPrice)));
         formData.append('is_offer', variationOfferState.valid ? 'true' : 'false');
         formData.append('offer_price_usd', variationOfferState.valid ? String(variationOfferState.offerPrice) : '0');
         formData.append('cost_usd', String(Math.max(0, Number(variationCostInput.value || 0))));
-        formData.append('stock', String(Math.max(0, Math.floor(Number(variationStockInput.value || 0)))));
+        formData.append('stock', String(Math.max(0, Math.floor(Number.isFinite(variationStock) ? variationStock : 0))));
         if (EXPIRATION_TOOLS_ENABLED) formData.append('expiration_date', variationExpirationDateInput?.value || '');
         formData.append('internal_ref', variationRefInput.value.trim());
         formData.append('sort_order', String(Math.max(0, Math.floor(Number(variationOrderInput.value || 0)))));
@@ -5103,6 +5229,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function resetProductForm() {
         productForm.reset();
         productInitialSnapshot = '';
+        persistedHasVariations = false;
+        variationModeConfirmationPending = false;
         productIdInput.value = '';
         productActiveInput.checked = true;
         productCostInput.value = '';
@@ -5140,11 +5268,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const available = /^[a-z0-9]{15}$/.test(id);
         productHistoryLink.classList.toggle('hidden', !available);
         if (!available) {
-          productHistoryLink.setAttribute('href', `${ADMIN_TEAM_ACTIVITY_PATH}?tab=activity`);
+          productHistoryLink.removeAttribute('href');
           return;
         }
-        const params = new URLSearchParams({ tab: 'activity', resource_type: 'product', resource_id: id });
-        productHistoryLink.setAttribute('href', `${ADMIN_TEAM_ACTIVITY_PATH}?${params.toString()}`);
+        productHistoryLink.setAttribute('href', `${PRODUCT_HISTORY_BASE_PATH}/${encodeURIComponent(id)}/history?from=products`);
       }
       function closeProductEditor() {
         productEditor.classList.add('hidden');
@@ -5210,6 +5337,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productAllowPreorderInput.checked = Boolean(product.allow_preorder);
         productTrackStockInput.checked = productTracksStock(product);
         productHasVariationsInput.checked = Boolean(product.has_variations);
+        persistedHasVariations = Boolean(product.has_variations);
         if (productVariationViewInput) productVariationViewInput.value = ['buttons', 'dropdown', 'checkbox'].includes(product.variation_view) ? product.variation_view : 'buttons';
         renderCurrentImages(product);
         if (productHasVariationsOption) productHasVariationsOption.classList.remove('hidden');
@@ -5279,25 +5407,31 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const isEditing = Boolean(productIdInput.value);
         const shouldUseVariations = forceHasVariations !== null
           ? Boolean(forceHasVariations)
-          : (isEditing && (productHasVariationsInput.checked || productVariations.length > 0));
-        if (CAN_MANAGE_PRODUCT_STOCK && trackStock && !shouldUseVariations && productStockInput.value === '') throw new Error('Este producto descuenta stock. Escribe un stock válido.');
+          : Boolean(isEditing && productHasVariationsInput.checked);
+        if (shouldUseVariations && !hasModeEligibleVariation()) {
+          throw new Error('Crea o conserva al menos una variación activa con precio válido antes de activar este modo.');
+        }
+        if (!shouldUseVariations) {
+          const parentError = parentCommercialValidationMessage();
+          if (parentError) throw new Error(parentError);
+        }
         formData.append('name', name);
         formData.append('slug', slug);
         formData.append('store', CURRENT_STORE_ID);
         if (isEditing || category) formData.append('category', category);
         if (isEditing || subcategory) formData.append('subcategory', subcategory);
-        const offerState = shouldUseVariations ? { regularPrice: readRegularPriceInput(), offerPrice: 0, enabled: false, valid: false, savings: 0 } : getValidOfferState();
+        const offerState = getValidOfferState();
         if (CAN_MANAGE_PRODUCT_PRICE && !shouldUseVariations && offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.');
         const regularPriceUsd = offerState.enabled ? offerState.regularPrice : readRegularPriceInput();
-        const activePriceUsd = offerState.valid ? offerState.offerPrice : regularPriceUsd;
+        const activePriceUsd = offerState.enabled ? offerState.offerPrice : regularPriceUsd;
         formData.append('base_price_usd', String(activePriceUsd));
         formData.append('regular_price_usd', String(regularPriceUsd));
-        formData.append('is_offer', offerState.valid ? 'true' : 'false');
-        formData.append('offer_price_usd', offerState.valid ? String(offerState.offerPrice) : '0');
-        const parentCostUsd = shouldUseVariations ? 0 : Math.max(0, Number(productCostInput.value || 0));
+        formData.append('is_offer', offerState.enabled ? 'true' : 'false');
+        formData.append('offer_price_usd', offerState.enabled ? String(offerState.offerPrice) : '0');
+        const parentCostUsd = Math.max(0, Number(productCostInput.value || 0));
         formData.append('cost_usd', String(parentCostUsd));
         formData.append('internal_ref', productInternalRefInput.value.trim());
-        const finalStock = trackStock && !shouldUseVariations ? Math.max(0, Math.floor(Number(productStockInput.value || 0))) : (shouldUseVariations ? getVariationStockSum() : 0);
+        const finalStock = Math.max(0, Math.floor(Number(productStockInput.value || 0)));
         const safeStock = Number.isFinite(Number(finalStock)) ? Math.max(0, Math.floor(Number(finalStock))) : 0;
         formData.set('stock', String(safeStock));
         formData.append('delivery_mode', productDeliveryModeInput.value || 'both');
@@ -5411,7 +5545,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const shouldSyncProductImages = CAN_MANAGE_PRODUCT_IMAGES && hasPendingProductImageMutation();
         let formData;
         try {
-          if (!requestedTrackStock || (editingId && productHasVariationsInput?.checked)) productStockInput.value = '0';
           formData = await buildProductFormData({ forceHasVariations: editingId ? null : false });
         } catch (error) {
           setFormAlert(error.message || 'No se pudo preparar el producto para guardar.', 'error');
@@ -5427,6 +5560,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             const savedProduct = await syncProductImageOrder(updatedProduct, shouldSyncProductImages);
             await loadProducts();
             const freshProduct = products.find((item) => item.id === editingId) || savedProduct || updatedProduct;
+            persistedHasVariations = Boolean(freshProduct?.has_variations);
+            productHasVariationsInput.checked = persistedHasVariations;
             renderCurrentImages(freshProduct);
             setProductSnapshotFromCurrent();
             setFormAlert('Cambios guardados correctamente', 'success');
@@ -5465,6 +5600,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             editorTitle.textContent = 'Producto creado';
             editorSubtitle.textContent = `Producto guardado: ${created.name || productNameInput.value.trim()}`;
             productHasVariationsInput.checked = false;
+            persistedHasVariations = false;
             if (requestedTrackStock) {
               productTrackStockInput.checked = true;
               productStockInput.value = String(requestedStock);
@@ -5489,22 +5625,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         postSaveVariationNoBtn.disabled = true;
         setFormAlert('Preparando variaciones...', 'info');
         try {
-          const variationData = new FormData();
-          variationData.set('has_variations', 'true');
-          variationData.set('variation_view', productVariationViewInput?.value || 'buttons');
-          variationData.set('stock', '0');
-          await apiRequest(`/api/collections/products/records/${productId}`, {
-            method: 'PATCH',
-            body: filterProductMutationBodyForAccess(variationData),
-          });
           hidePostSaveVariationNotice();
-          await loadProducts();
-          openEditProductEditor(productId);
           productHasVariationsInput.checked = true;
-          productStockInput.value = '0';
+          persistedHasVariations = false;
+          const product = products.find((item) => item.id === productId) || {
+            id: productId,
+            name: productNameInput.value.trim(),
+            track_stock: productTracksStock(),
+          };
+          await setupVariationManager(product);
           updateProductFormState();
           openNewVariationEditor();
-          setFormAlert('Producto listo. Agrega la primera variación.', 'success');
+          setFormAlert('Agrega una variación válida. El modo se activará después de guardarla.', 'info');
         } catch (error) {
           setFormAlert(error.message || 'No se pudo preparar el producto para variaciones.', 'error');
         } finally {
@@ -5838,9 +5970,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         currentProductPage = 1;
       }
       function productHasActiveOffer(product) {
+        if (product?.has_variations) return false;
         const activePriceUsd = Number(product.base_price_usd || 0);
         const regularPriceUsd = Number(product.regular_price_usd || 0);
         return Boolean(product.is_offer) && regularPriceUsd > activePriceUsd && activePriceUsd > 0;
+      }
+      function productUsesGeneralStock(product) {
+        return !product?.has_variations && productTracksStock(product);
       }
       function renderStats(sourceProducts = products) {
         const setText = (id, value) => {
@@ -5851,7 +5987,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setText('stat-total', sourceProducts.length);
         setText('stat-visible', sourceProducts.filter(productIsPublicVisible).length);
         setText('stat-hidden', sourceProducts.filter((item) => !productIsPublicVisible(item)).length);
-        setText('stat-stockout', sourceProducts.filter((item) => productTracksStock(item) && Number(item.stock || 0) <= 0).length);
+        setText('stat-stockout', sourceProducts.filter((item) => productUsesGeneralStock(item) && Number(item.stock || 0) <= 0).length);
         setText('stat-offers', sourceProducts.filter(productHasActiveOffer).length);
       }
       function getFilteredProducts() {
@@ -5871,8 +6007,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           if (status === 'hidden' && productIsPublicVisible(product)) return false;
           if (status === 'offer' && !productHasActiveOffer(product)) return false;
           if (status === 'variations' && !product.has_variations) return false;
-          if (stockStatus === 'in-stock' && productTracksStock(product) && Number(product.stock || 0) <= 0) return false;
-          if (stockStatus === 'out-stock' && (!productTracksStock(product) || Number(product.stock || 0) > 0)) return false;
+          if (stockStatus && product.has_variations) return false;
+          if (stockStatus === 'in-stock' && productUsesGeneralStock(product) && Number(product.stock || 0) <= 0) return false;
+          if (stockStatus === 'out-stock' && (!productUsesGeneralStock(product) || Number(product.stock || 0) > 0)) return false;
           return true;
         });
       }
@@ -5937,13 +6074,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const category = getCategory(product.category);
           const subcategory = getSubcategory(product.subcategory);
           const visible = productIsPublicVisible(product);
+          const variationMode = product.has_variations === true;
           const stockNumber = Number(product.stock || 0);
           const allowPreorder = Boolean(product.allow_preorder);
-          const isOutOfStock = stockNumber <= 0;
+          const trackStock = productUsesGeneralStock(product);
+          const isOutOfStock = trackStock && stockNumber <= 0;
           const categoryText = category?.name || 'Sin categoria';
           const subcategoryText = subcategory?.name || (category ? 'Producto directo' : 'Pagina principal');
           const refText = product.internal_ref ? `Ref: ${product.internal_ref}` : '';
-          const trackStock = productTracksStock(product);
           const activePriceUsd = Number(product.base_price_usd || 0);
           const regularPriceUsd = Number(product.regular_price_usd || 0);
           const hasActiveOffer = productHasActiveOffer(product);
@@ -5960,17 +6098,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     ${product.featured ? '<span class="mini-pill featured">Destacado</span>' : ''}
                     ${hasActiveOffer ? '<span class="mini-pill danger">Oferta</span>' : ''}
                     ${product.only_usd ? '<span class="mini-pill usd">Solo USD</span>' : ''}
-                    ${product.has_variations ? '<span class="mini-pill featured">Variaciones</span>' : ''}
+                    ${variationMode ? '<span class="mini-pill featured">Variaciones</span>' : ''}
                     <span class="mini-pill delivery">${escapeHtml(deliveryLabel(product.delivery_mode))}</span>
                     ${isOutOfStock && allowPreorder ? '<span class="mini-pill featured">Preorder</span>' : ''}
                   </div>
                 </div>
               </div>
               <span class="category-cell"><span class="category-name">${escapeHtml(categoryText)}</span><span class="category-sub">${escapeHtml(subcategoryText)}</span></span>
-              <span class="price">${hasActiveOffer ? `<span class="price-offer-admin"><span class="old">${escapeHtml(formatUsd(regularPriceUsd))}</span><span class="new">${escapeHtml(formatUsd(activePriceUsd))}</span></span>` : escapeHtml(formatUsd(activePriceUsd))}</span>
-              <span class="stock">${trackStock ? `Stock: ${stockNumber}${isOutOfStock ? (allowPreorder ? ' · Preorder' : ' · Agotado') : ''}` : 'Sin stock descontable'}</span>
+              <span class="price">${variationMode ? 'Precio por variación' : (hasActiveOffer ? `<span class="price-offer-admin"><span class="old">${escapeHtml(formatUsd(regularPriceUsd))}</span><span class="new">${escapeHtml(formatUsd(activePriceUsd))}</span></span>` : escapeHtml(formatUsd(activePriceUsd)))}</span>
+              <span class="stock">${variationMode ? 'Stock por variación' : (trackStock ? `Stock: ${stockNumber}${isOutOfStock ? (allowPreorder ? ' · Preorder' : ' · Agotado') : ''}` : 'Sin stock descontable')}</span>
               <span class="pill ${visible ? 'pill-visible' : 'pill-hidden'}">${visible ? 'Visible' : 'Oculto'}</span>
               <div class="row-actions">
+                <a class="mini-btn pz-admin-action-btn js-product-history" href="${PRODUCT_HISTORY_BASE_PATH}/${encodeURIComponent(product.id)}/history?from=products">Historial</a>
                 ${CAN_MANAGE_PRODUCT_VISIBILITY ? `<button class="mini-btn pz-admin-action-btn js-product-toggle" type="button">
                   ${adminIconSvg(product.active ? 'hide' : 'visible')}
                   <span>${product.active ? 'Ocultar' : 'Activar'}</span>
@@ -5984,7 +6123,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       ${adminIconSvg('edit', 'pz-admin-dropdown-item-icon')}
                       <span>Gestionar</span>
                     </button>` : ''}
-                    ${CAN_MANAGE_PRODUCT_STOCK ? `<button class="pz-admin-dropdown-item danger-action js-product-soldout" type="button" role="menuitem" ${isOutOfStock ? 'disabled' : ''}>
+                    ${CAN_MANAGE_PRODUCT_STOCK && !variationMode ? `<button class="pz-admin-dropdown-item danger-action js-product-soldout" type="button" role="menuitem" ${isOutOfStock ? 'disabled' : ''}>
                       ${adminIconSvg('close', 'pz-admin-dropdown-item-icon')}
                       <span>${isOutOfStock ? 'Ya está agotado' : 'Marcar agotado'}</span>
                     </button>` : ''}
@@ -6111,10 +6250,31 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       productTrackStockInput?.addEventListener('change', () => updateProductFormState({ showMessage: true }));
       productActiveInput?.addEventListener('change', updateEditorPreview);
       productVariationViewInput?.addEventListener('change', () => updateProductFormState());
-      productHasVariationsInput?.addEventListener('change', () => {
+      productHasVariationsInput?.addEventListener('change', async () => {
+        if (variationModeConfirmationPending) return;
+        if (persistedHasVariations && !productHasVariationsInput.checked) {
+          variationModeConfirmationPending = true;
+          const confirmed = await window.adminConfirm({
+            title: 'Dejar de usar variaciones',
+            message: 'Las variaciones se ocultarán de la tienda y dejarán de utilizarse en pedidos. No serán eliminadas y podrás restaurarlas más adelante.\n\nEl producto volverá a utilizar su propio precio y stock.',
+            confirmText: 'Dejar de usar variaciones',
+            cancelText: 'Cancelar',
+            tone: 'warning',
+          });
+          variationModeConfirmationPending = false;
+          if (!confirmed) {
+            productHasVariationsInput.checked = true;
+            updateExpirationModeState();
+            updateProductFormState();
+            return;
+          }
+        }
+        updateExpirationModeState();
         updateProductFormState({ showMessage: true });
         if (productHasVariationsInput.checked && productIdInput.value) {
-          setFormAlert('Este producto usará variaciones. El stock padre se calculará con la suma de las variaciones.', 'info');
+          setFormAlert(hasModeEligibleVariation()
+            ? 'Las variaciones existentes volverán a utilizarse cuando guardes el producto.'
+            : 'Crea al menos una variación activa con precio válido antes de activar este modo.', 'info');
         }
       });
       productCategoryInput?.addEventListener('change', () => {
@@ -6251,6 +6411,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
       [variationActiveInput, variationAllowPreorderInput, variationIsOfferInput].forEach((input) => {
         input?.addEventListener('change', () => {
+          if (input === variationActiveInput && variationActiveInput.checked && EXPIRATION_TOOLS_ENABLED) {
+            const today = globalThis.pzAdminStoreProducts?.todayCivilDate?.() || new Date().toISOString().slice(0, 10);
+            if (variationExpirationDateInput?.value && variationExpirationDateInput.value <= today) {
+              variationActiveInput.checked = false;
+              setVariationAlert('Corrige o elimina la fecha de vencimiento antes de activar esta variacion.', 'error');
+              variationExpirationDateInput.focus();
+            }
+          }
           if (input === variationIsOfferInput) setVariationOfferAccordion(Boolean(variationIsOfferInput.checked));
           updateVariationOfferFieldState();
           updateVariationFormState();
@@ -6314,6 +6482,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           closeVariationMenus();
           try {
             if (action === 'edit') openVariationEditor(variationId);
+            if (action === 'correct-expiration') {
+              openVariationEditor(variationId);
+              variationExpirationDateInput?.focus();
+            }
             if (action === 'duplicate') await duplicateVariation(variationId);
             if (action === 'toggle') await toggleVariationActive(variationId);
             if (action === 'delete') await deleteVariationWithConfirm(variationId);
@@ -6376,7 +6548,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         if (soldoutConfirmBtn) {
           const product = products.find((item) => item.id === productId);
-          if (!product) return;
+          if (!product || product.has_variations) return;
           soldoutConfirmBtn.disabled = true;
           try {
             const formData = new FormData();
@@ -6433,7 +6605,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         if (soldoutBtn) {
           const product = products.find((item) => item.id === productId);
-          if (!product || soldoutBtn.disabled) return;
+          if (!product || product.has_variations || soldoutBtn.disabled) return;
           if (!productTracksStock(product)) {
             showProductNotice('Este producto no descuenta stock. No necesita marcarse como agotado.', 'info');
             return;

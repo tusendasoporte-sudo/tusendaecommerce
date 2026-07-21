@@ -572,8 +572,12 @@ test('M7U2-C2: last-modified limita lote, tipos e IDs y conserva una consulta ag
 test('M7U2-C2: rutas de recurso son allowlist y nunca aceptan URL o path arbitrario', () => {
   const store = record(STORE_ID, { slug: 'tienda-qa' });
   const productRoute = activity.resourcePath(store, { resource_type: 'product', resource_id_snapshot: RESOURCE_ID }, true);
+  const variationRoute = activity.resourcePath(store, {
+    resource_type: 'product_variation', resource_id_snapshot: 'variationroute1', parent_product_id_snapshot: RESOURCE_ID,
+  }, true);
   const orderRoute = activity.resourcePath(store, { resource_type: 'order', resource_id_snapshot: RESOURCE_ID }, true);
   assert.match(productRoute, /^\/t\/tienda-qa\/admin\/products(?:[/?#]|$)/);
+  assert.equal(variationRoute, `/t/tienda-qa/admin/products?product=${RESOURCE_ID}`);
   assert.match(orderRoute, /^\/t\/tienda-qa\/admin\/orders(?:[/?#]|$)/);
   assert.equal(/^https?:\/\//i.test(productRoute), false);
   assert.equal(/^https?:\/\//i.test(orderRoute), false);

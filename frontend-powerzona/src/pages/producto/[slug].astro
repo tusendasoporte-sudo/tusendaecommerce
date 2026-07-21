@@ -61,7 +61,6 @@ try {
 		track_stock: false,
 		base_price_usd: 0,
 		regular_price_usd: 0,
-		cost_usd: 0,
 		stock: 0,
 		allow_preorder: false,
 		is_offer: false,
@@ -73,7 +72,21 @@ try {
 		extra_info: [],
 	};
 }
-const variations = !productUnavailable && product.has_variations ? await getProductVariations(product.id, storeQuery) : [];
+let variations = !productUnavailable && product.has_variations === true ? await getProductVariations(product.id, storeQuery) : [];
+if (!productUnavailable && product.has_variations === true) {
+	variations = variations.filter((variation: any) => {
+		const price = Number(variation?.price_usd ?? variation?.precio_usd ?? 0);
+		if (variation?.active === false || !Number.isFinite(price) || price <= 0) return false;
+		if (product.track_stock !== false && Number(variation?.stock || 0) <= 0 && variation?.allow_preorder !== true) return false;
+		return true;
+	});
+	if (variations.length === 0) productUnavailable = true;
+}
+if (productUnavailable) {
+	Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+	Astro.response.headers.set('Pragma', 'no-cache');
+	Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+}
 const automaticPromotions = productUnavailable ? [] : await getAutomaticPromotions(storeQuery);
 const automaticPromotionText = productUnavailable ? '' : getProductAutomaticPromotionText(product, automaticPromotions);
 const reviewsEnabled = settings?.reviews_enabled !== false;
@@ -196,7 +209,7 @@ const regularProductPrice = Number(product.regular_price_usd || baseProductPrice
 const productHasOffer = Boolean(product.is_offer) && baseProductPrice > 0 && regularProductPrice > baseProductPrice;
 const effectiveProductPrice = baseProductPrice;
 const productSavings = productHasOffer ? regularProductPrice - baseProductPrice : 0;
-const hasPublicVariations = variations.length > 0;
+const hasPublicVariations = product.has_variations === true;
 const variationView = ['buttons', 'dropdown', 'checkbox'].includes(product.variation_view) ? product.variation_view : 'buttons';
 const regularVariationPrice = (variation: any) => Math.max(0, Number(variation?.price_usd ?? variation?.precio_usd ?? 0));
 const publicVariationPrice = (variation: any) => {
@@ -272,9 +285,6 @@ const pageSeo = productUnavailable
 		productPriceAmount: seoHasValidPrice ? seoProductPrice : null,
 		productPriceCurrency: 'USD',
 	};
-const initialCost = hasPublicVariations
-	? Number(firstVariation?.cost_usd || 0)
-	: Number(product.cost_usd || 0);
 const initialStock = hasPublicVariations
 	? Number(firstVariation?.stock || 0)
 	: Number(product.stock || 0);
@@ -303,12 +313,11 @@ const initialStockClass = !tracksStock
 		: initialIsOutOfStock
 			? 'text-red-600'
 			: 'text-gray-800';
-const variationItems = variations.map((variation) => {
+const variationItems = sellableVariations.map((variation) => {
 	const variationImage = variation.imageUrls?.[0] ?? mainImage;
 	const variationPrice = publicVariationPrice(variation);
 	const variationRegularPrice = regularVariationPrice(variation);
 	const variationIsOffer = variationHasOffer(variation);
-	const variationCost = Number(variation.cost_usd || 0);
 	const variationStock = Number(variation.stock || 0);
 	const variationPreorder = Boolean(variation.allow_preorder);
 	const variationOutOfStock = tracksStock && variationStock <= 0;
@@ -324,7 +333,6 @@ const variationItems = variations.map((variation) => {
 		variationRegularPrice,
 		variationIsOffer,
 		variationSavings: variationIsOffer ? variationRegularPrice - variationPrice : 0,
-		variationCost,
 		variationStock,
 		variationOutOfStock,
 		variationCanPreorder,
@@ -1285,10 +1293,8 @@ const variationItems = variations.map((variation) => {
 									data-regular-price={variation.variationRegularPrice}
 									data-is-offer={variation.variationIsOffer ? 'true' : 'false'}
 									data-savings-usd={variation.variationSavings}
-									data-cost={variation.variationCost}
 									data-stock={variation.variationStock}
 									data-image={variation.variationImage}
-									data-ref={variation.internal_ref || ''}
 									data-preorder={variation.variationCanPreorder ? 'true' : 'false'}
 									data-out-of-stock={variation.variationOutOfStock ? 'true' : 'false'}
 									disabled={variation.variationDisabled}
@@ -1386,7 +1392,6 @@ const variationItems = variations.map((variation) => {
 				data-id={product.id}
 				data-title={product.name}
 				data-price={initialPrice}
-				data-cost={initialCost}
 				data-regular-price={hasPublicVariations ? firstVariationRegularPrice : regularProductPrice}
 				data-is-offer={(hasPublicVariations ? firstVariationHasOffer : productHasOffer) && (!hasPublicVariations || Boolean(firstVariation)) ? 'true' : 'false'}
 				data-savings-usd={hasPublicVariations && firstVariationHasOffer ? firstVariationRegularPrice - firstVariationPrice : productHasOffer && !hasPublicVariations ? productSavings : 0}
@@ -1402,7 +1407,6 @@ const variationItems = variations.map((variation) => {
 				data-requires-variation={hasPublicVariations ? 'true' : 'false'}
 				data-variation-id={firstVariation?.id || ''}
 				data-variation-label={firstVariation ? [firstVariation.variation_type, firstVariation.value].filter(Boolean).join(': ') || 'variacion' : ''}
-				data-variation-ref={firstVariation?.internal_ref || ''}
 				disabled={initialButtonDisabled}
 				class={`w-full font-black py-4 rounded-[2rem] shadow-xl transition ${initialButtonDisabled ? 'bg-gray-200 text-gray-500 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20'}`}
 			>
@@ -1753,21 +1757,18 @@ const variationItems = variations.map((variation) => {
 					const stock = Number(option.dataset.stock || 0);
 					const price = Number(option.dataset.price || 0);
 					const regularPrice = Number(option.dataset.regularPrice || price);
-					const cost = Number(option.dataset.cost || 0);
 					const isOffer = option.dataset.isOffer === 'true' && regularPrice > price;
 					const savings = isOffer ? Math.max(0, regularPrice - price) : 0;
 					const isOutOfStock = tracksStock && option.dataset.outOfStock === 'true';
 					const canPreorder = tracksStock && option.dataset.preorder === 'true';
 
 					addToCartBtn.dataset.price = String(price);
-					addToCartBtn.dataset.cost = String(cost);
 					addToCartBtn.dataset.isOffer = isOffer ? 'true' : 'false';
 					addToCartBtn.dataset.savingsUsd = String(savings);
 					addToCartBtn.dataset.regularPrice = String(regularPrice);
 					addToCartBtn.dataset.image = option.dataset.image || addToCartBtn.dataset.image || '';
 					addToCartBtn.dataset.variationId = option.dataset.id || '';
 					addToCartBtn.dataset.variationLabel = option.dataset.label || '';
-					addToCartBtn.dataset.variationRef = option.dataset.ref || '';
 
 					setSelectedVisual(option.dataset.id || '');
 					if (selectedVariationSummary) selectedVariationSummary.textContent = `${addToCartBtn.dataset.title || ''} \u2014 ${option.dataset.label || ''}`;
@@ -1888,10 +1889,7 @@ const variationItems = variations.map((variation) => {
 						variation_id: addToCartBtn.dataset.variationId || '',
 						variation_name: addToCartBtn.dataset.variationLabel || '',
 						variation_label: addToCartBtn.dataset.variationLabel || '',
-						variation_ref: addToCartBtn.dataset.variationRef || '',
 						variation_price_usd: Number(addToCartBtn.dataset.price),
-						cost_usd: Number(addToCartBtn.dataset.cost || 0),
-						variation_cost_usd: Number(addToCartBtn.dataset.cost || 0),
 						regular_price_usd: Number(addToCartBtn.dataset.regularPrice || addToCartBtn.dataset.price || 0),
 						is_offer: addToCartBtn.dataset.isOffer === 'true',
 						savings_usd: Number(addToCartBtn.dataset.savingsUsd || 0),
@@ -1921,14 +1919,12 @@ const variationItems = variations.map((variation) => {
 						existingProduct.variation_id = product.variation_id;
 						existingProduct.variation_name = product.variation_name;
 						existingProduct.variation_label = product.variation_label;
-						existingProduct.variation_ref = product.variation_ref;
 						existingProduct.variation_price_usd = product.variation_price_usd;
-						existingProduct.cost_usd = product.cost_usd;
-						existingProduct.variation_cost_usd = product.variation_cost_usd;
 						existingProduct.regular_price_usd = product.regular_price_usd;
 						existingProduct.is_offer = product.is_offer;
 						existingProduct.savings_usd = product.savings_usd;
 						existingProduct.store_id = product.store_id;
+						['cost_usd', 'variation_cost_usd', 'variation_ref', 'internal_ref', 'expiration_date'].forEach((field) => delete existingProduct[field]);
 					} else {
 						cart.push(product);
 					}

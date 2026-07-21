@@ -31,6 +31,41 @@ function fieldsDataRecord(id, values) {
   };
 }
 
+function publicCatalogFixture(values = {}) {
+  const store = record(STORE_ID, {
+    status: 'active',
+    active: true,
+    plan: 'premium',
+    plan_started_at: '2026-01-01T00:00:00.000Z',
+    plan_expires_at: '',
+    plan_is_permanent: true,
+  });
+  const tables = {
+    stores: [store],
+    products: values.products || [],
+    product_variations: values.variations || [],
+    automatic_promotions: values.promotions || [],
+    categories: values.categories || [],
+    subcategories: values.subcategories || [],
+  };
+  return {
+    app: {
+      findRecordById(collection, id) {
+        const found = (tables[collection] || []).find((entry) => entry.id === id);
+        if (!found) throw new Error('not_found');
+        return found;
+      },
+      findRecordsByFilter(collection, _filter, _sort, limit = 500, offset = 0, params = {}) {
+        let rows = [...(tables[collection] || [])];
+        if (params.product) rows = rows.filter((entry) => entry.product === params.product);
+        return rows.slice(offset, offset + limit);
+      },
+    },
+    store,
+    tables,
+  };
+}
+
 function fixture(assignedPermissions) {
   const store = record(STORE_ID, {
     status: 'active',
@@ -310,21 +345,35 @@ test('allowlist F12 cubre contacto de pedidos/usos y economia de catalogo public
     sort: 'sort_order,variation_type,value',
   }), 1);
   assertQueryDenied(publicData, 'product_variations', { filter: 'product.internal_ref != ""' });
+  assert.equal(readWithQuery(publicData, 'automatic_promotions', {
+    filter: `active=true && store="${STORE_ID}"`,
+    sort: 'priority,-updated',
+    fields: 'id,store,name,type,scope,product,priority,updated',
+  }), 1);
+  assertQueryDenied(publicData, 'automatic_promotions', { filter: 'product.expiration_date != ""' });
+  assertQueryDenied(publicData, 'automatic_promotions', { sort: 'product.stock' });
+  assertQueryDenied(publicData, 'automatic_promotions', { expand: 'product' });
 });
 
 test('catálogo público conserva precio/stock y oculta economía interna', () => {
   const product = record('productpublic01', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
     name: 'Producto',
     base_price_usd: 20,
+    regular_price_usd: 20,
     stock: 5,
+    track_stock: true,
     cost_usd: 8,
     profit_margin: 60,
     internal_ref: 'INTERNAL-1',
     expiration_date: '2026-12-01',
     provider: 'Proveedor privado',
   });
+  const catalog = publicCatalogFixture({ products: [product] });
   privacy.enforceRead({
-    app: {},
+    app: catalog.app,
     auth: null,
     record: product,
     collection: { name: 'products' },
@@ -334,6 +383,456 @@ test('catálogo público conserva precio/stock y oculta economía interna', () =
   assert.equal(product.hidden.has('base_price_usd'), false);
   assert.equal(product.hidden.has('stock'), false);
   assert.equal(product.hidden.has('name'), false);
+});
+
+test('catálogo público filtra por unidad canónica antes de ocultar expiration_date', () => {
+  const parentWithRetainedVariation = record('productpublic03', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2099-12-01',
+  });
+  const expiredParent = record('productpublic04', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2000-01-01',
+  });
+  const mixedContainer = record('productpublic05', {
+    store: STORE_ID,
+    active: true,
+    has_variations: true,
+    base_price_usd: 1,
+    regular_price_usd: 1,
+    stock: 99,
+    track_stock: true,
+    expiration_date: '2000-01-01',
+  });
+  const allExpiredContainer = record('productpublic07', {
+    store: STORE_ID,
+    active: true,
+    has_variations: true,
+    base_price_usd: 1,
+    regular_price_usd: 1,
+    stock: 99,
+    track_stock: true,
+    expiration_date: '',
+  });
+  const retained = record('variationpub001', {
+    product: parentWithRetainedVariation.id,
+    active: true,
+    price_usd: 40,
+    stock: 5,
+    expiration_date: '2000-01-01',
+  });
+  const expiredVariation = record('variationpub002', {
+    product: mixedContainer.id,
+    active: true,
+    price_usd: 12,
+    stock: 5,
+    expiration_date: '2000-01-01',
+  });
+  const validVariation = record('variationpub003', {
+    product: mixedContainer.id,
+    active: true,
+    price_usd: 13,
+    stock: 5,
+    expiration_date: '2099-12-01',
+  });
+  const outOfStockVariation = record('variationpub004', {
+    product: mixedContainer.id,
+    active: true,
+    price_usd: 14,
+    stock: 0,
+    expiration_date: '2099-12-01',
+  });
+  const allExpiredVariation = record('variationpub005', {
+    product: allExpiredContainer.id,
+    active: true,
+    price_usd: 15,
+    stock: 5,
+    expiration_date: '2000-01-01',
+  });
+  const catalog = publicCatalogFixture({
+    products: [parentWithRetainedVariation, expiredParent, mixedContainer, allExpiredContainer],
+    variations: [retained, expiredVariation, validVariation, outOfStockVariation, allExpiredVariation],
+  });
+  const productEvent = {
+    app: catalog.app,
+    auth: null,
+    collection: { name: 'products' },
+    result: { items: [parentWithRetainedVariation, expiredParent, mixedContainer, allExpiredContainer] },
+    next() {
+      this.serializedIds = this.result.items.map((entry) => entry.id);
+    },
+  };
+  privacy.enforceRead(productEvent);
+  assert.deepEqual(productEvent.result.items.map((entry) => entry.id), [parentWithRetainedVariation.id, mixedContainer.id]);
+  assert.deepEqual(productEvent.serializedIds, [parentWithRetainedVariation.id, mixedContainer.id]);
+  assert.equal(parentWithRetainedVariation.hidden.has('expiration_date'), true);
+  assert.equal(mixedContainer.hidden.has('expiration_date'), true);
+
+  const pagedEvent = {
+    app: catalog.app,
+    auth: null,
+    collection: { name: 'products' },
+    records: [expiredParent],
+    result: { page: 1, perPage: 1, totalItems: 3, totalPages: 3, items: [expiredParent] },
+    requestInfo: () => ({ query: { filter: 'active=true', sort: 'id', page: '1', perPage: '1' } }),
+    next() {},
+  };
+  privacy.enforceRead(pagedEvent);
+  assert.deepEqual(pagedEvent.result.items.map((entry) => entry.id), [parentWithRetainedVariation.id]);
+  assert.equal(pagedEvent.result.totalItems, 2);
+  assert.equal(pagedEvent.result.totalPages, 2);
+  assert.deepEqual(pagedEvent.records.map((entry) => entry.id), [parentWithRetainedVariation.id]);
+  const secondPage = {
+    ...pagedEvent,
+    records: [parentWithRetainedVariation],
+    result: { page: 2, perPage: 1, totalItems: 3, totalPages: 3, items: [parentWithRetainedVariation] },
+    requestInfo: () => ({ query: { filter: 'active=true', sort: 'id', page: '2', perPage: '1' } }),
+  };
+  privacy.enforceRead(secondPage);
+  assert.deepEqual(secondPage.result.items.map((entry) => entry.id), [mixedContainer.id]);
+
+  const variationEvent = {
+    app: catalog.app,
+    auth: null,
+    collection: { name: 'product_variations' },
+    records: [retained, expiredVariation, validVariation, outOfStockVariation, allExpiredVariation],
+    next() {},
+  };
+  privacy.enforceRead(variationEvent);
+  assert.deepEqual(variationEvent.records.map((entry) => entry.id), [validVariation.id]);
+  assert.equal(validVariation.hidden.has('expiration_date'), true);
+  assert.throws(() => privacy.enforceRead({
+    app: catalog.app,
+    auth: null,
+    record: retained,
+    collection: { name: 'product_variations' },
+    next() {},
+  }), (error) => error.code === 'not_found');
+});
+
+test('promociones públicas dirigidas a producto exigen al menos una unidad vendible', () => {
+  const availableProduct = record('promoproduct001', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2999-01-01',
+  });
+  const expiredProduct = record('promoproduct002', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2000-01-01',
+  });
+  const mixedProduct = record('promoproduct003', {
+    store: STORE_ID,
+    active: true,
+    has_variations: true,
+    base_price_usd: 1,
+    regular_price_usd: 1,
+    stock: 99,
+    track_stock: true,
+  });
+  const allExpiredProduct = record('promoproduct004', {
+    store: STORE_ID,
+    active: true,
+    has_variations: true,
+    base_price_usd: 1,
+    regular_price_usd: 1,
+    stock: 99,
+    track_stock: true,
+  });
+  const variations = [
+    record('promovariation1', {
+      product: mixedProduct.id, active: true, price_usd: 12, stock: 5, expiration_date: '2000-01-01',
+    }),
+    record('promovariation2', {
+      product: mixedProduct.id, active: true, price_usd: 13, stock: 5, expiration_date: '2999-01-01',
+    }),
+    record('promovariation3', {
+      product: allExpiredProduct.id, active: true, price_usd: 14, stock: 5, expiration_date: '2000-01-01',
+    }),
+  ];
+  const promotion = (id, values) => record(id, {
+    store: STORE_ID,
+    active: true,
+    type: 'product_discount',
+    scope: 'product',
+    discount_type: 'percentage',
+    discount_value: 10,
+    ...values,
+  });
+  const expiredPromotion = promotion('promotionpub01', { product: expiredProduct.id });
+  const availablePromotion = promotion('promotionpub02', { product: availableProduct.id });
+  const mixedPromotion = promotion('promotionpub03', { product: mixedProduct.id });
+  const allExpiredPromotion = promotion('promotionpub04', { product: allExpiredProduct.id });
+  const missingPromotion = promotion('promotionpub05', { product: 'missingproduct01' });
+  const crossStorePromotion = promotion('promotionpub06', { store: 'storeprivacy999', product: availableProduct.id });
+  const categoryPromotion = promotion('promotionpub07', {
+    type: 'category_discount', scope: 'category', product: '', category: 'categorypub001',
+  });
+  const cartPromotion = promotion('promotionpub08', {
+    type: 'cart_subtotal_discount', scope: 'cart', product: '', min_subtotal_usd: 50,
+  });
+  const promotions = [
+    expiredPromotion,
+    availablePromotion,
+    mixedPromotion,
+    allExpiredPromotion,
+    missingPromotion,
+    crossStorePromotion,
+    categoryPromotion,
+    cartPromotion,
+  ];
+  const catalog = publicCatalogFixture({
+    products: [availableProduct, expiredProduct, mixedProduct, allExpiredProduct],
+    variations,
+    promotions,
+  });
+
+  const firstPage = {
+    app: catalog.app,
+    auth: null,
+    collection: { name: 'automatic_promotions' },
+    records: [expiredPromotion, availablePromotion],
+    result: { page: 1, perPage: 2, totalItems: promotions.length, totalPages: 4, items: [expiredPromotion, availablePromotion] },
+    requestInfo: () => ({ query: { filter: `active=true && store="${STORE_ID}"`, sort: 'id' } }),
+    next() {},
+  };
+  privacy.enforceRead(firstPage);
+  assert.deepEqual(firstPage.result.items.map((item) => item.id), [availablePromotion.id, mixedPromotion.id]);
+  assert.deepEqual(firstPage.records.map((item) => item.id), [availablePromotion.id, mixedPromotion.id]);
+  assert.equal(firstPage.result.totalItems, 4);
+  assert.equal(firstPage.result.totalPages, 2);
+
+  const secondPage = {
+    ...firstPage,
+    records: [allExpiredPromotion, missingPromotion],
+    result: { page: 2, perPage: 2, totalItems: promotions.length, totalPages: 4, items: [allExpiredPromotion, missingPromotion] },
+  };
+  privacy.enforceRead(secondPage);
+  assert.deepEqual(secondPage.result.items.map((item) => item.id), [categoryPromotion.id, cartPromotion.id]);
+
+  let unavailableResponse = null;
+  let unavailableNext = 0;
+  privacy.enforceRead({
+    app: catalog.app,
+    auth: null,
+    record: expiredPromotion,
+    collection: { name: 'automatic_promotions' },
+    response: { header: () => ({ set() {} }) },
+    json(status, body) { unavailableResponse = { status, body }; },
+    next() { unavailableNext += 1; },
+  });
+  assert.equal(unavailableNext, 0);
+  assert.deepEqual(unavailableResponse, {
+    status: 404,
+    body: { code: 404, message: "The requested resource wasn't found.", data: {} },
+  });
+
+  let availableNext = 0;
+  privacy.enforceRead({
+    app: catalog.app,
+    auth: null,
+    record: availablePromotion,
+    collection: { name: 'automatic_promotions' },
+    next() { availableNext += 1; },
+  });
+  assert.equal(availableNext, 1);
+
+  let realtimeUnavailableNext = 0;
+  privacy.enforceRealtimeMessage({
+    app: catalog.app,
+    client: { get() { return null; } },
+    message: {
+      name: 'automatic_promotions/update',
+      data: JSON.stringify({ record: { id: expiredPromotion.id, product: availableProduct.id } }),
+    },
+    next() { realtimeUnavailableNext += 1; },
+  });
+  assert.equal(realtimeUnavailableNext, 0);
+
+  const publicMessage = {
+    name: 'automatic_promotions/update',
+    data: JSON.stringify({ record: {
+      id: availablePromotion.id,
+      product: availableProduct.id,
+      expand: { product: { id: availableProduct.id, expiration_date: '2999-01-01' } },
+    } }),
+  };
+  let realtimeAvailableNext = 0;
+  privacy.enforceRealtimeMessage({
+    app: catalog.app,
+    client: { get() { return null; } },
+    message: publicMessage,
+    next() { realtimeAvailableNext += 1; },
+  });
+  assert.equal(realtimeAvailableNext, 1);
+  assert.equal(Object.hasOwn(JSON.parse(publicMessage.data).record.expand, 'product'), false);
+});
+
+test('catálogo público evalúa variaciones vendibles después del primer lote de 500', () => {
+  const parent = record('productpublic08', {
+    store: STORE_ID,
+    active: true,
+    has_variations: true,
+    base_price_usd: 1,
+    regular_price_usd: 1,
+    stock: 99,
+    track_stock: true,
+    expiration_date: '2000-01-01',
+  });
+  const variations = Array.from({ length: 500 }, (_, index) => record(`variationbulk${String(index).padStart(4, '0')}`, {
+    product: parent.id,
+    active: true,
+    price_usd: 10,
+    stock: 0,
+    expiration_date: '',
+  }));
+  variations.push(record('variationbulk0500', {
+    product: parent.id,
+    active: true,
+    price_usd: 19,
+    stock: 5,
+    expiration_date: '2999-12-01',
+  }));
+  const catalog = publicCatalogFixture({ products: [parent], variations });
+  const offsets = [];
+  const findRecordsByFilter = catalog.app.findRecordsByFilter.bind(catalog.app);
+  catalog.app.findRecordsByFilter = (collection, filter, sort, limit, offset, params) => {
+    if (collection === 'product_variations') offsets.push(offset);
+    return findRecordsByFilter(collection, filter, sort, limit, offset, params);
+  };
+
+  assert.equal(
+    privacy.publicProductRecordAvailable(catalog.app, 'products', parent, new Date('2026-07-21T16:00:00.000Z')),
+    true,
+  );
+  assert.deepEqual(offsets, [0, 500]);
+});
+
+test('vista y realtime públicos de unidad no vendible fallan sin fecha ni razón comercial', () => {
+  const expired = record('productpublic06', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2000-01-01',
+  });
+  const available = record('productpublic07', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2999-01-01',
+  });
+  const catalog = publicCatalogFixture({ products: [expired, available] });
+  const headers = new Map();
+  assert.throws(() => privacy.enforceRead({
+    app: catalog.app,
+    auth: null,
+    record: expired,
+    collection: { name: 'products' },
+    response: { header: () => ({ set: (key, value) => headers.set(key, value) }) },
+    next() {},
+  }), (error) => error.code === 'not_found' && !String(error.message).includes('expir'));
+  assert.equal(headers.get('Cache-Control'), 'private, no-store, max-age=0');
+  assert.equal(expired.hidden.has('expiration_date'), false);
+
+  let nextCalls = 0;
+  let response = null;
+  privacy.enforceRead({
+    app: catalog.app,
+    auth: null,
+    record: expired,
+    collection: { name: 'products' },
+    response: { header: () => ({ set: (key, value) => headers.set(key, value) }) },
+    json(status, body) { response = { status, body }; },
+    next() { nextCalls += 1; },
+  });
+  assert.equal(nextCalls, 0);
+  assert.deepEqual(response, {
+    status: 404,
+    body: { code: 404, message: "The requested resource wasn't found.", data: {} },
+  });
+  assert.equal(headers.get('Cache-Control'), 'private, no-store, max-age=0');
+
+  const middlewareHeaders = new Map();
+  let middlewareNextCalls = 0;
+  privacy.enforcePublicProductReadCachePolicy({
+    app: catalog.app,
+    request: {
+      method: 'GET',
+      url: { path: `/api/collections/products/records/${expired.id}` },
+    },
+    response: { header: () => ({ set: (key, value) => middlewareHeaders.set(key, value) }) },
+    next() { middlewareNextCalls += 1; },
+  });
+  assert.equal(middlewareNextCalls, 1);
+  assert.equal(middlewareHeaders.get('Cache-Control'), 'private, no-store, max-age=0');
+
+  middlewareHeaders.clear();
+  privacy.enforcePublicProductReadCachePolicy({
+    app: catalog.app,
+    request: {
+      method: 'GET',
+      url: { path: `/api/collections/products/records/${available.id}` },
+    },
+    response: { header: () => ({ set: (key, value) => middlewareHeaders.set(key, value) }) },
+    next() { middlewareNextCalls += 1; },
+  });
+  assert.equal(middlewareNextCalls, 2);
+  assert.equal(middlewareHeaders.get('Cache-Control'), 'private, no-store, max-age=0');
+
+  middlewareHeaders.clear();
+  privacy.enforcePublicProductReadCachePolicy({
+    app: catalog.app,
+    request: {
+      method: 'GET',
+      url: { path: '/api/collections/product_variations/records' },
+    },
+    response: { header: () => ({ set: (key, value) => middlewareHeaders.set(key, value) }) },
+    next() { middlewareNextCalls += 1; },
+  });
+  assert.equal(middlewareNextCalls, 3);
+  assert.equal(middlewareHeaders.get('Cache-Control'), 'private, no-store, max-age=0');
+
+  let realtimeSends = 0;
+  privacy.enforceRealtimeMessage({
+    app: catalog.app,
+    client: { get() { return null; } },
+    message: {
+      name: 'products/update',
+      data: JSON.stringify({ record: { id: expired.id, collectionName: 'products', expiration_date: expired.expiration_date } }),
+    },
+    next() { realtimeSends += 1; },
+  });
+  assert.equal(realtimeSends, 0);
 });
 
 test('analytics raw se bloquea siempre y cupón usado exige coupons+orders sin mutaciones REST', () => {
@@ -425,6 +924,7 @@ test('realtime valida query del topic y poda expands publicos desconocidos', () 
     subscriptions: [
       'products/*?expand=category%2Csubcategory&fields=id%2Cname',
       'settings/*?expand=default_currency&fields=id%2Cstore_name',
+      'automatic_promotions/*?fields=id%2Cproduct%2Cpriority',
     ],
     next() { publicSubscriptions += 1; },
   });
@@ -433,6 +933,7 @@ test('realtime valida query del topic y poda expands publicos desconocidos', () 
     'products/*?expand=store',
     'products/*?fields=id%2Cstore.business_notes',
     'settings/*?expand=store',
+    'automatic_promotions/*?expand=product',
     '*?expand=store',
   ]) {
     assert.throws(() => privacy.enforceRealtimeSubscribe({
@@ -470,8 +971,19 @@ test('realtime valida query del topic y poda expands publicos desconocidos', () 
       },
     } }),
   };
+  const canonicalProduct = record('productpublic02', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 5,
+    track_stock: true,
+    expiration_date: '2099-12-01',
+  });
+  const publicCatalog = publicCatalogFixture({ products: [canonicalProduct] });
   privacy.enforceRealtimeMessage({
-    app: {},
+    app: publicCatalog.app,
     client: { get() { return null; } },
     message,
     next() {},

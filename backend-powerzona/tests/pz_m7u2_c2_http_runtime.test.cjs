@@ -709,6 +709,12 @@ test('M7U2-C2 HTTP runtime valida actividad privada y eliminacion segura end-to-
       price_usd: 12,
       stock: 6,
     });
+    const productVariationMode = await request(`/api/collections/products/records/${productA.id}`, {
+      token: primaryAToken,
+      method: 'PATCH',
+      body: { has_variations: true },
+    });
+    assertStatus(productVariationMode, 200, 'principal activa explicitamente el modo variaciones');
     const variationExpiration = await request(`/api/collections/product_variations/records/${variation.id}`, {
       token: primaryAToken,
       method: 'PATCH',

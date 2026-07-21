@@ -5481,7 +5481,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 
 					{expirationFeatureVisible && <section id="productos-proximos-vencer" class="dashboard-block" aria-labelledby="expiration-title">
 						<div class="dashboard-block-head expiration-summary-head">
-							<div><h2 id="expiration-title" class="dashboard-block-title">Vencimiento de productos</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">{expirationToolsEnabled ? 'Los detalles se cargarán al llegar a esta sección.' : 'Disponible exclusivamente para tiendas Premium.'}</p></div>
+							<div><h2 id="expiration-title" class="dashboard-block-title">Vencimiento de productos o variaciones</h2><p id="expiration-products-meta" class="dashboard-block-subtitle">{expirationToolsEnabled ? 'Cada fila representa una unidad independiente.' : 'Disponible exclusivamente para tiendas Premium.'}</p></div>
 							{expirationToolsEnabled && <a class="expiration-preview-all pz-admin-btn pz-admin-btn--secondary pz-admin-btn--compact" href={adminExpirationsPath}><span class="pz-admin-btn__label">Ver todos los vencimientos →</span></a>}
 						</div>
 						{expirationToolsEnabled && (
@@ -5494,7 +5494,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						)}
 						{expirationToolsEnabled ? (
 							<>
-								<div class="expiration-summary-table-head" aria-hidden="true"><span>Producto</span><span>Vencimiento</span><span>Estado</span><span>Acciones</span></div>
+								<div class="expiration-summary-table-head" aria-hidden="true"><span>Producto o variación</span><span>Vencimiento</span><span>Estado</span><span>Acciones</span></div>
 								<div id="expiration-products-list" class="expiration-products-list"><div class="empty-state">Desplázate hasta aquí para cargar la vista previa privada.</div></div>
 								<div class="expiration-summary-footer">
 									<p id="expiration-products-range-meta" class="expiration-results-meta" aria-live="polite"></p>
@@ -5502,7 +5502,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 								</div>
 							</>
 						) : (
-							<StoreCapabilityGate access={expirationToolsAccess} featureName="Vencimiento de productos" featureDescription="Gestiona fechas, alertas y productos vencidos con el plan Premium." preservationMessage="Disponible exclusivamente para tiendas Premium." compact />
+							<StoreCapabilityGate access={expirationToolsAccess} featureName="Vencimiento de productos o variaciones" featureDescription="Gestiona fechas, alertas y unidades vencidas con el plan Premium." preservationMessage="Disponible exclusivamente para tiendas Premium." compact />
 						)}
 					</section>}
 				</div>
@@ -6886,9 +6886,9 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				const summaryRangeLabel = getSummaryRangeLabel();
 				const upcomingExpirationCount = EXPIRATION_TOOLS_ENABLED ? Number(expirationSummary.upcoming_30_products || 0) : 0;
 				const expiredExpirationCount = EXPIRATION_TOOLS_ENABLED ? Number(expirationSummary.expired_products || 0) : 0;
-				const expirationMeta = `${expiredExpirationCount} vencido${expiredExpirationCount === 1 ? '' : 's'} · ${upcomingExpirationCount} próximo${upcomingExpirationCount === 1 ? '' : 's'} en 30 días`;
+				const expirationMeta = `${expiredExpirationCount} productos o variaciones vencidas · ${upcomingExpirationCount} próximas en 30 días`;
 				const expirationBadge = expiredExpirationCount
-					? `${expiredExpirationCount} vencido${expiredExpirationCount === 1 ? '' : 's'}`
+					? `${expiredExpirationCount} ${expiredExpirationCount === 1 ? 'unidad vencida' : 'unidades vencidas'}`
 					: '1 mes';
 				const topLabel = metrics.topProduct ? metrics.topProduct.name : 'Aún sin ventas';
 				const topMeta = metrics.topProduct ? `${metrics.topProduct.quantity} unidades vendidas en este período` : 'Sin datos para este período';
@@ -6942,7 +6942,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 							<div class="metric-icon" style="${iconStyle}">${icons.expiration}</div>
 							<span class="metric-badge" style="${badgeStyle}">${escapeHtml(expirationBadge)}</span>
 						</div>
-						<div style="${labelStyle}">Por vencer</div>
+						<div style="${labelStyle}">Unidades por vencer</div>
 						<div style="${valueStyle}"><strong style="font-weight:700;">${upcomingExpirationCount}</strong></div>
 						<div style="${metaStyle}">${expirationMeta}</div>
 						<a href="${escapeHtml(`${ADMIN_EXPIRATIONS_PATH}?view=expired`)}" style="${kpiActionStyle}">Ver vencidos</a>
@@ -6951,7 +6951,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 					<div class="metric-card metric-purple" style="${cardStyle}">
 						<div style="${topStyle}"><div class="metric-icon" style="${iconStyle}">🔒</div><span class="metric-badge" style="${badgeStyle}">Premium</span></div>
 						<div style="${labelStyle}">Función Premium</div>
-						<div style="${productValueStyle}">Vencimiento de productos</div>
+						<div style="${productValueStyle}">Vencimiento de productos o variaciones</div>
 						<div style="${metaStyle}">Para activarla, contacta al administrador principal.</div>
 					</div>
 				`;
@@ -7172,7 +7172,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 						expired_products: Math.max(0, Number(result?.summary?.expired_products || 0)),
 						upcoming_30_products: Math.max(0, Number(result?.summary?.upcoming_30_products || 0)),
 					};
-					if (expirationProductsMeta) expirationProductsMeta.textContent = `${expirationSummary.upcoming_30_products} por vencer en 30 días · ${expirationSummary.expired_products} vencido${expirationSummary.expired_products === 1 ? '' : 's'}. El detalle se carga al desplazarte.`;
+					if (expirationProductsMeta) expirationProductsMeta.textContent = `${expirationSummary.upcoming_30_products} productos o variaciones por vencer en 30 días · ${expirationSummary.expired_products} vencidas. El detalle se carga al desplazarte.`;
 				} catch (_) {
 					expirationSummary = { expired_products: 0, upcoming_30_products: 0 };
 					if (expirationProductsMeta) expirationProductsMeta.textContent = 'No se pudo cargar el resumen privado de vencimientos.';
@@ -7219,35 +7219,37 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				const totalPages = Math.max(1, Number(expirationDetails.total_pages || 1));
 				selectedExpirationPage = Math.max(1, Math.min(totalPages, Number(expirationDetails.page || selectedExpirationPage)));
 				const viewLabel = selectedExpirationView === 'expired' ? 'vencidos' : `por vencer en ${selectedExpirationRange} días`;
-				const grammarLabel = selectedExpirationView === 'expired' && totalItems === 1 ? 'vencido' : viewLabel;
-				expirationProductsMeta.textContent = `${totalItems} producto${totalItems === 1 ? '' : 's'} ${grammarLabel}. Vista previa de hasta 5 productos.`;
+				expirationProductsMeta.textContent = `${totalItems} productos o variaciones ${viewLabel}. Vista previa de hasta 5 unidades.`;
 				const rangeStart = totalItems ? ((selectedExpirationPage - 1) * 5) + 1 : 0;
 				const rangeEnd = totalItems ? Math.min(selectedExpirationPage * 5, totalItems) : 0;
-				if (expirationProductsRangeMeta) expirationProductsRangeMeta.textContent = `Mostrando ${rangeStart}–${rangeEnd} de ${totalItems} producto${totalItems === 1 ? '' : 's'}`;
+				if (expirationProductsRangeMeta) expirationProductsRangeMeta.textContent = `Mostrando ${rangeStart}–${rangeEnd} de ${totalItems} productos o variaciones`;
 				if (!items.length) {
-					expirationProductsList.innerHTML = `<div class="empty-state">No hay productos ${escapeHtml(viewLabel)}.</div>`;
+					expirationProductsList.innerHTML = `<div class="empty-state">No hay productos o variaciones ${escapeHtml(viewLabel)}.</div>`;
 					renderExpirationPagination(totalPages);
 					return;
 				}
 				expirationProductsList.innerHTML = items.map((item) => {
 					const status = getExpirationStatus(item);
 					const variations = Array.isArray(item.affected_variations) ? item.affected_variations : [];
-					const modeLabel = item.mode === 'variations'
-						? `Variación: ${variations[0]?.name || 'Sin nombre'}`
-						: 'Producto general';
+					const variation = variations[0] || null;
+					const isVariationUnit = item.mode === 'variations';
+					const unitName = isVariationUnit
+						? `${item.name || 'Producto sin nombre'} — ${variation?.name || 'Sin nombre'}`
+						: (item.name || 'Producto sin nombre');
+					const modeLabel = isVariationUnit ? 'Modalidad: Variación' : 'Modalidad: Producto general';
 					const dateLabel = status.className === 'expired' ? 'Venció' : 'Vence';
 					return `
 						<article class="expiration-item ${status.className} ${status.rowClassName}">
 							<div class="expiration-product-cell">
 								<span class="expiration-product-icon" aria-hidden="true">${PRODUCT_EXPIRATION_BOTTLE_ICON_SVG}</span>
 								<div class="expiration-product-copy">
-									<p class="expiration-name">${escapeHtml(item.name || 'Producto sin nombre')}</p>
+									<p class="expiration-name">${escapeHtml(unitName)}</p>
 									<span class="expiration-mode">${escapeHtml(modeLabel)}</span>
 								</div>
 							</div>
 							<span class="expiration-date-cell">${dateLabel}: ${escapeHtml(formatExpirationCivilDate(item.expiration_date))}</span>
 							<span class="expiration-pill ${status.className}">${status.className === 'expired' ? '<span aria-hidden="true">!</span>' : ''}${escapeHtml(status.label)}</span>
-							<div class="expiration-side"><a class="expiration-view" href="${escapeHtml(expirationPreviewUrl(item))}" aria-label="Ver ${escapeHtml(item.name || 'producto')} en vencimientos">Ver producto</a></div>
+							<div class="expiration-side"><a class="expiration-view" href="${escapeHtml(expirationPreviewUrl(item))}" aria-label="Ver ${escapeHtml(unitName)} en vencimientos">Ver unidad</a></div>
 						</article>
 					`;
 				}).join('');

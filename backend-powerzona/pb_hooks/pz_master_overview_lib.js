@@ -290,7 +290,7 @@ function productMetrics(app, storeId, storeActive) {
     ), states AS (
       SELECT p.id AS productId, p.active AS active, p.track_stock AS trackStock,
         p.stock AS storedStock, p.has_variations AS storedHasVariations,
-        CASE WHEN COALESCE(p.has_variations, 0) = 1 OR COALESCE(v.variationCount, 0) > 0 THEN 1 ELSE 0 END AS hasVariations,
+        CASE WHEN COALESCE(p.has_variations, 0) = 1 THEN 1 ELSE 0 END AS hasVariations,
         COALESCE(v.activeVariationsStock, 0) AS activeVariationsStock,
         COALESCE(v.activeVariationInStock, 0) AS activeVariationInStock,
         CASE WHEN TRIM(COALESCE(p.category, '')) = '' THEN 1 ELSE COALESCE(c.active, 0) END AS categoryActive,
