@@ -265,7 +265,13 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
         gap: 14px;
         flex-wrap: nowrap;
       }
+      .expiration-controls .expiration-tabs,
+      .expiration-controls .expiration-ranges {
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+      }
       .expiration-filter { min-height: 44px; box-shadow: none; }
+      .expiration-ranges .expiration-filter { min-width: 74px; white-space: nowrap; }
       .expiration-filter.is-active { box-shadow: none; }
       .expiration-filter[aria-pressed="true"] { border-color: #0f172a; background: #0f172a; color: #fff; }
       .expiration-search {
@@ -543,7 +549,14 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           if (!recordIdPattern.test(String(productId || ''))) return productsPath;
           const url = new URL(`${productsPath}/${encodeURIComponent(productId)}/history`, window.location.origin);
           url.searchParams.set('from', 'expirations');
-          if (recordIdPattern.test(String(variationId || ''))) url.searchParams.set('variation', String(variationId));
+          url.searchParams.set('view', view);
+          if (view === 'upcoming') url.searchParams.set('range', String(windowDays));
+          if (page > 1) url.searchParams.set('page', String(page));
+          if (query) url.searchParams.set('query', query);
+          url.searchParams.set('product', String(productId));
+          if (recordIdPattern.test(String(variationId || ''))) {
+            url.searchParams.set('variation', String(variationId));
+          }
           return `${url.pathname}${url.search}`;
         }
 

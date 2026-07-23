@@ -207,9 +207,28 @@ const {
             <p class="store-team-permissions__help" data-team-permissions-help>Al cambiar manualmente una opción, la plantilla pasa a Personalizado. Las dependencias se aplican automáticamente.</p>
           </div>
           {STORE_PERMISSION_CATALOG.map((group) => (
-            <section class="store-team-permission-group">
-              <h3>{group.label}</h3>
-              <div class="store-team-permission-list">
+            <section class="store-team-permission-group" data-team-permission-group={group.code}>
+              <h3>
+                <button
+                  class="store-team-permission-group__toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls={`store-team-permission-panel-${group.code}`}
+                  data-team-permission-group-toggle
+                >
+                  <span class="store-team-permission-group__heading">
+                    <strong>{group.label}</strong>
+                    <small data-team-permission-count>0 de {group.permissions.length} activos</small>
+                  </span>
+                  <span class="store-team-permission-group__chevron" aria-hidden="true">⌄</span>
+                </button>
+              </h3>
+              <div
+                id={`store-team-permission-panel-${group.code}`}
+                class="store-team-permission-list"
+                data-team-permission-group-panel
+                hidden
+              >
                 {group.permissions.map((item) => (
                   <label class="store-team-permission-option">
                     <input type="checkbox" name="permissions" value={item.key} data-team-permission />
@@ -389,6 +408,7 @@ const {
     canCreateStoreTeamUser,
     deleteStoreTeamUser,
     formatStoreTeamActiveCount,
+    getStoreTeamErrorCode,
     getStoreTeamErrorMessage,
     getStoreTeamSummary,
     getStoreTeamUserAudit,
@@ -482,6 +502,7 @@ const {
     const templateDescription = root.querySelector<HTMLElement>('[data-team-template-description]');
     const permissionsHelp = root.querySelector<HTMLElement>('[data-team-permissions-help]');
     const permissionInputs = [...root.querySelectorAll<HTMLInputElement>('[data-team-permission]')];
+    const permissionGroupToggles = [...root.querySelectorAll<HTMLButtonElement>('[data-team-permission-group-toggle]')];
 
     const actionDialog = root.querySelector<HTMLDialogElement>('[data-team-action-dialog]');
     const actionForm = root.querySelector<HTMLFormElement>('[data-team-action-form]');
@@ -916,6 +937,43 @@ const {
           ? 'El plan actual conserva estos permisos en modo lectura.'
           : 'Al cambiar manualmente una opción, la plantilla pasa a Personalizado. Las dependencias se aplican automáticamente.';
       }
+      root.querySelectorAll<HTMLElement>('[data-team-permission-group]').forEach((group) => {
+        const inputs = [...group.querySelectorAll<HTMLInputElement>('[data-team-permission]')];
+        const count = inputs.filter((input) => input.checked).length;
+        const counter = group.querySelector<HTMLElement>('[data-team-permission-count]');
+        if (counter) counter.textContent = `${count} de ${inputs.length} activos`;
+      });
+    }
+
+    function setPermissionGroupExpanded(toggle: HTMLButtonElement, expanded: boolean) {
+      const panelId = toggle.getAttribute('aria-controls') || '';
+      const panel = panelId ? root.querySelector<HTMLElement>(`#${panelId}`) : null;
+      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      if (panel) panel.hidden = !expanded;
+    }
+
+    function closePermissionGroups() {
+      permissionGroupToggles.forEach((toggle) => setPermissionGroupExpanded(toggle, false));
+    }
+
+    function openPermissionGroupForError(error: unknown) {
+      const code = getStoreTeamErrorCode(error);
+      if (!['invalid_permissions', 'reserved_permission'].includes(code)) return;
+      const candidate = error as any;
+      const permission = String(
+        candidate?.permission
+        || candidate?.data?.permission
+        || candidate?.response?.permission
+        || candidate?.response?.data?.permission
+        || '',
+      );
+      const input = permissionInputs.find((item) => item.value === permission) || permissionInputs[0];
+      const group = input?.closest<HTMLElement>('[data-team-permission-group]');
+      const toggle = group?.querySelector<HTMLButtonElement>('[data-team-permission-group-toggle]');
+      if (toggle) {
+        setPermissionGroupExpanded(toggle, true);
+        window.requestAnimationFrame(() => input?.focus());
+      }
     }
 
     function resetEditor(mode: 'create' | 'edit', user: StoreTeamUser | null = null) {
@@ -936,6 +994,7 @@ const {
         ? 'Define los datos y permisos de este acceso.'
         : 'Actualiza los datos y permisos sin cambiar el nombre silenciosamente.';
       if (editorSubmit) editorSubmit.textContent = mode === 'create' ? 'Crear usuario' : 'Guardar cambios';
+      closePermissionGroups();
       syncPermissionInputs();
     }
 
@@ -951,7 +1010,12 @@ const {
         const result = await getStoreTeamUserDetail(user.id, client);
         resetEditor('edit', result.user);
         openDialog(editorDialog);
-        (focusPermissions ? permissionInputs[0] : displayNameInput)?.focus();
+        if (focusPermissions && permissionGroupToggles[0]) {
+          setPermissionGroupExpanded(permissionGroupToggles[0], true);
+          permissionInputs[0]?.focus();
+        } else {
+          displayNameInput?.focus();
+        }
       } catch (error) {
         showTeamToast(getStoreTeamErrorMessage(error), 'error');
       }
@@ -1186,6 +1250,12 @@ const {
       syncPermissionInputs();
     }, listenerOptions);
 
+    permissionGroupToggles.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        setPermissionGroupExpanded(toggle, toggle.getAttribute('aria-expanded') !== 'true');
+      }, listenerOptions);
+    });
+
     permissionInputs.forEach((input) => {
       input.addEventListener('change', () => {
         if (!isStorePermission(input.value)) return;
@@ -1220,6 +1290,7 @@ const {
           showTemporarySecret(response.temporary_password, response.temporary_password_expires_at);
         }
       } catch (error) {
+        openPermissionGroupForError(error);
         showMessage(editorAlert, getStoreTeamErrorMessage(error), 'error');
       } finally {
         editorSubmit.disabled = false;
@@ -1426,6 +1497,7 @@ const {
       editingUser = null;
       selectedPermissions = [];
       editorForm?.reset();
+      closePermissionGroups();
       showMessage(editorAlert);
     }, listenerOptions);
     actionDialog?.addEventListener('close', () => {

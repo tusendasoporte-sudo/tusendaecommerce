@@ -37,12 +37,14 @@ test('estado del padre muestra VENCIDO sin convertir ocultación manual', () => 
   }, NOW).effective_status_label, 'VISIBLE');
 });
 
-test('editores separan intención manual del checkbox efectivo', async () => {
+test('editores separan intención manual del estado efectivo', async () => {
   const products = await source('src/pages/admin/products.astro');
   assert.match(products, /let productManualActive = true/);
   assert.match(products, /let variationManualActive = true/);
-  assert.match(products, /productActiveInput\.checked = state\.effective_visible === true/);
-  assert.match(products, /variationActiveInput\.checked = state\.effective_status === 'active'/);
+  assert.match(products, /getProductEditorVisibilityState/);
+  assert.match(products, /getVariationEditorVisibilityState/);
+  assert.match(products, /productActiveInput\.checked = state\.checked === true/);
+  assert.match(products, /variationActiveInput\.checked = state\.checked === true/);
   assert.match(products, /formData\.append\('active', productManualActive \? 'true' : 'false'\)/);
   assert.match(products, /formData\.append\('active', variationManualActive \? 'true' : 'false'\)/);
   assert.match(products, /Esta variación no está visible porque su fecha de vencimiento ya pasó/);

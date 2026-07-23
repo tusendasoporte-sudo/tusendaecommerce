@@ -194,7 +194,6 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
         )}
       </div>
       <footer class="store-activity-dialog__foot">
-        <a class="store-activity-button is-secondary" href="#" data-activity-open-resource hidden>Abrir elemento</a>
         {canReview && <button class="store-activity-button is-secondary" type="button" data-activity-detail-correction>Requiere corrección</button>}
         {canReview && <button class="store-activity-button is-primary" type="button" data-activity-detail-review>Marcar revisado</button>}
         <button class="store-activity-button is-secondary" type="button" data-activity-dialog-close>Cerrar</button>
@@ -235,7 +234,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     STORE_ACTIVITY_PAGE_SIZE,
     getStoreActivityDetail,
     getStoreActivityErrorMessage,
-    getStoreActivityResourcePath,
+    getStoreActivityListSummary,
     getStoreActivitySummary,
     getStoreActivityUserReport,
     getStoreSelfActivity,
@@ -248,6 +247,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     type StoreActivityReviewStatus,
     type StoreActivityUserMetrics,
   } from '../../lib/storeActivity';
+  import { buildTeamActivityProductHistoryPath } from '../../lib/productHistoryNavigation';
 
   type ActivityMode = 'team' | 'user' | 'self';
   type ActivityWindow = typeof window & { PZ_STORE_ACTIVITY_CLEANUP?: () => void };
@@ -358,7 +358,6 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     const detailSummary = root.querySelector<HTMLElement>('[data-activity-detail-summary]');
     const detailChanges = root.querySelector<HTMLElement>('[data-activity-detail-changes]');
     const reviewCopy = root.querySelector<HTMLElement>('[data-activity-review-copy]');
-    const openResource = root.querySelector<HTMLAnchorElement>('[data-activity-open-resource]');
     const detailReview = root.querySelector<HTMLButtonElement>('[data-activity-detail-review]');
     const detailCorrection = root.querySelector<HTMLButtonElement>('[data-activity-detail-correction]');
 
@@ -380,6 +379,33 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     let selectedEvent: StoreActivityEvent | null = null;
     const eventByRef = new Map<string, StoreActivityEvent>();
     const actorByRef = new Map<string, string>();
+
+    function restoreActivityContext() {
+      if (mode !== 'team' || !form) return;
+      const allowedSelectValues: Record<string, ReadonlySet<string>> = {
+        module: new Set(['catalog', 'orders', 'shipping', 'marketing', 'operation', 'security', 'team', 'settings', 'plan']),
+        severity: new Set(['normal', 'important', 'critical']),
+        review_status: new Set(['pending', 'reviewed', 'requires_correction']),
+      };
+      Object.entries(allowedSelectValues).forEach(([name, allowed]) => {
+        const value = String(pageParams.get(name) || '').toLowerCase();
+        const input = form.elements.namedItem(name);
+        if (input instanceof HTMLSelectElement && allowed.has(value)) input.value = value;
+      });
+      const action = String(pageParams.get('action') || '').trim().toLowerCase();
+      const actionInput = form.elements.namedItem('action');
+      if (actionInput instanceof HTMLInputElement && /^[a-z0-9_.-]{1,80}$/.test(action)) actionInput.value = action;
+      ['date_from', 'date_to'].forEach((name) => {
+        const value = String(pageParams.get(name) || '');
+        const input = form.elements.namedItem(name);
+        if (input instanceof HTMLInputElement && /^\d{4}-\d{2}-\d{2}$/.test(value)) input.value = value;
+      });
+      const search = String(pageParams.get('search') || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+      const searchInput = form.elements.namedItem('search');
+      if (searchInput instanceof HTMLInputElement) searchInput.value = search;
+      const requestedPage = Number(pageParams.get('page'));
+      if (Number.isInteger(requestedPage) && requestedPage > 1 && requestedPage <= 100_000) currentPage = requestedPage;
+    }
 
     function syncResourceFilterNotice() {
       if (resourceFilterNotice) resourceFilterNotice.hidden = !(resourceTypeFilter && resourceIdFilter);
@@ -487,13 +513,17 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
         const actorState = event.actor.is_deleted
           ? '<span class="store-activity-actor-state">Usuario eliminado</span>'
           : (event.actor.is_system ? '<span class="store-activity-actor-state is-system">Sistema</span>' : '');
-        const route = getStoreActivityResourcePath(storeSlug, event.resource);
-        const resourceAction = route
-          ? `<a class="store-activity-link" href="${escapeHtml(route)}" aria-label="Abrir ${escapeHtml(event.resource.label || 'elemento')}">Abrir</a>`
-          : `<span class="store-activity-resource-missing">${event.action === 'user_deleted' ? 'Usuario eliminado' : 'Elemento eliminado'}</span>`;
-        const productHistoryAction = event.resource.history_path
-          ? `<a class="store-activity-link" href="${escapeHtml(event.resource.history_path)}">Ver historial</a>`
+        const historyPath = buildTeamActivityProductHistoryPath(
+          storeSlug,
+          event.resource.history_path,
+          readFilters(),
+        );
+        const productHistoryAction = historyPath
+          ? `<a class="store-activity-link" href="${escapeHtml(historyPath)}">Ver historial</a>`
           : '';
+        const missingResourceState = event.resource.exists
+          ? ''
+          : `<span class="store-activity-resource-missing">${event.action === 'user_deleted' ? 'Usuario eliminado' : 'Elemento eliminado'}</span>`;
         const review = mode === 'self'
           ? ''
           : `<span class="store-activity-pill is-review-${escapeHtml(event.review.status)}">${escapeHtml(reviewLabel(event.review.status))}</span>`;
@@ -511,15 +541,15 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
               <span>${escapeHtml(moduleLabel(event.module))}</span>
               ${event.resource.label ? `<small title="${escapeHtml(event.resource.label)}">${escapeHtml(event.resource.label)}</small>` : ''}
             </div>
-            <p class="store-activity-item__summary">${escapeHtml(event.summary)}</p>
+            <p class="store-activity-item__summary">${escapeHtml(getStoreActivityListSummary(event))}</p>
             ${compactChanges(event)}
+            ${missingResourceState}
           </div>
           <div class="store-activity-item__status">
             <span class="store-activity-pill is-${escapeHtml(event.severity)}">${escapeHtml(severityLabel(event.severity))}</span>
             ${review}
           </div>
           <div class="store-activity-item__actions">
-            ${resourceAction}
             ${productHistoryAction}
             ${productHistoryAction ? '<button class="store-activity-link is-button" type="button" data-activity-view-change>Ver detalle</button>' : `<button class="store-activity-link is-button" type="button" data-activity-view-change>Ver cambio</button>${reviewAction}`}
           </div>
@@ -624,12 +654,6 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
         const reviewedAt = event.review.reviewed_at ? ` · ${formatDate(event.review.reviewed_at)}` : '';
         const note = event.review.note ? ` — ${event.review.note}` : '';
         reviewCopy.textContent = `${reviewLabel(event.review.status)}${reviewedAt}${note}`;
-      }
-      const route = getStoreActivityResourcePath(storeSlug, event.resource);
-      if (openResource) {
-        openResource.hidden = !route;
-        if (route) openResource.href = route;
-        else openResource.removeAttribute('href');
       }
       if (detailReview) {
         detailReview.hidden = !event.can_review || event.review.status === 'reviewed';
@@ -813,6 +837,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
       delete root.dataset.activityInitialized;
     };
     viewCleanups.push(cleanup);
+    restoreActivityContext();
     syncResourceFilterNotice();
     if (activated) void loadActivity();
   }

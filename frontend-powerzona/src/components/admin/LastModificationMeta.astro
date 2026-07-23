@@ -91,7 +91,15 @@ const {
     const raw = String(value || '').trim();
     const date = new Date(raw.replace(' ', 'T'));
     if (!raw || !Number.isFinite(date.getTime())) return '';
-    return new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    return new Intl.DateTimeFormat('es', {
+      timeZone: 'America/Havana',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date).replace(/\s+a\.\s+m\.|\s+p\.\s+m\./g, '').replace(/\./g, '').trim();
   }
 
   function appendLine(element: HTMLElement, value: string, className: string) {
@@ -105,25 +113,39 @@ const {
     element.replaceChildren();
     element.dataset.lastModificationLoaded = 'true';
     element.classList.remove('is-loading', 'is-error', 'is-empty');
-    if (!item) {
+    const fallbackUpdated = String(element.dataset.fallbackUpdated || '').trim();
+    const modifiedAt = item?.last_modified_at || fallbackUpdated;
+    if (!modifiedAt) {
       element.classList.add('is-empty');
       if (element.dataset.usefulEmpty !== 'false') {
         appendLine(element, 'Sin modificaciones registradas', 'pz-last-modification__meta');
       }
       return;
     }
-    const created = formatDate(item.last_modified_at);
-    const deletedActor = item.actor_state === 'deleted';
+    const created = formatDate(modifiedAt);
+    if (element.dataset.simpleLastModification === 'true') {
+      appendLine(
+        element,
+        created ? `Última modificación: ${created}` : 'Última modificación no disponible',
+        'pz-last-modification__meta',
+      );
+      return;
+    }
+    const deletedActor = item?.actor_state === 'deleted';
     let headline = created ? `Última actualización · ${created}` : 'Última actualización';
-    if (showActor && item.actor_name) {
+    if (showActor && item?.actor_name) {
       const actor = deletedActor ? `${item.actor_name} · Usuario eliminado` : item.actor_name;
       headline = created ? `Editado por ${actor} · ${created}` : `Editado por ${actor}`;
     }
     appendLine(element, headline, 'pz-last-modification__meta');
-    if (showActor && item.summary) appendLine(element, item.summary, 'pz-last-modification__summary');
+    if (showActor && item?.summary) appendLine(element, item.summary, 'pz-last-modification__summary');
   }
 
   function renderUnavailable(element: HTMLElement) {
+    if (element.dataset.fallbackUpdated) {
+      renderItem(element, null, false);
+      return;
+    }
     element.replaceChildren();
     element.dataset.lastModificationLoaded = 'true';
     element.classList.remove('is-loading');
@@ -137,7 +159,10 @@ const {
     const elements = [...pending].filter((element) => element.isConnected);
     pending.clear();
     if (!config.enabled || !config.baseUrl) {
-      elements.forEach((element) => { element.hidden = true; });
+      elements.forEach((element) => {
+        if (element.dataset.fallbackUpdated) renderItem(element, null, false);
+        else element.hidden = true;
+      });
       return;
     }
     const byKey = new Map<string, { type: string; id: string; elements: HTMLElement[] }>();

@@ -80,10 +80,11 @@ test('Actividad del equipo usa acciones compactas y destino individual', async (
     source('src/styles/store-activity.css'),
     source('src/lib/storeActivity.ts'),
   ]);
-  assert.match(view, />Abrir<\/a>/);
+  assert.doesNotMatch(view, />Abrir<\/a>/);
   assert.doesNotMatch(view, />Abrir \$\{escapeHtml\(event\.resource\.label/);
-  assert.match(view, /aria-label="Abrir \$\{escapeHtml\(event\.resource\.label/);
+  assert.doesNotMatch(view, /aria-label="Abrir \$\{escapeHtml\(event\.resource\.label/);
   assert.match(view, />Ver historial<\/a>/);
+  assert.match(view, /buildTeamActivityProductHistoryPath/);
   assert.match(client, /history_path/);
   assert.match(css, /store-activity-item__actions[^}]*flex-wrap:\s*nowrap/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*store-activity-item__actions[^}]*flex-wrap:\s*wrap/);

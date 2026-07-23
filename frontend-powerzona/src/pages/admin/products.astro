@@ -2677,8 +2677,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="products" mobileTitle="Productos" mobileActionLabel={canCreateProducts ? 'Nuevo producto' : ''} mobileActionTarget={canCreateProducts ? '#new-product-btn' : ''} />
       <LastModificationMeta
         pocketbaseUrl={pocketbaseUrl}
-        enabled={storeAccessContext?.access.is_primary_admin === true}
-        showActor={storeAccessContext?.access.is_primary_admin === true}
+        enabled={true}
+        showActor={false}
         controllerOnly={true}
       />
 
@@ -2705,6 +2705,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <div>
                 <h2 id="editor-title" class="editor-title">Nuevo producto</h2>
                 <p id="editor-subtitle" class="editor-subtitle">Completa los datos principales. La subcategoría es opcional: si la dejas vacía, será producto directo de la categoría.</p>
+                <span
+                  id="product-editor-last-modification"
+                  class="pz-last-modification"
+                  data-pz-last-modification
+                  data-resource-type="product"
+                  data-resource-id=""
+                  data-fallback-updated=""
+                  data-simple-last-modification="true"
+                  data-useful-empty="false"
+                  aria-live="polite"
+                  hidden
+                ></span>
               </div>
               <div class="editor-head-actions">
                 <a id="product-history-link" class="mini-btn hidden">Ver historial</a>
@@ -3292,7 +3304,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       import {
         formatCivilDate,
         getEffectiveProductStatus,
+        getProductEditorVisibilityState,
         getVariationEffectiveStatus,
+        getVariationEditorVisibilityState,
+        isRecordManuallyActive,
         todayCivilDate,
       } from '../../lib/adminStoreProducts';
 
@@ -3303,7 +3318,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         writable: false,
       });
       Object.defineProperty(globalThis, 'pzAdminStoreProducts', {
-        value: Object.freeze({ formatCivilDate, getEffectiveProductStatus, getVariationEffectiveStatus, todayCivilDate }),
+        value: Object.freeze({
+          formatCivilDate,
+          getEffectiveProductStatus,
+          getProductEditorVisibilityState,
+          getVariationEffectiveStatus,
+          getVariationEditorVisibilityState,
+          isRecordManuallyActive,
+          todayCivilDate,
+        }),
         configurable: true,
         enumerable: false,
         writable: false,
@@ -3450,6 +3473,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let duplicateProductToastTimer = null;
       const editorTitle = document.getElementById('editor-title');
       const editorSubtitle = document.getElementById('editor-subtitle');
+      const productEditorLastModification = document.getElementById('product-editor-last-modification');
       const productHistoryLink = document.getElementById('product-history-link');
       const mobileTopbarTitle = document.getElementById('mobile-topbar-title');
       const editorCloseBtn = document.getElementById('editor-close-btn');
@@ -3655,11 +3679,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function syncProductEffectiveVisibility() {
         if (!productActiveInput) return;
-        const state = currentProductEffectiveStatus();
-        const blockedByExpiration = EXPIRATION_TOOLS_ENABLED && state.expired === true
-          && !productHasVariationsInput?.checked;
-        productActiveInput.checked = state.effective_visible === true;
-        productActiveInput.disabled = !CAN_MANAGE_PRODUCT_VISIBILITY || blockedByExpiration;
+        const product = currentEditorProductRecord();
+        const state = globalThis.pzAdminStoreProducts?.getProductEditorVisibilityState?.(
+          product,
+          CAN_MANAGE_PRODUCT_VISIBILITY,
+          EXPIRATION_TOOLS_ENABLED,
+        ) || {
+          ...currentProductEffectiveStatus(),
+          checked: productManualActive,
+          disabled: !CAN_MANAGE_PRODUCT_VISIBILITY,
+          blocked_by_expiration: false,
+        };
+        const blockedByExpiration = state.blocked_by_expiration === true;
+        productActiveInput.checked = state.checked === true;
+        productActiveInput.disabled = state.disabled === true;
         productActiveInput.setAttribute('aria-disabled', productActiveInput.disabled ? 'true' : 'false');
         productActiveInput.title = blockedByExpiration
           ? 'Corrige o elimina la fecha de vencimiento antes de mostrar este producto.'
@@ -3668,11 +3701,35 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function syncVariationEffectiveVisibility() {
         if (!variationActiveInput) return;
-        const state = currentVariationEffectiveStatus();
-        const blockedByExpiration = EXPIRATION_TOOLS_ENABLED && state.expired === true;
-        const blockedByMode = state.effective_status === 'disabled_by_parent_mode';
-        variationActiveInput.checked = state.effective_status === 'active';
-        variationActiveInput.disabled = !CAN_MANAGE_PRODUCT_VISIBILITY || blockedByExpiration || blockedByMode;
+        const product = currentEditorProductRecord();
+        const variationId = variationIdInput?.value || '__new_variation__';
+        const saved = productVariations.find((item) => item.id === variationId) || {};
+        const variation = {
+          ...saved,
+          id: variationId,
+          product: product.id,
+          active: variationManualActive,
+          expiration_date: variationExpirationDateInput ? variationExpirationDateInput.value : (saved.expiration_date || ''),
+        };
+        const variations = productVariations.some((item) => item.id === variationId)
+          ? productVariations.map((item) => item.id === variationId ? variation : item)
+          : productVariations.concat(variation);
+        const state = globalThis.pzAdminStoreProducts?.getVariationEditorVisibilityState?.(
+          product,
+          variation,
+          variations,
+          CAN_MANAGE_PRODUCT_VISIBILITY,
+          EXPIRATION_TOOLS_ENABLED,
+        ) || {
+          ...currentVariationEffectiveStatus(),
+          checked: variationManualActive,
+          disabled: !CAN_MANAGE_PRODUCT_VISIBILITY,
+          blocked_by_expiration: false,
+          blocked_by_mode: false,
+        };
+        const blockedByExpiration = state.blocked_by_expiration === true;
+        variationActiveInput.checked = state.checked === true;
+        variationActiveInput.disabled = state.disabled === true;
         variationActiveInput.setAttribute('aria-disabled', variationActiveInput.disabled ? 'true' : 'false');
         variationActiveInput.title = blockedByExpiration
           ? 'Corrige o elimina la fecha de vencimiento antes de activar esta variación.'
@@ -4894,7 +4951,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (variationExpirationDateInput) variationExpirationDateInput.value = dateForInput(variation.expiration_date);
         variationRefInput.value = variation.internal_ref || '';
         variationOrderInput.value = Number(variation.sort_order || 0);
-        variationManualActive = variation.active !== false;
+        variationManualActive = globalThis.pzAdminStoreProducts?.isRecordManuallyActive?.(variation)
+          ?? variation.active !== false;
         syncVariationEffectiveVisibility();
         variationAllowPreorderInput.checked = Boolean(variation.allow_preorder);
         updateVariationOfferFieldState();
@@ -5260,8 +5318,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const variationOfferState = getValidVariationOfferState();
         if (CAN_MANAGE_PRODUCT_PRICE && variationOfferState.enabled && !variationOfferState.valid) throw new Error('El precio de oferta de la variacion debe ser mayor que 0 y menor que el precio normal.');
         const savedVariation = productVariations.find((item) => item.id === variationIdInput.value) || null;
+        const savedVariationWasActive = savedVariation
+          ? (globalThis.pzAdminStoreProducts?.isRecordManuallyActive?.(savedVariation) ?? savedVariation.active !== false)
+          : false;
         const attemptsActivation = variationManualActive
-          && (!isEditing || savedVariation?.active === false);
+          && (!isEditing || !savedVariationWasActive);
         if (attemptsActivation && EXPIRATION_TOOLS_ENABLED) {
           const effectiveState = currentVariationEffectiveStatus();
           if (effectiveState.expired) {
@@ -5281,7 +5342,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (EXPIRATION_TOOLS_ENABLED) formData.append('expiration_date', variationExpirationDateInput?.value || '');
         formData.append('internal_ref', variationRefInput.value.trim());
         formData.append('sort_order', String(Math.max(0, Math.floor(Number(variationOrderInput.value || 0)))));
-        if (!isEditing || savedVariation?.active !== variationManualActive) {
+        if (!isEditing || savedVariationWasActive !== variationManualActive) {
           formData.append('active', variationManualActive ? 'true' : 'false');
         }
         formData.append('allow_preorder', variationAllowPreorderInput.checked ? 'true' : 'false');
@@ -5380,6 +5441,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         productHistoryLink.setAttribute('href', `${PRODUCT_HISTORY_BASE_PATH}/${encodeURIComponent(id)}/history?from=products`);
       }
+      function syncEditorLastModification(product = null) {
+        if (!productEditorLastModification) return;
+        const id = String(product?.id || '').trim();
+        const available = /^[a-z0-9]{15}$/.test(id);
+        productEditorLastModification.hidden = !available;
+        productEditorLastModification.dataset.resourceId = available ? id : '';
+        productEditorLastModification.dataset.fallbackUpdated = available ? String(product?.updated || '') : '';
+        productEditorLastModification.removeAttribute('data-last-modification-loaded');
+        if (!available) productEditorLastModification.replaceChildren();
+      }
       function closeProductEditor() {
         productEditor.classList.add('hidden');
         setCatalogOverviewVisible(true);
@@ -5396,6 +5467,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         editorTitle.textContent = 'Nuevo producto';
         editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
         syncProductHistoryLink();
+        syncEditorLastModification();
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Nuevo producto';
         if (productHasVariationsOption) productHasVariationsOption.classList.add('hidden');
         productEditor.classList.remove('hidden');
@@ -5414,6 +5486,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Editar producto';
         productIdInput.value = product.id;
         syncProductHistoryLink(product.id);
+        syncEditorLastModification(product);
         productNameInput.value = product.name || '';
         productSlugInput.value = product.slug || '';
         productCategoryInput.value = product.category || '';
@@ -5438,7 +5511,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetProductExtraInfo(product.extra_info);
         selectedRelatedProductIds = normalizeRelatedProductsValue(product.related_products).filter((id) => id !== product.id);
         renderSelectedRelatedProducts();
-        productManualActive = product.active !== false;
+        productManualActive = globalThis.pzAdminStoreProducts?.isRecordManuallyActive?.(product)
+          ?? product.active !== false;
         syncProductEffectiveVisibility();
         productFeaturedInput.checked = Boolean(product.featured);
         productOnlyUsdInput.checked = Boolean(product.only_usd);
@@ -5524,9 +5598,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           if (parentError) throw new Error(parentError);
         }
         const savedProduct = products.find((item) => item.id === productIdInput.value) || null;
+        const savedProductWasActive = savedProduct
+          ? (globalThis.pzAdminStoreProducts?.isRecordManuallyActive?.(savedProduct) ?? savedProduct.active !== false)
+          : false;
         const attemptsToShowParent = productManualActive && (
           !isEditing
-          || savedProduct?.active === false
+          || !savedProductWasActive
           || (savedProduct?.has_variations === true && !shouldUseVariations)
         );
         if (attemptsToShowParent && !shouldUseVariations && EXPIRATION_TOOLS_ENABLED
@@ -5556,7 +5633,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('delivery_mode', productDeliveryModeInput.value || 'both');
         formData.append('description', productDescriptionInput.value.trim());
         formData.append('extra_info', JSON.stringify(normalizeProductExtraInfo(productExtraInfoItems)));
-        if (!isEditing || savedProduct?.active !== productManualActive) {
+        if (!isEditing || savedProductWasActive !== productManualActive) {
           formData.append('active', productManualActive ? 'true' : 'false');
         }
         formData.append('featured', productFeaturedInput.checked ? 'true' : 'false');
@@ -5681,6 +5758,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             const savedProduct = await syncProductImageOrder(updatedProduct, shouldSyncProductImages);
             await loadProducts();
             const freshProduct = products.find((item) => item.id === editingId) || savedProduct || updatedProduct;
+            syncEditorLastModification(freshProduct);
+            document.dispatchEvent(new CustomEvent('pz:last-modification:refresh'));
             persistedHasVariations = Boolean(freshProduct?.has_variations);
             productHasVariationsInput.checked = persistedHasVariations;
             renderCurrentImages(freshProduct);
@@ -5717,6 +5796,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             productIdInput.value = created.id;
             syncProductHistoryLink(created.id);
             const freshCreatedProduct = products.find((item) => item.id === created.id) || created;
+            syncEditorLastModification(freshCreatedProduct);
+            document.dispatchEvent(new CustomEvent('pz:last-modification:refresh'));
             renderCurrentImages(freshCreatedProduct);
             editorTitle.textContent = 'Producto creado';
             editorSubtitle.textContent = `Producto guardado: ${created.name || productNameInput.value.trim()}`;
@@ -6228,7 +6309,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <div>
                   <p class="product-title${canOpenEditor ? ' js-product-open' : ''}"${canOpenEditor ? ' role="button" tabindex="0" title="Gestionar producto"' : ''}>${escapeHtml(product.name || 'Producto sin nombre')}</p>
                   <p class="product-meta">${escapeHtml([product.slug, refText].filter(Boolean).join(' · '))}</p>
-                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="product" data-resource-id="${escapeHtml(product.id)}" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
+                  <span class="pz-last-modification" data-pz-last-modification data-resource-type="product" data-resource-id="${escapeHtml(product.id)}" data-fallback-updated="${escapeHtml(product.updated || '')}" data-simple-last-modification="true" data-useful-empty="true"><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
                   <div class="product-badges">
                     ${product.featured ? '<span class="mini-pill featured">Destacado</span>' : ''}
                     ${hasActiveOffer ? '<span class="mini-pill danger">Oferta</span>' : ''}

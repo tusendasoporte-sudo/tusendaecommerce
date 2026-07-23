@@ -8,6 +8,7 @@ import { getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { isMasterAdmin, isStoreStaff, refreshAuthFromCookie } from '../../../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
 import { resolveStorePlanPresentation } from '../../../../lib/storePlanPresentation';
+import { getStoreAccessContext } from '../../../../lib/storeTeam';
 import '../../../../styles/global.css';
 import '../../../../styles/account-ui.css';
 
@@ -35,7 +36,14 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
 const user = adminContext.user;
 const displayName = String(user.display_name || user.name || user.email || 'Administrador');
 const roleLabel = isStoreStaff(user) ? 'Personal de tienda' : 'Administrador de tienda';
-const planPresentation = resolveStorePlanPresentation(adminContext.store);
+const storeAccess = await getStoreAccessContext({
+  baseUrl: String(import.meta.env.PUBLIC_POCKETBASE_URL || ''),
+  token: String(authPb.authStore.token || ''),
+}).catch(() => null);
+const isPrimaryStoreAdmin = storeAccess?.access.is_primary_admin === true;
+const planPresentation = isPrimaryStoreAdmin
+  ? resolveStorePlanPresentation(adminContext.store)
+  : null;
 ---
 
 <!doctype html>
@@ -65,17 +73,19 @@ const planPresentation = resolveStorePlanPresentation(adminContext.store);
       </header>
 
       <div class="pz-account-stack">
-        <section id="plan" class="pz-account-card" aria-labelledby="account-plan-title">
-          <header class="pz-account-card__head">
-            <h2 id="account-plan-title">Planes de la tienda</h2>
-            <p>Consulta el plan actual y las opciones disponibles. La asignación o el cambio se gestiona de forma segura desde Master Admin.</p>
-          </header>
-          <dl class="pz-account-info">
-            <div><dt>Plan actual</dt><dd>{planPresentation.contextTitle}</dd></div>
-            <div><dt>Estado</dt><dd>{planPresentation.contextDetail}</dd></div>
-            <div><dt>Opciones</dt><dd>Prueba gratuita · Plan Básico · Plan Premium</dd></div>
-          </dl>
-        </section>
+        {isPrimaryStoreAdmin && planPresentation && (
+          <section id="plan" class="pz-account-card" aria-labelledby="account-plan-title">
+            <header class="pz-account-card__head">
+              <h2 id="account-plan-title">Planes de la tienda</h2>
+              <p>Consulta el plan actual y las opciones disponibles. La asignación o el cambio se gestiona de forma segura desde Master Admin.</p>
+            </header>
+            <dl class="pz-account-info">
+              <div><dt>Plan actual</dt><dd>{planPresentation.contextTitle}</dd></div>
+              <div><dt>Estado</dt><dd>{planPresentation.contextDetail}</dd></div>
+              <div><dt>Opciones</dt><dd>Prueba gratuita · Plan Básico · Plan Premium</dd></div>
+            </dl>
+          </section>
+        )}
 
         <section class="pz-account-card" aria-labelledby="account-information-title">
           <header class="pz-account-card__head">

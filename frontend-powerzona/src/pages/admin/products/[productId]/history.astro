@@ -1,6 +1,7 @@
 ---
 import { refreshAuthFromCookie } from '../../../../lib/auth';
 import { getStoreAdminPath } from '../../../../lib/adminRoutes';
+import { resolveProductHistoryReturnNavigation } from '../../../../lib/productHistoryNavigation';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
@@ -13,11 +14,10 @@ const authToken = authPb.authStore.token;
 const storeSlug = String(adminContext.store.slug || '');
 const productId = /^[a-z0-9]{15}$/.test(String(Astro.params.productId || '')) ? String(Astro.params.productId) : '';
 const requestedVariation = /^[a-z0-9]{15}$/.test(String(Astro.url.searchParams.get('variation') || '')) ? String(Astro.url.searchParams.get('variation')) : '';
-const returnContext = Astro.url.searchParams.get('from') === 'expirations' ? 'expirations' : 'products';
 const productsPath = getStoreAdminPath(storeSlug, 'products');
-const expirationsPath = getStoreAdminPath(storeSlug, 'expirations');
-const returnPath = returnContext === 'expirations' ? expirationsPath : productsPath;
-const returnLabel = returnContext === 'expirations' ? 'Volver a Vencimientos' : 'Volver a Productos';
+const returnNavigation = resolveProductHistoryReturnNavigation(storeSlug, Astro.url.searchParams);
+const returnPath = returnNavigation.path;
+const returnLabel = returnNavigation.label;
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
 Astro.response.headers.set('Pragma', 'no-cache');

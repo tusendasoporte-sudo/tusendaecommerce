@@ -29,6 +29,10 @@ function active(record: ProductRecord | null | undefined) {
   return value === undefined || value === null || value === '' ? true : bool(value);
 }
 
+export function isRecordManuallyActive(record: ProductRecord | null | undefined) {
+  return active(record);
+}
+
 export function civilDate(value: unknown) {
   const match = String(value || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!match) return '';
@@ -100,6 +104,24 @@ export function getEffectiveProductStatus(
   };
 }
 
+export function getProductEditorVisibilityState(
+  product: ProductRecord,
+  canManageVisibility = true,
+  expirationEnabled = true,
+  now: Date | string | number = new Date(),
+) {
+  const effective = getEffectiveProductStatus(product, now);
+  const blockedByExpiration = expirationEnabled === true
+    && effective.expired
+    && !productUsesVariations(product);
+  return {
+    ...effective,
+    checked: blockedByExpiration ? false : effective.manual_active,
+    disabled: canManageVisibility !== true || blockedByExpiration,
+    blocked_by_expiration: blockedByExpiration,
+  } as const;
+}
+
 export function formatCivilDate(value: unknown) {
   const normalized = civilDate(value);
   if (!normalized) return '';
@@ -166,6 +188,26 @@ export function getVariationEffectiveStatus(
     expired: false,
     effective_expiration_date: effectiveDate,
   };
+}
+
+export function getVariationEditorVisibilityState(
+  product: ProductRecord,
+  variation: ProductRecord,
+  variations: ProductRecord[] = [],
+  canManageVisibility = true,
+  expirationEnabled = true,
+  now: Date | string | number = new Date(),
+) {
+  const effective = getVariationEffectiveStatus(product, variation, variations, now);
+  const blockedByExpiration = expirationEnabled === true && effective.expired;
+  const blockedByMode = effective.effective_status === 'disabled_by_parent_mode';
+  return {
+    ...effective,
+    checked: blockedByExpiration || blockedByMode ? false : active(variation),
+    disabled: canManageVisibility !== true || blockedByExpiration || blockedByMode,
+    blocked_by_expiration: blockedByExpiration,
+    blocked_by_mode: blockedByMode,
+  } as const;
 }
 
 export function variationUnitPrice(variation: ProductRecord) {

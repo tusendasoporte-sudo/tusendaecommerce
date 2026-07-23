@@ -87,6 +87,38 @@ export type StoreActivityEvent = {
   can_review: boolean;
 };
 
+const SHORT_ACTIVITY_SUMMARIES: Readonly<Record<string, string>> = Object.freeze({
+  product_expiration_corrected: 'Corrigió el vencimiento',
+  variation_expiration_corrected: 'Corrigió el vencimiento',
+  product_manual_shown: 'Mostró manualmente',
+  variation_manual_shown: 'Mostró manualmente',
+  product_manual_hidden: 'Ocultó manualmente',
+  variation_manual_hidden: 'Ocultó manualmente',
+  product_variation_updated: 'Actualizó la variación',
+});
+
+export function getStoreActivityListSummary(
+  event: Pick<StoreActivityEvent, 'action' | 'summary' | 'changes' | 'resource'>,
+) {
+  const action = text(event?.action).toLowerCase();
+  if (SHORT_ACTIVITY_SUMMARIES[action]) return SHORT_ACTIVITY_SUMMARIES[action];
+  const changedFields = new Set((event?.changes || []).map((change) => text(change?.field).toLowerCase()));
+  if (changedFields.size === 1 && changedFields.has('expiration_date')) return 'Cambió el vencimiento';
+  if (changedFields.size > 0 && [...changedFields].every((field) => ['price', 'price_usd', 'base_price_usd', 'regular_price_usd', 'offer_price_usd'].includes(field))) {
+    return 'Cambió el precio';
+  }
+  if (changedFields.size === 1 && changedFields.has('stock')) return 'Cambió el stock';
+
+  const summary = text(event?.summary).slice(0, 500);
+  const resourceLabel = text(event?.resource?.label);
+  if (!summary || !resourceLabel) return summary || 'Cambio administrativo registrado';
+  const withPreposition = ` de ${resourceLabel}`;
+  if (summary.endsWith(withPreposition)) return summary.slice(0, -withPreposition.length).trim();
+  const directSuffix = ` ${resourceLabel}`;
+  if (summary.endsWith(directSuffix)) return summary.slice(0, -directSuffix.length).trim();
+  return summary;
+}
+
 export type StoreActivityPagination = {
   page: number;
   per_page: number;
