@@ -46,9 +46,10 @@ test('Productos muestra estados efectivos y bloquea activacion vencida', async (
     source('src/pages/admin/products.astro'),
     source('src/lib/adminStoreProducts.ts'),
   ]);
-  assert.match(products, /Oculta manualmente/);
+  assert.doesNotMatch(products, /Oculta manualmente|Oculta por vencimiento/);
+  assert.match(products, /effective_status_label: variation\.active === false \? 'Oculta' : 'Activa'/);
   assert.match(products, /hidden_expired/);
-  assert.match(helper, /Conservada — variaciones desactivadas/);
+  assert.match(helper, /effective_status_label: 'Conservada'/);
   assert.match(products, /Corrige o elimina la fecha de vencimiento antes de activar esta variacion/);
   assert.match(products, /data-variation-action="correct-expiration"/);
   assert.match(products, /state\.effective_status === 'hidden_expired' \|\| \(!active && !state\.can_activate\)/);

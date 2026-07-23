@@ -30,7 +30,8 @@ test('M7U2: Productos deriva flags SSR y filtra campos antes de cualquier mutaci
   assert.match(source, /function assertProductMutationAllowed\(path, options = \{\}\)/);
   assert.match(source, /assertProductMutationAllowed\(path, options\);[\s\S]*?fetch\(`/);
   assert.match(source, /return filterProductMutationBodyForAccess\(formData, \{ create: !isEditing \}\)/);
-  assert.match(source, /CAN_MANAGE_PRODUCT_VISIBILITY \? `<button class="mini-btn pz-admin-action-btn js-product-toggle"/);
+  assert.match(source, /CAN_MANAGE_PRODUCT_VISIBILITY \? \(effectiveState\.expired[\s\S]*?js-product-expiration-locked[\s\S]*?js-product-toggle/);
+  assert.doesNotMatch(source, /<button class="mini-btn pz-admin-action-btn js-product-toggle"/);
   assert.match(source, /CAN_MANAGE_PRODUCT_STOCK && !variationMode \? `<button class="pz-admin-dropdown-item danger-action js-product-soldout"/);
   assert.match(source, /CAN_DELETE_PRODUCTS \? `<button class="pz-admin-dropdown-item danger-action js-product-delete"/);
   assert.match(source, /mobileActionLabel=\{canCreateProducts \? 'Nuevo producto' : ''\}/);

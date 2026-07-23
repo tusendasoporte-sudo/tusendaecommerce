@@ -15,7 +15,7 @@ const HOOKS_DIR = path.join(BACKEND_DIR, 'pb_hooks');
 const MIGRATIONS_DIR = path.join(BACKEND_DIR, 'pb_migrations');
 const POCKETBASE_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase');
 const TEMP_ROOT = path.join(BACKEND_DIR, '.tmp');
-const TEMP_PREFIX = 'V7E9C3F2R2QA_';
+const TEMP_PREFIX = 'V7E9C3F3QA_';
 const LOOPBACK = '127.0.0.1';
 const EXPIRATION_NOTIFICATION_TYPES = [
   'product_expiring_soon',
@@ -177,7 +177,7 @@ function assertOwnedTempDirectory(directory) {
   const resolvedRoot = path.resolve(TEMP_ROOT);
   const resolvedDirectory = path.resolve(directory);
   assert.equal(path.dirname(resolvedDirectory), resolvedRoot, `directorio temporal fuera de alcance: ${resolvedDirectory}`);
-  assert.match(path.basename(resolvedDirectory), /^V7E9C3F2R2QA_[A-Za-z0-9_-]+$/);
+  assert.match(path.basename(resolvedDirectory), /^V7E9C3F3QA_[A-Za-z0-9_-]+$/);
 }
 
 async function apiRequest(baseUrl, route, { token = '', body, headers = {}, method = body === undefined ? 'GET' : 'POST' } = {}) {
@@ -207,7 +207,7 @@ function close(actual, expected, label) {
   assert.ok(Math.abs(Number(actual) - Number(expected)) < 0.000001, `${label}: ${actual} != ${expected}`);
 }
 
-test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, permisos, tenant y cleanup', { timeout: 180000 }, async () => {
+test('V7E9-C3F3 HTTP runtime valida estados manuales/efectivos, F12, permisos, tenant y cleanup', { timeout: 180000 }, async () => {
   assert.equal(fs.existsSync(POCKETBASE_EXE), true, `falta binario PocketBase: ${POCKETBASE_EXE}`);
   fs.mkdirSync(TEMP_ROOT, { recursive: true });
   const tempDirectory = fs.mkdtempSync(path.join(TEMP_ROOT, TEMP_PREFIX));
@@ -219,7 +219,7 @@ test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, pe
 
   const stamp = Date.now();
   const suffix = `${stamp.toString(36)}${Math.random().toString(36).slice(2, 7)}`.toLowerCase();
-  const prefix = `V7E9C3F2R2QA_${stamp}`;
+  const prefix = `V7E9C3F3QA_${stamp}`;
   const slugPrefix = `v7e9c3f2r2qa-${suffix}`;
   const superEmail = `${slugPrefix}-super@example.test`;
   const superPassword = runtimePassword('superuser');
@@ -561,6 +561,9 @@ test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, pe
     const expiredProduct = await createProduct('expired-product');
     const today = havanaCivilDate(0);
     assertStatus(await patchRecord('products', expiredProduct.id, { expiration_date: today }, tokens.premium), 200, 'configurar producto vencido');
+    assert.equal((await readRecord('products', expiredProduct.id)).active, true, 'padre vencido conserva active=true');
+    assertStatus(await patchRecord('products', expiredProduct.id, { stock: 13 }, tokens.premium), 200, 'guardar stock del padre vencido');
+    assert.equal((await readRecord('products', expiredProduct.id)).active, true, 'guardar stock no crea ocultación manual');
     const expiredPublicList = await publicList('products', `id="${expiredProduct.id}"`);
     assertStatus(expiredPublicList, 200, 'listado público responde sin unidad vencida');
     assert.equal(expiredPublicList.data.items.length, 0, 'producto general vencido desaparece del listado público');
@@ -577,6 +580,26 @@ test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, pe
     assert.deepEqual(rejectedProductCheckout.data, { ok: false, error: 'order_unavailable' });
     assert.equal(rejectedProductCheckout.raw.includes(today), false, 'respuesta no revela fecha');
     assert.equal(/expir|venc/i.test(rejectedProductCheckout.raw), false, 'respuesta no revela motivo');
+
+    assertStatus(await patchRecord('products', expiredProduct.id, { expiration_date: havanaCivilDate(8) }, tokens.premium), 200, 'corregir fecha restaura padre manualmente visible');
+    assert.equal((await readRecord('products', expiredProduct.id)).active, true);
+    assertStatus(await publicDetail('products', expiredProduct.id), 200, 'padre corregido vuelve a público');
+    assertStatus(await patchRecord('products', expiredProduct.id, { expiration_date: today }, tokens.premium), 200, 'restaurar fixture vencido para continuidad');
+
+    const manualHiddenParent = await createProduct('manual-hidden-parent', storePremium, { active: false });
+    assertStatus(await patchRecord('products', manualHiddenParent.id, { expiration_date: today }, tokens.premium), 200, 'configurar padre oculto y vencido');
+    assertStatus(await patchRecord('products', manualHiddenParent.id, { expiration_date: havanaCivilDate(7) }, tokens.premium), 200, 'corregir fecha de padre oculto');
+    assert.equal((await readRecord('products', manualHiddenParent.id)).active, false, 'corregir fecha no muestra padre oculto manualmente');
+    assertStatus(await patchRecord('products', manualHiddenParent.id, { expiration_date: today }, tokens.premium), 200, 'volver a vencimiento para probar activación');
+    const rejectedParentShow = await patchRecord('products', manualHiddenParent.id, { active: true }, tokens.premium);
+    assertStatus(rejectedParentShow, [400, 409, 422], 'mostrar padre vencido se rechaza');
+    assert.match(rejectedParentShow.raw, /product_expired_cannot_show|fecha de vencimiento/i);
+    assert.equal((await readRecord('products', manualHiddenParent.id)).active, false);
+    assertStatus(await patchRecord('products', manualHiddenParent.id, {
+      active: true,
+      expiration_date: havanaCivilDate(9),
+    }, tokens.premium), 200, 'corregir fecha y mostrar padre en una operación');
+    assert.equal((await readRecord('products', manualHiddenParent.id)).active, true);
 
     const futurePublicProduct = await createProduct('future-public-product');
     assertStatus(await patchRecord('products', futurePublicProduct.id, { expiration_date: havanaCivilDate(15) }, tokens.premium), 200, 'configurar producto futuro');
@@ -609,6 +632,24 @@ test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, pe
     assertStatus(rejectedActivation, [400, 409, 422], 'activar una variacion vencida se rechaza');
     assert.match(rejectedActivation.raw, /variation_expired_cannot_activate|fecha de vencimiento/i);
     assert.equal((await readRecord('product_variations', expiredVariation.id)).active, false, 'el rechazo conserva la variacion oculta');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, {
+      active: true,
+      expiration_date: havanaCivilDate(6),
+    }, tokens.premium), 200, 'corregir fecha y activar variación en una operación');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: today }, memberToken), 200, 'volver a vencer variación manualmente activa');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { stock: 11 }, tokens.premium), 200, 'guardar stock de variación vencida');
+    assert.equal((await readRecord('product_variations', expiredVariation.id)).active, true, 'guardar stock conserva active=true en variación vencida');
+    assertStatus(await checkout(commerceVariationProduct, expiredVariation), 422, 'variación activa y vencida sigue oculta comercialmente');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: havanaCivilDate(6) }, memberToken), 200, 'corregir fecha restaura variación manualmente activa');
+    assert.equal((await readRecord('product_variations', expiredVariation.id)).active, true);
+    const restoredVariationList = await publicList('product_variations', `id="${expiredVariation.id}"`);
+    assertStatus(restoredVariationList, 200, 'variación corregida vuelve a publicarse');
+    assert.equal(restoredVariationList.data.items.length, 1);
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { active: false }, tokens.premium), 200, 'ocultar variación manualmente');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: today }, memberToken), 200, 'vencer variación manualmente oculta');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: havanaCivilDate(6) }, memberToken), 200, 'corregir variación manualmente oculta');
+    assert.equal((await readRecord('product_variations', expiredVariation.id)).active, false, 'corregir fecha no activa variación oculta');
+    assertStatus(await patchRecord('product_variations', expiredVariation.id, { expiration_date: today }, memberToken), 200, 'restaurar fixture de variación vencida');
     assertStatus(await patchRecord('product_variations', validVariation.id, { expiration_date: upcomingDate }, memberToken), 200, 'configurar variacion próxima');
     assertStatus(await patchRecord('product_variations', inactiveVariation.id, { expiration_date: today }, memberToken), 200, 'configurar variación manualmente oculta y vencida');
     assertStatus(await patchRecord('product_variations', inactiveVariation.id, { expiration_date: havanaCivilDate(5) }, memberToken), 200, 'corregir fecha sin activar conserva ocultación manual');
@@ -716,7 +757,7 @@ test('V7E9-C3F2-R2 HTTP runtime valida pedidos, historial, estados efectivos, pe
       `store="${storePremium.id}" && resource_id_snapshot="${expiredVariation.id}"`,
     );
     assert.ok(unitActivities.some((event) => event.action === 'product_unit_expired'));
-    assert.ok(unitActivities.some((event) => event.action === 'product_unit_reactivated'));
+    assert.ok(unitActivities.some((event) => event.action === 'variation_expiration_corrected'));
 
     assertStatus(await patchRecord('product_variations', validVariation.id, { price_usd: 14.25 }, tokens.premium), 200, 'crear cambio de precio para historial');
     for (let index = 0; index < 22; index += 1) {

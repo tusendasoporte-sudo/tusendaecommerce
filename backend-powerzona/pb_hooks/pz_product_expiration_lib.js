@@ -436,8 +436,10 @@ function createUnitExpirationTransitionActivities(app, e, context, collectionNam
   context.before.forEach((previous, key) => {
     const next = after.get(key);
     if (!next || previous.expired === next.expired) return;
-    const action = next.expired ? "product_unit_expired" : "product_unit_reactivated";
     const isVariation = next.kind === "variation";
+    const action = next.expired
+      ? "product_unit_expired"
+      : (isVariation ? "variation_expiration_corrected" : "product_expiration_corrected");
     const label = boundedText(isVariation
       ? `${next.productName} · ${next.variationName}`
       : next.productName, 180);
@@ -457,28 +459,11 @@ function createUnitExpirationTransitionActivities(app, e, context, collectionNam
       changedFields: ["expiration_date"],
       previousValues: { expiration_date: previous.date, expired: previous.expired },
       newValues: { expiration_date: next.date, expired: next.expired },
-      summary: next.expired ? `${label} quedó fuera de venta por vencimiento` : `${label} volvió a estar vigente`,
+      summary: next.expired
+        ? `Estado efectivo de ${label} cambió a ${isVariation ? "Vencida" : "Vencido"}`
+        : `Corrigió el vencimiento de ${label}`,
       sourceEventKey: `expiration:unit:${action}:${next.id}:${previous.date || "none"}:${next.date || "none"}:${version}`,
     }));
-    if (isVariation && !next.expired) {
-      created.push(storeActivity.createActivity(app, {
-        storeId,
-        actor,
-        module: "catalog",
-        action: "variation_expiration_corrected",
-        severity: "important",
-        resourceType: "product_variation",
-        resourceId: next.id,
-        parentProductId: next.productId,
-        variationId: next.id,
-        resourceLabel: label,
-        changedFields: ["expiration_date"],
-        previousValues: { expiration_date: previous.date, expired: previous.expired },
-        newValues: { expiration_date: next.date, expired: next.expired },
-        summary: `Corrigió el vencimiento de ${label}`,
-        sourceEventKey: `expiration:variation:corrected:${next.id}:${previous.date || "none"}:${next.date || "none"}:${version}`,
-      }));
-    }
   });
   if (collectionName === "product_variations"
     && !created.some((activity) => recordString(activity, "action") === "variation_expiration_corrected")) {
@@ -511,6 +496,35 @@ function createUnitExpirationTransitionActivities(app, e, context, collectionNam
           newValues: { expiration_date: nextDate, expired: false },
           summary: `Corrigió el vencimiento de ${label}`,
           sourceEventKey: `expiration:variation:corrected:${e.record.id}:${previousDate || "none"}:${nextDate || "none"}:${version}`,
+        }));
+      }
+    }
+  }
+  if (collectionName === "products"
+    && !created.some((activity) => recordString(activity, "action") === "product_expiration_corrected")) {
+    const original = originalRecord(e && e.record);
+    const previousDate = original ? normalizeCivilDate(recordValue(original, "expiration_date"), true) || "" : "";
+    const nextDate = normalizeCivilDate(recordValue(e && e.record, "expiration_date"), true) || "";
+    if (previousDate !== nextDate && isExpired(previousDate, context.now) && !isExpired(nextDate, context.now)) {
+      const resolved = resolveDateRequestRecords(e, collectionName);
+      const storeId = resolved && resolved.product ? relationId(resolved.product, "store") : "";
+      const label = boundedText(recordString(e.record, "name") || "Producto", 180);
+      if (storeId) {
+        created.push(storeActivity.createActivity(app, {
+          storeId,
+          actor,
+          module: "catalog",
+          action: "product_expiration_corrected",
+          severity: "important",
+          resourceType: "product",
+          resourceId: e.record.id,
+          parentProductId: e.record.id,
+          resourceLabel: label,
+          changedFields: ["expiration_date"],
+          previousValues: { expiration_date: previousDate, expired: true },
+          newValues: { expiration_date: nextDate, expired: false },
+          summary: `Corrigió el vencimiento de ${label}`,
+          sourceEventKey: `expiration:product:corrected:${e.record.id}:${previousDate || "none"}:${nextDate || "none"}:${version}`,
         }));
       }
     }
@@ -700,7 +714,7 @@ function validateVariationActivationState(e, collectionName, now) {
   const body = requestBody(e);
   const original = originalRecord(e.record);
   const explicitlyActivating = bodyHas(body, "active") && recordBool(e.record, "active");
-  const creatingActive = !original && recordValue(e.record, "active") !== false;
+  const creatingActive = !original && recordIsNew(e.record) && recordValue(e.record, "active") !== false;
   if (!explicitlyActivating && !creatingActive) return null;
   const resolved = resolveDateRequestRecords(e, collectionName);
   if (!resolved || !resolved.product || !resolved.store) {
@@ -713,6 +727,35 @@ function validateVariationActivationState(e, collectionName, now) {
     return safeRequestError(
       "variation_expired_cannot_activate",
       "No puedes activar esta variación porque su fecha de vencimiento ya pasó. Corrige o elimina la fecha antes de activarla.",
+      "active",
+      409,
+    );
+  }
+  return null;
+}
+
+function validateProductActivationState(e, collectionName, now) {
+  if (collectionName !== "products" || !e || !e.record) return null;
+  const body = requestBody(e);
+  const original = originalRecord(e.record);
+  const explicitlyShowing = bodyHas(body, "active") && recordBool(e.record, "active");
+  const switchingToParent = Boolean(original && bodyHas(body, "has_variations")
+    && commerce.usesVariations(original) && !commerce.usesVariations(e.record)
+    && recordBool(e.record, "active"));
+  const creatingVisibleParent = !original && recordIsNew(e.record)
+    && !commerce.usesVariations(e.record)
+    && recordValue(e.record, "active") !== false;
+  if (!explicitlyShowing && !switchingToParent && !creatingVisibleParent) return null;
+  const resolved = resolveDateRequestRecords(e, collectionName);
+  if (!resolved || !resolved.store) {
+    return safeRequestError("expiration_management_unavailable", "El producto no está disponible temporalmente.", "active", 503);
+  }
+  if (!storeExpirationEnabled(resolved.store)) return null;
+  const status = commerce.productEffectiveStatus(e.record, now || new Date());
+  if (status.expired) {
+    return safeRequestError(
+      "product_expired_cannot_show",
+      "No puedes mostrar este producto porque su fecha de vencimiento ya pasó. Corrige o elimina la fecha antes de mostrarlo.",
       "active",
       409,
     );
@@ -736,6 +779,8 @@ function handleDateWriteRequest(e, collectionName) {
     const modeTransition = variationModeTransition(e, collectionName);
     const modeSafe = validateVariationModeTransition(e, collectionName);
     if (modeSafe) raiseExpirationRequestError(modeSafe);
+    const productActivationSafe = validateProductActivationState(e, collectionName, now);
+    if (productActivationSafe) raiseExpirationRequestError(productActivationSafe);
     const activationSafe = validateVariationActivationState(e, collectionName, now);
     if (activationSafe) raiseExpirationRequestError(activationSafe);
     const safe = validateDateWriteRequest(e, collectionName);
@@ -1422,6 +1467,7 @@ module.exports = {
   storeExpirationEnabled,
   validateDateWriteRequest,
   validateExpirationSettingsRequest,
+  validateProductActivationState,
   validateVariationActivationState,
   validateOrderItemRequest,
   validateVariationModeTransition,

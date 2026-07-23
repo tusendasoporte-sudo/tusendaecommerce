@@ -53,7 +53,7 @@ test('estado efectivo conserva intencion manual y separa vencimiento y modo padr
   assert.deepEqual(
     commerce.variationEffectiveStatus(parent, manual, variations, now),
     {
-      effective_status: 'hidden_manual', effective_status_label: 'Oculta manualmente',
+      effective_status: 'hidden_manual', effective_status_label: 'Oculta',
       effective_status_reason: 'manual_and_expired', can_activate: false, expired: true,
       effective_expiration_date: '2026-07-20',
     },

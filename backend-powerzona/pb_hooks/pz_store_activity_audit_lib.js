@@ -593,9 +593,13 @@ function createRecordMutationActivity(app, e, operation, collection, beforeRecor
   const nextActive = recordBool(record, "active");
   let action = `${config.resourceType}_${operation === "create" ? "created" : operation === "delete" ? "deleted" : "updated"}`;
   let summary = operationSummary(operation, config, label, changedFields);
+  if (collection === "products" && operation === "update" && previousActive !== nextActive) {
+    action = nextActive ? "product_manual_shown" : "product_manual_hidden";
+    summary = nextActive ? `Mostró manualmente ${label}` : `Ocultó manualmente ${label}`;
+  }
   if (collection === "product_variations" && operation === "update" && previousActive !== nextActive) {
-    action = nextActive ? "variation_manual_activated" : "variation_manual_hidden";
-    summary = nextActive ? `Activó manualmente ${label}` : `Ocultó manualmente ${label}`;
+    action = nextActive ? "variation_manual_shown" : "variation_manual_hidden";
+    summary = nextActive ? `Mostró manualmente ${label}` : `Ocultó manualmente ${label}`;
   }
   const parentProductId = collection === "product_variations"
     ? relationId(record, "product") || relationId(beforeRecord, "product")

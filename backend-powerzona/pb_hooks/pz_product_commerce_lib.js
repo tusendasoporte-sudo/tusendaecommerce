@@ -76,6 +76,46 @@ function isExpiredCivilDate(value, now) {
   return Boolean(date && date <= havanaCivilDate(now));
 }
 
+function productEffectiveStatus(product, now) {
+  const manualActive = recordActive(product);
+  const expirationDate = normalizeCivilDate(recordValue(product, "expiration_date"));
+  const expired = !usesVariations(product) && isExpiredCivilDate(expirationDate, now);
+  if (!manualActive) {
+    return {
+      effective_status: "hidden",
+      effective_status_label: "OCULTO",
+      effective_status_reason: expired ? "manual_and_expired" : "manual_hidden",
+      manual_active: false,
+      effective_visible: false,
+      can_activate: !expired,
+      expired,
+      expiration_date: expirationDate,
+    };
+  }
+  if (expired) {
+    return {
+      effective_status: "expired",
+      effective_status_label: "VENCIDO",
+      effective_status_reason: "expiration_date_passed",
+      manual_active: true,
+      effective_visible: false,
+      can_activate: false,
+      expired: true,
+      expiration_date: expirationDate,
+    };
+  }
+  return {
+    effective_status: "visible",
+    effective_status_label: "VISIBLE",
+    effective_status_reason: usesVariations(product) ? "variation_container_active" : "available_by_status",
+    manual_active: true,
+    effective_visible: true,
+    can_activate: true,
+    expired: false,
+    expiration_date: expirationDate,
+  };
+}
+
 function relatedActiveVariations(product, variations) {
   const productId = recordString(product, "id");
   return Array.from(variations || []).filter((variation) => (
@@ -115,7 +155,7 @@ function variationEffectiveStatus(product, variation, variations, now) {
   if (!usesVariations(product)) {
     return {
       effective_status: "disabled_by_parent_mode",
-      effective_status_label: "Conservada — variaciones desactivadas",
+      effective_status_label: "Conservada",
       effective_status_reason: "parent_variations_disabled",
       can_activate: false,
       expired,
@@ -125,7 +165,7 @@ function variationEffectiveStatus(product, variation, variations, now) {
   if (!manualActive) {
     return {
       effective_status: "hidden_manual",
-      effective_status_label: "Oculta manualmente",
+      effective_status_label: "Oculta",
       effective_status_reason: expired ? "manual_and_expired" : "manual_hidden",
       can_activate: !expired,
       expired,
@@ -135,7 +175,7 @@ function variationEffectiveStatus(product, variation, variations, now) {
   if (expired) {
     return {
       effective_status: "hidden_expired",
-      effective_status_label: "Oculta por vencimiento",
+      effective_status_label: "Vencida",
       effective_status_reason: "expiration_date_passed",
       can_activate: false,
       expired: true,
@@ -300,6 +340,7 @@ module.exports = {
   effectiveUnitExpirationDate,
   evaluateUnitAvailability,
   isExpiredCivilDate,
+  productEffectiveStatus,
   usesVariations,
   variationEffectiveStatus,
 };

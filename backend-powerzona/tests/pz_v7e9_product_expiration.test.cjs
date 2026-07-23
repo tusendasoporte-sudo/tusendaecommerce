@@ -791,7 +791,7 @@ test('activar la primera variación con fecha propia limpia general y recalcula 
   });
 });
 
-test('mutaciones administrativas exitosas registran unidad vencida y reactivada una sola vez', () => {
+test('mutaciones administrativas exitosas registran unidad vencida y corrección una sola vez', () => {
   withFakePocketBaseRecord(() => {
     const today = expiration.havanaTodayKey(new Date());
     const store = mutableRecord('sunitact0000001', {
@@ -822,8 +822,10 @@ test('mutaciones administrativas exitosas registran unidad vencida y reactivada 
       requestInfo: () => ({ body: { expiration_date: '' } }),
       next: () => 'reactivated',
     }, 'products');
-    const unitEvents = app.tables.store_activity_audit.filter((item) => item.action.startsWith('product_unit_'));
-    assert.deepEqual(unitEvents.map((item) => item.action), ['product_unit_expired', 'product_unit_reactivated']);
+    const unitEvents = app.tables.store_activity_audit.filter((item) => (
+      item.action === 'product_unit_expired' || item.action === 'product_expiration_corrected'
+    ));
+    assert.deepEqual(unitEvents.map((item) => item.action), ['product_unit_expired', 'product_expiration_corrected']);
     assert.deepEqual(unitEvents.map((item) => item.changed_fields_json), [['expiration_date'], ['expiration_date']]);
     assert.doesNotMatch(JSON.stringify(unitEvents), /password|token|cookie|full_ip|ip_address/i);
 
@@ -1002,5 +1004,5 @@ test('contratos V7E9 conectan hooks, cron, endpoint privado y downgrade atómico
   assert.match(expirationLib, /e\.record\.set\("expiration_date", normalized \|\| ""\)/);
   assert.match(expirationLib, /commerce\.buildProductUnits/);
   assert.match(expirationLib, /product_variations_disabled/);
-  assert.match(expirationLib, /product_unit_reactivated/);
+  assert.match(expirationLib, /product_expiration_corrected/);
 });

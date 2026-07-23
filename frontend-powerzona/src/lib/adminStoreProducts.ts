@@ -7,6 +7,17 @@ export type VariationEffectiveStatus = Readonly<{
   effective_expiration_date: string;
 }>;
 
+export type ProductEffectiveStatus = Readonly<{
+  effective_status: 'visible' | 'expired' | 'hidden';
+  effective_status_label: 'VISIBLE' | 'VENCIDO' | 'OCULTO';
+  effective_status_reason: string;
+  manual_active: boolean;
+  effective_visible: boolean;
+  can_activate: boolean;
+  expired: boolean;
+  expiration_date: string;
+}>;
+
 type ProductRecord = Record<string, unknown>;
 
 function bool(value: unknown) {
@@ -45,6 +56,57 @@ export function productUsesVariations(product: ProductRecord | null | undefined)
   return bool(product?.has_variations);
 }
 
+export function getEffectiveProductStatus(
+  product: ProductRecord,
+  now: Date | string | number = new Date(),
+): ProductEffectiveStatus {
+  const manualActive = active(product);
+  const expirationDate = civilDate(product?.expiration_date);
+  const expired = !productUsesVariations(product)
+    && Boolean(expirationDate && expirationDate <= todayCivilDate(now));
+  if (!manualActive) {
+    return {
+      effective_status: 'hidden',
+      effective_status_label: 'OCULTO',
+      effective_status_reason: expired ? 'manual_and_expired' : 'manual_hidden',
+      manual_active: false,
+      effective_visible: false,
+      can_activate: !expired,
+      expired,
+      expiration_date: expirationDate,
+    };
+  }
+  if (expired) {
+    return {
+      effective_status: 'expired',
+      effective_status_label: 'VENCIDO',
+      effective_status_reason: 'expiration_date_passed',
+      manual_active: true,
+      effective_visible: false,
+      can_activate: false,
+      expired: true,
+      expiration_date: expirationDate,
+    };
+  }
+  return {
+    effective_status: 'visible',
+    effective_status_label: 'VISIBLE',
+    effective_status_reason: productUsesVariations(product) ? 'variation_container_active' : 'available_by_status',
+    manual_active: true,
+    effective_visible: true,
+    can_activate: true,
+    expired: false,
+    expiration_date: expirationDate,
+  };
+}
+
+export function formatCivilDate(value: unknown) {
+  const normalized = civilDate(value);
+  if (!normalized) return '';
+  const [year, month, day] = normalized.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export function effectiveVariationExpirationDate(
   product: ProductRecord,
   variation: ProductRecord,
@@ -69,7 +131,7 @@ export function getVariationEffectiveStatus(
   if (!productUsesVariations(product)) {
     return {
       effective_status: 'disabled_by_parent_mode',
-      effective_status_label: 'Conservada — variaciones desactivadas',
+      effective_status_label: 'Conservada',
       effective_status_reason: 'parent_variations_disabled',
       can_activate: false,
       expired,
@@ -79,7 +141,7 @@ export function getVariationEffectiveStatus(
   if (!active(variation)) {
     return {
       effective_status: 'hidden_manual',
-      effective_status_label: 'Oculta manualmente',
+      effective_status_label: 'Oculta',
       effective_status_reason: expired ? 'manual_and_expired' : 'manual_hidden',
       can_activate: !expired,
       expired,
@@ -89,7 +151,7 @@ export function getVariationEffectiveStatus(
   if (expired) {
     return {
       effective_status: 'hidden_expired',
-      effective_status_label: 'Oculta por vencimiento',
+      effective_status_label: 'Vencida',
       effective_status_reason: 'expiration_date_passed',
       can_activate: false,
       expired: true,
