@@ -67,6 +67,11 @@ onRecordDeleteRequest(
   "store_visitor_sessions", "store_customers",
 );
 
+onFileDownloadRequest(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceFileDownload(e),
+  "settings",
+);
+
 onRealtimeSubscribeRequest((e) => {
   return require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRealtimeSubscribe(e);
 });

@@ -1,6 +1,8 @@
 # REPORTE FINAL — PROMPT ID: V7E9
 
-Estado final: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**
+Estado final: **V7E9 — COMPLETADO**
+
+Confirmado expresamente por Kraken el **23 de julio de 2026**. Source de cierre: **V119**.
 
 ## 1. Identificación y preflight
 
@@ -349,3 +351,20 @@ La página independiente usa la misma jerarquía: Vencidos/Próximos a vencer y 
 Ambos renderizadores dinámicos consumen `src/components/admin/productExpirationBottleIcon.js`, única fuente del SVG de frasco. Ya no existe un SVG de producto duplicado ni se usa el cubo anterior. La prueba focal terminó 15/15, la suite frontend completa 153/153 y el build SSR finalizó correctamente. La conexión del navegador integrado falló antes de abrir una pestaña, por lo que la revisión visual real permanece pendiente de Kraken. El detalle técnico se registra en `docs/tusenda84/reportes/V7E9-C4-alineacion-controles-icono-compartido.md`.
 
 Estado: **EN REVISIÓN — pendiente de confirmación explícita de Kraken**
+
+## 31. Addendum final de cierre — 23 de julio de 2026
+
+Kraken confirmó expresamente el cierre funcional de **V7E9 — COMPLETADO** el **23 de julio de 2026**, con **Source V119** como fuente de cierre. Esta confirmación final sustituye los estados provisionales de revisión consignados en los addendums anteriores, que se conservan íntegramente como evidencia histórica del proceso técnico y de validación.
+
+El comportamiento aprobado comprende:
+
+- producto padre y variaciones independientes;
+- estados de producto **Visible / Vencido / Oculto** y estados de variación **Activa / Vencida / Oculta / Conservada**;
+- enforcement real en catálogo, carrito, checkout, Pedidos Admin y solicitudes directas;
+- umbrales definitivos **90 / 60 / 30 / 0**, sin alerta de 7 días;
+- downgrade destructivo exclusivamente para fechas, ciclos y alertas V7E9, sin borrar productos ni variaciones;
+- pruebas manuales aprobadas por Kraken.
+
+El cierre confirmado dejó **0 fixtures temporales** y **0 procesos temporales**.
+
+Estado definitivo: **V7E9 — COMPLETADO**

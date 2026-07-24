@@ -29,12 +29,20 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
+const landingQrAccess = resolveStoreCapabilityAccess(
+  adminContext.store,
+  'landing_qr_enabled',
+  { enforceExpiration: true },
+);
 const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
 const effectivePermissions = storeAccessContext?.access.permissions || [];
+const isPrimaryAdmin = storeAccessContext?.access.is_primary_admin === true;
 const canManageSettings = hasStorePermission({ permissions: effectivePermissions }, 'store.settings.manage');
 const canManageReviews = hasStorePermission({ permissions: effectivePermissions }, 'reviews.manage');
 const canContactOrderCustomers = hasStorePermission({ permissions: effectivePermissions }, 'orders.contact_customer');
 const canManageLanding = hasStorePermission({ permissions: effectivePermissions }, 'landing_qr.manage');
+const showLandingQrGate = isPrimaryAdmin && !landingQrAccess.allowed;
+const canOpenLandingTab = canManageLanding || showLandingQrGate;
 const firstAllowedSettingsTab = canManageSettings ? 'generales' : (canManageReviews ? 'rating' : 'landing');
 const expirationFeatureVisible = hasStorePermission(
   { permissions: storeAccessContext?.access.permissions },
@@ -3383,6 +3391,10 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         display: none !important;
       }
 
+      body.pz-settings-resolving .pz-admin-mobile-topbar__action {
+        visibility: hidden;
+      }
+
       body.pz-settings-resolving #admin-view {
         visibility: hidden;
       }
@@ -3422,7 +3434,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
             {canManageSettings && <button class="tab-btn" data-tab="monedas" type="button"><span>Monedas</span></button>}
             {canManageSettings && <button class="tab-btn" data-tab="horario" type="button"><span>Horarios</span></button>}
             {canManageReviews && <button class:list={['tab-btn', firstAllowedSettingsTab === 'rating' && 'active']} data-tab="rating" type="button"><span>Rating y rese&ntilde;as</span></button>}
-            {canManageLanding && <button class:list={['tab-btn', firstAllowedSettingsTab === 'landing' && 'active']} data-tab="landing" type="button"><span>Landing QR</span></button>}
+            {canOpenLandingTab && <button class:list={['tab-btn', firstAllowedSettingsTab === 'landing' && 'active']} data-tab="landing" type="button"><span>Landing QR</span></button>}
           </div>
 
           <section id="settings-general-summary-grid" class:list={['admin-compact-summary admin-compact-summary--settings', !canManageSettings && 'hidden']} aria-label="Resumen de ajustes generales">
@@ -4136,13 +4148,24 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           </section>
 
 
-          <section id="tab-landing" class:list={['tab-panel settings-panel tab-panel--landing', (!canManageLanding || firstAllowedSettingsTab !== 'landing') && 'hidden']}>
-            {canManageLanding && <LandingQrSettings
-              pocketbaseUrl={pocketbaseUrl}
-              currentStoreId={currentStoreId}
-              currentStoreSlug={currentStoreSlug}
-              currentStoreName={currentStoreName}
-            />}
+          <section id="tab-landing" class:list={['tab-panel settings-panel tab-panel--landing', (!canOpenLandingTab || firstAllowedSettingsTab !== 'landing') && 'hidden']}>
+            {showLandingQrGate ? (
+              <StoreCapabilityGate
+                access={landingQrAccess}
+                featureName="Landing QR"
+                featureDescription="Crea una página de enlaces con QR fijo, botones personalizados y analíticas."
+                preservationMessage="Tu configuración permanece guardada y volverá a estar disponible al regresar a Premium."
+                requiredPlanLabel="Plan Premium requerido"
+                planExpiredUsesPlanGate={true}
+              />
+            ) : canManageLanding && (
+              <LandingQrSettings
+                pocketbaseUrl={pocketbaseUrl}
+                currentStoreId={currentStoreId}
+                currentStoreSlug={currentStoreSlug}
+                currentStoreName={currentStoreName}
+              />
+            )}
           </section>
 
 
@@ -4543,7 +4566,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       };
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, canManageSettings, canManageReviews, canManageLanding, firstAllowedSettingsTab }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, adminProductsPath, canManageSettings, canManageReviews, canOpenLandingTab, firstAllowedSettingsTab }}>
       const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
       const CURRENT_STORE_ID = String(currentStoreId || '');
       const ADMIN_PRODUCTS_PATH = String(adminProductsPath || '/admin/products');
@@ -4552,7 +4575,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       const ALLOWED_SETTINGS_TABS = new Set([
         ...(canManageSettings === true ? ['generales', 'footer', 'monedas', 'horario'] : []),
         ...(canManageReviews === true ? ['rating'] : []),
-        ...(canManageLanding === true ? ['landing'] : []),
+        ...(canOpenLandingTab === true ? ['landing'] : []),
       ]);
       const FIRST_ALLOWED_SETTINGS_TAB = String(firstAllowedSettingsTab || 'generales');
       let products = [];

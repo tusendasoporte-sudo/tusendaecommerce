@@ -1,13 +1,22 @@
 import type { APIRoute } from 'astro';
 import QRCode from 'qrcode';
 import { getStoreBySlug } from '../../../../lib/stores';
-import { getLandingQrPath } from '../../../../lib/landingQr';
+import {
+  LANDING_QR_PRIVATE_NO_STORE_HEADERS,
+  getLandingQrPath,
+  landingQrUnavailableResponse,
+  resolveLandingQrCapability,
+} from '../../../../lib/landingQr';
 
 export const GET: APIRoute = async ({ params, url }) => {
   const store = await getStoreBySlug(String(params.storeSlug || ''));
 
   if (!store) {
-    return new Response('Tienda no encontrada.', { status: 404 });
+    return landingQrUnavailableResponse();
+  }
+
+  if (!resolveLandingQrCapability(store).allowed) {
+    return landingQrUnavailableResponse();
   }
 
   const publicUrl = new URL(getLandingQrPath(store), url.origin).toString();
@@ -25,7 +34,7 @@ export const GET: APIRoute = async ({ params, url }) => {
   return new Response(svg, {
     headers: {
       'Content-Type': 'image/svg+xml; charset=utf-8',
-      'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      ...LANDING_QR_PRIVATE_NO_STORE_HEADERS,
     },
   });
 };

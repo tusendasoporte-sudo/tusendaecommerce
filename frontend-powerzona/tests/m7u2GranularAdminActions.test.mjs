@@ -178,7 +178,7 @@ test('M7U2: Ajustes separa settings, reviews y landing y genera review token en 
   assert.ok(source.includes("'landing_qr.manage'"));
   assert.match(source, /if \(canManageSettings !== true\) return;/);
   assert.match(source, /if \(canManageReviews !== true\) return;/);
-  assert.match(source, /\{canManageLanding && <LandingQrSettings/);
+  assert.match(source, /showLandingQrGate \? \([\s\S]*?<StoreCapabilityGate[\s\S]*?\) : canManageLanding && \([\s\S]*?<LandingQrSettings/);
   const inlineVars = [...source.matchAll(/<script define:vars=\{\{([\s\S]*?)\}\}>/g)];
   assert.ok(inlineVars.every((match) => !match[1].includes('adminAuthToken')));
   assert.match(source, /\/api\/pz\/admin\/orders\/' \+ encodeURIComponent\(order\.id\) \+ '\/review-token'/);

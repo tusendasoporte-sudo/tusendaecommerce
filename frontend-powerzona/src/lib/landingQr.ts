@@ -1,4 +1,5 @@
 import type { PublicStore } from './stores';
+import { resolveStoreCapabilityAccess } from './storeCapabilities.ts';
 
 export const LANDING_QR_ACCENT_FALLBACK = '#2563eb';
 export const LANDING_QR_MAX_LINKS = 10;
@@ -13,6 +14,15 @@ export type LandingQrLink = {
   active: boolean;
   order: number;
 };
+
+export const LANDING_QR_PRIVATE_NO_STORE_HEADERS = Object.freeze({
+  'Cache-Control': 'private, no-store, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Robots-Tag': 'noindex, nofollow, noarchive',
+});
 
 const ALLOWED_ICONS = new Set([
   'store',
@@ -132,6 +142,38 @@ export function normalizeLandingQrUrl(value: unknown) {
 export function getLandingQrPath(store: PublicStore | string) {
   const slug = typeof store === 'string' ? store : store?.slug;
   return `/t/${encodeURIComponent(String(slug || 'powerzona'))}/links`;
+}
+
+export function getLandingQrStorePath(store: PublicStore | string) {
+  return getLandingQrPath(store).replace(/\/links$/, '');
+}
+
+export function resolveLandingQrCapability(store: PublicStore | null | undefined) {
+  return resolveStoreCapabilityAccess(store, 'landing_qr_enabled', { enforceExpiration: true });
+}
+
+export function isLandingQrStoredEnabled(value: unknown) {
+  return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
+}
+
+export function landingQrRedirectResponse(store: PublicStore | string) {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      ...LANDING_QR_PRIVATE_NO_STORE_HEADERS,
+      Location: getLandingQrStorePath(store),
+    },
+  });
+}
+
+export function landingQrUnavailableResponse() {
+  return new Response('Recurso no encontrado.', {
+    status: 404,
+    headers: {
+      ...LANDING_QR_PRIVATE_NO_STORE_HEADERS,
+      'Content-Type': 'text/plain; charset=utf-8',
+    },
+  });
 }
 
 export function normalizeLandingQrLinks(value: unknown) {

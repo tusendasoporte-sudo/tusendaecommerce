@@ -6,6 +6,7 @@ import { getStoreSecuritySettingsForToken, isStoreSecurityEnabled } from '../../
 import { resolveStorePlanPresentation, type StorePlanValues } from '../../lib/storePlanPresentation';
 import { getStoreAccessContext, type StoreAccessContext } from '../../lib/storeTeam';
 import { hasStorePermission, type StorePermission } from '../../lib/storeTeamPermissions';
+import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 
 interface Props {
   storeSlug?: string;
@@ -180,7 +181,13 @@ const canShowGiftsNav = canShowModule('gifts.manage');
 const canShowShippingNav = canShowModule('shipping.manage');
 const canShowStoreSettingsNav = canShowModule('store.settings.manage');
 const canShowReviewsNav = canShowModule('reviews.manage');
-const canShowLandingQrNav = canShowModule('landing_qr.manage');
+const landingQrAccess = resolveStoreCapabilityAccess(
+  storePlanValues,
+  'landing_qr_enabled',
+  { enforceExpiration: true },
+);
+const canShowLandingQrNav = canShowModule('landing_qr.manage')
+  || (isPrimaryAdmin && !landingQrAccess.allowed);
 const canShowSettingsGroup = canShowStoreSettingsNav || canShowReviewsNav || canShowLandingQrNav;
 const canShowPromotionsNav = canShowModule('promotions.manage');
 const canShowCouponsNav = canShowModule('coupons.manage');

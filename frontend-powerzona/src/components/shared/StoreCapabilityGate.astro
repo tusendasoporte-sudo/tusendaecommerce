@@ -10,6 +10,7 @@ interface Props {
   infoTitle?: string;
   infoDescription?: string;
   compact?: boolean;
+  planExpiredUsesPlanGate?: boolean;
 }
 
 const {
@@ -21,11 +22,12 @@ const {
   infoTitle = '',
   infoDescription = '',
   compact = false,
+  planExpiredUsesPlanGate = false,
 } = Astro.props;
 
 const isTechnicalState = access.reason === 'invalid_capability'
   || access.reason === 'invalid_plan_data'
-  || access.reason === 'plan_expired';
+  || (access.reason === 'plan_expired' && !planExpiredUsesPlanGate);
 const isLimitState = access.reason === 'limit_exceeded';
 const title = isTechnicalState
   ? 'Función temporalmente no disponible'

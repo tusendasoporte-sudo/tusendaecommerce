@@ -6,6 +6,9 @@ const permissions = typeof __hooks === "undefined"
 const commerce = typeof __hooks === "undefined"
   ? require("./pz_product_commerce_lib.js")
   : require(`${__hooks}/pz_product_commerce_lib.js`);
+const capabilities = typeof __hooks === "undefined"
+  ? require("./pz_store_capabilities_lib.js")
+  : require(`${__hooks}/pz_store_capabilities_lib.js`);
 
 const READ_PERMISSIONS = Object.freeze({
   products: "catalog.view",
@@ -194,7 +197,7 @@ const REVIEW_SETTINGS_FIELDS = Object.freeze([
   "show_verified_badge",
   "notify_review_pending",
 ]);
-const LANDING_QR_PUBLIC_SETTINGS_FIELDS = Object.freeze([
+const GENERAL_PUBLIC_SETTINGS_FIELDS = Object.freeze([
   "whatsapp_number",
   "welcome_text",
   "logo_image",
@@ -265,6 +268,11 @@ function recordString(record, key) {
   return String(value === null || value === undefined ? "" : value).trim();
 }
 
+function recordBoolean(record, key) {
+  const value = recordValue(record, key);
+  return value === true || value === 1 || value === "1" || String(value).toLowerCase() === "true";
+}
+
 function relationId(record, key) {
   const value = recordValue(record, key);
   if (Array.isArray(value)) return String(value[0] || "").trim();
@@ -318,9 +326,16 @@ function findRecords(app, collection, filter, params) {
   } catch (_) { return []; }
 }
 
-function findRecordPage(app, collection, filter, sort, limit, offset) {
+function findRecordPage(app, collection, filter, sort, limit, offset, params) {
   try {
-    return Array.from(app.findRecordsByFilter(collection, filter, sort, limit, offset) || []);
+    return Array.from(app.findRecordsByFilter(
+      collection,
+      filter,
+      sort,
+      limit,
+      offset,
+      params || {},
+    ) || []);
   } catch (_) { return []; }
 }
 
@@ -342,6 +357,18 @@ function requestBody(e) {
     const info = e.requestInfo();
     return info && info.body && typeof info.body === "object" ? info.body : {};
   } catch (_) { return {}; }
+}
+
+function superuserRequest(e) {
+  try {
+    if (e && typeof e.hasSuperuserAuth === "function" && e.hasSuperuserAuth()) return true;
+  } catch (_) {}
+  try {
+    const info = e && typeof e.requestInfo === "function" ? e.requestInfo() : null;
+    return !!(info && typeof info.hasSuperuserAuth === "function" && info.hasSuperuserAuth());
+  } catch (_) {
+    return false;
+  }
 }
 
 function requestQuery(e) {
@@ -519,7 +546,10 @@ function assertTenantAndRelationIntegrity(e, collection, operation) {
   const actorStoreId = relationId(auth, "store");
   const original = operation === "update" || operation === "delete" ? originalRecord(record) : null;
   const originalStoreId = original ? recordStoreId(e.app, collection, original) : "";
-  if (originalStoreId && originalStoreId !== actorStoreId) return;
+  if (originalStoreId && originalStoreId !== actorStoreId) {
+    if (collection === "settings") denyIsolation();
+    return;
+  }
 
   const directStoreId = relationId(record, "store");
   const originalDirectStoreId = original ? relationId(original, "store") : "";
@@ -626,7 +656,7 @@ function settingsFieldPermission(key) {
 
 function settingsReadFieldPermission(key) {
   const normalized = normalizedBodyKey(key).toLowerCase();
-  if (LANDING_QR_PUBLIC_SETTINGS_FIELDS.includes(normalized)) return "landing_qr.manage";
+  if (GENERAL_PUBLIC_SETTINGS_FIELDS.includes(normalized)) return "";
   return settingsFieldPermission(key);
 }
 
@@ -939,7 +969,6 @@ function redactSettingsRecord(app, auth, record) {
   const store = findRecord(app, "stores", relationId(auth, "store"));
   if (!store) return false;
   const effective = permissions.resolveEffectiveStorePermissions(app, auth, store);
-  if (permissions.isPrimaryAdmin(app, auth, store) || effective.includes("store.settings.manage")) return false;
   const allowed = new Set(effective);
   const hidden = recordFieldNames(record).filter((field) => {
     const required = settingsReadFieldPermission(field);
@@ -956,9 +985,45 @@ function isPublicSettingsPrivateField(field) {
     || normalized.startsWith("notification_");
 }
 
-function redactAnonymousSettingsRecord(record) {
+function activeStoreSettings(app, storeId) {
+  if (!storeId) return null;
+  return findRecordPage(
+    app,
+    "settings",
+    "store = {:store} && active = true",
+    "-updated,-created",
+    1,
+    0,
+    { store: storeId },
+  )[0] || null;
+}
+
+function landingQrCapabilityAllowed(store) {
+  return !!store && capabilities.hasStoreCapability(
+    store,
+    "landing_qr_enabled",
+    { enforceExpiration: true },
+  );
+}
+
+function landingQrPublicAvailable(app, storeOrId, settingsRecord) {
+  const store = typeof storeOrId === "string" ? findRecord(app, "stores", storeOrId) : storeOrId;
+  if (!landingQrCapabilityAllowed(store)) return false;
+  const settings = settingsRecord || activeStoreSettings(app, recordString(store, "id"));
+  return !!settings && recordBoolean(settings, "landing_qr_enabled");
+}
+
+function isLandingQrSettingsField(field) {
+  return normalizedBodyKey(field).toLowerCase().startsWith("landing_qr_");
+}
+
+function redactAnonymousSettingsRecord(app, record) {
   if (!record) return false;
-  const hidden = recordFieldNames(record).filter(isPublicSettingsPrivateField);
+  const storeId = relationId(record, "store");
+  const landingAvailable = landingQrPublicAvailable(app, storeId, record);
+  const hidden = recordFieldNames(record).filter((field) =>
+    isPublicSettingsPrivateField(field)
+    || (!landingAvailable && isLandingQrSettingsField(field)));
   return hidePublicFields(record, hidden);
 }
 
@@ -968,7 +1033,7 @@ function redactSettingsRead(e, collection) {
   eventResultRecords(e).forEach((record) => {
     walkRecordTree(record, collection, (candidate, name) => {
       if (name !== "settings") return;
-      if (publicProductConsumer(auth)) changed = redactAnonymousSettingsRecord(candidate) || changed;
+      if (publicProductConsumer(auth)) changed = redactAnonymousSettingsRecord(e.app, candidate) || changed;
       else if (storeUser(auth)) changed = redactSettingsRecord(e.app, auth, candidate) || changed;
     });
   });
@@ -1337,8 +1402,7 @@ function assertSafeReadQuery(e, collection) {
       primary = permissions.isPrimaryAdmin(e.app, auth, store);
     }
   }
-  const settingsGuarded = collection === "settings"
-    && (isPublic || (isStore && !primary && !effective.includes("store.settings.manage")));
+  const settingsGuarded = collection === "settings" && (isPublic || isStore);
   const ordersGuarded = isStore && collection === "orders" && store
     && (!effective.includes("orders.contact_customer") || !effective.includes("reviews.manage"));
   const usageGuarded = isStore && collection === "manual_coupon_usages" && store
@@ -1362,7 +1426,7 @@ function assertSafeReadQuery(e, collection) {
   const referenced = [...new Set([...filterFields, ...sortFields, ...projectionFields])];
 
   if (collection === "settings") {
-    if (isStore && !primary && !effective.includes("store.settings.manage")) {
+    if (isStore) {
       const allowed = new Set(effective);
       const queryable = (field) => {
         if (field.includes(".") || field.includes(":")) return false;
@@ -1370,7 +1434,9 @@ function assertSafeReadQuery(e, collection) {
         const required = settingsReadFieldPermission(field);
         return !required || allowed.has(required);
       };
-      if (expandFields.length || referenced.some((field) => !queryable(field))) {
+      const expandsAllowed = expandFields.every((field) =>
+        field === "default_currency" && allowed.has("store.settings.manage"));
+      if (!expandsAllowed || referenced.some((field) => !queryable(field))) {
         denyPermission("query.restricted");
       }
     } else if (isPublic) {
@@ -1513,7 +1579,13 @@ function enforceMutation(e, collection, operation) {
     sanitizePublicNotificationCreate(e);
     return e.next();
   }
-  if (!storeIdentity(e && e.auth)) return e.next();
+  if (!storeIdentity(e && e.auth)) {
+    if (superuserRequest(e)) return e.next();
+    if (name === "store_analytics_events" && operation === "create") {
+      assertPublicAnalyticsEventAllowed(e);
+    }
+    return e.next();
+  }
   if (!storeUser(e && e.auth)) denyPermission("");
   const keys = mutationKeys(e, name);
   const body = requestBody(e);
@@ -1544,6 +1616,56 @@ function enforceMutation(e, collection, operation) {
   const result = enforce(e, mutationPermissions(name, operation, keys, body), name);
   if (name === "settings") redactSettingsRead(e, name);
   return result;
+}
+
+function isLandingQrAnalyticsEvent(record) {
+  const eventType = recordString(record, "event_type").toLowerCase();
+  const pageType = recordString(record, "page_type").toLowerCase();
+  return eventType === "landing_qr_view"
+    || eventType === "landing_qr_click"
+    || pageType === "landing_qr";
+}
+
+function assertPublicAnalyticsEventAllowed(e) {
+  const record = e && e.record;
+  if (!record || !isLandingQrAnalyticsEvent(record)) return true;
+  const storeId = relationId(record, "store");
+  const store = findRecord(e.app, "stores", storeId);
+  if (!store || !landingQrPublicAvailable(e.app, store)) denyIsolation();
+
+  const slug = recordString(store, "slug");
+  const canonicalPath = slug ? `/t/${encodeURIComponent(slug)}/links` : "";
+  const path = recordString(record, "path");
+  const pageType = recordString(record, "page_type").toLowerCase();
+  const entityType = recordString(record, "entity_type").toLowerCase();
+  const entityId = relationId(record, "entity_id") || recordString(record, "entity_id");
+  if (pageType !== "landing_qr"
+    || entityType !== "landing_qr"
+    || entityId !== storeId
+    || (path !== canonicalPath && path !== "/links")) {
+    denyIsolation();
+  }
+  return true;
+}
+
+function enforceFileDownload(e) {
+  const collection = collectionName(e, "");
+  const fieldName = String(e && e.fileField && e.fileField.name || "").trim();
+  if (collection !== "settings" || fieldName !== "landing_qr_hero_image") return e.next();
+  if (superuserRequest(e)) return e.next();
+  const record = e && e.record;
+  const storeId = recordStoreId(e.app, "settings", record);
+  const store = findRecord(e.app, "stores", storeId);
+  if (!store || !landingQrCapabilityAllowed(store)) denyIsolation();
+
+  const auth = e && e.auth;
+  if (storeIdentity(auth)) {
+    if (!storeUser(auth) || relationId(auth, "store") !== storeId) denyIsolation();
+    if (!permissions.hasStorePermission(e.app, auth, store, "landing_qr.manage")) {
+      denyPermission("landing_qr.manage");
+    }
+  }
+  return e.next();
 }
 
 function realtimeCollectionName(topic) {
@@ -1693,7 +1815,7 @@ function enforceRealtimeMessage(e) {
       walkRecordTree(publicRecord, collection, (candidate, name) => {
         publicChanged = redactPublicProductRecord(candidate, name) || publicChanged;
         if (name === "settings") {
-          publicChanged = redactAnonymousSettingsRecord(candidate) || publicChanged;
+          publicChanged = redactAnonymousSettingsRecord(e.app, candidate) || publicChanged;
         }
       });
     }
@@ -1766,6 +1888,7 @@ module.exports = {
   assertSafeReadQuery,
   assertTenantAndRelationIntegrity,
   enforceMutation,
+  enforceFileDownload,
   enforceEnrich,
   enforceAny,
   enforceRead,
@@ -1804,4 +1927,9 @@ module.exports = {
   sanitizePublicNotificationCreate,
   settingsReadFieldPermission,
   settingsFieldPermission,
+  activeStoreSettings,
+  assertPublicAnalyticsEventAllowed,
+  isLandingQrAnalyticsEvent,
+  landingQrCapabilityAllowed,
+  landingQrPublicAvailable,
 };

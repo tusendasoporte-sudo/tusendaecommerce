@@ -152,9 +152,9 @@ test('settings parciales usan fieldsData y solo revelan campos del módulo Landi
   for (const hidden of ['business_notes', 'default_currency', 'order_prefix', 'notifications_enabled']) {
     assert.equal(settings.hidden.has(hidden), true, hidden);
   }
-  assert.equal(privacy.settingsReadFieldPermission('whatsapp_number'), 'landing_qr.manage');
-  assert.equal(privacy.settingsReadFieldPermission('welcome_text'), 'landing_qr.manage');
-  assert.equal(privacy.settingsReadFieldPermission('logo_image'), 'landing_qr.manage');
+  assert.equal(privacy.settingsReadFieldPermission('whatsapp_number'), '');
+  assert.equal(privacy.settingsReadFieldPermission('welcome_text'), '');
+  assert.equal(privacy.settingsReadFieldPermission('logo_image'), '');
   assert.equal(privacy.settingsFieldPermission('whatsapp_number'), 'store.settings.manage');
   assert.equal(privacy.settingsFieldPermission('business_notes'), 'store.settings.manage');
   assert.deepEqual(

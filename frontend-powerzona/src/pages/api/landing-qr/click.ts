@@ -1,5 +1,15 @@
 import type { APIRoute } from 'astro';
+import { getSettings } from '../../../lib/api';
+import {
+  LANDING_QR_PRIVATE_NO_STORE_HEADERS,
+  buildDefaultLandingQrLinks,
+  getLandingQrPath,
+  isLandingQrStoredEnabled,
+  normalizeLandingQrLinks,
+  resolveLandingQrCapability,
+} from '../../../lib/landingQr';
 import { pb } from '../../../lib/pocketbase';
+import type { PublicStore } from '../../../lib/stores';
 
 const MAX_BODY_BYTES = 2048;
 const CLICK_RATE_WINDOW_MS = 500;
@@ -9,12 +19,18 @@ const recentClicks = new Map<string, number>();
 function json(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      ...LANDING_QR_PRIVATE_NO_STORE_HEADERS,
+      'Content-Type': 'application/json',
+    },
   });
 }
 
 function empty(status = 204) {
-  return new Response(null, { status });
+  return new Response(null, {
+    status,
+    headers: LANDING_QR_PRIVATE_NO_STORE_HEADERS,
+  });
 }
 
 function cleanText(value: unknown, max: number) {
@@ -82,31 +98,54 @@ export const POST: APIRoute = async ({ request }) => {
       return json({ ok: false }, 400);
     }
 
-    const rateKey = `${store}:${visitorId}:${linkId}`;
-    if (shouldRateLimit(rateKey)) return empty();
-
+    let storeRecord: PublicStore;
     try {
-      await pb.collection('stores').getOne(store);
+      storeRecord = await pb.collection('stores').getOne(store) as unknown as PublicStore;
     } catch (_) {
       return json({ ok: false }, 404);
     }
 
+    if (String(storeRecord.status || '').toLowerCase() !== 'active'
+      || !resolveLandingQrCapability(storeRecord).allowed) {
+      return json({ ok: false }, 404);
+    }
+
+    const settings = await getSettings({ storeId: storeRecord.id });
+    if (!settings || !isLandingQrStoredEnabled(settings.landing_qr_enabled)) {
+      return json({ ok: false }, 404);
+    }
+
+    const canonicalPath = getLandingQrPath(storeRecord);
+    if (normalizePath(body.path) !== canonicalPath) {
+      return json({ ok: false }, 404);
+    }
+
+    const configuredLinks = normalizeLandingQrLinks(settings.landing_qr_links);
+    const availableLinks = configuredLinks.length
+      ? configuredLinks
+      : buildDefaultLandingQrLinks(storeRecord, settings);
+    const canonicalLink = availableLinks.find((link) => link.id === linkId);
+    if (!canonicalLink) return json({ ok: false }, 404);
+
+    const rateKey = `${storeRecord.id}:${visitorId}:${canonicalLink.id}`;
+    if (shouldRateLimit(rateKey)) return empty();
+
     await pb.collection('store_analytics_events').create({
-      store,
+      store: storeRecord.id,
       event_type: 'landing_qr_click',
       day: normalizeDay(body.day),
       visitor_id: visitorId,
       session_id: sessionId,
       page_type: 'landing_qr',
       entity_type: 'landing_qr',
-      entity_id: store,
-      path: normalizePath(body.path),
+      entity_id: storeRecord.id,
+      path: canonicalPath,
       referrer: '',
       user_agent: '',
-      link_id: linkId,
-      link_type: linkType,
-      link_icon: linkIcon,
-      link_label: linkLabel,
+      link_id: canonicalLink.id,
+      link_type: canonicalLink.type,
+      link_icon: canonicalLink.icon,
+      link_label: canonicalLink.label,
     });
 
     return empty();

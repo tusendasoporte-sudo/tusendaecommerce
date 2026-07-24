@@ -7,8 +7,11 @@ import {
   getLandingQrInitials,
   getLandingQrPath,
   getLandingQrStoreName,
+  isLandingQrStoredEnabled,
+  landingQrRedirectResponse,
   normalizeLandingQrAccentColor,
   normalizeLandingQrLinks,
+  resolveLandingQrCapability,
 } from '../../../lib/landingQr';
 
 let currentStore;
@@ -23,17 +26,17 @@ try {
   throw error;
 }
 
-const settings = await getSettings({ storeId: currentStore.id });
 const landingPath = getLandingQrPath(currentStore);
-const publicStorePath = landingPath.replace(/\/links$/, '');
-const landingIsDisabled =
-  settings?.landing_qr_enabled === false ||
-  settings?.landing_qr_enabled === 0 ||
-  String(settings?.landing_qr_enabled).toLowerCase() === 'false' ||
-  String(settings?.landing_qr_enabled) === '0';
+const landingCapability = resolveLandingQrCapability(currentStore);
 
-if (landingIsDisabled) {
-  return Astro.redirect(publicStorePath);
+if (!landingCapability.allowed) {
+  return landingQrRedirectResponse(currentStore);
+}
+
+const settings = await getSettings({ storeId: currentStore.id });
+
+if (!isLandingQrStoredEnabled(settings?.landing_qr_enabled)) {
+  return landingQrRedirectResponse(currentStore);
 }
 
 const storeName = getLandingQrStoreName(settings, currentStore);
