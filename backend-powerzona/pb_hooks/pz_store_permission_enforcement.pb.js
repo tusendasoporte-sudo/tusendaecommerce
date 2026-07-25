@@ -5,6 +5,11 @@ routerUse(new Middleware(
   -900,
 ));
 
+routerUse(new Middleware(
+  (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRaffleFileCachePolicy(e),
+  -899,
+));
+
 onRecordsListRequest(
   (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceRead(e),
   "products", "product_variations", "categories", "subcategories", "orders", "order_items",
@@ -69,7 +74,7 @@ onRecordDeleteRequest(
 
 onFileDownloadRequest(
   (e) => require(`${__hooks}/pz_store_permission_enforcement_lib.js`).enforceFileDownload(e),
-  "settings",
+  "settings", "raffles",
 );
 
 onRealtimeSubscribeRequest((e) => {

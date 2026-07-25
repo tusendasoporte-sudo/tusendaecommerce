@@ -1,12 +1,13 @@
 ---
 import { refreshAuthFromCookie } from '../../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../../lib/adminRoutes';
+import { resolveRafflesAdminAccess } from '../../../lib/raffleAccess';
 import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
-import { getStoreAccessContext } from '../../../lib/storeTeam';
 import AdminSidebar from '../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../components/admin/AdminSectionHeader.astro';
 import AdminIcon from '../../../components/admin/AdminIcon.astro';
 import LastModificationMeta from '../../../components/admin/LastModificationMeta.astro';
+import StoreCapabilityGate from '../../../components/shared/StoreCapabilityGate.astro';
 import { RAFFLE_TIME_ZONE } from '../../../lib/raffles';
 import '../../../styles/global.css';
 
@@ -16,11 +17,29 @@ const adminContext = await requireCurrentStoreForAdmin(authPb);
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
-const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona';
+const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tu tienda';
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const raffleTimeZone = RAFFLE_TIME_ZONE;
+const rafflesAdminAccess = await resolveRafflesAdminAccess(adminContext, {
+  baseUrl: pocketbaseUrl,
+  token: adminAuthToken,
+});
+const storeAccessContext = rafflesAdminAccess.storeAccess;
+const canRenderRafflesEditor = rafflesAdminAccess.allowed;
+const showRafflesGate = rafflesAdminAccess.isPrimaryAdmin && !rafflesAdminAccess.capability.allowed;
+
+if (!canRenderRafflesEditor && !showRafflesGate) {
+  return new Response('No se encontró la página solicitada.', {
+    status: 404,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0',
+      Pragma: 'no-cache',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+    },
+  });
+}
 ---
 
 <!doctype html>
@@ -28,7 +47,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rifas | PowerZona</title>
+    <title>{`Rifas | ${currentStoreName}`}</title>
     <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
@@ -51,7 +70,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
       }
 
       * { box-sizing: border-box; }
-      html, body { margin: 0; min-height: 100%; }
+      html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
       body {
         color: var(--text);
         background:
@@ -1633,21 +1652,23 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         pocketbaseUrl={pocketbaseUrl}
         authToken={adminAuthToken}
         storeSlug={currentStoreSlug}
-        storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'}
+        storeName={currentStoreName}
         storePlanValues={adminContext.store}
         activeSection="marketing"
         mobileTitle="Rifas"
-        mobileActionLabel="Actualizar"
-        mobileActionTarget="#raffle-new-btn"
+        mobileActionLabel={canRenderRafflesEditor ? 'Actualizar' : undefined}
+        mobileActionTarget={canRenderRafflesEditor ? '#raffle-new-btn' : undefined}
       />
       <LastModificationMeta
         controllerOnly={true}
         pocketbaseUrl={pocketbaseUrl}
-        enabled={storeAccessContext?.access.is_primary_admin === true}
-        showActor={storeAccessContext?.access.is_primary_admin === true}
+        enabled={canRenderRafflesEditor && storeAccessContext?.access.is_primary_admin === true}
+        showActor={canRenderRafflesEditor && storeAccessContext?.access.is_primary_admin === true}
       />
 
-      <main class="main-wrap pz-admin-content-inner">
+      {canRenderRafflesEditor ? (
+        <>
+      <main class="main-wrap pz-admin-content-inner" data-raffles-editor>
         <AdminSectionHeader
           kicker="Marketing / Rifas"
           title="Rifas"
@@ -2083,8 +2104,32 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           </aside>
         </section>
       </main>
+        </>
+      ) : (
+        <main class="main-wrap pz-admin-content-inner" data-raffles-premium-gate>
+          <AdminSectionHeader
+            kicker="Marketing / Rifas"
+            title="Rifas"
+            description="Administra rifas exclusivas para tu comunidad y conserva toda su configuración."
+            titleId="raffle-admin-title"
+            bellId="admin-raffles-bell"
+          />
+          <StoreCapabilityGate
+            access={rafflesAdminAccess.capability}
+            featureName="Rifas"
+            featureDescription="Crea y administra rifas exclusivas, premios, participantes y resultados desde el Plan Premium."
+            preservationMessage="Tus rifas, premios, imágenes, participantes y resultados permanecen guardados y volverán a estar disponibles al regresar a Premium."
+            requiredPlanLabel="Plan Premium requerido"
+            infoTitle="Tu configuración está protegida"
+            infoDescription="El cambio de plan no elimina ni modifica los datos existentes de tus rifas."
+            planExpiredUsesPlanGate={true}
+          />
+        </main>
+      )}
     </div>
 
+    {canRenderRafflesEditor && (
+      <>
     <div id="raffle-date-modal" class="raffle-modal hidden" aria-hidden="true">
       <div class="raffle-date-card" role="dialog" aria-modal="true" aria-labelledby="raffle-date-modal-title">
         <div class="raffle-modal-head">
@@ -2171,7 +2216,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
           } catch (_) { return ''; }
         })();
         const PUBLIC_STORE_PATH = String(publicStorePath || '');
-        const CURRENT_STORE_NAME = String(currentStoreName || 'PowerZona');
+        const CURRENT_STORE_NAME = String(currentStoreName || 'Tu tienda');
         const RAFFLE_TIME_ZONE = String(raffleTimeZone || 'America/Havana');
         const PRIZE_FIXED_LIMIT = 3;
         const STORE_FILTER = CURRENT_STORE_ID ? `store="${String(CURRENT_STORE_ID).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"` : '';
@@ -4289,10 +4334,6 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
                     ${adminIconSvg(raffle.is_configured === true ? 'edit' : 'settings', 'pz-admin-action-icon')}
                     <span>${escapeHtml(editText)}</span>
                   </button>
-                  <a class="raffle-btn pz-admin-action-btn" href="${escapeHtml(activityHistoryPath('raffle', raffle.id))}">
-                    ${adminIconSvg('view', 'pz-admin-action-icon')}
-                    <span>Ver historial</span>
-                  </a>
                   ${actionMenuHtml(raffle, status, fullHref)}
                 </div>
               </article>
@@ -4979,5 +5020,7 @@ const raffleTimeZone = RAFFLE_TIME_ZONE;
         });
       })();
     </script>
+      </>
+      )}
   </body>
 </html>

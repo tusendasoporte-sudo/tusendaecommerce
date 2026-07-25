@@ -440,7 +440,7 @@ export function normalizeStoreFeaturedPrizeIds(value: unknown) {
   return unique;
 }
 
-export function parseRafflePrizes(raffle: Partial<RaffleRecord> | null | undefined, storeName = 'PowerZona') {
+export function parseRafflePrizes(raffle: Partial<RaffleRecord> | null | undefined, storeName = 'Tu tienda') {
   const structured = parseJsonArray(raffle?.prizes_json)
     .map((item, index) => {
       const prize = item && typeof item === 'object' ? item as Record<string, unknown> : {};
@@ -468,7 +468,7 @@ export function rafflePrizeImageUrl(raffle: RaffleRecord, image: unknown) {
   return filename ? getPocketBaseFileUrl('raffles', raffle.id, filename) : '';
 }
 
-export function rafflePrizeCards(raffle: RaffleRecord, storeName = 'PowerZona', fallbackDescription = ''): RafflePrizeCard[] {
+export function rafflePrizeCards(raffle: RaffleRecord, storeName = 'Tu tienda', fallbackDescription = ''): RafflePrizeCard[] {
   const prizes = parseRafflePrizes(raffle, storeName);
   const cards = prizes.map((prize, index) => ({
     ...prize,
@@ -490,7 +490,7 @@ export function rafflePrizeCards(raffle: RaffleRecord, storeName = 'PowerZona', 
 
 export function getStoreFeaturedPrizeCards(
   raffle: RaffleRecord,
-  storeName = 'PowerZona'
+  storeName = 'Tu tienda'
 ): RafflePrizeCard[] {
   const allCards = rafflePrizeCards(raffle, storeName);
   const selectedIds = normalizeStoreFeaturedPrizeIds(raffle?.store_featured_prize_ids);
@@ -645,54 +645,71 @@ export function buildRaffleWhatsappReceiptHref({
   return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
-export async function getVisibleRaffleBySlug(storeId: string, raffleSlug: string, client = pb) {
-  const slug = normalizeRaffleSlug(raffleSlug);
-  if (!storeId || !isFixedRaffleSlug(slug)) return null;
+type PublicRafflesPayload = {
+  ok: true;
+  raffles: RaffleRecord[];
+  raffle: RaffleRecord | null;
+  occupied_numbers: string[];
+};
+
+async function requestPublicRaffles(
+  action: 'home' | 'first' | 'detail',
+  storeSlug: string,
+  raffleSlug = '',
+): Promise<PublicRafflesPayload | null> {
+  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  const canonicalStoreSlug = normalizeRaffleSlug(storeSlug);
+  const canonicalRaffleSlug = normalizeRaffleSlug(raffleSlug);
+  if (!baseUrl || !canonicalStoreSlug) return null;
+  if (action === 'detail' && !isFixedRaffleSlug(canonicalRaffleSlug)) return null;
 
   try {
-    return await client.collection('raffles').getFirstListItem(
-      `store="${escapePocketBaseValue(storeId)}" && slug="${escapePocketBaseValue(slug)}" && is_configured=true && link_enabled=true`
-    ) as RaffleRecord;
-  } catch (error: any) {
-    if (error?.status === 404) return null;
-    throw error;
-  }
-}
-
-export async function getFirstVisibleRaffle(storeId: string, client = pb) {
-  if (!storeId) return null;
-
-  const visibleRaffles = await getVisibleRafflesForStore(storeId, client);
-  return visibleRaffles[0] || null;
-}
-
-export async function getVisibleRafflesForStore(storeId: string, client = pb) {
-  if (!storeId) return [];
-
-  try {
-    const result = await client.collection('raffles').getList(1, 3, {
-      filter: `store="${escapePocketBaseValue(storeId)}" && is_configured=true && link_enabled=true && show_in_store=true && status!="archived" && (slug="rifa-1" || slug="rifa-2" || slug="rifa-3")`,
-      sort: 'slot_number,created,updated',
+    const response = await fetch(`${baseUrl}/api/pz/raffles/public`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        action,
+        store_slug: canonicalStoreSlug,
+        raffle_slug: canonicalRaffleSlug,
+      }),
     });
-    return (result.items || []) as RaffleRecord[];
-  } catch (error: any) {
-    return [];
-  }
-}
-
-export async function getOccupiedRaffleNumbers(raffleId: string) {
-  if (!raffleId) return [];
-
-  try {
-    const entries = await pb.collection('raffle_entries').getFullList({
-      filter: `raffle="${escapePocketBaseValue(raffleId)}" && status="active"`,
-      fields: 'chosen_number',
-      sort: 'chosen_number',
-    });
-    return entries.map((entry: any) => String(entry.chosen_number || '')).filter(isValidRaffleNumber);
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.ok !== true) return null;
+    return {
+      ok: true,
+      raffles: Array.isArray(result.raffles) ? result.raffles as RaffleRecord[] : [],
+      raffle: result.raffle && typeof result.raffle === 'object'
+        ? result.raffle as RaffleRecord
+        : null,
+      occupied_numbers: Array.isArray(result.occupied_numbers)
+        ? result.occupied_numbers.map(String).filter(isValidRaffleNumber)
+        : [],
+    };
   } catch (_) {
-    return [];
+    return null;
   }
+}
+
+export async function getVisibleRaffleBySlug(storeSlug: string, raffleSlug: string) {
+  return (await requestPublicRaffles('detail', storeSlug, raffleSlug))?.raffle || null;
+}
+
+export async function getFirstVisibleRaffle(storeSlug: string) {
+  return (await requestPublicRaffles('first', storeSlug))?.raffle || null;
+}
+
+export async function getVisibleRafflesForStore(storeSlug: string) {
+  return (await requestPublicRaffles('home', storeSlug))?.raffles || [];
+}
+
+export async function getPublicRafflePageData(storeSlug: string, raffleSlug = '') {
+  const action = raffleSlug ? 'detail' : 'first';
+  const result = await requestPublicRaffles(action, storeSlug, raffleSlug);
+  return {
+    raffle: result?.raffle || null,
+    occupiedNumbers: result?.occupied_numbers || [],
+  };
 }
 
 function hasLegacyRaffleContent(raffle: Partial<RaffleRecord> | null | undefined) {

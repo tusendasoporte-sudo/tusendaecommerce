@@ -2,7 +2,11 @@
 import RafflePublicPage from '../../../components/public-store/RafflePublicPage.astro';
 import { getSettings } from '../../../lib/api';
 import { StoreResolutionError, getCurrentStore } from '../../../lib/stores';
-import { getFirstVisibleRaffle, getOccupiedRaffleNumbers } from '../../../lib/raffles';
+import { getPublicRafflePageData } from '../../../lib/raffles';
+import {
+  rafflesUnavailableRedirectResponse,
+  resolveRafflesCapability,
+} from '../../../lib/raffleAccess';
 
 let currentStore;
 
@@ -16,9 +20,12 @@ try {
   throw error;
 }
 
+if (!resolveRafflesCapability(currentStore).allowed) {
+  return rafflesUnavailableRedirectResponse(currentStore);
+}
+
 const settings = await getSettings({ storeId: currentStore.id }).catch(() => null);
-const raffle = await getFirstVisibleRaffle(currentStore.id);
-const occupiedNumbers = raffle ? await getOccupiedRaffleNumbers(raffle.id) : [];
+const { raffle, occupiedNumbers } = await getPublicRafflePageData(currentStore.slug);
 const canonicalPath = raffle?.slug
   ? `/t/${encodeURIComponent(currentStore.slug)}/rifa/${encodeURIComponent(raffle.slug)}`
   : `/t/${encodeURIComponent(currentStore.slug)}/rifa`;

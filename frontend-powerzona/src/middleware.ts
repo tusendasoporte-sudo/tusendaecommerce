@@ -40,6 +40,11 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   return { any: [] };
 }
 
+function primaryAdminCanReachRafflesGate(section: string, isPrimaryAdmin: boolean) {
+  const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
+  return normalized === 'promos/raffles' && isPrimaryAdmin;
+}
+
 function firstAllowedAdminPath(storeSlug: string, access: { permissions: readonly StorePermission[] }) {
   const candidates: ReadonlyArray<readonly [StorePermission, string]> = [
     ['analytics.view', 'pageviews'],
@@ -175,11 +180,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
         is_primary_admin: storeAccess.access.is_primary_admin,
         blocked_by_plan: storeAccess.access.blocked_by_plan,
       };
-      const allowed = accessRule.primary === true
+      const allowed = primaryAdminCanReachRafflesGate(
+        requestedSection,
+        storeAccess.access.is_primary_admin === true,
+      ) || (accessRule.primary === true
         ? storeAccess.access.is_primary_admin === true
         : accessRule.all?.length
           ? accessRule.all.every((permission) => hasStorePermission(permissionContext, permission))
-          : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission));
+          : (accessRule.any || []).some((permission) => hasStorePermission(permissionContext, permission)));
       if (!allowed) {
         const fallback = firstAllowedAdminPath(currentStoreSlug, storeAccess.access);
         if (!requestedSection && fallback && fallback !== canonicalAdminPath) return context.redirect(fallback);

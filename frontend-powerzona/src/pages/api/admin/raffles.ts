@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { Buffer } from 'node:buffer';
 import sharp from 'sharp';
 import { refreshAuthFromCookie } from '../../../lib/auth';
+import { requireRafflesAdminAccess, RafflesAccessError } from '../../../lib/raffleAccess';
 import { requireCurrentStoreForAdmin } from '../../../lib/storeContext';
 import {
   DEFAULT_RAFFLE_WINNER_MESSAGE,
@@ -37,13 +38,17 @@ const RESULT_LOCKED_STATUSES = new Set(['winner_published', 'no_winner_published
 const RAFFLE_PRIZE_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const RAFFLE_PRIZE_IMAGE_MAX_SIZE = 900;
 const RAFFLE_PRIZE_WEBP_QUALITY = 86;
-const ADMIN_RAFFLE_PERMISSION_MESSAGE = 'No se pudo guardar la rifa. Revisa los permisos de la colección o tu sesión de administrador.';
-const ADMIN_RAFFLE_SCHEMA_MESSAGE = 'La estructura de Rifas en PocketBase no está actualizada. Ejecuta la migración nueva de Rifas.';
+const ADMIN_RAFFLE_SCHEMA_MESSAGE = 'Rifas no está disponible temporalmente.';
 
 function json(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'private, no-store, max-age=0',
+      Pragma: 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    },
   });
 }
 
@@ -58,8 +63,14 @@ function getAdminRaffleError(error: any, fallback: string) {
     }
   })();
   const combinedMessage = `${rawMessage} ${detailText}`;
+  if (error instanceof RafflesAccessError || error?.code === 'raffles_access_denied') {
+    return { message: 'Rifas no está disponible para este acceso.', status: 403 };
+  }
+  if (statusCode === 404) {
+    return { message: 'No se encontró la rifa solicitada.', status: 404 };
+  }
   if (statusCode === 401 || statusCode === 403 || /forbidden|unauthori[sz]ed|permission|permiso|auth/i.test(rawMessage)) {
-    return { message: ADMIN_RAFFLE_PERMISSION_MESSAGE, status: 403 };
+    return { message: 'No tienes permiso para gestionar Rifas.', status: 403 };
   }
   if (/access_code_hash|winner_message|whatsapp_group_invite_enabled|whatsapp_group_invite_url|store_featured_prize_ids/i.test(combinedMessage) || (/access_code/i.test(combinedMessage) && /unknown|schema|field/i.test(combinedMessage))) {
     return { message: ADMIN_RAFFLE_SCHEMA_MESSAGE, status: 500 };
@@ -68,9 +79,7 @@ function getAdminRaffleError(error: any, fallback: string) {
     return { message: fallback, status: 400 };
   }
 
-  const message = rawMessage || fallback;
-  const status = /sesion|permiso|tienda|usuario|auth/i.test(message) ? 403 : 400;
-  return { message, status };
+  return { message: fallback, status: statusCode >= 500 ? 500 : 400 };
 }
 
 function cleanText(value: unknown, max = 0) {
@@ -185,6 +194,10 @@ function sanitizeRaffleResponse(record: any) {
 async function getAdminContext(request: Request) {
   const authPb = await refreshAuthFromCookie(request.headers.get('cookie') || '');
   const adminContext = await requireCurrentStoreForAdmin(authPb);
+  await requireRafflesAdminAccess(adminContext, {
+    baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
+    token: authPb.authStore.token,
+  });
   return { authPb, adminContext };
 }
 

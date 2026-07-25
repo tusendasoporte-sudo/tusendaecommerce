@@ -1,6 +1,7 @@
 ---
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getPublicStorePath, getStoreAdminPath } from '../../lib/adminRoutes';
+import { resolveRafflesCapability } from '../../lib/raffleAccess';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import { getStoreAccessContext } from '../../lib/storeTeam';
 import { hasStorePermission } from '../../lib/storeTeamPermissions';
@@ -37,6 +38,9 @@ const marketingPermissionContext = storeAccessContext
 const canManagePromotions = hasStorePermission(marketingPermissionContext, 'promotions.manage');
 const canManageCoupons = hasStorePermission(marketingPermissionContext, 'coupons.manage');
 const canManageRaffles = hasStorePermission(marketingPermissionContext, 'raffles.manage');
+const rafflesCapabilityAccess = resolveRafflesCapability(adminContext.store);
+const canShowRaffles = canManageRaffles
+  || (storeAccessContext?.access.is_primary_admin === true && !rafflesCapabilityAccess.allowed);
 const canManageProductVisibility = hasStorePermission(marketingPermissionContext, 'catalog.products.visibility');
 const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 'store.settings.manage');
 ---
@@ -2630,6 +2634,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
             {canManagePromotions && <button class="tab-btn" data-tab="promociones" type="button">Promociones automáticas</button>}
             {canManageCoupons && <button class="tab-btn" data-tab="cupones" type="button">Cupón manual</button>}
             {canManageRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
+            {!canManageRaffles && canShowRaffles && <a class="tab-btn" href={adminRafflesPath}>Rifas</a>}
             {canManagePromotions && <button class="tab-btn" data-tab="visuales" type="button">Promo visual / Acceso rápido</button>}
           </div>
 

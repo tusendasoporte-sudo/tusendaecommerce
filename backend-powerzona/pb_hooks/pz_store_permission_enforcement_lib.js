@@ -547,7 +547,7 @@ function assertTenantAndRelationIntegrity(e, collection, operation) {
   const original = operation === "update" || operation === "delete" ? originalRecord(record) : null;
   const originalStoreId = original ? recordStoreId(e.app, collection, original) : "";
   if (originalStoreId && originalStoreId !== actorStoreId) {
-    if (collection === "settings") denyIsolation();
+    if (["settings", "raffles", "raffle_entries"].includes(collection)) denyIsolation();
     return;
   }
 
@@ -759,17 +759,6 @@ function sanitizePublicNotificationCreate(e) {
     priority = "important";
     targetUrl = `/t/${encodeURIComponent(recordString(store, "slug"))}/admin/store-settings#rating-pending`;
     metadata = { order_id: order.id, review_count: reviews.length, source: "order_review_link" };
-  } else if (type === "raffle_entry_created" && entityCollection === "raffle_entries") {
-    const entry = findRecord(e.app, "raffle_entries", entityId);
-    const raffle = entry ? findRecord(e.app, "raffles", relationId(entry, "raffle")) : null;
-    if (!entry || !raffle || relationId(entry, "store") !== storeId || relationId(raffle, "store") !== storeId) {
-      denyInvalidNotification();
-    }
-    const number = recordString(entry, "chosen_number");
-    title = "Nueva participación en rifa";
-    message = `Nueva participación en rifa: número ${number.slice(0, 2)}`;
-    targetUrl = `/t/${encodeURIComponent(recordString(store, "slug"))}/admin/promos/raffles`;
-    metadata = { raffle_id: raffle.id, chosen_number: number, source: "public_raffle" };
   } else {
     denyInvalidNotification();
   }
@@ -1181,6 +1170,19 @@ function enforcePublicProductReadCachePolicy(e) {
   return e.next();
 }
 
+function enforceRaffleFileCachePolicy(e) {
+  const request = e && e.request;
+  const method = String(request && request.method || "").toUpperCase();
+  const path = String(request && request.url && request.url.path || "");
+  if (method === "GET" && /^\/api\/files\/raffles\/[a-zA-Z0-9_-]+\//.test(path)) {
+    const headers = e.response.header();
+    headers.set("Cache-Control", "private, no-store, max-age=0");
+    headers.set("Pragma", "no-cache");
+    headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  return e.next();
+}
+
 function respondPublicUnavailable(e) {
   const payload = {
     code: 404,
@@ -1508,6 +1510,9 @@ function assertSafeReadQuery(e, collection) {
 
 function enforceRead(e, collection) {
   const name = collectionName(e, collection);
+  if (publicProductConsumer(e && e.auth) && ["raffles", "raffle_entries"].includes(name)) {
+    return respondPublicUnavailable(e);
+  }
   assertSafeReadQuery(e, name);
   const deniedPermission = DENIED_STORE_READS[name];
   if (deniedPermission && storeIdentity(e && e.auth)) denyPermission(deniedPermission);
@@ -1581,6 +1586,7 @@ function enforceMutation(e, collection, operation) {
   }
   if (!storeIdentity(e && e.auth)) {
     if (superuserRequest(e)) return e.next();
+    if (["raffles", "raffle_entries"].includes(name)) denyIsolation();
     if (name === "store_analytics_events" && operation === "create") {
       assertPublicAnalyticsEventAllowed(e);
     }
@@ -1648,21 +1654,49 @@ function assertPublicAnalyticsEventAllowed(e) {
   return true;
 }
 
+function rafflesCapabilityAllowed(store) {
+  return !!store && capabilities.hasStoreCapability(
+    store,
+    "raffles_enabled",
+    { enforceExpiration: true },
+  );
+}
+
+function publicRaffleAvailable(raffle, store) {
+  if (!raffle || !store || recordString(store, "status") !== "active") return false;
+  return rafflesCapabilityAllowed(store)
+    && relationId(raffle, "store") === recordString(store, "id")
+    && ["rifa-1", "rifa-2", "rifa-3"].includes(recordString(raffle, "slug"))
+    && recordBoolean(raffle, "is_configured")
+    && recordBoolean(raffle, "link_enabled")
+    && recordString(raffle, "status") !== "archived";
+}
+
 function enforceFileDownload(e) {
   const collection = collectionName(e, "");
   const fieldName = String(e && e.fileField && e.fileField.name || "").trim();
-  if (collection !== "settings" || fieldName !== "landing_qr_hero_image") return e.next();
+  const landingQrFile = collection === "settings" && fieldName === "landing_qr_hero_image";
+  const raffleFile = collection === "raffles" && fieldName === "images";
+  if (!landingQrFile && !raffleFile) return e.next();
   if (superuserRequest(e)) return e.next();
   const record = e && e.record;
-  const storeId = recordStoreId(e.app, "settings", record);
+  const storeId = recordStoreId(e.app, collection, record);
   const store = findRecord(e.app, "stores", storeId);
-  if (!store || !landingQrCapabilityAllowed(store)) denyIsolation();
-
   const auth = e && e.auth;
+  const available = landingQrFile
+    ? landingQrCapabilityAllowed(store)
+    : (storeIdentity(auth) ? rafflesCapabilityAllowed(store) : publicRaffleAvailable(record, store));
+  if (!available) {
+    return respondPublicUnavailable(e);
+  }
+
   if (storeIdentity(auth)) {
-    if (!storeUser(auth) || relationId(auth, "store") !== storeId) denyIsolation();
-    if (!permissions.hasStorePermission(e.app, auth, store, "landing_qr.manage")) {
-      denyPermission("landing_qr.manage");
+    if (!storeUser(auth) || relationId(auth, "store") !== storeId) {
+      return respondPublicUnavailable(e);
+    }
+    const permission = landingQrFile ? "landing_qr.manage" : "raffles.manage";
+    if (!permissions.hasStorePermission(e.app, auth, store, permission)) {
+      denyPermission(permission);
     }
   }
   return e.next();
@@ -1731,6 +1765,9 @@ function enforceRealtimeSubscribe(e) {
   for (let index = 0; index < length; index += 1) {
     const topic = subscriptions[index];
     const collection = realtimeCollectionName(topic);
+    if (publicActor && ["raffles", "raffle_entries"].includes(collection)) {
+      denyPermission("query.restricted");
+    }
     if (!collection || (storeActor && !hasCollectionReadAccess(e.app, auth, collection))) {
       denyPermission(
         DENIED_STORE_READS[collection]
@@ -1800,6 +1837,7 @@ function enforceRealtimeMessage(e) {
   if (!auth && recordString(connectedAuth, "id")) return;
   const collection = realtimeCollectionName(e && e.message && e.message.name);
   if (!storeIdentity(auth)) {
+    if (["raffles", "raffle_entries"].includes(collection)) return;
     const publicPayload = realtimePayload(e.message);
     const publicRecord = publicPayload && publicPayload.record;
     let publicChanged = false;
@@ -1895,6 +1933,7 @@ module.exports = {
   enforceRealtimeMessage,
   enforceRealtimeSubscribe,
   enforcePublicProductReadCachePolicy,
+  enforceRaffleFileCachePolicy,
   filterPublicPromotionRead,
   filterPublicProductRead,
   hasCollectionReadAccess,
@@ -1932,4 +1971,6 @@ module.exports = {
   isLandingQrAnalyticsEvent,
   landingQrCapabilityAllowed,
   landingQrPublicAvailable,
+  rafflesCapabilityAllowed,
+  publicRaffleAvailable,
 };

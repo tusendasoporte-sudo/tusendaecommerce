@@ -191,7 +191,17 @@ const canShowLandingQrNav = canShowModule('landing_qr.manage')
 const canShowSettingsGroup = canShowStoreSettingsNav || canShowReviewsNav || canShowLandingQrNav;
 const canShowPromotionsNav = canShowModule('promotions.manage');
 const canShowCouponsNav = canShowModule('coupons.manage');
-const canShowRafflesNav = canShowModule('raffles.manage');
+const rafflesAccess = resolveStoreCapabilityAccess(
+  storePlanValues,
+  'raffles_enabled',
+  { enforceExpiration: true },
+);
+const canManageRaffles = canShowModule('raffles.manage');
+const canShowRafflesNav = canManageRaffles
+  || (isPrimaryAdmin && !rafflesAccess.allowed);
+const canGenerateRaffleNotifications = isPrimaryAdmin
+  && rafflesAccess.allowed
+  && canManageRaffles;
 const canShowProductVisibilityNav = canShowModule('catalog.products.visibility');
 const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav || canShowProductVisibilityNav;
 const canShowNotificationsNav = canShowModule('notifications.view');
@@ -497,7 +507,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
 <AdminDialog />
 
-<script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminBasePath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath, canShowNotificationsNav, isPrimaryAdmin }}>
+<script define:vars={{ storeId, pocketbaseUrl, notificationsAdminOrdersPath, notificationsAdminProductsPath, adminBasePath, adminNotificationsPath, adminStoreSettingsPath, adminRafflesPath, canShowNotificationsNav, isPrimaryAdmin, canGenerateRaffleNotifications }}>
   window.PZ_ADMIN_NOTIFICATIONS_CONFIG = {
     storeId: String(storeId || ''),
     pocketbaseUrl: String(pocketbaseUrl || '').replace(/\/$/, ''),
@@ -509,6 +519,7 @@ const marketingVisualSubClass = (subsection: string) => {
     settingsPath: String(adminStoreSettingsPath || ''),
     enabled: canShowNotificationsNav === true,
     canGenerate: isPrimaryAdmin === true,
+    canGenerateRaffles: canGenerateRaffleNotifications === true,
   };
 </script>
 
@@ -569,6 +580,7 @@ const marketingVisualSubClass = (subsection: string) => {
     const notificationsPath = String(config.notificationsPath || '');
     const settingsPath = String(config.settingsPath || '');
     const canGenerateNotifications = config.canGenerate === true;
+    const canGenerateRaffleNotifications = config.canGenerateRaffles === true;
     const pb = { baseUrl, token };
     const panel = document.querySelector('[data-pz-admin-notifications-panel]');
     const list = document.querySelector('[data-pz-admin-notifications-list]');
@@ -1117,7 +1129,7 @@ const marketingVisualSubClass = (subsection: string) => {
           await runNotificationCleanup(settings);
           await detectPendingOrders(settings);
           await detectPendingReviewNotifications(settings);
-          await detectDueRaffleResults(settings);
+          if (canGenerateRaffleNotifications) await detectDueRaffleResults(settings);
           await detectInventoryNotifications(settings);
         }
 
@@ -1416,6 +1428,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
     async function detectDueRaffleResults(settingsRecord = null) {
       try {
+        if (!canGenerateRaffleNotifications) return;
         const settings = settingsRecord || await loadSettings();
         if (!settings || settings.notifications_enabled === false) return;
 

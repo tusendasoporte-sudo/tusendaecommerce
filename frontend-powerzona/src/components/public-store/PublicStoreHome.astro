@@ -12,6 +12,7 @@ import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { getVisibleRafflesForStore } from '../../lib/raffles';
+import { resolveRafflesCapability } from '../../lib/raffleAccess';
 
 const currentStore = Astro.props.currentStore || await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
@@ -27,7 +28,10 @@ const products = isTemporarilyClosed ? [] : await getProducts(storeQuery);
 const featuredProducts = isTemporarilyClosed ? [] : await getFeaturedProducts(storeQuery);
 const visualItems = isTemporarilyClosed ? [] : await getStoreVisualItems(storeQuery);
 const gifts = isTemporarilyClosed ? [] : await getPublicGifts(storeQuery);
-const visibleRaffles = isTemporarilyClosed ? [] : await getVisibleRafflesForStore(currentStoreId);
+const rafflesCapability = resolveRafflesCapability(currentStore);
+const visibleRaffles = isTemporarilyClosed || !rafflesCapability.allowed
+  ? []
+  : await getVisibleRafflesForStore(currentStore.slug);
 const automaticPromotions = isTemporarilyClosed ? [] : await getAutomaticPromotions(storeQuery);
 const reviewsEnabled = settings?.reviews_enabled !== false;
 const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;

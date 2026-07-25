@@ -247,3 +247,14 @@ No se contabilizan como aprobadas. El runtime L7Q1 se ejecutó manualmente por H
 No se ejecutó `git add`, commit, push, merge, cherry-pick, deploy ni cambios en Coolify/Cloudflare.
 
 L7Q1 queda técnicamente listo para revisión, pero **no se marca como COMPLETADO** hasta recibir las pruebas manuales y la confirmación expresa de Kraken.
+
+## 14. Cierre documental confirmado
+
+**L7Q1 — Landing QR Premium: COMPLETADO.**
+
+- Source de cierre: **V120**.
+- Confirmación manual de Kraken: **24 de julio de 2026**.
+- Todos los bloques manuales de la guía anterior fueron aprobados.
+- El despliegue a staging/production continúa reservado para el bloque conjunto aprobado; este cierre documental no autoriza ni ejecuta despliegues.
+
+Esta nota cierra el estado pendiente del reporte sin borrar ni reemplazar el historial técnico y manual anterior. No se modificó el PDF de bitácora.
