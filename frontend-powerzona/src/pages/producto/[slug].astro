@@ -323,7 +323,9 @@ const variationItems = sellableVariations.map((variation) => {
 	const variationOutOfStock = tracksStock && variationStock <= 0;
 	const variationCanPreorder = variationOutOfStock && variationPreorder;
 	const variationDisabled = variationPrice <= 0 || (variationOutOfStock && !variationCanPreorder);
-	const variationLabel = [variation.variation_type, variation.value].filter(Boolean).join(': ') || 'variacion';
+	const variationType = String(variation.variation_type || '').trim();
+	const variationValue = String(variation.value || '').trim();
+	const variationLabel = [variationType, variationValue].filter(Boolean).join(': ') || 'variacion';
 	const stockLabel = variationPrice <= 0 ? 'Sin precio' : !tracksStock ? 'Disponible' : variationCanPreorder ? 'Preorder' : variationDisabled ? 'Agotada' : `${variationStock} disponibles`;
 	const stockClass = variationPrice <= 0 ? 'text-orange-600' : !tracksStock ? 'text-green-700' : variationCanPreorder ? 'text-blue-700' : variationDisabled ? 'text-red-600' : 'text-gray-500';
 	return {
@@ -337,6 +339,8 @@ const variationItems = sellableVariations.map((variation) => {
 		variationOutOfStock,
 		variationCanPreorder,
 		variationDisabled,
+		variationType,
+		variationValue,
 		variationLabel,
 		stockLabel,
 		stockClass,
@@ -1228,8 +1232,8 @@ const variationItems = sellableVariations.map((variation) => {
 							<h2 class="font-bold text-gray-900">Selecciona una variacion</h2>
 							<p class="text-xs text-gray-500 mt-1">El precio, la foto y el stock cambian según la opción.</p>
 						</div>
-						<span class="text-xs font-black bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
-							{variations.length} opciones
+						<span class="inline-flex shrink-0 items-center whitespace-nowrap text-xs font-black bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+							{variations.length} {variations.length === 1 ? 'opción' : 'opciones'}
 						</span>
 					</div>
 
@@ -1253,32 +1257,35 @@ const variationItems = sellableVariations.map((variation) => {
 					{variationView === 'checkbox' && (
 						<div id="variation-checkbox-list" class="grid grid-cols-1 gap-3">
 							{variationItems.map((variation) => (
-									<label
-										data-variation-check-card
-										data-variation-id={variation.id}
-										class={`flex items-center justify-between gap-3 rounded-2xl border p-3 transition border-gray-100 bg-white ${variation.variationDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-blue-200'}`}
-									>
-										<span class="flex items-center gap-3 min-w-0">
-											<input
-												type="radio"
-												name="variation_fixed_option"
-												value={variation.id}
-												disabled={variation.variationDisabled}
-												checked={firstVariation?.id === variation.id}
-												data-variation-radio
-												class="h-4 w-4 accent-blue-600"
-											/>
-											<img src={variation.variationImage} alt={variation.variationLabel} class="w-11 h-11 rounded-xl object-contain bg-white border border-gray-100" />
-											<span class="min-w-0">
-												<span class="block font-black text-gray-900 text-sm truncate">{variation.variationLabel}</span>
-												<span class={`block text-xs font-bold ${variation.stockClass}`}>
-													{variation.stockLabel}
-												</span>
+								<label
+									data-variation-check-card
+									data-variation-id={variation.id}
+									class={`flex items-center justify-between gap-3 rounded-2xl border p-3 transition border-gray-100 bg-white ${variation.variationDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-blue-200'}`}
+								>
+									<span class="flex flex-1 items-center gap-3 min-w-0">
+										<input
+											type="radio"
+											name="variation_fixed_option"
+											value={variation.id}
+											disabled={variation.variationDisabled}
+											checked={firstVariation?.id === variation.id}
+											data-variation-radio
+											class="h-4 w-4 shrink-0 accent-blue-600"
+										/>
+										<img src={variation.variationImage} alt={variation.variationLabel} class="w-11 h-11 shrink-0 rounded-xl object-contain bg-white border border-gray-100" />
+										<span class="min-w-0 flex-1">
+											<span class="block text-xs font-bold leading-tight text-gray-500">{variation.variationType || 'Opción'}</span>
+											<span class="mt-0.5 block text-sm font-black leading-tight text-gray-900 whitespace-normal break-words">
+												{variation.variationValue || variation.variationLabel}
+											</span>
+											<span class={`block text-xs font-bold ${variation.stockClass}`}>
+												{variation.stockLabel}
 											</span>
 										</span>
-										<span class="text-blue-600 font-extrabold text-sm whitespace-nowrap" data-pz-price-usd={variation.variationPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>{`$${variation.variationPrice.toFixed(2)} USD`}</span>
-									</label>
-								))}
+									</span>
+									<span class="shrink-0 text-right text-blue-600 font-extrabold text-sm whitespace-nowrap" data-pz-price-usd={variation.variationPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>{`$${variation.variationPrice.toFixed(2)} USD`}</span>
+								</label>
+							))}
 						</div>
 					)}
 
@@ -1303,7 +1310,10 @@ const variationItems = sellableVariations.map((variation) => {
 									<div class="flex items-center gap-3">
 										<img src={variation.variationImage} alt={variation.variationLabel} class="w-12 h-12 rounded-xl object-contain bg-white border border-gray-100" />
 										<div class="min-w-0">
-											<p class="font-black text-gray-900 text-sm truncate">{variation.variationLabel}</p>
+											<p class="text-xs font-bold leading-tight text-gray-500">{variation.variationType || 'Opción'}</p>
+											<p class="mt-0.5 font-black leading-tight text-gray-900 text-sm whitespace-normal break-words">
+												{variation.variationValue || variation.variationLabel}
+											</p>
 											<p class="text-blue-600 font-extrabold text-sm" data-pz-price-usd={variation.variationPrice} data-pz-only-usd={product.only_usd ? 'true' : 'false'}>{`$${variation.variationPrice.toFixed(2)} USD`}</p>
 											<p class={`text-xs font-bold ${variation.stockClass}`}>
 												{variation.stockLabel}
