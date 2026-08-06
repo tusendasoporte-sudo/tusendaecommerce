@@ -55,6 +55,50 @@ Este archivo Markdown es la versión editable de la bitácora histórica en PDF.
 
 <!-- CODEX: insertar cada nueva actualización debajo de este comentario y antes del historial convertido. No borrar entradas anteriores. -->
 
+### S7P3 - Seguridad Premium
+
+| Campo | Detalle |
+|---|---|
+| ID / Prompt | `S7P3` |
+| Título | `Seguridad Premium` |
+| Fecha | `2026-08-06` |
+| Source | `V122` |
+| Sección / rutas | `Admin de tienda -> Seguridad; endpoints privados /api/pz/security/*; REST y realtime privados` |
+| Estado | `EN REVISIÓN` |
+| Confirmación | `Validación técnica Codex aprobada; validación manual Kraken pendiente` |
+
+#### Cierre documental previo
+
+R7P2 - Rifas Premium quedó registrado como **COMPLETADO** en su reporte técnico antes de iniciar cambios funcionales de S7P3. Se conserva Source V121, la confirmación de Kraken del 25 de julio de 2026 y el cierre de los 17 bloques manuales con R7P2-C1/C2.
+
+#### Objetivo
+
+Aplicar capacidad `security_enabled`, vigencia, permisos granulares y aislamiento por tienda a toda la superficie privada de Seguridad, mostrar gate comercial al Principal Free/Básico/vencido y conservar configuración, clientes, eventos, visitantes, bloqueos y auditoría durante downgrade.
+
+#### Cambios implementados
+
+- Contrato SSR central `securityAccess.ts` con capacidad vigente, Principal y permisos de lectura/gestión.
+- Gate comercial en ruta canónica, legacy, detalle de visitante, middleware y sidebar sin consultar ni montar datos privados.
+- Backend explícito para endpoints privados, REST, mutaciones y realtime; Master conserva lectura histórica.
+- Downgrade/upgrade cambia acceso efectivo sin borrar o reescribir datos de Seguridad.
+- El enforcement público aprobado no fue ampliado; 0 migraciones y 0 dependencias.
+
+#### Validaciones
+
+- Backend focal S7P3: **5/5** aprobadas.
+- Frontend focal S7P3: **7/7** aprobadas.
+- Backend completo: **588 totales; 581 aprobadas; 7 omitidas declaradas; 0 fallidas**.
+- Frontend completo: **283/283** aprobadas; 0 fallidas.
+- `npm run build`: aprobado; solo tres warnings históricos de rutas dinámicas.
+- Artefactos públicos: **0 source maps y 0 marcadores internos/console de diagnóstico**; limpieza posterior de `dist`, `.astro` y `.tmp` vacío.
+- `git diff --check`: aprobado.
+- Reporte: `docs/tusenda84/reportes/S7P3-seguridad-premium.md`.
+- Manual de QA: `docs/tusenda84/reportes/S7P3-manual-pruebas-seguridad-premium.md`, con 17 bloques pendientes de ejecución por Kraken.
+
+#### Continuidad
+
+S7P3 queda **EN REVISIÓN / PENDIENTE DE VALIDACIÓN MANUAL DE KRAKEN**. No se marca COMPLETADO, no se realizó push y staging/production continúan reservados para el bloque conjunto aprobado.
+
 ### Plantilla de actualización
 
 | Campo | Detalle |
@@ -3409,4 +3453,3 @@ E:\Trabajo\PROYECTOS\WEb E_Comerce PowerZona_ChatGpt. La ruta anterior en C:\Use
 #### Siguiente seccion
 
 S7P3 - Seguridad Premium: aplicar gate de plan y vigencia en frontend y backend, conservar configuracion, clientes, eventos, bloqueos y auditoria al bajar de plan, mostrar gate comercial al Principal Free/Basico/vencido, bloquear endpoints y acciones privadas sin capacidad, mantener el aislamiento por tienda y no ampliar el enforcement publico fuera del alcance aprobado.
-

@@ -10,6 +10,9 @@ const {
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const capabilities = typeof __hooks === "undefined"
+  ? require("./pz_store_capabilities_lib.js")
+  : require(`${__hooks}/pz_store_capabilities_lib.js`);
 const securityMonitoring = typeof __hooks === "undefined"
   ? require("./pz_security_monitoring_lib.js")
   : require(`${__hooks}/pz_security_monitoring_lib.js`);
@@ -275,7 +278,17 @@ function canUseStorePermission(role, authStoreId, storeId, auth, permission) {
   if (!store) return false;
   if (role === "master_admin") return true;
   if (!["store_admin", "store_staff"].includes(role) || !authStoreId || authStoreId !== storeId) return false;
+  if (!securityCapabilityAllowed($app, storeId, store)) return false;
   return teamPermissions.hasStorePermission($app, auth, store, permission);
+}
+
+function securityCapabilityAllowed(app, storeId, storeRecord) {
+  const store = storeRecord || findRecordByIdSafe(app, STORES_COLLECTION, storeId);
+  return !!store && capabilities.hasStoreCapability(
+    store,
+    "security_enabled",
+    { enforceExpiration: true }
+  );
 }
 
 function canReadStore(role, authStoreId, storeId, auth) {
@@ -2187,5 +2200,7 @@ module.exports = {
     isValidAesKeyValue,
     autoRestoreArchivedCustomer,
     createManualCustomerMergeAudit,
+    canUseStorePermission,
+    securityCapabilityAllowed,
   },
 };

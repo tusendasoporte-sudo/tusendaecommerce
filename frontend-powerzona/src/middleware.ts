@@ -45,6 +45,11 @@ function primaryAdminCanReachRafflesGate(section: string, isPrimaryAdmin: boolea
   return normalized === 'promos/raffles' && isPrimaryAdmin;
 }
 
+function primaryAdminCanReachSecurityGate(section: string, isPrimaryAdmin: boolean) {
+  const normalized = String(section || '').replace(/^\/+|\/+$/g, '');
+  return (normalized === 'security' || normalized.startsWith('security/')) && isPrimaryAdmin;
+}
+
 function firstAllowedAdminPath(storeSlug: string, access: { permissions: readonly StorePermission[] }) {
   const candidates: ReadonlyArray<readonly [StorePermission, string]> = [
     ['analytics.view', 'pageviews'],
@@ -181,6 +186,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
         blocked_by_plan: storeAccess.access.blocked_by_plan,
       };
       const allowed = primaryAdminCanReachRafflesGate(
+        requestedSection,
+        storeAccess.access.is_primary_admin === true,
+      ) || primaryAdminCanReachSecurityGate(
         requestedSection,
         storeAccess.access.is_primary_admin === true,
       ) || (accessRule.primary === true

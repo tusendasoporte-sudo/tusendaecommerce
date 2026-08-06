@@ -374,3 +374,14 @@ El build conservó únicamente los tres warnings históricos de `getStaticPaths(
 No hubo `git add`, commit, push, merge, rebase, cambio de rama, despliegue, staging ni producción.
 
 **R7P2 permanece EN REVISIÓN / PENDIENTE DE VALIDACIÓN MANUAL DE KRAKEN.**
+
+## 24. Cierre documental confirmado
+
+**R7P2 — Rifas Premium: COMPLETADO.**
+
+- Source de cierre: **V121**.
+- Confirmación manual de Kraken: **25 de julio de 2026**.
+- Los 17 bloques manuales, incluidas las correcciones R7P2-C1 y R7P2-C2, fueron aprobados.
+- El despliegue a staging/production continúa reservado para el bloque conjunto aprobado; este cierre documental no autoriza ni ejecuta despliegues.
+
+Esta nota cierra el estado pendiente del reporte sin borrar ni reemplazar el historial técnico y manual anterior. No se modificó el PDF de bitácora.

@@ -44,7 +44,8 @@ test('M7U2-C3: rutas de analytics usan pageviews agregado y profits exige pedido
   assert.match(sidebar, /const adminOverviewPath = canShowOperationalOverview \? adminBasePath : adminPageviewsPath/);
   assert.match(sidebar, /const adminOverviewLabel = canShowOperationalOverview \? 'Resumen' : 'Analíticas'/);
   assert.match(sidebar, /canShowOverviewNav && <a class=\{navClass\('overview'\)\} href=\{adminOverviewPath\}/);
-  assert.match(sidebar, /if \(canShowModule\('security\.view'\)\) \{[\s\S]*?getStoreSecuritySettingsForToken/);
+  assert.match(sidebar, /const canViewSecurity = canShowModule\('security\.view'\)/);
+  assert.match(sidebar, /if \(securityAccess\.allowed && canViewSecurity\) \{[\s\S]*?getStoreSecuritySettingsForToken/);
   assert.match(sidebar, /canShowProductVisibilityNav && <a[\s\S]*?href=\{adminOrganizationPath\}/);
 });
 

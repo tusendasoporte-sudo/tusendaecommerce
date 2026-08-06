@@ -43,6 +43,14 @@ const DENIED_STORE_READS = Object.freeze({
   store_analytics_events: "analytics.view",
 });
 
+const SECURITY_PRIVATE_COLLECTIONS = Object.freeze([
+  "store_security_settings",
+  "store_security_events",
+  "store_security_blocks",
+  "store_visitor_sessions",
+  "store_customers",
+]);
+
 const READ_ANY_PERMISSIONS = Object.freeze({
   settings: Object.freeze([
     "catalog.view", "orders.view", "shipping.manage", "promotions.manage", "coupons.manage",
@@ -796,6 +804,9 @@ function enforce(e, required, collection) {
   if (targetStoreId && targetStoreId !== actorStoreId) return e.next();
   const store = findRecord(app, "stores", actorStoreId);
   if (!store) return e.next();
+  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(store)) {
+    denyPermission(required[0] || "security.view");
+  }
   for (const permission of required) {
     if (!permissions.hasStorePermission(app, auth, store, permission)) denyPermission(permission);
   }
@@ -812,6 +823,9 @@ function enforceAny(e, required, collection) {
   if (targetStoreId && targetStoreId !== actorStoreId) return e.next();
   const store = findRecord(app, "stores", actorStoreId);
   if (!store) return e.next();
+  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(store)) {
+    denyPermission(required[0] || "security.view");
+  }
   if (!required.some((permission) => permissions.hasStorePermission(app, auth, store, permission))) {
     denyPermission(required[0] || "");
   }
@@ -991,6 +1005,14 @@ function landingQrCapabilityAllowed(store) {
   return !!store && capabilities.hasStoreCapability(
     store,
     "landing_qr_enabled",
+    { enforceExpiration: true },
+  );
+}
+
+function securityCapabilityAllowed(store) {
+  return !!store && capabilities.hasStoreCapability(
+    store,
+    "security_enabled",
     { enforceExpiration: true },
   );
 }
@@ -1740,6 +1762,7 @@ function hasCollectionReadAccess(app, auth, collection) {
   if (DENIED_STORE_READS[collection]) return false;
   const store = findRecord(app, "stores", relationId(auth, "store"));
   if (!store) return false;
+  if (SECURITY_PRIVATE_COLLECTIONS.includes(collection) && !securityCapabilityAllowed(store)) return false;
   const all = READ_ALL_PERMISSIONS[collection];
   if (all) return all.every((permission) => permissions.hasStorePermission(app, auth, store, permission));
   const exact = READ_PERMISSIONS[collection];
@@ -1914,6 +1937,7 @@ module.exports = {
   PUBLIC_PRODUCT_PRIVATE_FIELDS,
   PUBLIC_SETTINGS_PRIVATE_FIELDS,
   PUBLIC_VARIATION_PRIVATE_FIELDS,
+  SECURITY_PRIVATE_COLLECTIONS,
   READ_ALL_PERMISSIONS,
   READ_ANY_PERMISSIONS,
   READ_PERMISSIONS,
@@ -1971,6 +1995,7 @@ module.exports = {
   isLandingQrAnalyticsEvent,
   landingQrCapabilityAllowed,
   landingQrPublicAvailable,
+  securityCapabilityAllowed,
   rafflesCapabilityAllowed,
   publicRaffleAvailable,
 };

@@ -206,8 +206,14 @@ const canShowProductVisibilityNav = canShowModule('catalog.products.visibility')
 const canShowMarketingGroup = canShowPromotionsNav || canShowCouponsNav || canShowRafflesNav || canShowProductVisibilityNav;
 const canShowNotificationsNav = canShowModule('notifications.view');
 
-let canShowSecurityNav = false;
-if (canShowModule('security.view')) {
+const securityAccess = resolveStoreCapabilityAccess(
+  storePlanValues,
+  'security_enabled',
+  { enforceExpiration: true },
+);
+const canViewSecurity = canShowModule('security.view');
+let canShowSecurityNav = isPrimaryAdmin && !securityAccess.allowed;
+if (securityAccess.allowed && canViewSecurity) {
   try {
     const securitySettings = await getStoreSecuritySettingsForToken(storeId, pocketbaseUrl, authToken, {
       fields: 'id,store,enabled,mode',

@@ -3,13 +3,13 @@ export const prerender = false;
 
 import { getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { isMasterAdmin, refreshAuthFromCookie } from '../../../../lib/auth';
-import { getStoreAccessContext } from '../../../../lib/storeTeam';
-import { hasStorePermission } from '../../../../lib/storeTeamPermissions';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../../lib/storeContext';
 import {
+  getDefaultSecuritySettings,
   getStoreSecuritySettings,
   isStoreSecurityEnabled,
 } from '../../../../lib/security';
+import { resolveSecurityAdminAccess } from '../../../../lib/securityAccess';
 import {
   getMonitoringParams,
   getSecurityActivityPage,
@@ -44,6 +44,7 @@ import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
 import SecurityMonitoringView from '../../../../components/admin/SecurityMonitoringView.astro';
 import LastModificationMeta from '../../../../components/admin/LastModificationMeta.astro';
+import StoreCapabilityGate from '../../../../components/shared/StoreCapabilityGate.astro';
 import '../../../../styles/global.css';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store, max-age=0');
@@ -76,18 +77,30 @@ if (pathStoreSlug && pathStoreSlug !== String(currentStoreSlug || '').trim().toL
   return Astro.redirect(adminBasePath);
 }
 
-let storeAccess;
-try {
-  storeAccess = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: authPb.authStore.token });
-} catch (_) {
-  return Astro.redirect(adminBasePath);
+const securityAdminAccess = await resolveSecurityAdminAccess(adminContext, {
+  baseUrl: pocketbaseUrl,
+  token: adminAuthToken,
+});
+const canRenderSecurity = securityAdminAccess.allowed;
+const showSecurityGate = securityAdminAccess.isPrimaryAdmin && !securityAdminAccess.capability.allowed;
+if (!canRenderSecurity && !showSecurityGate) {
+  return new Response('No se encontró la página solicitada.', {
+    status: 404,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0',
+      Pragma: 'no-cache',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+    },
+  });
 }
-const canViewSecurity = hasStorePermission({ permissions: storeAccess.access.permissions }, 'security.view');
-const canManageSecurity = hasStorePermission({ permissions: storeAccess.access.permissions }, 'security.manage');
-if (!canViewSecurity) return Astro.redirect(adminBasePath);
 
-const securitySettings = await getStoreSecuritySettings(currentStoreId, authPb);
-if (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings)) {
+const storeAccess = securityAdminAccess.storeAccess!;
+const canManageSecurity = canRenderSecurity && securityAdminAccess.canManage;
+const securitySettings = canRenderSecurity
+  ? await getStoreSecuritySettings(currentStoreId, authPb)
+  : getDefaultSecuritySettings(currentStoreId);
+if (canRenderSecurity && (!securitySettings.exists || !isStoreSecurityEnabled(securitySettings))) {
   return Astro.redirect(adminBasePath);
 }
 
@@ -95,9 +108,9 @@ const requestMethod = Astro.request.method.toUpperCase();
 let formData: FormData | null = null;
 let viewError = '';
 
-if (requestMethod === 'POST' && !canManageSecurity) {
+if (canRenderSecurity && requestMethod === 'POST' && !canManageSecurity) {
   viewError = 'No tienes permiso para modificar la configuraciÃ³n de Seguridad.';
-} else if (requestMethod === 'POST') {
+} else if (canRenderSecurity && requestMethod === 'POST') {
   const contentType = String(Astro.request.headers.get('content-type') || '').toLowerCase();
   const isFormRequest = contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data');
   if (isFormRequest) {
@@ -142,13 +155,14 @@ let mergeCandidates: SecurityCustomer[] = [];
 let customerOrdersError = false;
 let customerEventsError = false;
 
-try {
-  summary = await getSecurityMonitoringSummary(authPb, currentStoreId);
-} catch (_) {
-  summaryError = true;
-}
+if (canRenderSecurity) {
+  try {
+    summary = await getSecurityMonitoringSummary(authPb, currentStoreId);
+  } catch (_) {
+    summaryError = true;
+  }
 
-try {
+  try {
   if (formData && String(formData.get('security_action') || '') === 'customer_observation') {
     const targetCustomerId = String(formData.get('customer') || '').trim();
     const observationAction = String(formData.get('observation_action') || '').trim() === 'disable' ? 'disable' : 'enable';
@@ -301,8 +315,9 @@ try {
     blocksResult = blocksPage.blocks;
     blocksMetrics = blocksPage.metrics;
   }
-} catch (_) {
-  viewError = viewError || 'No se pudieron cargar los datos de seguridad en este momento.';
+  } catch (_) {
+    viewError = viewError || 'No se pudieron cargar los datos de seguridad en este momento.';
+  }
 }
 ---
 
@@ -358,12 +373,14 @@ try {
       pocketbaseUrl={pocketbaseUrl}
       authToken={adminAuthToken}
     />
-    <LastModificationMeta
-      controllerOnly={true}
-      pocketbaseUrl={pocketbaseUrl}
-      enabled={storeAccess.access.is_primary_admin === true}
-      showActor={storeAccess.access.is_primary_admin === true}
-    />
+    {canRenderSecurity && (
+      <LastModificationMeta
+        controllerOnly={true}
+        pocketbaseUrl={pocketbaseUrl}
+        enabled={storeAccess.access.is_primary_admin === true}
+        showActor={storeAccess.access.is_primary_admin === true}
+      />
+    )}
 
     <div class="app-shell admin-view">
       <main class="main-wrap">
@@ -374,40 +391,55 @@ try {
           bellId="security-bell"
         />
 
-        <SecurityMonitoringView
-          context="store"
-          storeName={currentStoreName}
-          basePath={adminSecurityPath}
-          adminOrdersPath={adminOrdersPath}
-          actionsEnabled={canManageSecurity}
-          params={params}
-          settings={securitySettings}
-          summary={summary}
-          summaryError={summaryError}
-          viewNotice={viewNotice}
-          viewError={viewError}
-          customerUnavailable={customerUnavailable}
-          customersResult={customersResult}
-          activityResult={activityResult}
-          visitorsResult={visitorsResult}
-          blocksResult={blocksResult}
-          blocksMetrics={blocksMetrics}
-          selectedCustomer={selectedCustomer}
-          customerOrders={customerOrders}
-          customerEvents={customerEvents}
-          customerPhones={customerPhones}
-          customerDevices={customerDevices}
-          customerLinksSummary={customerLinksSummary}
-          customerLifecycleCounts={customerLifecycleCounts}
-          activeBlocks={activeBlocks}
-          blockHistorySummary={blockHistorySummary}
-          blockCapabilities={blockCapabilities}
-          availableSignals={availableSignals}
-          customerIdentityWarnings={customerIdentityWarnings}
-          mergeCandidates={mergeCandidates}
-          customerOrdersError={customerOrdersError}
-          customerEventsError={customerEventsError}
-        />
+        {canRenderSecurity ? (
+          <SecurityMonitoringView
+            context="store"
+            storeName={currentStoreName}
+            basePath={adminSecurityPath}
+            adminOrdersPath={adminOrdersPath}
+            actionsEnabled={canManageSecurity}
+            params={params}
+            settings={securitySettings}
+            summary={summary}
+            summaryError={summaryError}
+            viewNotice={viewNotice}
+            viewError={viewError}
+            customerUnavailable={customerUnavailable}
+            customersResult={customersResult}
+            activityResult={activityResult}
+            visitorsResult={visitorsResult}
+            blocksResult={blocksResult}
+            blocksMetrics={blocksMetrics}
+            selectedCustomer={selectedCustomer}
+            customerOrders={customerOrders}
+            customerEvents={customerEvents}
+            customerPhones={customerPhones}
+            customerDevices={customerDevices}
+            customerLinksSummary={customerLinksSummary}
+            customerLifecycleCounts={customerLifecycleCounts}
+            activeBlocks={activeBlocks}
+            blockHistorySummary={blockHistorySummary}
+            blockCapabilities={blockCapabilities}
+            availableSignals={availableSignals}
+            customerIdentityWarnings={customerIdentityWarnings}
+            mergeCandidates={mergeCandidates}
+            customerOrdersError={customerOrdersError}
+            customerEventsError={customerEventsError}
+          />
+        ) : (
+          <section data-security-premium-gate>
+            <StoreCapabilityGate
+              access={securityAdminAccess.capability}
+              featureName="Seguridad"
+              featureDescription="Monitorea clientes, actividad y visitantes, y administra bloqueos privados desde el Plan Premium."
+              preservationMessage="Tu configuración, clientes, eventos, bloqueos y auditoría permanecen guardados y volverán a estar disponibles al regresar a Premium."
+              requiredPlanLabel="Plan Premium requerido"
+              infoTitle="Tu historial está protegido"
+              infoDescription="El cambio de plan no elimina ni modifica la información de Seguridad existente."
+              planExpiredUsesPlanGate={true}
+            />
+          </section>
+        )}
       </main>
     </div>
   </body>
