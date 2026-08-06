@@ -1,11 +1,11 @@
 ---
 title: "Bitácora de errores y actualizaciones - PowerZona / Tu Senda 84"
 project: "PowerZona / Tu Senda 84"
-document_version: "v33"
-source_revision: "V121"
-last_updated: "2026-07-25"
+document_version: "v34"
+source_revision: "V122"
+last_updated: "2026-08-06"
 status: "ACTIVA"
-next_work_item: "S7P3 - Seguridad Premium"
+next_work_item: "PZ-SEC-BLOCKS03B - Enforcement público de Seguridad"
 source_pdf: "Bitacora_Errores_PowerZona_TuSenda84_2026-07-25_v33_Source_V121.pdf"
 ---
 
@@ -40,20 +40,92 @@ Este archivo Markdown es la versión editable de la bitácora histórica en PDF.
 | V7E9 | Vencimiento Premium | COMPLETADO | Staging en bloque |
 | L7Q1 | Landing QR Premium | COMPLETADO | Staging en bloque |
 | R7P2 | Rifas Premium | COMPLETADO | Staging en bloque |
-| S7P3 | Seguridad Premium | Siguiente punto | Gate de plan |
+| S7P3 | Seguridad Premium | EN REVISIÓN | 17 bloques manuales y confirmación Kraken |
+| PZ-SEC-BLOCKS03B | Enforcement público de Seguridad | EN REVISIÓN | Staging real y confirmación Kraken |
 
 ### Continuidad inmediata
 
 - **R7P2 - Rifas Premium** quedó COMPLETADO en Source V121.
-- El siguiente punto se trabajará en un chat independiente: **S7P3 - Seguridad Premium**.
-- El primer prompt de S7P3 debe registrar documentalmente R7P2 como COMPLETADO antes de iniciar la nueva tarea.
-- S7P3 debe aplicar gate de plan y vigencia en frontend y backend, conservar configuración, clientes, eventos, bloqueos y auditoría al bajar de plan, mostrar gate comercial al Principal Free/Básico/vencido, bloquear endpoints y acciones privadas sin capacidad, mantener aislamiento por tienda y no ampliar el enforcement público fuera del alcance aprobado.
+- **S7P3 - Seguridad Premium** permanece EN REVISIÓN, con 17 bloques manuales y confirmación expresa de Kraken pendientes.
+- **PZ-SEC-BLOCKS03B** tiene implementación y validación local terminadas, pero permanece EN REVISIÓN hasta staging real y confirmación de Kraken.
+- P7D4, P7X5 y Q7F6 continúan pendientes y no fueron absorbidos por BLOCKS03B.
 
 ---
 
 ## Zona activa para nuevas actualizaciones
 
 <!-- CODEX: insertar cada nueva actualización debajo de este comentario y antes del historial convertido. No borrar entradas anteriores. -->
+
+### PZ-SEC-BLOCKS03B - Enforcement público de Seguridad
+
+| Campo | Detalle |
+|---|---|
+| ID / Prompt | `PZ-SEC-BLOCKS03B` |
+| Título | `Enforcement público de Seguridad` |
+| Fecha | `2026-08-06` |
+| Source | `V122` |
+| Sección / rutas | `Tienda pública, pedidos, reseñas, rifas, formularios y endpoints públicos por tienda` |
+| Estado | `EN REVISIÓN / IMPLEMENTACIÓN LOCAL TERMINADA` |
+| Confirmación | `Validación técnica local terminada; staging y confirmación explícita de Kraken pendientes` |
+
+#### Contexto de apertura
+
+Kraken aprobó abrir `PZ-SEC-BLOCKS03B` como siguiente task independiente. Esta apertura no marca S7P3 como COMPLETADO: Seguridad Premium permanece **EN REVISIÓN**, con sus 17 bloques manuales pendientes y sin confirmación final de Kraken.
+
+#### Alcance funcional aprobado
+
+- Aplicar en servidor los bloqueos activos de alcance `orders`, `reviews`, `raffles`, `all_interactions` y `full_access`.
+- Proteger pedidos, reseñas, rifas, formularios, home, categorías, subcategorías, productos, carrito, checkout, Landing QR, recibos y enlaces directos según el alcance efectivo.
+- Resolver primero la tienda y las señales seguras; no confiar en IP, teléfono, dispositivo o tenant enviados libremente por JavaScript.
+- Interceptar `full_access` antes de cargar contenido y devolver una página genérica, privada y `no-store`, sin revelar la causa ni datos de la tienda.
+- Mantener siempre fuera del bloqueo público las rutas `/admin`, `/master` y `/t/[storeSlug]/admin/*`.
+- Registrar `blocked_attempt` y la auditoría necesaria de forma idempotente, respetando configuración, modo, duración, vencimiento y revocación.
+- Mantener aislamiento por tienda y no devolver HMAC, ciphertext, tokens, IP privada, metadata, motivos internos o señales sensibles.
+- No añadir fingerprint invasivo, bloqueo automático por opinión negativa ni reglas globales nuevas fuera de BLOCKS03B.
+- No romper checkout, inventario, precios, promociones, cupones, regalos, ratings, Landing QR, Rifas, analíticas ni compatibilidad de rutas.
+
+#### Precondiciones y validaciones obligatorias
+
+- Auditar primero el source V122 y reutilizar las colecciones, helpers, bloqueos y auditoría ya existentes.
+- Conservar `security.checkOrigin`; si staging presenta errores, revisar `Origin`, `Host`, `X-Forwarded-Host`, HTTPS, Coolify y Cloudflare antes de cambiar código.
+- Validar en staging `PZ_SECURITY_HMAC_SECRET`, `PZ_SECURITY_AES_KEY`, origen protegido, proxies confiables y `realIP()` antes de aprobar coincidencia real por IP.
+- Probar con sesiones públicas separadas y evitar bloqueo por IP solamente en localhost.
+- Cubrir expiración, revocación, eventos únicos, dos tiendas, F12, endpoints directos, PC y móvil.
+- Ejecutar suites focales y completas, build SSR, revisión de artefactos públicos, `git diff --check`, `git status` y limpieza total.
+
+#### Resultado local
+
+- Enforcement backend por tienda para `orders`, `reviews`, `raffles`, `all_interactions` y `full_access`, sujeto a Premium vigente, configuración, modo, flags, inicio, duración, expiración y revocación.
+- Middleware SSR previo a carga pública y hooks REST/archivos/mutaciones directas; respuesta `full_access` genérica 404 privada y `no-store`.
+- Checkout, reseñas, Rifas, analítica, navegación, Landing QR y registro posterior del pedido pasan por proxies de mismo origen con destinos fijos y señales observadas por servidor.
+- `/admin`, `/master` y `/t/[storeSlug]/admin/*` permanecen fuera del bloqueo público.
+- `blocked_attempt`, auditoría central y notificación opcional son idempotentes y no publican señales, HMAC, ciphertext, tokens, metadata ni motivos internos.
+- Sin fingerprint invasivo, regla automática por rating/reseña ni cambio en `security.checkOrigin`.
+
+#### Validación técnica
+
+- Backend focal BLOCKS03B: **10/10** aprobadas, incluida prueba HTTP real con PocketBase efímero y sin bloqueo solo por IP local.
+- Frontend focal BLOCKS03B: **7/7** aprobadas.
+- Frontend completo: **290/290** aprobadas.
+- Backend completo final en el checkout principal `dev`: **598 totales; 591 aprobadas; 7 omitidas declaradas; 0 fallidas**. La ejecución previa en el worktree `HEAD` separado detectó los dos bloqueos R84 esperados; al validar en `dev` ambos pasaron sin cambiar de rama.
+- Build SSR aprobado con los tres warnings legacy conocidos; artefactos cliente con 0 source maps, 0 `console.log/info/warn` y 0 marcadores sensibles en bundles no administrativos.
+- `git diff --check` aprobado y limpieza final con 0 fixtures, procesos, listeners y temporales runtime.
+- Reporte: `docs/tusenda84/reportes/PZ-SEC-BLOCKS03B-enforcement-publico-seguridad.md`.
+
+#### Pendiente de staging y Kraken
+
+No se validaron ni se presumen Cloudflare, Coolify, HTTPS/proxy, IP pública, proxies confiables, `realIP()` ni secretos reales. Staging debe confirmar `PZ_SECURITY_HMAC_SECRET`, `PZ_SECURITY_AES_KEY`, origen protegido con `security.checkOrigin`, forwarding confiable, cookie segura, PC/móvil, expiración/revocación, dos tiendas y accesos directos antes de aprobar cobertura real por IP.
+
+BLOCKS03B permanece **EN REVISIÓN** hasta confirmación explícita de Kraken. S7P3 tampoco se marca COMPLETADO: conserva sus 17 bloques manuales pendientes.
+
+#### Continuidad preservada
+
+- S7P3: **EN REVISIÓN**, pendiente de los 17 bloques manuales y confirmación expresa de Kraken.
+- P7D4 - Cambio y reducción segura de plan: pendiente de implementación.
+- P7X5 - Vencimiento real del plan: pendiente de implementación.
+- Q7F6 - Validación integral: pendiente y reservado como cierre final del bloque de planes.
+- Abrir BLOCKS03B no elimina, sustituye ni marca como completados esos puntos.
+- Se autorizó un commit local después de la validación final. Push, merge, staging y production siguen sin autorización.
 
 ### S7P3 - Seguridad Premium
 

@@ -88,8 +88,8 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
           .toISOString()
           .slice(0, 10);
 
-        const endpoint = `${POCKETBASE_URL}/api/collections/store_analytics_events/records`;
-        const securityEndpoint = `${POCKETBASE_URL}/api/pz/security/track-navigation`;
+        const endpoint = '/api/analytics/events';
+        const securityEndpoint = '/api/security/track-navigation';
 
         function base64UrlFromBytes(bytes) {
           let binary = '';

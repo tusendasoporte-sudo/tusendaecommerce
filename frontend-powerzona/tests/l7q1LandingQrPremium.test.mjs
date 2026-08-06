@@ -122,7 +122,7 @@ test('L7Q1: tracking valida plan, estado, tenant, ruta y enlace antes de inserta
   const storeIndex = click.indexOf("pb.collection('stores').getOne");
   const capabilityIndex = click.indexOf('resolveLandingQrCapability(storeRecord)');
   const settingsIndex = click.indexOf('await getSettings');
-  const createIndex = click.indexOf("pb.collection('store_analytics_events').create");
+  const createIndex = click.indexOf("fetch(`${baseUrl}/api/collections/store_analytics_events/records`");
   assert.ok(storeIndex > -1);
   assert.ok(capabilityIndex > storeIndex);
   assert.ok(settingsIndex > capabilityIndex);
@@ -133,4 +133,6 @@ test('L7Q1: tracking valida plan, estado, tenant, ruta y enlace antes de inserta
   assert.match(click, /store: storeRecord\.id/);
   assert.match(click, /entity_id: storeRecord\.id/);
   assert.match(click, /link_label: canonicalLink\.label/);
+  assert.match(click, /headers: publicSecurityProxyHeaders\(request, clientAddress\)/);
+  assert.doesNotMatch(click, /pb\.collection\('store_analytics_events'\)\.create/);
 });

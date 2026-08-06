@@ -713,6 +713,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
     function toastMessageForNotification(item) {
       const type = String(item?.type || '');
+      if (type === 'security_blocked_attempt') return 'Seguridad bloqueó un intento';
       if (type === 'review_pending') return 'Nueva reseña pendiente';
       if (type === 'new_order') return 'Nuevo pedido recibido';
       if (type === 'pending_order') return 'Pedido pendiente sin atender';
@@ -723,6 +724,7 @@ const marketingVisualSubClass = (subsection: string) => {
 
     function browserNotificationBodyFor(item) {
       const type = String(item?.type || '');
+      if (type === 'security_blocked_attempt') return 'Revisa la actividad reciente de Seguridad.';
       if (type === 'review_pending') return 'Una reseña necesita aprobación.';
       if (type === 'new_order') return 'Tienes un pedido nuevo pendiente de revisar.';
       if (type === 'pending_order') return 'Hay un pedido pendiente sin atender.';
@@ -850,6 +852,7 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     function iconFor(type) {
+      if (type === 'security_blocked_attempt') return '\u26e8';
       if (type === 'review_pending') return '\u2605';
       if (type === 'new_order') return '$';
       if (type === 'pending_order') return '!';

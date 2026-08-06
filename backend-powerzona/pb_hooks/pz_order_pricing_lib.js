@@ -12,6 +12,9 @@ const teamPermissions = typeof __hooks === "undefined"
 const storeActivity = typeof __hooks === "undefined"
   ? require("./pz_store_activity_audit_lib.js")
   : require(`${__hooks}/pz_store_activity_audit_lib.js`);
+const securityEnforcement = typeof __hooks === "undefined"
+  ? require("./pz_security_enforcement_lib.js")
+  : require(`${__hooks}/pz_security_enforcement_lib.js`);
 
 const CHECKOUT_PATH = "/api/pz/checkout/orders";
 const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
@@ -1359,6 +1362,10 @@ function handleCheckout(e) {
   let parsed = null;
   try { parsed = parseCheckoutPayload(e.requestInfo().body || {}); } catch (_) { parsed = null; }
   if (!parsed) return e.json(400, { ok: false, error: "invalid_order" });
+  const blocked = securityEnforcement.enforceAction(e, parsed.storeId, "orders", {
+    phone: parsed.customerPhone,
+  });
+  if (blocked) return;
   let result = null;
   try {
     $app.runInTransaction((txApp) => {

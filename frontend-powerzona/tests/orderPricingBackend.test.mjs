@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const checkout = readFileSync(new URL('../src/pages/checkout.astro', import.meta.url), 'utf8');
+const checkoutProxy = readFileSync(new URL('../src/pages/api/checkout/orders.ts', import.meta.url), 'utf8');
 const tenantCheckout = readFileSync(new URL('../src/pages/t/[storeSlug]/checkout.astro', import.meta.url), 'utf8');
 const adminOrders = readFileSync(new URL('../src/pages/admin/orders.astro', import.meta.url), 'utf8');
 const receipt = readFileSync(new URL('../src/pages/orden/[orderNumber]/[token].astro', import.meta.url), 'utf8');
@@ -15,7 +16,9 @@ function checkoutRequestBlock() {
 }
 
 test('checkout publico escribe mediante el endpoint backend canonico', () => {
-  assert.match(checkout, /fetch\(`\$\{POCKETBASE_URL\}\/api\/pz\/checkout\/orders`/);
+  assert.match(checkout, /fetch\('\/api\/checkout\/orders'/);
+  assert.match(checkoutProxy, /fetch\(`\$\{baseUrl\}\/api\/pz\/checkout\/orders`/);
+  assert.match(checkoutProxy, /headers: publicSecurityProxyHeaders\(request, clientAddress\)/);
   assert.equal(checkout.includes("pocketbaseRequest('orders'"), false);
   assert.equal(checkout.includes("pocketbaseRequest('order_items'"), false);
   assert.equal(checkout.includes("pocketbaseRequest('manual_coupon_usages'"), false);

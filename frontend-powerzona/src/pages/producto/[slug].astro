@@ -2192,7 +2192,7 @@ const variationItems = sellableVariations.map((variation) => {
 			});
 
 			async function createProductReview(payload) {
-				const response = await fetch(`${POCKETBASE_URL}/api/collections/reviews/records`, {
+				const response = await fetch('/api/reviews/create', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify(payload),

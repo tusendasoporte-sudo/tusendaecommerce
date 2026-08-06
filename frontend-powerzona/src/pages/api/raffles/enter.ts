@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { RAFFLES_PRIVATE_NO_STORE_HEADERS } from '../../../lib/raffleAccess';
+import { publicSecurityProxyHeaders } from '../../../lib/publicSecurity';
 
 const MAX_BODY_BYTES = 4096;
 
@@ -34,7 +35,7 @@ function canonicalizeReceiptLinks(result: any, requestUrl: string) {
   return result;
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, clientAddress }) => {
   const length = Number(request.headers.get('content-length') || 0);
   if (Number.isFinite(length) && length > MAX_BODY_BYTES) {
     return json({ ok: false, message: 'Solicitud demasiado grande.' }, 413);
@@ -53,7 +54,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     const response = await fetch(`${baseUrl}/api/pz/raffles/enter`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: publicSecurityProxyHeaders(request, clientAddress),
       cache: 'no-store',
       body: JSON.stringify(payload),
     });

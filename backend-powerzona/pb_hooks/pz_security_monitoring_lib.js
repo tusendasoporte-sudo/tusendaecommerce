@@ -1,9 +1,12 @@
 /// <reference path="../pb_data/types.d.ts" />
 
+const secretContract = typeof __hooks === "undefined"
+  ? require("./pz_security_secret_contract.js")
+  : require(`${__hooks}/pz_security_secret_contract.js`);
 const {
   getValidHmacSecret,
   getValidAesKey,
-} = require(`${__hooks}/pz_security_secret_contract.js`);
+} = secretContract;
 const teamPermissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
@@ -708,6 +711,10 @@ function handleTrackNavigation(e) {
     const info = e.requestInfo();
     const payload = parseNavigationPayload(info.body || {});
     if (!payload) return respondOk(e);
+    const enforcement = typeof __hooks === "undefined"
+      ? require("./pz_security_enforcement_lib.js")
+      : require(`${__hooks}/pz_security_enforcement_lib.js`);
+    if (enforcement.enforceAction(e, payload.storeId, "interactions", {})) return;
 
     recordNavigation(payload, e.realIP());
   } catch (_) {
@@ -1506,17 +1513,20 @@ function createSecurityBlockAudit(app, storeId, action, actorId, block, reason) 
   });
 }
 
-function expireDueSecurityBlocks(app) {
+function expireDueSecurityBlocks(app, onlyStoreId) {
   if (!findCollectionSafe(app, STORE_SECURITY_BLOCKS_COLLECTION)) return { expired: 0 };
   const now = new Date();
   let expiredCount = 0;
+  const storeId = isValidRecordId(onlyStoreId) ? String(onlyStoreId) : "";
 
   const activeBlocks = listRecordsPaged(
     app,
     STORE_SECURITY_BLOCKS_COLLECTION,
-    'status = "active" && expires_at != ""',
+    storeId
+      ? 'store = {:store} && status = "active" && expires_at != ""'
+      : 'status = "active" && expires_at != ""',
     "expires_at",
-    {},
+    storeId ? { store: storeId } : {},
     200
   );
 

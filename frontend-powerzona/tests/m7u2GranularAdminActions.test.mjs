@@ -193,7 +193,7 @@ test('M7U2: Ajustes separa settings, reviews y landing y genera review token en 
 
 test('M7U2: Resumen no muta analitica y no consulta reseñas sin permiso', () => {
   const source = read('../src/pages/admin/index.astro');
-  assert.ok(source.includes("hasStorePermission(\n  dashboardPermissionContext,\n  'reviews.manage',"));
+  assert.match(source, /hasStorePermission\(\r?\n  dashboardPermissionContext,\r?\n  'reviews\.manage',/);
   assert.match(source, /if \(!canViewDashboardOrders \|\| !canViewDashboardCatalog\) \{[\s\S]*?Astro\.redirect\(adminPageviewsPath\)/);
   assert.match(source, /\{landingQrAnalyticsVisible && <button[^>]+data-analytics-tab="landingqr"/);
   assert.doesNotMatch(source, /loadAllRecords\('settings'/);

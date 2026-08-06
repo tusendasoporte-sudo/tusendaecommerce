@@ -10,6 +10,11 @@ import { getLegacyAdminSection, getStoreAdminBasePath, getStoreAdminPath } from 
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from './lib/storeContext';
 import { getStoreAccessContext } from './lib/storeTeam';
 import { hasStorePermission, type StorePermission } from './lib/storeTeamPermissions';
+import {
+  publicAccessAllowed,
+  publicSecurityResolverForPath,
+  renderPublicUnavailable,
+} from './lib/publicSecurity';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -124,6 +129,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const isProfessionalAdminRoute = Boolean(professionalAdminMatch);
 
   if (!isAdminRoute && !isMasterRoute && !isProfessionalAdminRoute) {
+    const resolver = publicSecurityResolverForPath(pathname);
+    if (resolver) {
+      let clientAddress = '';
+      try { clientAddress = context.clientAddress; } catch (_) {}
+      if (!await publicAccessAllowed(context.request, clientAddress, resolver)) {
+        return renderPublicUnavailable();
+      }
+    }
     return next();
   }
 

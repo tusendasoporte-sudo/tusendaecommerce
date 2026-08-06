@@ -301,8 +301,10 @@ test('revocación es transaccional, idempotente y rota tokenKey del usuario', ()
 test('fallo de auditoría queda dentro de la misma transacción de revocación', () => {
   const source = read('../pb_hooks/pz_store_user_devices_lib.js');
   const revoke = source.slice(source.indexOf('function handleRevoke'), source.indexOf('function handleAudit'));
+  const responseIndex = revoke.search(/\}\);\r?\n    return e\.json/);
   assert.ok(revoke.indexOf('createAudit(') > revoke.indexOf('txApp.save(device)'));
-  assert.ok(revoke.indexOf('createAudit(') < revoke.indexOf('});\n    return e.json'));
+  assert.ok(responseIndex > -1);
+  assert.ok(revoke.indexOf('createAudit(') < responseIndex);
 });
 
 test('Plan y límites usa dispositivos administrativos autorizados y no clientes públicos', () => {

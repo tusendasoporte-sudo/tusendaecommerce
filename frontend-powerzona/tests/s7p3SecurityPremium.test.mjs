@@ -76,7 +76,7 @@ test('S7P3: POST y acciones privadas se procesan únicamente con capacidad y per
 test('S7P3: middleware reserva la excepción comercial exclusivamente al Principal', () => {
   const middleware = read('../src/middleware.ts');
   const helper = middleware.match(
-    /function primaryAdminCanReachSecurityGate[\s\S]*?\n}\n/,
+    /function primaryAdminCanReachSecurityGate[\s\S]*?\r?\n}\r?\n/,
   )?.[0] || '';
 
   assert.match(helper, /normalized === 'security' \|\| normalized\.startsWith\('security\/'\)/);

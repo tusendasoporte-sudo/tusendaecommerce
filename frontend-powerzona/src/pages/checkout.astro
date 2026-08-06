@@ -2089,7 +2089,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		async function registerOrderSecurityIdentity(createdOrder) {
 			try {
-				if (!POCKETBASE_URL || !createdOrder?.id || !createdOrder?.receipt_token) return;
+				if (!createdOrder?.id || !createdOrder?.receipt_token) return;
 
 				const browserTokenDigest = await getSecurityBrowserTokenDigest();
 				if (!/^[a-f0-9]{64}$/.test(browserTokenDigest)) return;
@@ -2109,7 +2109,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 					requestOptions.keepalive = true;
 				}
 
-				await fetch(`${POCKETBASE_URL}/api/pz/security/register-order`, requestOptions);
+				await fetch('/api/security/register-order', requestOptions);
 			} catch (error) {
 			}
 		}
@@ -2183,11 +2183,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		}
 
 		async function createCanonicalCheckoutOrder(data) {
-			if (!POCKETBASE_URL) {
-				throw new Error('Falta configurar PUBLIC_POCKETBASE_URL en el archivo .env del frontend.');
-			}
-
-			const response = await fetch(`${POCKETBASE_URL}/api/pz/checkout/orders`, {
+			const response = await fetch('/api/checkout/orders', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(data),

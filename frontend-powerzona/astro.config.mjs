@@ -22,6 +22,7 @@ export default defineConfig({
     mode: 'standalone',
   }),
   vite: {
+    cacheDir: '.astro/vite-cache',
     plugins: [tailwindcss()],
     build: {
       sourcemap: false,

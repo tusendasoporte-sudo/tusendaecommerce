@@ -9,6 +9,7 @@ import {
   resolveLandingQrCapability,
 } from '../../../lib/landingQr';
 import { pb } from '../../../lib/pocketbase';
+import { publicSecurityProxyHeaders } from '../../../lib/publicSecurity';
 import type { PublicStore } from '../../../lib/stores';
 
 const MAX_BODY_BYTES = 2048;
@@ -72,7 +73,7 @@ function shouldRateLimit(key: string) {
   return now - last < CLICK_RATE_WINDOW_MS;
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, clientAddress }) => {
   try {
     const length = Number(request.headers.get('content-length') || 0);
     if (Number.isFinite(length) && length > MAX_BODY_BYTES) {
@@ -130,7 +131,7 @@ export const POST: APIRoute = async ({ request }) => {
     const rateKey = `${storeRecord.id}:${visitorId}:${canonicalLink.id}`;
     if (shouldRateLimit(rateKey)) return empty();
 
-    await pb.collection('store_analytics_events').create({
+    const analyticsPayload = {
       store: storeRecord.id,
       event_type: 'landing_qr_click',
       day: normalizeDay(body.day),
@@ -146,7 +147,16 @@ export const POST: APIRoute = async ({ request }) => {
       link_type: canonicalLink.type,
       link_icon: canonicalLink.icon,
       link_label: canonicalLink.label,
+    };
+    const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+    if (!baseUrl) return json({ ok: false }, 503);
+    const response = await fetch(`${baseUrl}/api/collections/store_analytics_events/records`, {
+      method: 'POST',
+      headers: publicSecurityProxyHeaders(request, clientAddress),
+      cache: 'no-store',
+      body: JSON.stringify(analyticsPayload),
     });
+    if (!response.ok) return json({ ok: false }, response.status === 403 ? 404 : 503);
 
     return empty();
   } catch (error) {

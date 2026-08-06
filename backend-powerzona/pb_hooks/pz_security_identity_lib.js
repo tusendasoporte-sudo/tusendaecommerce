@@ -1432,6 +1432,17 @@ function handleRegisterOrder(e) {
     const receiptToken = String(getBodyValue(body, "receipt_token") || "");
     const browserTokenDigest = String(getBodyValue(body, "browser_token_digest") || "");
     const requestIp = e.realIP();
+    const app = e.app || $app;
+    const order = findRecordByIdSafe(app, ORDERS_COLLECTION, orderId);
+    if (order && getString(order, "receipt_token")
+      && $security.equal(getString(order, "receipt_token"), receiptToken)) {
+      const enforcement = typeof __hooks === "undefined"
+        ? require("./pz_security_enforcement_lib.js")
+        : require(`${__hooks}/pz_security_enforcement_lib.js`);
+      if (enforcement.enforceAction(e, getRelationId(order, "store"), "orders", {
+        phone: getString(order, "customer_phone"),
+      })) return;
+    }
 
     registerOrderSecurityIdentity(orderId, receiptToken, browserTokenDigest, requestIp);
   } catch (_) {

@@ -3,6 +3,9 @@
 const capabilities = typeof __hooks === "undefined"
   ? require("./pz_store_capabilities_lib.js")
   : require(`${__hooks}/pz_store_capabilities_lib.js`);
+const securityEnforcement = typeof __hooks === "undefined"
+  ? require("./pz_security_enforcement_lib.js")
+  : require(`${__hooks}/pz_security_enforcement_lib.js`);
 
 const FIXED_SLUGS = Object.freeze(["rifa-1", "rifa-2", "rifa-3"]);
 const PUBLIC_ACTIONS = Object.freeze(["home", "first", "detail"]);
@@ -302,6 +305,7 @@ function handlePublic(e) {
     const app = e.app || $app;
     const store = findPublicStore(app, payload.storeSlug);
     if (!store) return unavailable(e);
+    if (securityEnforcement.evaluatePublicAccess(app, e, store, "full_access", {}).blocked) return unavailable(e);
     const storeId = recordString(store, "id");
 
     let raffles = [];
@@ -498,6 +502,7 @@ function handleEnter(e) {
     const app = e.app || $app;
     const store = findPublicStore(app, payload.storeSlug);
     if (!store) return unavailable(e);
+    if (securityEnforcement.evaluatePublicAccess(app, e, store, "raffles", { phone: payload.phone }).blocked) return unavailable(e);
     const raffle = findPublicRaffle(app, store, payload.raffleSlug);
     if (!raffle) return unavailable(e);
     if (!raffleAcceptsEntries(raffle)) {
@@ -606,6 +611,7 @@ function handleStatus(e) {
     const app = e.app || $app;
     const store = findPublicStore(app, payload.storeSlug);
     if (!store) return unavailable(e);
+    if (securityEnforcement.evaluatePublicAccess(app, e, store, "raffles", { phone: payload.phone }).blocked) return unavailable(e);
     const raffle = findPublicRaffle(app, store, payload.raffleSlug);
     if (!raffle) return unavailable(e);
     const raffleId = recordString(raffle, "id");

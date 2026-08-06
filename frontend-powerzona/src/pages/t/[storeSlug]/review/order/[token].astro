@@ -409,22 +409,28 @@ const storeMarkText = getStoreInitials(publicStoreName);
     }
 
     async function createReview(payload) {
-      const path = `/api/collections/reviews/records?review_token=${encodeURIComponent(REVIEW_TOKEN)}`;
-      try {
-        return await fetchJson(path, {
+      const path = `/api/reviews/create?review_token=${encodeURIComponent(REVIEW_TOKEN)}`;
+      const create = async (reviewPayload) => {
+        const response = await fetch(path, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(reviewPayload),
         });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          const error = new Error(result?.message || 'No se pudo completar la solicitud.');
+          error.data = result;
+          throw error;
+        }
+        return result;
+      };
+      try {
+        return await create(payload);
       } catch (error) {
         if (!payload.customer_contact || !shouldRetryWithoutContact(error)) throw error;
         const retryPayload = { ...payload };
         delete retryPayload.customer_contact;
-        return await fetchJson(path, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(retryPayload),
-        });
+        return create(retryPayload);
       }
     }
 

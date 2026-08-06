@@ -61,7 +61,7 @@ test('R7P2: Principal sin capacidad ve gate y el editor pesado no se monta', () 
 test('R7P2-C1: middleware deja llegar solo al Principal al gate de Rifas', () => {
   const middleware = read('../src/middleware.ts');
   const helper = middleware.match(
-    /function primaryAdminCanReachRafflesGate[\s\S]*?\n}\n/,
+    /function primaryAdminCanReachRafflesGate[\s\S]*?\r?\n}\r?\n/,
   )?.[0] || '';
 
   assert.match(
