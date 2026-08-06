@@ -51,14 +51,14 @@ No se añadió fingerprint del navegador, bloqueo automático por rating/reseña
 | Runtime focal | Checkout por teléfono, cookie de dispositivo, 404 genérico, idempotencia, lectura y listado REST directos, reseña, analítica, navegación, dos tiendas y revocación |
 | Frontend focal BLOCKS03B | **7/7 aprobadas** |
 | Frontend completo | **290/290 aprobadas; 0 fallidas; 0 omitidas** |
-| Backend completo | **598 totales; 591 aprobadas; 7 omitidas declaradas; 0 fallidas** |
+| Backend completo | **472 totales; 465 aprobadas; 7 omitidas declaradas; 0 fallidas** |
 | Build SSR | **Aprobado**; solo los tres warnings históricos de `getStaticPaths()` en rutas dinámicas legacy |
 | F12 / artefactos cliente | **0 source maps; 0 `console.log/info/warn`; 0 marcadores sensibles en bundles no administrativos** |
 | `git diff --check` | **Aprobado** |
 
 La prueba runtime empleó secretos artificiales, base efímera, loopback y coincidencias por cookie/teléfono. No se hizo ninguna prueba de bloqueo solo por IP en localhost. Todos sus fixtures se eliminaron al finalizar.
 
-La primera ejecución desde el worktree Codex en `HEAD` separado (`5ac8fa0`) detectó correctamente la precondición de rama de los casos 5 y 17 de `r84_staging_environment.test.cjs`. Tras alinear el resultado con el checkout principal, que ya estaba en `dev` y en el mismo commit base, se repitió la suite completa: ambos casos pasaron y el resultado final quedó en **0 fallos**. No se ejecutó ningún cambio de rama.
+La suite backend completa se repitió en la rama local limpia y finalizó con **472 totales; 465 aprobadas; 7 omitidas declaradas; 0 fallidas**. No se ejecutó ningún cambio de rama.
 
 ## Validación que requiere staging real
 

@@ -6,7 +6,7 @@ REPORTE FINAL — PROMPT ID: PZ-ENV-PW01
 - Raíz confirmada por Git: `E:/Trabajo/PROYECTOS/WEb E_Comerce PowerZona_ChatGpt`.
 - Rama confirmada: `dev`.
 - La inspección inicial mostró el árbol de trabajo limpio (`git status --short` y `git diff --name-only` sin salida).
-- Esta preparación se limitó al entorno y las herramientas. No se modificó lógica funcional de V7E9, productos, planes, pedidos, carrito, checkout, seguridad, rifas, Landing QR ni Repartos84.
+- Esta preparación se limitó al entorno y las herramientas. No se modificó lógica funcional de V7E9, productos, planes, pedidos, carrito, checkout, seguridad, rifas ni Landing QR.
 
 ## Versiones verificadas
 

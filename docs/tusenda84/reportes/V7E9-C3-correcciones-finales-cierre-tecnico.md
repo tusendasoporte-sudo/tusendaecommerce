@@ -268,7 +268,7 @@ Se ejecutaron `git diff --check`, `git status --short`, `git diff --name-only` y
 
 # 25. Sin commit, push o deploy
 
-No se ejecutaron `git add`, commit, push, merge, cambio de rama o deploy. No se modificó staging, Coolify, Cloudflare ni Repartos84.
+No se ejecutaron `git add`, commit, push, merge, cambio de rama o deploy. No se modificó staging, Coolify ni Cloudflare.
 
 # 26. Limitaciones honestas
 

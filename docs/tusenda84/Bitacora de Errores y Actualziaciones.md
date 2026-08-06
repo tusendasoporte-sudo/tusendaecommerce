@@ -107,7 +107,7 @@ Kraken aprobó abrir `PZ-SEC-BLOCKS03B` como siguiente task independiente. Esta 
 - Backend focal BLOCKS03B: **10/10** aprobadas, incluida prueba HTTP real con PocketBase efímero y sin bloqueo solo por IP local.
 - Frontend focal BLOCKS03B: **7/7** aprobadas.
 - Frontend completo: **290/290** aprobadas.
-- Backend completo final en el checkout principal `dev`: **598 totales; 591 aprobadas; 7 omitidas declaradas; 0 fallidas**. La ejecución previa en el worktree `HEAD` separado detectó los dos bloqueos R84 esperados; al validar en `dev` ambos pasaron sin cambiar de rama.
+- Backend completo final en la rama local limpia: **472 totales; 465 aprobadas; 7 omitidas declaradas; 0 fallidas**.
 - Build SSR aprobado con los tres warnings legacy conocidos; artefactos cliente con 0 source maps, 0 `console.log/info/warn` y 0 marcadores sensibles en bundles no administrativos.
 - `git diff --check` aprobado y limpieza final con 0 fixtures, procesos, listeners y temporales runtime.
 - Reporte: `docs/tusenda84/reportes/PZ-SEC-BLOCKS03B-enforcement-publico-seguridad.md`.
