@@ -9,6 +9,7 @@ const DEVICE_COOKIE = 'pz_client_device';
 const DEVICE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const SAFE_IP_PATTERN = /^[0-9a-fA-F:.]{2,64}$/;
 const MAX_FORWARDED_FOR_BYTES = 2048;
+const MAX_DIAGNOSTIC_FORWARDED_ENTRIES = 20;
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,120}$/;
 const LEGACY_STORE_PATH = /^\/(?:buscar(?:\/|$)|categoria(?:\/|$)|subcategoria(?:\/|$)|producto(?:\/|$)|checkout(?:\/|$)|regalos(?:\/|$)|qr(?:\/|$)|links(?:\/|$))/;
 
@@ -100,6 +101,16 @@ function isPrivateProxyAddress(value: string) {
   return ip.startsWith('fc') || ip.startsWith('fd') || /^fe[89ab]/.test(ip);
 }
 
+type ProxyIpClass = 'missing' | 'public' | 'private' | 'invalid';
+
+function proxyIpClass(value: unknown): ProxyIpClass {
+  const candidate = String(value || '').trim();
+  if (!candidate) return 'missing';
+  const ip = normalizedIp(candidate);
+  if (!ip) return 'invalid';
+  return isPrivateProxyAddress(ip) ? 'private' : 'public';
+}
+
 function resolvedClientAddress(request: Request, clientAddress?: string) {
   const runtimeAddress = normalizedIp(clientAddress);
   if (!runtimeAddress || !isPrivateProxyAddress(runtimeAddress)) return runtimeAddress;
@@ -112,6 +123,39 @@ function resolvedClientAddress(request: Request, clientAddress?: string) {
     .map(normalizedIp)
     .filter(Boolean);
   return forwardedAddresses.findLast((address) => !isPrivateProxyAddress(address)) || runtimeAddress;
+}
+
+export function publicSecurityProxyDiagnostics(request: Request, clientAddress?: string) {
+  const forwardedFor = request.headers.get('x-forwarded-for') || '';
+  const oversized = forwardedFor.length > MAX_FORWARDED_FOR_BYTES;
+  const forwardedEntries = forwardedFor && !oversized
+    ? forwardedFor.split(',').map((entry) => entry.trim())
+    : [];
+  const runtimeAddress = normalizedIp(clientAddress);
+  const resolvedAddress = resolvedClientAddress(request, clientAddress);
+  const forwardedProto = String(request.headers.get('x-forwarded-proto') || '').trim().toLowerCase();
+
+  return {
+    runtime: proxyIpClass(clientAddress),
+    resolved: proxyIpClass(resolvedAddress),
+    resolved_source: resolvedAddress
+      ? (runtimeAddress && resolvedAddress === runtimeAddress ? 'runtime' : 'x-forwarded-for')
+      : 'none',
+    forwarded_for: {
+      present: Boolean(forwardedFor),
+      oversized,
+      count: forwardedEntries.length,
+      classes: forwardedEntries
+        .slice(0, MAX_DIAGNOSTIC_FORWARDED_ENTRIES)
+        .map(proxyIpClass),
+      truncated: forwardedEntries.length > MAX_DIAGNOSTIC_FORWARDED_ENTRIES,
+    },
+    x_real_ip: proxyIpClass(request.headers.get('x-real-ip')),
+    forwarded_host_present: Boolean(String(request.headers.get('x-forwarded-host') || '').trim()),
+    forwarded_proto: forwardedProto === 'http' || forwardedProto === 'https'
+      ? forwardedProto
+      : (forwardedProto ? 'other' : 'missing'),
+  } as const;
 }
 
 export function publicSecurityProxyHeaders(request: Request, clientAddress?: string, includeJson = true) {

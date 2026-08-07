@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  publicSecurityProxyDiagnostics,
   publicSecurityProxyHeaders,
   publicSecurityResolverForPath,
   renderPublicUnavailable,
@@ -97,6 +98,49 @@ test('BLOCKS03B: cadena de proxy invalida no sustituye la direccion del runtime'
   });
   const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
   assert.equal(headers['X-Forwarded-For'], '10.0.1.1');
+});
+
+test('BLOCKS03B: diagnostico de proxy solo devuelve clasificaciones y no valores sensibles', () => {
+  const request = new Request('https://shop.example/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '10.0.1.1, 198.51.100.24:443, forged',
+      'x-real-ip': '203.0.113.10',
+      'x-forwarded-host': 'private.example',
+      'x-forwarded-proto': 'https',
+    },
+  });
+  const result = publicSecurityProxyDiagnostics(request, '10.0.1.1');
+
+  assert.deepEqual(result, {
+    runtime: 'private',
+    resolved: 'private',
+    resolved_source: 'runtime',
+    forwarded_for: {
+      present: true,
+      oversized: false,
+      count: 3,
+      classes: ['private', 'invalid', 'invalid'],
+      truncated: false,
+    },
+    x_real_ip: 'public',
+    forwarded_host_present: true,
+    forwarded_proto: 'https',
+  });
+  assert.doesNotMatch(
+    JSON.stringify(result),
+    /10\.0\.1\.1|198\.51\.100\.24|203\.0\.113\.10|private\.example/,
+  );
+});
+
+test('BLOCKS03B: diagnostico temporal exige host exacto de staging y cabecera explicita', () => {
+  const navigationApi = read('../src/pages/api/security/track-navigation.ts');
+  assert.match(navigationApi, /STAGING_DIAGNOSTIC_HOST = 'mob76fcvxkxyb8tq0nwys18o\.91\.99\.99\.83\.sslip\.io'/);
+  assert.match(navigationApi, /request\.headers\.get\(PROXY_DIAGNOSTIC_HEADER\) === 'classify'/);
+  assert.match(navigationApi, /publicSecurityProxyDiagnostics\(request, clientAddress\)/);
+  assert.ok(
+    navigationApi.indexOf('isStagingProxyDiagnostic(request)')
+      < navigationApi.indexOf("request.headers.get('content-length')"),
+  );
 });
 
 test('BLOCKS03B: middleware consulta antes de cargar y mantiene excepciones administrativas', () => {
