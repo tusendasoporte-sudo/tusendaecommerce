@@ -58,6 +58,17 @@ test('MANUAL-IP: security.checkOrigin permanece activo', () => {
   assert.doesNotMatch(config, /checkOrigin:\s*false/);
 });
 
+test('MANUAL-IP: tienda y Master conservan Origin en formularios internos', () => {
+  for (const relative of [
+    '../src/pages/t/[storeSlug]/admin/security.astro',
+    '../src/pages/master/security/[storeId].astro',
+  ]) {
+    const page = read(relative);
+    assert.match(page, /Referrer-Policy', 'same-origin'/);
+    assert.doesNotMatch(page, /Referrer-Policy', 'no-referrer'/);
+  }
+});
+
 test('MANUAL-IP: el bloqueo modal conserva el submitter durante el POST nativo', () => {
   const view = read('../src/components/admin/SecurityMonitoringView.astro');
   const submitStart = view.indexOf("document.addEventListener('submit'");
