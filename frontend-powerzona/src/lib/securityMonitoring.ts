@@ -296,6 +296,21 @@ export type SecurityBlockSignalSummary = {
   mode: SecurityBlockMatchMode;
 };
 
+export type SecurityBlockDeviceCandidate = {
+  id: string;
+  label: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  attempts_count: number;
+};
+
+export type SecurityBlockDeviceReview = {
+  pending_count: number;
+  confirmed_count: number;
+  dismissed_count: number;
+  pending: SecurityBlockDeviceCandidate[];
+};
+
 export type SecurityBlock = {
   id: string;
   customer_id: string;
@@ -310,6 +325,11 @@ export type SecurityBlock = {
   revoked_at: string;
   signal_summary: SecurityBlockSignalSummary;
   created_by_name: string;
+  manual_ip: boolean;
+  manual_ip_display: string;
+  manual_ip_resolution_status: IpResolutionStatus;
+  review_device_candidates: boolean;
+  device_review: SecurityBlockDeviceReview;
 };
 
 export type SecurityBlockHistorySummary = {
@@ -335,6 +355,7 @@ export type SecurityAvailableSignals = {
 export type SecurityBlocksMetrics = {
   active_blocks: number;
   affected_customers: number;
+  manual_ip_blocks: number;
   expires_today: number;
   permanent_blocks: number;
 };
@@ -869,6 +890,60 @@ export async function runSecurityBlockCreate(
   return normalizeSecurityBlock(response.block);
 }
 
+export async function runSecurityManualIpBlockCreate(
+  client: PocketBase,
+  storeId: string,
+  options: {
+    ip: string;
+    scope: SecurityBlockScope;
+    duration: SecurityBlockDuration;
+    reviewDevices: boolean;
+    reason: string;
+  }
+) {
+  const response = await (client as any).send('/api/pz/security/block-action', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      action: 'create_manual_ip',
+      scope: options.scope,
+      duration: options.duration,
+      ip: String(options.ip || '').trim().slice(0, 64),
+      review_devices: options.reviewDevices === true,
+      reason: normalizeSearchTerm(options.reason).slice(0, 500),
+    },
+  });
+
+  if (!response?.ok) throw new Error(String(response?.error || 'manual_ip_block_create_failed'));
+  return normalizeSecurityBlock(response.block);
+}
+
+export async function runSecurityBlockDeviceCandidateAction(
+  client: PocketBase,
+  storeId: string,
+  blockId: string,
+  candidateId: string,
+  action: 'confirm' | 'dismiss',
+  reason: string
+) {
+  const response = await (client as any).send('/api/pz/security/block-action', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      action: action === 'confirm' ? 'confirm_device_candidate' : 'dismiss_device_candidate',
+      block_id: blockId,
+      candidate_id: candidateId,
+      reason: normalizeSearchTerm(reason).slice(0, 500),
+    },
+  });
+
+  if (!response?.ok) throw new Error(String(response?.error || 'device_candidate_review_failed'));
+  return {
+    block: normalizeSecurityBlock(response.block),
+    candidateStatus: String(response.candidate_status || ''),
+  };
+}
+
 export async function runSecurityBlockRevoke(
   client: PocketBase,
   storeId: string,
@@ -1092,10 +1167,31 @@ function normalizeSignalSummary(record: any): SecurityBlockSignalSummary {
   };
 }
 
+function normalizeBlockDeviceReview(record: any): SecurityBlockDeviceReview {
+  const pending = Array.isArray(record?.pending)
+    ? record.pending
+      .filter((candidate: any) => isValidRecordId(candidate?.id))
+      .map((candidate: any) => ({
+        id: String(candidate.id),
+        label: String(candidate.label || 'Dispositivo pendiente'),
+        first_seen_at: String(candidate.first_seen_at || ''),
+        last_seen_at: String(candidate.last_seen_at || ''),
+        attempts_count: normalizeNumber(candidate.attempts_count),
+      }))
+    : [];
+  return {
+    pending_count: normalizeNumber(record?.pending_count),
+    confirmed_count: normalizeNumber(record?.confirmed_count),
+    dismissed_count: normalizeNumber(record?.dismissed_count),
+    pending,
+  };
+}
+
 function normalizeSecurityBlock(record: any): SecurityBlock {
   const scope = String(record?.scope || 'orders');
   const status = String(record?.status || 'active');
   const duration = String(record?.duration || 'days_7');
+  const ipResolutionStatus = String(record?.manual_ip_resolution_status || 'hidden') as IpResolutionStatus;
   return {
     id: String(record?.id || ''),
     customer_id: String(record?.customer_id || ''),
@@ -1110,6 +1206,13 @@ function normalizeSecurityBlock(record: any): SecurityBlock {
     revoked_at: String(record?.revoked_at || ''),
     signal_summary: normalizeSignalSummary(record?.signal_summary),
     created_by_name: String(record?.created_by_name || ''),
+    manual_ip: record?.manual_ip === true,
+    manual_ip_display: String(record?.manual_ip_display || ''),
+    manual_ip_resolution_status: ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(ipResolutionStatus)
+      ? ipResolutionStatus
+      : 'hidden',
+    review_device_candidates: record?.review_device_candidates === true,
+    device_review: normalizeBlockDeviceReview(record?.device_review),
   };
 }
 
@@ -1143,6 +1246,7 @@ function normalizeBlocksMetrics(record: any): SecurityBlocksMetrics {
   return {
     active_blocks: normalizeNumber(record?.active_blocks),
     affected_customers: normalizeNumber(record?.affected_customers),
+    manual_ip_blocks: normalizeNumber(record?.manual_ip_blocks),
     expires_today: normalizeNumber(record?.expires_today),
     permanent_blocks: normalizeNumber(record?.permanent_blocks),
   };

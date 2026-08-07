@@ -26,6 +26,7 @@ const STORE_CUSTOMER_DEVICES_COLLECTION = "store_customer_devices";
 const STORE_CUSTOMER_LINKS_COLLECTION = "store_customer_links";
 const STORE_SECURITY_AUDIT_COLLECTION = "store_security_audit";
 const STORE_SECURITY_BLOCKS_COLLECTION = "store_security_blocks";
+const STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION = "store_security_block_device_candidates";
 const STORES_COLLECTION = "stores";
 const ORDERS_COLLECTION = "orders";
 const CUSTOMER_DETAIL_PER_PAGE = 10;
@@ -51,6 +52,9 @@ const SECURITY_ACTIVITY_SUMMARIES = Object.freeze({
   block_created: "Bloqueo de Seguridad creado",
   block_revoked: "Bloqueo de Seguridad revocado",
   block_expired: "Bloqueo de Seguridad vencido",
+  block_device_candidate_detected: "Dispositivo pendiente detectado para un bloqueo",
+  block_device_candidate_confirmed: "Dispositivo agregado al bloqueo",
+  block_device_candidate_dismissed: "Dispositivo pendiente descartado",
   ip_information_revealed: "Información protegida revelada de forma autorizada",
   security_customer_identity_merged: "Identidades de Seguridad consolidadas",
 });
@@ -71,6 +75,8 @@ const LOG_MESSAGES = {
   PZ_SEC_CUSTOMER_DELETE_FAILED: "PowerZona security customer delete failed safely.",
   PZ_SEC_BLOCK_CREATE_FAILED: "PowerZona security block create failed safely.",
   PZ_SEC_BLOCK_REVOKE_FAILED: "PowerZona security block revoke failed safely.",
+  PZ_SEC_BLOCK_DEVICE_REVIEW_FAILED: "PowerZona security block device review failed safely.",
+  PZ_SEC_BLOCK_DEVICE_CANDIDATE_SKIPPED: "PowerZona security block device candidate write skipped safely.",
   PZ_SEC_BLOCK_EXPIRE_FAILED: "PowerZona security block expiry failed safely.",
   PZ_SEC_BLOCK_LIST_FAILED: "PowerZona security block list failed safely.",
   PZ_SEC_WATCH_UPDATE_FAILED: "PowerZona security customer watch update failed safely.",
@@ -166,6 +172,41 @@ function getBoolean(record, key) {
     } catch (_) {
       return false;
     }
+  }
+}
+
+function getStringArray(record, key) {
+  let value;
+  try {
+    value = record.get(key);
+  } catch (_) {
+    value = undefined;
+  }
+  if (Array.isArray(value)) {
+    if (value.length && value.every((item) => Number.isInteger(item) && item >= 0 && item <= 255)) {
+      try {
+        const encoded = value.map((item) => `%${item.toString(16).padStart(2, "0")}`).join("");
+        value = JSON.parse(decodeURIComponent(encoded));
+      } catch (_) {
+        return [];
+      }
+    }
+    return value.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+  if (value && typeof value.string === "function") {
+    try {
+      value = JSON.parse(String(value.string() || ""));
+    } catch (_) {
+      return [];
+    }
+    return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  }
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  } catch (_) {
+    return [];
   }
 }
 
@@ -379,6 +420,49 @@ function normalizeIpAddress(value) {
   if (mappedIpv4) return mappedIpv4;
   if (trimmed.includes(":")) return normalizeIpv6(trimmed);
   return invalidIp();
+}
+
+function ipv4Octets(canonical) {
+  const parts = String(canonical || "").split(".").map((part) => Number(part));
+  return parts.length === 4 && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255)
+    ? parts
+    : [];
+}
+
+function isPublicIpv4(canonical) {
+  const octets = ipv4Octets(canonical);
+  if (!octets.length) return false;
+  const [a, b, c] = octets;
+  if (a === 0 || a === 10 || a === 127 || a >= 224) return false;
+  if (a === 100 && b >= 64 && b <= 127) return false;
+  if (a === 169 && b === 254) return false;
+  if (a === 172 && b >= 16 && b <= 31) return false;
+  if (a === 192 && b === 168) return false;
+  if (a === 192 && b === 0 && (c === 0 || c === 2)) return false;
+  if (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) return false;
+  if (a === 203 && b === 0 && c === 113) return false;
+  return true;
+}
+
+function isPublicIpv6(canonical) {
+  const groups = String(canonical || "").split(":");
+  if (groups.length !== 8 || groups.some((group) => !/^[0-9a-f]{4}$/.test(group))) return false;
+  const first = Number.parseInt(groups[0], 16);
+  const second = Number.parseInt(groups[1], 16);
+  if (groups.every((group) => group === "0000")) return false;
+  if (groups.slice(0, 7).every((group) => group === "0000") && groups[7] === "0001") return false;
+  if ((first & 0xfe00) === 0xfc00) return false;
+  if ((first & 0xffc0) === 0xfe80) return false;
+  if ((first & 0xff00) === 0xff00) return false;
+  if (first === 0x2001 && second === 0x0db8) return false;
+  return (first & 0xe000) === 0x2000;
+}
+
+function isPublicIpAddress(normalized) {
+  if (!normalized || normalized.valid !== true) return false;
+  if (normalized.family === "ipv4") return isPublicIpv4(normalized.canonical);
+  if (normalized.family === "ipv6") return isPublicIpv6(normalized.canonical);
+  return false;
 }
 
 function buildIpCapture(normalizedIp, storeId, settings, secret) {
@@ -1470,7 +1554,61 @@ function signalSummaryFromBlock(block) {
   };
 }
 
-function serializeSecurityBlock(block) {
+function emptyBlockDeviceReview() {
+  return { pending_count: 0, confirmed_count: 0, dismissed_count: 0, pending: [] };
+}
+
+function serializeBlockDeviceCandidate(candidate, index) {
+  return {
+    id: candidate.id,
+    label: `Dispositivo pendiente ${index + 1}`,
+    first_seen_at: getString(candidate, "first_seen_at"),
+    last_seen_at: getString(candidate, "last_seen_at"),
+    attempts_count: Math.max(1, getNumber(candidate, "attempts_count")),
+  };
+}
+
+function buildBlockDeviceReviewMap(app, storeId, blocks) {
+  const map = {};
+  const blockIds = uniqueIds((blocks || []).map((block) => block.id));
+  blockIds.forEach((blockId) => { map[blockId] = emptyBlockDeviceReview(); });
+  if (!blockIds.length || !findCollectionSafe(app, STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION)) return map;
+
+  const allowed = {};
+  blockIds.forEach((blockId) => { allowed[blockId] = true; });
+  const groupedPending = {};
+  listRecordsPaged(
+    app,
+    STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION,
+    "store = {:store}",
+    "-last_seen_at,-created",
+    { store: storeId },
+    200
+  ).forEach((candidate) => {
+    const blockId = getRelationId(candidate, "block");
+    if (!allowed[blockId]) return;
+    const status = getString(candidate, "status");
+    if (status === "pending") {
+      map[blockId].pending_count += 1;
+      groupedPending[blockId] = groupedPending[blockId] || [];
+      groupedPending[blockId].push(candidate);
+    } else if (status === "confirmed") {
+      map[blockId].confirmed_count += 1;
+    } else if (status === "dismissed") {
+      map[blockId].dismissed_count += 1;
+    }
+  });
+  Object.keys(groupedPending).forEach((blockId) => {
+    map[blockId].pending = groupedPending[blockId].map(serializeBlockDeviceCandidate);
+  });
+  return map;
+}
+
+function serializeSecurityBlock(block, settings, deviceReview) {
+  const manualIp = getBoolean(block, "manual_ip");
+  const ip = manualIp && settings
+    ? getRecordIpDisplayFromFields(block, settings, "manual_ip_masked", "manual_ip_encrypted")
+    : { ip_display: "", ip_resolution_status: "hidden" };
   return {
     id: block.id,
     customer_id: getRelationId(block, "customer"),
@@ -1482,14 +1620,19 @@ function serializeSecurityBlock(block) {
     created: getString(block, "created"),
     revoked_at: getString(block, "revoked_at"),
     signal_summary: signalSummaryFromBlock(block),
+    manual_ip: manualIp,
+    manual_ip_display: ip.ip_display,
+    manual_ip_resolution_status: ip.ip_resolution_status,
+    review_device_candidates: getBoolean(block, "review_device_candidates"),
+    device_review: deviceReview || emptyBlockDeviceReview(),
   };
 }
 
-function serializeBlockForList(app, storeId, block, customerMap, actorMap) {
+function serializeBlockForList(app, storeId, block, customerMap, actorMap, settings, deviceReviewMap) {
   const customerId = getRelationId(block, "customer");
   const customer = customerMap[customerId] || null;
   const actorId = getRelationId(block, "created_by");
-  const base = serializeSecurityBlock(block);
+  const base = serializeSecurityBlock(block, settings, deviceReviewMap[block.id]);
   return {
     ...base,
     customer_name: customer ? getString(customer, "display_name") : "",
@@ -2034,6 +2177,9 @@ function createSecurityAudit(app, storeId, action, actorId, subjectRecordId, rea
     block_created: { field: "block_state", previous: "inactive", next: "active" },
     block_revoked: { field: "block_state", previous: "active", next: "revoked" },
     block_expired: { field: "block_state", previous: "active", next: "expired" },
+    block_device_candidate_detected: { field: "device_review_state", previous: "none", next: "pending" },
+    block_device_candidate_confirmed: { field: "device_review_state", previous: "pending", next: "confirmed" },
+    block_device_candidate_dismissed: { field: "device_review_state", previous: "pending", next: "dismissed" },
     ip_information_revealed: { field: "protected_information_access", previous: "protected", next: "revealed_authorized" },
     security_customer_identity_merged: { field: "customer_identity_state", previous: "separate", next: "merged" },
   };
@@ -2044,7 +2190,7 @@ function createSecurityAudit(app, storeId, action, actorId, subjectRecordId, rea
     origin: actor ? undefined : "system",
     module: "security",
     action,
-    severity: ["block_created", "block_revoked", "delete_customer_profile", "ip_information_revealed", "security_customer_identity_merged"].includes(action)
+    severity: ["block_created", "block_revoked", "block_device_candidate_confirmed", "delete_customer_profile", "ip_information_revealed", "security_customer_identity_merged"].includes(action)
       ? "critical"
       : "important",
     resourceType: "security",
@@ -2264,6 +2410,29 @@ function parseBlockCreatePayload(body) {
   return { storeId, customerId, action, scope, duration, matchPhone, matchDevice, matchIp, matchMode, reason };
 }
 
+function parseManualIpBlockCreatePayload(body) {
+  const allowed = ["store_id", "action", "scope", "duration", "ip", "review_devices", "reason"];
+  const keys = getBodyKeys(body);
+  if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
+
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const action = String(getBodyValue(body, "action") || "").trim();
+  const scope = String(getBodyValue(body, "scope") || "").trim();
+  const duration = String(getBodyValue(body, "duration") || "").trim();
+  const normalizedIp = normalizeIpAddress(getBodyValue(body, "ip"));
+  const reviewDevices = boolBodyValue(body, "review_devices");
+  const reason = sanitizeLifecycleReason(getBodyValue(body, "reason"));
+
+  if (!isValidRecordId(storeId)) return { error: "store_id" };
+  if (action !== "create_manual_ip") return { error: "action" };
+  if (!SECURITY_BLOCK_SCOPES.includes(scope)) return { error: "scope" };
+  if (!SECURITY_BLOCK_DURATIONS.includes(duration)) return { error: "duration" };
+  if (!normalizedIp.valid || !isPublicIpAddress(normalizedIp)) return { error: "ip" };
+  if (reviewDevices === null) return { error: "review_devices" };
+  if (!reason) return { error: "reason" };
+  return { storeId, action, scope, duration, normalizedIp, reviewDevices, reason };
+}
+
 function parseBlockRevokePayload(body) {
   const allowed = ["store_id", "block_id", "action", "reason"];
   const keys = getBodyKeys(body);
@@ -2280,10 +2449,32 @@ function parseBlockRevokePayload(body) {
   return { storeId, blockId, action, reason };
 }
 
+function parseBlockDeviceReviewPayload(body) {
+  const allowed = ["store_id", "action", "block_id", "candidate_id", "reason"];
+  const keys = getBodyKeys(body);
+  if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
+
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const action = String(getBodyValue(body, "action") || "").trim();
+  const blockId = String(getBodyValue(body, "block_id") || "").trim();
+  const candidateId = String(getBodyValue(body, "candidate_id") || "").trim();
+  const reason = sanitizeLifecycleReason(getBodyValue(body, "reason"));
+  if (!isValidRecordId(storeId)) return { error: "store_id" };
+  if (!isValidRecordId(blockId)) return { error: "block_id" };
+  if (!isValidRecordId(candidateId)) return { error: "candidate_id" };
+  if (action !== "confirm_device_candidate" && action !== "dismiss_device_candidate") return { error: "action" };
+  if (!reason) return { error: "reason" };
+  return { storeId, action, blockId, candidateId, reason };
+}
+
 function parseBlockActionPayload(body) {
   const action = String(getBodyValue(body, "action") || "").trim();
   if (action === "create") return parseBlockCreatePayload(body);
+  if (action === "create_manual_ip") return parseManualIpBlockCreatePayload(body);
   if (action === "revoke") return parseBlockRevokePayload(body);
+  if (action === "confirm_device_candidate" || action === "dismiss_device_candidate") {
+    return parseBlockDeviceReviewPayload(body);
+  }
   return { error: "action" };
 }
 
@@ -2310,6 +2501,20 @@ function selectedSignalValues(snapshot, parsed) {
   return selected;
 }
 
+function hasOverlappingActiveIpBlock(app, storeId, scope, ipHmac) {
+  if (!isValidHmacValue(ipHmac)) return false;
+  return listRecordsPaged(
+    app,
+    STORE_SECURITY_BLOCKS_COLLECTION,
+    'store = {:store} && status = "active"',
+    "",
+    { store: storeId },
+    200
+  ).some((block) => blockScopesOverlap(getString(block, "scope"), scope)
+    && getBoolean(block, "match_ip")
+    && uniqueHmacValues(getStringArray(block, "ip_hmac_values")).includes(ipHmac));
+}
+
 function createSecurityBlockRecord(app, storeId, customer, actorId, parsed, signals) {
   const now = new Date();
   const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCKS_COLLECTION);
@@ -2332,6 +2537,92 @@ function createSecurityBlockRecord(app, storeId, customer, actorId, parsed, sign
   if (actorId) block.set("created_by", actorId);
   app.save(block);
   return block;
+}
+
+function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture) {
+  const now = new Date();
+  const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCKS_COLLECTION);
+  const block = new Record(collection, {});
+  block.set("store", storeId);
+  block.set("customer", "");
+  block.set("scope", parsed.scope);
+  block.set("status", "active");
+  block.set("match_phone", false);
+  block.set("match_device", false);
+  block.set("match_ip", true);
+  block.set("match_mode", "any");
+  block.set("phone_hmac_values", []);
+  block.set("device_hmac_values", []);
+  block.set("ip_hmac_values", [ipCapture.ip_hmac]);
+  block.set("duration", parsed.duration);
+  block.set("starts_at", now.toISOString());
+  block.set("expires_at", durationExpiresAt(parsed.duration, now));
+  block.set("reason_internal", parsed.reason);
+  block.set("manual_ip", true);
+  block.set("manual_ip_masked", ipCapture.ip_masked || "");
+  block.set("manual_ip_encrypted", ipCapture.ip_encrypted || "");
+  block.set("manual_ip_family", ipCapture.ip_family || "unknown");
+  block.set("manual_ip_capture_status", ipCapture.capture_status || "partial");
+  block.set("review_device_candidates", parsed.reviewDevices === true);
+  if (actorId) block.set("created_by", actorId);
+  app.save(block);
+  return block;
+}
+
+function findBlockDeviceCandidate(app, storeId, blockId, deviceHmac) {
+  return findFirstByFilter(
+    app,
+    STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION,
+    "store = {:store} && block = {:block} && device_hmac = {:device}",
+    { store: storeId, block: blockId, device: deviceHmac }
+  );
+}
+
+function recordManualBlockDeviceCandidate(app, block, signals, nowValue) {
+  if (!app || !block || !findCollectionSafe(app, STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION)) return null;
+  const storeId = getRelationId(block, "store");
+  const deviceHmac = String(signals && signals.device || "").trim();
+  const ipHmac = String(signals && signals.ip || "").trim();
+  if (!isValidRecordId(storeId)
+    || !getBoolean(block, "manual_ip")
+    || !getBoolean(block, "review_device_candidates")
+    || getString(block, "status") !== "active"
+    || !isValidHmacValue(deviceHmac)
+    || !isValidHmacValue(ipHmac)
+    || !getStringArray(block, "ip_hmac_values").includes(ipHmac)
+    || getStringArray(block, "device_hmac_values").includes(deviceHmac)) return null;
+
+  const now = nowValue instanceof Date ? nowValue : new Date();
+  let candidate = findBlockDeviceCandidate(app, storeId, block.id, deviceHmac);
+  if (candidate) {
+    if (getString(candidate, "status") !== "pending") return candidate;
+    candidate.set("last_seen_at", now.toISOString());
+    candidate.set("attempts_count", Math.max(1, getNumber(candidate, "attempts_count")) + 1);
+    app.save(candidate);
+    return candidate;
+  }
+
+  const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION);
+  candidate = new Record(collection, {});
+  candidate.set("store", storeId);
+  candidate.set("block", block.id);
+  candidate.set("device_hmac", deviceHmac);
+  candidate.set("status", "pending");
+  candidate.set("first_seen_at", now.toISOString());
+  candidate.set("last_seen_at", now.toISOString());
+  candidate.set("attempts_count", 1);
+  let created = false;
+  try {
+    app.save(candidate);
+    created = true;
+  } catch (error) {
+    candidate = findBlockDeviceCandidate(app, storeId, block.id, deviceHmac);
+    if (!candidate) throw error;
+  }
+  if (created) {
+    createSecurityBlockAudit(app, storeId, "block_device_candidate_detected", "", block, "automatic device candidate detection");
+  }
+  return candidate;
 }
 
 function handleCustomerObservation(e) {
@@ -2398,6 +2689,42 @@ function handleCustomerObservation(e) {
   }
 }
 
+function handleManualIpBlockCreate(e, auth, parsed) {
+  const role = authRole(auth);
+  const authStoreId = authStore(auth);
+  if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+    return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+  }
+
+  expireDueSecurityBlocks($app, parsed.storeId);
+  const settings = getSecuritySettingsRecord($app, parsed.storeId);
+  const capabilityError = validateBlockCapabilities(settings, parsed);
+  if (capabilityError) return e.json(capabilityError.status, { ok: false, error: capabilityError.error });
+
+  const secret = getValidHmacSecret();
+  if (!secret) return e.json(503, { ok: false, error: "security_secret_unavailable" });
+  const ipCapture = buildIpCapture(parsed.normalizedIp, parsed.storeId, settings, secret);
+  if (!isValidHmacValue(ipCapture.ip_hmac)) {
+    return e.json(503, { ok: false, error: "security_secret_unavailable" });
+  }
+
+  let result = null;
+  $app.runInTransaction((txApp) => {
+    if (hasOverlappingActiveIpBlock(txApp, parsed.storeId, parsed.scope, ipCapture.ip_hmac)) {
+      result = { status: 409, error: "overlapping_block" };
+      return;
+    }
+    const actorId = getString(auth, "id");
+    const block = createManualIpBlockRecord(txApp, parsed.storeId, actorId, parsed, ipCapture);
+    createSecurityBlockAudit(txApp, parsed.storeId, "block_created", actorId, block, parsed.reason);
+    result = { status: 200, block };
+  });
+
+  if (!result) return e.json(500, { ok: false, error: "block_create_failed" });
+  if (result.status === 409) return e.json(409, { ok: false, error: result.error });
+  return e.json(200, { ok: true, block: serializeSecurityBlock(result.block, settings) });
+}
+
 function handleSecurityBlockCreate(e, auth, parsed) {
   const role = authRole(auth);
   const authStoreId = authStore(auth);
@@ -2446,6 +2773,86 @@ function handleSecurityBlockCreate(e, auth, parsed) {
   if (result.status === 400) return e.json(400, { ok: false, error: result.error, signal: result.signal });
   if (result.status === 409) return e.json(409, { ok: false, error: result.error || "conflict" });
   return e.json(200, { ok: true, block: serializeSecurityBlock(result.block) });
+}
+
+function handleSecurityBlockDeviceReview(e, auth, parsed) {
+  const role = authRole(auth);
+  const authStoreId = authStore(auth);
+  if (!canManageStore(role, authStoreId, parsed.storeId, auth)) {
+    return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+  }
+
+  expireDueSecurityBlocks($app, parsed.storeId);
+  const settings = getSecuritySettingsRecord($app, parsed.storeId);
+  if (!canBlockWithSettings(settings)) return e.json(403, { ok: false, error: "blocking_disabled" });
+
+  let result = null;
+  $app.runInTransaction((txApp) => {
+    const block = findRecordByIdSafe(txApp, STORE_SECURITY_BLOCKS_COLLECTION, parsed.blockId);
+    const candidate = findRecordByIdSafe(txApp, STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION, parsed.candidateId);
+    if (!block
+      || !candidate
+      || getRelationId(block, "store") !== parsed.storeId
+      || getRelationId(candidate, "store") !== parsed.storeId
+      || getRelationId(candidate, "block") !== block.id) {
+      result = { status: 404, error: "not_found" };
+      return;
+    }
+    if (getString(block, "status") !== "active"
+      || !getBoolean(block, "manual_ip")
+      || !getBoolean(block, "review_device_candidates")) {
+      result = { status: 409, error: "block_not_reviewable" };
+      return;
+    }
+    const capabilityError = validateBlockCapabilities(settings, {
+      scope: getString(block, "scope"),
+      duration: getString(block, "duration"),
+    });
+    if (capabilityError) {
+      result = capabilityError;
+      return;
+    }
+    if (getString(candidate, "status") !== "pending") {
+      result = { status: 409, error: "candidate_not_pending" };
+      return;
+    }
+
+    const actorId = getString(auth, "id");
+    const now = new Date().toISOString();
+    if (parsed.action === "confirm_device_candidate") {
+      const deviceHmac = getString(candidate, "device_hmac");
+      if (!isValidHmacValue(deviceHmac)) {
+        result = { status: 409, error: "candidate_unavailable" };
+        return;
+      }
+      block.set("device_hmac_values", uniqueHmacValues(getStringArray(block, "device_hmac_values").concat([deviceHmac])));
+      block.set("match_device", true);
+      block.set("match_mode", "any");
+      txApp.save(block);
+      candidate.set("status", "confirmed");
+      candidate.set("confirmed_at", now);
+      if (actorId) candidate.set("confirmed_by", actorId);
+      txApp.save(candidate);
+      createSecurityBlockAudit(txApp, parsed.storeId, "block_device_candidate_confirmed", actorId, block, parsed.reason);
+      result = { status: 200, block, candidateStatus: "confirmed" };
+      return;
+    }
+
+    candidate.set("status", "dismissed");
+    candidate.set("dismissed_at", now);
+    if (actorId) candidate.set("dismissed_by", actorId);
+    txApp.save(candidate);
+    createSecurityBlockAudit(txApp, parsed.storeId, "block_device_candidate_dismissed", actorId, block, parsed.reason);
+    result = { status: 200, block, candidateStatus: "dismissed" };
+  });
+
+  if (!result) return e.json(500, { ok: false, error: "device_review_failed" });
+  if (result.status !== 200) return e.json(result.status, { ok: false, error: result.error || "device_review_failed" });
+  return e.json(200, {
+    ok: true,
+    block: serializeSecurityBlock(result.block, settings),
+    candidate_status: result.candidateStatus,
+  });
 }
 
 function handleSecurityBlockRevoke(e, auth, parsed) {
@@ -2501,10 +2908,22 @@ function handleSecurityBlockAction(e) {
     const parsed = parseBlockActionPayload(info.body || {});
     if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
     if (parsed.action === "revoke") return handleSecurityBlockRevoke(e, info.auth, parsed);
+    if (parsed.action === "create_manual_ip") return handleManualIpBlockCreate(e, info.auth, parsed);
+    if (parsed.action === "confirm_device_candidate" || parsed.action === "dismiss_device_candidate") {
+      return handleSecurityBlockDeviceReview(e, info.auth, parsed);
+    }
     return handleSecurityBlockCreate(e, info.auth, parsed);
   } catch (_) {
-    logSecurity("error", action === "revoke" ? "PZ_SEC_BLOCK_REVOKE_FAILED" : "PZ_SEC_BLOCK_CREATE_FAILED");
-    return e.json(500, { ok: false, error: action === "revoke" ? "block_revoke_failed" : "block_create_failed" });
+    if (action === "revoke") {
+      logSecurity("error", "PZ_SEC_BLOCK_REVOKE_FAILED");
+      return e.json(500, { ok: false, error: "block_revoke_failed" });
+    }
+    if (action === "confirm_device_candidate" || action === "dismiss_device_candidate") {
+      logSecurity("error", "PZ_SEC_BLOCK_DEVICE_REVIEW_FAILED");
+      return e.json(500, { ok: false, error: "device_review_failed" });
+    }
+    logSecurity("error", "PZ_SEC_BLOCK_CREATE_FAILED");
+    return e.json(500, { ok: false, error: "block_create_failed" });
   }
 }
 
@@ -2570,6 +2989,22 @@ function customerIdsMatchingBlockSearch(app, storeId, search) {
   return matches;
 }
 
+function manualIpSearchHmac(storeId, search) {
+  const normalized = normalizeIpAddress(search);
+  if (!isPublicIpAddress(normalized)) return "";
+  let secret = "";
+  try { secret = getValidHmacSecret(); } catch (_) { secret = ""; }
+  return secret ? String(hmacValue("ip", storeId, normalized.canonical, secret) || "") : "";
+}
+
+function blockMatchesSearch(block, customerMatches, search, ipHmac) {
+  const customerId = getRelationId(block, "customer");
+  if (customerId && customerMatches[customerId] === true) return true;
+  if (ipHmac && getStringArray(block, "ip_hmac_values").includes(ipHmac)) return true;
+  const reason = normalizeSearchTerm(getString(block, "reason_internal"));
+  return Boolean(reason && reason.includes(normalizeSearchTerm(search)));
+}
+
 function buildActorMap(app, ids) {
   const map = {};
   getRecordsByIds(app, "users", uniqueIds(ids)).forEach((user) => {
@@ -2583,12 +3018,13 @@ function blocksMetrics(blocks, nowValue) {
   const activeCustomerIds = [];
   const now = nowValue instanceof Date ? nowValue : new Date();
   const today = getHavanaDay(now);
-  const metrics = { active_blocks: 0, affected_customers: 0, expires_today: 0, permanent_blocks: 0 };
+  const metrics = { active_blocks: 0, affected_customers: 0, manual_ip_blocks: 0, expires_today: 0, permanent_blocks: 0 };
   blocks.forEach((block) => {
     if (getString(block, "status") !== "active") return;
     metrics.active_blocks += 1;
     const customerId = getRelationId(block, "customer");
     if (customerId && !activeCustomerIds.includes(customerId)) activeCustomerIds.push(customerId);
+    if (getBoolean(block, "manual_ip")) metrics.manual_ip_blocks += 1;
     if (getString(block, "duration") === "permanent") metrics.permanent_blocks += 1;
     const expiresTime = Date.parse(getString(block, "expires_at"));
     if (Number.isFinite(expiresTime) && expiresTime >= now.getTime() && getHavanaDay(new Date(expiresTime)) === today) {
@@ -2621,14 +3057,17 @@ function handleSecurityBlocksPage(e) {
       return e.json(200, {
         ok: true,
         blocks: { page: 1, perPage: SECURITY_BLOCKS_PER_PAGE, totalItems: 0, totalPages: 1, items: [] },
-        metrics: { active_blocks: 0, affected_customers: 0, expires_today: 0, permanent_blocks: 0 },
+        metrics: { active_blocks: 0, affected_customers: 0, manual_ip_blocks: 0, expires_today: 0, permanent_blocks: 0 },
       });
     }
 
     const built = blocksPageFilter(parsed);
     let blocks = listRecordsPaged($app, STORE_SECURITY_BLOCKS_COLLECTION, built.filter, "-created", built.params, 200);
-    const searchMatches = customerIdsMatchingBlockSearch($app, parsed.storeId, parsed.search);
-    if (searchMatches) blocks = blocks.filter((block) => searchMatches[getRelationId(block, "customer")] === true);
+    if (parsed.search) {
+      const searchMatches = customerIdsMatchingBlockSearch($app, parsed.storeId, parsed.search) || {};
+      const ipHmac = manualIpSearchHmac(parsed.storeId, parsed.search);
+      blocks = blocks.filter((block) => blockMatchesSearch(block, searchMatches, parsed.search, ipHmac));
+    }
 
     const totalItems = blocks.length;
     const totalPages = Math.max(1, Math.ceil(totalItems / SECURITY_BLOCKS_PER_PAGE));
@@ -2640,6 +3079,7 @@ function handleSecurityBlocksPage(e) {
       customerMap[customer.id] = customer;
     });
     const actorMap = buildActorMap($app, pageItems.map((block) => getRelationId(block, "created_by")));
+    const deviceReviewMap = buildBlockDeviceReviewMap($app, parsed.storeId, pageItems);
 
     return e.json(200, {
       ok: true,
@@ -2648,7 +3088,15 @@ function handleSecurityBlocksPage(e) {
         perPage: SECURITY_BLOCKS_PER_PAGE,
         totalItems,
         totalPages,
-        items: pageItems.map((block) => serializeBlockForList($app, parsed.storeId, block, customerMap, actorMap)),
+        items: pageItems.map((block) => serializeBlockForList(
+          $app,
+          parsed.storeId,
+          block,
+          customerMap,
+          actorMap,
+          settings,
+          deviceReviewMap
+        )),
       },
       metrics: blocksMetrics(blocks),
     });
@@ -2987,10 +3435,14 @@ module.exports = {
   handleSecurityBlocksExpiry,
   expireDueSecurityBlocks,
   linkVisitorSessionToCustomerByBrowserToken,
+  recordManualBlockDeviceCandidate,
   _test: {
     normalizeIpAddress,
+    isPublicIpAddress,
     getHavanaDay,
     blocksMetrics,
+    parseManualIpBlockCreatePayload,
+    parseBlockDeviceReviewPayload,
     parseNavigationPayload,
     normalizePath,
     canUseStorePermission,

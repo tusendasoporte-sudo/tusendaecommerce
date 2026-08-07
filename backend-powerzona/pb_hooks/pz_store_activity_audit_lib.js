@@ -135,9 +135,9 @@ const COLLECTION_CONFIG = Object.freeze({
   }),
   store_security_blocks: Object.freeze({
     module: "security", resourceType: "security_block", labelFields: [],
-    safeFields: ["status", "scope", "match_phone", "match_device", "match_ip", "match_mode", "duration", "starts_at", "expires_at", "revoked_at"],
+    safeFields: ["status", "scope", "match_phone", "match_device", "match_ip", "match_mode", "duration", "starts_at", "expires_at", "revoked_at", "manual_ip", "review_device_candidates"],
     markerAliases: { reason_internal: "security_reason", revoke_reason: "security_reason" },
-    criticalFields: ["status", "scope", "match_phone", "match_device", "match_ip", "match_mode", "expires_at", "revoked_at"],
+    criticalFields: ["status", "scope", "match_phone", "match_device", "match_ip", "match_mode", "expires_at", "revoked_at", "manual_ip", "review_device_candidates"],
   }),
 });
 

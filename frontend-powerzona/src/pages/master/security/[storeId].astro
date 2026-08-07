@@ -18,8 +18,10 @@ import {
   getSecurityVisitorsTodayPage,
   isValidRecordId,
   mergeSecurityCustomers,
+  runSecurityBlockDeviceCandidateAction,
   runSecurityBlockCreate,
   runSecurityBlockRevoke,
+  runSecurityManualIpBlockCreate,
   runSecurityCustomerObservation,
   runSecurityCustomerLifecycle,
   type PaginatedResult,
@@ -114,6 +116,9 @@ const noticeMessages: Record<string, string> = {
   profile_deleted: 'Ficha de Seguridad eliminada. Los pedidos comerciales se conservaron.',
   observation_updated: 'Observacion actualizada.',
   block_created: 'Bloqueo creado.',
+  manual_ip_block_created: 'Bloqueo manual por IP creado.',
+  block_device_confirmed: 'Dispositivo agregado al bloqueo.',
+  block_device_dismissed: 'Dispositivo pendiente descartado.',
   block_revoked: 'Bloqueo revocado.',
 };
 const viewNotice = noticeMessages[notice] || '';
@@ -175,6 +180,39 @@ try {
       return Astro.redirect(`${basePath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=block_created`);
     } catch (_) {
       viewError = 'No se pudo crear el bloqueo. Revisa capacidades, solapamientos, senales disponibles y motivo.';
+    }
+  }
+
+  if (actionsEnabled && formData && String(formData.get('security_action') || '') === 'manual_ip_block_create') {
+    try {
+      await runSecurityManualIpBlockCreate(authPb, storeId, {
+        ip: String(formData.get('manual_ip') || ''),
+        scope: String(formData.get('block_scope') || 'orders') as any,
+        duration: String(formData.get('block_duration') || 'hours_24') as any,
+        reviewDevices: formData.get('review_devices') === 'on',
+        reason: String(formData.get('block_reason') || '').trim(),
+      });
+      return Astro.redirect(`${basePath}?section=blocked&notice=manual_ip_block_created`);
+    } catch (_) {
+      viewError = 'No se pudo crear el bloqueo por IP. Revisa que sea una IP publica exacta, que no exista un bloqueo solapado y que las capacidades esten activas.';
+    }
+  }
+
+  if (actionsEnabled && formData && String(formData.get('security_action') || '') === 'block_device_candidate_review') {
+    const action = String(formData.get('device_review_action') || '') === 'dismiss' ? 'dismiss' : 'confirm';
+    try {
+      await runSecurityBlockDeviceCandidateAction(
+        authPb,
+        storeId,
+        String(formData.get('block_id') || '').trim(),
+        String(formData.get('candidate_id') || '').trim(),
+        action,
+        String(formData.get('device_review_reason') || '').trim()
+      );
+      const nextNotice = action === 'confirm' ? 'block_device_confirmed' : 'block_device_dismissed';
+      return Astro.redirect(`${basePath}?section=blocked&notice=${nextNotice}`);
+    } catch (_) {
+      viewError = 'No se pudo revisar el dispositivo. Confirma que el bloqueo siga activo, el candidato este pendiente y el motivo sea valido.';
     }
   }
 

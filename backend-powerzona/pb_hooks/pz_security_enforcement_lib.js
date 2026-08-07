@@ -380,6 +380,13 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
   if (!block) return { blocked: false, reason: "no_match" };
 
   recordBlockedAttempt(app, e, store, settings, block, action, signals, now);
+  try {
+    if (typeof monitoring.recordManualBlockDeviceCandidate === "function") {
+      monitoring.recordManualBlockDeviceCandidate(app, block, signals, now);
+    }
+  } catch (_) {
+    logEnforcement("PZ_SEC_BLOCK_DEVICE_CANDIDATE_SKIPPED");
+  }
   return { blocked: true, store, block, signals, settings };
 }
 

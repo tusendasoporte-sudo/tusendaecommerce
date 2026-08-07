@@ -121,6 +121,9 @@ const {
 const ipVisibility = String(settings.ip_visibility || 'hidden');
 const showIp = ipVisibility !== 'hidden';
 const isFullIp = ipVisibility === 'full';
+const canCreateManualIpBlock = actionsEnabled
+  && settings.mode === 'protection'
+  && settings.manual_blocking_enabled === true;
 const titlePrefix = context === 'master' ? 'Monitoreo Master' : 'Seguridad';
 const modeLabel = getSecurityModeLabel(settings.mode);
 const ipLabel = getSecurityIpVisibilityLabel(settings.ip_visibility);
@@ -378,12 +381,17 @@ function blockSignalsLabel(block: SecurityBlock) {
 }
 
 function blockCustomerTitle(block: SecurityBlock) {
+  if (block.manual_ip) return 'Bloqueo manual por IP';
   const name = String(block.customer_name || '').trim();
   const phone = String(block.primary_phone || '').trim();
   return name || phone || 'Cliente sin nombre';
 }
 
 function blockCustomerSubtitle(block: SecurityBlock) {
+  if (block.manual_ip) {
+    if (block.manual_ip_resolution_status === 'hidden') return 'IP protegida';
+    return String(block.manual_ip_display || '').trim() || 'IP no disponible';
+  }
   return String(block.primary_phone || '').trim() || 'Telefono no disponible';
 }
 
@@ -391,6 +399,7 @@ function selectedBlocksMetrics() {
   return blocksMetrics || {
     active_blocks: 0,
     affected_customers: 0,
+    manual_ip_blocks: 0,
     expires_today: 0,
     permanent_blocks: 0,
   };
@@ -1179,6 +1188,15 @@ function observationActionValue(customer: SecurityCustomer) {
           <h3 id="blocked-title">Clientes bloqueados</h3>
           <p>{customerPageLabel(blocksResult)}</p>
         </div>
+        <button
+          class="primary-action"
+          type="button"
+          data-manual-ip-block-trigger
+          aria-haspopup="dialog"
+          aria-controls="security-manual-ip-block-dialog"
+          disabled={!canCreateManualIpBlock}
+          title={canCreateManualIpBlock ? '' : 'Activa el modo Proteccion y los bloqueos manuales para agregar una IP.'}
+        >Agregar bloqueo por IP</button>
       </div>
 
       <section class="metrics-grid block-metrics" aria-label="Metricas de bloqueos">
@@ -1189,6 +1207,10 @@ function observationActionValue(customer: SecurityCustomer) {
         <article class="metric-card">
           <span>Clientes afectados</span>
           <strong>{formatNumber(selectedBlocksMetrics().affected_customers)}</strong>
+        </article>
+        <article class="metric-card">
+          <span>IPs manuales activas</span>
+          <strong>{formatNumber(selectedBlocksMetrics().manual_ip_blocks)}</strong>
         </article>
         <article class="metric-card">
           <span>Vencen hoy</span>
@@ -1205,7 +1227,7 @@ function observationActionValue(customer: SecurityCustomer) {
         <input type="hidden" name="blocked_page" value="1" />
         <div class="field">
           <label for="blocked-search">Buscar bloqueo</label>
-          <input id="blocked-search" name="blocked_search" type="search" maxlength="80" value={params.blockedSearch} autocomplete="off" placeholder="Cliente, telefono o motivo" />
+          <input id="blocked-search" name="blocked_search" type="search" maxlength="80" value={params.blockedSearch} autocomplete="off" placeholder="Cliente, telefono, IP o motivo" />
         </div>
         <div class="field">
           <label for="blocked-status">Estado</label>
@@ -1256,12 +1278,48 @@ function observationActionValue(customer: SecurityCustomer) {
                     )}
                   </div>
                   <div class="table-cell" role="cell" data-label="Alcance">{blockScopeLabel(block.scope)}</div>
-                  <div class="table-cell" role="cell" data-label="Senales">{blockSignalsLabel(block)}</div>
+                  <div class="table-cell" role="cell" data-label="Senales">
+                    <span>{blockSignalsLabel(block)}</span>
+                    {block.review_device_candidates && (
+                      <small class="block-review-summary">
+                        {block.device_review.pending_count > 0
+                          ? `${block.device_review.pending_count} dispositivo(s) pendiente(s)`
+                          : block.device_review.confirmed_count > 0
+                            ? `${block.device_review.confirmed_count} dispositivo(s) confirmado(s)`
+                            : 'Deteccion de dispositivos activa'}
+                      </small>
+                    )}
+                  </div>
                   <div class="table-cell" role="cell" data-label="Creado">{formatDateTime(block.created || block.starts_at)}</div>
                   <div class="table-cell" role="cell" data-label="Vencimiento">{block.expires_at ? formatDateTime(block.expires_at) : 'Permanente'}</div>
                   <div class="table-cell" role="cell" data-label="Estado"><span class={`status-pill status-${block.status}`}>{blockStatusLabel(block.status)}</span></div>
                   <div class="table-cell action-cell" role="cell" data-label="Accion">
                     {block.customer_id && <a class="row-action" href={customerDetailHref(block.customer_id, { orders_page: 1, events_page: 1 })}>Ver ficha</a>}
+                    {block.status === 'active' && block.device_review.pending.map((candidate) => (
+                      <div class="block-device-candidate-actions">
+                        <span>{candidate.label} · {formatDateTime(candidate.last_seen_at)}</span>
+                        <div>
+                          <button
+                            class="row-action block-device-review-trigger"
+                            type="button"
+                            data-review-action="confirm"
+                            data-block-id={block.id}
+                            data-candidate-id={candidate.id}
+                            data-candidate-label={candidate.label}
+                            disabled={!actionsEnabled}
+                          >Agregar</button>
+                          <button
+                            class="secondary-action block-device-review-trigger"
+                            type="button"
+                            data-review-action="dismiss"
+                            data-block-id={block.id}
+                            data-candidate-id={candidate.id}
+                            data-candidate-label={candidate.label}
+                            disabled={!actionsEnabled}
+                          >Descartar</button>
+                        </div>
+                      </div>
+                    ))}
                     {block.status === 'active' ? (
                       <button
                         class="danger-action block-revoke-trigger"
@@ -1321,6 +1379,90 @@ function observationActionValue(customer: SecurityCustomer) {
     </section>
   )}
 </section>
+
+<dialog id="security-manual-ip-block-dialog" class="security-modal" data-manual-ip-block-dialog aria-labelledby="security-manual-ip-block-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-manual-ip-block-title">Agregar bloqueo por IP</h3>
+        <p>La IP se normaliza y protege en el servidor antes de guardar el bloqueo.</p>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('blocked')} data-manual-ip-block-form>
+      <div class="security-modal-body">
+        <input type="hidden" name="section" value="blocked" />
+        <input type="hidden" name="security_action" value="manual_ip_block_create" />
+        <label class="field" for="security-manual-block-ip">
+          <span>IP publica exacta</span>
+          <input id="security-manual-block-ip" name="manual_ip" type="text" maxlength="64" inputmode="text" autocomplete="off" spellcheck="false" required data-dialog-focus placeholder="IPv4 o IPv6" />
+          <small>No se admiten rangos, redes internas, loopback ni direcciones reservadas.</small>
+        </label>
+        <label class="field" for="security-manual-block-scope">
+          <span>Alcance</span>
+          <select id="security-manual-block-scope" name="block_scope" required>
+            {blockScopeCreateOptions.map(([value, label]) => (
+              <option value={value} selected={value === 'orders'} disabled={value === 'full_access' && settings.full_access_blocking_enabled !== true}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label class="field" for="security-manual-block-duration">
+          <span>Duracion</span>
+          <select id="security-manual-block-duration" name="block_duration" required>
+            {blockDurationOptions.map(([value, label]) => (
+              <option value={value} selected={value === 'hours_24'} disabled={value === 'permanent' && settings.permanent_blocks_enabled !== true}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label class="signal-option manual-device-review-option" for="security-manual-review-devices">
+          <input id="security-manual-review-devices" type="checkbox" name="review_devices" checked />
+          <span>
+            <strong>Detectar dispositivos para confirmacion</strong>
+            <small>Si un dispositivo intenta entrar desde esta IP, aparecera como pendiente. No se agregara al bloqueo hasta que lo confirmes.</small>
+          </span>
+        </label>
+        <p class="modal-warning">Una IP puede ser compartida por varias personas. Confirma un dispositivo solo cuando tengas motivos para asociarlo al bloqueo.</p>
+        <label class="field" for="security-manual-block-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-manual-block-reason" name="block_reason" maxlength="500" required></textarea>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="danger-action" type="submit">Crear bloqueo</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="security-block-device-review-dialog" class="security-modal" data-block-device-review-dialog aria-labelledby="security-block-device-review-title">
+  <div class="security-modal-card">
+    <header class="security-modal-header">
+      <div>
+        <h3 id="security-block-device-review-title" data-block-device-review-title>Revisar dispositivo</h3>
+      </div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Cerrar dialogo"><span aria-hidden="true">&times;</span></button>
+    </header>
+    <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('blocked')} data-block-device-review-form>
+      <div class="security-modal-body">
+        <p data-block-device-review-description>Confirma o descarta el dispositivo detectado desde la IP bloqueada.</p>
+        <input type="hidden" name="section" value="blocked" />
+        <input type="hidden" name="security_action" value="block_device_candidate_review" />
+        <input type="hidden" name="block_id" value="" data-block-device-review-block />
+        <input type="hidden" name="candidate_id" value="" data-block-device-review-candidate />
+        <input type="hidden" name="device_review_action" value="confirm" data-block-device-review-action />
+        <label class="field" for="security-block-device-review-reason">
+          <span>Motivo interno</span>
+          <textarea id="security-block-device-review-reason" name="device_review_reason" maxlength="500" required data-dialog-focus></textarea>
+        </label>
+      </div>
+      <footer class="security-modal-footer">
+        <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
+        <button class="danger-action" type="submit" data-block-device-review-submit>Agregar al bloqueo</button>
+      </footer>
+    </form>
+  </div>
+</dialog>
 
 <div id="security-customer-actions-menu" class="floating-actions-menu" data-customer-menu role="menu" aria-label="Acciones de cliente" aria-hidden="true" hidden>
   <button class="floating-menu-item" type="button" data-menu-action="lifecycle" role="menuitem" disabled={!actionsEnabled}>Archivar cliente</button>
@@ -2524,6 +2666,50 @@ function observationActionValue(customer: SecurityCustomer) {
     justify-content: flex-end;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .block-review-summary {
+    display: block;
+    margin-top: 5px;
+    color: #7c3aed;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 900;
+  }
+
+  .block-device-candidate-actions {
+    width: 100%;
+    display: grid;
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid #ddd6fe;
+    border-radius: 8px;
+    background: #faf5ff;
+  }
+
+  .block-device-candidate-actions > span {
+    color: #5b21b6;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 900;
+  }
+
+  .block-device-candidate-actions > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .block-device-candidate-actions .row-action,
+  .block-device-candidate-actions .secondary-action {
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 11px;
+  }
+
+  .manual-device-review-option {
+    align-items: flex-start;
   }
 
   .muted-cell {
@@ -2892,7 +3078,17 @@ function observationActionValue(customer: SecurityCustomer) {
   const observationDialog = document.querySelector('[data-observation-dialog]');
   const blockCreateDialog = document.querySelector('[data-block-create-dialog]');
   const blockRevokeDialog = document.querySelector('[data-block-revoke-dialog]');
-  const securityDialogs = [lifecycleDialog, deleteDialog, observationDialog, blockCreateDialog, blockRevokeDialog].filter(isDialogElement);
+  const manualIpBlockDialog = document.querySelector('[data-manual-ip-block-dialog]');
+  const blockDeviceReviewDialog = document.querySelector('[data-block-device-review-dialog]');
+  const securityDialogs = [
+    lifecycleDialog,
+    deleteDialog,
+    observationDialog,
+    blockCreateDialog,
+    blockRevokeDialog,
+    manualIpBlockDialog,
+    blockDeviceReviewDialog,
+  ].filter(isDialogElement);
   const countFormatter = new Intl.NumberFormat('es-US');
   let activeCustomerMenuTrigger = null;
   let lastDialogTrigger = null;
@@ -3172,6 +3368,39 @@ function observationActionValue(customer: SecurityCustomer) {
     showSecurityDialog(blockRevokeDialog, trigger);
   }
 
+  function openManualIpBlockDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(manualIpBlockDialog)) return;
+    closeCustomerMenu();
+    closeOpenDialogs(manualIpBlockDialog);
+    setSelectValue(manualIpBlockDialog, '[name="block_scope"]', 'orders');
+    setSelectValue(manualIpBlockDialog, '[name="block_duration"]', 'hours_24');
+    showSecurityDialog(manualIpBlockDialog, trigger);
+  }
+
+  function openBlockDeviceReviewDialog(trigger) {
+    if (!(trigger instanceof HTMLElement) || !isDialogElement(blockDeviceReviewDialog)) return;
+    const blockId = trigger.dataset.blockId || '';
+    const candidateId = trigger.dataset.candidateId || '';
+    const action = trigger.dataset.reviewAction === 'dismiss' ? 'dismiss' : 'confirm';
+    const label = trigger.dataset.candidateLabel || 'Dispositivo pendiente';
+    if (!blockId || !candidateId) return;
+    closeCustomerMenu();
+    closeOpenDialogs(blockDeviceReviewDialog);
+    setInputValue(blockDeviceReviewDialog, '[data-block-device-review-block]', blockId);
+    setInputValue(blockDeviceReviewDialog, '[data-block-device-review-candidate]', candidateId);
+    setInputValue(blockDeviceReviewDialog, '[data-block-device-review-action]', action);
+    setText(blockDeviceReviewDialog, '[data-block-device-review-title]', action === 'confirm' ? 'Agregar dispositivo al bloqueo' : 'Descartar dispositivo');
+    setText(
+      blockDeviceReviewDialog,
+      '[data-block-device-review-description]',
+      action === 'confirm'
+        ? `${label} quedara bloqueado aunque cambie de IP mientras conserve su identificador del navegador.`
+        : `${label} no se agregara al bloqueo. La decision quedara registrada en auditoria.`
+    );
+    setText(blockDeviceReviewDialog, '[data-block-device-review-submit]', action === 'confirm' ? 'Agregar al bloqueo' : 'Descartar');
+    showSecurityDialog(blockDeviceReviewDialog, trigger);
+  }
+
   function openCustomerDialog(action, trigger) {
     if (action === 'delete') {
       openDeleteDialog(trigger);
@@ -3233,6 +3462,20 @@ function observationActionValue(customer: SecurityCustomer) {
     if (blockCreateTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
       openBlockCreateDialog(blockCreateTrigger);
+      return;
+    }
+
+    const manualIpBlockTrigger = target.closest('[data-manual-ip-block-trigger]');
+    if (manualIpBlockTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openManualIpBlockDialog(manualIpBlockTrigger);
+      return;
+    }
+
+    const blockDeviceReviewTrigger = target.closest('.block-device-review-trigger');
+    if (blockDeviceReviewTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      openBlockDeviceReviewDialog(blockDeviceReviewTrigger);
       return;
     }
 
