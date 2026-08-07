@@ -69,6 +69,36 @@ test('BLOCKS03B: proxy transporta solo cookie propia e IP recibida del runtime',
   assert.doesNotMatch(JSON.stringify(headers), /session=secret|203\.0\.113\.99|other=value/);
 });
 
+test('BLOCKS03B: proxy privado usa la IP publica del extremo derecho de X-Forwarded-For', () => {
+  const request = new Request('https://shop.example/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '10.0.1.1, 198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
+});
+
+test('BLOCKS03B: cliente publico directo ignora X-Forwarded-For controlado por el usuario', () => {
+  const request = new Request('https://shop.example/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '10.0.1.1, 203.0.113.99',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '198.51.100.8');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.8');
+});
+
+test('BLOCKS03B: cadena de proxy invalida no sustituye la direccion del runtime', () => {
+  const request = new Request('https://shop.example/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': 'forged, 999.999.999.999, 10.0.1.2',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '10.0.1.1');
+});
+
 test('BLOCKS03B: middleware consulta antes de cargar y mantiene excepciones administrativas', () => {
   const middleware = read('../src/middleware.ts');
   const publicHelper = read('../src/lib/publicSecurity.ts');

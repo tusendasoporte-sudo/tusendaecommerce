@@ -1,3 +1,5 @@
+import { isIP } from 'node:net';
+
 export type PublicSecurityResolver =
   | Readonly<{ store_slug: string }>
   | Readonly<{ order_number: string; receipt_token: string }>
@@ -6,6 +8,7 @@ export type PublicSecurityResolver =
 const DEVICE_COOKIE = 'pz_client_device';
 const DEVICE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const SAFE_IP_PATTERN = /^[0-9a-fA-F:.]{2,64}$/;
+const MAX_FORWARDED_FOR_BYTES = 2048;
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,120}$/;
 const LEGACY_STORE_PATH = /^\/(?:buscar(?:\/|$)|categoria(?:\/|$)|subcategoria(?:\/|$)|producto(?:\/|$)|checkout(?:\/|$)|regalos(?:\/|$)|qr(?:\/|$)|links(?:\/|$))/;
 
@@ -71,6 +74,46 @@ function deviceCookieHeader(request: Request) {
   return DEVICE_TOKEN_PATTERN.test(token) ? `${DEVICE_COOKIE}=${token}` : '';
 }
 
+function normalizedIp(value: unknown) {
+  const candidate = String(value || '').trim();
+  return SAFE_IP_PATTERN.test(candidate) && isIP(candidate) ? candidate : '';
+}
+
+function isPrivateProxyAddress(value: string) {
+  const ip = normalizedIp(value).toLowerCase();
+  const family = isIP(ip);
+  if (!family) return false;
+
+  if (family === 4) {
+    const [first, second] = ip.split('.').map(Number);
+    return first === 0
+      || first === 10
+      || first === 127
+      || (first === 100 && second >= 64 && second <= 127)
+      || (first === 169 && second === 254)
+      || (first === 172 && second >= 16 && second <= 31)
+      || (first === 192 && second === 168);
+  }
+
+  if (ip === '::' || ip === '::1') return true;
+  if (ip.startsWith('::ffff:')) return isPrivateProxyAddress(ip.slice('::ffff:'.length));
+  return ip.startsWith('fc') || ip.startsWith('fd') || /^fe[89ab]/.test(ip);
+}
+
+function resolvedClientAddress(request: Request, clientAddress?: string) {
+  const runtimeAddress = normalizedIp(clientAddress);
+  if (!runtimeAddress || !isPrivateProxyAddress(runtimeAddress)) return runtimeAddress;
+
+  const forwardedFor = request.headers.get('x-forwarded-for') || '';
+  if (!forwardedFor || forwardedFor.length > MAX_FORWARDED_FOR_BYTES) return runtimeAddress;
+
+  const forwardedAddresses = forwardedFor
+    .split(',')
+    .map(normalizedIp)
+    .filter(Boolean);
+  return forwardedAddresses.findLast((address) => !isPrivateProxyAddress(address)) || runtimeAddress;
+}
+
 export function publicSecurityProxyHeaders(request: Request, clientAddress?: string, includeJson = true) {
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -80,8 +123,8 @@ export function publicSecurityProxyHeaders(request: Request, clientAddress?: str
   if (includeJson) headers['Content-Type'] = 'application/json';
   const cookie = deviceCookieHeader(request);
   if (cookie) headers.Cookie = cookie;
-  const serverAddress = String(clientAddress || '').trim();
-  if (SAFE_IP_PATTERN.test(serverAddress)) headers['X-Forwarded-For'] = serverAddress;
+  const serverAddress = resolvedClientAddress(request, clientAddress);
+  if (serverAddress) headers['X-Forwarded-For'] = serverAddress;
   return headers;
 }
 
