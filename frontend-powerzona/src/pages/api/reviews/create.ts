@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl.ts';
 import { publicSecurityProxyHeaders } from '../../../lib/publicSecurity';
 
 const MAX_BODY_BYTES = 8192;
@@ -25,7 +26,7 @@ export const POST: APIRoute = async ({ request, url, clientAddress }) => {
 
   const reviewToken = String(url.searchParams.get('review_token') || '').trim();
   if (reviewToken && !TOKEN_PATTERN.test(reviewToken)) return json({ message: 'Solicitud inválida.' }, 400);
-  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  const baseUrl = serverPocketBaseUrl();
   if (!baseUrl) return json({ message: 'No se pudo completar la solicitud.' }, 503);
   const target = `${baseUrl}/api/collections/reviews/records${reviewToken ? `?review_token=${encodeURIComponent(reviewToken)}` : ''}`;
   try {

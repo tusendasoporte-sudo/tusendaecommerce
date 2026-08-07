@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl.ts';
 import {
   publicSecurityProxyDiagnostics,
   publicSecurityProxyHeaders,
@@ -43,7 +44,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (!body || new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) return json(400);
   try { JSON.parse(body); } catch (_) { return json(400); }
 
-  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  const baseUrl = serverPocketBaseUrl();
   if (!baseUrl) return json(503);
   try {
     const response = await fetch(`${baseUrl}/api/pz/security/track-navigation`, {

@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl.ts';
 import { RAFFLES_PRIVATE_NO_STORE_HEADERS } from '../../../lib/raffleAccess';
 import { publicSecurityProxyHeaders } from '../../../lib/publicSecurity';
 
@@ -46,7 +47,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return json({ ok: false, message: 'Solicitud inválida.' }, 400);
   }
 
-  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  const baseUrl = serverPocketBaseUrl();
   if (!baseUrl) {
     return json({ ok: false, message: 'No se pudo reservar el número. Intenta nuevamente.' }, 503);
   }

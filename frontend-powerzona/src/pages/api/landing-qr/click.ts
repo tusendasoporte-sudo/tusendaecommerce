@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSettings } from '../../../lib/api';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl.ts';
 import {
   LANDING_QR_PRIVATE_NO_STORE_HEADERS,
   buildDefaultLandingQrLinks,
@@ -148,7 +149,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       link_icon: canonicalLink.icon,
       link_label: canonicalLink.label,
     };
-    const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+    const baseUrl = serverPocketBaseUrl();
     if (!baseUrl) return json({ ok: false }, 503);
     const response = await fetch(`${baseUrl}/api/collections/store_analytics_events/records`, {
       method: 'POST',

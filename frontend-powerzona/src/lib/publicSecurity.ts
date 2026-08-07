@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 
 export type PublicSecurityResolver =
   | Readonly<{ store_slug: string }>
@@ -177,7 +178,7 @@ export async function publicAccessAllowed(
   clientAddress: string | undefined,
   resolver: PublicSecurityResolver,
 ) {
-  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  const baseUrl = serverPocketBaseUrl();
   if (!baseUrl) return false;
   try {
     const response = await fetch(`${baseUrl}/api/pz/security/public-access`, {

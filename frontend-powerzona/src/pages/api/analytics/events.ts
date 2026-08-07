@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { serverPocketBaseUrl } from '../../../lib/pocketBaseServerUrl.ts';
 import { publicSecurityProxyHeaders } from '../../../lib/publicSecurity';
 
 const MAX_BODY_BYTES = 16384;
@@ -22,7 +23,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (!body || new TextEncoder().encode(body).byteLength > MAX_BODY_BYTES) return json({ ok: false }, 400);
   try { JSON.parse(body); } catch (_) { return json({ ok: false }, 400); }
 
-  const baseUrl = String(import.meta.env.PUBLIC_POCKETBASE_URL || '').replace(/\/+$/, '');
+  const baseUrl = serverPocketBaseUrl();
   if (!baseUrl) return json({ ok: false }, 503);
   try {
     const response = await fetch(`${baseUrl}/api/collections/store_analytics_events/records`, {

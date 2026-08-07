@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+
+import { resolveServerPocketBaseUrl } from '../src/lib/pocketBaseServerUrl.ts';
+
+const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
+
+test('proxy SSR prioriza la URL interna valida y normaliza solo al origen', () => {
+  assert.equal(
+    resolveServerPocketBaseUrl('http://powerzona-pocketbase-staging:8080/', 'https://public.example'),
+    'http://powerzona-pocketbase-staging:8080',
+  );
+});
+
+test('proxy SSR conserva la URL publica cuando la interna no esta configurada', () => {
+  assert.equal(
+    resolveServerPocketBaseUrl('', 'https://public.example/'),
+    'https://public.example',
+  );
+});
+
+test('proxy SSR falla cerrado si la URL interna configurada es invalida', () => {
+  for (const invalid of [
+    'ftp://powerzona-pocketbase-staging:8080',
+    'http://user:password@powerzona-pocketbase-staging:8080',
+    'http://powerzona-pocketbase-staging:8080/private',
+    'http://powerzona-pocketbase-staging:8080?redirect=public.example',
+    'not-a-url',
+  ]) {
+    assert.equal(resolveServerPocketBaseUrl(invalid, 'https://public.example'), '', invalid);
+  }
+});
+
+test('solo proxies SSR de identidad usan el selector interno', () => {
+  const proxies = [
+    '../src/pages/api/security/track-navigation.ts',
+    '../src/pages/api/security/register-order.ts',
+    '../src/pages/api/reviews/create.ts',
+    '../src/pages/api/checkout/orders.ts',
+    '../src/pages/api/analytics/events.ts',
+    '../src/pages/api/raffles/enter.ts',
+    '../src/pages/api/raffles/status.ts',
+    '../src/pages/api/landing-qr/click.ts',
+  ];
+  for (const proxy of proxies) {
+    const source = read(proxy);
+    assert.match(source, /serverPocketBaseUrl\(\)/, proxy);
+    assert.doesNotMatch(source, /import\.meta\.env\.PUBLIC_POCKETBASE_URL/, proxy);
+  }
+
+  const publicSecurity = read('../src/lib/publicSecurity.ts');
+  assert.match(publicSecurity, /const baseUrl = serverPocketBaseUrl\(\)/);
+  assert.match(read('../src/lib/pocketbase.ts'), /import\.meta\.env\.PUBLIC_POCKETBASE_URL/);
+  assert.match(read('../src/lib/auth.ts'), /import\.meta\.env\.PUBLIC_POCKETBASE_URL/);
+});
