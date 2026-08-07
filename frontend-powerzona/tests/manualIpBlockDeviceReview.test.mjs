@@ -57,3 +57,17 @@ test('MANUAL-IP: security.checkOrigin permanece activo', () => {
   assert.match(config, /checkOrigin:\s*true/);
   assert.doesNotMatch(config, /checkOrigin:\s*false/);
 });
+
+test('MANUAL-IP: el bloqueo modal conserva el submitter durante el POST nativo', () => {
+  const view = read('../src/components/admin/SecurityMonitoringView.astro');
+  const submitStart = view.indexOf("document.addEventListener('submit'");
+  const submitEnd = view.indexOf('</script>', submitStart);
+  assert.ok(submitStart > 0 && submitEnd > submitStart);
+
+  const submitHandler = view.slice(submitStart, submitEnd);
+  assert.match(submitHandler, /form\.dataset\.submitting = 'true'/);
+  assert.match(submitHandler, /setAttribute\('aria-disabled', 'true'\)/);
+  assert.match(submitHandler, /setAttribute\('aria-busy', 'true'\)/);
+  assert.doesNotMatch(submitHandler, /button\.disabled\s*=\s*true/);
+  assert.doesNotMatch(submitHandler, /submitter\.disabled\s*=\s*true/);
+});
