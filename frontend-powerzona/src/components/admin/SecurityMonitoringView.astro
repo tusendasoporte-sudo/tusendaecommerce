@@ -352,14 +352,6 @@ function pluralLabel(count: number, singular: string, plural: string) {
   return `${formatNumber(count)} ${count === 1 ? singular : plural}`;
 }
 
-function customerIdentitySummary(customer: SecurityCustomer) {
-  return [
-    pluralLabel(customer.orders_count, 'pedido', 'pedidos'),
-    pluralLabel(customer.phones_count, 'telefono', 'telefonos'),
-    pluralLabel(customer.devices_count, 'dispositivo', 'dispositivos'),
-  ].join(' · ');
-}
-
 function visitorDetailHref(visitorSessionId: string) {
   return `${basePath}/visitors/${encodeURIComponent(visitorSessionId)}`;
 }
@@ -673,38 +665,38 @@ function observationActionValue(customer: SecurityCustomer) {
           <div class="monitoring-table customers-table" role="table" aria-label="Clientes registrados">
             <div class="table-head" role="row">
               <span role="columnheader">Cliente</span>
-              <span role="columnheader">Telefono principal</span>
-              <span role="columnheader">Pedidos</span>
-              <span role="columnheader">Telefonos</span>
-              <span role="columnheader">Dispositivos</span>
-              <span role="columnheader">Ultima actividad</span>
-              <span role="columnheader">Total confirmado</span>
+              <span role="columnheader">Pedidos y vinculos</span>
+              <span role="columnheader">Actividad y compras</span>
               <span role="columnheader">Estado</span>
-              <span role="columnheader">Accion</span>
+              <span role="columnheader">Acciones</span>
             </div>
             <div class="table-body">
               {customersResult.items.map((customer) => (
                 <article class="table-row" role="row">
                   <div class="table-cell main-cell" role="cell" data-label="Cliente">
                     <strong>{getDisplayCustomerName(customer)}</strong>
-                    <span>{customerIdentitySummary(customer)}</span>
+                    <span class="customer-primary-phone">{customerPrimaryPhone(customer)}</span>
                   </div>
-                  <div class="table-cell sensitive-cell" role="cell" data-label="Telefono principal">{customerPrimaryPhone(customer)}</div>
-                  <div class="table-cell" role="cell" data-label="Pedidos">{formatNumber(customer.orders_count)}</div>
-                  <div class="table-cell" role="cell" data-label="Telefonos">{formatNumber(customer.phones_count)}</div>
-                  <div class="table-cell" role="cell" data-label="Dispositivos">{formatNumber(customer.devices_count)}</div>
-                  <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(customer.last_order_at || customer.updated)}</div>
-                  <div class="table-cell" role="cell" data-label="Total confirmado">{formatMoneyUsd(customer.confirmed_total_usd)}</div>
+                  <div class="table-cell customer-links-cell" role="cell" data-label="Pedidos y vinculos">
+                    <span><strong>{formatNumber(customer.orders_count)}</strong> {customer.orders_count === 1 ? 'pedido' : 'pedidos'}</span>
+                    <span><strong>{formatNumber(customer.phones_count)}</strong> {customer.phones_count === 1 ? 'telefono' : 'telefonos'}</span>
+                    <span><strong>{formatNumber(customer.devices_count)}</strong> {customer.devices_count === 1 ? 'dispositivo' : 'dispositivos'}</span>
+                  </div>
+                  <div class="table-cell customer-activity-cell" role="cell" data-label="Actividad y compras">
+                    <strong>{formatDateTime(customer.last_order_at || customer.updated)}</strong>
+                    <span>{formatMoneyUsd(customer.confirmed_total_usd)} confirmado</span>
+                  </div>
                   <div class="table-cell" role="cell" data-label="Estado"><span class={`status-pill status-${customer.archived ? 'archived' : customer.status}`}>{customer.archived ? 'Archivado' : labelFromMap(CUSTOMER_STATUS_LABELS, customer.status)}</span></div>
-                  <div class="table-cell action-cell" role="cell" data-label="Accion">
-                    <a class="row-action" href={customerDetailHref(customer.id, { orders_page: 1, events_page: 1 })}>Ver ficha</a>
+                  <div class="table-cell action-cell" role="cell" data-label="Acciones">
                     <button
                       class="icon-action customer-menu-trigger"
                       type="button"
-                      aria-label="Acciones"
+                      aria-label={`Acciones de ${getDisplayCustomerName(customer)}`}
                       aria-haspopup="menu"
                       aria-controls="security-customer-actions-menu"
                       aria-expanded="false"
+                      data-customer-href={customerDetailHref(customer.id, { orders_page: 1, events_page: 1 })}
+                      data-actions-enabled={actionsEnabled ? 'true' : 'false'}
                       data-customer-id={customer.id}
                       data-customer-archived={customer.archived ? 'true' : 'false'}
                       data-lifecycle-label={lifecycleActionLabel(customer)}
@@ -718,8 +710,7 @@ function observationActionValue(customer: SecurityCustomer) {
                       data-events-count={lifecycleCounts(customer).events_affected}
                       data-sessions-count={lifecycleCounts(customer).sessions_affected}
                       data-pageviews-count={lifecycleCounts(customer).pageviews_affected}
-                      disabled={!actionsEnabled}
-                    >...</button>
+                    ><span aria-hidden="true">⋮</span></button>
                   </div>
                 </article>
               ))}
@@ -1644,6 +1635,7 @@ function observationActionValue(customer: SecurityCustomer) {
 </dialog>
 
 <div id="security-customer-actions-menu" class="floating-actions-menu" data-customer-menu role="menu" aria-label="Acciones de cliente" aria-hidden="true" hidden>
+  <a class="floating-menu-item" href="#" data-customer-menu-view role="menuitem">Ver ficha</a>
   <button class="floating-menu-item" type="button" data-menu-action="lifecycle" role="menuitem" disabled={!actionsEnabled}>Archivar cliente</button>
   <button class="floating-menu-item danger" type="button" data-menu-action="delete" role="menuitem" disabled={!actionsEnabled}>Eliminar ficha de Seguridad</button>
 </div>
@@ -1992,12 +1984,14 @@ function observationActionValue(customer: SecurityCustomer) {
     letter-spacing: 0;
   }
 
-  .visitor-menu-trigger {
+  .visitor-menu-trigger,
+  .customer-menu-trigger {
     font-size: 23px;
     line-height: 1;
   }
 
-  .visitor-menu-trigger span {
+  .visitor-menu-trigger span,
+  .customer-menu-trigger span {
     display: block;
     transform: translateY(-1px);
   }
@@ -2874,7 +2868,7 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .customers-table .table-head,
   .customers-table .table-row {
-    grid-template-columns: minmax(150px, 1.25fr) minmax(120px, .8fr) minmax(70px, .45fr) minmax(80px, .5fr) minmax(90px, .58fr) minmax(140px, .9fr) minmax(110px, .7fr) minmax(110px, .7fr) minmax(138px, .74fr);
+    grid-template-columns: minmax(180px, 1.15fr) minmax(250px, 1.35fr) minmax(190px, 1fr) minmax(110px, .58fr) 44px;
   }
 
   .activity-table .table-head,
@@ -2937,6 +2931,51 @@ function observationActionValue(customer: SecurityCustomer) {
     line-height: 1.35;
     font-weight: 820;
     overflow-wrap: anywhere;
+  }
+
+  .customer-primary-phone,
+  .customer-activity-cell span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 820;
+  }
+
+  .customer-links-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .customer-links-cell > span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 0;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 6px 9px;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .customer-links-cell > span strong {
+    color: #0f172a;
+    font-size: 12px;
+  }
+
+  .customer-activity-cell {
+    display: grid;
+    gap: 4px;
+  }
+
+  .customer-activity-cell strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.25;
   }
 
   .main-cell,
@@ -3511,10 +3550,40 @@ function observationActionValue(customer: SecurityCustomer) {
       grid-template-columns: 1fr;
     }
 
-    .action-cell .visitor-menu-trigger {
+    .action-cell .visitor-menu-trigger,
+    .action-cell .customer-menu-trigger {
       width: 46px;
       min-width: 46px;
       margin-left: auto;
+    }
+
+    .customers-table .customer-links-cell {
+      display: grid;
+      grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .customers-table .customer-links-cell::before {
+      grid-row: 1 / span 3;
+    }
+
+    .customers-table .customer-links-cell > span {
+      grid-column: 2;
+      width: max-content;
+      max-width: 100%;
+    }
+
+    .customers-table .customer-activity-cell {
+      grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+    }
+
+    .customers-table .customer-activity-cell::before {
+      grid-row: 1 / span 2;
+    }
+
+    .customers-table .customer-activity-cell strong,
+    .customers-table .customer-activity-cell span {
+      grid-column: 2;
     }
 
     .compact-actions {
@@ -3849,7 +3918,7 @@ function observationActionValue(customer: SecurityCustomer) {
     const edge = 12;
     const rect = trigger.getBoundingClientRect();
     const menuWidth = customerMenu.offsetWidth || 230;
-    const menuHeight = customerMenu.offsetHeight || 88;
+    const menuHeight = customerMenu.offsetHeight || 136;
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     let left = rect.right - menuWidth;
@@ -3898,11 +3967,18 @@ function observationActionValue(customer: SecurityCustomer) {
   function openCustomerMenu(trigger) {
     if (!(customerMenu instanceof HTMLElement)) return;
     closeVisitorMenu();
+    const viewItem = customerMenu.querySelector('[data-customer-menu-view]');
+    if (viewItem instanceof HTMLAnchorElement) {
+      viewItem.href = trigger.dataset.customerHref || '#';
+    }
     const lifecycleItem = customerMenu.querySelector('[data-menu-action="lifecycle"]');
     if (lifecycleItem instanceof HTMLButtonElement) {
+      const canManageCustomer = trigger.dataset.actionsEnabled === 'true';
       lifecycleItem.textContent = trigger.dataset.lifecycleLabel || 'Archivar cliente';
-      lifecycleItem.disabled = trigger.dataset.lifecycleDisabled === 'true';
-      lifecycleItem.title = lifecycleItem.disabled ? 'Desbloquea al cliente antes de archivarlo.' : '';
+      lifecycleItem.disabled = !canManageCustomer || trigger.dataset.lifecycleDisabled === 'true';
+      lifecycleItem.title = !canManageCustomer
+        ? 'No tienes permisos para administrar este cliente.'
+        : lifecycleItem.disabled ? 'Desbloquea al cliente antes de archivarlo.' : '';
     }
     if (activeCustomerMenuTrigger && activeCustomerMenuTrigger !== trigger) {
       activeCustomerMenuTrigger.setAttribute('aria-expanded', 'false');
@@ -3914,7 +3990,7 @@ function observationActionValue(customer: SecurityCustomer) {
     customerMenu.setAttribute('aria-hidden', 'false');
     positionCustomerMenu(trigger);
     const firstItem = customerMenu.querySelector('.floating-menu-item:not(:disabled)');
-    if (firstItem instanceof HTMLButtonElement) firstItem.focus();
+    if (firstItem instanceof HTMLElement) firstItem.focus();
   }
 
   function openVisitorMenu(trigger) {
