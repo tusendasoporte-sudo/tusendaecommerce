@@ -1140,7 +1140,7 @@ function normalizeActivityEndpointEvent(record: any): SecurityEventRow {
     mode_at_event: String(record?.mode_at_event || ''),
     ip_masked: ip.ip_masked,
     ip_family: '',
-    capture_status: '',
+    capture_status: String(record?.capture_status || ''),
     occurred_at: String(record?.occurred_at || ''),
     created: String(record?.created || ''),
     resolved_ip: ip.resolved_ip,

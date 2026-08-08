@@ -1287,6 +1287,7 @@ function serializeActivityEvent(event, settings, customerMap, orderMap) {
     risk_level: getString(event, "risk_level"),
     decision: getString(event, "decision"),
     mode_at_event: getString(event, "mode_at_event"),
+    capture_status: getString(event, "capture_status"),
     occurred_at: getString(event, "occurred_at"),
     created: getString(event, "created"),
     customer: customerMap[customerId] || null,
@@ -4011,6 +4012,7 @@ function linkVisitorSessionToCustomerByBrowserToken(app, storeId, browserTokenHm
 }
 
 module.exports = {
+  buildIpCapture,
   createSecurityAudit,
   handleTrackNavigation,
   handleResolveIps,

@@ -193,6 +193,8 @@ test("BLOCKS03B: protección efectiva bloquea, registra evento/auditoría/notifi
   const second = enforcement.evaluatePublicAccess(fx.app, fx.event, fx.store, "orders", { now });
   assert.equal(first.blocked, true);
   assert.equal(second.blocked, true);
+  assert.equal(Object.hasOwn(first.signals, "normalizedIp"), false);
+  assert.equal(Object.hasOwn(first.signals, "ipCapture"), false);
   assert.equal(fx.data.store_security_events.length, 1);
   assert.equal(fx.data.store_security_events[0].get("event_type"), "blocked_attempt");
   assert.equal(fx.data.store_security_events[0].get("decision"), "blocked");

@@ -194,10 +194,24 @@ function eventKey(storeId, policy, eventType, ipHmac, checkedAt) {
   try { return `ip_reputation:${String($security.sha256(material) || "").slice(0, 128)}`; } catch (_) { return ""; }
 }
 
-function recordEvent(app, store, settings, signals, result, policy, blocked, now) {
+function protectedIpCapture(signals, ipCapture) {
+  const capture = ipCapture && typeof ipCapture === "object" ? ipCapture : {};
+  const masked = text(capture.ip_masked);
+  const encrypted = text(capture.ip_encrypted);
+  return {
+    ip_hmac: text(signals && signals.ip),
+    ip_masked: masked,
+    ip_encrypted: encrypted,
+    ip_family: text(capture.ip_family) || text(signals && signals.ipFamily) || "unknown",
+    capture_status: encrypted ? "complete" : (masked || text(signals && signals.ip) ? "partial" : "unavailable"),
+  };
+}
+
+function recordEvent(app, store, settings, signals, result, policy, blocked, now, ipCapture) {
   const collection = findCollection(app, EVENTS_COLLECTION);
   const storeId = recordString(store, "id");
   if (!collection || !storeId || !VALID_HMAC.test(String(signals && signals.ip || ""))) return null;
+  const capture = protectedIpCapture(signals, ipCapture);
   const eventType = result.available
     ? (blocked ? "vpn_blocked" : "vpn_detected")
     : "vpn_check_unavailable";
@@ -215,12 +229,12 @@ function recordEvent(app, store, settings, signals, result, policy, blocked, now
   event.set("decision", blocked ? "blocked" : "monitored");
   event.set("mode_at_event", recordString(settings, "mode") === "protection" ? "protection" : "monitoring");
   event.set("phone_hmac", "");
-  event.set("ip_hmac", signals.ip);
-  event.set("ip_masked", "");
-  event.set("ip_encrypted", "");
-  event.set("ip_family", signals.ipFamily || "unknown");
+  event.set("ip_hmac", capture.ip_hmac);
+  event.set("ip_masked", capture.ip_masked);
+  event.set("ip_encrypted", capture.ip_encrypted);
+  event.set("ip_family", capture.ip_family);
   event.set("browser_token_hmac", signals.device || "");
-  event.set("capture_status", "partial");
+  event.set("capture_status", capture.capture_status);
   event.set("crypto_version", "v1");
   event.set("metadata_json", {
     policy,
@@ -254,7 +268,9 @@ function evaluate(app, store, settings, signals, normalizedIp, options) {
     && policy === "block"
     && recordString(settings, "mode") === "protection";
   if (result.detected || !result.available) {
-    try { recordEvent(app, store, settings, signals || {}, result, policy, blocked, now); } catch (_) {}
+    try {
+      recordEvent(app, store, settings, signals || {}, result, policy, blocked, now, options && options.ipCapture);
+    } catch (_) {}
   }
   return {
     enabled: true,
@@ -274,6 +290,7 @@ module.exports = {
     resultFromCache,
     lookup,
     eventKey,
+    protectedIpCapture,
     constants: {
       providerEndpoint: PROVIDER_ENDPOINT,
       successTtlMs: SUCCESS_TTL_MS,

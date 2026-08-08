@@ -173,10 +173,14 @@ function hmac(domain, storeId, value, secret) {
   return String($security.hs256(`${domain}|${storeId}|${value}`, secret) || "");
 }
 
-function requestSignals(e, storeId, phone) {
+function requestSignals(e, storeId, phone, settings) {
   let secret = "";
   try { secret = secretContract.getValidHmacSecret(); } catch (_) { secret = ""; }
-  if (!secret) return { ready: false, phone: "", device: "", ip: "", ipFamily: "unknown" };
+  if (!secret) return {
+    signals: { ready: false, phone: "", device: "", ip: "", ipFamily: "unknown" },
+    normalizedIp: { valid: false, canonical: "", family: "unknown" },
+    ipCapture: null,
+  };
 
   const normalizedPhone = normalizePhone(phone);
   const rawDeviceToken = cookieValue(e, DEVICE_COOKIE);
@@ -184,12 +188,23 @@ function requestSignals(e, storeId, phone) {
     ? String($security.sha256(rawDeviceToken) || "").trim().toLowerCase()
     : "";
   const normalizedIp = normalizedIpFromRequest(e);
+  const captureBuilder = monitoring && monitoring.buildIpCapture;
+  const ipCapture = typeof captureBuilder === "function"
+    ? captureBuilder(normalizedIp, storeId, settings, secret)
+    : null;
+  const ipHmac = ipCapture && ipCapture.ip_hmac
+    ? String(ipCapture.ip_hmac)
+    : (normalizedIp && normalizedIp.valid ? hmac("ip", storeId, normalizedIp.canonical, secret) : "");
   return {
-    ready: true,
-    phone: normalizedPhone ? hmac("phone", storeId, normalizedPhone, secret) : "",
-    device: /^[a-f0-9]{64}$/.test(deviceDigest) ? hmac("browser", storeId, deviceDigest, secret) : "",
-    ip: normalizedIp && normalizedIp.valid ? hmac("ip", storeId, normalizedIp.canonical, secret) : "",
-    ipFamily: normalizedIp && normalizedIp.valid ? normalizedIp.family : "unknown",
+    signals: {
+      ready: true,
+      phone: normalizedPhone ? hmac("phone", storeId, normalizedPhone, secret) : "",
+      device: /^[a-f0-9]{64}$/.test(deviceDigest) ? hmac("browser", storeId, deviceDigest, secret) : "",
+      ip: ipHmac,
+      ipFamily: normalizedIp && normalizedIp.valid ? normalizedIp.family : "unknown",
+    },
+    normalizedIp,
+    ipCapture,
   };
 }
 
@@ -366,7 +381,8 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
   const storeId = recordString(store, "id");
   const activeSettings = activeSecuritySettings(app, storeId);
   if (!activeSettings) return { blocked: false, reason: "security_inactive" };
-  const signals = requestSignals(e, storeId, options && options.phone);
+  const requestIdentity = requestSignals(e, storeId, options && options.phone, activeSettings);
+  const signals = requestIdentity.signals;
   if (!signals.ready) {
     logEnforcement("PZ_SEC_HMAC_SECRET_INVALID");
     return { blocked: false, reason: "identity_unavailable" };
@@ -378,8 +394,8 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
     store,
     activeSettings,
     signals,
-    normalizedIpFromRequest(e),
-    { now, send: options && options.ipReputationSend },
+    requestIdentity.normalizedIp,
+    { now, send: options && options.ipReputationSend, ipCapture: requestIdentity.ipCapture },
   );
   if (network.blocked) {
     return {

@@ -232,7 +232,14 @@ test('VPN-POLICY: monitor detecta, cachea por HMAC y nunca conserva la IP plana'
     return { statusCode: 200, json: { is_vpn: true, is_proxy: false, is_tor: false } };
   };
   const now = new Date('2026-08-07T12:00:00.000Z');
-  const first = reputation.evaluate(data.app, data.store, data.settings, signals(), normalizedIp(), { now, send });
+  const ipCapture = {
+    ip_hmac: 'a'.repeat(64),
+    ip_masked: '8.8.8.xxx',
+    ip_encrypted: 'ciphertext:v1',
+    ip_family: 'ipv4',
+    capture_status: 'complete',
+  };
+  const first = reputation.evaluate(data.app, data.store, data.settings, signals(), normalizedIp(), { now, send, ipCapture });
   const second = reputation.evaluate(data.app, data.store, data.settings, signals(), normalizedIp(), {
     now: new Date('2026-08-07T12:01:00.000Z'),
     send,
@@ -245,6 +252,9 @@ test('VPN-POLICY: monitor detecta, cachea por HMAC y nunca conserva la IP plana'
   assert.equal(data.tables.store_security_ip_reputation_cache.length, 1);
   assert.equal(data.tables.store_security_events.length, 1);
   assert.equal(data.tables.store_security_events[0].get('event_type'), 'vpn_detected');
+  assert.equal(data.tables.store_security_events[0].get('ip_masked'), '8.8.8.xxx');
+  assert.equal(data.tables.store_security_events[0].get('ip_encrypted'), 'ciphertext:v1');
+  assert.equal(data.tables.store_security_events[0].get('capture_status'), 'complete');
   const persisted = JSON.stringify({ cache: data.tables.store_security_ip_reputation_cache[0].values, event: data.tables.store_security_events[0].values });
   assert.doesNotMatch(persisted, /8\.8\.8\.8/);
   assert.match(data.tables.store_security_ip_reputation_cache[0].get('ip_hmac'), /^[a-z0-9]{64}$/);

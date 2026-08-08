@@ -280,6 +280,70 @@ function eventCustomerPhone(row: SecurityEventRow) {
   return String(row.relatedCustomer?.phone_normalized || '').trim() || 'No disponible';
 }
 
+function eventCustomerPhoneValue(row: SecurityEventRow) {
+  return String(row.relatedCustomer?.phone_normalized || '').trim();
+}
+
+function activityResultTone(value: string) {
+  if (value === 'blocked') return 'blocked';
+  if (value === 'allowed' || value === 'normal') return 'allowed';
+  return 'watch';
+}
+
+type ActivityEventGroup = {
+  event: SecurityEventRow;
+  events: SecurityEventRow[];
+};
+
+function activityEventTime(event: SecurityEventRow) {
+  const parsed = Date.parse(String(event.occurred_at || event.created || ''));
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function activityGroupIp(event: SecurityEventRow) {
+  const value = getIpDisplayValue(event).trim();
+  return value && value !== 'No disponible' ? value : '';
+}
+
+function activityGroupSignature(event: SecurityEventRow) {
+  const ip = activityGroupIp(event);
+  if (!ip) return `event:${event.id}`;
+  return [
+    event.event_type,
+    event.decision,
+    event.risk_level,
+    event.mode_at_event,
+    event.relatedCustomer?.id || '',
+    event.relatedOrder?.id || '',
+    ip,
+  ].join('|');
+}
+
+function groupActivityEvents(events: SecurityEventRow[]) {
+  const groups: ActivityEventGroup[] = [];
+  events.forEach((event) => {
+    const current = groups[groups.length - 1];
+    const currentTime = current ? activityEventTime(current.events[current.events.length - 1]) : NaN;
+    const eventTime = activityEventTime(event);
+    const closeInTime = Number.isFinite(currentTime)
+      && Number.isFinite(eventTime)
+      && Math.abs(currentTime - eventTime) <= 15 * 60 * 1000;
+    if (current && closeInTime && activityGroupSignature(current.event) === activityGroupSignature(event)) {
+      current.events.push(event);
+      return;
+    }
+    groups.push({ event, events: [event] });
+  });
+  return groups;
+}
+
+function activityEventTitle(group: ActivityEventGroup) {
+  const label = labelFromMap(EVENT_TYPE_LABELS, group.event.event_type);
+  return group.events.length > 1 ? `${label} · ${formatNumber(group.events.length)} veces` : label;
+}
+
+const activityEventGroups = groupActivityEvents(activityResult?.items || []);
+
 function customerPrimaryPhone(customer: SecurityCustomer | null | undefined) {
   return String(customer?.primary_phone || customer?.phone_normalized || '').trim() || 'No disponible';
 }
@@ -1177,50 +1241,77 @@ function observationActionValue(customer: SecurityCustomer) {
         <noscript><button class="secondary-action" type="submit">Aplicar filtros</button></noscript>
       </form>
 
-      {activityResult && activityResult.items.length > 0 ? (
+      {activityResult && activityEventGroups.length > 0 ? (
         <>
           <div class:list={['monitoring-table', 'activity-table', { 'has-ip': showIp }]} role="table" aria-label="Eventos de seguridad">
             <div class="table-head" role="row">
-              <span role="columnheader">Evento</span>
-              <span role="columnheader">Cliente</span>
-              <span role="columnheader">Pedido</span>
-              <span role="columnheader">Decision</span>
-              <span role="columnheader">Riesgo</span>
-              <span role="columnheader">Modo</span>
-              <span role="columnheader">Captura</span>
+              <span role="columnheader">Actividad</span>
+              <span role="columnheader">Cliente / pedido</span>
+              <span role="columnheader">Resultado</span>
               {showIp && <span role="columnheader">IP</span>}
+              <span role="columnheader" class="activity-actions-heading">Acciones</span>
             </div>
             <div class="table-body">
-              {activityResult.items.map((event) => (
+              {activityEventGroups.map((group) => {
+                const event = group.event;
+                const phone = eventCustomerPhoneValue(event);
+                const decisionLabel = labelFromMap(EVENT_DECISION_LABELS, event.decision);
+                const riskLabel = labelFromMap(EVENT_RISK_LABELS, event.risk_level);
+                return (
                 <article class="table-row" role="row">
-                  <div class="table-cell main-cell" role="cell" data-label="Evento">
-                    <strong>{labelFromMap(EVENT_TYPE_LABELS, event.event_type)}</strong>
+                  <div class="table-cell main-cell activity-event-cell" role="cell" data-label="Actividad">
+                    <strong>{activityEventTitle(group)}</strong>
                     <span>{formatDateTime(event.occurred_at || event.created)}</span>
+                    {group.events.length > 1 && <small>{formatNumber(group.events.length)} registros consecutivos agrupados</small>}
                   </div>
-                  <div class="table-cell sensitive-cell" role="cell" data-label="Cliente">
+                  <div class="table-cell sensitive-cell activity-customer-cell" role="cell" data-label="Cliente / pedido">
                     <strong>{eventCustomerName(event)}</strong>
-                    <span>{eventCustomerPhone(event)}</span>
-                  </div>
-                  <div class="table-cell" role="cell" data-label="Pedido">
+                    {phone && <span>{phone}</span>}
                     {event.relatedOrder ? (
                       orderHref(event.relatedOrder) ? <a class="inline-link" href={orderHref(event.relatedOrder)}>{event.relatedOrder.order_number || event.relatedOrder.id}</a> : <span>{event.relatedOrder.order_number || event.relatedOrder.id}</span>
-                    ) : 'No disponible'}
+                    ) : <span>Sin pedido</span>}
                   </div>
-                  <div class="table-cell" role="cell" data-label="Decision">{labelFromMap(EVENT_DECISION_LABELS, event.decision)}</div>
-                  <div class="table-cell" role="cell" data-label="Riesgo">{labelFromMap(EVENT_RISK_LABELS, event.risk_level)}</div>
-                  <div class="table-cell" role="cell" data-label="Modo">{labelFromMap(MODE_AT_EVENT_LABELS, event.mode_at_event)}</div>
-                  <div class="table-cell" role="cell" data-label="Captura">{labelFromMap(CAPTURE_STATUS_LABELS, event.capture_status)}</div>
+                  <div class="table-cell activity-result-cell" role="cell" data-label="Resultado">
+                    <div class="activity-result-badges">
+                      <span class:list={['activity-result-pill', `is-${activityResultTone(event.decision)}`]}>{decisionLabel}</span>
+                      {riskLabel !== decisionLabel && <span class:list={['activity-result-pill', `is-${activityResultTone(event.risk_level)}`]}>{riskLabel}</span>}
+                    </div>
+                    <span>{labelFromMap(MODE_AT_EVENT_LABELS, event.mode_at_event)}</span>
+                  </div>
                   {showIp && (
                     <div class="table-cell ip-cell" role="cell" data-label="IP">
                       <span>{getIpDisplayValue(event)}</span>
                       {getIpUnavailableNote(event) && <small>{getIpUnavailableNote(event)}</small>}
                     </div>
                   )}
+                  <div class="table-cell activity-action-cell" role="cell" data-label="Acciones">
+                    <details class="activity-detail-disclosure">
+                      <summary aria-label={`Ver detalles de ${activityEventTitle(group)}`}>
+                        <span class="activity-detail-dots" aria-hidden="true">&#8942;</span>
+                        <span class="activity-detail-label">Ver detalles</span>
+                      </summary>
+                      <div class="activity-detail-panel">
+                        <dl>
+                          <div><dt>Decision</dt><dd>{decisionLabel}</dd></div>
+                          <div><dt>Riesgo</dt><dd>{riskLabel}</dd></div>
+                          <div><dt>Modo</dt><dd>{labelFromMap(MODE_AT_EVENT_LABELS, event.mode_at_event)}</dd></div>
+                          <div><dt>Datos de seguridad</dt><dd>{labelFromMap(CAPTURE_STATUS_LABELS, event.capture_status)}</dd></div>
+                        </dl>
+                        {group.events.length > 1 && (
+                          <div class="activity-group-times">
+                            <strong>Registros agrupados</strong>
+                            <ul>{group.events.map((item) => <li>{formatDateTime(item.occurred_at || item.created)}</li>)}</ul>
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  </div>
                 </article>
-              ))}
+                );
+              })}
             </div>
           </div>
-          <div class="pagination-bar" aria-label="Paginacion de actividad">
+          <div class="pagination-bar activity-pagination" aria-label="Paginacion de actividad">
             <span>{customerPageLabel(activityResult)}</span>
             <div class="pagination-actions">
               <a class:list={['page-button', { disabled: activityResult.page <= 1 }]} href={paginationHref('activity', Math.max(1, activityResult.page - 1))}>Anterior</a>
@@ -2141,9 +2232,9 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .activity-filter-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    max-width: 760px;
+    grid-template-columns: minmax(220px, 260px) minmax(160px, 190px);
+    gap: 10px;
+    max-width: 460px;
   }
 
   .filter-select-field {
@@ -2788,12 +2879,12 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .activity-table .table-head,
   .activity-table .table-row {
-    grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) minmax(100px, .7fr) minmax(90px, .6fr) minmax(90px, .55fr) minmax(90px, .55fr) minmax(90px, .55fr);
+    grid-template-columns: minmax(180px, 1.15fr) minmax(200px, 1.2fr) minmax(180px, .9fr) 44px;
   }
 
   .activity-table.has-ip .table-head,
   .activity-table.has-ip .table-row {
-    grid-template-columns: minmax(150px, 1.2fr) minmax(150px, 1fr) minmax(100px, .7fr) minmax(90px, .6fr) minmax(90px, .55fr) minmax(90px, .55fr) minmax(90px, .55fr) minmax(100px, .7fr);
+    grid-template-columns: minmax(180px, 1.15fr) minmax(200px, 1.2fr) minmax(180px, .9fr) minmax(118px, .68fr) 44px;
   }
 
   .visitors-table .table-head,
@@ -2824,6 +2915,19 @@ function observationActionValue(customer: SecurityCustomer) {
     padding: 14px;
     border-top: 1px solid #e2e8f0;
     background: #ffffff;
+  }
+
+  .activity-table {
+    position: relative;
+    overflow: visible;
+  }
+
+  .activity-table .table-head {
+    padding: 9px 12px;
+  }
+
+  .activity-table .table-row {
+    padding: 10px 12px;
   }
 
   .table-cell {
@@ -2895,6 +2999,176 @@ function observationActionValue(customer: SecurityCustomer) {
     font-size: 11px;
     line-height: 1.25;
     font-weight: 850;
+  }
+
+  .activity-customer-cell .inline-link {
+    width: max-content;
+    font-size: 12px;
+  }
+
+  .activity-result-cell {
+    display: grid;
+    gap: 5px;
+  }
+
+  .activity-result-cell > span {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+
+  .activity-result-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .activity-result-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    width: max-content;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 4px 8px;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 1000;
+  }
+
+  .activity-result-pill.is-blocked {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  .activity-result-pill.is-watch {
+    background: #fff7ed;
+    color: #9a3412;
+  }
+
+  .activity-result-pill.is-allowed {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .activity-actions-heading {
+    text-align: right;
+  }
+
+  .activity-action-cell {
+    display: flex;
+    justify-content: flex-end;
+    overflow: visible;
+  }
+
+  .activity-detail-disclosure {
+    position: relative;
+  }
+
+  .activity-detail-disclosure > summary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .activity-detail-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .activity-detail-disclosure > summary:hover,
+  .activity-detail-disclosure > summary:focus-visible,
+  .activity-detail-disclosure[open] > summary {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+  }
+
+  .activity-detail-dots {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .activity-detail-label {
+    display: none;
+  }
+
+  .activity-detail-panel {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 260px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 12px;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
+  }
+
+  .activity-detail-panel dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0;
+  }
+
+  .activity-detail-panel dt,
+  .activity-detail-panel dd {
+    margin: 0;
+  }
+
+  .activity-detail-panel dt {
+    color: #64748b;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 950;
+    text-transform: uppercase;
+  }
+
+  .activity-detail-panel dd {
+    margin-top: 3px;
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 950;
+  }
+
+  .activity-group-times {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .activity-group-times > strong {
+    color: #334155;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 1000;
+  }
+
+  .activity-group-times ul {
+    display: grid;
+    gap: 3px;
+    margin: 0;
+    padding-left: 18px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 800;
   }
 
   .status-pill {
@@ -3245,6 +3519,160 @@ function observationActionValue(customer: SecurityCustomer) {
 
     .compact-actions {
       justify-content: stretch;
+    }
+
+    .activity-filter-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      max-width: none;
+    }
+
+    .activity-filter-grid .filter-select-field {
+      gap: 5px;
+    }
+
+    .activity-filter-grid .filter-select-field select {
+      min-height: 42px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+
+    .activity-table .table-row,
+    .activity-table.has-ip .table-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0;
+      overflow: visible;
+      padding: 0;
+      border-radius: 12px;
+    }
+
+    .activity-table .table-cell {
+      display: block;
+      grid-template-columns: none;
+      gap: 0;
+    }
+
+    .activity-table .table-cell::before {
+      display: none;
+    }
+
+    .activity-table .activity-event-cell {
+      grid-column: 1;
+      grid-row: 1;
+      display: grid;
+      gap: 4px;
+      padding: 12px 10px 4px 12px;
+    }
+
+    .activity-table .activity-event-cell strong,
+    .activity-table .activity-event-cell span,
+    .activity-table .activity-event-cell small {
+      grid-column: auto;
+    }
+
+    .activity-table .activity-customer-cell {
+      grid-column: 1;
+      grid-row: 2;
+      display: grid;
+      gap: 3px;
+      padding: 0 10px 12px 12px;
+    }
+
+    .activity-table .activity-customer-cell strong,
+    .activity-table .activity-customer-cell span,
+    .activity-table .activity-customer-cell .inline-link {
+      grid-column: auto;
+    }
+
+    .activity-table .activity-result-cell {
+      grid-column: 2;
+      grid-row: 1;
+      justify-items: end;
+      padding: 12px 12px 4px 8px;
+    }
+
+    .activity-table .activity-result-cell > span {
+      display: none;
+    }
+
+    .activity-table .activity-result-badges {
+      justify-content: flex-end;
+    }
+
+    .activity-table .ip-cell {
+      grid-column: 2;
+      grid-row: 2;
+      align-self: end;
+      padding: 0 12px 12px 8px;
+      text-align: right;
+    }
+
+    .activity-table .ip-cell > span {
+      color: #0f172a;
+      font-size: 12px;
+      font-weight: 1000;
+      white-space: nowrap;
+    }
+
+    .activity-table .ip-cell small {
+      max-width: 135px;
+      margin-top: 3px;
+      margin-left: auto;
+    }
+
+    .activity-table .activity-action-cell {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      display: block;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .activity-detail-disclosure,
+    .activity-detail-disclosure > summary {
+      width: 100%;
+    }
+
+    .activity-detail-disclosure > summary {
+      min-height: 40px;
+      border: 0;
+      border-radius: 0 0 12px 12px;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 1000;
+    }
+
+    .activity-detail-dots {
+      display: none;
+    }
+
+    .activity-detail-label {
+      display: inline;
+    }
+
+    .activity-detail-panel {
+      position: static;
+      width: 100%;
+      border: 0;
+      border-top: 1px solid #e2e8f0;
+      border-radius: 0 0 12px 12px;
+      background: #f8fafc;
+      box-shadow: none;
+    }
+
+    .activity-pagination {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .activity-pagination .pagination-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .activity-pagination .page-button {
+      width: auto;
+      min-height: 38px;
     }
   }
 
