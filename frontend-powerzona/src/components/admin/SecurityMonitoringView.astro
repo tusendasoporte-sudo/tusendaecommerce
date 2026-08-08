@@ -545,7 +545,7 @@ function observationActionValue(customer: SecurityCustomer) {
     </section>
   )}
 
-  {(params.section === 'summary' || params.section === 'rules') && (
+  {params.section === 'summary' && (
     <section class="info-grid" aria-label="Configuracion actual">
       <article class="monitoring-card">
         <h3>Resumen</h3>
@@ -590,37 +590,78 @@ function observationActionValue(customer: SecurityCustomer) {
         </div>
       </article>
 
-      {params.section === 'rules' && (
-        <article class="monitoring-card">
-          <h3>Acceso con VPN, proxy o Tor</h3>
-          <p class="monitoring-note">Piloto gratuito con caché privada. Si la verificación externa no está disponible, el acceso se permite y el incidente queda registrado.</p>
-          <form class="customer-search" method="POST" action={sectionHref('rules')}>
-            <input type="hidden" name="section" value="rules" />
-            <input type="hidden" name="security_action" value="vpn_policy_update" />
-            <div class="field">
-              <label for="security-vpn-policy">Politica</label>
-              <select id="security-vpn-policy" name="vpn_policy" disabled={!actionsEnabled}>
-                <option value="off" selected={settings.vpn_policy === 'off'}>Desactivada</option>
-                <option value="monitor" selected={settings.vpn_policy === 'monitor'}>Solo detectar</option>
-                <option value="block" selected={settings.vpn_policy === 'block'} disabled={settings.mode !== 'protection'}>Detectar y bloquear</option>
-              </select>
-            </div>
-            <button class="primary-action" type="submit" disabled={!actionsEnabled}>Guardar politica</button>
-          </form>
-          <p class="modal-warning">La deteccion es probabilistica. No bloquea por red movil ni por centro de datos solamente.</p>
-        </article>
-      )}
+    </section>
+  )}
 
-      {params.section === 'rules' && (
-        <article class="monitoring-card">
-          <h3>Bloqueos privados</h3>
-          <div class="capability-list">
-            <div class="capability-row"><span>Clientes con bloqueo activo</span><strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong></div>
-            <div class="capability-row"><span>Observacion privada</span><strong>{settings.mode === 'monitoring' || settings.mode === 'protection' ? 'Habilitada' : 'No habilitada'}</strong></div>
-            <div class="capability-row"><span>Gestion de bloqueos</span><strong>{settings.mode === 'protection' && settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+  {params.section === 'rules' && (
+    <section class="info-grid rules-layout" aria-label="Reglas de Seguridad">
+      <article class="monitoring-card rules-summary-card">
+        <h3>Resumen</h3>
+        {context === 'store' && settings.id && (
+          <span
+            class="pz-last-modification"
+            data-pz-last-modification
+            data-resource-type="security_settings"
+            data-resource-id={settings.id}
+            data-show-actor="true"
+            data-useful-empty="true"
+          ><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
+        )}
+        <div class="capability-list rules-premium-list">
+          <div class="capability-row"><span>Modo actual</span><strong>{modeLabel}</strong></div>
+          <div class="capability-row"><span>Retencion</span><strong>{settings.retention_days} dias</strong></div>
+          <div class="capability-row"><span>Politica de IP</span><strong>{ipLabel}</strong></div>
+          <div class="capability-row"><span>VPN y proxy</span><strong>{vpnPolicyLabel}</strong></div>
+        </div>
+      </article>
+
+      <details class="monitoring-card rules-disclosure">
+        <summary class="rules-disclosure-summary">
+          <span>
+            <strong>Capacidades administrativas</strong>
+            <small>4 controles de Seguridad</small>
+          </span>
+          <span class="rules-disclosure-icon" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="capability-list rules-disclosure-body">
+          <div class="capability-row"><span>Bloqueo manual</span><strong>{settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Bloqueo de acceso completo</span><strong>{settings.full_access_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Bloqueos permanentes</span><strong>{settings.permanent_blocks_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Notificar intentos bloqueados</span><strong>{settings.notify_blocked_attempts ? 'Habilitada' : 'No habilitada'}</strong></div>
+        </div>
+      </details>
+
+      <article class="monitoring-card rules-vpn-card">
+        <h3>Acceso con VPN, proxy o Tor</h3>
+        <form class="customer-search rules-vpn-form" method="POST" action={sectionHref('rules')}>
+          <input type="hidden" name="section" value="rules" />
+          <input type="hidden" name="security_action" value="vpn_policy_update" />
+          <div class="field">
+            <label for="security-vpn-policy">Politica</label>
+            <select id="security-vpn-policy" name="vpn_policy" disabled={!actionsEnabled}>
+              <option value="off" selected={settings.vpn_policy === 'off'}>Desactivada</option>
+              <option value="monitor" selected={settings.vpn_policy === 'monitor'}>Solo detectar</option>
+              <option value="block" selected={settings.vpn_policy === 'block'} disabled={settings.mode !== 'protection'}>Detectar y bloquear</option>
+            </select>
           </div>
-        </article>
-      )}
+          <button class="primary-action" type="submit" disabled={!actionsEnabled}>Guardar politica</button>
+        </form>
+      </article>
+
+      <details class="monitoring-card rules-disclosure">
+        <summary class="rules-disclosure-summary">
+          <span>
+            <strong>Bloqueos privados</strong>
+            <small>{renderSummaryValue(summary?.blockedCustomersCount)} clientes con bloqueo activo</small>
+          </span>
+          <span class="rules-disclosure-icon" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="capability-list rules-disclosure-body">
+          <div class="capability-row"><span>Clientes con bloqueo activo</span><strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong></div>
+          <div class="capability-row"><span>Observacion privada</span><strong>{settings.mode === 'monitoring' || settings.mode === 'protection' ? 'Habilitada' : 'No habilitada'}</strong></div>
+          <div class="capability-row"><span>Gestion de bloqueos</span><strong>{settings.mode === 'protection' && settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+        </div>
+      </details>
     </section>
   )}
 
@@ -2307,6 +2348,10 @@ function observationActionValue(customer: SecurityCustomer) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .rules-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .fact-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -2375,6 +2420,104 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .monitoring-card h4 {
     font-size: 18px;
+  }
+
+  .rules-premium-list {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .rules-premium-list .capability-row {
+    border: 0;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 0;
+    background: #ffffff;
+    padding: 13px 14px;
+  }
+
+  .rules-premium-list .capability-row:first-child {
+    border-top: 0;
+  }
+
+  .rules-disclosure {
+    display: block;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .rules-disclosure-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 64px;
+    padding: 16px 18px;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .rules-disclosure-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .rules-disclosure-summary > span:first-child {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .rules-disclosure-summary strong {
+    color: #0f172a;
+    font-size: 18px;
+    line-height: 1.15;
+    font-weight: 1000;
+  }
+
+  .rules-disclosure-summary small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 820;
+  }
+
+  .rules-disclosure-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 20px;
+    line-height: 1;
+    transition: transform .16s ease;
+  }
+
+  .rules-disclosure-summary:hover,
+  .rules-disclosure-summary:focus-visible,
+  .rules-disclosure[open] .rules-disclosure-summary {
+    background: #f8fafc;
+    outline: none;
+  }
+
+  .rules-disclosure[open] .rules-disclosure-icon {
+    transform: rotate(180deg);
+  }
+
+  .rules-disclosure-body {
+    gap: 8px;
+    padding: 4px 18px 18px;
+    border-top: 1px solid #eef2f7;
+  }
+
+  .rules-vpn-form {
+    grid-template-columns: minmax(220px, 1fr) auto;
+    max-width: 720px;
   }
 
   .monitoring-note {
@@ -3437,8 +3580,25 @@ function observationActionValue(customer: SecurityCustomer) {
       grid-template-columns: 1fr;
     }
 
+    .rules-premium-list .capability-row {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .rules-disclosure-summary {
+      padding: 15px 14px;
+    }
+
+    .rules-disclosure-body {
+      padding: 4px 14px 14px;
+    }
+
     .monitoring-card {
       padding: 14px;
+    }
+
+    .monitoring-card.rules-disclosure {
+      padding: 0;
     }
 
     dialog.security-modal,
