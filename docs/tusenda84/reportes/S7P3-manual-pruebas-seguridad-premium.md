@@ -90,6 +90,7 @@ Completar antes del primer cambio de plan. Guardar los identificadores solo en e
 | Seguridad habilitada |  |  |
 | Modo: monitoreo/protección |  |  |
 | Visibilidad de IP |  |  |
+| Política VPN/proxy: off/monitor/block |  |  |
 | Bloqueo manual |  |  |
 | Acceso completo |  |  |
 | Bloqueos permanentes |  |  |
@@ -617,3 +618,97 @@ Nombre/confirmación de Kraken:
 ```
 
 S7P3 permanece **EN REVISIÓN** mientras esta confirmación no exista de forma explícita.
+
+## 13. Anexo posterior PZ-SEC-VPN01 — no cuenta dentro de los 17 bloques S7P3
+
+Este anexo valida una extensión aprobada después de preparar el manual original. No sustituye ni reduce S7P3-M01…M17 y no permite marcar S7P3 o BLOCKS03B como completados.
+
+### VPN01-A — Activación gradual
+
+1. Confirmar que la migración se aplicó y que la política inicial es `off`.
+2. Confirmar Premium vigente, Seguridad habilitada y modo `monitoring` o `protection` según la prueba.
+3. Activar `monitor` desde **Seguridad → Reglas**.
+4. Acceder con una conexión limpia y con una VPN/proxy de prueba conocida.
+5. Confirmar que ambos accesos continúan, pero la detección positiva aparece como evento privado.
+6. Verificar que el HTML, Network y la respuesta pública no exponen proveedor, HMAC o IP almacenada.
+
+Resultado esperado: detección observable sin denegación ni filtración.
+
+### VPN01-B — Bloqueo explícito
+
+1. Cambiar Seguridad a modo `protection`.
+2. Activar `block` y confirmar auditoría del cambio.
+3. Con VPN/proxy de prueba, abrir una ruta pública de la tienda.
+4. Confirmar `403`, `no-store` y el mensaje para desactivar VPN/proxy.
+5. Desactivar la VPN y repetir desde una IP que el proveedor clasifique como limpia.
+6. Confirmar que admin de tienda y Master nunca reciben el rechazo público.
+
+Resultado esperado: solo la detección positiva se bloquea; una clasificación limpia y las rutas administrativas continúan.
+
+### VPN01-C — Selección inmediata de dispositivo
+
+1. Generar una visita pública con un navegador de prueba y confirmar que existe `pz_client_device` sin copiar su valor.
+2. Desde **Visitantes de hoy** o **Clientes bloqueados**, iniciar un bloqueo por esa sesión/IP.
+3. Confirmar que la previsualización muestra los dispositivos históricos asociados solo a esa tienda.
+4. Seleccionar uno, varios o todos y crear el bloqueo.
+5. Mantener el mismo navegador, cambiar de red o activar VPN y repetir el acceso.
+6. Probar desde otro navegador o modo privado y documentar que su cookie es distinta; no asumir identidad física del aparato.
+
+Resultado esperado: los dispositivos seleccionados quedan en el bloqueo desde el primer guardado y el navegador seleccionado sigue bloqueado aunque cambie su IP.
+
+### VPN01-D — Fallo seguro y restauración
+
+1. Si el proveedor devuelve indisponibilidad o cuota durante una prueba natural, confirmar que el acceso se permite y aparece `vpn_check_unavailable`.
+2. No provocar una caída modificando DNS, TLS, proxy, firewall o variables remotas sin autorización separada.
+3. Restaurar `vpn_policy` a su valor inicial.
+4. Revocar los bloqueos de prueba y comprobar el estado final de la tienda.
+
+Resultado esperado: ninguna caída externa bloquea a todos los usuarios y el ambiente queda restaurado.
+
+Registrar estos cuatro casos por separado como `APROBADO`, `FALLIDO` o `BLOQUEADO`; no sumarlos al contador `__/17` de S7P3.
+
+## 14. Anexo posterior PZ-SEC-ADDR01 — no cuenta dentro de los 17 bloques S7P3
+
+Este anexo no sustituye ni reduce S7P3-M01…M17 y no permite marcar S7P3 o BLOCKS03B como completados.
+
+### ADDR01-A — Selección desde el primer bloqueo
+
+1. Preparar un cliente desechable con al menos dos pedidos de entrega y dos direcciones distintas.
+2. Abrir su ficha en Seguridad y pulsar **Crear bloqueo**.
+3. Confirmar dirección, municipio, último uso y conteo, sin inspeccionar ni copiar HMAC.
+4. Comprobar que la dirección más reciente está preseleccionada.
+5. Intentar desmarcar todas y confirmar que la interfaz exige al menos una cuando existen candidatas.
+6. Crear bloqueos separados seleccionando una, varias y todas las direcciones.
+
+Resultado esperado: las direcciones elegidas quedan asociadas desde el primer guardado; un cliente sin dirección válida puede bloquearse sin esa señal adicional.
+
+### ADDR01-B — Coincidencia desde otro dispositivo
+
+1. Mantener activo un bloqueo de prueba con una dirección seleccionada.
+2. Desde otro navegador o dispositivo, crear un pedido con otra identidad y la misma dirección.
+3. Repetir usando diferencias de mayúsculas, acentos, espacios y `No./#` dentro del contrato normalizado.
+4. Confirmar que el pedido se crea y conserva su estado comercial.
+5. Confirmar un único evento `blocked_address_match` y una única notificación que abra ese pedido.
+
+Resultado esperado: alerta idempotente para revisión, sin bloqueo, cancelación ni fusión automática.
+
+### ADDR01-C — Negativos y aislamiento
+
+1. Crear un pedido con dirección distinta.
+2. Repetir con recogida o coordinación sin dirección de entrega.
+3. Probar la misma dirección en otra tienda.
+4. Revocar el bloqueo y repetir el pedido.
+5. Repetir con un bloqueo vencido.
+
+Resultado esperado: ninguno de estos casos crea una alerta de coincidencia para la tienda original.
+
+### ADDR01-D — Privacidad y restauración
+
+1. Revisar HTML, Network y respuestas privadas autorizadas.
+2. Confirmar que la colección nueva no admite REST público.
+3. Confirmar que eventos/notificaciones no muestran dirección, municipio, HMAC, IP, cookie, teléfono ni motivo interno.
+4. Restaurar la tienda, revocar bloqueos de prueba y eliminar solo fixtures autorizados.
+
+Resultado esperado: aislamiento por tienda, ausencia de datos sensibles y ambiente restaurado.
+
+Registrar ADDR01-A…D como `APROBADO`, `FALLIDO` o `BLOQUEADO`; no sumarlos al contador `__/17` de S7P3.

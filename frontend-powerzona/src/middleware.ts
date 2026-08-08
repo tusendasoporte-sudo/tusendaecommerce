@@ -11,9 +11,10 @@ import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } 
 import { getStoreAccessContext } from './lib/storeTeam';
 import { hasStorePermission, type StorePermission } from './lib/storeTeamPermissions';
 import {
-  publicAccessAllowed,
+  publicAccessDecision,
   publicSecurityResolverForPath,
   renderPublicUnavailable,
+  renderVpnUnavailable,
 } from './lib/publicSecurity';
 
 type AdminAccessRule = Readonly<{
@@ -133,8 +134,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (resolver) {
       let clientAddress = '';
       try { clientAddress = context.clientAddress; } catch (_) {}
-      if (!await publicAccessAllowed(context.request, clientAddress, resolver)) {
-        return renderPublicUnavailable();
+      const decision = await publicAccessDecision(context.request, clientAddress, resolver);
+      if (!decision.allowed) {
+        return decision.reason === 'vpn_or_proxy_detected'
+          ? renderVpnUnavailable(context.request.url)
+          : renderPublicUnavailable();
       }
     }
     return next();

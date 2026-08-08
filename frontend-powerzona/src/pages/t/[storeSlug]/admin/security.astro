@@ -17,6 +17,7 @@ import {
   getSecurityCustomerDetail,
   getSecurityCustomersPage,
   getSecurityMergeCandidates,
+  getSecurityManualIpDeviceCandidates,
   getSecurityMonitoringSummary,
   getSecurityVisitorsTodayPage,
   mergeSecurityCustomers,
@@ -24,9 +25,11 @@ import {
   runSecurityBlockCreate,
   runSecurityBlockRevoke,
   runSecurityManualIpBlockCreate,
+  updateSecurityVpnPolicy,
   runSecurityCustomerObservation,
   runSecurityCustomerLifecycle,
   type PaginatedResult,
+  type SecurityAddressCandidate,
   type SecurityAvailableSignals,
   type SecurityBlock,
   type SecurityBlockCapabilities,
@@ -41,6 +44,8 @@ import {
   type SecurityOrder,
   type SecuritySummary,
   type SecurityVisitorSessionRow,
+  type ManualIpBlockDraft,
+  type ManualIpDeviceLookupResult,
 } from '../../../../lib/securityMonitoring';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
 import AdminSectionHeader from '../../../../components/admin/AdminSectionHeader.astro';
@@ -134,6 +139,7 @@ const noticeMessages: Record<string, string> = {
   block_device_confirmed: 'Dispositivo agregado al bloqueo.',
   block_device_dismissed: 'Dispositivo pendiente descartado.',
   block_revoked: 'Bloqueo revocado.',
+  vpn_policy_updated: 'Politica de VPN actualizada.',
 };
 const viewNotice = noticeMessages[notice] || '';
 let summary: SecuritySummary | null = null;
@@ -155,10 +161,13 @@ let activeBlocks: SecurityBlock[] = [];
 let blockHistorySummary: SecurityBlockHistorySummary | null = null;
 let blockCapabilities: SecurityBlockCapabilities | null = null;
 let availableSignals: SecurityAvailableSignals | null = null;
+let addressCandidates: SecurityAddressCandidate[] = [];
 let customerIdentityWarnings: string[] = [];
 let mergeCandidates: SecurityCustomer[] = [];
 let customerOrdersError = false;
 let customerEventsError = false;
+let manualIpDraft: ManualIpBlockDraft | null = null;
+let manualIpDeviceLookup: ManualIpDeviceLookupResult | null = null;
 
 if (canRenderSecurity) {
   try {
@@ -190,6 +199,7 @@ if (canRenderSecurity) {
         matchDevice: formData.get('match_device') === 'on',
         matchIp: formData.get('match_ip') === 'on',
         matchMode: String(formData.get('match_mode') || 'any') as any,
+        addressOrderIds: formData.getAll('block_address_order_ids').map(String),
         reason: String(formData.get('block_reason') || '').trim(),
       });
       return Astro.redirect(`${adminSecurityPath}?section=customers&customer=${encodeURIComponent(targetCustomerId)}&notice=block_created`);
@@ -204,12 +214,44 @@ if (canRenderSecurity) {
         ip: String(formData.get('manual_ip') || ''),
         scope: String(formData.get('block_scope') || 'orders') as any,
         duration: String(formData.get('block_duration') || 'hours_24') as any,
-        reviewDevices: formData.get('review_devices') === 'on',
+        visitorSessionId: String(formData.get('visitor_session_id') || ''),
+        deviceSessionIds: formData.getAll('manual_device_session_ids').map(String),
         reason: String(formData.get('block_reason') || '').trim(),
       });
       return Astro.redirect(`${adminSecurityPath}?section=blocked&notice=manual_ip_block_created`);
     } catch (_) {
       viewError = 'No se pudo crear el bloqueo por IP. Revisa que sea una IP publica exacta, que no exista un bloqueo solapado y que las capacidades esten activas.';
+    }
+  }
+
+  if (formData && String(formData.get('security_action') || '') === 'manual_ip_device_preview') {
+    manualIpDraft = {
+      ip: String(formData.get('manual_ip') || '').trim(),
+      visitorSessionId: String(formData.get('visitor_session_id') || '').trim(),
+      scope: String(formData.get('block_scope') || 'orders') as any,
+      duration: String(formData.get('block_duration') || 'hours_24') as any,
+      reason: String(formData.get('block_reason') || '').trim(),
+    };
+    try {
+      manualIpDeviceLookup = await getSecurityManualIpDeviceCandidates(authPb, currentStoreId, {
+        ip: manualIpDraft.ip,
+        visitorSessionId: manualIpDraft.visitorSessionId,
+      });
+    } catch (_) {
+      viewError = 'No se pudieron buscar dispositivos para esa IP. Revisa el valor y vuelve a intentarlo.';
+    }
+  }
+
+  if (formData && String(formData.get('security_action') || '') === 'vpn_policy_update') {
+    try {
+      await updateSecurityVpnPolicy(
+        authPb,
+        currentStoreId,
+        String(formData.get('vpn_policy') || 'off') as any
+      );
+      return Astro.redirect(`${adminSecurityPath}?section=rules&notice=vpn_policy_updated`);
+    } catch (_) {
+      viewError = 'No se pudo actualizar la politica de VPN. El modo Bloquear requiere Proteccion activa.';
     }
   }
 
@@ -305,6 +347,7 @@ if (canRenderSecurity) {
           blockHistorySummary = customerDetail.blockHistorySummary;
           blockCapabilities = customerDetail.blockCapabilities;
           availableSignals = customerDetail.availableSignals;
+          addressCandidates = customerDetail.addressCandidates;
           customerIdentityWarnings = customerDetail.identityWarnings;
           customerOrdersError = customerDetail.ordersError;
           customerEventsError = customerDetail.eventsError;
@@ -459,10 +502,13 @@ if (canRenderSecurity) {
             blockHistorySummary={blockHistorySummary}
             blockCapabilities={blockCapabilities}
             availableSignals={availableSignals}
+            addressCandidates={addressCandidates}
             customerIdentityWarnings={customerIdentityWarnings}
             mergeCandidates={mergeCandidates}
             customerOrdersError={customerOrdersError}
             customerEventsError={customerEventsError}
+            manualIpDraft={manualIpDraft}
+            manualIpDeviceLookup={manualIpDeviceLookup}
           />
         ) : (
           <section data-security-premium-gate>

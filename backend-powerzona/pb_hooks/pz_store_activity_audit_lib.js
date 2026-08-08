@@ -130,8 +130,8 @@ const COLLECTION_CONFIG = Object.freeze({
   }),
   store_security_settings: Object.freeze({
     module: "security", resourceType: "security_settings", labelFields: [],
-    safeFields: ["enabled", "mode", "manual_blocking_enabled", "full_access_blocking_enabled", "permanent_blocks_enabled", "retention_days", "ip_visibility", "notify_blocked_attempts"],
-    criticalFields: ["enabled", "mode", "manual_blocking_enabled", "full_access_blocking_enabled", "permanent_blocks_enabled", "ip_visibility"],
+    safeFields: ["enabled", "mode", "manual_blocking_enabled", "full_access_blocking_enabled", "permanent_blocks_enabled", "retention_days", "ip_visibility", "notify_blocked_attempts", "vpn_policy"],
+    criticalFields: ["enabled", "mode", "manual_blocking_enabled", "full_access_blocking_enabled", "permanent_blocks_enabled", "ip_visibility", "vpn_policy"],
   }),
   store_security_blocks: Object.freeze({
     module: "security", resourceType: "security_block", labelFields: [],

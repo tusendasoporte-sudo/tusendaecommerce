@@ -62,6 +62,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
         <label class="master-switch"><span>Notificar intentos bloqueados</span><input name="notify_blocked_attempts" type="checkbox" /></label>
         <div class="master-field"><label for="master-security-retention">Retención</label><select id="master-security-retention" name="retention_days"><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option></select></div>
         <div class="master-field"><label for="master-security-ip">Visibilidad de IP</label><select id="master-security-ip" name="ip_visibility"><option value="hidden">Oculta</option><option value="partial">Parcial</option><option value="full">Completa</option></select></div>
+        <div class="master-field"><label for="master-security-vpn">VPN, proxy y Tor</label><select id="master-security-vpn" name="vpn_policy"><option value="off">Desactivada</option><option value="monitor">Solo detectar</option><option value="block">Detectar y bloquear</option></select></div>
       </div>
       <p class="master-form-alert" data-security-form-alert role="alert" hidden></p>
     </form>
@@ -269,6 +270,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
       (securityForm.elements.namedItem('notify_blocked_attempts') as HTMLInputElement | null)!.checked = normalized.notify_blocked_attempts;
       (securityForm.elements.namedItem('retention_days') as HTMLSelectElement | null)!.value = String(normalized.retention_days);
       (securityForm.elements.namedItem('ip_visibility') as HTMLSelectElement | null)!.value = normalized.ip_visibility;
+      (securityForm.elements.namedItem('vpn_policy') as HTMLSelectElement | null)!.value = normalized.vpn_policy;
       syncSecurityControls();
     }
 
@@ -425,6 +427,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
           retention_days: Number(data.get('retention_days') || 30) as any,
           ip_visibility: String(data.get('ip_visibility') || 'hidden') as any,
           notify_blocked_attempts: data.get('notify_blocked_attempts') === 'on',
+          vpn_policy: String(data.get('vpn_policy') || 'off') as any,
         }));
         setAlert(alert, 'Configuración guardada correctamente.', true);
         document.querySelector<HTMLElement>(`[data-store-context][data-store-id="${CSS.escape(id)}"]`)?.setAttribute('data-store-security-exists', 'true');

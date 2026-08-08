@@ -11,6 +11,7 @@ import {
   isValidRecordId,
   normalizePage,
   type PaginatedResult,
+  type SecurityOrder,
   type SecurityVisitorPageviewRow,
   type SecurityVisitorSessionRow,
 } from '../../../../../../lib/securityMonitoring';
@@ -41,6 +42,7 @@ const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminSecurityPath = getStoreAdminPath(currentStoreSlug, 'security');
+const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 const adminAuthToken = authPb.authStore.token;
 
 const pathStoreSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
@@ -67,20 +69,25 @@ if (!isValidRecordId(visitorSessionId)) {
 }
 
 const page = normalizePage(Astro.url.searchParams.get('page'));
+const ordersPage = normalizePage(Astro.url.searchParams.get('orders_page'));
 let visitor: SecurityVisitorSessionRow | null = null;
+let orders: PaginatedResult<SecurityOrder> | null = null;
+let ordersError = false;
 let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
 let viewError = '';
 
 try {
-  const detail = await getSecurityVisitorDetail(authPb, currentStoreId, visitorSessionId, page);
+  const detail = await getSecurityVisitorDetail(authPb, currentStoreId, visitorSessionId, page, ordersPage);
   visitor = detail.visitor;
   if (!visitor) return Astro.redirect(`${adminSecurityPath}?section=visitors`);
+  orders = detail.orders;
+  ordersError = detail.ordersError;
   pageviews = detail.pageviews;
 } catch (_) {
   viewError = 'No se pudo cargar el detalle de este visitante en este momento.';
 }
 
-if (!visitor || !pageviews) {
+if (!visitor || !orders || !pageviews) {
   return Astro.redirect(`${adminSecurityPath}?section=visitors`);
 }
 ---
@@ -145,8 +152,11 @@ if (!visitor || !pageviews) {
         <SecurityVisitorDetailView
           storeName={currentStoreName}
           basePath={adminSecurityPath}
+          adminOrdersPath={adminOrdersPath}
           settings={securitySettings}
           visitor={visitor}
+          orders={orders}
+          ordersError={ordersError}
           pageviews={pageviews}
           viewError={viewError}
         />

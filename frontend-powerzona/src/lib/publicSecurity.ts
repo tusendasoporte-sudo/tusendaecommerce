@@ -6,6 +6,11 @@ export type PublicSecurityResolver =
   | Readonly<{ order_number: string; receipt_token: string }>
   | Readonly<{ review_token: string }>;
 
+export type PublicAccessDecision = Readonly<{
+  allowed: boolean;
+  reason: 'allowed' | 'vpn_or_proxy_detected' | 'unavailable';
+}>;
+
 const DEVICE_COOKIE = 'pz_client_device';
 const DEVICE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const SAFE_IP_PATTERN = /^[0-9a-fA-F:.]{2,64}$/;
@@ -173,13 +178,13 @@ export function publicSecurityProxyHeaders(request: Request, clientAddress?: str
   return headers;
 }
 
-export async function publicAccessAllowed(
+export async function publicAccessDecision(
   request: Request,
   clientAddress: string | undefined,
   resolver: PublicSecurityResolver,
-) {
+): Promise<PublicAccessDecision> {
   const baseUrl = serverPocketBaseUrl();
-  if (!baseUrl) return false;
+  if (!baseUrl) return { allowed: false, reason: 'unavailable' };
   try {
     const response = await fetch(`${baseUrl}/api/pz/security/public-access`, {
       method: 'POST',
@@ -187,10 +192,29 @@ export async function publicAccessAllowed(
       cache: 'no-store',
       body: JSON.stringify(resolver),
     });
-    return response.status === 204 || (response.status === 200 && response.ok);
+    if (response.status === 204 || (response.status === 200 && response.ok)) {
+      return { allowed: true, reason: 'allowed' };
+    }
+    if (response.status === 403) {
+      try {
+        const payload = await response.json();
+        if (payload?.error === 'vpn_or_proxy_detected') {
+          return { allowed: false, reason: 'vpn_or_proxy_detected' };
+        }
+      } catch (_) {}
+    }
+    return { allowed: false, reason: 'unavailable' };
   } catch (_) {
-    return false;
+    return { allowed: false, reason: 'unavailable' };
   }
+}
+
+export async function publicAccessAllowed(
+  request: Request,
+  clientAddress: string | undefined,
+  resolver: PublicSecurityResolver,
+) {
+  return (await publicAccessDecision(request, clientAddress, resolver)).allowed;
 }
 
 export function renderPublicUnavailable() {
@@ -200,6 +224,40 @@ export function renderPublicUnavailable() {
 <style>:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}main{width:min(520px,100%);padding:30px;border:1px solid #dbe2ec;border-radius:18px;background:#fff;box-shadow:0 18px 52px rgba(15,23,42,.08)}h1{margin:0;font-size:28px}p{margin:12px 0 0;color:#64748b;line-height:1.55}button{margin-top:20px;min-height:42px;border:0;border-radius:10px;background:#172033;color:#fff;padding:0 16px;font-weight:800;cursor:pointer}</style>
 </head><body><main><h1>Página no disponible</h1><p>No fue posible mostrar este contenido. Intenta nuevamente más tarde.</p><form method="get"><button type="submit">Reintentar</button></form></main></body></html>`, {
     status: 404,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'private, no-store, max-age=0',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'X-Robots-Tag': 'noindex, nofollow, noarchive',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+    },
+  });
+}
+
+function vpnRetryHref(requestUrl: string) {
+  try {
+    const parsed = new URL(String(requestUrl || ''));
+    return `${parsed.pathname}${parsed.search}`
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  } catch (_) {
+    return '';
+  }
+}
+
+export function renderVpnUnavailable(requestUrl = '') {
+  const retryHref = vpnRetryHref(requestUrl);
+  return new Response(`<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Desactiva la VPN</title><meta name="robots" content="noindex,nofollow,noarchive"><meta name="referrer" content="no-referrer">
+<style>:root{font-family:Inter,system-ui,sans-serif;color:#172033;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}main{width:min(540px,100%);padding:30px;border:1px solid #dbe2ec;border-radius:18px;background:#fff;box-shadow:0 18px 52px rgba(15,23,42,.08)}h1{margin:0;font-size:28px}p{margin:12px 0 0;color:#64748b;line-height:1.55}a{display:inline-grid;place-items:center;margin-top:20px;min-height:42px;border-radius:10px;background:#172033;color:#fff;padding:0 16px;font-weight:800;text-decoration:none}</style>
+</head><body><main><h1>Desactiva la VPN o el proxy</h1><p>Para entrar, desactiva temporalmente la VPN o el proxy de tu dispositivo y vuelve a intentarlo.</p><a href="${retryHref}">Volver a intentar</a></main></body></html>`, {
+    status: 403,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'private, no-store, max-age=0',

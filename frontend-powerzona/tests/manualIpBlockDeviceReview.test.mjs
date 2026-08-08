@@ -14,7 +14,11 @@ test('MANUAL-IP: cliente SSR envia solo el contrato administrativo estricto', ()
   const create = source.slice(createStart, reviewStart);
   assert.match(create, /action: 'create_manual_ip'/);
   assert.match(create, /ip: String\(options\.ip/);
-  assert.match(create, /review_devices: options\.reviewDevices === true/);
+  assert.match(create, /visitor_session_id: String\(options\.visitorSessionId/);
+  assert.match(create, /device_session_ids: Array\.from\(new Set\(options\.deviceSessionIds/);
+  assert.match(create, /\/api\/pz\/security\/manual-ip-devices/);
+  assert.match(create, /\.filter\(\(candidate: any\) => isValidRecordId\(candidate\?\.session_id\)\)/);
+  assert.doesNotMatch(create, /review_devices/);
   assert.doesNotMatch(create, /cookie|hmac|cipher|x-forwarded/i);
 
   const review = source.slice(reviewStart, revokeStart);
@@ -39,14 +43,18 @@ test('MANUAL-IP: tienda y Master procesan crear, confirmar y descartar con redir
   }
 });
 
-test('MANUAL-IP: interfaz usa Pedidos y 24 horas, confirma dispositivo y no expone identificadores', () => {
+test('MANUAL-IP: interfaz previsualiza y selecciona dispositivos sin exponer identificadores protegidos', () => {
   const view = read('../src/components/admin/SecurityMonitoringView.astro');
   assert.match(view, />Agregar bloqueo por IP</);
   assert.match(view, /name="manual_ip"/);
-  assert.match(view, /value=\{value\} selected=\{value === 'orders'\}/);
-  assert.match(view, /value=\{value\} selected=\{value === 'hours_24'\}/);
-  assert.match(view, /name="review_devices" checked/);
-  assert.match(view, /No se agregara al bloqueo hasta que lo confirmes/);
+  assert.match(view, /selected=\{value === \(manualIpDraft\?\.scope \|\| 'orders'\)\}/);
+  assert.match(view, /selected=\{value === \(manualIpDraft\?\.duration \|\| 'hours_24'\)\}/);
+  assert.match(view, /manual_ip_device_preview/);
+  assert.match(view, /name="manual_device_session_ids"/);
+  assert.match(view, />Seleccionar todos</);
+  assert.match(view, /Ningun bloqueo se creara en este paso/);
+  assert.match(view, /Buscar dispositivos/);
+  assert.match(view, /Crear bloqueo/);
   assert.match(view, />Agregar al bloqueo</);
   assert.match(view, />Descartar</);
   assert.doesNotMatch(view, /device_hmac|ip_hmac|manual_ip_encrypted|reason_internal/);

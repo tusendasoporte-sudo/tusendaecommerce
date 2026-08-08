@@ -84,6 +84,24 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/security/manual-ip-devices",
+  (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleManualIpDeviceLookup(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/security/vpn-policy",
+  (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleVpnPolicyUpdate(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(1024),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/security/blocks-page",
   (e) => require(`${__hooks}/pz_security_monitoring_lib.js`).handleSecurityBlocksPage(e),
   $apis.requireAuth(),

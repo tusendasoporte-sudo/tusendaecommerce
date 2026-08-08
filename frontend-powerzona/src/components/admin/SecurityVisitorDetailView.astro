@@ -1,13 +1,19 @@
 ---
 import {
   formatDateTime,
+  formatMoneyUsd,
   formatNumber,
+  getOrderTotal,
   getIpDisplayValue,
   getIpUnavailableNote,
   getPageTypeLabel,
   getVisitorDisplayName,
   getVisitorPhone,
+  labelFromMap,
+  DELIVERY_METHOD_LABELS,
+  ORDER_STATUS_LABELS,
   type PaginatedResult,
+  type SecurityOrder,
   type SecuritySettingsView,
   type SecurityVisitorPageviewRow,
   type SecurityVisitorSessionRow,
@@ -16,9 +22,12 @@ import {
 interface Props {
   storeName: string;
   basePath: string;
+  adminOrdersPath?: string;
   backHref?: string;
   settings: SecuritySettingsView;
   visitor: SecurityVisitorSessionRow;
+  orders: PaginatedResult<SecurityOrder>;
+  ordersError?: boolean;
   pageviews: PaginatedResult<SecurityVisitorPageviewRow>;
   viewError?: string;
 }
@@ -26,14 +35,22 @@ interface Props {
 const {
   storeName,
   basePath,
+  adminOrdersPath = '',
   backHref = `${basePath}?section=visitors`,
   settings,
   visitor,
+  orders,
+  ordersError = false,
   pageviews,
   viewError = '',
 } = Astro.props;
 
 const showIp = String(settings.ip_visibility || 'hidden') !== 'hidden';
+const relatedCustomer = visitor.relatedCustomer;
+const ordersOpen = Boolean(relatedCustomer && (orders.page > 1 || Astro.url.searchParams.get('orders_open') === '1'));
+const customerHref = relatedCustomer
+  ? `${basePath}?section=customers&customer=${encodeURIComponent(relatedCustomer.id)}&orders_page=1&events_page=1`
+  : '';
 
 function pageWindow(result: PaginatedResult<unknown>) {
   const start = Math.max(1, Math.min(result.page - 2, result.totalPages - 4));
@@ -50,9 +67,25 @@ function pageLabel(result: PaginatedResult<unknown>) {
   return `Mostrando ${formatNumber(from)}-${formatNumber(to)} de ${formatNumber(result.totalItems)}`;
 }
 
+function detailHref(page: number, ordersPage: number, keepOrdersOpen = false) {
+  const query = new URLSearchParams();
+  if (page > 1) query.set('page', String(page));
+  if (ordersPage > 1) query.set('orders_page', String(ordersPage));
+  if (keepOrdersOpen) query.set('orders_open', '1');
+  const suffix = query.toString();
+  return `${basePath}/visitors/${encodeURIComponent(visitor.id)}${suffix ? `?${suffix}` : ''}`;
+}
+
 function detailPageHref(page: number) {
-  const query = page > 1 ? `?page=${page}` : '';
-  return `${basePath}/visitors/${encodeURIComponent(visitor.id)}${query}`;
+  return detailHref(page, orders.page, Boolean(ordersOpen));
+}
+
+function ordersPageHref(page: number) {
+  return detailHref(pageviews.page, page, true);
+}
+
+function orderHref(order: SecurityOrder) {
+  return adminOrdersPath && order.id ? `${adminOrdersPath}?order=${encodeURIComponent(order.id)}` : '';
 }
 ---
 
@@ -60,7 +93,10 @@ function detailPageHref(page: number) {
   <header class="detail-head">
     <div>
       <p class="detail-kicker">Visitantes de hoy</p>
-      <h2>{getVisitorDisplayName(visitor)}</h2>
+      <div class="detail-title-row">
+        <h2>{getVisitorDisplayName(visitor)}</h2>
+        {relatedCustomer && <span class="identity-pill is-customer">Cliente identificado</span>}
+      </div>
       <p>{storeName}</p>
     </div>
     <a class="secondary-action" href={backHref}>Volver a visitantes</a>
@@ -71,45 +107,111 @@ function detailPageHref(page: number) {
   <section class="detail-card" aria-labelledby="visitor-summary-title">
     <div class="section-head">
       <div>
-        <h3 id="visitor-summary-title">Resumen</h3>
+        <h3 id="visitor-summary-title">Resumen del visitante</h3>
         <p>Actividad registrada durante el dia actual de la tienda.</p>
       </div>
     </div>
 
-    <div class="fact-grid">
-      <div class="fact-box">
-        <span>Visitante</span>
-        <strong>{getVisitorDisplayName(visitor)}</strong>
+    <div class="summary-list">
+      <div class="summary-row">
+        <span>Identificacion</span>
+        <strong><span class:list={['identity-pill', { 'is-customer': relatedCustomer }]}>{relatedCustomer ? 'Cliente identificado' : 'Visitante sin identificar'}</span></strong>
       </div>
-      <div class="fact-box">
+      <div class="summary-row">
         <span>Cliente relacionado</span>
-        <strong>{visitor.relatedCustomer ? getVisitorDisplayName(visitor) : 'No relacionado'}</strong>
+        <strong>{relatedCustomer ? getVisitorDisplayName(visitor) : 'No relacionado'}</strong>
       </div>
-      <div class="fact-box">
+      <div class="summary-row">
         <span>Telefono</span>
         <strong>{getVisitorPhone(visitor)}</strong>
       </div>
       {showIp && (
-        <div class="fact-box">
+        <div class="summary-row">
           <span>IP actual</span>
-          <strong>{getIpDisplayValue(visitor)}</strong>
-          {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
+          <strong>
+            {getIpDisplayValue(visitor)}
+            {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
+          </strong>
         </div>
       )}
-      <div class="fact-box">
+      <div class="summary-row">
         <span>Primera visita</span>
         <strong>{formatDateTime(visitor.first_seen_at)}</strong>
       </div>
-      <div class="fact-box">
+      <div class="summary-row">
         <span>Ultima actividad</span>
         <strong>{formatDateTime(visitor.last_seen_at)}</strong>
       </div>
-      <div class="fact-box">
-        <span>Total de paginas</span>
+      <div class="summary-row">
+        <span>Paginas visitadas</span>
         <strong>{formatNumber(visitor.pageviews_count)}</strong>
       </div>
+      {relatedCustomer && (
+        <div class="summary-row">
+          <span>Pedidos realizados</span>
+          <strong>{formatNumber(relatedCustomer.orders_count)}</strong>
+        </div>
+      )}
     </div>
+
+    {customerHref && (
+      <div class="summary-actions">
+        <a class="row-action" href={customerHref}>Ver ficha del cliente</a>
+      </div>
+    )}
   </section>
+
+  {relatedCustomer && (
+    <details class="detail-card customer-orders-disclosure" open={ordersOpen}>
+      <summary>
+        <div>
+          <h3>Pedidos del cliente</h3>
+          <p>{formatNumber(relatedCustomer.orders_count)} {relatedCustomer.orders_count === 1 ? 'pedido realizado' : 'pedidos realizados'}</p>
+        </div>
+        <span class="disclosure-label">Ver pedidos</span>
+      </summary>
+
+      <div class="orders-content">
+        {ordersError ? (
+          <div class="empty-state">No se pudieron cargar los pedidos de este cliente en este momento.</div>
+        ) : orders.items.length > 0 ? (
+          <>
+            <div class="orders-list" aria-label="Pedidos del cliente">
+              {orders.items.map((order) => (
+                <article class="order-row">
+                  <div class="order-main">
+                    <strong>{order.order_number || 'Pedido sin numero'}</strong>
+                    <span>{formatDateTime(order.created)}</span>
+                  </div>
+                  <div class="order-meta">
+                    <span>{formatMoneyUsd(getOrderTotal(order))}</span>
+                    <span>{labelFromMap(DELIVERY_METHOD_LABELS, order.delivery_method)}</span>
+                  </div>
+                  <span class={`order-status status-${order.status || 'pending'}`}>{labelFromMap(ORDER_STATUS_LABELS, order.status)}</span>
+                  <div class="order-action">
+                    {orderHref(order) ? <a class="row-action" href={orderHref(order)}>Ver pedido</a> : <span>Consulta desde la tienda</span>}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {orders.totalPages > 1 && (
+              <div class="pagination-bar" aria-label="Paginacion de pedidos del cliente">
+                <span>{pageLabel(orders)}</span>
+                <div class="pagination-actions">
+                  <a class:list={['page-button', { disabled: orders.page <= 1 }]} href={ordersPageHref(Math.max(1, orders.page - 1))}>Anterior</a>
+                  {pageWindow(orders).map((page) => <a class:list={['page-button', { 'is-active': page === orders.page }]} href={ordersPageHref(page)}>{page}</a>)}
+                  <a class:list={['page-button', { disabled: orders.page >= orders.totalPages }]} href={ordersPageHref(Math.min(orders.totalPages, orders.page + 1))}>Siguiente</a>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div class="empty-state">No hay pedidos vinculados a este cliente.</div>
+        )}
+      </div>
+    </details>
+  )}
 
   <section class="detail-card" aria-labelledby="visitor-pages-title">
     <div class="section-head">
@@ -218,6 +320,13 @@ function detailPageHref(page: number) {
     line-height: 1.02;
   }
 
+  .detail-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
   .detail-head p:not(.detail-kicker),
   .section-head p {
     margin: 8px 0 0;
@@ -242,40 +351,200 @@ function detailPageHref(page: number) {
     min-width: 0;
   }
 
-  .fact-grid {
+  .summary-list {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .fact-box {
-    display: grid;
-    gap: 7px;
-    min-width: 0;
+    overflow: hidden;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    background: #f8fafc;
-    padding: 14px;
+    background: #ffffff;
   }
 
-  .fact-box span,
-  .fact-box small {
+  .summary-row {
+    display: grid;
+    grid-template-columns: minmax(150px, .7fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+    padding: 13px 15px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .summary-row:first-child {
+    border-top: 0;
+  }
+
+  .summary-row > span,
+  .summary-row small {
     color: #64748b;
     font-size: 12px;
     line-height: 1.25;
     font-weight: 950;
   }
 
-  .fact-box small {
+  .summary-row small {
+    display: block;
+    margin-top: 4px;
     color: #9a3412;
   }
 
-  .fact-box strong {
+  .summary-row > strong {
+    min-width: 0;
     color: #0f172a;
     font-size: 15px;
     line-height: 1.3;
     font-weight: 1000;
     overflow-wrap: anywhere;
+  }
+
+  .identity-pill,
+  .order-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: max-content;
+    max-width: 100%;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 1000;
+  }
+
+  .identity-pill.is-customer {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .summary-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .customer-orders-disclosure {
+    padding: 0;
+  }
+
+  .customer-orders-disclosure > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-width: 0;
+    padding: 18px;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .customer-orders-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .customer-orders-disclosure > summary p {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 820;
+  }
+
+  .disclosure-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 1000;
+  }
+
+  .disclosure-label::after {
+    content: '⌄';
+    font-size: 18px;
+    line-height: 1;
+    transition: transform .18s ease;
+  }
+
+  .customer-orders-disclosure[open] .disclosure-label::after {
+    transform: rotate(180deg);
+  }
+
+  .orders-content {
+    display: grid;
+    gap: 14px;
+    border-top: 1px solid #e2e8f0;
+    padding: 0 18px 18px;
+  }
+
+  .orders-list {
+    display: grid;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .order-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(190px, 1fr) minmax(105px, .5fr) minmax(110px, .55fr);
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 13px 14px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .order-row:first-child {
+    border-top: 0;
+  }
+
+  .order-main,
+  .order-meta {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .order-main strong {
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+  }
+
+  .order-main span,
+  .order-meta span,
+  .order-action > span {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 820;
+  }
+
+  .order-status.status-confirmed {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+
+  .order-status.status-preparing,
+  .order-status.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .order-status.status-delivered {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .order-status.status-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .order-action {
+    display: flex;
+    justify-content: flex-end;
   }
 
   .secondary-action,
@@ -424,8 +693,12 @@ function detailPageHref(page: number) {
   }
 
   @media (max-width: 1120px) {
-    .fact-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .order-row {
+      grid-template-columns: minmax(145px, 1fr) minmax(170px, 1fr) minmax(105px, .55fr);
+    }
+
+    .order-action {
+      grid-column: 1 / -1;
     }
   }
 
@@ -444,8 +717,37 @@ function detailPageHref(page: number) {
       min-height: 46px;
     }
 
-    .fact-grid {
+    .detail-title-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .summary-row {
       grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .summary-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+
+    .customer-orders-disclosure > summary {
+      align-items: flex-start;
+    }
+
+    .orders-content {
+      padding: 0 14px 14px;
+    }
+
+    .order-row {
+      grid-template-columns: 1fr;
+      gap: 9px;
+    }
+
+    .order-action {
+      grid-column: auto;
+      justify-content: stretch;
     }
 
     .pages-table {
@@ -505,8 +807,8 @@ function detailPageHref(page: number) {
   }
 
   :global(.master-app) .visitor-detail .detail-kicker,
-  :global(.master-app) .visitor-detail .fact-box span,
-  :global(.master-app) .visitor-detail .fact-box small,
+  :global(.master-app) .visitor-detail .summary-row > span,
+  :global(.master-app) .visitor-detail .summary-row small,
   :global(.master-app) .visitor-detail .table-head,
   :global(.master-app) .visitor-detail .path-cell,
   :global(.master-app) .visitor-detail .ip-cell small,
@@ -530,7 +832,7 @@ function detailPageHref(page: number) {
     line-height: var(--master-line-normal);
   }
 
-  :global(.master-app) .visitor-detail .fact-box strong {
+  :global(.master-app) .visitor-detail .summary-row > strong {
     font-size: var(--master-font-body);
   }
 

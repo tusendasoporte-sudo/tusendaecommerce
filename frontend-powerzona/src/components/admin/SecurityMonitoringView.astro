@@ -26,6 +26,7 @@ import {
   type EventTypeFilter,
   type PaginatedResult,
   type SecurityAvailableSignals,
+  type SecurityAddressCandidate,
   type SecurityBlock,
   type SecurityBlockCapabilities,
   type SecurityBlockHistorySummary,
@@ -41,8 +42,10 @@ import {
   type SecuritySettingsView,
   type SecuritySummary,
   type SecurityVisitorSessionRow,
+  type ManualIpBlockDraft,
+  type ManualIpDeviceLookupResult,
 } from '../../lib/securityMonitoring';
-import { getSecurityIpVisibilityLabel, getSecurityModeLabel } from '../../lib/security';
+import { getSecurityIpVisibilityLabel, getSecurityModeLabel, getSecurityVpnPolicyLabel } from '../../lib/security';
 
 interface Props {
   context: 'store' | 'master';
@@ -74,11 +77,14 @@ interface Props {
   blockHistorySummary?: SecurityBlockHistorySummary | null;
   blockCapabilities?: SecurityBlockCapabilities | null;
   availableSignals?: SecurityAvailableSignals | null;
+  addressCandidates?: SecurityAddressCandidate[];
   customerIdentityWarnings?: string[];
   mergeCandidates?: SecurityCustomer[];
   customerOrdersError?: boolean;
   customerEventsError?: boolean;
   actionsEnabled?: boolean;
+  manualIpDraft?: ManualIpBlockDraft | null;
+  manualIpDeviceLookup?: ManualIpDeviceLookupResult | null;
 }
 
 const {
@@ -111,11 +117,14 @@ const {
   blockHistorySummary = null,
   blockCapabilities = null,
   availableSignals = null,
+  addressCandidates = [],
   customerIdentityWarnings = [],
   mergeCandidates = [],
   customerOrdersError = false,
   customerEventsError = false,
   actionsEnabled = true,
+  manualIpDraft = null,
+  manualIpDeviceLookup = null,
 } = Astro.props;
 
 const ipVisibility = String(settings.ip_visibility || 'hidden');
@@ -127,6 +136,8 @@ const canCreateManualIpBlock = actionsEnabled
 const titlePrefix = context === 'master' ? 'Monitoreo Master' : 'Seguridad';
 const modeLabel = getSecurityModeLabel(settings.mode);
 const ipLabel = getSecurityIpVisibilityLabel(settings.ip_visibility);
+const vpnPolicyLabel = getSecurityVpnPolicyLabel(settings.vpn_policy);
+const manualIpPreviewReady = Boolean(manualIpDraft && manualIpDeviceLookup);
 const statusOptions = [
   ['all', 'Todos'],
   ['normal', CUSTOMER_STATUS_LABELS.normal],
@@ -459,32 +470,34 @@ function observationActionValue(customer: SecurityCustomer) {
     <div class="monitoring-alert is-soft" role="status">Seguridad está desactivada para esta tienda. El Master puede revisar el historial, pero no realizar acciones de protección.</div>
   )}
 
-  <section class="metrics-grid" aria-label="Metricas de seguridad">
-    <article class="metric-card">
-      <span>Clientes registrados</span>
-      <strong>{renderSummaryValue(summary?.customersCount)}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Clientes archivados</span>
-      <strong>{renderSummaryValue(summary?.archivedCustomersCount)}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Eventos registrados</span>
-      <strong>{renderSummaryValue(summary?.eventsCount)}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Visitantes registrados hoy</span>
-      <strong>{renderSummaryValue(summary?.visitorsTodayCount)}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Clientes en observacion</span>
-      <strong>{renderSummaryValue(summary?.watchCustomersCount)}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Clientes con estado bloqueado</span>
-      <strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong>
-    </article>
-  </section>
+  {params.section === 'summary' && (
+    <section class="metrics-grid" aria-label="Metricas de seguridad">
+      <article class="metric-card">
+        <span>Clientes registrados</span>
+        <strong>{renderSummaryValue(summary?.customersCount)}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Clientes archivados</span>
+        <strong>{renderSummaryValue(summary?.archivedCustomersCount)}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Eventos registrados</span>
+        <strong>{renderSummaryValue(summary?.eventsCount)}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Visitantes registrados hoy</span>
+        <strong>{renderSummaryValue(summary?.visitorsTodayCount)}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Clientes en observacion</span>
+        <strong>{renderSummaryValue(summary?.watchCustomersCount)}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Clientes con estado bloqueado</span>
+        <strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong>
+      </article>
+    </section>
+  )}
 
   {(params.section === 'summary' || params.section === 'rules') && (
     <section class="info-grid" aria-label="Configuracion actual">
@@ -513,6 +526,10 @@ function observationActionValue(customer: SecurityCustomer) {
             <span>Politica de IP</span>
             <strong>{ipLabel}</strong>
           </div>
+          <div class="fact-box">
+            <span>VPN y proxy</span>
+            <strong>{vpnPolicyLabel}</strong>
+          </div>
         </div>
         {isFullIp && <p class="monitoring-note">La IP completa se muestra directamente en las vistas privadas de Seguridad para usuarios autorizados.</p>}
       </article>
@@ -526,6 +543,27 @@ function observationActionValue(customer: SecurityCustomer) {
           <div class="capability-row"><span>Notificar intentos bloqueados</span><strong>{settings.notify_blocked_attempts ? 'Habilitada' : 'No habilitada'}</strong></div>
         </div>
       </article>
+
+      {params.section === 'rules' && (
+        <article class="monitoring-card">
+          <h3>Acceso con VPN, proxy o Tor</h3>
+          <p class="monitoring-note">Piloto gratuito con caché privada. Si la verificación externa no está disponible, el acceso se permite y el incidente queda registrado.</p>
+          <form class="customer-search" method="POST" action={sectionHref('rules')}>
+            <input type="hidden" name="section" value="rules" />
+            <input type="hidden" name="security_action" value="vpn_policy_update" />
+            <div class="field">
+              <label for="security-vpn-policy">Politica</label>
+              <select id="security-vpn-policy" name="vpn_policy" disabled={!actionsEnabled}>
+                <option value="off" selected={settings.vpn_policy === 'off'}>Desactivada</option>
+                <option value="monitor" selected={settings.vpn_policy === 'monitor'}>Solo detectar</option>
+                <option value="block" selected={settings.vpn_policy === 'block'} disabled={settings.mode !== 'protection'}>Detectar y bloquear</option>
+              </select>
+            </div>
+            <button class="primary-action" type="submit" disabled={!actionsEnabled}>Guardar politica</button>
+          </form>
+          <p class="modal-warning">La deteccion es probabilistica. No bloquea por red movil ni por centro de datos solamente.</p>
+        </article>
+      )}
 
       {params.section === 'rules' && (
         <article class="monitoring-card">
@@ -1066,8 +1104,12 @@ function observationActionValue(customer: SecurityCustomer) {
               {visitorsResult.items.map((visitor) => (
                 <article class="table-row" role="row">
                   <div class="table-cell main-cell" role="cell" data-label="Visitante">
-                    <strong>{getVisitorDisplayName(visitor)}</strong>
-                    <span>{visitor.entry_path || 'Ruta inicial no disponible'}</span>
+                    <div class="visitor-name-row">
+                      <strong>{getVisitorDisplayName(visitor)}</strong>
+                      {visitor.relatedCustomer && <span class="visitor-customer-pill">Cliente</span>}
+                    </div>
+                    <span>{visitor.relatedCustomer ? pluralLabel(visitor.relatedCustomer.orders_count, 'pedido realizado', 'pedidos realizados') : 'Visitante sin identificar'}</span>
+                    <small>{visitor.entry_path || 'Ruta inicial no disponible'}</small>
                   </div>
                   <div class="table-cell sensitive-cell" role="cell" data-label="Telefono">{getVisitorPhone(visitor)}</div>
                   {showIp && (
@@ -1079,7 +1121,17 @@ function observationActionValue(customer: SecurityCustomer) {
                   <div class="table-cell" role="cell" data-label="Primera visita">{formatDateTime(visitor.first_seen_at)}</div>
                   <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(visitor.last_seen_at)}</div>
                   <div class="table-cell" role="cell" data-label="Paginas">{formatNumber(visitor.pageviews_count)}</div>
-                  <div class="table-cell action-cell" role="cell" data-label="Accion"><a class="row-action" href={visitorDetailHref(visitor.id)}>Ver</a></div>
+                  <div class="table-cell action-cell" role="cell" data-label="Accion">
+                    <a class="row-action" href={visitorDetailHref(visitor.id)}>Ver</a>
+                    {canCreateManualIpBlock && (
+                      <button
+                        class="danger-action"
+                        type="button"
+                        data-manual-ip-block-trigger
+                        data-visitor-session-id={visitor.id}
+                      >Bloquear</button>
+                    )}
+                  </div>
                 </article>
               ))}
             </div>
@@ -1380,7 +1432,7 @@ function observationActionValue(customer: SecurityCustomer) {
   )}
 </section>
 
-<dialog id="security-manual-ip-block-dialog" class="security-modal" data-manual-ip-block-dialog aria-labelledby="security-manual-ip-block-title">
+<dialog id="security-manual-ip-block-dialog" class="security-modal" data-manual-ip-block-dialog data-preview-ready={manualIpPreviewReady ? 'true' : 'false'} aria-labelledby="security-manual-ip-block-title">
   <div class="security-modal-card">
     <header class="security-modal-header">
       <div>
@@ -1392,17 +1444,32 @@ function observationActionValue(customer: SecurityCustomer) {
     <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('blocked')} data-manual-ip-block-form>
       <div class="security-modal-body">
         <input type="hidden" name="section" value="blocked" />
-        <input type="hidden" name="security_action" value="manual_ip_block_create" />
+        <input type="hidden" name="security_action" value={manualIpPreviewReady ? 'manual_ip_block_create' : 'manual_ip_device_preview'} />
+        <input type="hidden" name="visitor_session_id" value={manualIpDraft?.visitorSessionId || ''} data-manual-visitor-session />
         <label class="field" for="security-manual-block-ip">
           <span>IP publica exacta</span>
-          <input id="security-manual-block-ip" name="manual_ip" type="text" maxlength="64" inputmode="text" autocomplete="off" spellcheck="false" required data-dialog-focus placeholder="IPv4 o IPv6" />
+          <input
+            id="security-manual-block-ip"
+            name="manual_ip"
+            type="text"
+            maxlength="64"
+            inputmode="text"
+            autocomplete="off"
+            spellcheck="false"
+            required={!manualIpDraft?.visitorSessionId}
+            readonly={manualIpPreviewReady}
+            value={manualIpDraft?.ip || ''}
+            data-dialog-focus
+            placeholder="IPv4 o IPv6"
+          />
           <small>No se admiten rangos, redes internas, loopback ni direcciones reservadas.</small>
         </label>
+        <p class="monitoring-note" data-manual-visitor-source hidden={!manualIpDraft?.visitorSessionId}>Se usara la IP protegida del visitante seleccionado.</p>
         <label class="field" for="security-manual-block-scope">
           <span>Alcance</span>
           <select id="security-manual-block-scope" name="block_scope" required>
             {blockScopeCreateOptions.map(([value, label]) => (
-              <option value={value} selected={value === 'orders'} disabled={value === 'full_access' && settings.full_access_blocking_enabled !== true}>{label}</option>
+              <option value={value} selected={value === (manualIpDraft?.scope || 'orders')} disabled={value === 'full_access' && settings.full_access_blocking_enabled !== true}>{label}</option>
             ))}
           </select>
         </label>
@@ -1410,26 +1477,45 @@ function observationActionValue(customer: SecurityCustomer) {
           <span>Duracion</span>
           <select id="security-manual-block-duration" name="block_duration" required>
             {blockDurationOptions.map(([value, label]) => (
-              <option value={value} selected={value === 'hours_24'} disabled={value === 'permanent' && settings.permanent_blocks_enabled !== true}>{label}</option>
+              <option value={value} selected={value === (manualIpDraft?.duration || 'hours_24')} disabled={value === 'permanent' && settings.permanent_blocks_enabled !== true}>{label}</option>
             ))}
           </select>
         </label>
-        <label class="signal-option manual-device-review-option" for="security-manual-review-devices">
-          <input id="security-manual-review-devices" type="checkbox" name="review_devices" checked />
-          <span>
-            <strong>Detectar dispositivos para confirmacion</strong>
-            <small>Si un dispositivo intenta entrar desde esta IP, aparecera como pendiente. No se agregara al bloqueo hasta que lo confirmes.</small>
-          </span>
-        </label>
-        <p class="modal-warning">Una IP puede ser compartida por varias personas. Confirma un dispositivo solo cuando tengas motivos para asociarlo al bloqueo.</p>
+        {manualIpPreviewReady ? (
+          <div class="field manual-device-selection">
+            <span>Dispositivos que se bloquearan ahora</span>
+            {manualIpDeviceLookup!.candidates.length > 1 && (
+              <button class="secondary-action" type="button" data-manual-select-all>Seleccionar todos</button>
+            )}
+            {manualIpDeviceLookup!.candidates.length > 0 ? (
+              manualIpDeviceLookup!.candidates.map((candidate) => (
+                <label class="signal-option">
+                  <input
+                    type="checkbox"
+                    name="manual_device_session_ids"
+                    value={candidate.session_id}
+                    checked={candidate.preselected || manualIpDeviceLookup!.candidates.length === 1}
+                  />
+                  <span><strong>{candidate.label}</strong><small>Ultima actividad: {formatDateTime(candidate.last_seen_at)}</small></span>
+                </label>
+              ))
+            ) : (
+              <p class="modal-warning">No hay un dispositivo conocido para esta IP. Puedes crear el bloqueo solo por IP; cualquier dispositivo nuevo detectado aparecera luego para revision.</p>
+            )}
+            <p class="modal-warning">Una IP puede ser compartida. Selecciona uno, varios o todos solamente cuando correspondan al bloqueo.</p>
+          </div>
+        ) : (
+          <p class="monitoring-note">Primero buscaremos dispositivos vistos anteriormente con esta IP. Ningun bloqueo se creara en este paso.</p>
+        )}
         <label class="field" for="security-manual-block-reason">
           <span>Motivo interno</span>
-          <textarea id="security-manual-block-reason" name="block_reason" maxlength="500" required></textarea>
+          <textarea id="security-manual-block-reason" name="block_reason" maxlength="500" required>{manualIpDraft?.reason || ''}</textarea>
         </label>
       </div>
       <footer class="security-modal-footer">
         <button class="secondary-action" type="button" data-modal-cancel>Cancelar</button>
-        <button class="danger-action" type="submit">Crear bloqueo</button>
+        {manualIpPreviewReady && <a class="secondary-action" href={sectionHref('blocked')}>Cambiar IP</a>}
+        <button class="danger-action" type="submit">{manualIpPreviewReady ? 'Crear bloqueo' : 'Buscar dispositivos'}</button>
       </footer>
     </form>
   </div>
@@ -1577,7 +1663,7 @@ function observationActionValue(customer: SecurityCustomer) {
     </header>
     <form class="lifecycle-form security-modal-form" method="POST" action={sectionHref('customers')} data-block-create-form>
       <div class="security-modal-body">
-        <p>El bloqueo queda registrado para Seguridad y auditoria. En esta fase no cambia checkout, resenas, rifas ni formularios publicos.</p>
+        <p>El bloqueo aplicara las senales privadas seleccionadas. Las direcciones se usan solo para avisar sobre pedidos nuevos que necesitan revision; no bloquean ni cancelan automaticamente.</p>
         <input type="hidden" name="section" value="customers" />
         <input type="hidden" name="customer" value="" data-block-create-customer />
         <input type="hidden" name="security_action" value="security_block_create" />
@@ -1627,6 +1713,37 @@ function observationActionValue(customer: SecurityCustomer) {
           </select>
         </label>
         <p class="modal-warning" data-ip-warning hidden>La IP debe usarse con otra senal cuando sea posible. Es una senal volatil y privada.</p>
+        <fieldset class="signal-fieldset address-watch-fieldset">
+          <legend>Direcciones para alertas</legend>
+          {addressCandidates.length > 0 ? (
+            <>
+              <div class="address-watch-head">
+                <p>Selecciona una, varias o todas. La mas reciente aparece marcada inicialmente.</p>
+                <button class="secondary-action address-select-all" type="button" data-address-select-all>Seleccionar todas</button>
+              </div>
+              <div class="address-watch-list">
+                {addressCandidates.map((candidate) => (
+                  <label class="address-watch-option">
+                    <input
+                      type="checkbox"
+                      name="block_address_order_ids"
+                      value={candidate.order_id}
+                      checked={candidate.preselected}
+                      data-address-checkbox
+                    />
+                    <span>
+                      <strong>{candidate.address_display}</strong>
+                      <small>{candidate.municipality_display} · usada {formatNumber(candidate.uses_count)} {candidate.uses_count === 1 ? 'vez' : 'veces'} · ultima vez {formatDateTime(candidate.last_used_at)}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p class="modal-warning">Una direccion puede ser compartida. Si vuelve a aparecer, el pedido entrara normalmente y Seguridad avisara al administrador para revisarlo.</p>
+            </>
+          ) : (
+            <p>No hay direcciones de entrega validas en el historial de este cliente. El bloqueo puede crearse sin esta alerta adicional.</p>
+          )}
+        </fieldset>
         <label class="field" for="security-block-reason">
           <span>Motivo interno</span>
           <textarea id="security-block-reason" name="block_reason" maxlength="500" required></textarea>
@@ -2417,6 +2534,68 @@ function observationActionValue(customer: SecurityCustomer) {
     opacity: .58;
   }
 
+  .address-watch-fieldset {
+    gap: 12px;
+  }
+
+  .address-watch-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .address-watch-head p {
+    font-size: 12px;
+  }
+
+  .address-select-all {
+    min-height: 36px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .address-watch-list {
+    display: grid;
+    gap: 8px;
+    max-height: 230px;
+    overflow: auto;
+  }
+
+  .address-watch-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 9px;
+    align-items: start;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 10px;
+  }
+
+  .address-watch-option input {
+    margin-top: 3px;
+  }
+
+  .address-watch-option span {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .address-watch-option strong {
+    overflow-wrap: anywhere;
+    color: #0f172a;
+    font-size: 13px;
+  }
+
+  .address-watch-option small {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 800;
+  }
+
   .modal-warning {
     border: 1px solid #fed7aa;
     border-radius: 8px;
@@ -2608,6 +2787,34 @@ function observationActionValue(customer: SecurityCustomer) {
     font-size: 12px;
     line-height: 1.25;
     font-weight: 800;
+  }
+
+  .main-cell small {
+    color: #94a3b8;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 780;
+    overflow-wrap: anywhere;
+  }
+
+  .visitor-name-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .visitor-customer-pill {
+    display: inline-flex;
+    align-items: center;
+    width: max-content;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534 !important;
+    padding: 4px 8px;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    font-weight: 1000 !important;
   }
 
   .ip-cell {
@@ -3352,6 +3559,8 @@ function observationActionValue(customer: SecurityCustomer) {
     setSignalState(blockCreateDialog, 'phone', phoneCount, phoneCount > 0);
     setSignalState(blockCreateDialog, 'device', deviceCount, phoneCount === 0 && deviceCount > 0);
     setSignalState(blockCreateDialog, 'ip', ipCount, phoneCount === 0 && deviceCount === 0 && ipCount > 0);
+    const addressSelectAll = blockCreateDialog.querySelector('[data-address-select-all]');
+    if (addressSelectAll instanceof HTMLButtonElement) addressSelectAll.textContent = 'Seleccionar todas';
     updateIpWarning(blockCreateDialog);
     showSecurityDialog(blockCreateDialog, trigger);
   }
@@ -3378,8 +3587,21 @@ function observationActionValue(customer: SecurityCustomer) {
     if (!(trigger instanceof HTMLElement) || !isDialogElement(manualIpBlockDialog)) return;
     closeCustomerMenu();
     closeOpenDialogs(manualIpBlockDialog);
-    setSelectValue(manualIpBlockDialog, '[name="block_scope"]', 'orders');
-    setSelectValue(manualIpBlockDialog, '[name="block_duration"]', 'hours_24');
+    if (manualIpBlockDialog.dataset.previewReady !== 'true') {
+      const visitorSessionId = trigger.dataset.visitorSessionId || '';
+      const visitorInput = manualIpBlockDialog.querySelector('[data-manual-visitor-session]');
+      const ipInput = manualIpBlockDialog.querySelector('[name="manual_ip"]');
+      const visitorNote = manualIpBlockDialog.querySelector('[data-manual-visitor-source]');
+      if (visitorInput instanceof HTMLInputElement) visitorInput.value = visitorSessionId;
+      if (ipInput instanceof HTMLInputElement) {
+        ipInput.value = '';
+        ipInput.required = !visitorSessionId;
+        ipInput.readOnly = Boolean(visitorSessionId);
+      }
+      if (visitorNote instanceof HTMLElement) visitorNote.hidden = !visitorSessionId;
+      setSelectValue(manualIpBlockDialog, '[name="block_scope"]', 'orders');
+      setSelectValue(manualIpBlockDialog, '[name="block_duration"]', 'hours_24');
+    }
     showSecurityDialog(manualIpBlockDialog, trigger);
   }
 
@@ -3478,6 +3700,24 @@ function observationActionValue(customer: SecurityCustomer) {
       return;
     }
 
+    const manualSelectAll = target.closest('[data-manual-select-all]');
+    if (manualSelectAll instanceof HTMLButtonElement && isDialogElement(manualIpBlockDialog)) {
+      const checkboxes = Array.from(manualIpBlockDialog.querySelectorAll('input[name="manual_device_session_ids"]'));
+      const shouldSelect = checkboxes.some((item) => item instanceof HTMLInputElement && !item.checked);
+      checkboxes.forEach((item) => { if (item instanceof HTMLInputElement) item.checked = shouldSelect; });
+      manualSelectAll.textContent = shouldSelect ? 'Quitar seleccion' : 'Seleccionar todos';
+      return;
+    }
+
+    const addressSelectAll = target.closest('[data-address-select-all]');
+    if (addressSelectAll instanceof HTMLButtonElement && isDialogElement(blockCreateDialog)) {
+      const checkboxes = Array.from(blockCreateDialog.querySelectorAll('[data-address-checkbox]'));
+      const shouldSelect = checkboxes.some((item) => item instanceof HTMLInputElement && !item.checked);
+      checkboxes.forEach((item) => { if (item instanceof HTMLInputElement) item.checked = shouldSelect; });
+      addressSelectAll.textContent = shouldSelect ? 'Quitar seleccion' : 'Seleccionar todas';
+      return;
+    }
+
     const blockDeviceReviewTrigger = target.closest('.block-device-review-trigger');
     if (blockDeviceReviewTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
@@ -3568,6 +3808,21 @@ function observationActionValue(customer: SecurityCustomer) {
         }
         return;
       }
+      const addressCheckboxes = Array.from(form.querySelectorAll('[data-address-checkbox]'))
+        .filter((checkbox) => checkbox instanceof HTMLInputElement);
+      addressCheckboxes.forEach((checkbox) => {
+        if (checkbox instanceof HTMLInputElement) checkbox.setCustomValidity('');
+      });
+      const hasAddress = addressCheckboxes.some((checkbox) => checkbox instanceof HTMLInputElement && checkbox.checked);
+      if (addressCheckboxes.length > 0 && !hasAddress) {
+        event.preventDefault();
+        const firstAddress = addressCheckboxes[0];
+        if (firstAddress instanceof HTMLInputElement) {
+          firstAddress.setCustomValidity('Selecciona al menos una direccion para la alerta.');
+          firstAddress.reportValidity();
+        }
+        return;
+      }
     }
     if (form.dataset.submitting === 'true') {
       event.preventDefault();
@@ -3582,4 +3837,8 @@ function observationActionValue(customer: SecurityCustomer) {
       submitter.setAttribute('aria-busy', 'true');
     }
   });
+
+  if (isDialogElement(manualIpBlockDialog) && manualIpBlockDialog.dataset.previewReady === 'true') {
+    window.requestAnimationFrame(() => showSecurityDialog(manualIpBlockDialog, null));
+  }
 </script>

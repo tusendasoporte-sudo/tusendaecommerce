@@ -74,6 +74,20 @@ No se afirma cobertura real por IP ni validación de infraestructura. Antes de a
 
 Cloudflare, Coolify, el proxy, la IP pública, los secretos y el despliegue no fueron inspeccionados ni modificados localmente.
 
+## Actualización local 2026-08-07: PZ-SEC-VPN01
+
+Después del commit base de BLOCKS03B se aprobó una extensión independiente y todavía no desplegada:
+
+- selección previa de uno, varios o todos los dispositivos históricos al crear un bloqueo manual por IP o visitante;
+- política por tienda `off` / `monitor` / `block` para VPN, proxy y Tor;
+- piloto gratuito con consulta backend, caché privada por HMAC y tienda, timeout corto y fail open;
+- respuesta pública específica `403 no-store` cuando la política bloquea una detección positiva;
+- migración aditiva, endpoints privados autenticados y auditoría crítica de cambios de política.
+
+Esta actualización no reemplaza la validación de infraestructura indicada arriba. Antes de usar `block` debe probarse primero `monitor` en staging real y confirmarse IP/proxy/cookie/origen. Tampoco cambia el estado de BLOCKS03B: permanece **EN REVISIÓN**.
+
+Reporte separado: `docs/tusenda84/reportes/PZ-SEC-VPN01-piloto-vpn-bloqueo-dispositivo.md`.
+
 ## Limpieza y control de cambios
 
 - Sin fixtures, procesos PocketBase/Node, listeners ni archivos runtime temporales al cierre.
@@ -85,3 +99,13 @@ Cloudflare, Coolify, el proxy, la IP pública, los secretos y el despliegue no f
 - PZ-SEC-BLOCKS03B: **EN REVISIÓN**, pendiente de staging y confirmación explícita de Kraken.
 - S7P3: **EN REVISIÓN**, con 17 bloques manuales pendientes y sin cierre de Kraken.
 - P7D4, P7X5 y Q7F6: pendientes, sin cambios funcionales en este alcance.
+
+## Anexo posterior 2026-08-07: PZ-SEC-ADDR01
+
+Se añadió localmente una extensión privada de revisión: al crear un bloqueo de cliente, el administrador selecciona una, varias o todas las direcciones históricas válidas; un pedido posterior con coincidencia exacta normalizada genera evento y notificación para revisión.
+
+La dirección no se incorporó al motor de denegación de BLOCKS03B. No bloquea acceso, checkout ni pedido, no cancela órdenes y no fusiona identidades. La nueva colección conserva HMAC por tienda y no copia la dirección legible a eventos o notificaciones.
+
+Reporte: `docs/tusenda84/reportes/PZ-SEC-ADDR01-alertas-direccion-cliente-bloqueado.md`.
+
+BLOCKS03B permanece **EN REVISIÓN**. Staging real, la validación de infraestructura y la confirmación explícita de Kraken continúan pendientes.

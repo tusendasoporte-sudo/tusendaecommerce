@@ -10,6 +10,8 @@ const REQUIRED_COLLECTIONS = [
   "store_security_events",
   "store_visitor_sessions",
   "store_visitor_pageviews",
+  "store_security_ip_reputation_cache",
+  "store_security_block_addresses",
 ];
 const RUNTIME_LOG_MESSAGES = {
   PZ_SEC_RUNTIME_READY: "PowerZona security runtime ready.",
@@ -90,12 +92,18 @@ function buildSecurityHealth(app) {
   const securityEventsReady = Boolean(findCollectionSafe(app, "store_security_events"));
   const visitorSessionsReady = Boolean(findCollectionSafe(app, "store_visitor_sessions"));
   const visitorPageviewsReady = Boolean(findCollectionSafe(app, "store_visitor_pageviews"));
+  const ipReputationReady = Boolean(findCollectionSafe(app, "store_security_ip_reputation_cache"))
+    && collectionHasField(app, "store_security_settings", "vpn_policy");
+  const addressAlertsReady = Boolean(findCollectionSafe(app, "store_security_block_addresses"));
   const ordersIdentityFieldsReady = collectionHasField(app, "orders", "customer")
     && collectionHasField(app, "orders", "security_registered_at");
 
   const identityCollectionsReady = securitySettingsReady && customersReady && securityEventsReady;
   const visitorCollectionsReady = visitorSessionsReady && visitorPageviewsReady;
-  const schemaReady = hasCollections(app, REQUIRED_COLLECTIONS) && ordersIdentityFieldsReady;
+  const schemaReady = hasCollections(app, REQUIRED_COLLECTIONS)
+    && ordersIdentityFieldsReady
+    && ipReputationReady
+    && addressAlertsReady;
   const fullIpRequired = hasActiveFullIpSecuritySettings(app);
   const fullIpReady = fullIpRequired ? Boolean(secrets.hmac_ready && secrets.aes_ready) : true;
 
@@ -110,6 +118,8 @@ function buildSecurityHealth(app) {
     security_events_ready: securityEventsReady,
     visitor_sessions_ready: visitorSessionsReady,
     visitor_pageviews_ready: visitorPageviewsReady,
+    ip_reputation_ready: ipReputationReady,
+    address_alerts_ready: addressAlertsReady,
     identity_collections_ready: identityCollectionsReady,
     visitor_collections_ready: visitorCollectionsReady,
     orders_identity_fields_ready: ordersIdentityFieldsReady,
@@ -129,6 +139,8 @@ function logSecurityRuntimeStatus(app) {
         && health.security_events_ready
         && health.visitor_sessions_ready
         && health.visitor_pageviews_ready
+        && health.ip_reputation_ready
+        && health.address_alerts_ready
         && health.orders_identity_fields_ready
     );
     let code = "PZ_SEC_RUNTIME_READY";
@@ -182,6 +194,8 @@ function handleSecurityHealth(e) {
       security_events_ready: false,
       visitor_sessions_ready: false,
       visitor_pageviews_ready: false,
+      ip_reputation_ready: false,
+      address_alerts_ready: false,
       identity_collections_ready: false,
       visitor_collections_ready: false,
       orders_identity_fields_ready: false,

@@ -1356,6 +1356,13 @@ function registerOrderSecurityIdentity(orderId, receiptToken, browserTokenDigest
       browserTokenHmac,
       ipCapture
     );
+    securityMonitoring.recordBlockedAddressMatchForOrder(
+      txApp,
+      txOrder,
+      customer,
+      txSettings,
+      secret
+    );
     try {
       securityMonitoring.linkVisitorSessionToCustomerByBrowserToken(
         txApp,

@@ -27,15 +27,19 @@ const STORE_CUSTOMER_LINKS_COLLECTION = "store_customer_links";
 const STORE_SECURITY_AUDIT_COLLECTION = "store_security_audit";
 const STORE_SECURITY_BLOCKS_COLLECTION = "store_security_blocks";
 const STORE_SECURITY_BLOCK_DEVICE_CANDIDATES_COLLECTION = "store_security_block_device_candidates";
+const STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION = "store_security_block_addresses";
+const STORE_NOTIFICATIONS_COLLECTION = "store_notifications";
+const SHIPPING_ZONES_COLLECTION = "shipping_zones";
 const STORES_COLLECTION = "stores";
 const ORDERS_COLLECTION = "orders";
 const CUSTOMER_DETAIL_PER_PAGE = 10;
+const VISITOR_CUSTOMER_ORDERS_PER_PAGE = 5;
 const CUSTOMER_DETAIL_MAX_PAGE = 1000;
 const SECURITY_BLOCKS_PER_PAGE = 10;
 const SECURITY_MONITORING_PAGE_SIZE = 10;
 
 const ALLOWED_PAGE_TYPES = ["store_home", "category", "subcategory", "product", "gifts", "search", "checkout", "landing_qr", "other"];
-const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "admin_action"];
+const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
 const SECURITY_ACTIVITY_RISK_LEVELS = ["all", "normal", "suspicious", "blocked"];
 const RESOLVE_SOURCES = ["security_event", "visitor_session", "visitor_pageview"];
 const SECURITY_BLOCK_SCOPES = ["orders", "reviews", "raffles", "all_interactions", "full_access"];
@@ -55,6 +59,7 @@ const SECURITY_ACTIVITY_SUMMARIES = Object.freeze({
   block_device_candidate_detected: "Dispositivo pendiente detectado para un bloqueo",
   block_device_candidate_confirmed: "Dispositivo agregado al bloqueo",
   block_device_candidate_dismissed: "Dispositivo pendiente descartado",
+  vpn_policy_updated: "Política de VPN actualizada",
   ip_information_revealed: "Información protegida revelada de forma autorizada",
   security_customer_identity_merged: "Identidades de Seguridad consolidadas",
 });
@@ -68,6 +73,7 @@ const LOG_MESSAGES = {
   PZ_SEC_HMAC_SECRET_INVALID: "PowerZona security monitoring skipped identity write.",
   PZ_SEC_CUSTOMER_DETAIL_ORDERS_FAILED: "PowerZona security customer detail orders failed safely.",
   PZ_SEC_CUSTOMER_DETAIL_EVENTS_FAILED: "PowerZona security customer detail events failed safely.",
+  PZ_SEC_CUSTOMER_DETAIL_ADDRESSES_FAILED: "PowerZona security customer detail addresses failed safely.",
   PZ_SEC_CUSTOMER_DETAIL_FAILED: "PowerZona security customer detail failed safely.",
   PZ_SEC_SUMMARY_FAILED: "PowerZona security summary failed safely.",
   PZ_SEC_CUSTOMER_ARCHIVE_FAILED: "PowerZona security customer archive failed safely.",
@@ -79,10 +85,13 @@ const LOG_MESSAGES = {
   PZ_SEC_BLOCK_DEVICE_CANDIDATE_SKIPPED: "PowerZona security block device candidate write skipped safely.",
   PZ_SEC_BLOCK_EXPIRE_FAILED: "PowerZona security block expiry failed safely.",
   PZ_SEC_BLOCK_LIST_FAILED: "PowerZona security block list failed safely.",
+  PZ_SEC_VPN_POLICY_UPDATE_FAILED: "PowerZona VPN policy update failed safely.",
+  PZ_SEC_MANUAL_IP_DEVICE_LOOKUP_FAILED: "PowerZona manual IP device lookup failed safely.",
   PZ_SEC_WATCH_UPDATE_FAILED: "PowerZona security customer watch update failed safely.",
   PZ_SEC_ACTIVITY_PAGE_FAILED: "PowerZona security activity page failed safely.",
   PZ_SEC_VISITORS_PAGE_FAILED: "PowerZona security visitors page failed safely.",
   PZ_SEC_VISITOR_DETAIL_FAILED: "PowerZona security visitor detail failed safely.",
+  PZ_SEC_ADDRESS_MATCH_WRITE_SKIPPED: "PowerZona security address match alert skipped safely.",
 };
 
 function logSecurity(level, code, key, value) {
@@ -231,6 +240,30 @@ function normalizeSearchTerm(value) {
 
 function hmacValue(domain, storeId, value, secret) {
   return $security.hs256(`${domain}|${storeId}|${value}`, secret);
+}
+
+function normalizeDeliveryAddressPart(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[áàâäãå]/g, "a")
+    .replace(/[éèêë]/g, "e")
+    .replace(/[íìîï]/g, "i")
+    .replace(/[óòôöõ]/g, "o")
+    .replace(/[úùûü]/g, "u")
+    .replace(/ñ/g, "n")
+    .replace(/#/g, " numero ")
+    .replace(/\b(?:nro|num|numero|no)\.?\b/g, " numero ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+}
+
+function deliveryAddressFingerprint(municipality, address) {
+  const normalizedMunicipality = normalizeDeliveryAddressPart(municipality);
+  const normalizedAddress = normalizeDeliveryAddressPart(address);
+  if (normalizedMunicipality.length < 2 || normalizedAddress.length < 5) return "";
+  return `${normalizedMunicipality}|${normalizedAddress}`;
 }
 
 function findFirstByFilter(app, collection, filter, params) {
@@ -946,17 +979,22 @@ function emptyDetailPage(page) {
 }
 
 function listDetailPage(app, collection, filter, sort, page, params) {
+  return listDetailPageWithSize(app, collection, filter, sort, page, params, CUSTOMER_DETAIL_PER_PAGE);
+}
+
+function listDetailPageWithSize(app, collection, filter, sort, page, params, perPage) {
   const totalItems = countRecordsByFilter(app, collection, filter, params);
-  const totalPages = Math.max(1, Math.ceil(totalItems / CUSTOMER_DETAIL_PER_PAGE));
+  const safePerPage = Math.max(1, Number(perPage) || CUSTOMER_DETAIL_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePerPage));
   const safePage = Math.min(page, totalPages);
-  const offset = (safePage - 1) * CUSTOMER_DETAIL_PER_PAGE;
+  const offset = (safePage - 1) * safePerPage;
   const items = totalItems > 0
-    ? app.findRecordsByFilter(collection, filter, sort, CUSTOMER_DETAIL_PER_PAGE, offset, params || {}) || []
+    ? app.findRecordsByFilter(collection, filter, sort, safePerPage, offset, params || {}) || []
     : [];
 
   return {
     page: safePage,
-    perPage: CUSTOMER_DETAIL_PER_PAGE,
+    perPage: safePerPage,
     totalItems,
     totalPages,
     items,
@@ -972,6 +1010,36 @@ function serializeOrder(order) {
     usd_total: getNumber(order, "usd_total"),
     delivery_method: getString(order, "delivery_method"),
     created: getString(order, "created"),
+  };
+}
+
+function emptyVisitorCustomerOrdersPage(page) {
+  return {
+    page,
+    perPage: VISITOR_CUSTOMER_ORDERS_PER_PAGE,
+    totalItems: 0,
+    totalPages: 1,
+    items: [],
+  };
+}
+
+function buildVisitorCustomerOrdersDetail(app, storeId, customerId, page) {
+  if (!customerId) return emptyVisitorCustomerOrdersPage(page);
+  const result = listDetailPageWithSize(
+    app,
+    ORDERS_COLLECTION,
+    "store = {:store} && customer = {:customer}",
+    "-created",
+    page,
+    { store: storeId, customer: customerId },
+    VISITOR_CUSTOMER_ORDERS_PER_PAGE
+  );
+  return {
+    page: result.page,
+    perPage: result.perPage,
+    totalItems: result.totalItems,
+    totalPages: result.totalPages,
+    items: result.items.map(serializeOrder),
   };
 }
 
@@ -1140,13 +1208,14 @@ function parseVisitorsPagePayload(body) {
 }
 
 function parseVisitorDetailPayload(body) {
-  const allowed = ["store_id", "visitor_session_id", "page"];
+  const allowed = ["store_id", "visitor_session_id", "page", "orders_page"];
   if (!hasExactKeys(body, allowed)) return null;
   const storeId = String(getBodyValue(body, "store_id") || "").trim();
   const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
   const page = normalizePositivePage(getBodyValue(body, "page"));
-  if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId) || !page) return null;
-  return { storeId, visitorSessionId, page };
+  const ordersPage = normalizePositivePage(getBodyValue(body, "orders_page"));
+  if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId) || !page || !ordersPage) return null;
+  return { storeId, visitorSessionId, page, ordersPage };
 }
 
 function listSecurityPage(app, collection, filter, sort, page, params) {
@@ -1189,6 +1258,8 @@ function buildSanitizedCustomerMap(app, storeId, customerIds) {
       id: customer.id,
       display_name: getString(customer, "display_name"),
       primary_phone: primaryPhones[customer.id] || getString(customer, "phone_normalized"),
+      status: getString(customer, "status") || "normal",
+      orders_count: Math.max(0, getNumber(customer, "orders_count")),
     };
   });
   return customerMap;
@@ -1391,7 +1462,8 @@ function handleSecurityVisitorDetail(e) {
     if (!visitor || getRelationId(visitor, "store") !== payload.storeId) {
       return e.json(404, { ok: false, error: "not_found" });
     }
-    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, [getRelationId(visitor, "customer")]);
+    const customerId = getRelationId(visitor, "customer");
+    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, [customerId]);
     const pageviews = listSecurityPage(
       $app,
       VISITOR_PAGEVIEWS_COLLECTION,
@@ -1401,9 +1473,21 @@ function handleSecurityVisitorDetail(e) {
       { store: payload.storeId, visitorSession: visitor.id }
     );
     const labels = buildPageviewLabelMaps($app, payload.storeId, pageviews.items);
+    let orders = emptyVisitorCustomerOrdersPage(payload.ordersPage);
+    let ordersError = false;
+    if (customerId) {
+      try {
+        orders = buildVisitorCustomerOrdersDetail($app, payload.storeId, customerId, payload.ordersPage);
+      } catch (_) {
+        ordersError = true;
+        logSecurity("error", "PZ_SEC_VISITOR_CUSTOMER_ORDERS_FAILED");
+      }
+    }
     return e.json(200, {
       ok: true,
       visitor: serializeVisitorSession(visitor, access.settings, customerMap),
+      orders,
+      orders_error: ordersError,
       pageviews: {
         page: pageviews.page,
         perPage: pageviews.perPage,
@@ -2081,6 +2165,7 @@ function handleCustomerDetail(e) {
       block_history_summary: buildBlockHistorySummary($app, storeId, canonicalCustomerId),
       block_capabilities: blockCapabilities(settings),
       available_signals: availableSignalsFromSnapshot(signalSnapshot),
+      address_candidates: [],
       identity_warnings: buildIdentityWarnings(phones, devices, linksSummary),
       orders_error: false,
       events_error: false,
@@ -2098,6 +2183,13 @@ function handleCustomerDetail(e) {
     } catch (_) {
       response.events_error = true;
       logSecurity("error", "PZ_SEC_CUSTOMER_DETAIL_EVENTS_FAILED");
+    }
+
+    try {
+      response.address_candidates = buildCustomerAddressCandidates($app, storeId, canonicalCustomerId)
+        .map(serializeAddressCandidate);
+    } catch (_) {
+      logSecurity("error", "PZ_SEC_CUSTOMER_DETAIL_ADDRESSES_FAILED");
     }
 
     return e.json(200, response);
@@ -2180,6 +2272,7 @@ function createSecurityAudit(app, storeId, action, actorId, subjectRecordId, rea
     block_device_candidate_detected: { field: "device_review_state", previous: "none", next: "pending" },
     block_device_candidate_confirmed: { field: "device_review_state", previous: "pending", next: "confirmed" },
     block_device_candidate_dismissed: { field: "device_review_state", previous: "pending", next: "dismissed" },
+    vpn_policy_updated: { field: "vpn_policy", previous: "previous", next: "updated" },
     ip_information_revealed: { field: "protected_information_access", previous: "protected", next: "revealed_authorized" },
     security_customer_identity_merged: { field: "customer_identity_state", previous: "separate", next: "merged" },
   };
@@ -2226,6 +2319,214 @@ function collectCanonicalAndAliasIds(app, storeId, canonicalId) {
   }
 
   return ids;
+}
+
+function getOrderAddressCandidate(app, storeId, order) {
+  if (!order || getRelationId(order, "store") !== storeId) return null;
+  if (getString(order, "delivery_method") !== "delivery") return null;
+  const addressDisplay = limitText(getString(order, "customer_address"), 300);
+  const zoneId = getRelationId(order, "shipping_zone");
+  const zone = zoneId ? findRecordByIdSafe(app, SHIPPING_ZONES_COLLECTION, zoneId) : null;
+  if (!zone || getRelationId(zone, "store") !== storeId) return null;
+  const municipalityDisplay = limitText(getString(zone, "municipality") || getString(zone, "zone"), 160);
+  const fingerprint = deliveryAddressFingerprint(municipalityDisplay, addressDisplay);
+  if (!fingerprint) return null;
+  return {
+    order_id: order.id,
+    address_display: addressDisplay,
+    municipality_display: municipalityDisplay,
+    last_used_at: getString(order, "created"),
+    uses_count: 1,
+    preselected: false,
+    fingerprint,
+  };
+}
+
+function buildCustomerAddressCandidates(app, storeId, canonicalCustomerId) {
+  if (!findCollectionSafe(app, ORDERS_COLLECTION) || !findCollectionSafe(app, SHIPPING_ZONES_COLLECTION)) return [];
+  const customerIds = collectCanonicalAndAliasIds(app, storeId, canonicalCustomerId);
+  const orders = listByStoreRelation(app, ORDERS_COLLECTION, storeId, "customer", customerIds, "-created");
+  orders.sort((left, right) => getString(right, "created").localeCompare(getString(left, "created")));
+  const byFingerprint = {};
+  const candidates = [];
+  orders.forEach((order) => {
+    const candidate = getOrderAddressCandidate(app, storeId, order);
+    if (!candidate) return;
+    const existing = byFingerprint[candidate.fingerprint];
+    if (existing) {
+      existing.uses_count += 1;
+      return;
+    }
+    byFingerprint[candidate.fingerprint] = candidate;
+    candidates.push(candidate);
+  });
+  if (candidates.length) candidates[0].preselected = true;
+  return candidates.slice(0, 50);
+}
+
+function serializeAddressCandidate(candidate) {
+  return {
+    order_id: candidate.order_id,
+    address_display: candidate.address_display,
+    municipality_display: candidate.municipality_display,
+    last_used_at: candidate.last_used_at,
+    uses_count: candidate.uses_count,
+    preselected: candidate.preselected === true,
+  };
+}
+
+function selectedAddressSignals(app, storeId, canonicalCustomerId, orderIds, secret) {
+  if (!Array.isArray(orderIds) || orderIds.length > 50) return { error: "address_order_ids" };
+  if (orderIds.some((id) => !isValidRecordId(id))) return { error: "address_order_ids" };
+  const selectedIds = uniqueIds(orderIds);
+  const candidates = buildCustomerAddressCandidates(app, storeId, canonicalCustomerId);
+  if (!selectedIds.length) return candidates.length ? { error: "address_order_ids" } : { values: [] };
+  if (!secret || !findCollectionSafe(app, STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION)) {
+    return { error: "address_alerts_unavailable" };
+  }
+  const byOrderId = {};
+  candidates.forEach((candidate) => { byOrderId[candidate.order_id] = candidate; });
+  const values = [];
+  selectedIds.forEach((orderId) => {
+    const candidate = byOrderId[orderId];
+    if (!candidate) return;
+    values.push({
+      sourceOrderId: orderId,
+      addressHmac: hmacValue("delivery_address", storeId, candidate.fingerprint, secret),
+    });
+  });
+  if (values.length !== selectedIds.length) return { error: "address_order_ids" };
+  return { values };
+}
+
+function createBlockAddressSignals(app, storeId, block, customerId, values) {
+  if (!values || !values.length) return 0;
+  const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION);
+  values.forEach((value) => {
+    const record = new Record(collection, {});
+    record.set("store", storeId);
+    record.set("block", block.id);
+    record.set("source_customer", customerId);
+    record.set("source_order", value.sourceOrderId);
+    record.set("address_hmac", value.addressHmac);
+    record.set("normalization_version", "v1");
+    app.save(record);
+  });
+  return values.length;
+}
+
+function isBlockActiveAt(block, now) {
+  if (!block || getString(block, "status") !== "active") return false;
+  const expiresAt = getString(block, "expires_at");
+  if (!expiresAt) return true;
+  const expiresMs = new Date(expiresAt).getTime();
+  return Number.isFinite(expiresMs) && expiresMs > now.getTime();
+}
+
+function createAddressMatchEvent(app, storeId, order, customerId, settings, block, now) {
+  const eventKey = `blocked_address_match:${order.id}:${block.id}`;
+  const existing = findFirstByFilter(app, SECURITY_EVENTS_COLLECTION, "event_key = {:eventKey}", { eventKey });
+  if (existing) return existing;
+  const collection = app.findCollectionByNameOrId(SECURITY_EVENTS_COLLECTION);
+  const event = new Record(collection, {});
+  event.set("store", storeId);
+  if (customerId) event.set("customer", customerId);
+  event.set("order", order.id);
+  event.set("event_key", eventKey);
+  event.set("event_type", "blocked_address_match");
+  event.set("source_type", "order");
+  event.set("risk_level", "suspicious");
+  event.set("decision", "monitored");
+  event.set("mode_at_event", getString(settings, "mode") === "protection" ? "protection" : "monitoring");
+  event.set("ip_family", "unknown");
+  event.set("capture_status", "unavailable");
+  event.set("crypto_version", "v1");
+  event.set("metadata_json", { matched_block_id: block.id, match_type: "delivery_address_exact_v1" });
+  event.set("occurred_at", now.toISOString());
+  try {
+    app.save(event);
+    return event;
+  } catch (error) {
+    const raced = findFirstByFilter(app, SECURITY_EVENTS_COLLECTION, "event_key = {:eventKey}", { eventKey });
+    if (raced) return raced;
+    throw error;
+  }
+}
+
+function createAddressMatchNotification(app, storeId, order, store, events, blocks) {
+  if (!events.length || !findCollectionSafe(app, STORE_NOTIFICATIONS_COLLECTION)) return null;
+  const existing = findFirstByFilter(
+    app,
+    STORE_NOTIFICATIONS_COLLECTION,
+    'store = {:store} && type = "security_address_match" && entity_collection = "orders" && entity_id = {:order}',
+    { store: storeId, order: order.id }
+  );
+  if (existing) return existing;
+  const notification = new Record(app.findCollectionByNameOrId(STORE_NOTIFICATIONS_COLLECTION), {});
+  notification.set("store", storeId);
+  notification.set("type", "security_address_match");
+  notification.set("title", "Dirección vinculada a un cliente bloqueado");
+  notification.set("message", `El pedido ${getString(order, "order_number") || order.id} necesita revisión de Seguridad.`);
+  notification.set("status", "unread");
+  notification.set("priority", "important");
+  notification.set("target_url", `/t/${getString(store, "slug")}/admin/orders/${order.id}`);
+  notification.set("entity_collection", "orders");
+  notification.set("entity_id", order.id);
+  notification.set("metadata_json", {
+    match_type: "delivery_address_exact_v1",
+    security_event_ids: uniqueIds(events.map((event) => event.id)),
+    matched_block_ids: uniqueIds(blocks.map((block) => block.id)),
+  });
+  try {
+    app.save(notification);
+    return notification;
+  } catch (error) {
+    const raced = findFirstByFilter(
+      app,
+      STORE_NOTIFICATIONS_COLLECTION,
+      'store = {:store} && type = "security_address_match" && entity_collection = "orders" && entity_id = {:order}',
+      { store: storeId, order: order.id }
+    );
+    if (raced) return raced;
+    throw error;
+  }
+}
+
+function recordBlockedAddressMatchForOrder(app, order, customer, settings, secret) {
+  try {
+    if (!app || !order || !secret || !findCollectionSafe(app, STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION)) {
+      return { matched: false, event_count: 0 };
+    }
+    const storeId = getRelationId(order, "store");
+    const address = getOrderAddressCandidate(app, storeId, order);
+    if (!storeId || !address) return { matched: false, event_count: 0 };
+    const addressHmac = hmacValue("delivery_address", storeId, address.fingerprint, secret);
+    const storedAddresses = listRecordsPaged(
+      app,
+      STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION,
+      "store = {:store} && address_hmac = {:addressHmac}",
+      "-created",
+      { store: storeId, addressHmac },
+      100
+    );
+    if (!storedAddresses.length) return { matched: false, event_count: 0 };
+    const now = new Date();
+    const blocks = [];
+    storedAddresses.forEach((stored) => {
+      const block = findRecordByIdSafe(app, STORE_SECURITY_BLOCKS_COLLECTION, getRelationId(stored, "block"));
+      if (!block || getRelationId(block, "store") !== storeId || !isBlockActiveAt(block, now)) return;
+      if (!blocks.some((item) => item.id === block.id)) blocks.push(block);
+    });
+    if (!blocks.length) return { matched: false, event_count: 0 };
+    const customerId = customer && getRelationId(customer, "store") === storeId ? customer.id : getRelationId(order, "customer");
+    const events = blocks.map((block) => createAddressMatchEvent(app, storeId, order, customerId, settings, block, now));
+    const store = findRecordByIdSafe(app, STORES_COLLECTION, storeId);
+    if (store) createAddressMatchNotification(app, storeId, order, store, events, blocks);
+    return { matched: true, event_count: events.length };
+  } catch (_) {
+    logSecurity("warn", "PZ_SEC_ADDRESS_MATCH_WRITE_SKIPPED");
+    return { matched: false, event_count: 0 };
+  }
 }
 
 function uniqueRecords(records) {
@@ -2383,7 +2684,7 @@ function boolBodyValue(body, key) {
 }
 
 function parseBlockCreatePayload(body) {
-  const allowed = ["store_id", "customer_id", "action", "scope", "duration", "match_phone", "match_device", "match_ip", "match_mode", "reason"];
+  const allowed = ["store_id", "customer_id", "action", "scope", "duration", "match_phone", "match_device", "match_ip", "match_mode", "address_order_ids", "reason"];
   const keys = getBodyKeys(body);
   if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
 
@@ -2396,6 +2697,7 @@ function parseBlockCreatePayload(body) {
   const matchDevice = boolBodyValue(body, "match_device");
   const matchIp = boolBodyValue(body, "match_ip");
   const matchMode = String(getBodyValue(body, "match_mode") || "").trim();
+  const addressOrderIds = bodyRecordIds(getBodyValue(body, "address_order_ids"));
   const reason = sanitizeLifecycleReason(getBodyValue(body, "reason"));
 
   if (!isValidRecordId(storeId)) return { error: "store_id" };
@@ -2406,12 +2708,28 @@ function parseBlockCreatePayload(body) {
   if (matchPhone === null || matchDevice === null || matchIp === null) return { error: "signals" };
   if (!matchPhone && !matchDevice && !matchIp) return { error: "signals" };
   if (!SECURITY_BLOCK_MATCH_MODES.includes(matchMode)) return { error: "match_mode" };
+  if (!addressOrderIds) return { error: "address_order_ids" };
   if (!reason) return { error: "reason" };
-  return { storeId, customerId, action, scope, duration, matchPhone, matchDevice, matchIp, matchMode, reason };
+  return { storeId, customerId, action, scope, duration, matchPhone, matchDevice, matchIp, matchMode, addressOrderIds, reason };
+}
+
+function bodyRecordIds(value) {
+  let items = value;
+  if (!Array.isArray(items)) {
+    try { items = JSON.parse(String(value || "[]")); } catch (_) { items = []; }
+  }
+  if (!Array.isArray(items) || items.length > 50) return null;
+  const result = [];
+  for (const item of items) {
+    const id = String(item || "").trim();
+    if (!isValidRecordId(id)) return null;
+    if (!result.includes(id)) result.push(id);
+  }
+  return result;
 }
 
 function parseManualIpBlockCreatePayload(body) {
-  const allowed = ["store_id", "action", "scope", "duration", "ip", "review_devices", "reason"];
+  const allowed = ["store_id", "action", "scope", "duration", "ip", "visitor_session_id", "device_session_ids", "reason"];
   const keys = getBodyKeys(body);
   if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
 
@@ -2419,18 +2737,48 @@ function parseManualIpBlockCreatePayload(body) {
   const action = String(getBodyValue(body, "action") || "").trim();
   const scope = String(getBodyValue(body, "scope") || "").trim();
   const duration = String(getBodyValue(body, "duration") || "").trim();
-  const normalizedIp = normalizeIpAddress(getBodyValue(body, "ip"));
-  const reviewDevices = boolBodyValue(body, "review_devices");
+  const ipValue = String(getBodyValue(body, "ip") || "").trim();
+  const normalizedIp = normalizeIpAddress(ipValue);
+  const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
+  const deviceSessionIds = bodyRecordIds(getBodyValue(body, "device_session_ids"));
   const reason = sanitizeLifecycleReason(getBodyValue(body, "reason"));
 
   if (!isValidRecordId(storeId)) return { error: "store_id" };
   if (action !== "create_manual_ip") return { error: "action" };
   if (!SECURITY_BLOCK_SCOPES.includes(scope)) return { error: "scope" };
   if (!SECURITY_BLOCK_DURATIONS.includes(duration)) return { error: "duration" };
-  if (!normalizedIp.valid || !isPublicIpAddress(normalizedIp)) return { error: "ip" };
-  if (reviewDevices === null) return { error: "review_devices" };
+  if (Boolean(ipValue) === Boolean(visitorSessionId)) return { error: "ip_source" };
+  if (ipValue && (!normalizedIp.valid || !isPublicIpAddress(normalizedIp))) return { error: "ip" };
+  if (visitorSessionId && !isValidRecordId(visitorSessionId)) return { error: "visitor_session_id" };
+  if (deviceSessionIds === null) return { error: "device_session_ids" };
   if (!reason) return { error: "reason" };
-  return { storeId, action, scope, duration, normalizedIp, reviewDevices, reason };
+  return { storeId, action, scope, duration, normalizedIp, visitorSessionId, deviceSessionIds, reason };
+}
+
+function parseManualIpDeviceLookupPayload(body) {
+  const allowed = ["store_id", "ip", "visitor_session_id"];
+  const keys = getBodyKeys(body);
+  if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const ipValue = String(getBodyValue(body, "ip") || "").trim();
+  const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
+  const normalizedIp = normalizeIpAddress(ipValue);
+  if (!isValidRecordId(storeId)) return { error: "store_id" };
+  if (Boolean(ipValue) === Boolean(visitorSessionId)) return { error: "ip_source" };
+  if (ipValue && (!normalizedIp.valid || !isPublicIpAddress(normalizedIp))) return { error: "ip" };
+  if (visitorSessionId && !isValidRecordId(visitorSessionId)) return { error: "visitor_session_id" };
+  return { storeId, normalizedIp, visitorSessionId };
+}
+
+function parseVpnPolicyPayload(body) {
+  const allowed = ["store_id", "vpn_policy"];
+  const keys = getBodyKeys(body);
+  if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
+  const storeId = String(getBodyValue(body, "store_id") || "").trim();
+  const policy = String(getBodyValue(body, "vpn_policy") || "").trim();
+  if (!isValidRecordId(storeId)) return { error: "store_id" };
+  if (!["off", "monitor", "block"].includes(policy)) return { error: "vpn_policy" };
+  return { storeId, policy };
 }
 
 function parseBlockRevokePayload(body) {
@@ -2515,6 +2863,78 @@ function hasOverlappingActiveIpBlock(app, storeId, scope, ipHmac) {
     && uniqueHmacValues(getStringArray(block, "ip_hmac_values")).includes(ipHmac));
 }
 
+function captureFromVisitorSession(session) {
+  return {
+    ip_hmac: getString(session, "latest_ip_hmac"),
+    ip_masked: getString(session, "latest_ip_masked"),
+    ip_encrypted: getString(session, "latest_ip_encrypted"),
+    ip_family: getString(session, "latest_ip_family") || "unknown",
+    capture_status: getString(session, "latest_capture_status") || "partial",
+  };
+}
+
+function resolveManualIpSource(app, parsed, settings, secret) {
+  if (parsed.visitorSessionId) {
+    const session = findRecordByIdSafe(app, VISITOR_SESSIONS_COLLECTION, parsed.visitorSessionId);
+    if (!session || getRelationId(session, "store") !== parsed.storeId) return { error: "visitor_not_found" };
+    const capture = captureFromVisitorSession(session);
+    if (!isValidHmacValue(capture.ip_hmac)) return { error: "visitor_ip_unavailable" };
+    return { capture, sourceSession: session };
+  }
+  const capture = buildIpCapture(parsed.normalizedIp, parsed.storeId, settings, secret);
+  return isValidHmacValue(capture.ip_hmac)
+    ? { capture, sourceSession: null }
+    : { error: "security_secret_unavailable" };
+}
+
+function manualIpDeviceCandidates(app, storeId, ipHmac, sourceSession) {
+  if (!isValidHmacValue(ipHmac)) return [];
+  const sessions = listRecordsPaged(
+    app,
+    VISITOR_SESSIONS_COLLECTION,
+    "store = {:store} && latest_ip_hmac = {:ipHmac}",
+    "-last_seen_at,-id",
+    { store: storeId, ipHmac },
+    200
+  );
+  const sourceDevice = sourceSession ? getString(sourceSession, "browser_token_hmac") : "";
+  const seen = {};
+  const candidates = [];
+  sessions.forEach((session) => {
+    const deviceHmac = getString(session, "browser_token_hmac");
+    if (!isValidHmacValue(deviceHmac) || seen[deviceHmac] || candidates.length >= 50) return;
+    seen[deviceHmac] = true;
+    candidates.push({
+      session_id: session.id,
+      device_hmac: deviceHmac,
+      last_seen_at: getString(session, "last_seen_at"),
+      preselected: Boolean(sourceDevice && sourceDevice === deviceHmac),
+    });
+  });
+  return candidates;
+}
+
+function selectedManualDeviceHmacs(candidates, selectedSessionIds) {
+  const bySession = {};
+  candidates.forEach((candidate) => { bySession[candidate.session_id] = candidate.device_hmac; });
+  const result = [];
+  for (const sessionId of selectedSessionIds || []) {
+    const deviceHmac = bySession[sessionId];
+    if (!isValidHmacValue(deviceHmac)) return { error: "device_session_ids" };
+    if (!result.includes(deviceHmac)) result.push(deviceHmac);
+  }
+  return { values: result };
+}
+
+function serializeManualIpDeviceCandidates(candidates) {
+  return (candidates || []).map((candidate, index) => ({
+    session_id: candidate.session_id,
+    label: `Dispositivo observado ${index + 1}`,
+    last_seen_at: candidate.last_seen_at,
+    preselected: candidate.preselected === true,
+  }));
+}
+
 function createSecurityBlockRecord(app, storeId, customer, actorId, parsed, signals) {
   const now = new Date();
   const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCKS_COLLECTION);
@@ -2539,8 +2959,9 @@ function createSecurityBlockRecord(app, storeId, customer, actorId, parsed, sign
   return block;
 }
 
-function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture) {
+function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture, deviceHmacs) {
   const now = new Date();
+  const selectedDevices = uniqueHmacValues(deviceHmacs || []);
   const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCKS_COLLECTION);
   const block = new Record(collection, {});
   block.set("store", storeId);
@@ -2548,11 +2969,11 @@ function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture) {
   block.set("scope", parsed.scope);
   block.set("status", "active");
   block.set("match_phone", false);
-  block.set("match_device", false);
+  block.set("match_device", selectedDevices.length > 0);
   block.set("match_ip", true);
   block.set("match_mode", "any");
   block.set("phone_hmac_values", []);
-  block.set("device_hmac_values", []);
+  block.set("device_hmac_values", selectedDevices);
   block.set("ip_hmac_values", [ipCapture.ip_hmac]);
   block.set("duration", parsed.duration);
   block.set("starts_at", now.toISOString());
@@ -2563,7 +2984,7 @@ function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture) {
   block.set("manual_ip_encrypted", ipCapture.ip_encrypted || "");
   block.set("manual_ip_family", ipCapture.ip_family || "unknown");
   block.set("manual_ip_capture_status", ipCapture.capture_status || "partial");
-  block.set("review_device_candidates", parsed.reviewDevices === true);
+  block.set("review_device_candidates", true);
   if (actorId) block.set("created_by", actorId);
   app.save(block);
   return block;
@@ -2703,26 +3124,124 @@ function handleManualIpBlockCreate(e, auth, parsed) {
 
   const secret = getValidHmacSecret();
   if (!secret) return e.json(503, { ok: false, error: "security_secret_unavailable" });
-  const ipCapture = buildIpCapture(parsed.normalizedIp, parsed.storeId, settings, secret);
-  if (!isValidHmacValue(ipCapture.ip_hmac)) {
-    return e.json(503, { ok: false, error: "security_secret_unavailable" });
-  }
+  const source = resolveManualIpSource($app, parsed, settings, secret);
+  if (source.error === "visitor_not_found") return e.json(404, { ok: false, error: "not_found" });
+  if (source.error === "visitor_ip_unavailable") return e.json(409, { ok: false, error: source.error });
+  if (source.error) return e.json(503, { ok: false, error: source.error });
 
   let result = null;
   $app.runInTransaction((txApp) => {
-    if (hasOverlappingActiveIpBlock(txApp, parsed.storeId, parsed.scope, ipCapture.ip_hmac)) {
+    if (hasOverlappingActiveIpBlock(txApp, parsed.storeId, parsed.scope, source.capture.ip_hmac)) {
       result = { status: 409, error: "overlapping_block" };
       return;
     }
+    const candidates = manualIpDeviceCandidates(txApp, parsed.storeId, source.capture.ip_hmac, source.sourceSession);
+    const selectedDevices = selectedManualDeviceHmacs(candidates, parsed.deviceSessionIds);
+    if (selectedDevices.error) {
+      result = { status: 400, error: selectedDevices.error };
+      return;
+    }
     const actorId = getString(auth, "id");
-    const block = createManualIpBlockRecord(txApp, parsed.storeId, actorId, parsed, ipCapture);
+    const block = createManualIpBlockRecord(txApp, parsed.storeId, actorId, parsed, source.capture, selectedDevices.values);
     createSecurityBlockAudit(txApp, parsed.storeId, "block_created", actorId, block, parsed.reason);
-    result = { status: 200, block };
+    result = { status: 200, block, selectedDeviceCount: selectedDevices.values.length };
   });
 
   if (!result) return e.json(500, { ok: false, error: "block_create_failed" });
+  if (result.status === 400) return e.json(400, { ok: false, error: result.error });
   if (result.status === 409) return e.json(409, { ok: false, error: result.error });
-  return e.json(200, { ok: true, block: serializeSecurityBlock(result.block, settings) });
+  return e.json(200, {
+    ok: true,
+    block: serializeSecurityBlock(result.block, settings),
+    selected_device_count: result.selectedDeviceCount,
+  });
+}
+
+function handleManualIpDeviceLookup(e) {
+  setNoStore(e, true);
+  try {
+    const info = e.requestInfo();
+    const parsed = parseManualIpDeviceLookupPayload(info.body || {});
+    if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
+    const role = authRole(info.auth);
+    const authStoreId = authStore(info.auth);
+    if (!canManageStore(role, authStoreId, parsed.storeId, info.auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+    }
+    const settings = getSecuritySettingsRecord($app, parsed.storeId);
+    if (!canBlockWithSettings(settings)) return e.json(403, { ok: false, error: "blocking_disabled" });
+    const secret = getValidHmacSecret();
+    if (!secret) return e.json(503, { ok: false, error: "security_secret_unavailable" });
+    const source = resolveManualIpSource($app, parsed, settings, secret);
+    if (source.error === "visitor_not_found") return e.json(404, { ok: false, error: "not_found" });
+    if (source.error === "visitor_ip_unavailable") return e.json(409, { ok: false, error: source.error });
+    if (source.error) return e.json(503, { ok: false, error: source.error });
+    const candidates = manualIpDeviceCandidates($app, parsed.storeId, source.capture.ip_hmac, source.sourceSession);
+    const display = source.sourceSession
+      ? getVisitorSessionIpDisplay(source.sourceSession, settings)
+      : (getString(settings, "ip_visibility") === "hidden"
+        ? { ip_display: "", ip_resolution_status: "hidden" }
+        : getString(settings, "ip_visibility") === "full"
+          ? { ip_display: parsed.normalizedIp.canonical, ip_resolution_status: "full" }
+          : { ip_display: parsed.normalizedIp.masked, ip_resolution_status: "masked" });
+    return e.json(200, {
+      ok: true,
+      ip_display: display.ip_display,
+      ip_resolution_status: display.ip_resolution_status,
+      candidates: serializeManualIpDeviceCandidates(candidates),
+    });
+  } catch (_) {
+    logSecurity("error", "PZ_SEC_MANUAL_IP_DEVICE_LOOKUP_FAILED");
+    return e.json(500, { ok: false, error: "manual_ip_device_lookup_failed" });
+  }
+}
+
+function handleVpnPolicyUpdate(e) {
+  setNoStore(e, true);
+  try {
+    const info = e.requestInfo();
+    const parsed = parseVpnPolicyPayload(info.body || {});
+    if (parsed.error) return e.json(400, { ok: false, error: "invalid_payload", parameter: parsed.error });
+    const role = authRole(info.auth);
+    const authStoreId = authStore(info.auth);
+    if (!canManageStore(role, authStoreId, parsed.storeId, info.auth)) {
+      return respondStorePermissionDenied(e, role, authStoreId, parsed.storeId);
+    }
+    let result = null;
+    $app.runInTransaction((txApp) => {
+      const settings = getSecuritySettingsRecord(txApp, parsed.storeId);
+      if (!settings || !canObserveWithSettings(settings)) {
+        result = { status: 403, error: "security_disabled" };
+        return;
+      }
+      if (parsed.policy === "block" && securityMode(settings) !== "protection") {
+        result = { status: 409, error: "protection_required" };
+        return;
+      }
+      const previous = getString(settings, "vpn_policy") || "off";
+      if (previous !== parsed.policy) {
+        settings.set("vpn_policy", parsed.policy);
+        txApp.save(settings);
+        createSecurityAudit(
+          txApp,
+          parsed.storeId,
+          "vpn_policy_updated",
+          getString(info.auth, "id"),
+          settings.id,
+          `Política VPN: ${previous} -> ${parsed.policy}`,
+          {},
+          {}
+        );
+      }
+      result = { status: 200, previous };
+    });
+    if (!result) return e.json(500, { ok: false, error: "vpn_policy_update_failed" });
+    if (result.status !== 200) return e.json(result.status, { ok: false, error: result.error });
+    return e.json(200, { ok: true, vpn_policy: parsed.policy, changed: result.previous !== parsed.policy });
+  } catch (_) {
+    logSecurity("error", "PZ_SEC_VPN_POLICY_UPDATE_FAILED");
+    return e.json(500, { ok: false, error: "vpn_policy_update_failed" });
+  }
 }
 
 function handleSecurityBlockCreate(e, auth, parsed) {
@@ -2761,9 +3280,25 @@ function handleSecurityBlockCreate(e, auth, parsed) {
       return;
     }
 
+    const addressSignals = selectedAddressSignals(
+      txApp,
+      parsed.storeId,
+      customer.id,
+      parsed.addressOrderIds,
+      parsed.addressOrderIds.length ? getValidHmacSecret() : ""
+    );
+    if (addressSignals.error) {
+      result = {
+        status: addressSignals.error === "address_alerts_unavailable" ? 503 : 400,
+        error: addressSignals.error,
+      };
+      return;
+    }
+
     const activeBefore = getActiveBlocksForCustomer(txApp, parsed.storeId, customer.id).length;
     const actorId = getString(auth, "id");
     const block = createSecurityBlockRecord(txApp, parsed.storeId, customer, actorId, parsed, signals);
+    createBlockAddressSignals(txApp, parsed.storeId, block, customer.id, addressSignals.values);
     setCustomerBlockedState(txApp, parsed.storeId, customer, activeBefore);
     createSecurityBlockAudit(txApp, parsed.storeId, "block_created", actorId, block, parsed.reason);
     result = { status: 200, block };
@@ -2772,6 +3307,7 @@ function handleSecurityBlockCreate(e, auth, parsed) {
   if (!result || result.status === 404) return e.json(404, { ok: false, error: "not_found" });
   if (result.status === 400) return e.json(400, { ok: false, error: result.error, signal: result.signal });
   if (result.status === 409) return e.json(409, { ok: false, error: result.error || "conflict" });
+  if (result.status === 503) return e.json(503, { ok: false, error: result.error || "address_alerts_unavailable" });
   return e.json(200, { ok: true, block: serializeSecurityBlock(result.block) });
 }
 
@@ -3429,6 +3965,8 @@ module.exports = {
   handleMonitoringSummary,
   handleCustomerLifecycle,
   handleCustomerObservation,
+  handleManualIpDeviceLookup,
+  handleVpnPolicyUpdate,
   handleSecurityBlockAction,
   handleSecurityBlocksPage,
   handleVisitorRetentionCleanup,
@@ -3436,14 +3974,28 @@ module.exports = {
   expireDueSecurityBlocks,
   linkVisitorSessionToCustomerByBrowserToken,
   recordManualBlockDeviceCandidate,
+  recordBlockedAddressMatchForOrder,
   _test: {
     normalizeIpAddress,
     isPublicIpAddress,
     getHavanaDay,
     blocksMetrics,
     parseManualIpBlockCreatePayload,
+    parseManualIpDeviceLookupPayload,
+    parseVpnPolicyPayload,
+    manualIpDeviceCandidates,
+    selectedManualDeviceHmacs,
     parseBlockDeviceReviewPayload,
     parseNavigationPayload,
+    parseVisitorDetailPayload,
+    buildVisitorCustomerOrdersDetail,
+    visitorCustomerOrdersPerPage: VISITOR_CUSTOMER_ORDERS_PER_PAGE,
+    normalizeDeliveryAddressPart,
+    deliveryAddressFingerprint,
+    buildCustomerAddressCandidates,
+    selectedAddressSignals,
+    createBlockAddressSignals,
+    getOrderAddressCandidate,
     normalizePath,
     canUseStorePermission,
     securityCapabilityAllowed,

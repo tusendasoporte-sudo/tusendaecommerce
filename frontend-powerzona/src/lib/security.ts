@@ -9,11 +9,13 @@ export const SECURITY_MODES = ['disabled', 'monitoring', 'protection'] as const;
 export const SECURITY_ACTIVE_MODES = ['monitoring', 'protection'] as const;
 export const SECURITY_RETENTION_OPTIONS = [30, 60, 90] as const;
 export const SECURITY_IP_VISIBILITY_OPTIONS = ['hidden', 'partial', 'full'] as const;
+export const SECURITY_VPN_POLICIES = ['off', 'monitor', 'block'] as const;
 
 export type SecurityMode = (typeof SECURITY_MODES)[number];
 export type SecurityActiveMode = (typeof SECURITY_ACTIVE_MODES)[number];
 export type SecurityRetentionDays = (typeof SECURITY_RETENTION_OPTIONS)[number];
 export type SecurityIpVisibility = (typeof SECURITY_IP_VISIBILITY_OPTIONS)[number];
+export type SecurityVpnPolicy = (typeof SECURITY_VPN_POLICIES)[number];
 
 export type StoreSecuritySettings = {
   id: string;
@@ -27,6 +29,7 @@ export type StoreSecuritySettings = {
   retention_days: SecurityRetentionDays;
   ip_visibility: SecurityIpVisibility;
   notify_blocked_attempts: boolean;
+  vpn_policy: SecurityVpnPolicy;
   created?: string;
   updated?: string;
 };
@@ -45,6 +48,8 @@ export type SecurityBackendHealth = {
   security_events_ready: boolean;
   visitor_sessions_ready: boolean;
   visitor_pageviews_ready: boolean;
+  ip_reputation_ready: boolean;
+  address_alerts_ready: boolean;
   identity_collections_ready: boolean;
   visitor_collections_ready: boolean;
   orders_identity_fields_ready: boolean;
@@ -60,6 +65,7 @@ export const SECURITY_DEFAULTS = {
   retention_days: 30,
   ip_visibility: 'hidden',
   notify_blocked_attempts: false,
+  vpn_policy: 'off',
 } as const;
 
 export const SECURITY_STATUS_LABELS: Record<SecurityMode, string> = {
@@ -78,6 +84,12 @@ export const SECURITY_IP_VISIBILITY_LABELS: Record<SecurityIpVisibility, string>
   hidden: 'Oculta',
   partial: 'Parcial',
   full: 'Completa',
+};
+
+export const SECURITY_VPN_POLICY_LABELS: Record<SecurityVpnPolicy, string> = {
+  off: 'Desactivada',
+  monitor: 'Solo detectar',
+  block: 'Detectar y bloquear',
 };
 
 function escapePocketBaseValue(value: string) {
@@ -107,6 +119,13 @@ function normalizeIpVisibility(value: unknown): SecurityIpVisibility {
     : SECURITY_DEFAULTS.ip_visibility;
 }
 
+function normalizeVpnPolicy(value: unknown): SecurityVpnPolicy {
+  const policy = String(value || '').trim();
+  return SECURITY_VPN_POLICIES.includes(policy as SecurityVpnPolicy)
+    ? policy as SecurityVpnPolicy
+    : SECURITY_DEFAULTS.vpn_policy;
+}
+
 function normalizeRecord(record: Partial<RecordModel> | null | undefined, storeId = '', exists = true): StoreSecuritySettings {
   const normalized = normalizeSecuritySettingsPayload({
     store: String(record?.store || storeId || ''),
@@ -118,6 +137,7 @@ function normalizeRecord(record: Partial<RecordModel> | null | undefined, storeI
     retention_days: record?.retention_days,
     ip_visibility: record?.ip_visibility,
     notify_blocked_attempts: record?.notify_blocked_attempts,
+    vpn_policy: record?.vpn_policy,
   });
 
   return {
@@ -157,6 +177,8 @@ export function getDefaultSecurityBackendHealth(): SecurityBackendHealth {
     security_events_ready: false,
     visitor_sessions_ready: false,
     visitor_pageviews_ready: false,
+    ip_reputation_ready: false,
+    address_alerts_ready: false,
     identity_collections_ready: false,
     visitor_collections_ready: false,
     orders_identity_fields_ready: false,
@@ -178,6 +200,8 @@ function normalizeSecurityBackendHealth(input: any): SecurityBackendHealth {
     security_events_ready: input?.security_events_ready === true,
     visitor_sessions_ready: input?.visitor_sessions_ready === true,
     visitor_pageviews_ready: input?.visitor_pageviews_ready === true,
+    ip_reputation_ready: input?.ip_reputation_ready === true,
+    address_alerts_ready: input?.address_alerts_ready === true,
     identity_collections_ready: input?.identity_collections_ready === true,
     visitor_collections_ready: input?.visitor_collections_ready === true,
     orders_identity_fields_ready: input?.orders_identity_fields_ready === true,
@@ -223,6 +247,7 @@ export function normalizeSecuritySettingsPayload(input: StoreSecuritySettingsInp
       retention_days: normalizeRetentionDays(input.retention_days),
       ip_visibility: normalizeIpVisibility(input.ip_visibility),
       notify_blocked_attempts: false,
+      vpn_policy: 'off' as const,
     };
   }
 
@@ -236,6 +261,9 @@ export function normalizeSecuritySettingsPayload(input: StoreSecuritySettingsInp
     retention_days: normalizeRetentionDays(input.retention_days),
     ip_visibility: normalizeIpVisibility(input.ip_visibility),
     notify_blocked_attempts: normalizeBoolean(input.notify_blocked_attempts),
+    vpn_policy: mode === 'protection'
+      ? normalizeVpnPolicy(input.vpn_policy)
+      : (normalizeVpnPolicy(input.vpn_policy) === 'block' ? 'monitor' : normalizeVpnPolicy(input.vpn_policy)),
   };
 }
 
@@ -254,6 +282,10 @@ export function getSecurityModeLabel(mode: unknown) {
 
 export function getSecurityIpVisibilityLabel(value: unknown) {
   return SECURITY_IP_VISIBILITY_LABELS[normalizeIpVisibility(value)];
+}
+
+export function getSecurityVpnPolicyLabel(value: unknown) {
+  return SECURITY_VPN_POLICY_LABELS[normalizeVpnPolicy(value)];
 }
 
 export function isStoreSecurityEnabled(settings: Partial<StoreSecuritySettings> | null | undefined) {
@@ -308,7 +340,7 @@ export async function getMasterSecuritySettingsMap(client: PocketBase = pb) {
 
   try {
     const records = await client.collection(STORE_SECURITY_COLLECTION).getFullList({
-      fields: 'id,store,enabled,mode,manual_blocking_enabled,full_access_blocking_enabled,permanent_blocks_enabled,retention_days,ip_visibility,notify_blocked_attempts,created,updated',
+      fields: 'id,store,enabled,mode,manual_blocking_enabled,full_access_blocking_enabled,permanent_blocks_enabled,retention_days,ip_visibility,notify_blocked_attempts,vpn_policy,created,updated',
       sort: 'store',
     });
 

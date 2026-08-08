@@ -7,6 +7,7 @@ import {
   publicSecurityProxyHeaders,
   publicSecurityResolverForPath,
   renderPublicUnavailable,
+  renderVpnUnavailable,
 } from '../src/lib/publicSecurity.ts';
 
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
@@ -53,6 +54,17 @@ test('BLOCKS03B: página genérica es privada, no-store y no revela bloqueo ni t
   assert.match(response.headers.get('content-security-policy') || '', /default-src 'none'/);
   assert.match(html, /Página no disponible/);
   assert.doesNotMatch(html, /bloque|seguridad|tienda|cliente|hmac|cipher|metadata|motivo|scope/i);
+});
+
+test('VPN-PILOT: pagina de rechazo pide desactivar VPN sin revelar proveedor ni senales internas', async () => {
+  const response = renderVpnUnavailable('https://shop.example/t/powerzona/producto/cafe?ref=uno&vista=dos');
+  const html = await response.text();
+  assert.equal(response.status, 403);
+  assert.match(response.headers.get('cache-control') || '', /private.*no-store/);
+  assert.match(html, /Desactiva la VPN o el proxy/);
+  assert.match(html, /href="\/t\/powerzona\/producto\/cafe\?ref=uno&amp;vista=dos"/);
+  assert.doesNotMatch(html, /shop\.example/);
+  assert.doesNotMatch(html, /ipapi|hmac|metadata|is_vpn|is_proxy|proveedor/i);
 });
 
 test('BLOCKS03B: proxy transporta solo cookie propia e IP recibida del runtime', () => {
@@ -147,7 +159,8 @@ test('BLOCKS03B: middleware consulta antes de cargar y mantiene excepciones admi
   const middleware = read('../src/middleware.ts');
   const publicHelper = read('../src/lib/publicSecurity.ts');
   assert.match(middleware, /publicSecurityResolverForPath\(pathname\)/);
-  assert.match(middleware, /if \(!await publicAccessAllowed[\s\S]*?return renderPublicUnavailable\(\)/);
+  assert.match(middleware, /publicAccessDecision\(context\.request, clientAddress, resolver\)/);
+  assert.match(middleware, /decision\.reason === 'vpn_or_proxy_detected'[\s\S]*?renderVpnUnavailable\(context\.request\.url\)[\s\S]*?renderPublicUnavailable\(\)/);
   assert.ok(middleware.indexOf('publicSecurityResolverForPath(pathname)') < middleware.indexOf('return next();'));
   assert.match(publicHelper, /\^\\\/t\\\/\[\^\/\]\+\\\/admin/);
   assert.match(publicHelper, /Cache-Control': 'private, no-store/);

@@ -46,7 +46,9 @@ global.Record = MockRecord;
 
 const activity = require('../pb_hooks/pz_store_activity_audit_lib.js');
 const activityWrites = [];
+let failActivityWrite = false;
 activity.createActivity = (_app, input) => {
+  if (failActivityWrite) throw new Error('central_audit_failed');
   const row = { id: `activity${activityWrites.length + 1}`, ...input };
   activityWrites.push(row);
   return row;
@@ -82,6 +84,7 @@ function fixture() {
     store_security_settings: [settings],
     store_security_blocks: [],
     store_security_block_device_candidates: [],
+    store_visitor_sessions: [],
     store_security_audit: [],
   };
   let sequence = 0;
@@ -109,6 +112,7 @@ function fixture() {
     findRecordsByFilter(name, _filter, _sort, limit = 200, offset = 0, params = {}) {
       let rows = (tables[name] || []).slice();
       if (params.store) rows = rows.filter((item) => item.get('store') === params.store);
+      if (params.ipHmac) rows = rows.filter((item) => item.get('latest_ip_hmac') === params.ipHmac);
       return rows.slice(offset, offset + limit);
     },
     save(saved) {
@@ -122,7 +126,21 @@ function fixture() {
       const name = deleted.collection().name;
       tables[name] = (tables[name] || []).filter((item) => item !== deleted);
     },
-    runInTransaction(callback) { return callback(app); },
+    runInTransaction(callback) {
+      const tableSnapshot = Object.fromEntries(Object.entries(tables).map(([name, rows]) => [name, rows.slice()]));
+      const recordSnapshot = new Map();
+      Object.values(tables).flat().forEach((item) => recordSnapshot.set(item, { id: item.id, values: { ...item.values } }));
+      try {
+        return callback(app);
+      } catch (error) {
+        Object.keys(tables).forEach((name) => { tables[name] = (tableSnapshot[name] || []).slice(); });
+        recordSnapshot.forEach((snapshot, item) => {
+          item.id = snapshot.id;
+          item.values = { ...snapshot.values };
+        });
+        throw error;
+      }
+    },
     logger() { return { warn() {}, error() {} }; },
   };
   return { app, master, settings, store, tables };
@@ -156,7 +174,7 @@ test('MANUAL-IP: solo acepta IPv4/IPv6 publicas exactas', () => {
   }
 });
 
-test('MANUAL-IP: crea bloqueo sin cliente, con HMAC y sin conservar la IP plana', () => {
+test('MANUAL-IP: sin historial crea bloqueo IP-only, con HMAC y sin conservar la IP plana', () => {
   activityWrites.length = 0;
   const data = fixture();
   const response = monitoring.handleSecurityBlockAction(endpointEvent(data.app, data.master, {
@@ -165,7 +183,8 @@ test('MANUAL-IP: crea bloqueo sin cliente, con HMAC y sin conservar la IP plana'
     scope: 'orders',
     duration: 'hours_24',
     ip: '8.8.8.8',
-    review_devices: true,
+    visitor_session_id: '',
+    device_session_ids: [],
     reason: 'Abuso confirmado',
   }));
 
@@ -175,6 +194,7 @@ test('MANUAL-IP: crea bloqueo sin cliente, con HMAC y sin conservar la IP plana'
   assert.equal(block.get('customer'), '');
   assert.equal(block.get('manual_ip'), true);
   assert.equal(block.get('review_device_candidates'), true);
+  assert.equal(block.get('match_device'), false);
   assert.equal(block.get('match_ip'), true);
   assert.equal(block.get('match_mode'), 'any');
   assert.equal(Array.isArray(block.get('ip_hmac_values')), true);
@@ -183,6 +203,95 @@ test('MANUAL-IP: crea bloqueo sin cliente, con HMAC y sin conservar la IP plana'
   assert.equal(response.payload.block.manual_ip_display, '8.8.***.8');
   assert.doesNotMatch(JSON.stringify(response.payload), /ip_hmac|device_hmac|reason_internal/i);
   assert.equal(data.tables.store_security_audit.some((row) => row.get('action') === 'block_created'), true);
+});
+
+test('MANUAL-IP: permite seleccionar uno, varios o todos los dispositivos y los bloquea desde la creacion', () => {
+  const data = fixture();
+  const ipHmac = global.$security.hs256(`ip|${STORE_ID}|8.8.8.8`, HMAC_SECRET);
+  const first = record('store_visitor_sessions', {
+    id: 'mipsession00001',
+    store: STORE_ID,
+    latest_ip_hmac: ipHmac,
+    latest_ip_masked: '8.8.***.8',
+    latest_ip_family: 'ipv4',
+    latest_capture_status: 'partial',
+    browser_token_hmac: 'd'.repeat(64),
+    last_seen_at: '2026-08-07T12:00:00.000Z',
+  });
+  const second = record('store_visitor_sessions', {
+    id: 'mipsession00002',
+    store: STORE_ID,
+    latest_ip_hmac: ipHmac,
+    latest_ip_masked: '8.8.***.8',
+    latest_ip_family: 'ipv4',
+    latest_capture_status: 'partial',
+    browser_token_hmac: 'e'.repeat(64),
+    last_seen_at: '2026-08-07T12:01:00.000Z',
+  });
+  data.tables.store_visitor_sessions.push(first, second);
+
+  const lookup = monitoring.handleManualIpDeviceLookup(endpointEvent(data.app, data.master, {
+    store_id: STORE_ID,
+    ip: '8.8.8.8',
+    visitor_session_id: '',
+  }));
+  assert.equal(lookup.status, 200);
+  assert.equal(lookup.payload.candidates.length, 2);
+  assert.doesNotMatch(JSON.stringify(lookup.payload), /device_hmac|d{32,}|e{32,}/i);
+
+  const response = monitoring.handleSecurityBlockAction(endpointEvent(data.app, data.master, {
+    store_id: STORE_ID,
+    action: 'create_manual_ip',
+    scope: 'full_access',
+    duration: 'days_7',
+    ip: '8.8.8.8',
+    visitor_session_id: '',
+    device_session_ids: [first.id, second.id],
+    reason: 'Abuso confirmado en ambos dispositivos',
+  }));
+  assert.equal(response.status, 200);
+  const block = data.tables.store_security_blocks[0];
+  assert.equal(block.get('match_device'), true);
+  assert.equal(block.get('match_ip'), true);
+  assert.equal(block.get('match_mode'), 'any');
+  assert.deepEqual(block.get('device_hmac_values'), ['d'.repeat(64), 'e'.repeat(64)]);
+  assert.equal(response.payload.selected_device_count, 2);
+  assert.doesNotMatch(JSON.stringify(response.payload), /device_hmac|d{32,}|e{32,}/i);
+});
+
+test('VPN-POLICY: Master puede cambiar la politica y block exige modo proteccion', () => {
+  const data = fixture();
+  const monitor = monitoring.handleVpnPolicyUpdate(endpointEvent(data.app, data.master, {
+    store_id: STORE_ID,
+    vpn_policy: 'monitor',
+  }));
+  assert.equal(monitor.status, 200);
+  assert.equal(monitor.payload.changed, true);
+  assert.equal(data.settings.get('vpn_policy'), 'monitor');
+  assert.equal(data.tables.store_security_audit.some((row) => row.get('action') === 'vpn_policy_updated'), true);
+
+  data.settings.set('mode', 'monitoring');
+  const rejected = monitoring.handleVpnPolicyUpdate(endpointEvent(data.app, data.master, {
+    store_id: STORE_ID,
+    vpn_policy: 'block',
+  }));
+  assert.equal(rejected.status, 409);
+  assert.equal(rejected.payload.error, 'protection_required');
+  assert.equal(data.settings.get('vpn_policy'), 'monitor');
+});
+
+test('VPN-POLICY: configuracion y auditoria revierten juntas si falla la escritura central', () => {
+  const data = fixture();
+  failActivityWrite = true;
+  const response = monitoring.handleVpnPolicyUpdate(endpointEvent(data.app, data.master, {
+    store_id: STORE_ID,
+    vpn_policy: 'monitor',
+  }));
+  failActivityWrite = false;
+
+  assert.equal(response.status, 500);
+  assert.equal(data.settings.get('vpn_policy'), undefined);
+  assert.equal(data.tables.store_security_audit.length, 0);
 });
 
 test('MANUAL-IP: detecta candidato por IP y solo lo agrega al bloqueo tras confirmacion', () => {

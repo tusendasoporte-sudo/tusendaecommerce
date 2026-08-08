@@ -187,3 +187,24 @@ El procedimiento detallado, la matriz de cuentas, los 17 bloques ejecutables, lo
 No hubo `git add`, commit, push, merge, rebase, cambio de rama, despliegue, staging ni production.
 
 S7P3 queda **EN REVISIÓN**. No debe marcarse COMPLETADO hasta la confirmación manual explícita de Kraken.
+
+## 13. Nota posterior: extensión PZ-SEC-VPN01
+
+El 7 de agosto de 2026 Kraken aprobó como trabajo posterior e independiente:
+
+- seleccionar desde la creación de un bloqueo manual uno, varios o todos los dispositivos históricos asociados a la IP;
+- añadir una política por tienda para detectar o bloquear VPN/proxy/Tor mediante un piloto gratuito.
+
+Esta extensión sí incorpora una migración y rutas nuevas, pero no modifica las afirmaciones históricas de las secciones 5, 9 y 12, que describen exclusivamente la implementación original S7P3. Su reporte es `docs/tusenda84/reportes/PZ-SEC-VPN01-piloto-vpn-bloqueo-dispositivo.md`.
+
+La extensión permanece local y pendiente de staging. Las 17 pruebas manuales de este manual y la confirmación explícita de Kraken siguen pendientes; S7P3 continúa **EN REVISIÓN**.
+
+## 14. Anexo posterior PZ-SEC-ADDR01
+
+Kraken aprobó después una extensión para asociar direcciones históricas al crear un bloqueo y alertar si un pedido nuevo de la misma tienda coincide. La implementación usa una colección privada con HMAC por tienda, selección de una/varias/todas las direcciones, evento idempotente y notificación dirigida al pedido.
+
+La dirección es solo una señal de revisión. No bloquea ni cancela pedidos y no fusiona clientes, porque un domicilio puede ser compartido. La extensión agrega una migración y comportamiento posterior al registro de pedidos, pero no reescribe las afirmaciones históricas de la implementación original S7P3.
+
+Reporte: `docs/tusenda84/reportes/PZ-SEC-ADDR01-alertas-direccion-cliente-bloqueado.md`.
+
+S7P3 permanece **EN REVISIÓN**: los 17 bloques manuales y la confirmación explícita de Kraken siguen pendientes.

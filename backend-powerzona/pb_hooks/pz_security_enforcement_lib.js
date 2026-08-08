@@ -9,6 +9,9 @@ const capabilities = typeof __hooks === "undefined"
 const monitoring = typeof __hooks === "undefined"
   ? require("./pz_security_monitoring_lib.js")
   : require(`${__hooks}/pz_security_monitoring_lib.js`);
+const ipReputation = typeof __hooks === "undefined"
+  ? require("./pz_security_ip_reputation_lib.js")
+  : require(`${__hooks}/pz_security_ip_reputation_lib.js`);
 const storeActivity = typeof __hooks === "undefined"
   ? require("./pz_store_activity_audit_lib.js")
   : require(`${__hooks}/pz_store_activity_audit_lib.js`);
@@ -224,10 +227,17 @@ function blockIsActive(block, now) {
   return !Number.isFinite(expires) || expires > nowTime;
 }
 
-function protectionSettings(app, storeId, action) {
+function activeSecuritySettings(app, storeId) {
   const settings = findFirst(app, "store_security_settings", "store = {:store}", { store: storeId });
+  const mode = recordString(settings, "mode");
+  return settings && recordBoolean(settings, "enabled") && (mode === "monitoring" || mode === "protection")
+    ? settings
+    : null;
+}
+
+function protectionSettings(app, storeId, action, existingSettings) {
+  const settings = existingSettings || activeSecuritySettings(app, storeId);
   if (!settings
-    || !recordBoolean(settings, "enabled")
     || recordString(settings, "mode") !== "protection"
     || !recordBoolean(settings, "manual_blocking_enabled")) return null;
   if (action === "full_access" && !recordBoolean(settings, "full_access_blocking_enabled")) return null;
@@ -354,10 +364,8 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
   const store = activeStoreWithSecurity(app, storeOrId);
   if (!store) return { blocked: false, reason: "capability_inactive" };
   const storeId = recordString(store, "id");
-  const settings = protectionSettings(app, storeId, action);
-  if (!settings) return { blocked: false, reason: "protection_inactive" };
-
-  try { monitoring.expireDueSecurityBlocks(app, storeId); } catch (_) { logEnforcement("PZ_SEC_BLOCK_EXPIRY_SKIPPED"); }
+  const activeSettings = activeSecuritySettings(app, storeId);
+  if (!activeSettings) return { blocked: false, reason: "security_inactive" };
   const signals = requestSignals(e, storeId, options && options.phone);
   if (!signals.ready) {
     logEnforcement("PZ_SEC_HMAC_SECRET_INVALID");
@@ -365,6 +373,28 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
   }
 
   const now = options && options.now instanceof Date ? options.now : new Date();
+  const network = ipReputation.evaluate(
+    app,
+    store,
+    activeSettings,
+    signals,
+    normalizedIpFromRequest(e),
+    { now, send: options && options.ipReputationSend },
+  );
+  if (network.blocked) {
+    return {
+      blocked: true,
+      reason: "vpn_or_proxy_detected",
+      store,
+      signals,
+      settings: activeSettings,
+      network,
+    };
+  }
+
+  const settings = protectionSettings(app, storeId, action, activeSettings);
+  if (!settings) return { blocked: false, reason: "protection_inactive", network };
+  try { monitoring.expireDueSecurityBlocks(app, storeId); } catch (_) { logEnforcement("PZ_SEC_BLOCK_EXPIRY_SKIPPED"); }
   const blocks = findMany(
     app,
     "store_security_blocks",
@@ -377,7 +407,7 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
     && !(recordString(candidate, "scope") === "full_access" && !recordBoolean(settings, "full_access_blocking_enabled"))
     && scopeApplies(recordString(candidate, "scope"), action)
     && signalMatches(candidate, signals));
-  if (!block) return { blocked: false, reason: "no_match" };
+  if (!block) return { blocked: false, reason: "no_match", network };
 
   recordBlockedAttempt(app, e, store, settings, block, action, signals, now);
   try {
@@ -470,6 +500,10 @@ function handlePublicAccess(e) {
   const context = resolvePublicAccessContext(app, info.body || {});
   if (!context) return unavailable(e);
   const result = evaluatePublicAccess(app, e, context.store, "full_access", { phone: context.phone });
+  if (result.blocked && result.reason === "vpn_or_proxy_detected") {
+    setPrivateNoStore(e);
+    return e.json(403, { ok: false, error: "vpn_or_proxy_detected" });
+  }
   if (result.blocked) return unavailable(e);
   try { return e.noContent(204); } catch (_) { return e.json(200, { ok: true }); }
 }

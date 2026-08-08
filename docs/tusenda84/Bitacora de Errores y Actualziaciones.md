@@ -1,11 +1,11 @@
 ---
 title: "Bitácora de errores y actualizaciones - PowerZona / Tu Senda 84"
 project: "PowerZona / Tu Senda 84"
-document_version: "v34"
-source_revision: "V122"
-last_updated: "2026-08-06"
+document_version: "v36"
+source_revision: "V124"
+last_updated: "2026-08-07"
 status: "ACTIVA"
-next_work_item: "PZ-SEC-BLOCKS03B - Enforcement público de Seguridad"
+next_work_item: "PZ-SEC-ADDR01 - Alertas por dirección de cliente bloqueado"
 source_pdf: "Bitacora_Errores_PowerZona_TuSenda84_2026-07-25_v33_Source_V121.pdf"
 ---
 
@@ -42,6 +42,7 @@ Este archivo Markdown es la versión editable de la bitácora histórica en PDF.
 | R7P2 | Rifas Premium | COMPLETADO | Staging en bloque |
 | S7P3 | Seguridad Premium | EN REVISIÓN | 17 bloques manuales y confirmación Kraken |
 | PZ-SEC-BLOCKS03B | Enforcement público de Seguridad | EN REVISIÓN | Staging real y confirmación Kraken |
+| PZ-SEC-ADDR01 | Alertas por dirección de cliente bloqueado | EN REVISIÓN | Staging real y confirmación Kraken |
 
 ### Continuidad inmediata
 
@@ -55,6 +56,107 @@ Este archivo Markdown es la versión editable de la bitácora histórica en PDF.
 ## Zona activa para nuevas actualizaciones
 
 <!-- CODEX: insertar cada nueva actualización debajo de este comentario y antes del historial convertido. No borrar entradas anteriores. -->
+
+### PZ-SEC-ADDR01 - Alertas por dirección de cliente bloqueado
+
+| Campo | Detalle |
+|---|---|
+| ID / Prompt | `PZ-SEC-ADDR01` |
+| Título | `Selección de direcciones y alerta privada en pedidos coincidentes` |
+| Fecha | `2026-08-07` |
+| Source | `V124` |
+| Sección / rutas | `Admin de tienda y Master -> Seguridad -> Clientes; registro posterior del pedido; campana administrativa` |
+| Estado | `EN REVISIÓN / IMPLEMENTACIÓN LOCAL` |
+| Confirmación | `Flujo aprobado por Kraken; staging y validación manual pendientes` |
+
+#### Flujo aprobado e implementado
+
+- Al crear un bloqueo para un cliente, la interfaz muestra las direcciones únicas de pedidos de entrega de su ficha y alias dentro de la misma tienda.
+- La dirección más reciente queda preseleccionada. El administrador puede elegir una, varias o todas; si existen candidatas, debe conservar al menos una seleccionada. La ausencia real de direcciones no impide crear el bloqueo.
+- El backend valida nuevamente cada pedido seleccionado y guarda solo una huella HMAC aislada por tienda en la colección privada `store_security_block_addresses`.
+- Un pedido nuevo con coincidencia exacta normalizada crea `blocked_address_match` y una notificación `security_address_match` que abre el pedido para revisión.
+- La coincidencia no bloquea, cancela ni fusiona automáticamente: una dirección puede ser compartida por personas distintas.
+- Eventos y notificaciones no incluyen dirección legible, municipio, HMAC, IP, cookie, teléfono ni motivo interno.
+
+#### Validación local
+
+- Backend focal ADDR01: **6/6** aprobadas.
+- Frontend focal ADDR01: **6/6** aprobadas.
+- Backend completo: **491 totales; 484 aprobadas; 7 omitidas declaradas; 0 fallidas**.
+- Frontend completo: **312/312 aprobadas; 0 fallidas; 0 omitidas**.
+- Sintaxis Node, build Astro SSR y `git diff --check`: aprobados. El build conserva únicamente los tres warnings legacy conocidos.
+
+#### Pendiente obligatorio
+
+- Aplicar la migración en staging y confirmar `address_alerts_ready`, secreto HMAC, aislamiento, idempotencia y ausencia de datos sensibles.
+- Probar una/varias/todas las direcciones, otro navegador, misma dirección normalizada, dirección distinta, recogida, otra tienda, revocación y vencimiento.
+- Confirmar que el pedido entra normalmente y que la alerta abre la orden correcta sin duplicarse.
+- No se modificaron Cloudflare, Coolify, DNS, TLS, proxy, infraestructura ni variables remotas. No hubo commit, push ni despliegue.
+- S7P3 conserva sus 17 bloques manuales pendientes y BLOCKS03B conserva staging/confirmación de Kraken pendientes. Ninguno se marca COMPLETADO.
+- P7D4, P7X5 y Q7F6 permanecen fuera de alcance. R84 es un proyecto separado y no fue tocado.
+
+#### Reporte
+
+`docs/tusenda84/reportes/PZ-SEC-ADDR01-alertas-direccion-cliente-bloqueado.md`
+
+### PZ-SEC-VPN01 - Bloqueo manual reforzado y piloto VPN/proxy
+
+| Campo | Detalle |
+|---|---|
+| ID / Prompt | `PZ-SEC-VPN01` |
+| Título | `Selección inmediata de dispositivos y política VPN/proxy por tienda` |
+| Fecha | `2026-08-07` |
+| Source | `V123` |
+| Sección / rutas | `Admin de tienda y Master -> Seguridad; acceso público por tienda; endpoints privados /api/pz/security/*` |
+| Estado | `EN REVISIÓN / IMPLEMENTACIÓN LOCAL` |
+| Confirmación | `Flujo aprobado por Kraken; staging y validación manual pendientes` |
+
+#### Flujo aprobado
+
+- Al iniciar un bloqueo manual desde una IP pública exacta o desde una sesión de visitante, el sistema busca primero los dispositivos históricos asociados a esa IP dentro de la misma tienda.
+- El administrador puede seleccionar uno, varios o todos los dispositivos encontrados. Los seleccionados se agregan al bloqueo desde su creación con coincidencia `any`, junto con la IP, para que el mismo navegador continúe bloqueado si cambia de red o activa una VPN mientras conserve `pz_client_device`.
+- Si no existe historial de dispositivos, se permite crear un bloqueo solo por IP con advertencia. Las detecciones futuras continúan como candidatas privadas sujetas a confirmación administrativa.
+- La cookie no equivale a fingerprint físico: otro navegador, modo privado o datos borrados generan otra identidad de navegador.
+
+#### Política VPN/proxy por tienda
+
+- Nueva política `vpn_policy`: `off`, `monitor` o `block`.
+- `block` solo produce denegación cuando Seguridad está en modo `protection`; en monitoreo únicamente registra la detección.
+- El piloto consulta de servidor a servidor el nivel anónimo gratuito de `ipapi.is` y utiliza solo `is_vpn`, `is_proxy` e `is_tor`. No bloquea por red móvil o centro de datos solamente.
+- Los resultados válidos se cachean 24 horas y las indisponibilidades 5 minutos. Si el proveedor falla, agota cuota o devuelve un contrato incompleto, el acceso se permite y se registra `vpn_check_unavailable`.
+- La caché es privada, aislada por tienda y conserva HMAC de IP, nunca la IP plana. La IP pública sí se comunica al proveedor externo para realizar la clasificación.
+- La página pública de rechazo devuelve `403`, `no-store` y pide desactivar VPN/proxy sin revelar proveedor, HMAC ni señales internas.
+
+#### Cambios locales
+
+- Migración aditiva para `vpn_policy`, eventos `vpn_detected`/`vpn_blocked`/`vpn_check_unavailable`, auditoría `vpn_policy_updated` y caché privada `store_security_ip_reputation_cache`.
+- Nuevos endpoints privados autenticados para previsualizar dispositivos de una IP y cambiar la política VPN/proxy.
+- Paneles de tienda y Master actualizados; la auditoría central trata `vpn_policy` como configuración crítica.
+- `security.checkOrigin` permanece activo. No se creó bypass local ni se probó bloqueo solo por IP en localhost.
+
+#### Validación local
+
+- Flujo manual por IP y política VPN/proxy: **13/13** pruebas aprobadas.
+- Regresión focal de enforcement, runtime HTTP, frontend, S7P3, tenant e IP/auditoría: **47/47** aprobadas.
+- Auditoría central: **21/21** aprobadas.
+- Backend completo: **485 totales; 478 aprobadas; 7 omitidas declaradas; 0 fallidas**.
+- Frontend completo: **306/306 aprobadas; 0 fallidas; 0 omitidas**.
+- Sintaxis de hooks/migración y build Astro SSR: aprobados; solo permanecen los tres warnings legacy conocidos de rutas dinámicas.
+- Build público: **0 source maps** y **0 marcadores del proveedor o nombres de secretos**.
+- `git diff --check`: aprobado.
+
+#### Pendiente obligatorio
+
+- Aplicar y comprobar la migración en staging, validar salida HTTPS hacia el proveedor, cuota real, tiempos de respuesta y comportamiento ante indisponibilidad.
+- Probar con IP móvil y VPN reales, falsos positivos, cookie `pz_client_device`, cambio de navegador, borrado de datos, dos tiendas y sesiones separadas.
+- Confirmar de forma segura secretos, `Origin`, `Host`, `X-Forwarded-Host`, `X-Forwarded-For`, proxies confiables, HTTPS y `realIP()`.
+- No se modificaron Cloudflare, Coolify, DNS, TLS, infraestructura ni variables remotas. No hubo commit, push ni despliegue dentro de esta actualización.
+- S7P3 conserva sus 17 bloques manuales pendientes y BLOCKS03B conserva staging/confirmación de Kraken pendientes. Ninguno se marca COMPLETADO.
+- P7D4, P7X5 y Q7F6 permanecen fuera de alcance. R84 es un proyecto separado y no fue tocado.
+
+#### Reporte
+
+`docs/tusenda84/reportes/PZ-SEC-VPN01-piloto-vpn-bloqueo-dispositivo.md`
 
 ### PZ-SEC-BLOCKS03B - Enforcement público de Seguridad
 

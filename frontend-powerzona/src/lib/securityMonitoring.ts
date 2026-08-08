@@ -3,7 +3,7 @@ import type { StoreSecuritySettings } from './security';
 
 export const SECURITY_MONITORING_SECTIONS = ['summary', 'activity', 'customers', 'visitors', 'blocked', 'rules'] as const;
 export const CUSTOMER_STATUS_FILTERS = ['all', 'normal', 'watch', 'blocked', 'archived'] as const;
-export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'admin_action'] as const;
+export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'blocked_address_match', 'vpn_detected', 'vpn_blocked', 'vpn_check_unavailable', 'admin_action'] as const;
 export const EVENT_RISK_FILTERS = ['all', 'normal', 'suspicious', 'blocked'] as const;
 export const SECURITY_BLOCK_STATUS_FILTERS = ['all', 'active', 'expired', 'revoked'] as const;
 export const SECURITY_BLOCK_SCOPE_FILTERS = ['all', 'orders', 'reviews', 'raffles', 'all_interactions', 'full_access'] as const;
@@ -17,6 +17,7 @@ export const CUSTOMER_ORDERS_PER_PAGE = 10;
 export const CUSTOMER_EVENTS_PER_PAGE = 10;
 export const VISITORS_PER_PAGE = 10;
 export const VISITOR_PAGEVIEWS_PER_PAGE = 10;
+export const VISITOR_CUSTOMER_ORDERS_PER_PAGE = 5;
 export const SECURITY_BLOCKS_PER_PAGE = 10;
 
 export const CUSTOMER_LIST_FIELDS = [
@@ -237,7 +238,7 @@ export type SecurityOrder = {
   created: string;
 };
 
-export type RelatedCustomer = Pick<SecurityCustomer, 'id' | 'store' | 'display_name' | 'phone_normalized' | 'status'>;
+export type RelatedCustomer = Pick<SecurityCustomer, 'id' | 'store' | 'display_name' | 'phone_normalized' | 'status' | 'orders_count'>;
 export type RelatedOrder = Pick<SecurityOrder, 'id' | 'store' | 'order_number' | 'status' | 'total' | 'usd_total' | 'delivery_method' | 'created'>;
 
 export type IpResolutionStatus = 'hidden' | 'masked' | 'full' | 'full_unavailable' | 'unavailable';
@@ -352,12 +353,42 @@ export type SecurityAvailableSignals = {
   ip_count: number;
 };
 
+export type SecurityAddressCandidate = {
+  order_id: string;
+  address_display: string;
+  municipality_display: string;
+  last_used_at: string;
+  uses_count: number;
+  preselected: boolean;
+};
+
 export type SecurityBlocksMetrics = {
   active_blocks: number;
   affected_customers: number;
   manual_ip_blocks: number;
   expires_today: number;
   permanent_blocks: number;
+};
+
+export type ManualIpDeviceCandidate = {
+  session_id: string;
+  label: string;
+  last_seen_at: string;
+  preselected: boolean;
+};
+
+export type ManualIpDeviceLookupResult = {
+  ip_display: string;
+  ip_resolution_status: IpResolutionStatus;
+  candidates: ManualIpDeviceCandidate[];
+};
+
+export type ManualIpBlockDraft = {
+  ip: string;
+  visitorSessionId: string;
+  scope: SecurityBlockScope;
+  duration: SecurityBlockDuration;
+  reason: string;
 };
 
 export type SecurityCustomerDetailResult = {
@@ -372,6 +403,7 @@ export type SecurityCustomerDetailResult = {
   blockHistorySummary: SecurityBlockHistorySummary;
   blockCapabilities: SecurityBlockCapabilities;
   availableSignals: SecurityAvailableSignals;
+  addressCandidates: SecurityAddressCandidate[];
   identityWarnings: string[];
   ordersError: boolean;
   eventsError: boolean;
@@ -436,6 +468,8 @@ export type SecurityVisitorPageviewRow = SecurityVisitorPageview & {
 
 export type SecurityVisitorDetailResult = {
   visitor: SecurityVisitorSessionRow | null;
+  orders: PaginatedResult<SecurityOrder>;
+  ordersError: boolean;
   pageviews: PaginatedResult<SecurityVisitorPageviewRow>;
 };
 
@@ -449,6 +483,7 @@ export type SecuritySettingsView = Pick<
   | 'full_access_blocking_enabled'
   | 'permanent_blocks_enabled'
   | 'notify_blocked_attempts'
+  | 'vpn_policy'
 >;
 
 function hasAllowedValue<T extends readonly string[]>(allowed: T, value: unknown, fallback: T[number]): T[number] {
@@ -867,6 +902,7 @@ export async function runSecurityBlockCreate(
     matchDevice: boolean;
     matchIp: boolean;
     matchMode: SecurityBlockMatchMode;
+    addressOrderIds: string[];
     reason: string;
   }
 ) {
@@ -882,6 +918,7 @@ export async function runSecurityBlockCreate(
       match_device: options.matchDevice === true,
       match_ip: options.matchIp === true,
       match_mode: options.matchMode,
+      address_order_ids: Array.from(new Set(options.addressOrderIds || [])).filter(isValidRecordId).slice(0, 50),
       reason: normalizeSearchTerm(options.reason).slice(0, 500),
     },
   });
@@ -897,7 +934,8 @@ export async function runSecurityManualIpBlockCreate(
     ip: string;
     scope: SecurityBlockScope;
     duration: SecurityBlockDuration;
-    reviewDevices: boolean;
+    visitorSessionId?: string;
+    deviceSessionIds: string[];
     reason: string;
   }
 ) {
@@ -909,13 +947,61 @@ export async function runSecurityManualIpBlockCreate(
       scope: options.scope,
       duration: options.duration,
       ip: String(options.ip || '').trim().slice(0, 64),
-      review_devices: options.reviewDevices === true,
+      visitor_session_id: String(options.visitorSessionId || '').trim(),
+      device_session_ids: Array.from(new Set(options.deviceSessionIds || [])).slice(0, 50),
       reason: normalizeSearchTerm(options.reason).slice(0, 500),
     },
   });
 
   if (!response?.ok) throw new Error(String(response?.error || 'manual_ip_block_create_failed'));
   return normalizeSecurityBlock(response.block);
+}
+
+export async function getSecurityManualIpDeviceCandidates(
+  client: PocketBase,
+  storeId: string,
+  options: { ip?: string; visitorSessionId?: string }
+): Promise<ManualIpDeviceLookupResult> {
+  const response = await (client as any).send('/api/pz/security/manual-ip-devices', {
+    method: 'POST',
+    body: {
+      store_id: storeId,
+      ip: String(options.ip || '').trim().slice(0, 64),
+      visitor_session_id: String(options.visitorSessionId || '').trim(),
+    },
+  });
+  if (!response?.ok) throw new Error(String(response?.error || 'manual_ip_device_lookup_failed'));
+  const status = String(response.ip_resolution_status || 'hidden') as IpResolutionStatus;
+  return {
+    ip_display: String(response.ip_display || ''),
+    ip_resolution_status: ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(status)
+      ? status
+      : 'hidden',
+    candidates: Array.isArray(response.candidates)
+      ? response.candidates
+        .filter((candidate: any) => isValidRecordId(candidate?.session_id))
+        .slice(0, 50)
+        .map((candidate: any) => ({
+          session_id: String(candidate.session_id),
+          label: String(candidate.label || 'Dispositivo observado'),
+          last_seen_at: String(candidate.last_seen_at || ''),
+          preselected: candidate.preselected === true,
+        }))
+      : [],
+  };
+}
+
+export async function updateSecurityVpnPolicy(
+  client: PocketBase,
+  storeId: string,
+  vpnPolicy: 'off' | 'monitor' | 'block'
+) {
+  const response = await (client as any).send('/api/pz/security/vpn-policy', {
+    method: 'POST',
+    body: { store_id: storeId, vpn_policy: vpnPolicy },
+  });
+  if (!response?.ok) throw new Error(String(response?.error || 'vpn_policy_update_failed'));
+  return { policy: String(response.vpn_policy || 'off'), changed: response.changed === true };
 }
 
 export async function runSecurityBlockDeviceCandidateAction(
@@ -1010,7 +1096,8 @@ function normalizeEndpointCustomer(record: any): RelatedCustomer | null {
     store: '',
     display_name: String(record.display_name || ''),
     phone_normalized: String(record.primary_phone || ''),
-    status: '',
+    status: String(record.status || 'normal'),
+    orders_count: normalizeNumber(record.orders_count),
   };
 }
 
@@ -1242,6 +1329,21 @@ function normalizeAvailableSignals(record: any): SecurityAvailableSignals {
   };
 }
 
+function normalizeAddressCandidate(record: any): SecurityAddressCandidate | null {
+  const orderId = String(record?.order_id || '').trim();
+  const addressDisplay = String(record?.address_display || '').trim();
+  const municipalityDisplay = String(record?.municipality_display || '').trim();
+  if (!isValidRecordId(orderId) || !addressDisplay || !municipalityDisplay) return null;
+  return {
+    order_id: orderId,
+    address_display: addressDisplay.slice(0, 300),
+    municipality_display: municipalityDisplay.slice(0, 160),
+    last_used_at: String(record?.last_used_at || ''),
+    uses_count: Math.max(1, normalizeNumber(record?.uses_count)),
+    preselected: record?.preselected === true,
+  };
+}
+
 function normalizeBlocksMetrics(record: any): SecurityBlocksMetrics {
   return {
     active_blocks: normalizeNumber(record?.active_blocks),
@@ -1273,6 +1375,7 @@ export async function getSecurityCustomerDetail(
     blockHistorySummary: normalizeBlockHistorySummary(null),
     blockCapabilities: normalizeBlockCapabilities(null),
     availableSignals: normalizeAvailableSignals(null),
+    addressCandidates: [],
     identityWarnings: [],
     ordersError: false,
     eventsError: false,
@@ -1319,6 +1422,9 @@ export async function getSecurityCustomerDetail(
     blockHistorySummary: normalizeBlockHistorySummary(response?.block_history_summary),
     blockCapabilities: normalizeBlockCapabilities(response?.block_capabilities),
     availableSignals: normalizeAvailableSignals(response?.available_signals),
+    addressCandidates: Array.isArray(response?.address_candidates)
+      ? response.address_candidates.map(normalizeAddressCandidate).filter(Boolean) as SecurityAddressCandidate[]
+      : [],
     identityWarnings: Array.isArray(response?.identity_warnings)
       ? response.identity_warnings.map((item: any) => String(item || '').trim()).filter(Boolean).slice(0, 8)
       : [],
@@ -1395,9 +1501,17 @@ function normalizeVisitorEndpointPageview(record: any): SecurityVisitorPageviewR
   };
 }
 
-function emptyVisitorDetail(page: number): SecurityVisitorDetailResult {
+function emptyVisitorDetail(page: number, ordersPage: number): SecurityVisitorDetailResult {
   return {
     visitor: null,
+    orders: {
+      page: normalizePage(ordersPage),
+      perPage: VISITOR_CUSTOMER_ORDERS_PER_PAGE,
+      totalItems: 0,
+      totalPages: 1,
+      items: [],
+    },
+    ordersError: false,
     pageviews: {
       page: normalizePage(page),
       perPage: VISITOR_PAGEVIEWS_PER_PAGE,
@@ -1412,10 +1526,12 @@ export async function getSecurityVisitorDetail(
   client: PocketBase,
   storeId: string,
   visitorSessionId: string,
-  page: number
+  page: number,
+  ordersPage = 1
 ): Promise<SecurityVisitorDetailResult> {
   const safePage = normalizePage(page);
-  if (!isValidRecordId(visitorSessionId)) return emptyVisitorDetail(safePage);
+  const safeOrdersPage = normalizePage(ordersPage);
+  if (!isValidRecordId(visitorSessionId)) return emptyVisitorDetail(safePage, safeOrdersPage);
 
   try {
     const response = await (client as any).send('/api/pz/security/visitor-detail', {
@@ -1424,18 +1540,24 @@ export async function getSecurityVisitorDetail(
         store_id: storeId,
         visitor_session_id: visitorSessionId,
         page: safePage,
+        orders_page: safeOrdersPage,
       },
     });
     if (!response?.ok) throw new Error(String(response?.error || 'visitor_detail_failed'));
     const pageviewItems = Array.isArray(response?.pageviews?.items)
       ? response.pageviews.items.map(normalizeVisitorEndpointPageview)
       : [];
+    const orderItems = Array.isArray(response?.orders?.items)
+      ? response.orders.items.map(normalizeCustomerDetailOrder)
+      : [];
     return {
       visitor: response.visitor ? normalizeVisitorEndpointSession(response.visitor) : null,
+      orders: normalizeEndpointPage(response.orders, orderItems, safeOrdersPage, VISITOR_CUSTOMER_ORDERS_PER_PAGE),
+      ordersError: response?.orders_error === true,
       pageviews: normalizeEndpointPage(response.pageviews, pageviewItems, safePage, VISITOR_PAGEVIEWS_PER_PAGE),
     };
   } catch (error: any) {
-    if (error?.status === 404) return emptyVisitorDetail(safePage);
+    if (error?.status === 404) return emptyVisitorDetail(safePage, safeOrdersPage);
     throw error;
   }
 }
@@ -1486,6 +1608,10 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   review_submitted: 'Resena recibida',
   raffle_entry: 'Participacion registrada',
   blocked_attempt: 'Intento bloqueado',
+  blocked_address_match: 'Dirección vinculada a bloqueo',
+  vpn_detected: 'VPN o proxy detectado',
+  vpn_blocked: 'VPN o proxy bloqueado',
+  vpn_check_unavailable: 'Verificacion VPN no disponible',
   admin_action: 'Accion administrativa',
 };
 
