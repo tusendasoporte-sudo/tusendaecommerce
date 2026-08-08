@@ -4,10 +4,17 @@ const path = require("node:path");
 const test = require("node:test");
 
 global.__hooks = path.resolve(__dirname, "../pb_hooks");
-global.$os = { getenv: (name) => name === "PZ_SECURITY_HMAC_SECRET" ? "s".repeat(48) : "" };
+global.$os = {
+  getenv: (name) => {
+    if (name === "PZ_SECURITY_HMAC_SECRET") return "s".repeat(48);
+    if (name === "PZ_SECURITY_AES_KEY") return "a".repeat(32);
+    return "";
+  },
+};
 global.$security = {
   sha256: (value) => crypto.createHash("sha256").update(String(value)).digest("hex"),
   hs256: (value, secret) => crypto.createHmac("sha256", secret).update(String(value)).digest("hex"),
+  encrypt: (value) => `cipher:${String(value)}`,
 };
 global.$app = { logger: () => ({ warn() {}, error() {} }) };
 
@@ -70,6 +77,7 @@ function fixture(options = {}) {
     manual_blocking_enabled: options.manual !== false,
     full_access_blocking_enabled: options.full !== false,
     notify_blocked_attempts: options.notify !== false,
+    ip_visibility: options.ipVisibility || "hidden",
   });
   const block = record("store_security_blocks", {
     id: "securityblock01",
@@ -130,7 +138,7 @@ function fixture(options = {}) {
     auth: null,
     request: { header: { get: (name) => name.toLowerCase() === "cookie" ? `pz_client_device=${deviceToken}` : "" } },
     requestInfo: () => ({ headers: { "x-request-id": "same-request" }, body: {} }),
-    realIP: () => "127.0.0.1",
+    realIP: () => options.realIp || "127.0.0.1",
   };
   return { app, block, data, event, settings, store };
 }
@@ -206,6 +214,26 @@ test("BLOCKS03B: protección efectiva bloquea, registra evento/auditoría/notifi
     audit: auditWrites[0],
   });
   assert.doesNotMatch(publicText, /535551212|A{43}|reason_internal|ciphertext/i);
+});
+
+test("BLOCKS03B: intento bloqueado conserva la captura segura de la IP real", () => {
+  auditWrites.length = 0;
+  const fx = fixture({ ipVisibility: "full", realIp: "8.8.8.8" });
+  const result = enforcement.evaluatePublicAccess(
+    fx.app,
+    fx.event,
+    fx.store,
+    "orders",
+    { now: new Date("2026-08-06T12:00:00.000Z") }
+  );
+
+  assert.equal(result.blocked, true);
+  assert.equal(fx.data.store_security_events.length, 1);
+  const event = fx.data.store_security_events[0];
+  assert.equal(event.get("ip_masked"), "8.8.***.8");
+  assert.equal(event.get("ip_encrypted"), "cipher:8.8.8.8");
+  assert.equal(event.get("ip_family"), "ipv4");
+  assert.equal(event.get("capture_status"), "complete");
 });
 
 test("BLOCKS03B: modo/configuración/capacidad y scope no aplicable no bloquean", () => {

@@ -287,7 +287,7 @@ function findEventByKey(app, eventKey) {
   return findFirst(app, "store_security_events", "event_key = {:eventKey}", { eventKey });
 }
 
-function createBlockedAttemptEvent(app, e, store, settings, block, action, signals, now) {
+function createBlockedAttemptEvent(app, e, store, settings, block, action, signals, ipCapture, now) {
   if (!findCollection(app, "store_security_events")) return null;
   const storeId = recordString(store, "id");
   const eventKey = `blocked_attempt:${requestFingerprint(e, storeId, recordString(block, "id"), action, signals, now)}`;
@@ -305,11 +305,15 @@ function createBlockedAttemptEvent(app, e, store, settings, block, action, signa
     event.set("mode_at_event", "protection");
     event.set("phone_hmac", signals.phone);
     event.set("ip_hmac", signals.ip);
-    event.set("ip_masked", "");
-    event.set("ip_encrypted", "");
-    event.set("ip_family", signals.ipFamily || "unknown");
+    event.set("ip_masked", text(ipCapture && ipCapture.ip_masked));
+    event.set("ip_encrypted", text(ipCapture && ipCapture.ip_encrypted));
+    event.set("ip_family", text(ipCapture && ipCapture.ip_family) || signals.ipFamily || "unknown");
     event.set("browser_token_hmac", signals.device);
-    event.set("capture_status", signals.ip || signals.device || signals.phone ? "partial" : "unavailable");
+    event.set(
+      "capture_status",
+      text(ipCapture && ipCapture.capture_status)
+        || (signals.ip || signals.device || signals.phone ? "partial" : "unavailable")
+    );
     event.set("crypto_version", "v1");
     event.set("metadata_json", {
       action,
@@ -365,9 +369,9 @@ function createBlockedAttemptEvent(app, e, store, settings, block, action, signa
   return event;
 }
 
-function recordBlockedAttempt(app, e, store, settings, block, action, signals, now) {
+function recordBlockedAttempt(app, e, store, settings, block, action, signals, ipCapture, now) {
   try {
-    return createBlockedAttemptEvent(app, e, store, settings, block, action, signals, now);
+    return createBlockedAttemptEvent(app, e, store, settings, block, action, signals, ipCapture, now);
   } catch (_) {
     logEnforcement("PZ_SEC_BLOCKED_ATTEMPT_WRITE_SKIPPED");
     return null;
@@ -425,7 +429,7 @@ function evaluatePublicAccess(app, e, storeOrId, action, options) {
     && signalMatches(candidate, signals));
   if (!block) return { blocked: false, reason: "no_match", network };
 
-  recordBlockedAttempt(app, e, store, settings, block, action, signals, now);
+  recordBlockedAttempt(app, e, store, settings, block, action, signals, requestIdentity.ipCapture, now);
   try {
     if (typeof monitoring.recordManualBlockDeviceCandidate === "function") {
       monitoring.recordManualBlockDeviceCandidate(app, block, signals, now);
