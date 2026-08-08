@@ -103,3 +103,47 @@ test('VISITOR-ORDERS: pagina de pedidos contiene maximo cinco y queda aislada po
   assert.equal(second.items.length, 1);
   assert.equal(second.items[0].order_number, 'PZ-1006');
 });
+
+test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP compartida', () => {
+  const browserTokenHmac = 'v'.repeat(43);
+  const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: browserTokenHmac });
+  const app = {
+    findRecordsByFilter(name, filter, sort, limit, offset, params) {
+      assert.equal(name, 'store_security_events');
+      assert.match(filter, /browser_token_hmac = \{:browserTokenHmac\}/);
+      assert.doesNotMatch(filter, /ip_hmac|ip_masked|resolved_ip/);
+      assert.equal(sort, '-occurred_at,-created');
+      assert.equal(limit, 50);
+      assert.equal(offset, 0);
+      assert.equal(params.store, STORE_ID);
+      assert.equal(params.browserTokenHmac, browserTokenHmac);
+      return [
+        new MockRecord({
+          event_type: 'vpn_check_unavailable',
+          decision: 'monitored',
+          risk_level: 'observation',
+          occurred_at: '2026-08-08 18:00:00.000Z',
+        }),
+        new MockRecord({
+          event_type: 'vpn_blocked',
+          decision: 'blocked',
+          risk_level: 'blocked',
+          occurred_at: '2026-08-08 17:00:00.000Z',
+        }),
+      ];
+    },
+  };
+
+  assert.deepEqual(monitoring._test.buildVisitorVpnInfo(app, STORE_ID, visitor), {
+    status: 'blocked',
+    event_type: 'vpn_blocked',
+    decision: 'blocked',
+    risk_level: 'blocked',
+    observed_at: '2026-08-08 17:00:00.000Z',
+  });
+
+  assert.deepEqual(
+    monitoring._test.buildVisitorVpnInfo(app, STORE_ID, new MockRecord({ id: VISITOR_ID })),
+    { status: 'none', event_type: '', decision: '', risk_level: '', observed_at: '' },
+  );
+});

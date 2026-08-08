@@ -437,8 +437,17 @@ export type SecurityVisitorSession = {
   ip_resolution_status: IpResolutionStatus;
 };
 
+export type SecurityVisitorVpnInfo = {
+  status: 'none' | 'detected' | 'blocked' | 'unavailable';
+  event_type: string;
+  decision: string;
+  risk_level: string;
+  observed_at: string;
+};
+
 export type SecurityVisitorSessionRow = SecurityVisitorSession & {
   relatedCustomer: RelatedCustomer | null;
+  vpn: SecurityVisitorVpnInfo;
 };
 
 export type SecurityVisitorPageview = {
@@ -1452,6 +1461,20 @@ export async function getSecurityVisitorsTodayPage(
   return normalizeEndpointPage(response, items, safePage, VISITORS_PER_PAGE);
 }
 
+function normalizeVisitorVpnInfo(record: any): SecurityVisitorVpnInfo {
+  const rawStatus = String(record?.status || 'none');
+  const status = ['none', 'detected', 'blocked', 'unavailable'].includes(rawStatus)
+    ? rawStatus as SecurityVisitorVpnInfo['status']
+    : 'none';
+  return {
+    status,
+    event_type: String(record?.event_type || ''),
+    decision: String(record?.decision || ''),
+    risk_level: String(record?.risk_level || ''),
+    observed_at: String(record?.observed_at || ''),
+  };
+}
+
 function normalizeVisitorEndpointSession(record: any): SecurityVisitorSessionRow {
   const relatedCustomer = normalizeEndpointCustomer(record?.customer);
   const ip = normalizeEndpointIp(record);
@@ -1473,6 +1496,7 @@ function normalizeVisitorEndpointSession(record: any): SecurityVisitorSessionRow
     resolved_ip: ip.resolved_ip,
     ip_resolution_status: ip.ip_resolution_status,
     relatedCustomer,
+    vpn: normalizeVisitorVpnInfo(record?.vpn),
   };
 }
 

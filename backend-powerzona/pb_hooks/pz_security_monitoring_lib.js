@@ -1313,6 +1313,59 @@ function serializeVisitorSession(session, settings, customerMap) {
   };
 }
 
+function emptyVisitorVpnInfo() {
+  return {
+    status: "none",
+    event_type: "",
+    decision: "",
+    risk_level: "",
+    observed_at: "",
+  };
+}
+
+function buildVisitorVpnInfo(app, storeId, session) {
+  const browserTokenHmac = getString(session, "browser_token_hmac");
+  if (!browserTokenHmac) return emptyVisitorVpnInfo();
+
+  let events = [];
+  try {
+    events = app.findRecordsByFilter(
+      SECURITY_EVENTS_COLLECTION,
+      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
+      "-occurred_at,-created",
+      50,
+      0,
+      {
+        store: storeId,
+        browserTokenHmac,
+        detectedType: "vpn_detected",
+        blockedType: "vpn_blocked",
+        unavailableType: "vpn_check_unavailable",
+      }
+    ) || [];
+  } catch (_) {
+    return emptyVisitorVpnInfo();
+  }
+
+  const detectedEvent = events.find((event) => {
+    const eventType = getString(event, "event_type");
+    return eventType === "vpn_detected" || eventType === "vpn_blocked";
+  });
+  const event = detectedEvent || events[0];
+  if (!event) return emptyVisitorVpnInfo();
+
+  const eventType = getString(event, "event_type");
+  return {
+    status: eventType === "vpn_blocked"
+      ? "blocked"
+      : (eventType === "vpn_detected" ? "detected" : "unavailable"),
+    event_type: eventType,
+    decision: getString(event, "decision"),
+    risk_level: getString(event, "risk_level"),
+    observed_at: getString(event, "occurred_at") || getString(event, "created"),
+  };
+}
+
 function entityName(record) {
   return getString(record, "name") || getString(record, "title") || getString(record, "slug");
 }
@@ -1485,7 +1538,10 @@ function handleSecurityVisitorDetail(e) {
     }
     return e.json(200, {
       ok: true,
-      visitor: serializeVisitorSession(visitor, access.settings, customerMap),
+      visitor: Object.assign(
+        serializeVisitorSession(visitor, access.settings, customerMap),
+        { vpn: buildVisitorVpnInfo($app, payload.storeId, visitor) }
+      ),
       orders,
       orders_error: ordersError,
       pageviews: {
@@ -3989,6 +4045,7 @@ module.exports = {
     parseNavigationPayload,
     parseVisitorDetailPayload,
     buildVisitorCustomerOrdersDetail,
+    buildVisitorVpnInfo,
     visitorCustomerOrdersPerPage: VISITOR_CUSTOMER_ORDERS_PER_PAGE,
     normalizeDeliveryAddressPart,
     deliveryAddressFingerprint,

@@ -22,8 +22,6 @@ import {
   getVisitorPhone,
   labelFromMap,
   type CustomerStatusFilter,
-  type EventRiskFilter,
-  type EventTypeFilter,
   type PaginatedResult,
   type SecurityAvailableSignals,
   type SecurityAddressCandidate,
@@ -249,14 +247,6 @@ function isActiveCustomerStatus(status: CustomerStatusFilter) {
   return params.customerStatus === status;
 }
 
-function isActiveEventType(value: EventTypeFilter) {
-  return params.eventType === value;
-}
-
-function isActiveEventRisk(value: EventRiskFilter) {
-  return params.eventRisk === value;
-}
-
 function isActiveBlockStatus(value: string) {
   return params.blockedStatus === value;
 }
@@ -463,7 +453,7 @@ function observationActionValue(customer: SecurityCustomer) {
     <a class:list={['monitoring-tab', { 'is-active': isActiveSection('rules') }]} href={sectionHref('rules')}>Reglas</a>
   </nav>
 
-  {viewNotice && <div class="monitoring-alert is-success" role="status">{viewNotice}</div>}
+  {viewNotice && <div class="monitoring-alert is-success" role="status" data-auto-dismiss-success>{viewNotice}</div>}
   {viewError && <div class="monitoring-alert" role="alert">{viewError}</div>}
   {customerUnavailable && <div class="monitoring-alert is-soft" role="status">Cliente no disponible.</div>}
   {!actionsEnabled && context === 'master' && (
@@ -1122,15 +1112,17 @@ function observationActionValue(customer: SecurityCustomer) {
                   <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(visitor.last_seen_at)}</div>
                   <div class="table-cell" role="cell" data-label="Paginas">{formatNumber(visitor.pageviews_count)}</div>
                   <div class="table-cell action-cell" role="cell" data-label="Accion">
-                    <a class="row-action" href={visitorDetailHref(visitor.id)}>Ver</a>
-                    {canCreateManualIpBlock && (
-                      <button
-                        class="danger-action"
-                        type="button"
-                        data-manual-ip-block-trigger
-                        data-visitor-session-id={visitor.id}
-                      >Bloquear</button>
-                    )}
+                    <button
+                      class="icon-action visitor-menu-trigger"
+                      type="button"
+                      aria-label={`Acciones de ${getVisitorDisplayName(visitor)}`}
+                      aria-haspopup="menu"
+                      aria-controls="security-visitor-actions-menu"
+                      aria-expanded="false"
+                      data-visitor-href={visitorDetailHref(visitor.id)}
+                      data-visitor-session-id={visitor.id}
+                      data-can-block={canCreateManualIpBlock ? 'true' : 'false'}
+                    ><span aria-hidden="true">&#8942;</span></button>
                   </div>
                 </article>
               ))}
@@ -1160,20 +1152,30 @@ function observationActionValue(customer: SecurityCustomer) {
         </div>
       </div>
 
-      <div class="filter-row" aria-label="Filtros de actividad">
-        {EVENT_TYPE_FILTERS.map((value) => (
-          <a class:list={['filter-chip', { 'is-active': isActiveEventType(value) }]} href={activityHref(1, { event_type: value })}>
-            {value === 'all' ? 'Todos' : labelFromMap(EVENT_TYPE_LABELS, value)}
-          </a>
-        ))}
-      </div>
-      <div class="filter-row compact-filters" aria-label="Filtros de riesgo">
-        {EVENT_RISK_FILTERS.map((value) => (
-          <a class:list={['filter-chip', { 'is-active': isActiveEventRisk(value) }]} href={activityHref(1, { risk: value })}>
-            {value === 'all' ? 'Riesgo: todos' : labelFromMap(EVENT_RISK_LABELS, value)}
-          </a>
-        ))}
-      </div>
+      <form class="activity-filter-grid" method="GET" action={basePath} aria-label="Filtros de actividad">
+        <input type="hidden" name="section" value="activity" />
+        <label class="filter-select-field">
+          <span>Tipo de actividad</span>
+          <select name="event_type" data-activity-filter>
+            {EVENT_TYPE_FILTERS.map((value) => (
+              <option value={value} selected={params.eventType === value}>
+                {value === 'all' ? 'Todos los eventos' : labelFromMap(EVENT_TYPE_LABELS, value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="filter-select-field">
+          <span>Nivel de riesgo</span>
+          <select name="risk" data-activity-filter>
+            {EVENT_RISK_FILTERS.map((value) => (
+              <option value={value} selected={params.eventRisk === value}>
+                {value === 'all' ? 'Todos los riesgos' : labelFromMap(EVENT_RISK_LABELS, value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <noscript><button class="secondary-action" type="submit">Aplicar filtros</button></noscript>
+      </form>
 
       {activityResult && activityResult.items.length > 0 ? (
         <>
@@ -1555,6 +1557,11 @@ function observationActionValue(customer: SecurityCustomer) {
   <button class="floating-menu-item danger" type="button" data-menu-action="delete" role="menuitem" disabled={!actionsEnabled}>Eliminar ficha de Seguridad</button>
 </div>
 
+<div id="security-visitor-actions-menu" class="floating-actions-menu" data-visitor-menu role="menu" aria-label="Acciones de visitante" aria-hidden="true" hidden>
+  <a class="floating-menu-item" href="#" data-visitor-menu-view role="menuitem">Ver visitante</a>
+  <button class="floating-menu-item danger" type="button" data-visitor-menu-block data-manual-ip-block-trigger role="menuitem">Bloquear</button>
+</div>
+
 <dialog id="security-lifecycle-dialog" class="security-modal security-lifecycle-modal" data-lifecycle-dialog aria-labelledby="security-lifecycle-title">
   <div class="security-modal-card">
     <header class="security-modal-header">
@@ -1894,6 +1901,16 @@ function observationActionValue(customer: SecurityCustomer) {
     letter-spacing: 0;
   }
 
+  .visitor-menu-trigger {
+    font-size: 23px;
+    line-height: 1;
+  }
+
+  .visitor-menu-trigger span {
+    display: block;
+    transform: translateY(-1px);
+  }
+
   .floating-actions-menu {
     position: fixed;
     top: 0;
@@ -1958,6 +1975,10 @@ function observationActionValue(customer: SecurityCustomer) {
   .floating-menu-item.danger:hover,
   .floating-menu-item.danger:focus-visible {
     background: #fef2f2;
+  }
+
+  .floating-menu-item[hidden] {
+    display: none;
   }
 
   dialog.security-modal {
@@ -2118,6 +2139,45 @@ function observationActionValue(customer: SecurityCustomer) {
     color: #1d4ed8;
   }
 
+  .activity-filter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    max-width: 760px;
+  }
+
+  .filter-select-field {
+    display: grid;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .filter-select-field > span {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 1000;
+  }
+
+  .filter-select-field select {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    padding: 10px 38px 10px 12px;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 900;
+  }
+
+  .filter-select-field select:focus-visible {
+    border-color: #2563eb;
+    outline: 3px solid rgba(37, 99, 235, .16);
+  }
+
   .monitoring-alert {
     border: 1px solid #fecaca;
     border-radius: 8px;
@@ -2127,6 +2187,14 @@ function observationActionValue(customer: SecurityCustomer) {
     font-size: 13px;
     line-height: 1.4;
     font-weight: 900;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity .2s ease, transform .2s ease;
+  }
+
+  .monitoring-alert.is-leaving {
+    opacity: 0;
+    transform: translateY(-6px);
   }
 
   .monitoring-alert.is-soft {
@@ -2972,7 +3040,8 @@ function observationActionValue(customer: SecurityCustomer) {
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .floating-actions-menu {
+    .floating-actions-menu,
+    .monitoring-alert {
       transition: none;
     }
 
@@ -2995,7 +3064,8 @@ function observationActionValue(customer: SecurityCustomer) {
     }
 
     .customer-search,
-    .block-filter-form {
+    .block-filter-form,
+    .activity-filter-grid {
       grid-template-columns: 1fr 1fr;
     }
 
@@ -3048,6 +3118,7 @@ function observationActionValue(customer: SecurityCustomer) {
     .metrics-grid.block-metrics,
     .customer-search,
     .block-filter-form,
+    .activity-filter-grid,
     .signal-grid,
     .active-block-card dl {
       grid-template-columns: 1fr;
@@ -3164,6 +3235,12 @@ function observationActionValue(customer: SecurityCustomer) {
     .action-cell {
       justify-content: stretch;
       grid-template-columns: 1fr;
+    }
+
+    .action-cell .visitor-menu-trigger {
+      width: 46px;
+      min-width: 46px;
+      margin-left: auto;
     }
 
     .compact-actions {
@@ -3286,6 +3363,7 @@ function observationActionValue(customer: SecurityCustomer) {
 
 <script>
   const customerMenu = document.querySelector('[data-customer-menu]');
+  const visitorMenu = document.querySelector('[data-visitor-menu]');
   const lifecycleDialog = document.querySelector('[data-lifecycle-dialog]');
   const deleteDialog = document.querySelector('[data-delete-dialog]');
   const observationDialog = document.querySelector('[data-observation-dialog]');
@@ -3304,6 +3382,7 @@ function observationActionValue(customer: SecurityCustomer) {
   ].filter(isDialogElement);
   const countFormatter = new Intl.NumberFormat('es-US');
   let activeCustomerMenuTrigger = null;
+  let activeVisitorMenuTrigger = null;
   let lastDialogTrigger = null;
 
   function isDialogElement(value) {
@@ -3319,6 +3398,17 @@ function observationActionValue(customer: SecurityCustomer) {
     }
     activeCustomerMenuTrigger = null;
     customerMenu.hidden = true;
+  }
+
+  function closeVisitorMenu() {
+    if (!(visitorMenu instanceof HTMLElement)) return;
+    visitorMenu.classList.remove('is-open');
+    visitorMenu.setAttribute('aria-hidden', 'true');
+    if (activeVisitorMenuTrigger instanceof HTMLElement) {
+      activeVisitorMenuTrigger.setAttribute('aria-expanded', 'false');
+    }
+    activeVisitorMenuTrigger = null;
+    visitorMenu.hidden = true;
   }
 
   function clampMenuPosition(value, min, max) {
@@ -3351,8 +3441,35 @@ function observationActionValue(customer: SecurityCustomer) {
     customerMenu.style.top = `${clampMenuPosition(top, edge, Math.max(edge, viewportHeight - menuHeight - edge))}px`;
   }
 
+  function positionVisitorMenu(trigger) {
+    if (!(visitorMenu instanceof HTMLElement)) return;
+    const gap = 8;
+    const edge = 12;
+    const rect = trigger.getBoundingClientRect();
+    const menuWidth = visitorMenu.offsetWidth || 180;
+    const menuHeight = visitorMenu.offsetHeight || 96;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    let left = rect.right - menuWidth;
+    let top = rect.bottom + gap;
+
+    if (top + menuHeight > viewportHeight - edge) {
+      top = rect.top - menuHeight - gap;
+    }
+    if (left < edge) {
+      left = rect.left;
+    }
+    if (left + menuWidth > viewportWidth - edge) {
+      left = viewportWidth - menuWidth - edge;
+    }
+
+    visitorMenu.style.left = `${clampMenuPosition(left, edge, Math.max(edge, viewportWidth - menuWidth - edge))}px`;
+    visitorMenu.style.top = `${clampMenuPosition(top, edge, Math.max(edge, viewportHeight - menuHeight - edge))}px`;
+  }
+
   function openCustomerMenu(trigger) {
     if (!(customerMenu instanceof HTMLElement)) return;
+    closeVisitorMenu();
     const lifecycleItem = customerMenu.querySelector('[data-menu-action="lifecycle"]');
     if (lifecycleItem instanceof HTMLButtonElement) {
       lifecycleItem.textContent = trigger.dataset.lifecycleLabel || 'Archivar cliente';
@@ -3370,6 +3487,32 @@ function observationActionValue(customer: SecurityCustomer) {
     positionCustomerMenu(trigger);
     const firstItem = customerMenu.querySelector('.floating-menu-item:not(:disabled)');
     if (firstItem instanceof HTMLButtonElement) firstItem.focus();
+  }
+
+  function openVisitorMenu(trigger) {
+    if (!(visitorMenu instanceof HTMLElement)) return;
+    closeCustomerMenu();
+    const viewItem = visitorMenu.querySelector('[data-visitor-menu-view]');
+    if (viewItem instanceof HTMLAnchorElement) {
+      viewItem.href = trigger.dataset.visitorHref || '#';
+    }
+    const blockItem = visitorMenu.querySelector('[data-visitor-menu-block]');
+    if (blockItem instanceof HTMLButtonElement) {
+      const canBlock = trigger.dataset.canBlock === 'true';
+      blockItem.hidden = !canBlock;
+      blockItem.dataset.visitorSessionId = trigger.dataset.visitorSessionId || '';
+    }
+    if (activeVisitorMenuTrigger && activeVisitorMenuTrigger !== trigger) {
+      activeVisitorMenuTrigger.setAttribute('aria-expanded', 'false');
+    }
+    activeVisitorMenuTrigger = trigger;
+    trigger.setAttribute('aria-expanded', 'true');
+    visitorMenu.hidden = false;
+    visitorMenu.classList.add('is-open');
+    visitorMenu.setAttribute('aria-hidden', 'false');
+    positionVisitorMenu(trigger);
+    const firstItem = visitorMenu.querySelector('.floating-menu-item:not([hidden]):not(:disabled)');
+    if (firstItem instanceof HTMLElement) firstItem.focus();
   }
 
   function numericData(value) {
@@ -3586,6 +3729,7 @@ function observationActionValue(customer: SecurityCustomer) {
   function openManualIpBlockDialog(trigger) {
     if (!(trigger instanceof HTMLElement) || !isDialogElement(manualIpBlockDialog)) return;
     closeCustomerMenu();
+    closeVisitorMenu();
     closeOpenDialogs(manualIpBlockDialog);
     if (manualIpBlockDialog.dataset.previewReady !== 'true') {
       const visitorSessionId = trigger.dataset.visitorSessionId || '';
@@ -3672,6 +3816,17 @@ function observationActionValue(customer: SecurityCustomer) {
       return;
     }
 
+    const visitorTrigger = target.closest('.visitor-menu-trigger');
+    if (visitorTrigger instanceof HTMLButtonElement) {
+      event.preventDefault();
+      if (activeVisitorMenuTrigger === visitorTrigger && visitorMenu instanceof HTMLElement && visitorMenu.classList.contains('is-open')) {
+        closeVisitorMenu();
+      } else {
+        openVisitorMenu(visitorTrigger);
+      }
+      return;
+    }
+
     const dialogTrigger = target.closest('.customer-dialog-trigger');
     if (dialogTrigger instanceof HTMLButtonElement) {
       event.preventDefault();
@@ -3741,12 +3896,15 @@ function observationActionValue(customer: SecurityCustomer) {
     }
 
     if (customerMenu instanceof HTMLElement && customerMenu.contains(target)) return;
+    if (visitorMenu instanceof HTMLElement && visitorMenu.contains(target)) return;
     closeCustomerMenu();
+    closeVisitorMenu();
   });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       closeCustomerMenu();
+      closeVisitorMenu();
       return;
     }
 
@@ -3758,11 +3916,44 @@ function observationActionValue(customer: SecurityCustomer) {
     ) {
       event.preventDefault();
       openCustomerMenu(target);
+      return;
+    }
+
+    if (
+      event.key === 'ArrowDown'
+      && target instanceof HTMLButtonElement
+      && target.classList.contains('visitor-menu-trigger')
+    ) {
+      event.preventDefault();
+      openVisitorMenu(target);
     }
   });
 
-  window.addEventListener('resize', closeCustomerMenu);
-  window.addEventListener('scroll', closeCustomerMenu, true);
+  function closeFloatingMenus() {
+    closeCustomerMenu();
+    closeVisitorMenu();
+  }
+
+  window.addEventListener('resize', closeFloatingMenus);
+  window.addEventListener('scroll', closeFloatingMenus, true);
+
+  document.querySelectorAll('[data-activity-filter]').forEach((element) => {
+    if (!(element instanceof HTMLSelectElement)) return;
+    element.addEventListener('change', () => element.form?.requestSubmit());
+  });
+
+  const successNotice = document.querySelector('[data-auto-dismiss-success]');
+  if (successNotice instanceof HTMLElement) {
+    const currentUrl = new URL(window.location.href);
+    if (currentUrl.searchParams.has('notice')) {
+      currentUrl.searchParams.delete('notice');
+      window.history.replaceState({}, '', `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`);
+    }
+    window.setTimeout(() => {
+      successNotice.classList.add('is-leaving');
+      window.setTimeout(() => successNotice.remove(), 220);
+    }, 3800);
+  }
 
   document.addEventListener('change', (event) => {
     const target = event.target;

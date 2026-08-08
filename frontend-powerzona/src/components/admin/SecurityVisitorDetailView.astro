@@ -11,6 +11,8 @@ import {
   getVisitorPhone,
   labelFromMap,
   DELIVERY_METHOD_LABELS,
+  EVENT_DECISION_LABELS,
+  EVENT_RISK_LABELS,
   ORDER_STATUS_LABELS,
   type PaginatedResult,
   type SecurityOrder,
@@ -47,6 +49,13 @@ const {
 
 const showIp = String(settings.ip_visibility || 'hidden') !== 'hidden';
 const relatedCustomer = visitor.relatedCustomer;
+const vpnInfo = visitor.vpn;
+const hasVpnSignal = vpnInfo.status !== 'none';
+const vpnStatusLabel = vpnInfo.status === 'blocked'
+  ? 'VPN o proxy bloqueado'
+  : (vpnInfo.status === 'detected'
+    ? 'VPN o proxy detectado'
+    : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada'));
 const ordersOpen = Boolean(relatedCustomer && (orders.page > 1 || Astro.url.searchParams.get('orders_open') === '1'));
 const customerHref = relatedCustomer
   ? `${basePath}?section=customers&customer=${encodeURIComponent(relatedCustomer.id)}&orders_page=1&events_page=1`
@@ -135,6 +144,30 @@ function orderHref(order: SecurityOrder) {
         </div>
       )}
       <div class="summary-row">
+        <span>VPN o proxy</span>
+        <strong>
+          <span class:list={['vpn-status-pill', `is-${vpnInfo.status}`]}>{vpnStatusLabel}</span>
+        </strong>
+      </div>
+      {hasVpnSignal && vpnInfo.observed_at && (
+        <div class="summary-row">
+          <span>{vpnInfo.status === 'unavailable' ? 'Ultima verificacion' : 'Ultima deteccion'}</span>
+          <strong>{formatDateTime(vpnInfo.observed_at)}</strong>
+        </div>
+      )}
+      {hasVpnSignal && vpnInfo.decision && (
+        <div class="summary-row">
+          <span>Decision aplicada</span>
+          <strong>{labelFromMap(EVENT_DECISION_LABELS, vpnInfo.decision)}</strong>
+        </div>
+      )}
+      {hasVpnSignal && vpnInfo.risk_level && (
+        <div class="summary-row">
+          <span>Riesgo registrado</span>
+          <strong>{labelFromMap(EVENT_RISK_LABELS, vpnInfo.risk_level)}</strong>
+        </div>
+      )}
+      <div class="summary-row">
         <span>Primera visita</span>
         <strong>{formatDateTime(visitor.first_seen_at)}</strong>
       </div>
@@ -153,6 +186,10 @@ function orderHref(order: SecurityOrder) {
         </div>
       )}
     </div>
+
+    {(vpnInfo.status === 'detected' || vpnInfo.status === 'blocked') && (
+      <p class="vpn-info-note">Deteccion historica asociada a este dispositivo. No significa que el VPN o proxy siga activo en este momento.</p>
+    )}
 
     {customerHref && (
       <div class="summary-actions">
@@ -397,6 +434,7 @@ function orderHref(order: SecurityOrder) {
   }
 
   .identity-pill,
+  .vpn-status-pill,
   .order-status {
     display: inline-flex;
     align-items: center;
@@ -415,6 +453,34 @@ function orderHref(order: SecurityOrder) {
   .identity-pill.is-customer {
     background: #dcfce7;
     color: #166534;
+  }
+
+  .vpn-status-pill.is-detected,
+  .vpn-status-pill.is-unavailable {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .vpn-status-pill.is-blocked {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .vpn-status-pill.is-none {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .vpn-info-note {
+    margin: 12px 0 0;
+    border: 1px solid #fde68a;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.45;
+    font-weight: 800;
   }
 
   .summary-actions {
