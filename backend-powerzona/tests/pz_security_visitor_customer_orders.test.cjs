@@ -266,6 +266,11 @@ test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP co
           decision: 'blocked',
           risk_level: 'blocked',
           occurred_at: '2026-08-08 17:00:00.000Z',
+          metadata_json: {
+            provider: 'ipapi_is:proxycheck_io',
+            provider_confidence: 97,
+            hosting_consensus: true,
+          },
         }),
       ];
     },
@@ -277,12 +282,73 @@ test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP co
     decision: 'blocked',
     risk_level: 'blocked',
     observed_at: '2026-08-08 17:00:00.000Z',
+    provider: 'ipapi_is:proxycheck_io',
+    provider_confidence: 97,
+    hosting_consensus: true,
+    abuse_available: false,
+    abuse_score: null,
+    abuse_total_reports: 0,
+    abuse_distinct_users: 0,
+    abuse_last_reported_at: '',
+    block_reason: '',
   });
 
   assert.deepEqual(
     monitoring._test.buildVisitorVpnInfo(app, STORE_ID, new MockRecord({ id: VISITOR_ID })),
-    { status: 'none', event_type: '', decision: '', risk_level: '', observed_at: '' },
+    {
+      status: 'none',
+      event_type: '',
+      decision: '',
+      risk_level: '',
+      observed_at: '',
+      provider: '',
+      provider_confidence: null,
+      hosting_consensus: false,
+      abuse_available: false,
+      abuse_score: null,
+      abuse_total_reports: 0,
+      abuse_distinct_users: 0,
+      abuse_last_reported_at: '',
+      block_reason: '',
+    },
   );
+});
+
+test('VISITOR-STRICT-NETWORK: prioriza abuso y hosting bloqueados con motivo preciso', () => {
+  const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: 'w'.repeat(43) });
+  const events = [
+    new MockRecord({
+      event_type: 'abusive_ip_blocked',
+      decision: 'blocked',
+      risk_level: 'blocked',
+      occurred_at: '2026-08-09 21:00:00.000Z',
+      metadata_json: {
+        provider: 'ipapi_is:abuseipdb',
+        abuse_available: true,
+        abuse_score: 25,
+        abuse_total_reports: 1,
+        abuse_distinct_users: 1,
+        abuse_last_reported_at: '2026-08-09 20:00:00.000Z',
+        block_reason: 'abusive_ip_detected',
+      },
+    }),
+  ];
+  const info = monitoring._test.buildVisitorVpnInfo({}, STORE_ID, visitor, events);
+  assert.equal(info.status, 'blocked');
+  assert.equal(info.event_type, 'abusive_ip_blocked');
+  assert.equal(info.provider, 'ipapi_is:abuseipdb');
+  assert.equal(info.abuse_score, 25);
+  assert.equal(info.abuse_total_reports, 1);
+  assert.equal(info.block_reason, 'abusive_ip_detected');
+
+  const firstIpHmac = 'q'.repeat(64);
+  const state = monitoring._test.buildVisitorNetworkState(
+    new MockRecord({ id: VISITOR_ID, latest_ip_hmac: firstIpHmac }),
+    [{ capture: { ip_hmac: firstIpHmac } }],
+    [new MockRecord({ event_type: 'hosting_blocked', ip_hmac: firstIpHmac, occurred_at: '2026-08-09 21:00:00.000Z' })],
+  );
+  assert.equal(state.summary.current_ip_status, 'blocked');
+  assert.equal(state.summary.vpn_ip_count, 1);
 });
 
 test('VISITOR-VPN-IP: cada IP conserva solo su estado seguro sin exponer la huella protegida', () => {
@@ -399,7 +465,7 @@ test('VISITOR-STATUS: prioriza bloqueos activos y usa observacion solo para sena
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'watch' }, vpnNone, [], now), 'watch');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'detected' }, [], now), 'watch');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'unavailable' }, [], now), 'watch');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'blocked' }, [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'blocked' }, [], now), 'blocked');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'blocked' }, vpnNone, [], now), 'blocked');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [activeIpBlock], now), 'blocked');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [expiredIpBlock], now), 'normal');

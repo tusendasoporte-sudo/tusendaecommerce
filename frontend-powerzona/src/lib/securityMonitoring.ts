@@ -3,7 +3,7 @@ import type { StoreSecuritySettings } from './security';
 
 export const SECURITY_MONITORING_SECTIONS = ['summary', 'activity', 'customers', 'visitors', 'blocked', 'rules'] as const;
 export const CUSTOMER_STATUS_FILTERS = ['all', 'normal', 'watch', 'blocked', 'archived'] as const;
-export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'blocked_address_match', 'network_suspected', 'vpn_detected', 'vpn_blocked', 'vpn_check_unavailable', 'admin_action'] as const;
+export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'blocked_address_match', 'network_suspected', 'hosting_blocked', 'abusive_ip_detected', 'abusive_ip_blocked', 'vpn_detected', 'vpn_blocked', 'vpn_check_unavailable', 'admin_action'] as const;
 export const EVENT_RISK_FILTERS = ['all', 'normal', 'suspicious', 'blocked'] as const;
 export const SECURITY_BLOCK_STATUS_FILTERS = ['all', 'active', 'expired', 'revoked'] as const;
 export const SECURITY_BLOCK_SCOPE_FILTERS = ['all', 'orders', 'reviews', 'raffles', 'all_interactions', 'full_access'] as const;
@@ -504,6 +504,15 @@ export type SecurityVisitorVpnInfo = {
   decision: string;
   risk_level: string;
   observed_at: string;
+  provider: string;
+  provider_confidence: number | null;
+  hosting_consensus: boolean;
+  abuse_available: boolean;
+  abuse_score: number | null;
+  abuse_total_reports: number;
+  abuse_distinct_users: number;
+  abuse_last_reported_at: string;
+  block_reason: string;
 };
 
 export type SecurityVisitorStatus = 'normal' | 'watch' | 'blocked';
@@ -1687,6 +1696,21 @@ function normalizeVisitorVpnInfo(record: any): SecurityVisitorVpnInfo {
     decision: String(record?.decision || ''),
     risk_level: String(record?.risk_level || ''),
     observed_at: String(record?.observed_at || ''),
+    provider: String(record?.provider || ''),
+    provider_confidence: record?.provider_confidence === null
+      || record?.provider_confidence === undefined
+      || record?.provider_confidence === ''
+      ? null
+      : normalizeNumber(record.provider_confidence),
+    hosting_consensus: record?.hosting_consensus === true,
+    abuse_available: record?.abuse_available === true,
+    abuse_score: record?.abuse_score === null || record?.abuse_score === undefined || record?.abuse_score === ''
+      ? null
+      : normalizeNumber(record.abuse_score),
+    abuse_total_reports: Math.max(0, normalizeNumber(record?.abuse_total_reports)),
+    abuse_distinct_users: Math.max(0, normalizeNumber(record?.abuse_distinct_users)),
+    abuse_last_reported_at: String(record?.abuse_last_reported_at || ''),
+    block_reason: String(record?.block_reason || ''),
   };
 }
 
@@ -1908,6 +1932,9 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   blocked_attempt: 'Intento bloqueado',
   blocked_address_match: 'Dirección vinculada a bloqueo',
   network_suspected: 'Red sospechosa sin confirmar VPN',
+  hosting_blocked: 'Red de hosting o datacenter bloqueada',
+  abusive_ip_detected: 'IP abusiva detectada',
+  abusive_ip_blocked: 'IP abusiva bloqueada',
   vpn_detected: 'VPN o proxy detectado',
   vpn_blocked: 'VPN o proxy bloqueado',
   vpn_check_unavailable: 'Verificacion VPN no disponible',

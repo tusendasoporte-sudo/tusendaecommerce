@@ -44,7 +44,7 @@ const VISITOR_PAGEVIEW_RETENTION_DAYS = 30;
 const VISITOR_SESSION_RETENTION_DAYS = 90;
 
 const ALLOWED_PAGE_TYPES = ["store_home", "category", "subcategory", "product", "gifts", "search", "checkout", "landing_qr", "other"];
-const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "network_suspected", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
+const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "network_suspected", "hosting_blocked", "abusive_ip_detected", "abusive_ip_blocked", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
 const SECURITY_ACTIVITY_RISK_LEVELS = ["all", "normal", "suspicious", "blocked"];
 const RESOLVE_SOURCES = ["security_event", "visitor_session", "visitor_pageview"];
 const SECURITY_BLOCK_SCOPES = ["orders", "reviews", "raffles", "all_interactions", "full_access"];
@@ -1566,6 +1566,15 @@ function emptyVisitorVpnInfo() {
     decision: "",
     risk_level: "",
     observed_at: "",
+    provider: "",
+    provider_confidence: null,
+    hosting_consensus: false,
+    abuse_available: false,
+    abuse_score: null,
+    abuse_total_reports: 0,
+    abuse_distinct_users: 0,
+    abuse_last_reported_at: "",
+    block_reason: "",
   };
 }
 
@@ -1575,7 +1584,7 @@ function listVisitorVpnEvents(app, storeId, session, limit) {
   try {
     return app.findRecordsByFilter(
       SECURITY_EVENTS_COLLECTION,
-      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:suspectedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
+      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:suspectedType} || event_type = {:hostingBlockedType} || event_type = {:abuseDetectedType} || event_type = {:abuseBlockedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
       "-occurred_at,-created",
       Math.max(1, Number(limit) || 50),
       0,
@@ -1583,6 +1592,9 @@ function listVisitorVpnEvents(app, storeId, session, limit) {
         store: storeId,
         browserTokenHmac,
         suspectedType: "network_suspected",
+        hostingBlockedType: "hosting_blocked",
+        abuseDetectedType: "abusive_ip_detected",
+        abuseBlockedType: "abusive_ip_blocked",
         detectedType: "vpn_detected",
         blockedType: "vpn_blocked",
         unavailableType: "vpn_check_unavailable",
@@ -1596,31 +1608,57 @@ function listVisitorVpnEvents(app, storeId, session, limit) {
 function buildVisitorVpnInfo(app, storeId, session, suppliedEvents) {
   const events = Array.isArray(suppliedEvents) ? suppliedEvents : listVisitorVpnEvents(app, storeId, session, 50);
 
+  const blockedEvent = events.find((event) => {
+    const eventType = getString(event, "event_type");
+    return eventType === "vpn_blocked" || eventType === "hosting_blocked" || eventType === "abusive_ip_blocked";
+  });
   const detectedEvent = events.find((event) => {
     const eventType = getString(event, "event_type");
-    return eventType === "vpn_detected" || eventType === "vpn_blocked";
+    return eventType === "vpn_detected" || eventType === "abusive_ip_detected";
   });
   const suspectedEvent = events.find((event) => getString(event, "event_type") === "network_suspected");
   const unavailableEvent = events.find((event) => getString(event, "event_type") === "vpn_check_unavailable");
-  const event = detectedEvent || suspectedEvent || unavailableEvent;
+  const event = blockedEvent || detectedEvent || suspectedEvent || unavailableEvent;
   if (!event) return emptyVisitorVpnInfo();
 
   const eventType = getString(event, "event_type");
+  const metadata = getObject(event, "metadata_json");
   return {
-    status: eventType === "vpn_blocked"
+    status: eventType === "vpn_blocked" || eventType === "hosting_blocked" || eventType === "abusive_ip_blocked"
       ? "blocked"
-      : (eventType === "vpn_detected" ? "detected" : (eventType === "network_suspected" ? "suspected" : "unavailable")),
+      : (eventType === "vpn_detected" || eventType === "abusive_ip_detected"
+        ? "detected"
+        : (eventType === "network_suspected" ? "suspected" : "unavailable")),
     event_type: eventType,
     decision: getString(event, "decision"),
     risk_level: getString(event, "risk_level"),
     observed_at: getString(event, "occurred_at") || getString(event, "created"),
+    provider: String(metadata.provider || "").slice(0, 120),
+    provider_confidence: metadata.provider_confidence !== null
+      && metadata.provider_confidence !== undefined
+      && metadata.provider_confidence !== ""
+      && Number.isFinite(Number(metadata.provider_confidence))
+      ? Number(metadata.provider_confidence)
+      : null,
+    hosting_consensus: metadata.hosting_consensus === true,
+    abuse_available: metadata.abuse_available === true,
+    abuse_score: metadata.abuse_score !== null
+      && metadata.abuse_score !== undefined
+      && metadata.abuse_score !== ""
+      && Number.isFinite(Number(metadata.abuse_score))
+      ? Number(metadata.abuse_score)
+      : null,
+    abuse_total_reports: Math.max(0, Number(metadata.abuse_total_reports) || 0),
+    abuse_distinct_users: Math.max(0, Number(metadata.abuse_distinct_users) || 0),
+    abuse_last_reported_at: String(metadata.abuse_last_reported_at || ""),
+    block_reason: String(metadata.block_reason || "").slice(0, 80),
   };
 }
 
 function visitorNetworkStatusFromEvent(event) {
   const eventType = getString(event, "event_type");
-  if (eventType === "vpn_blocked") return "blocked";
-  if (eventType === "vpn_detected") return "detected";
+  if (eventType === "vpn_blocked" || eventType === "hosting_blocked" || eventType === "abusive_ip_blocked") return "blocked";
+  if (eventType === "vpn_detected" || eventType === "abusive_ip_detected") return "detected";
   if (eventType === "network_suspected") return "suspected";
   if (eventType === "vpn_check_unavailable") return "unavailable";
   return "normal";
@@ -1697,7 +1735,8 @@ function buildVisitorSecurityStatus(session, relatedCustomer, vpnInfo, activeBlo
     return "blocked";
   }
   const vpnStatus = String(vpnInfo && vpnInfo.status || "none");
-  if (customerStatus === "watch" || vpnStatus === "blocked" || vpnStatus === "detected" || vpnStatus === "suspected" || vpnStatus === "unavailable") return "watch";
+  if (vpnStatus === "blocked") return "blocked";
+  if (customerStatus === "watch" || vpnStatus === "detected" || vpnStatus === "suspected" || vpnStatus === "unavailable") return "watch";
   return "normal";
 }
 
@@ -2384,7 +2423,9 @@ function buildSecurityBlockDetail(app, storeId, block, settings) {
       {
         sightings: 1,
         blockedAttempt: eventType === "blocked_attempt",
-        vpnStatus: eventType === "vpn_blocked" ? "blocked" : eventType === "vpn_detected" ? "detected" : "none",
+        vpnStatus: eventType === "vpn_blocked" || eventType === "hosting_blocked" || eventType === "abusive_ip_blocked"
+          ? "blocked"
+          : (eventType === "vpn_detected" || eventType === "abusive_ip_detected" ? "detected" : "none"),
         visitorSessionId: navigation.kind === "visitor" ? navigation.target_id : "",
       }
     );

@@ -1353,6 +1353,7 @@ function observationActionValue(customer: SecurityCustomer) {
                   )}
                   <div class="table-cell" role="cell" data-label="Estado">
                     <span class={`status-pill status-${visitor.security_status}`}>{visitorSecurityStatusLabels[visitor.security_status]}</span>
+                    {visitor.vpn.event_type && <small>{labelFromMap(EVENT_TYPE_LABELS, visitor.vpn.event_type)}</small>}
                   </div>
                   <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(visitor.last_seen_at)}</div>
                   <div class="table-cell" role="cell" data-label="Paginas">{formatNumber(visitor.pageviews_count)}</div>

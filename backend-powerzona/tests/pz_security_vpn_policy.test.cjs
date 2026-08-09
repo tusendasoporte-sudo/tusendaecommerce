@@ -274,6 +274,89 @@ test('VPN-POLICY: proxycheck exige confianza alta para confirmar VPN proxy o Tor
   assert.equal(lowConfidence.verdict, 'network_suspected');
 });
 
+test('STRICT-NETWORK: AbuseIPDB bloquea desde 25 solo con un reporte reciente', () => {
+  const checkedAt = '2026-08-09T18:00:00.000Z';
+  const below = reputation._test.normalizeAbuseIpDbResponse({
+    data: {
+      ipAddress: '8.8.8.8',
+      abuseConfidenceScore: 24,
+      totalReports: 3,
+      numDistinctUsers: 2,
+      lastReportedAt: '2026-08-08T12:00:00.000Z',
+      isTor: false,
+    },
+  }, '8.8.8.8', checkedAt);
+  assert.equal(below.available, true);
+  assert.equal(below.abuse_block_candidate, false);
+  assert.equal(below.verdict, 'clean');
+
+  const threshold = reputation._test.normalizeAbuseIpDbResponse({
+    data: {
+      ipAddress: '8.8.8.8',
+      abuseConfidenceScore: 25,
+      totalReports: 1,
+      numDistinctUsers: 1,
+      lastReportedAt: '2026-08-08T12:00:00.000Z',
+      isTor: false,
+    },
+  }, '8.8.8.8', checkedAt);
+  assert.equal(threshold.available, true);
+  assert.equal(threshold.abusive, true);
+  assert.equal(threshold.abuse_block_candidate, true);
+  assert.equal(threshold.verdict, 'abusive_ip');
+
+  const noRecentReport = reputation._test.normalizeAbuseIpDbResponse({
+    data: {
+      ipAddress: '8.8.8.8',
+      abuseConfidenceScore: 100,
+      totalReports: 0,
+      numDistinctUsers: 0,
+      lastReportedAt: null,
+      isTor: false,
+    },
+  }, '8.8.8.8', checkedAt);
+  assert.equal(noRecentReport.abuse_block_candidate, false);
+
+  const staleReport = reputation._test.normalizeAbuseIpDbResponse({
+    data: {
+      ipAddress: '8.8.8.8',
+      abuseConfidenceScore: 100,
+      totalReports: 9,
+      numDistinctUsers: 4,
+      lastReportedAt: '2026-06-01T12:00:00.000Z',
+      isTor: false,
+    },
+  }, '8.8.8.8', checkedAt);
+  assert.equal(staleReport.abuse_block_candidate, false);
+});
+
+test('STRICT-NETWORK: consulta AbuseIPDB sin verbose y nunca coloca la clave en la URL', () => {
+  const apiKey = 'abuseipdb-free-key-for-tests';
+  const result = reputation._test.sendAbuseIpDbRequest('8.8.8.8', (request) => {
+    assert.equal(request.method, 'GET');
+    assert.equal(request.timeout, 2);
+    assert.match(request.url, /^https:\/\/api\.abuseipdb\.com\/api\/v2\/check\?/);
+    assert.match(request.url, /ipAddress=8\.8\.8\.8/);
+    assert.match(request.url, /maxAgeInDays=30/);
+    assert.doesNotMatch(request.url, /verbose|abuseipdb-free-key-for-tests/);
+    assert.equal(request.headers.key, apiKey);
+    return {
+      statusCode: 200,
+      json: {
+        data: {
+          ipAddress: '8.8.8.8',
+          abuseConfidenceScore: 25,
+          totalReports: 1,
+          numDistinctUsers: 1,
+          lastReportedAt: '2026-08-08T12:00:00.000Z',
+          isTor: false,
+        },
+      },
+    };
+  }, { apiKey });
+  assert.equal(result.abuse_block_candidate, true);
+});
+
 test('VPN-POLICY: proxycheck complementa un resultado limpio de ipapi y conserva la cache', () => {
   const data = fixture('block', 'protection');
   const ipapiKey = 'ipapi-free-key-for-tests';
@@ -375,6 +458,167 @@ test('VPN-POLICY: proxycheck con confianza baja solo genera sospecha y nunca blo
   assert.equal(decision.reason, 'network_suspected');
   assert.equal(decision.result.detected, false);
   assert.equal(data.tables.store_security_events[0].get('event_type'), 'network_suspected');
+});
+
+test('STRICT-NETWORK: umbral AbuseIPDB 25 bloquea y conserva metadatos sin secretos', () => {
+  const data = fixture('block', 'protection');
+  const abuseKey = 'abuseipdb-free-key-for-tests';
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('i'), normalizedIp(), {
+    now: new Date('2026-08-09T21:00:00.000Z'),
+    abuseIpDbApiKey: abuseKey,
+    send: (request) => {
+      calls += 1;
+      if (request.url === 'https://api.ipapi.is') {
+        return { statusCode: 200, json: { is_vpn: false, is_proxy: false, is_tor: false } };
+      }
+      assert.match(request.url, /^https:\/\/api\.abuseipdb\.com\/api\/v2\/check\?/);
+      assert.equal(request.headers.key, abuseKey);
+      return {
+        statusCode: 200,
+        json: {
+          data: {
+            ipAddress: '8.8.8.8',
+            abuseConfidenceScore: 25,
+            totalReports: 1,
+            numDistinctUsers: 1,
+            lastReportedAt: '2026-08-09T20:00:00.000Z',
+            isTor: false,
+          },
+        },
+      };
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(decision.blocked, true);
+  assert.equal(decision.reason, 'abusive_ip_detected');
+  assert.equal(decision.result.verdict, 'abusive_ip');
+  assert.equal(data.tables.store_security_events[0].get('event_type'), 'abusive_ip_blocked');
+  assert.equal(data.tables.store_security_events[0].get('metadata_json').abuse_score, 25);
+  assert.equal(data.tables.store_security_events[0].get('metadata_json').block_reason, 'abusive_ip_detected');
+  assert.equal(data.tables.store_security_ip_reputation_cache[0].get('classifier_version'), reputation._test.constants.classifierVersion);
+  assert.equal(data.tables.store_security_ip_reputation_cache[0].get('abuse_score'), 25);
+  assert.doesNotMatch(JSON.stringify(data.tables), new RegExp(abuseKey));
+});
+
+test('STRICT-NETWORK: modo monitor registra IP abusiva pero nunca bloquea', () => {
+  const data = fixture('monitor', 'protection');
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('j'), normalizedIp(), {
+    now: new Date('2026-08-09T21:00:00.000Z'),
+    abuseIpDbApiKey: 'abuseipdb-free-key-for-tests',
+    send: (request) => request.url === 'https://api.ipapi.is'
+      ? { statusCode: 200, json: { is_vpn: false, is_proxy: false, is_tor: false } }
+      : {
+        statusCode: 200,
+        json: {
+          data: {
+            ipAddress: '8.8.8.8',
+            abuseConfidenceScore: 80,
+            totalReports: 8,
+            numDistinctUsers: 4,
+            lastReportedAt: '2026-08-09T20:00:00.000Z',
+            isTor: false,
+          },
+        },
+      },
+  });
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'abusive_ip_detected');
+  assert.equal(data.tables.store_security_events[0].get('event_type'), 'abusive_ip_detected');
+  assert.equal(data.tables.store_security_events[0].get('decision'), 'monitored');
+});
+
+test('STRICT-NETWORK: consenso ipapi datacenter y proxycheck hosting bloquea sin llamarlo VPN', () => {
+  const data = fixture('block', 'protection');
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('k'), normalizedIp(), {
+    now: new Date('2026-08-09T21:00:00.000Z'),
+    proxycheckApiKey: 'proxycheck-free-key-for-tests',
+    send: (request) => {
+      calls += 1;
+      if (request.url === 'https://api.ipapi.is') {
+        return {
+          statusCode: 200,
+          json: {
+            is_vpn: false,
+            is_proxy: false,
+            is_tor: false,
+            is_datacenter: true,
+            is_crawler: false,
+            is_mobile: false,
+          },
+        };
+      }
+      return {
+        statusCode: 200,
+        json: {
+          status: 'ok',
+          '8.8.8.8': {
+            network: { type: 'Hosting' },
+            detections: {
+              vpn: false,
+              proxy: false,
+              tor: false,
+              hosting: true,
+              compromised: false,
+              scraper: false,
+              confidence: 100,
+            },
+          },
+        },
+      };
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(decision.blocked, true);
+  assert.equal(decision.reason, 'hosting_datacenter_detected');
+  assert.equal(decision.result.detected, false);
+  assert.equal(decision.result.hosting_consensus, true);
+  assert.equal(data.tables.store_security_events[0].get('event_type'), 'hosting_blocked');
+});
+
+test('STRICT-NETWORK: una VPN confirmada evita la consulta adicional de abuso', () => {
+  const data = fixture('block', 'protection');
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('l'), normalizedIp(), {
+    now: new Date('2026-08-09T21:00:00.000Z'),
+    abuseIpDbApiKey: 'abuseipdb-free-key-for-tests',
+    send: () => {
+      calls += 1;
+      return { statusCode: 200, json: { is_vpn: true, is_proxy: false, is_tor: false } };
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(decision.blocked, true);
+  assert.equal(decision.reason, 'vpn_or_proxy_detected');
+  assert.equal(decision.result.provider, 'ipapi_is');
+});
+
+test('STRICT-NETWORK: una red movil evita AbuseIPDB y nunca se bloquea por abuso compartido', () => {
+  const data = fixture('block', 'protection');
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('n'), normalizedIp(), {
+    now: new Date('2026-08-09T21:00:00.000Z'),
+    abuseIpDbApiKey: 'abuseipdb-free-key-for-tests',
+    send: (request) => {
+      calls += 1;
+      assert.equal(request.url, 'https://api.ipapi.is');
+      return {
+        statusCode: 200,
+        json: {
+          is_vpn: false,
+          is_proxy: false,
+          is_tor: false,
+          is_mobile: true,
+        },
+      };
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'clean');
+  assert.equal(decision.result.is_mobile, true);
 });
 
 test('VPN-POLICY: migracion es aditiva, privada, idempotente y reversible', () => {
@@ -604,6 +848,31 @@ test('VPN-POLICY: presupuesto proxycheck de 300 conserva el resultado valido de 
   assert.equal(decision.reason, 'clean');
   assert.equal(decision.result.available, true);
   assert.equal(decision.result.provider, 'ipapi_is:proxycheck_io');
+});
+
+test('STRICT-NETWORK: presupuesto AbuseIPDB de 800 conserva el resultado de red y falla abierto', () => {
+  const data = fixture('block', 'protection');
+  data.tables.security_ip_reputation_usage.push(record('security_ip_reputation_usage', {
+    provider: reputation._test.constants.abuseIpDbProviderName,
+    utc_day: '2026-08-09',
+    requests: reputation._test.constants.abuseIpDbDailyBudget,
+  }));
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('m'), normalizedIp(), {
+    now: new Date('2026-08-09T21:00:00.000Z'),
+    abuseIpDbApiKey: 'abuseipdb-free-key-for-tests',
+    send: (request) => {
+      calls += 1;
+      assert.equal(request.url, 'https://api.ipapi.is');
+      return { statusCode: 200, json: { is_vpn: false, is_proxy: false, is_tor: false } };
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'clean');
+  assert.equal(decision.result.available, true);
+  assert.equal(decision.result.abuse_available, false);
+  assert.equal(decision.result.provider, 'ipapi_is:abuseipdb');
 });
 
 test('VPN-POLICY: sin contador de cuota no llama al proveedor ni bloquea', () => {

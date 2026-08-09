@@ -13,6 +13,7 @@ import {
   DELIVERY_METHOD_LABELS,
   EVENT_DECISION_LABELS,
   EVENT_RISK_LABELS,
+  EVENT_TYPE_LABELS,
   ORDER_STATUS_LABELS,
   type PaginatedResult,
   type SecurityOrder,
@@ -76,11 +77,11 @@ const relatedCustomer = visitor.relatedCustomer;
 const vpnInfo = visitor.vpn;
 const hasVpnSignal = vpnInfo.status !== 'none';
 const networkSummary = visitor.network_summary;
-const vpnStatusLabel = vpnInfo.status === 'blocked' || vpnInfo.status === 'detected'
-  ? 'VPN o proxy'
-  : (vpnInfo.status === 'suspected'
-    ? 'Red sospechosa sin confirmar VPN'
-    : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada'));
+const vpnStatusLabel = vpnInfo.event_type
+  ? labelFromMap(EVENT_TYPE_LABELS, vpnInfo.event_type)
+  : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada');
+const isVpnEvent = vpnInfo.event_type === 'vpn_detected' || vpnInfo.event_type === 'vpn_blocked';
+const isAbuseEvent = vpnInfo.event_type === 'abusive_ip_detected' || vpnInfo.event_type === 'abusive_ip_blocked';
 const vpnBadgeStatus = vpnInfo.status === 'blocked' ? 'detected' : vpnInfo.status;
 const securityStatusLabels = {
   normal: 'Normal',
@@ -90,8 +91,8 @@ const securityStatusLabels = {
 const networkStatusLabels = {
   normal: 'Normal',
   suspected: 'Red sospechosa',
-  detected: 'VPN o proxy',
-  blocked: 'VPN o proxy',
+  detected: 'Riesgo de red confirmado',
+  blocked: 'Red bloqueada',
   unavailable: 'Verificacion no disponible',
 };
 const currentIpBadgeStatus = networkSummary.current_ip_status === 'blocked' ? 'detected' : networkSummary.current_ip_status;
@@ -213,7 +214,7 @@ function pluralIp(value: number) {
       <article class="admin-compact-summary__item is-warn">
         <p class="admin-compact-summary__label">Red conocida</p>
         <p class="admin-compact-summary__value is-text summary-value-stack">
-          <span>{pluralIp(networkSummary.ip_count)} relacionadas · {formatNumber(networkSummary.vpn_ip_count)} con VPN o proxy</span>
+          <span>{pluralIp(networkSummary.ip_count)} relacionadas · {formatNumber(networkSummary.vpn_ip_count)} con riesgo de red confirmado</span>
           {networkSummary.suspected_ip_count > 0 && <small>{formatNumber(networkSummary.suspected_ip_count)} sospechosas sin confirmar VPN</small>}
           {networkSummary.unavailable_ip_count > 0 && <small>{formatNumber(networkSummary.unavailable_ip_count)} sin verificacion disponible</small>}
           <small>Historial del mismo visitante conservado hasta 90 días</small>
@@ -239,10 +240,8 @@ function pluralIp(value: number) {
         </summary>
         <div class="security-details-content">
           <div class="admin-compact-summary__list security-detail-list">
-            <article class:list={['admin-compact-summary__item', vpnBadgeStatus === 'blocked' ? 'is-danger' : 'is-warn']}>
-              {vpnInfo.status === 'suspected'
-                ? <p class="admin-compact-summary__label">Senal de red</p>
-                : <p class="admin-compact-summary__label">VPN o proxy</p>}
+            <article class:list={['admin-compact-summary__item', vpnInfo.status === 'blocked' ? 'is-danger' : 'is-warn']}>
+              <p class="admin-compact-summary__label">{isVpnEvent ? 'VPN o proxy' : 'Senal de red'}</p>
               <p class="admin-compact-summary__value is-text"><span class:list={['vpn-status-pill', `is-${vpnBadgeStatus}`]}>{vpnStatusLabel}</span></p>
             </article>
             {vpnInfo.observed_at && (
@@ -267,12 +266,46 @@ function pluralIp(value: number) {
                 <p class="admin-compact-summary__value is-text">{labelFromMap(EVENT_RISK_LABELS, vpnInfo.risk_level)}</p>
               </article>
             )}
+            {vpnInfo.provider && (
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">Proveedores</p>
+                <p class="admin-compact-summary__value is-text">{vpnInfo.provider.split(':').join(' + ')}</p>
+              </article>
+            )}
+            {vpnInfo.provider_confidence !== null && (
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">Confianza proxycheck</p>
+                <p class="admin-compact-summary__value is-text">{formatNumber(vpnInfo.provider_confidence)}%</p>
+              </article>
+            )}
+            {vpnInfo.hosting_consensus && (
+              <article class="admin-compact-summary__item is-warn">
+                <p class="admin-compact-summary__label">Hosting / datacenter</p>
+                <p class="admin-compact-summary__value is-text">Confirmado por ambos proveedores</p>
+              </article>
+            )}
+            {vpnInfo.abuse_available && vpnInfo.abuse_score !== null && (
+              <article class="admin-compact-summary__item is-warn">
+                <p class="admin-compact-summary__label">Puntuacion de abuso</p>
+                <p class="admin-compact-summary__value is-text">
+                  {formatNumber(vpnInfo.abuse_score)}/100
+                  <small>{formatNumber(vpnInfo.abuse_total_reports)} reportes · {formatNumber(vpnInfo.abuse_distinct_users)} reportantes</small>
+                  {vpnInfo.abuse_last_reported_at && <small>Ultimo reporte: {formatDateTime(vpnInfo.abuse_last_reported_at)}</small>}
+                </p>
+              </article>
+            )}
           </div>
-          {(vpnInfo.status === 'detected' || vpnInfo.status === 'blocked') && (
+          {isVpnEvent && (
             <p class="vpn-info-note">Deteccion historica asociada a este dispositivo. No significa que el VPN o proxy siga activo en este momento.</p>
           )}
+          {isAbuseEvent && (
+            <p class="vpn-info-note">La IP alcanzo el umbral de abuso configurado para PowerZona. El bloqueo se registra como IP abusiva, no como VPN.</p>
+          )}
+          {vpnInfo.event_type === 'hosting_blocked' && (
+            <p class="vpn-info-note">ipapi.is y proxycheck.io coincidieron en que la conexion usa hosting o datacenter.</p>
+          )}
           {vpnInfo.status === 'suspected' && (
-            <p class="vpn-info-note">La red presenta contexto de datacenter o abuso, pero el proveedor no confirmo VPN, proxy ni Tor. Esta senal nunca bloquea por si sola.</p>
+            <p class="vpn-info-note">La red presenta contexto de datacenter o abuso, pero no alcanzo una regla activa de bloqueo.</p>
           )}
         </div>
       </details>
