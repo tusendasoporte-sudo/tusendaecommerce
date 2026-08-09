@@ -11,6 +11,7 @@ import {
   EVENT_TYPE_LABELS,
   MODE_AT_EVENT_LABELS,
   ORDER_STATUS_LABELS,
+  VISITOR_RANGE_FILTERS,
   formatDateTime,
   formatMoneyUsd,
   formatNumber,
@@ -42,6 +43,7 @@ import {
   type SecuritySettingsView,
   type SecuritySummary,
   type SecurityVisitorSessionRow,
+  type VisitorRangeFilter,
   type ManualIpBlockDraft,
   type ManualIpDeviceLookupResult,
 } from '../../lib/securityMonitoring';
@@ -143,6 +145,21 @@ const visitorSecurityStatusLabels = {
   watch: 'En observacion',
   blocked: 'Bloqueado',
 } as const;
+const visitorRangeLabels: Record<VisitorRangeFilter, string> = {
+  today: 'Hoy',
+  days_7: '7 días',
+  days_30: '30 días',
+};
+const visitorRangeDescriptions: Record<VisitorRangeFilter, string> = {
+  today: 'Personas registradas navegando por la tienda durante el día de hoy, hayan comprado o no.',
+  days_7: 'Personas registradas navegando por la tienda durante los últimos 7 días, hayan comprado o no.',
+  days_30: 'Personas registradas navegando por la tienda durante los últimos 30 días, hayan comprado o no.',
+};
+const visitorRangeEmptyMessages: Record<VisitorRangeFilter, string> = {
+  today: 'No hay visitantes registrados hoy.',
+  days_7: 'No hay visitantes registrados en los últimos 7 días.',
+  days_30: 'No hay visitantes registrados en los últimos 30 días.',
+};
 const statusOptions = [
   ['all', 'Todos'],
   ['normal', CUSTOMER_STATUS_LABELS.normal],
@@ -183,6 +200,7 @@ function queryString(entries: Record<string, string | number | undefined>) {
   Object.entries(entries).forEach(([key, value]) => {
     const text = String(value ?? '').trim();
     if (!text || text === '1') return;
+    if (key === 'visitor_range' && text === 'today') return;
     if (text === 'all' && key !== 'blocked_status') return;
     query.set(key, text);
   });
@@ -208,6 +226,14 @@ function activityHref(page = 1, extra: Record<string, string | number | undefine
     activity_page: page,
     event_type: params.eventType,
     risk: params.eventRisk,
+    ...extra,
+  });
+}
+
+function visitorsHref(page = 1, extra: Record<string, string | number | undefined> = {}) {
+  return sectionHref('visitors', {
+    visitor_range: params.visitorRange,
+    visitors_page: page,
     ...extra,
   });
 }
@@ -276,7 +302,7 @@ function isActiveBlockScope(value: string) {
 function paginationHref(kind: 'customers' | 'activity' | 'visitors' | 'blocked' | 'orders' | 'events', page: number) {
   if (kind === 'customers') return customersHref(page, { customer: params.customerId });
   if (kind === 'activity') return activityHref(page);
-  if (kind === 'visitors') return sectionHref('visitors', { visitors_page: page });
+  if (kind === 'visitors') return visitorsHref(page);
   if (kind === 'blocked') return blockedHref(page);
   if (kind === 'orders') return customerDetailHref(params.customerId, { orders_page: page, events_page: params.customerEventsPage });
   return customerDetailHref(params.customerId, { events_page: page, orders_page: params.customerOrdersPage });
@@ -373,7 +399,8 @@ function pluralLabel(count: number, singular: string, plural: string) {
 }
 
 function visitorDetailHref(visitorSessionId: string) {
-  return `${basePath}/visitors/${encodeURIComponent(visitorSessionId)}`;
+  const range = params.visitorRange === 'today' ? '' : `?visitor_range=${encodeURIComponent(params.visitorRange)}`;
+  return `${basePath}/visitors/${encodeURIComponent(visitorSessionId)}${range}`;
 }
 
 function activityActionHref(event: SecurityEventRow) {
@@ -582,7 +609,7 @@ function observationActionValue(customer: SecurityCustomer) {
     <div>
       <p class="monitoring-kicker">{titlePrefix}</p>
       <h2>{storeName}</h2>
-      <p>Consulta privada de clientes, actividad y visitantes registrados hoy.</p>
+      <p>Consulta privada de clientes, actividad y visitantes registrados.</p>
     </div>
     {backHref && <a class="monitoring-back" href={backHref}>{backLabel}</a>}
   </header>
@@ -591,7 +618,7 @@ function observationActionValue(customer: SecurityCustomer) {
     <a class:list={['monitoring-tab', { 'is-active': isActiveSection('summary') }]} href={sectionHref('summary')}>Resumen</a>
     <a class:list={['monitoring-tab', { 'is-active': isActiveSection('activity') }]} href={sectionHref('activity')}>Actividad</a>
     <a class:list={['monitoring-tab', { 'is-active': isActiveSection('customers') }]} href={sectionHref('customers')}>Clientes</a>
-    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('visitors') }]} href={sectionHref('visitors')}>Visitantes de hoy</a>
+    <a class:list={['monitoring-tab', { 'is-active': isActiveSection('visitors') }]} href={sectionHref('visitors')}>Visitantes</a>
     <a class:list={['monitoring-tab', { 'is-active': isActiveSection('blocked') }]} href={sectionHref('blocked')}>Clientes bloqueados</a>
     <a class:list={['monitoring-tab', { 'is-active': isActiveSection('rules') }]} href={sectionHref('rules')}>Reglas</a>
   </nav>
@@ -653,7 +680,7 @@ function observationActionValue(customer: SecurityCustomer) {
           </div>
           <div class="fact-box">
             <span>Retencion</span>
-            <strong>{settings.retention_days} dias</strong>
+            <strong>30 / 90 dias</strong>
           </div>
           <div class="fact-box">
             <span>Politica de IP</span>
@@ -696,7 +723,8 @@ function observationActionValue(customer: SecurityCustomer) {
         )}
         <div class="capability-list rules-premium-list">
           <div class="capability-row"><span>Modo actual</span><strong>{modeLabel}</strong></div>
-          <div class="capability-row"><span>Retencion</span><strong>{settings.retention_days} dias</strong></div>
+          <div class="capability-row"><span>Navegacion detallada</span><strong>30 dias</strong></div>
+          <div class="capability-row"><span>Resumen de visitantes</span><strong>90 dias</strong></div>
           <div class="capability-row"><span>Politica de IP</span><strong>{ipLabel}</strong></div>
           <div class="capability-row"><span>VPN y proxy</span><strong>{vpnPolicyLabel}</strong></div>
         </div>
@@ -1256,14 +1284,24 @@ function observationActionValue(customer: SecurityCustomer) {
     <section class="monitoring-card" aria-labelledby="visitors-title">
       <div class="section-head">
         <div>
-          <h3 id="visitors-title">Visitantes de hoy</h3>
-          <p>Personas registradas navegando por la tienda durante el día, hayan comprado o no.</p>
+          <h3 id="visitors-title">Visitantes</h3>
+          <p>{visitorRangeDescriptions[params.visitorRange]}</p>
         </div>
       </div>
 
+      <nav class="filter-row visitor-range-filters" aria-label="Periodo de visitantes">
+        {VISITOR_RANGE_FILTERS.map((range) => (
+          <a
+            class:list={['filter-chip', { 'is-active': params.visitorRange === range }]}
+            href={visitorsHref(1, { visitor_range: range })}
+            aria-current={params.visitorRange === range ? 'page' : undefined}
+          >{visitorRangeLabels[range]}</a>
+        ))}
+      </nav>
+
       {visitorsResult && visitorsResult.items.length > 0 ? (
         <>
-          <div class:list={['monitoring-table', 'visitors-table', { 'has-ip': showIp }]} role="table" aria-label="Visitantes de hoy">
+          <div class:list={['monitoring-table', 'visitors-table', { 'has-ip': showIp }]} role="table" aria-label={`Visitantes: ${visitorRangeLabels[params.visitorRange]}`}>
             <div class="table-head" role="row">
               <span role="columnheader">Visitante</span>
               <span role="columnheader">Telefono</span>
@@ -1323,7 +1361,7 @@ function observationActionValue(customer: SecurityCustomer) {
           </div>
         </>
       ) : (
-        <div class="empty-state">No hay visitantes registrados hoy.</div>
+        <div class="empty-state">{visitorRangeEmptyMessages[params.visitorRange]}</div>
       )}
     </section>
   )}
@@ -2447,6 +2485,10 @@ function observationActionValue(customer: SecurityCustomer) {
     border-color: #2563eb;
     background: #eff6ff;
     color: #1d4ed8;
+  }
+
+  .visitor-range-filters .filter-chip {
+    min-width: 96px;
   }
 
   .activity-filter-grid {
@@ -3934,6 +3976,16 @@ function observationActionValue(customer: SecurityCustomer) {
     .pagination-actions {
       display: grid;
       grid-template-columns: 1fr;
+    }
+
+    .visitor-range-filters {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .visitor-range-filters .filter-chip {
+      min-width: 0;
+      width: 100%;
+      padding-inline: 8px;
     }
 
     .metrics-grid,

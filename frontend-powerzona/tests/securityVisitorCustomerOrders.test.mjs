@@ -59,7 +59,7 @@ test('VISITOR-ORDERS: pedidos son desplegables, paginados de cinco y conservan a
   assert.match(detail, /Ver pedido/);
   for (const route of [storeRoute, masterRoute]) {
     assert.match(route, /searchParams\.get\('orders_page'\)/);
-    assert.match(route, /getSecurityVisitorDetail\([^\n]+ordersPage\)/);
+    assert.match(route, /getSecurityVisitorDetail\([^\n]+ordersPage, visitorRange\)/);
     assert.match(route, /orders=\{orders\}/);
   }
 });
@@ -72,7 +72,7 @@ test('VISITOR-VPN: detalle muestra una deteccion historica vinculada al disposit
   assert.match(client, /export type SecurityVisitorVpnInfo/);
   assert.match(client, /vpn: normalizeVisitorVpnInfo\(record\?\.vpn\)/);
   assert.match(backend, /browser_token_hmac = \{:browserTokenHmac\}/);
-  assert.match(backend, /buildVisitorVpnInfo\(\$app, payload\.storeId, visitor(?:, vpnEvents)?\)/);
+  assert.match(backend, /buildVisitorVpnInfo\(\$app, payload\.storeId, (?:visitor|representative)(?:, vpnEvents)?\)/);
   assert.doesNotMatch(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /ip_hmac|ip_masked|resolved_ip/);
   assert.match(detail, />VPN o proxy</);
   assert.match(detail, /vpnInfo\.status === 'blocked' \|\| vpnInfo\.status === 'detected'/);

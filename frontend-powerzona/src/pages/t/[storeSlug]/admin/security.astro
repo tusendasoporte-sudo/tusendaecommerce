@@ -19,7 +19,7 @@ import {
   getSecurityMergeCandidates,
   getSecurityManualIpDeviceCandidates,
   getSecurityMonitoringSummary,
-  getSecurityVisitorsTodayPage,
+  getSecurityVisitorsPage,
   mergeSecurityCustomers,
   runSecurityBlockDeviceCandidateAction,
   runSecurityBlockCreate,
@@ -382,7 +382,7 @@ if (canRenderSecurity) {
   }
 
   if (params.section === 'visitors') {
-    visitorsResult = await getSecurityVisitorsTodayPage(authPb, currentStoreId, params.visitorsPage);
+    visitorsResult = await getSecurityVisitorsPage(authPb, currentStoreId, params.visitorsPage, params.visitorRange);
   }
 
   if (params.section === 'blocked') {

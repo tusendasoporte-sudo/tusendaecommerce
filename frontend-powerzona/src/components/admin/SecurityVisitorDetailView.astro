@@ -19,6 +19,7 @@ import {
   type SecuritySettingsView,
   type SecurityVisitorPageviewRow,
   type SecurityVisitorSessionRow,
+  type VisitorRangeFilter,
 } from '../../lib/securityMonitoring';
 
 interface Props {
@@ -26,6 +27,7 @@ interface Props {
   basePath: string;
   adminOrdersPath?: string;
   backHref?: string;
+  visitorRange?: VisitorRangeFilter;
   settings: SecuritySettingsView;
   visitor: SecurityVisitorSessionRow;
   orders: PaginatedResult<SecurityOrder>;
@@ -38,7 +40,8 @@ const {
   storeName,
   basePath,
   adminOrdersPath = '',
-  backHref = `${basePath}?section=visitors`,
+  backHref = '',
+  visitorRange = 'today',
   settings,
   visitor,
   orders,
@@ -46,6 +49,18 @@ const {
   pageviews,
   viewError = '',
 } = Astro.props;
+
+const rangeLabels: Record<VisitorRangeFilter, string> = {
+  today: 'Hoy',
+  days_7: 'Últimos 7 días',
+  days_30: 'Últimos 30 días',
+};
+const rangeDescriptions: Record<VisitorRangeFilter, string> = {
+  today: 'Actividad registrada durante el día actual de la tienda.',
+  days_7: 'Actividad registrada durante los últimos 7 días.',
+  days_30: 'Actividad registrada durante los últimos 30 días.',
+};
+const visitorsBackHref = backHref || `${basePath}?section=visitors${visitorRange === 'today' ? '' : `&visitor_range=${encodeURIComponent(visitorRange)}`}`;
 
 const showIp = String(settings.ip_visibility || 'hidden') !== 'hidden';
 const relatedCustomer = visitor.relatedCustomer;
@@ -90,6 +105,7 @@ function pageLabel(result: PaginatedResult<unknown>) {
 
 function detailHref(page: number, ordersPage: number, keepOrdersOpen = false) {
   const query = new URLSearchParams();
+  if (visitorRange !== 'today') query.set('visitor_range', visitorRange);
   if (page > 1) query.set('page', String(page));
   if (ordersPage > 1) query.set('orders_page', String(ordersPage));
   if (keepOrdersOpen) query.set('orders_open', '1');
@@ -117,14 +133,14 @@ function pluralIp(value: number) {
 <section class="visitor-detail" aria-label={`Detalle de visitante de ${storeName}`}>
   <header class="detail-head">
     <div>
-      <p class="detail-kicker">Visitantes de hoy</p>
+      <p class="detail-kicker">Visitantes · {rangeLabels[visitorRange]}</p>
       <div class="detail-title-row">
         <h2>{getVisitorDisplayName(visitor)}</h2>
         {relatedCustomer && <span class="identity-pill is-customer">Cliente identificado</span>}
       </div>
       <p>{storeName}</p>
     </div>
-    <a class="secondary-action" href={backHref}>Volver a visitantes</a>
+    <a class="secondary-action" href={visitorsBackHref}>Volver a visitantes</a>
   </header>
 
   {viewError && <div class="detail-alert" role="alert">{viewError}</div>}
@@ -133,7 +149,7 @@ function pluralIp(value: number) {
     <div class="section-head">
       <div>
         <h3 id="visitor-summary-title">Resumen del visitante</h3>
-        <p>Actividad registrada durante el dia actual de la tienda.</p>
+        <p>{rangeDescriptions[visitorRange]}</p>
       </div>
     </div>
 

@@ -16,7 +16,7 @@ import {
   getSecurityMergeCandidates,
   getSecurityManualIpDeviceCandidates,
   getSecurityMonitoringSummary,
-  getSecurityVisitorsTodayPage,
+  getSecurityVisitorsPage,
   isValidRecordId,
   mergeSecurityCustomers,
   runSecurityBlockDeviceCandidateAction,
@@ -363,7 +363,7 @@ try {
   }
 
   if (params.section === 'visitors') {
-    visitorsResult = await getSecurityVisitorsTodayPage(authPb, storeId, params.visitorsPage);
+    visitorsResult = await getSecurityVisitorsPage(authPb, storeId, params.visitorsPage, params.visitorRange);
   }
 
   if (params.section === 'blocked') {

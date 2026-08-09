@@ -10,6 +10,7 @@ import {
   getSecurityVisitorDetail,
   isValidRecordId,
   normalizePage,
+  normalizeVisitorRangeFilter,
   type PaginatedResult,
   type SecurityOrder,
   type SecurityVisitorPageviewRow,
@@ -70,6 +71,8 @@ if (!isValidRecordId(visitorSessionId)) {
 
 const page = normalizePage(Astro.url.searchParams.get('page'));
 const ordersPage = normalizePage(Astro.url.searchParams.get('orders_page'));
+const visitorRange = normalizeVisitorRangeFilter(Astro.url.searchParams.get('visitor_range'));
+const visitorsBackHref = `${adminSecurityPath}?section=visitors${visitorRange === 'today' ? '' : `&visitor_range=${encodeURIComponent(visitorRange)}`}`;
 let visitor: SecurityVisitorSessionRow | null = null;
 let orders: PaginatedResult<SecurityOrder> | null = null;
 let ordersError = false;
@@ -77,7 +80,7 @@ let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
 let viewError = '';
 
 try {
-  const detail = await getSecurityVisitorDetail(authPb, currentStoreId, visitorSessionId, page, ordersPage);
+  const detail = await getSecurityVisitorDetail(authPb, currentStoreId, visitorSessionId, page, ordersPage, visitorRange);
   visitor = detail.visitor;
   if (!visitor) return Astro.redirect(`${adminSecurityPath}?section=visitors`);
   orders = detail.orders;
@@ -145,7 +148,7 @@ if (!visitor || !orders || !pageviews) {
         <AdminSectionHeader
           kicker="Control de tienda"
           title="Detalle de visitante"
-          description={`Paginas navegadas hoy en ${currentStoreName}.`}
+          description={`Historial de navegacion en ${currentStoreName}.`}
           bellId="security-visitor-bell"
         />
 
@@ -153,6 +156,8 @@ if (!visitor || !orders || !pageviews) {
           storeName={currentStoreName}
           basePath={adminSecurityPath}
           adminOrdersPath={adminOrdersPath}
+          backHref={visitorsBackHref}
+          visitorRange={visitorRange}
           settings={securitySettings}
           visitor={visitor}
           orders={orders}

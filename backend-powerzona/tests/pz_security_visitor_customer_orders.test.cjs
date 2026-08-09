@@ -83,12 +83,116 @@ test('VISITOR-ORDERS: detalle exige pagina independiente de pedidos', () => {
     visitorSessionId: VISITOR_ID,
     page: 1,
     ordersPage: 2,
+    range: 'today',
   });
   assert.equal(monitoring._test.parseVisitorDetailPayload({
     store_id: STORE_ID,
     visitor_session_id: VISITOR_ID,
     page: 1,
   }), null);
+});
+
+test('VISITOR-RANGE: acepta solo hoy, 7 dias o 30 dias y calcula ventanas inclusivas', () => {
+  assert.deepEqual(monitoring._test.parseVisitorsPagePayload({
+    store_id: STORE_ID,
+    page: 2,
+    range: 'days_7',
+  }), {
+    storeId: STORE_ID,
+    page: 2,
+    range: 'days_7',
+    legacyDay: '',
+  });
+  assert.equal(monitoring._test.normalizeVisitorRange('invalid'), 'today');
+  assert.equal(monitoring._test.visitorRangeCutoffDay('2026-08-09', 'today'), '2026-08-09');
+  assert.equal(monitoring._test.visitorRangeCutoffDay('2026-08-09', 'days_7'), '2026-08-03');
+  assert.equal(monitoring._test.visitorRangeCutoffDay('2026-08-09', 'days_30'), '2026-07-11');
+});
+
+test('VISITOR-RANGE: agrupa el mismo dispositivo entre dias y suma su actividad', () => {
+  const sharedDevice = 's'.repeat(64);
+  const sessions = [
+    new MockRecord({
+      id: VISITOR_ID,
+      store: STORE_ID,
+      day: '2026-08-08',
+      browser_token_hmac: sharedDevice,
+      first_seen_at: '2026-08-08 10:00:00.000Z',
+      last_seen_at: '2026-08-08 10:15:00.000Z',
+      entry_path: '/t/powerzona',
+      last_path: '/t/powerzona/producto/a',
+      pageviews_count: 2,
+    }),
+    new MockRecord({
+      id: 'visitsession002',
+      store: STORE_ID,
+      day: '2026-08-09',
+      browser_token_hmac: sharedDevice,
+      first_seen_at: '2026-08-09 11:00:00.000Z',
+      last_seen_at: '2026-08-09 11:30:00.000Z',
+      entry_path: '/t/powerzona',
+      last_path: '/t/powerzona/checkout',
+      pageviews_count: 4,
+    }),
+    new MockRecord({
+      id: 'visitsession003',
+      store: STORE_ID,
+      day: '2026-08-09',
+      browser_token_hmac: 'o'.repeat(64),
+      first_seen_at: '2026-08-09 09:00:00.000Z',
+      last_seen_at: '2026-08-09 09:05:00.000Z',
+      pageviews_count: 1,
+    }),
+  ];
+
+  const groups = monitoring._test.groupVisitorSessions(sessions);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].representative.id, 'visitsession002');
+  assert.equal(groups[0].pageviewsCount, 6);
+  assert.equal(groups[0].firstSeenAt, '2026-08-08 10:00:00.000Z');
+  assert.equal(groups[0].lastSeenAt, '2026-08-09 11:30:00.000Z');
+});
+
+test('VISITOR-RETENTION: conserva 30 dias de paginas y 90 dias de resumen', () => {
+  assert.equal(monitoring._test.visitorPageviewRetentionDays, 30);
+  assert.equal(monitoring._test.visitorSessionRetentionDays, 90);
+  assert.deepEqual(monitoring._test.visitorRetentionCutoffs('2026-08-09'), {
+    pageviews: '2026-07-11',
+    sessions: '2026-05-12',
+  });
+
+  const settings = new MockRecord({ id: 'visitsettings01', store: STORE_ID, enabled: false, mode: 'disabled' });
+  const pageviews = [
+    new MockRecord({ id: 'oldpageview001', store: STORE_ID, day: '2000-01-01' }),
+    new MockRecord({ id: 'newpageview001', store: STORE_ID, day: '2099-01-01' }),
+  ];
+  const sessions = [
+    new MockRecord({ id: 'oldsession0001', store: STORE_ID, day: '2000-01-01' }),
+    new MockRecord({ id: 'newsession0001', store: STORE_ID, day: '2099-01-01' }),
+  ];
+  const tables = {
+    store_security_settings: [settings],
+    store_visitor_pageviews: pageviews,
+    store_visitor_sessions: sessions,
+  };
+  const app = {
+    findRecordsByFilter(name, _filter, _sort, limit, offset, params = {}) {
+      const rows = tables[name] || [];
+      const filtered = params.cutoffDay
+        ? rows.filter((row) => row.get('store') === params.store && row.get('day') < params.cutoffDay)
+        : rows;
+      return filtered.slice(offset, offset + limit);
+    },
+    delete(record) {
+      Object.keys(tables).forEach((name) => {
+        tables[name] = tables[name].filter((row) => row !== record);
+      });
+    },
+  };
+
+  monitoring._test.cleanupVisitors(app);
+  assert.deepEqual(tables.store_visitor_pageviews.map((row) => row.id), ['newpageview001']);
+  assert.deepEqual(tables.store_visitor_sessions.map((row) => row.id), ['newsession0001']);
 });
 
 test('VISITOR-ORDERS: pagina de pedidos contiene maximo cinco y queda aislada por tienda', () => {

@@ -8,6 +8,7 @@ import {
   getSecurityVisitorDetail,
   isValidRecordId,
   normalizePage,
+  normalizeVisitorRangeFilter,
   type PaginatedResult,
   type SecurityOrder,
   type SecurityVisitorPageviewRow,
@@ -57,6 +58,7 @@ if (!securitySettings.exists) {
 
 const page = normalizePage(Astro.url.searchParams.get('page'));
 const ordersPage = normalizePage(Astro.url.searchParams.get('orders_page'));
+const visitorRange = normalizeVisitorRangeFilter(Astro.url.searchParams.get('visitor_range'));
 const storeName = String(storeRecord?.name || storeRecord?.slug || 'Tienda').trim();
 const currentStore = {
   id: storeId,
@@ -73,7 +75,7 @@ let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
 let viewError = '';
 
 try {
-  const detail = await getSecurityVisitorDetail(authPb, storeId, visitorSessionId, page, ordersPage);
+  const detail = await getSecurityVisitorDetail(authPb, storeId, visitorSessionId, page, ordersPage, visitorRange);
   visitor = detail.visitor;
   if (!visitor) return Astro.redirect(`${basePath}?section=visitors`);
   orders = detail.orders;
@@ -97,7 +99,8 @@ if (!visitor || !orders || !pageviews) {
       <SecurityVisitorDetailView
         storeName={storeName}
         basePath={basePath}
-        backHref={`${basePath}?section=visitors`}
+        backHref={`${basePath}?section=visitors${visitorRange === 'today' ? '' : `&visitor_range=${encodeURIComponent(visitorRange)}`}`}
+        visitorRange={visitorRange}
         settings={securitySettings}
         visitor={visitor}
         orders={orders}

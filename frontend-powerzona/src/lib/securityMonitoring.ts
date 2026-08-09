@@ -10,6 +10,7 @@ export const SECURITY_BLOCK_SCOPE_FILTERS = ['all', 'orders', 'reviews', 'raffle
 export const SECURITY_BLOCK_SCOPES = ['orders', 'reviews', 'raffles', 'all_interactions', 'full_access'] as const;
 export const SECURITY_BLOCK_DURATIONS = ['hours_24', 'days_7', 'days_30', 'permanent'] as const;
 export const SECURITY_BLOCK_MATCH_MODES = ['any', 'all'] as const;
+export const VISITOR_RANGE_FILTERS = ['today', 'days_7', 'days_30'] as const;
 
 export const CUSTOMERS_PER_PAGE = 20;
 export const ACTIVITY_PER_PAGE = 10;
@@ -158,6 +159,7 @@ export type SecurityBlockScopeFilter = (typeof SECURITY_BLOCK_SCOPE_FILTERS)[num
 export type SecurityBlockScope = (typeof SECURITY_BLOCK_SCOPES)[number];
 export type SecurityBlockDuration = (typeof SECURITY_BLOCK_DURATIONS)[number];
 export type SecurityBlockMatchMode = (typeof SECURITY_BLOCK_MATCH_MODES)[number];
+export type VisitorRangeFilter = (typeof VISITOR_RANGE_FILTERS)[number];
 
 export type SecurityMonitoringParams = {
   section: SecurityMonitoringSection;
@@ -165,6 +167,7 @@ export type SecurityMonitoringParams = {
   customersPage: number;
   activityPage: number;
   visitorsPage: number;
+  visitorRange: VisitorRangeFilter;
   blockedPage: number;
   customerOrdersPage: number;
   customerEventsPage: number;
@@ -607,6 +610,10 @@ export function normalizeBlockScopeFilter(value: unknown): SecurityBlockScopeFil
   return hasAllowedValue(SECURITY_BLOCK_SCOPE_FILTERS, value, 'all');
 }
 
+export function normalizeVisitorRangeFilter(value: unknown): VisitorRangeFilter {
+  return hasAllowedValue(VISITOR_RANGE_FILTERS, value, 'today');
+}
+
 export function normalizeSearchTerm(value: unknown) {
   return String(value || '')
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
@@ -637,6 +644,7 @@ export function getMonitoringParams(url: URL, formData?: FormData | null): Secur
     customersPage: normalizePage(getFormValue(formData, 'customers_page') || url.searchParams.get('customers_page')),
     activityPage: normalizePage(url.searchParams.get('activity_page')),
     visitorsPage: normalizePage(url.searchParams.get('visitors_page')),
+    visitorRange: normalizeVisitorRangeFilter(url.searchParams.get('visitor_range')),
     blockedPage: normalizePage(getFormValue(formData, 'blocked_page') || url.searchParams.get('blocked_page')),
     customerOrdersPage: normalizePage(url.searchParams.get('orders_page')),
     customerEventsPage: normalizePage(url.searchParams.get('events_page')),
@@ -1626,23 +1634,33 @@ export async function getSecurityCustomerDetail(
   };
 }
 
-export async function getSecurityVisitorsTodayPage(
+export async function getSecurityVisitorsPage(
   client: PocketBase,
   storeId: string,
-  page: number
+  page: number,
+  range: VisitorRangeFilter = 'today'
 ): Promise<PaginatedResult<SecurityVisitorSessionRow>> {
   const safePage = normalizePage(page);
+  const safeRange = normalizeVisitorRangeFilter(range);
   const response = await (client as any).send('/api/pz/security/visitors-page', {
     method: 'POST',
     body: {
       store_id: storeId,
       page: safePage,
-      day: '',
+      range: safeRange,
     },
   });
   if (!response?.ok) throw new Error(String(response?.error || 'visitors_page_failed'));
   const items = Array.isArray(response.items) ? response.items.map(normalizeVisitorEndpointSession) : [];
   return normalizeEndpointPage(response, items, safePage, VISITORS_PER_PAGE);
+}
+
+export async function getSecurityVisitorsTodayPage(
+  client: PocketBase,
+  storeId: string,
+  page: number
+) {
+  return getSecurityVisitorsPage(client, storeId, page, 'today');
 }
 
 function normalizeVisitorVpnInfo(record: any): SecurityVisitorVpnInfo {
@@ -1760,10 +1778,12 @@ export async function getSecurityVisitorDetail(
   storeId: string,
   visitorSessionId: string,
   page: number,
-  ordersPage = 1
+  ordersPage = 1,
+  range: VisitorRangeFilter = 'today'
 ): Promise<SecurityVisitorDetailResult> {
   const safePage = normalizePage(page);
   const safeOrdersPage = normalizePage(ordersPage);
+  const safeRange = normalizeVisitorRangeFilter(range);
   if (!isValidRecordId(visitorSessionId)) return emptyVisitorDetail(safePage, safeOrdersPage);
 
   try {
@@ -1774,6 +1794,7 @@ export async function getSecurityVisitorDetail(
         visitor_session_id: visitorSessionId,
         page: safePage,
         orders_page: safeOrdersPage,
+        range: safeRange,
       },
     });
     if (!response?.ok) throw new Error(String(response?.error || 'visitor_detail_failed'));

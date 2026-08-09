@@ -39,6 +39,9 @@ const SECURITY_BLOCKS_PER_PAGE = 10;
 const SECURITY_MONITORING_PAGE_SIZE = 10;
 const SECURITY_BLOCK_RELATED_IP_LIMIT = 50;
 const SECURITY_BLOCK_HISTORY_LIMIT = 100;
+const VISITOR_RANGE_DAYS = Object.freeze({ today: 1, days_7: 7, days_30: 30 });
+const VISITOR_PAGEVIEW_RETENTION_DAYS = 30;
+const VISITOR_SESSION_RETENTION_DAYS = 90;
 
 const ALLOWED_PAGE_TYPES = ["store_home", "category", "subcategory", "product", "gifts", "search", "checkout", "landing_qr", "other"];
 const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
@@ -1208,6 +1211,16 @@ function normalizeSecurityDay(value) {
   return day;
 }
 
+function normalizeVisitorRange(value) {
+  const normalized = String(value || "today").trim();
+  return Object.prototype.hasOwnProperty.call(VISITOR_RANGE_DAYS, normalized) ? normalized : "today";
+}
+
+function visitorRangeCutoffDay(today, range) {
+  const days = VISITOR_RANGE_DAYS[normalizeVisitorRange(range)];
+  return addDaysToDay(today, -(days - 1));
+}
+
 function parseActivityPagePayload(body) {
   const allowed = ["store_id", "page", "event_type", "risk_level"];
   if (!hasExactKeys(body, allowed)) return null;
@@ -1222,24 +1235,34 @@ function parseActivityPagePayload(body) {
 }
 
 function parseVisitorsPagePayload(body) {
-  const allowed = ["store_id", "page", "day"];
-  if (!hasExactKeys(body, allowed)) return null;
+  const keys = getBodyKeys(body).sort();
+  const rangeKeys = ["page", "range", "store_id"];
+  const legacyKeys = ["day", "page", "store_id"];
+  const isRangePayload = keys.length === rangeKeys.length && keys.every((key, index) => key === rangeKeys[index]);
+  const isLegacyPayload = keys.length === legacyKeys.length && keys.every((key, index) => key === legacyKeys[index]);
+  if (!isRangePayload && !isLegacyPayload) return null;
   const storeId = String(getBodyValue(body, "store_id") || "").trim();
   const page = normalizePositivePage(getBodyValue(body, "page"));
-  const day = normalizeSecurityDay(getBodyValue(body, "day"));
-  if (!isValidRecordId(storeId) || !page || !day) return null;
-  return { storeId, page, day };
+  const legacyDay = isLegacyPayload ? normalizeSecurityDay(getBodyValue(body, "day")) : "";
+  const range = isRangePayload ? normalizeVisitorRange(getBodyValue(body, "range")) : "today";
+  if (!isValidRecordId(storeId) || !page || (isLegacyPayload && !legacyDay)) return null;
+  return { storeId, page, range, legacyDay };
 }
 
 function parseVisitorDetailPayload(body) {
-  const allowed = ["store_id", "visitor_session_id", "page", "orders_page"];
-  if (!hasExactKeys(body, allowed)) return null;
+  const keys = getBodyKeys(body).sort();
+  const baseKeys = ["orders_page", "page", "store_id", "visitor_session_id"];
+  const rangeKeys = ["orders_page", "page", "range", "store_id", "visitor_session_id"];
+  const validKeys = (keys.length === baseKeys.length && keys.every((key, index) => key === baseKeys[index]))
+    || (keys.length === rangeKeys.length && keys.every((key, index) => key === rangeKeys[index]));
+  if (!validKeys) return null;
   const storeId = String(getBodyValue(body, "store_id") || "").trim();
   const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
   const page = normalizePositivePage(getBodyValue(body, "page"));
   const ordersPage = normalizePositivePage(getBodyValue(body, "orders_page"));
+  const range = normalizeVisitorRange(getBodyValue(body, "range"));
   if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId) || !page || !ordersPage) return null;
-  return { storeId, visitorSessionId, page, ordersPage };
+  return { storeId, visitorSessionId, page, ordersPage, range };
 }
 
 function listSecurityPage(app, collection, filter, sort, page, params) {
@@ -1390,6 +1413,127 @@ function serializeVisitorSession(session, settings, customerMap) {
     ip_display: ip.ip_display,
     ip_resolution_status: ip.ip_resolution_status,
   };
+}
+
+function visitorSessionTime(session, field) {
+  const parsed = Date.parse(getString(session, field));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function visitorSessionIdentity(session) {
+  const browserTokenHmac = getString(session, "browser_token_hmac");
+  if (browserTokenHmac) return { key: `browser:${browserTokenHmac}`, field: "browser_token_hmac", value: browserTokenHmac };
+  const visitorKeyHmac = getString(session, "visitor_key_hmac");
+  if (visitorKeyHmac) return { key: `visitor:${visitorKeyHmac}`, field: "visitor_key_hmac", value: visitorKeyHmac };
+  const customerId = getRelationId(session, "customer");
+  if (customerId) return { key: `customer:${customerId}`, field: "customer", value: customerId };
+  return { key: `session:${session.id}`, field: "id", value: session.id };
+}
+
+function buildVisitorSessionGroup(sessions) {
+  const ordered = (sessions || []).slice().sort((left, right) => {
+    const leftTime = visitorSessionTime(left, "last_seen_at") || visitorSessionTime(left, "created");
+    const rightTime = visitorSessionTime(right, "last_seen_at") || visitorSessionTime(right, "created");
+    return leftTime - rightTime || String(left.id || "").localeCompare(String(right.id || ""));
+  });
+  const representative = ordered[ordered.length - 1] || null;
+  if (!representative) return null;
+  const customerSession = ordered.slice().reverse().find((session) => getRelationId(session, "customer"));
+  const firstSession = ordered[0];
+  return {
+    representative,
+    sessions: ordered,
+    customerId: customerSession ? getRelationId(customerSession, "customer") : "",
+    firstSeenAt: getString(firstSession, "first_seen_at") || getString(firstSession, "created"),
+    lastSeenAt: getString(representative, "last_seen_at") || getString(representative, "updated"),
+    pageviewsCount: ordered.reduce((total, session) => total + Math.max(0, getNumber(session, "pageviews_count")), 0),
+    entryPath: getString(firstSession, "entry_path"),
+    lastPath: getString(representative, "last_path"),
+  };
+}
+
+function groupVisitorSessions(sessions) {
+  const grouped = {};
+  (sessions || []).forEach((session) => {
+    const identity = visitorSessionIdentity(session);
+    if (!grouped[identity.key]) grouped[identity.key] = [];
+    grouped[identity.key].push(session);
+  });
+  return Object.keys(grouped)
+    .map((key) => buildVisitorSessionGroup(grouped[key]))
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.lastSeenAt);
+      const rightTime = Date.parse(right.lastSeenAt);
+      return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0)
+        || String(right.representative.id || "").localeCompare(String(left.representative.id || ""));
+    });
+}
+
+function paginateArray(items, page, perPage) {
+  const safePerPage = Math.max(1, Number(perPage) || SECURITY_MONITORING_PAGE_SIZE);
+  const totalItems = (items || []).length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePerPage));
+  const safePage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  const offset = (safePage - 1) * safePerPage;
+  return {
+    page: safePage,
+    perPage: safePerPage,
+    totalItems,
+    totalPages,
+    items: (items || []).slice(offset, offset + safePerPage),
+  };
+}
+
+function serializeVisitorSessionGroup(group, settings, customerMap) {
+  const serialized = serializeVisitorSession(group.representative, settings, customerMap);
+  serialized.customer = customerMap[group.customerId] || null;
+  serialized.first_seen_at = group.firstSeenAt;
+  serialized.last_seen_at = group.lastSeenAt;
+  serialized.pageviews_count = group.pageviewsCount;
+  serialized.entry_path = group.entryPath;
+  serialized.last_path = group.lastPath;
+  return serialized;
+}
+
+function listVisitorSessionsForRange(app, storeId, range, legacyDay) {
+  if (legacyDay) {
+    return listRecordsPaged(
+      app,
+      VISITOR_SESSIONS_COLLECTION,
+      "store = {:store} && day = {:day}",
+      "-last_seen_at,-id",
+      { store: storeId, day: legacyDay },
+      200
+    );
+  }
+  const today = getHavanaDay(new Date());
+  const cutoffDay = visitorRangeCutoffDay(today, range);
+  return listRecordsPaged(
+    app,
+    VISITOR_SESSIONS_COLLECTION,
+    "store = {:store} && day >= {:cutoffDay} && day <= {:today}",
+    "-last_seen_at,-id",
+    { store: storeId, cutoffDay, today },
+    200
+  );
+}
+
+function listRelatedVisitorSessions(app, storeId, sourceSession, range) {
+  const identity = visitorSessionIdentity(sourceSession);
+  if (identity.field === "id") return [sourceSession];
+  const today = getHavanaDay(new Date());
+  const cutoffDay = visitorRangeCutoffDay(today, range);
+  const params = { store: storeId, cutoffDay, today, identity: identity.value };
+  const sessions = listRecordsPaged(
+    app,
+    VISITOR_SESSIONS_COLLECTION,
+    `store = {:store} && day >= {:cutoffDay} && day <= {:today} && ${identity.field} = {:identity}`,
+    "-last_seen_at,-id",
+    params,
+    200
+  );
+  return sessions.length ? sessions : [sourceSession];
 }
 
 function emptyVisitorVpnInfo() {
@@ -1666,27 +1810,28 @@ function handleSecurityVisitorsPage(e) {
     const access = getAuthorizedSecuritySettings(info, payload.storeId);
     if (!access) return respondStorePermissionDenied(e, authRole(info.auth), authStore(info.auth), payload.storeId);
 
-    const result = listSecurityPage(
+    const groups = groupVisitorSessions(listVisitorSessionsForRange(
       $app,
-      VISITOR_SESSIONS_COLLECTION,
-      "store = {:store} && day = {:day}",
-      "-last_seen_at,-id",
-      payload.page,
-      { store: payload.storeId, day: payload.day }
-    );
-    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, result.items.map((session) => getRelationId(session, "customer")));
+      payload.storeId,
+      payload.range,
+      payload.legacyDay
+    ));
+    const result = paginateArray(groups, payload.page, SECURITY_MONITORING_PAGE_SIZE);
+    const customerMap = buildSanitizedCustomerMap($app, payload.storeId, result.items.map((group) => group.customerId));
     const activeBlocks = listVisitorStatusBlocks($app, payload.storeId);
     return e.json(200, {
       ok: true,
+      range: payload.range,
       page: result.page,
       perPage: result.perPage,
       totalItems: result.totalItems,
       totalPages: result.totalPages,
-      items: result.items.map((session) => {
-        const relatedCustomer = customerMap[getRelationId(session, "customer")] || null;
+      items: result.items.map((group) => {
+        const session = group.representative;
+        const relatedCustomer = customerMap[group.customerId] || null;
         const vpn = buildVisitorVpnInfo($app, payload.storeId, session);
         return Object.assign(
-          serializeVisitorSession(session, access.settings, customerMap),
+          serializeVisitorSessionGroup(group, access.settings, customerMap),
           {
             vpn,
             security_status: buildVisitorSecurityStatus(session, relatedCustomer, vpn, activeBlocks),
@@ -1713,22 +1858,26 @@ function handleSecurityVisitorDetail(e) {
     if (!visitor || getRelationId(visitor, "store") !== payload.storeId) {
       return e.json(404, { ok: false, error: "not_found" });
     }
-    const customerId = getRelationId(visitor, "customer");
+    const relatedSessions = listRelatedVisitorSessions($app, payload.storeId, visitor, payload.range);
+    const visitorGroup = buildVisitorSessionGroup(relatedSessions) || buildVisitorSessionGroup([visitor]);
+    const representative = visitorGroup.representative;
+    const customerId = visitorGroup.customerId;
     const customerMap = buildSanitizedCustomerMap($app, payload.storeId, [customerId]);
     const relatedCustomer = customerMap[customerId] || null;
-    const historicalIpSources = visitorHistoricalIpSources($app, payload.storeId, visitor);
-    const vpnEvents = listVisitorVpnEvents($app, payload.storeId, visitor, 200);
-    const vpn = buildVisitorVpnInfo($app, payload.storeId, visitor, vpnEvents);
-    const network = buildVisitorNetworkState(visitor, historicalIpSources, vpnEvents);
+    const historicalIpSources = visitorHistoricalIpSources($app, payload.storeId, relatedSessions);
+    const vpnEvents = listVisitorVpnEvents($app, payload.storeId, representative, 200);
+    const vpn = buildVisitorVpnInfo($app, payload.storeId, representative, vpnEvents);
+    const network = buildVisitorNetworkState(representative, historicalIpSources, vpnEvents);
     const activeBlocks = listVisitorStatusBlocks($app, payload.storeId);
-    const pageviews = listSecurityPage(
-      $app,
-      VISITOR_PAGEVIEWS_COLLECTION,
-      "store = {:store} && visitor_session = {:visitorSession}",
-      "occurred_at,id",
-      payload.page,
-      { store: payload.storeId, visitorSession: visitor.id }
+    const pageviewFilter = buildStoreRelationFilter(
+      payload.storeId,
+      "visitor_session",
+      relatedSessions.map((session) => session.id)
     );
+    const allPageviews = pageviewFilter
+      ? listRecordsPaged($app, VISITOR_PAGEVIEWS_COLLECTION, pageviewFilter.filter, "occurred_at,id", pageviewFilter.params, 200)
+      : [];
+    const pageviews = paginateArray(allPageviews, payload.page, SECURITY_MONITORING_PAGE_SIZE);
     const labels = buildPageviewLabelMaps($app, payload.storeId, pageviews.items);
     let orders = emptyVisitorCustomerOrdersPage(payload.ordersPage);
     let ordersError = false;
@@ -1742,11 +1891,12 @@ function handleSecurityVisitorDetail(e) {
     }
     return e.json(200, {
       ok: true,
+      range: payload.range,
       visitor: Object.assign(
-        serializeVisitorSession(visitor, access.settings, customerMap),
+        serializeVisitorSessionGroup(visitorGroup, access.settings, customerMap),
         {
           vpn,
-          security_status: buildVisitorSecurityStatus(visitor, relatedCustomer, vpn, activeBlocks),
+          security_status: buildVisitorSecurityStatus(representative, relatedCustomer, vpn, activeBlocks),
           network_summary: network.summary,
         }
       ),
@@ -3433,7 +3583,9 @@ function captureFromVisitorPageview(pageview) {
 }
 
 function visitorHistoricalIpSources(app, storeId, sourceSession) {
-  if (!sourceSession || getRelationId(sourceSession, "store") !== storeId) return [];
+  const sourceSessions = (Array.isArray(sourceSession) ? sourceSession : [sourceSession])
+    .filter((session) => session && getRelationId(session, "store") === storeId);
+  if (!sourceSessions.length) return [];
   const sources = [];
   const seenHmacs = {};
   const addSource = (record, kind, capture, lastSeenAt, isCurrent) => {
@@ -3451,16 +3603,26 @@ function visitorHistoricalIpSources(app, storeId, sourceSession) {
     });
   };
 
-  addSource(sourceSession, "session", captureFromVisitorSession(sourceSession), getString(sourceSession, "last_seen_at"), true);
+  sourceSessions.forEach((session, index) => {
+    addSource(session, "session", captureFromVisitorSession(session), getString(session, "last_seen_at"), index === 0);
+  });
   if (!findCollectionSafe(app, VISITOR_PAGEVIEWS_COLLECTION)) return sources;
-  const pageviews = listRecordsPaged(
-    app,
-    VISITOR_PAGEVIEWS_COLLECTION,
-    "store = {:store} && visitor_session = {:visitorSession}",
-    "-occurred_at,-id",
-    { store: storeId, visitorSession: sourceSession.id },
-    200
-  );
+  let pageviews = [];
+  if (sourceSessions.length === 1) {
+    pageviews = listRecordsPaged(
+      app,
+      VISITOR_PAGEVIEWS_COLLECTION,
+      "store = {:store} && visitor_session = {:visitorSession}",
+      "-occurred_at,-id",
+      { store: storeId, visitorSession: sourceSessions[0].id },
+      200
+    );
+  } else {
+    const pageviewFilter = buildStoreRelationFilter(storeId, "visitor_session", sourceSessions.map((session) => session.id));
+    pageviews = pageviewFilter
+      ? listRecordsPaged(app, VISITOR_PAGEVIEWS_COLLECTION, pageviewFilter.filter, "-occurred_at,-id", pageviewFilter.params, 200)
+      : [];
+  }
   pageviews.forEach((pageview) => {
     addSource(pageview, "pageview", captureFromVisitorPageview(pageview), getString(pageview, "occurred_at"), false);
   });
@@ -4514,28 +4676,30 @@ function handleResolveIps(e) {
   }
 }
 
-function retentionDays(settings) {
-  const days = Number(getString(settings, "retention_days") || getNumber(settings, "retention_days") || 30);
-  if (days === 60 || days === 90) return days;
-  return 30;
-}
-
 function deleteBatch(app, collection, filter, params) {
   const records = app.findRecordsByFilter(collection, filter, "", 200, 0, params || {}) || [];
   records.forEach((record) => app.delete(record));
   return records.length;
 }
 
+function visitorRetentionCutoffs(today) {
+  return {
+    pageviews: addDaysToDay(today, -(VISITOR_PAGEVIEW_RETENTION_DAYS - 1)),
+    sessions: addDaysToDay(today, -(VISITOR_SESSION_RETENTION_DAYS - 1)),
+  };
+}
+
 function cleanupVisitors(app) {
   const today = getHavanaDay(new Date());
-  const settingsRecords = app.findRecordsByFilter(
+  const cutoffs = visitorRetentionCutoffs(today);
+  const settingsRecords = listRecordsPaged(
+    app,
     SECURITY_SETTINGS_COLLECTION,
-    'enabled = true && mode != "disabled"',
+    "",
     "store",
-    0,
-    0,
-    {}
-  ) || [];
+    {},
+    200
+  );
 
   let deletedPageviews = 0;
   let deletedSessions = 0;
@@ -4543,8 +4707,7 @@ function cleanupVisitors(app) {
   settingsRecords.forEach((settings) => {
     const storeId = getRelationId(settings, "store");
     if (!storeId) return;
-    const cutoffDay = addDaysToDay(today, -retentionDays(settings));
-    if (!cutoffDay) return;
+    if (!cutoffs.pageviews || !cutoffs.sessions) return;
 
     let batchCount = 0;
     do {
@@ -4552,7 +4715,7 @@ function cleanupVisitors(app) {
         app,
         VISITOR_PAGEVIEWS_COLLECTION,
         "store = {:store} && day < {:cutoffDay}",
-        { store: storeId, cutoffDay }
+        { store: storeId, cutoffDay: cutoffs.pageviews }
       );
       deletedPageviews += batchCount;
     } while (batchCount > 0);
@@ -4562,7 +4725,7 @@ function cleanupVisitors(app) {
         app,
         VISITOR_SESSIONS_COLLECTION,
         "store = {:store} && day < {:cutoffDay}",
-        { store: storeId, cutoffDay }
+        { store: storeId, cutoffDay: cutoffs.sessions }
       );
       deletedSessions += batchCount;
     } while (batchCount > 0);
@@ -4655,7 +4818,16 @@ module.exports = {
     selectedManualDeviceHmacs,
     parseBlockDeviceReviewPayload,
     parseNavigationPayload,
+    parseVisitorsPagePayload,
     parseVisitorDetailPayload,
+    normalizeVisitorRange,
+    visitorRangeCutoffDay,
+    groupVisitorSessions,
+    paginateArray,
+    visitorRetentionCutoffs,
+    cleanupVisitors,
+    visitorPageviewRetentionDays: VISITOR_PAGEVIEW_RETENTION_DAYS,
+    visitorSessionRetentionDays: VISITOR_SESSION_RETENTION_DAYS,
     buildVisitorCustomerOrdersDetail,
     buildVisitorVpnInfo,
     buildVisitorNetworkState,
