@@ -1580,19 +1580,17 @@ function emptyVisitorVpnInfo() {
 
 function listVisitorVpnEvents(app, storeId, session, limit) {
   const browserTokenHmac = getString(session, "browser_token_hmac");
-  const currentIpHmac = getString(session, "latest_ip_hmac");
-  if (!browserTokenHmac || !isValidHmacValue(currentIpHmac)) return [];
+  if (!browserTokenHmac) return [];
   try {
     return app.findRecordsByFilter(
       SECURITY_EVENTS_COLLECTION,
-      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && ip_hmac = {:currentIpHmac} && (event_type = {:suspectedType} || event_type = {:hostingBlockedType} || event_type = {:abuseDetectedType} || event_type = {:abuseBlockedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
+      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:suspectedType} || event_type = {:hostingBlockedType} || event_type = {:abuseDetectedType} || event_type = {:abuseBlockedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
       "-occurred_at,-created",
       Math.max(1, Number(limit) || 50),
       0,
       {
         store: storeId,
         browserTokenHmac,
-        currentIpHmac,
         suspectedType: "network_suspected",
         hostingBlockedType: "hosting_blocked",
         abuseDetectedType: "abusive_ip_detected",

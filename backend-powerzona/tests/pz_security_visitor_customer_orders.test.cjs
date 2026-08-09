@@ -244,40 +244,48 @@ test('VISITOR-ORDERS: pagina de pedidos contiene maximo cinco y queda aislada po
 test('VISITOR-VPN: detalle relaciona la deteccion con el dispositivo y su IP actual', () => {
   const browserTokenHmac = 'v'.repeat(43);
   const currentIpHmac = 'z'.repeat(64);
+  const historicalIpHmac = 'y'.repeat(64);
   const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: browserTokenHmac, latest_ip_hmac: currentIpHmac });
+  const events = [
+    new MockRecord({
+      event_type: 'vpn_blocked',
+      ip_hmac: historicalIpHmac,
+      decision: 'blocked',
+      risk_level: 'blocked',
+      occurred_at: '2026-08-08 19:00:00.000Z',
+    }),
+    new MockRecord({
+      event_type: 'vpn_blocked',
+      ip_hmac: currentIpHmac,
+      decision: 'blocked',
+      risk_level: 'blocked',
+      occurred_at: '2026-08-08 18:00:00.000Z',
+      metadata_json: {
+        provider: 'ipapi_is:proxycheck_io',
+        provider_confidence: 97,
+        hosting_consensus: true,
+      },
+    }),
+    new MockRecord({
+      event_type: 'vpn_check_unavailable',
+      ip_hmac: currentIpHmac,
+      decision: 'monitored',
+      risk_level: 'observation',
+      occurred_at: '2026-08-08 17:00:00.000Z',
+    }),
+  ];
   const app = {
     findRecordsByFilter(name, filter, sort, limit, offset, params) {
       assert.equal(name, 'store_security_events');
       assert.match(filter, /browser_token_hmac = \{:browserTokenHmac\}/);
-      assert.match(filter, /ip_hmac = \{:currentIpHmac\}/);
-      assert.doesNotMatch(filter, /ip_masked|resolved_ip/);
+      assert.doesNotMatch(filter, /ip_hmac|ip_masked|resolved_ip/);
       assert.equal(sort, '-occurred_at,-created');
       assert.equal(limit, 50);
       assert.equal(offset, 0);
       assert.equal(params.store, STORE_ID);
       assert.equal(params.browserTokenHmac, browserTokenHmac);
-      assert.equal(params.currentIpHmac, currentIpHmac);
-      return [
-        new MockRecord({
-          event_type: 'vpn_blocked',
-          ip_hmac: currentIpHmac,
-          decision: 'blocked',
-          risk_level: 'blocked',
-          occurred_at: '2026-08-08 18:00:00.000Z',
-          metadata_json: {
-            provider: 'ipapi_is:proxycheck_io',
-            provider_confidence: 97,
-            hosting_consensus: true,
-          },
-        }),
-        new MockRecord({
-          event_type: 'vpn_check_unavailable',
-          ip_hmac: currentIpHmac,
-          decision: 'monitored',
-          risk_level: 'observation',
-          occurred_at: '2026-08-08 17:00:00.000Z',
-        }),
-      ];
+      assert.equal(params.currentIpHmac, undefined);
+      return events;
     },
   };
 
@@ -297,6 +305,15 @@ test('VISITOR-VPN: detalle relaciona la deteccion con el dispositivo y su IP act
     abuse_last_reported_at: '',
     block_reason: '',
   });
+
+  const network = monitoring._test.buildVisitorNetworkState(
+    visitor,
+    [{ capture: { ip_hmac: historicalIpHmac } }, { capture: { ip_hmac: currentIpHmac } }],
+    events,
+  );
+  assert.equal(network.summary.current_ip_status, 'blocked');
+  assert.equal(network.summary.vpn_ip_count, 2);
+  assert.equal(network.statusByIpHmac[historicalIpHmac].status, 'blocked');
 
   assert.deepEqual(
     monitoring._test.buildVisitorVpnInfo(app, STORE_ID, new MockRecord({ id: VISITOR_ID })),

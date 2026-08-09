@@ -75,10 +75,13 @@ test('VISITOR-VPN: detalle muestra la evaluacion correspondiente a la IP actual'
   assert.match(client, /export type SecurityVisitorVpnInfo/);
   assert.match(client, /vpn: normalizeVisitorVpnInfo\(record\?\.vpn\)/);
   assert.match(backend, /browser_token_hmac = \{:browserTokenHmac\}/);
-  assert.match(backend, /ip_hmac = \{:currentIpHmac\}/);
   assert.match(backend, /buildVisitorVpnInfo\(\$app, payload\.storeId, (?:visitor|representative)(?:, vpnEvents)?\)/);
-  assert.match(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /latest_ip_hmac/);
-  assert.doesNotMatch(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /ip_masked|resolved_ip/);
+  const listEventsSource = backend.slice(backend.indexOf('function listVisitorVpnEvents'), backend.indexOf('function buildVisitorVpnInfo'));
+  const currentInfoSource = backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent'));
+  assert.doesNotMatch(listEventsSource, /ip_hmac = \{:currentIpHmac\}|ip_masked|resolved_ip/);
+  assert.match(currentInfoSource, /latest_ip_hmac/);
+  assert.match(currentInfoSource, /getString\(event, "ip_hmac"\) === currentIpHmac/);
+  assert.doesNotMatch(currentInfoSource, /ip_masked|resolved_ip/);
   assert.match(detail, /Estado actual/);
   assert.match(detail, /Detalles de la IP actual/);
   assert.match(detail, /Las IP anteriores permanecen en Red conocida y en el historial completo/);
