@@ -173,6 +173,7 @@ export type SecurityMonitoringParams = {
   blockedStatus: SecurityBlockStatusFilter;
   blockedScope: SecurityBlockScopeFilter;
   blockedSearch: string;
+  blockedFocusId: string;
   mergeSearch: string;
   eventType: EventTypeFilter;
   eventRisk: EventRiskFilter;
@@ -254,6 +255,10 @@ export type PaginatedResult<T> = {
 export type SecurityEventRow = SecurityEvent & {
   relatedCustomer: RelatedCustomer | null;
   relatedOrder: RelatedOrder | null;
+  navigation: {
+    kind: 'block' | 'visitor' | 'none';
+    targetId: string;
+  };
 };
 
 export type SecurityCustomerPhone = {
@@ -312,6 +317,46 @@ export type SecurityBlockDeviceReview = {
   pending: SecurityBlockDeviceCandidate[];
 };
 
+export type SecurityBlockRelatedIp = {
+  ip_display: string;
+  ip_resolution_status: IpResolutionStatus;
+  state: 'blocked' | 'observed' | 'expired' | 'revoked';
+  link_source: 'selected_ip' | 'device' | 'customer' | 'event';
+  included_in_block: boolean;
+  first_seen_at: string;
+  last_seen_at: string;
+  blocked_attempts: number;
+  sightings_count: number;
+  vpn_status: 'none' | 'detected' | 'blocked';
+  visitor_session_id: string;
+};
+
+export type SecurityBlockHistoryEntry = {
+  id: string;
+  kind: 'administrative' | 'security_event';
+  action: string;
+  occurred_at: string;
+  actor_name: string;
+  reason: string;
+  decision: string;
+  risk_level: string;
+  ip_display: string;
+  ip_resolution_status: IpResolutionStatus;
+  navigation: {
+    kind: 'block' | 'visitor' | 'none';
+    targetId: string;
+  };
+};
+
+export type SecurityBlockDetail = {
+  related_ips: SecurityBlockRelatedIp[];
+  related_ip_count: number;
+  related_device_count: number;
+  related_address_count: number;
+  history: SecurityBlockHistoryEntry[];
+  history_count: number;
+};
+
 export type SecurityBlock = {
   id: string;
   customer_id: string;
@@ -326,11 +371,15 @@ export type SecurityBlock = {
   revoked_at: string;
   signal_summary: SecurityBlockSignalSummary;
   created_by_name: string;
+  revoked_by_name: string;
+  reason: string;
+  revoke_reason: string;
   manual_ip: boolean;
   manual_ip_display: string;
   manual_ip_resolution_status: IpResolutionStatus;
   review_device_candidates: boolean;
   device_review: SecurityBlockDeviceReview;
+  detail: SecurityBlockDetail | null;
 };
 
 export type SecurityBlockHistorySummary = {
@@ -377,9 +426,18 @@ export type ManualIpDeviceCandidate = {
   preselected: boolean;
 };
 
+export type ManualIpCandidate = {
+  source_id: string;
+  ip_display: string;
+  ip_resolution_status: IpResolutionStatus;
+  last_seen_at: string;
+  preselected: boolean;
+};
+
 export type ManualIpDeviceLookupResult = {
   ip_display: string;
   ip_resolution_status: IpResolutionStatus;
+  ip_candidates: ManualIpCandidate[];
   candidates: ManualIpDeviceCandidate[];
 };
 
@@ -445,9 +503,23 @@ export type SecurityVisitorVpnInfo = {
   observed_at: string;
 };
 
+export type SecurityVisitorStatus = 'normal' | 'watch' | 'blocked';
+
+export type SecurityVisitorIpNetworkStatus = 'normal' | 'detected' | 'blocked' | 'unavailable';
+
+export type SecurityVisitorNetworkSummary = {
+  ip_count: number;
+  vpn_ip_count: number;
+  unavailable_ip_count: number;
+  current_ip_status: SecurityVisitorIpNetworkStatus;
+  current_ip_observed_at: string;
+};
+
 export type SecurityVisitorSessionRow = SecurityVisitorSession & {
   relatedCustomer: RelatedCustomer | null;
   vpn: SecurityVisitorVpnInfo;
+  security_status: SecurityVisitorStatus;
+  network_summary: SecurityVisitorNetworkSummary;
 };
 
 export type SecurityVisitorPageview = {
@@ -473,6 +545,8 @@ export type SecurityVisitorPageviewRow = SecurityVisitorPageview & {
   readableName: string;
   canOpen: boolean;
   openPath: string;
+  networkStatus: SecurityVisitorIpNetworkStatus;
+  networkObservedAt: string;
 };
 
 export type SecurityVisitorDetailResult = {
@@ -555,6 +629,7 @@ function getFormValue(formData: FormData | null | undefined, key: string) {
 export function getMonitoringParams(url: URL, formData?: FormData | null): SecurityMonitoringParams {
   const section = normalizeSection(getFormValue(formData, 'section') || url.searchParams.get('section'));
   const customerId = String(getFormValue(formData, 'customer') || url.searchParams.get('customer') || '').trim();
+  const blockedFocusId = String(getFormValue(formData, 'block') || url.searchParams.get('block') || '').trim();
 
   return {
     section,
@@ -567,9 +642,10 @@ export function getMonitoringParams(url: URL, formData?: FormData | null): Secur
     customerEventsPage: normalizePage(url.searchParams.get('events_page')),
     customerStatus: normalizeCustomerStatusFilter(getFormValue(formData, 'customer_status') || url.searchParams.get('customer_status')),
     customerSearch: normalizeSearchTerm(getFormValue(formData, 'customer_search')),
-    blockedStatus: normalizeBlockStatusFilter(getFormValue(formData, 'blocked_status') || url.searchParams.get('blocked_status')),
+    blockedStatus: blockedFocusId ? 'all' : normalizeBlockStatusFilter(getFormValue(formData, 'blocked_status') || url.searchParams.get('blocked_status')),
     blockedScope: normalizeBlockScopeFilter(getFormValue(formData, 'blocked_scope') || url.searchParams.get('blocked_scope')),
     blockedSearch: normalizeSearchTerm(getFormValue(formData, 'blocked_search')),
+    blockedFocusId: isValidRecordId(blockedFocusId) ? blockedFocusId : '',
     mergeSearch: normalizeSearchTerm(getFormValue(formData, 'merge_search') || url.searchParams.get('merge_search')),
     eventType: normalizeEventTypeFilter(url.searchParams.get('event_type')),
     eventRisk: normalizeEventRiskFilter(url.searchParams.get('risk')),
@@ -944,6 +1020,7 @@ export async function runSecurityManualIpBlockCreate(
     scope: SecurityBlockScope;
     duration: SecurityBlockDuration;
     visitorSessionId?: string;
+    ipSourceIds: string[];
     deviceSessionIds: string[];
     reason: string;
   }
@@ -957,6 +1034,7 @@ export async function runSecurityManualIpBlockCreate(
       duration: options.duration,
       ip: String(options.ip || '').trim().slice(0, 64),
       visitor_session_id: String(options.visitorSessionId || '').trim(),
+      ip_source_ids: Array.from(new Set(options.ipSourceIds || [])).filter(isValidRecordId).slice(0, 50),
       device_session_ids: Array.from(new Set(options.deviceSessionIds || [])).slice(0, 50),
       reason: normalizeSearchTerm(options.reason).slice(0, 500),
     },
@@ -986,6 +1064,23 @@ export async function getSecurityManualIpDeviceCandidates(
     ip_resolution_status: ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(status)
       ? status
       : 'hidden',
+    ip_candidates: Array.isArray(response.ip_candidates)
+      ? response.ip_candidates
+        .filter((candidate: any) => isValidRecordId(candidate?.source_id))
+        .slice(0, 50)
+        .map((candidate: any) => {
+          const candidateStatus = String(candidate.ip_resolution_status || 'hidden') as IpResolutionStatus;
+          return {
+            source_id: String(candidate.source_id),
+            ip_display: String(candidate.ip_display || ''),
+            ip_resolution_status: ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(candidateStatus)
+              ? candidateStatus
+              : 'hidden',
+            last_seen_at: String(candidate.last_seen_at || ''),
+            preselected: candidate.preselected === true,
+          };
+        })
+      : [],
     candidates: Array.isArray(response.candidates)
       ? response.candidates
         .filter((candidate: any) => isValidRecordId(candidate?.session_id))
@@ -1065,7 +1160,8 @@ export async function getSecurityBlocksPage(
   page: number,
   status: SecurityBlockStatusFilter,
   scope: SecurityBlockScopeFilter,
-  search: string
+  search: string,
+  focusId = ''
 ): Promise<{ blocks: PaginatedResult<SecurityBlock>; metrics: SecurityBlocksMetrics }> {
   const safePage = normalizePage(page);
   const response = await (client as any).send('/api/pz/security/blocks-page', {
@@ -1076,6 +1172,7 @@ export async function getSecurityBlocksPage(
       status,
       scope,
       search: normalizeSearchTerm(search),
+      focus_id: isValidRecordId(focusId) ? focusId : '',
     },
   });
 
@@ -1128,6 +1225,9 @@ function normalizeActivityEndpointEvent(record: any): SecurityEventRow {
   const relatedCustomer = normalizeEndpointCustomer(record?.customer);
   const relatedOrder = normalizeEndpointOrder(record?.order);
   const ip = normalizeEndpointIp(record);
+  const rawNavigationKind = String(record?.navigation?.kind || 'none');
+  const navigationKind = ['block', 'visitor'].includes(rawNavigationKind) ? rawNavigationKind as 'block' | 'visitor' : 'none';
+  const navigationTargetId = String(record?.navigation?.target_id || '');
   return {
     id: String(record?.id || ''),
     store: '',
@@ -1147,6 +1247,10 @@ function normalizeActivityEndpointEvent(record: any): SecurityEventRow {
     ip_resolution_status: ip.ip_resolution_status,
     relatedCustomer,
     relatedOrder,
+    navigation: {
+      kind: isValidRecordId(navigationTargetId) ? navigationKind : 'none',
+      targetId: isValidRecordId(navigationTargetId) ? navigationTargetId : '',
+    },
   };
 }
 
@@ -1207,6 +1311,7 @@ function normalizeCustomerDetailEvent(record: any): SecurityEventRow {
     ip_resolution_status: ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(status) ? status : 'unavailable',
     relatedCustomer: null,
     relatedOrder,
+    navigation: { kind: 'none', targetId: '' },
   };
 }
 
@@ -1283,6 +1388,81 @@ function normalizeBlockDeviceReview(record: any): SecurityBlockDeviceReview {
   };
 }
 
+function normalizeIpResolutionStatus(value: unknown): IpResolutionStatus {
+  const status = String(value || 'unavailable') as IpResolutionStatus;
+  return ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(status)
+    ? status
+    : 'unavailable';
+}
+
+function normalizeBlockRelatedIp(record: any): SecurityBlockRelatedIp {
+  const state = String(record?.state || 'revoked');
+  const source = String(record?.link_source || 'event');
+  const vpnStatus = String(record?.vpn_status || 'none');
+  const visitorSessionId = String(record?.visitor_session_id || '');
+  return {
+    ip_display: String(record?.ip_display || ''),
+    ip_resolution_status: normalizeIpResolutionStatus(record?.ip_resolution_status),
+    state: ['blocked', 'observed', 'expired', 'revoked'].includes(state) ? state as SecurityBlockRelatedIp['state'] : 'observed',
+    link_source: ['selected_ip', 'device', 'customer', 'event'].includes(source)
+      ? source as SecurityBlockRelatedIp['link_source']
+      : 'event',
+    included_in_block: record?.included_in_block === true,
+    first_seen_at: String(record?.first_seen_at || ''),
+    last_seen_at: String(record?.last_seen_at || ''),
+    blocked_attempts: Math.max(0, normalizeNumber(record?.blocked_attempts)),
+    sightings_count: Math.max(0, normalizeNumber(record?.sightings_count)),
+    vpn_status: ['none', 'detected', 'blocked'].includes(vpnStatus)
+      ? vpnStatus as SecurityBlockRelatedIp['vpn_status']
+      : 'none',
+    visitor_session_id: isValidRecordId(visitorSessionId) ? visitorSessionId : '',
+  };
+}
+
+function normalizeBlockHistoryEntry(record: any): SecurityBlockHistoryEntry | null {
+  const id = String(record?.id || '');
+  const kind = String(record?.kind || '');
+  if (!isValidRecordId(id) || !['administrative', 'security_event'].includes(kind)) return null;
+  const navigationKind = String(record?.navigation?.kind || 'none');
+  const navigationTargetId = String(record?.navigation?.target_id || '');
+  return {
+    id,
+    kind: kind as SecurityBlockHistoryEntry['kind'],
+    action: String(record?.action || '').slice(0, 80),
+    occurred_at: String(record?.occurred_at || ''),
+    actor_name: String(record?.actor_name || 'Sistema').slice(0, 160),
+    reason: String(record?.reason || '').slice(0, 500),
+    decision: String(record?.decision || '').slice(0, 40),
+    risk_level: String(record?.risk_level || '').slice(0, 40),
+    ip_display: String(record?.ip_display || ''),
+    ip_resolution_status: normalizeIpResolutionStatus(record?.ip_resolution_status),
+    navigation: {
+      kind: ['block', 'visitor'].includes(navigationKind) && isValidRecordId(navigationTargetId)
+        ? navigationKind as 'block' | 'visitor'
+        : 'none',
+      targetId: isValidRecordId(navigationTargetId) ? navigationTargetId : '',
+    },
+  };
+}
+
+function normalizeSecurityBlockDetail(record: any): SecurityBlockDetail | null {
+  if (!record || typeof record !== 'object') return null;
+  const relatedIps = Array.isArray(record.related_ips)
+    ? record.related_ips.slice(0, 50).map(normalizeBlockRelatedIp)
+    : [];
+  const history = Array.isArray(record.history)
+    ? record.history.slice(0, 100).map(normalizeBlockHistoryEntry).filter(Boolean) as SecurityBlockHistoryEntry[]
+    : [];
+  return {
+    related_ips: relatedIps,
+    related_ip_count: Math.max(relatedIps.length, normalizeNumber(record.related_ip_count)),
+    related_device_count: Math.max(0, normalizeNumber(record.related_device_count)),
+    related_address_count: Math.max(0, normalizeNumber(record.related_address_count)),
+    history,
+    history_count: Math.max(history.length, normalizeNumber(record.history_count)),
+  };
+}
+
 function normalizeSecurityBlock(record: any): SecurityBlock {
   const scope = String(record?.scope || 'orders');
   const status = String(record?.status || 'active');
@@ -1302,6 +1482,9 @@ function normalizeSecurityBlock(record: any): SecurityBlock {
     revoked_at: String(record?.revoked_at || ''),
     signal_summary: normalizeSignalSummary(record?.signal_summary),
     created_by_name: String(record?.created_by_name || ''),
+    revoked_by_name: String(record?.revoked_by_name || ''),
+    reason: String(record?.reason || '').slice(0, 500),
+    revoke_reason: String(record?.revoke_reason || '').slice(0, 500),
     manual_ip: record?.manual_ip === true,
     manual_ip_display: String(record?.manual_ip_display || ''),
     manual_ip_resolution_status: ['hidden', 'masked', 'full', 'full_unavailable', 'unavailable'].includes(ipResolutionStatus)
@@ -1309,6 +1492,7 @@ function normalizeSecurityBlock(record: any): SecurityBlock {
       : 'hidden',
     review_device_candidates: record?.review_device_candidates === true,
     device_review: normalizeBlockDeviceReview(record?.device_review),
+    detail: normalizeSecurityBlockDetail(record?.detail),
   };
 }
 
@@ -1475,9 +1659,30 @@ function normalizeVisitorVpnInfo(record: any): SecurityVisitorVpnInfo {
   };
 }
 
+function normalizeVisitorIpNetworkStatus(value: unknown): SecurityVisitorIpNetworkStatus {
+  const status = String(value || 'normal');
+  return ['normal', 'detected', 'blocked', 'unavailable'].includes(status)
+    ? status as SecurityVisitorIpNetworkStatus
+    : 'normal';
+}
+
+function normalizeVisitorNetworkSummary(record: any): SecurityVisitorNetworkSummary {
+  return {
+    ip_count: normalizeNumber(record?.ip_count),
+    vpn_ip_count: normalizeNumber(record?.vpn_ip_count),
+    unavailable_ip_count: normalizeNumber(record?.unavailable_ip_count),
+    current_ip_status: normalizeVisitorIpNetworkStatus(record?.current_ip_status),
+    current_ip_observed_at: String(record?.current_ip_observed_at || ''),
+  };
+}
+
 function normalizeVisitorEndpointSession(record: any): SecurityVisitorSessionRow {
   const relatedCustomer = normalizeEndpointCustomer(record?.customer);
   const ip = normalizeEndpointIp(record);
+  const rawSecurityStatus = String(record?.security_status || 'normal');
+  const securityStatus = ['normal', 'watch', 'blocked'].includes(rawSecurityStatus)
+    ? rawSecurityStatus as SecurityVisitorStatus
+    : 'normal';
   return {
     id: String(record?.id || ''),
     store: '',
@@ -1497,6 +1702,8 @@ function normalizeVisitorEndpointSession(record: any): SecurityVisitorSessionRow
     ip_resolution_status: ip.ip_resolution_status,
     relatedCustomer,
     vpn: normalizeVisitorVpnInfo(record?.vpn),
+    security_status: securityStatus,
+    network_summary: normalizeVisitorNetworkSummary(record?.network_summary),
   };
 }
 
@@ -1522,6 +1729,8 @@ function normalizeVisitorEndpointPageview(record: any): SecurityVisitorPageviewR
     readableName: String(record?.resolved_label || 'Otra pagina publica'),
     canOpen: record?.can_open === true,
     openPath: String(record?.open_path || ''),
+    networkStatus: normalizeVisitorIpNetworkStatus(record?.network_status),
+    networkObservedAt: String(record?.network_observed_at || ''),
   };
 }
 

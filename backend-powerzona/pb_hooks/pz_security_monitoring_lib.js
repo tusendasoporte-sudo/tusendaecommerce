@@ -37,6 +37,8 @@ const VISITOR_CUSTOMER_ORDERS_PER_PAGE = 5;
 const CUSTOMER_DETAIL_MAX_PAGE = 1000;
 const SECURITY_BLOCKS_PER_PAGE = 10;
 const SECURITY_MONITORING_PAGE_SIZE = 10;
+const SECURITY_BLOCK_RELATED_IP_LIMIT = 50;
+const SECURITY_BLOCK_HISTORY_LIMIT = 100;
 
 const ALLOWED_PAGE_TYPES = ["store_home", "category", "subcategory", "product", "gifts", "search", "checkout", "landing_qr", "other"];
 const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
@@ -216,6 +218,28 @@ function getStringArray(record, key) {
     return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()).filter(Boolean) : [];
   } catch (_) {
     return [];
+  }
+}
+
+function getObject(record, key) {
+  let value;
+  try {
+    value = record.get(key);
+  } catch (_) {
+    value = undefined;
+  }
+  if (value && typeof value === "object" && !Array.isArray(value) && typeof value.string !== "function") {
+    return value;
+  }
+  if (value && typeof value.string === "function") {
+    try { value = String(value.string() || ""); } catch (_) { value = ""; }
+  }
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch (_) {
+    return {};
   }
 }
 
@@ -1276,7 +1300,60 @@ function buildSanitizedOrderMap(app, storeId, orderIds) {
   return orderMap;
 }
 
-function serializeActivityEvent(event, settings, customerMap, orderMap) {
+function activityVisitorSessionDistance(session, eventTime) {
+  const firstSeen = Date.parse(getString(session, "first_seen_at"));
+  const lastSeen = Date.parse(getString(session, "last_seen_at"));
+  if (!Number.isFinite(eventTime)) return 0;
+  if (Number.isFinite(firstSeen) && Number.isFinite(lastSeen) && eventTime >= firstSeen && eventTime <= lastSeen) return 0;
+  const distances = [];
+  if (Number.isFinite(firstSeen)) distances.push(Math.abs(eventTime - firstSeen));
+  if (Number.isFinite(lastSeen)) distances.push(Math.abs(eventTime - lastSeen));
+  return distances.length ? Math.min(...distances) : Number.MAX_SAFE_INTEGER;
+}
+
+function buildActivityNavigation(app, storeId, event, nowValue) {
+  const customerId = getRelationId(event, "customer");
+  if (customerId && findCollectionSafe(app, STORE_SECURITY_BLOCKS_COLLECTION)) {
+    try {
+      const now = nowValue instanceof Date ? nowValue : new Date();
+      const blocks = app.findRecordsByFilter(
+        STORE_SECURITY_BLOCKS_COLLECTION,
+        'store = {:store} && customer = {:customer} && status = "active"',
+        "-created,-id",
+        20,
+        0,
+        { store: storeId, customer: customerId }
+      ) || [];
+      const activeBlock = blocks.find((block) => visitorStatusBlockIsActive(block, now));
+      if (activeBlock && isValidRecordId(activeBlock.id)) return { kind: "block", target_id: activeBlock.id };
+    } catch (_) {}
+  }
+
+  const browserTokenHmac = getString(event, "browser_token_hmac");
+  const occurredAt = getString(event, "occurred_at") || getString(event, "created");
+  const eventTime = Date.parse(occurredAt);
+  if (!browserTokenHmac || !Number.isFinite(eventTime) || !findCollectionSafe(app, VISITOR_SESSIONS_COLLECTION)) {
+    return { kind: "none", target_id: "" };
+  }
+
+  try {
+    const day = getHavanaDay(new Date(eventTime));
+    const sessions = app.findRecordsByFilter(
+      VISITOR_SESSIONS_COLLECTION,
+      "store = {:store} && day = {:day} && browser_token_hmac = {:browserTokenHmac}",
+      "-last_seen_at,-id",
+      50,
+      0,
+      { store: storeId, day, browserTokenHmac }
+    ) || [];
+    sessions.sort((left, right) => activityVisitorSessionDistance(left, eventTime) - activityVisitorSessionDistance(right, eventTime));
+    const visitor = sessions[0];
+    if (visitor && isValidRecordId(visitor.id)) return { kind: "visitor", target_id: visitor.id };
+  } catch (_) {}
+  return { kind: "none", target_id: "" };
+}
+
+function serializeActivityEvent(event, settings, customerMap, orderMap, navigation) {
   const customerId = getRelationId(event, "customer");
   const orderId = getRelationId(event, "order");
   const ip = getRecordIpDisplay(event, settings);
@@ -1292,6 +1369,7 @@ function serializeActivityEvent(event, settings, customerMap, orderMap) {
     created: getString(event, "created"),
     customer: customerMap[customerId] || null,
     order: orderMap[orderId] || null,
+    navigation: navigation || { kind: "none", target_id: "" },
     ip_display: ip.ip_display,
     ip_resolution_status: ip.ip_resolution_status,
   };
@@ -1324,17 +1402,15 @@ function emptyVisitorVpnInfo() {
   };
 }
 
-function buildVisitorVpnInfo(app, storeId, session) {
+function listVisitorVpnEvents(app, storeId, session, limit) {
   const browserTokenHmac = getString(session, "browser_token_hmac");
-  if (!browserTokenHmac) return emptyVisitorVpnInfo();
-
-  let events = [];
+  if (!browserTokenHmac) return [];
   try {
-    events = app.findRecordsByFilter(
+    return app.findRecordsByFilter(
       SECURITY_EVENTS_COLLECTION,
       "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
       "-occurred_at,-created",
-      50,
+      Math.max(1, Number(limit) || 50),
       0,
       {
         store: storeId,
@@ -1345,8 +1421,12 @@ function buildVisitorVpnInfo(app, storeId, session) {
       }
     ) || [];
   } catch (_) {
-    return emptyVisitorVpnInfo();
+    return [];
   }
+}
+
+function buildVisitorVpnInfo(app, storeId, session, suppliedEvents) {
+  const events = Array.isArray(suppliedEvents) ? suppliedEvents : listVisitorVpnEvents(app, storeId, session, 50);
 
   const detectedEvent = events.find((event) => {
     const eventType = getString(event, "event_type");
@@ -1365,6 +1445,102 @@ function buildVisitorVpnInfo(app, storeId, session) {
     risk_level: getString(event, "risk_level"),
     observed_at: getString(event, "occurred_at") || getString(event, "created"),
   };
+}
+
+function visitorNetworkStatusFromEvent(event) {
+  const eventType = getString(event, "event_type");
+  if (eventType === "vpn_blocked") return "blocked";
+  if (eventType === "vpn_detected") return "detected";
+  if (eventType === "vpn_check_unavailable") return "unavailable";
+  return "normal";
+}
+
+function buildVisitorNetworkState(session, ipSources, events) {
+  const sources = Array.isArray(ipSources) ? ipSources : [];
+  const allowedIpHmacs = {};
+  sources.forEach((source) => {
+    const ipHmac = String(source && source.capture && source.capture.ip_hmac || "").trim();
+    if (isValidHmacValue(ipHmac)) allowedIpHmacs[ipHmac] = true;
+  });
+
+  const statusByIpHmac = {};
+  const selectEvent = (event, allowUnavailable) => {
+    const ipHmac = getString(event, "ip_hmac");
+    const status = visitorNetworkStatusFromEvent(event);
+    if (!allowedIpHmacs[ipHmac] || statusByIpHmac[ipHmac] || status === "normal") return;
+    if (!allowUnavailable && status === "unavailable") return;
+    statusByIpHmac[ipHmac] = {
+      status,
+      observed_at: getString(event, "occurred_at") || getString(event, "created"),
+    };
+  };
+
+  const visitorEvents = Array.isArray(events) ? events : [];
+  visitorEvents.forEach((event) => selectEvent(event, false));
+  visitorEvents.forEach((event) => selectEvent(event, true));
+
+  const statuses = Object.keys(statusByIpHmac).map((ipHmac) => statusByIpHmac[ipHmac].status);
+  const currentIpHmac = getString(session, "latest_ip_hmac");
+  const current = statusByIpHmac[currentIpHmac] || { status: "normal", observed_at: "" };
+  return {
+    statusByIpHmac,
+    summary: {
+      ip_count: Object.keys(allowedIpHmacs).length,
+      vpn_ip_count: statuses.filter((status) => status === "detected" || status === "blocked").length,
+      unavailable_ip_count: statuses.filter((status) => status === "unavailable").length,
+      current_ip_status: current.status,
+      current_ip_observed_at: current.observed_at,
+    },
+  };
+}
+
+function visitorBlockMatchesSession(block, session) {
+  const checks = [];
+  if (getBoolean(block, "match_phone")) checks.push(false);
+  if (getBoolean(block, "match_device")) {
+    const deviceHmac = getString(session, "browser_token_hmac");
+    checks.push(Boolean(deviceHmac) && getStringArray(block, "device_hmac_values").includes(deviceHmac));
+  }
+  if (getBoolean(block, "match_ip")) {
+    const ipHmac = getString(session, "latest_ip_hmac");
+    checks.push(Boolean(ipHmac) && getStringArray(block, "ip_hmac_values").includes(ipHmac));
+  }
+  if (!checks.length) return false;
+  return getString(block, "match_mode") === "all" ? checks.every(Boolean) : checks.some(Boolean);
+}
+
+function visitorStatusBlockIsActive(block, now) {
+  if (!block || getString(block, "status") !== "active" || getString(block, "revoked_at")) return false;
+  const startsAt = Date.parse(getString(block, "starts_at"));
+  if (Number.isFinite(startsAt) && startsAt > now.getTime()) return false;
+  const expiresAt = Date.parse(getString(block, "expires_at"));
+  return !Number.isFinite(expiresAt) || expiresAt > now.getTime();
+}
+
+function buildVisitorSecurityStatus(session, relatedCustomer, vpnInfo, activeBlocks, nowValue) {
+  const customerStatus = String(relatedCustomer && relatedCustomer.status || "").trim();
+  if (customerStatus === "blocked") return "blocked";
+  const now = nowValue instanceof Date ? nowValue : new Date();
+  if ((activeBlocks || []).some((block) => visitorStatusBlockIsActive(block, now) && visitorBlockMatchesSession(block, session))) {
+    return "blocked";
+  }
+  const vpnStatus = String(vpnInfo && vpnInfo.status || "none");
+  if (vpnStatus === "blocked") return "blocked";
+  if (customerStatus === "watch" || vpnStatus === "detected" || vpnStatus === "unavailable") return "watch";
+  return "normal";
+}
+
+function listVisitorStatusBlocks(app, storeId) {
+  if (!findCollectionSafe(app, STORE_SECURITY_BLOCKS_COLLECTION)) return [];
+  const now = new Date();
+  return listRecordsPaged(
+    app,
+    STORE_SECURITY_BLOCKS_COLLECTION,
+    'store = {:store} && status = "active"',
+    "-created",
+    { store: storeId },
+    200
+  ).filter((block) => visitorStatusBlockIsActive(block, now));
 }
 
 function entityName(record) {
@@ -1409,10 +1585,13 @@ function pageviewResolvedLabel(pageview, labels) {
   return getString(pageview, "path") || "Otra pagina publica";
 }
 
-function serializeVisitorPageview(pageview, settings, labels) {
+function serializeVisitorPageview(pageview, settings, labels, networkStatusByIpHmac) {
   const ip = getRecordIpDisplay(pageview, settings);
   const path = getString(pageview, "path");
   const openPath = normalizePath(path);
+  const network = networkStatusByIpHmac && networkStatusByIpHmac[getString(pageview, "ip_hmac")]
+    ? networkStatusByIpHmac[getString(pageview, "ip_hmac")]
+    : { status: "normal", observed_at: "" };
   return {
     id: pageview.id,
     page_type: getString(pageview, "page_type"),
@@ -1422,6 +1601,8 @@ function serializeVisitorPageview(pageview, settings, labels) {
     occurred_at: getString(pageview, "occurred_at"),
     ip_display: ip.ip_display,
     ip_resolution_status: ip.ip_resolution_status,
+    network_status: network.status,
+    network_observed_at: network.observed_at,
     resolved_label: pageviewResolvedLabel(pageview, labels),
     can_open: Boolean(openPath),
     open_path: openPath,
@@ -1463,7 +1644,13 @@ function handleSecurityActivityPage(e) {
       perPage: result.perPage,
       totalItems: result.totalItems,
       totalPages: result.totalPages,
-      items: result.items.map((event) => serializeActivityEvent(event, access.settings, customerMap, orderMap)),
+      items: result.items.map((event) => serializeActivityEvent(
+        event,
+        access.settings,
+        customerMap,
+        orderMap,
+        buildActivityNavigation($app, payload.storeId, event)
+      )),
     });
   } catch (_) {
     logSecurity("error", "PZ_SEC_ACTIVITY_PAGE_FAILED");
@@ -1489,13 +1676,24 @@ function handleSecurityVisitorsPage(e) {
       { store: payload.storeId, day: payload.day }
     );
     const customerMap = buildSanitizedCustomerMap($app, payload.storeId, result.items.map((session) => getRelationId(session, "customer")));
+    const activeBlocks = listVisitorStatusBlocks($app, payload.storeId);
     return e.json(200, {
       ok: true,
       page: result.page,
       perPage: result.perPage,
       totalItems: result.totalItems,
       totalPages: result.totalPages,
-      items: result.items.map((session) => serializeVisitorSession(session, access.settings, customerMap)),
+      items: result.items.map((session) => {
+        const relatedCustomer = customerMap[getRelationId(session, "customer")] || null;
+        const vpn = buildVisitorVpnInfo($app, payload.storeId, session);
+        return Object.assign(
+          serializeVisitorSession(session, access.settings, customerMap),
+          {
+            vpn,
+            security_status: buildVisitorSecurityStatus(session, relatedCustomer, vpn, activeBlocks),
+          }
+        );
+      }),
     });
   } catch (_) {
     logSecurity("error", "PZ_SEC_VISITORS_PAGE_FAILED");
@@ -1518,6 +1716,12 @@ function handleSecurityVisitorDetail(e) {
     }
     const customerId = getRelationId(visitor, "customer");
     const customerMap = buildSanitizedCustomerMap($app, payload.storeId, [customerId]);
+    const relatedCustomer = customerMap[customerId] || null;
+    const historicalIpSources = visitorHistoricalIpSources($app, payload.storeId, visitor);
+    const vpnEvents = listVisitorVpnEvents($app, payload.storeId, visitor, 200);
+    const vpn = buildVisitorVpnInfo($app, payload.storeId, visitor, vpnEvents);
+    const network = buildVisitorNetworkState(visitor, historicalIpSources, vpnEvents);
+    const activeBlocks = listVisitorStatusBlocks($app, payload.storeId);
     const pageviews = listSecurityPage(
       $app,
       VISITOR_PAGEVIEWS_COLLECTION,
@@ -1541,7 +1745,11 @@ function handleSecurityVisitorDetail(e) {
       ok: true,
       visitor: Object.assign(
         serializeVisitorSession(visitor, access.settings, customerMap),
-        { vpn: buildVisitorVpnInfo($app, payload.storeId, visitor) }
+        {
+          vpn,
+          security_status: buildVisitorSecurityStatus(visitor, relatedCustomer, vpn, activeBlocks),
+          network_summary: network.summary,
+        }
       ),
       orders,
       orders_error: ordersError,
@@ -1550,7 +1758,7 @@ function handleSecurityVisitorDetail(e) {
         perPage: pageviews.perPage,
         totalItems: pageviews.totalItems,
         totalPages: pageviews.totalPages,
-        items: pageviews.items.map((pageview) => serializeVisitorPageview(pageview, access.settings, labels)),
+        items: pageviews.items.map((pageview) => serializeVisitorPageview(pageview, access.settings, labels, network.statusByIpHmac)),
       },
     });
   } catch (_) {
@@ -1773,12 +1981,293 @@ function serializeBlockForList(app, storeId, block, customerMap, actorMap, setti
   const customerId = getRelationId(block, "customer");
   const customer = customerMap[customerId] || null;
   const actorId = getRelationId(block, "created_by");
+  const revokedById = getRelationId(block, "revoked_by");
   const base = serializeSecurityBlock(block, settings, deviceReviewMap[block.id]);
   return {
     ...base,
     customer_name: customer ? getString(customer, "display_name") : "",
     primary_phone: customer ? primaryPhoneForCustomer(app, storeId, customer) : "",
     created_by_name: actorMap[actorId] || "",
+    revoked_by_name: actorMap[revokedById] || "",
+    reason: sanitizeLifecycleReason(getString(block, "reason_internal")),
+    revoke_reason: sanitizeLifecycleReason(getString(block, "revoke_reason")),
+    detail: null,
+  };
+}
+
+function blockHistoryEventMetadataMatches(blockId, metadata) {
+  const direct = String(metadata && (metadata.block_record_id || metadata.matched_block_id) || "");
+  if (direct === blockId) return true;
+  const matchedIds = metadata && Array.isArray(metadata.matched_block_ids) ? metadata.matched_block_ids : [];
+  return matchedIds.some((value) => String(value || "") === blockId);
+}
+
+function securityEventRelatesToBlock(block, event) {
+  const metadata = getObject(event, "metadata_json");
+  if (blockHistoryEventMetadataMatches(block.id, metadata)) return true;
+
+  const blockIps = uniqueHmacValues(getStringArray(block, "ip_hmac_values"));
+  const blockDevices = uniqueHmacValues(getStringArray(block, "device_hmac_values"));
+  const eventIp = getString(event, "ip_hmac");
+  const eventDevice = getString(event, "browser_token_hmac");
+  if (isValidHmacValue(eventIp) && blockIps.includes(eventIp)) return true;
+  if (isValidHmacValue(eventDevice) && blockDevices.includes(eventDevice)) return true;
+
+  const customerId = getRelationId(block, "customer");
+  if (!customerId || getRelationId(event, "customer") !== customerId) return false;
+  const startsAt = Date.parse(getString(block, "starts_at") || getString(block, "created"));
+  const occurredAt = Date.parse(getString(event, "occurred_at") || getString(event, "created"));
+  return Number.isFinite(startsAt) && Number.isFinite(occurredAt) && occurredAt >= startsAt;
+}
+
+function securityBlockIpState(block, includedInBlock, source) {
+  const status = getString(block, "status");
+  if (status === "expired") return "expired";
+  if (status === "revoked") return "revoked";
+  if (includedInBlock || (source === "device" && getBoolean(block, "match_device"))) return "blocked";
+  return "observed";
+}
+
+function buildSecurityBlockDetail(app, storeId, block, settings) {
+  const blockIps = uniqueHmacValues(getStringArray(block, "ip_hmac_values"));
+  const blockDevices = uniqueHmacValues(getStringArray(block, "device_hmac_values"));
+  const customerId = getRelationId(block, "customer");
+  const relatedIps = {};
+  const relatedSessions = {};
+  const sourcePriority = { event: 1, customer: 2, device: 3, selected_ip: 4 };
+
+  const addIp = (ipHmac, display, observedAt, source, options) => {
+    const hmac = String(ipHmac || "").trim();
+    if (!isValidHmacValue(hmac)) return;
+    const opts = options || {};
+    const existing = relatedIps[hmac] || {
+      ip_display: "",
+      ip_resolution_status: "unavailable",
+      state: securityBlockIpState(block, blockIps.includes(hmac), source || "event"),
+      link_source: blockIps.includes(hmac) ? "selected_ip" : (source || "event"),
+      included_in_block: blockIps.includes(hmac),
+      first_seen_at: "",
+      last_seen_at: "",
+      blocked_attempts: 0,
+      sightings_count: 0,
+      vpn_status: "none",
+      visitor_session_id: "",
+      _source_priority: 0,
+    };
+    const nextSource = existing.included_in_block ? "selected_ip" : (source || "event");
+    const nextPriority = sourcePriority[nextSource] || 0;
+    if (nextPriority >= existing._source_priority) {
+      existing.link_source = nextSource;
+      existing._source_priority = nextPriority;
+      existing.state = securityBlockIpState(block, existing.included_in_block, nextSource);
+    }
+    const nextDisplay = display || {};
+    if (nextDisplay.ip_display && (!existing.ip_display || nextDisplay.ip_resolution_status === "full")) {
+      existing.ip_display = String(nextDisplay.ip_display || "");
+      existing.ip_resolution_status = String(nextDisplay.ip_resolution_status || "unavailable");
+    } else if (!existing.ip_display && nextDisplay.ip_resolution_status === "hidden") {
+      existing.ip_resolution_status = "hidden";
+    }
+    const occurred = String(observedAt || "");
+    if (occurred && (!existing.first_seen_at || occurred < existing.first_seen_at)) existing.first_seen_at = occurred;
+    if (occurred && (!existing.last_seen_at || occurred > existing.last_seen_at)) existing.last_seen_at = occurred;
+    existing.sightings_count += Math.max(0, Number(opts.sightings || 1));
+    if (opts.blockedAttempt === true) existing.blocked_attempts += 1;
+    if (opts.vpnStatus === "blocked") existing.vpn_status = "blocked";
+    else if (opts.vpnStatus === "detected" && existing.vpn_status !== "blocked") existing.vpn_status = "detected";
+    if (!existing.visitor_session_id && isValidRecordId(opts.visitorSessionId)) {
+      existing.visitor_session_id = String(opts.visitorSessionId);
+    }
+    relatedIps[hmac] = existing;
+  };
+
+  blockIps.forEach((ipHmac) => addIp(ipHmac, {}, getString(block, "created") || getString(block, "starts_at"), "selected_ip", { sightings: 0 }));
+  if (getBoolean(block, "manual_ip") && blockIps.length) {
+    addIp(
+      blockIps[0],
+      getRecordIpDisplayFromFields(block, settings, "manual_ip_masked", "manual_ip_encrypted"),
+      getString(block, "created") || getString(block, "starts_at"),
+      "selected_ip",
+      { sightings: 0 }
+    );
+  }
+
+  const customerDevices = customerId && findCollectionSafe(app, STORE_CUSTOMER_DEVICES_COLLECTION)
+    ? listRecordsPaged(
+      app,
+      STORE_CUSTOMER_DEVICES_COLLECTION,
+      "store = {:store} && customer = {:customer}",
+      "-last_seen_at,-created",
+      { store: storeId, customer: customerId },
+      200
+    )
+    : [];
+  customerDevices.forEach((device) => {
+    const deviceHmac = getString(device, "browser_token_hmac");
+    const source = blockDevices.includes(deviceHmac) ? "device" : "customer";
+    addIp(
+      getString(device, "latest_ip_hmac"),
+      getDeviceIpDisplay(device, settings),
+      getString(device, "last_seen_at") || getString(device, "updated"),
+      source,
+      { sightings: 1 }
+    );
+  });
+
+  const sessions = [];
+  const addSession = (session) => {
+    if (!session || relatedSessions[session.id] || getRelationId(session, "store") !== storeId) return;
+    relatedSessions[session.id] = true;
+    sessions.push(session);
+  };
+  if (findCollectionSafe(app, VISITOR_SESSIONS_COLLECTION)) {
+    if (customerId) {
+      listRecordsPaged(
+        app,
+        VISITOR_SESSIONS_COLLECTION,
+        "store = {:store} && customer = {:customer}",
+        "-last_seen_at,-created",
+        { store: storeId, customer: customerId },
+        200
+      ).forEach(addSession);
+    }
+    blockDevices.forEach((deviceHmac) => {
+      listRecordsPaged(
+        app,
+        VISITOR_SESSIONS_COLLECTION,
+        "store = {:store} && browser_token_hmac = {:device}",
+        "-last_seen_at,-created",
+        { store: storeId, device: deviceHmac },
+        200
+      ).forEach(addSession);
+    });
+  }
+  sessions.forEach((session) => {
+    const source = blockDevices.includes(getString(session, "browser_token_hmac")) ? "device" : "customer";
+    addIp(
+      getString(session, "latest_ip_hmac"),
+      getVisitorSessionIpDisplay(session, settings),
+      getString(session, "last_seen_at") || getString(session, "updated"),
+      source,
+      { sightings: 1, visitorSessionId: session.id }
+    );
+    if (!findCollectionSafe(app, VISITOR_PAGEVIEWS_COLLECTION)) return;
+    listRecordsPaged(
+      app,
+      VISITOR_PAGEVIEWS_COLLECTION,
+      "store = {:store} && visitor_session = {:visitorSession}",
+      "-occurred_at,-created",
+      { store: storeId, visitorSession: session.id },
+      200
+    ).forEach((pageview) => {
+      addIp(
+        getString(pageview, "ip_hmac"),
+        getRecordIpDisplay(pageview, settings),
+        getString(pageview, "occurred_at") || getString(pageview, "created"),
+        source,
+        { sightings: 1, visitorSessionId: session.id }
+      );
+    });
+  });
+
+  const events = findCollectionSafe(app, SECURITY_EVENTS_COLLECTION)
+    ? listRecordsPaged(
+      app,
+      SECURITY_EVENTS_COLLECTION,
+      "store = {:store}",
+      "-occurred_at,-created",
+      { store: storeId },
+      200
+    ).filter((event) => securityEventRelatesToBlock(block, event))
+    : [];
+  events.forEach((event) => {
+    const eventType = getString(event, "event_type");
+    const eventDevice = getString(event, "browser_token_hmac");
+    const eventIp = getString(event, "ip_hmac");
+    const source = blockIps.includes(eventIp)
+      ? "selected_ip"
+      : blockDevices.includes(eventDevice) ? "device" : "event";
+    const navigation = buildActivityNavigation(app, storeId, event, new Date());
+    addIp(
+      eventIp,
+      getRecordIpDisplay(event, settings),
+      getString(event, "occurred_at") || getString(event, "created"),
+      source,
+      {
+        sightings: 1,
+        blockedAttempt: eventType === "blocked_attempt",
+        vpnStatus: eventType === "vpn_blocked" ? "blocked" : eventType === "vpn_detected" ? "detected" : "none",
+        visitorSessionId: navigation.kind === "visitor" ? navigation.target_id : "",
+      }
+    );
+  });
+
+  const audits = findCollectionSafe(app, STORE_SECURITY_AUDIT_COLLECTION)
+    ? listRecordsPaged(
+      app,
+      STORE_SECURITY_AUDIT_COLLECTION,
+      "store = {:store} && block_record_id = {:block}",
+      "-created,-id",
+      { store: storeId, block: block.id },
+      200
+    )
+    : [];
+  const auditActorMap = buildActorMap(app, audits.map((audit) => getRelationId(audit, "actor")));
+  const history = audits.map((audit) => ({
+    id: audit.id,
+    kind: "administrative",
+    action: getString(audit, "action"),
+    occurred_at: getString(audit, "created"),
+    actor_name: auditActorMap[getRelationId(audit, "actor")] || "Sistema",
+    reason: sanitizeLifecycleReason(getString(audit, "reason_internal")),
+    decision: "",
+    risk_level: "",
+    ip_display: "",
+    ip_resolution_status: "unavailable",
+    navigation: { kind: "none", target_id: "" },
+  }));
+  events.forEach((event) => {
+    const ip = getRecordIpDisplay(event, settings);
+    history.push({
+      id: event.id,
+      kind: "security_event",
+      action: getString(event, "event_type"),
+      occurred_at: getString(event, "occurred_at") || getString(event, "created"),
+      actor_name: "Sistema",
+      reason: "",
+      decision: getString(event, "decision"),
+      risk_level: getString(event, "risk_level"),
+      ip_display: ip.ip_display,
+      ip_resolution_status: ip.ip_resolution_status,
+      navigation: buildActivityNavigation(app, storeId, event, new Date()),
+    });
+  });
+  history.sort((left, right) => String(right.occurred_at || "").localeCompare(String(left.occurred_at || "")) || String(right.id).localeCompare(String(left.id)));
+
+  const addressCount = findCollectionSafe(app, STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION)
+    ? countRecordsByFilter(
+      app,
+      STORE_SECURITY_BLOCK_ADDRESSES_COLLECTION,
+      "store = {:store} && block = {:block}",
+      { store: storeId, block: block.id }
+    )
+    : 0;
+  const ips = Object.keys(relatedIps).map((key) => relatedIps[key])
+    .sort((left, right) => String(right.last_seen_at || "").localeCompare(String(left.last_seen_at || "")) || Number(right.included_in_block) - Number(left.included_in_block))
+    .slice(0, SECURITY_BLOCK_RELATED_IP_LIMIT)
+    .map((item) => {
+      const safe = { ...item };
+      delete safe._source_priority;
+      return safe;
+    });
+
+  return {
+    related_ips: ips,
+    related_ip_count: Object.keys(relatedIps).length,
+    related_device_count: blockDevices.length,
+    related_address_count: addressCount,
+    history: history.slice(0, SECURITY_BLOCK_HISTORY_LIMIT),
+    history_count: history.length,
   };
 }
 
@@ -2786,7 +3275,7 @@ function bodyRecordIds(value) {
 }
 
 function parseManualIpBlockCreatePayload(body) {
-  const allowed = ["store_id", "action", "scope", "duration", "ip", "visitor_session_id", "device_session_ids", "reason"];
+  const allowed = ["store_id", "action", "scope", "duration", "ip", "visitor_session_id", "ip_source_ids", "device_session_ids", "reason"];
   const keys = getBodyKeys(body);
   if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
 
@@ -2797,6 +3286,7 @@ function parseManualIpBlockCreatePayload(body) {
   const ipValue = String(getBodyValue(body, "ip") || "").trim();
   const normalizedIp = normalizeIpAddress(ipValue);
   const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
+  const ipSourceIds = bodyRecordIds(getBodyValue(body, "ip_source_ids"));
   const deviceSessionIds = bodyRecordIds(getBodyValue(body, "device_session_ids"));
   const reason = sanitizeLifecycleReason(getBodyValue(body, "reason"));
 
@@ -2807,9 +3297,12 @@ function parseManualIpBlockCreatePayload(body) {
   if (Boolean(ipValue) === Boolean(visitorSessionId)) return { error: "ip_source" };
   if (ipValue && (!normalizedIp.valid || !isPublicIpAddress(normalizedIp))) return { error: "ip" };
   if (visitorSessionId && !isValidRecordId(visitorSessionId)) return { error: "visitor_session_id" };
+  if (ipSourceIds === null || (ipValue && ipSourceIds.length > 0) || (visitorSessionId && ipSourceIds.length < 1)) {
+    return { error: "ip_source_ids" };
+  }
   if (deviceSessionIds === null) return { error: "device_session_ids" };
   if (!reason) return { error: "reason" };
-  return { storeId, action, scope, duration, normalizedIp, visitorSessionId, deviceSessionIds, reason };
+  return { storeId, action, scope, duration, normalizedIp, visitorSessionId, ipSourceIds, deviceSessionIds, reason };
 }
 
 function parseManualIpDeviceLookupPayload(body) {
@@ -2930,30 +3423,95 @@ function captureFromVisitorSession(session) {
   };
 }
 
+function captureFromVisitorPageview(pageview) {
+  return {
+    ip_hmac: getString(pageview, "ip_hmac"),
+    ip_masked: getString(pageview, "ip_masked"),
+    ip_encrypted: getString(pageview, "ip_encrypted"),
+    ip_family: getString(pageview, "ip_family") || "unknown",
+    capture_status: getString(pageview, "capture_status") || "partial",
+  };
+}
+
+function visitorHistoricalIpSources(app, storeId, sourceSession) {
+  if (!sourceSession || getRelationId(sourceSession, "store") !== storeId) return [];
+  const sources = [];
+  const seenHmacs = {};
+  const addSource = (record, kind, capture, lastSeenAt, isCurrent) => {
+    const sourceId = String(record && record.id || "").trim();
+    const ipHmac = String(capture && capture.ip_hmac || "").trim();
+    if (!isValidRecordId(sourceId) || !isValidHmacValue(ipHmac) || seenHmacs[ipHmac] || sources.length >= 50) return;
+    seenHmacs[ipHmac] = true;
+    sources.push({
+      source_id: sourceId,
+      kind,
+      record,
+      capture,
+      last_seen_at: String(lastSeenAt || ""),
+      is_current: isCurrent === true,
+    });
+  };
+
+  addSource(sourceSession, "session", captureFromVisitorSession(sourceSession), getString(sourceSession, "last_seen_at"), true);
+  if (!findCollectionSafe(app, VISITOR_PAGEVIEWS_COLLECTION)) return sources;
+  const pageviews = listRecordsPaged(
+    app,
+    VISITOR_PAGEVIEWS_COLLECTION,
+    "store = {:store} && visitor_session = {:visitorSession}",
+    "-occurred_at,-id",
+    { store: storeId, visitorSession: sourceSession.id },
+    200
+  );
+  pageviews.forEach((pageview) => {
+    addSource(pageview, "pageview", captureFromVisitorPageview(pageview), getString(pageview, "occurred_at"), false);
+  });
+  return sources;
+}
+
 function resolveManualIpSource(app, parsed, settings, secret) {
   if (parsed.visitorSessionId) {
     const session = findRecordByIdSafe(app, VISITOR_SESSIONS_COLLECTION, parsed.visitorSessionId);
     if (!session || getRelationId(session, "store") !== parsed.storeId) return { error: "visitor_not_found" };
-    const capture = captureFromVisitorSession(session);
-    if (!isValidHmacValue(capture.ip_hmac)) return { error: "visitor_ip_unavailable" };
-    return { capture, sourceSession: session };
+    const allSources = visitorHistoricalIpSources(app, parsed.storeId, session);
+    if (allSources.length < 1) return { error: "visitor_ip_unavailable" };
+    const selectedSources = Array.isArray(parsed.ipSourceIds)
+      ? parsed.ipSourceIds.map((sourceId) => allSources.find((source) => source.source_id === sourceId)).filter(Boolean)
+      : allSources;
+    if (Array.isArray(parsed.ipSourceIds)
+      && (selectedSources.length !== parsed.ipSourceIds.length || selectedSources.length < 1)) {
+      return { error: "ip_source_ids" };
+    }
+    return {
+      capture: selectedSources[0].capture,
+      captures: selectedSources.map((source) => source.capture),
+      selectedSources,
+      allSources,
+      sourceSession: session,
+    };
   }
   const capture = buildIpCapture(parsed.normalizedIp, parsed.storeId, settings, secret);
   return isValidHmacValue(capture.ip_hmac)
-    ? { capture, sourceSession: null }
+    ? { capture, captures: [capture], selectedSources: [], allSources: [], sourceSession: null }
     : { error: "security_secret_unavailable" };
 }
 
-function manualIpDeviceCandidates(app, storeId, ipHmac, sourceSession) {
-  if (!isValidHmacValue(ipHmac)) return [];
-  const sessions = listRecordsPaged(
-    app,
-    VISITOR_SESSIONS_COLLECTION,
-    "store = {:store} && latest_ip_hmac = {:ipHmac}",
-    "-last_seen_at,-id",
-    { store: storeId, ipHmac },
-    200
-  );
+function manualIpDeviceCandidates(app, storeId, ipHmacValues, sourceSession) {
+  const ipHmacs = uniqueHmacValues(Array.isArray(ipHmacValues) ? ipHmacValues : [ipHmacValues]);
+  if (ipHmacs.length < 1) return [];
+  const sessions = [];
+  if (sourceSession && getRelationId(sourceSession, "store") === storeId) sessions.push(sourceSession);
+  ipHmacs.forEach((ipHmac) => {
+    listRecordsPaged(
+      app,
+      VISITOR_SESSIONS_COLLECTION,
+      "store = {:store} && latest_ip_hmac = {:ipHmac}",
+      "-last_seen_at,-id",
+      { store: storeId, ipHmac },
+      200
+    ).forEach((session) => {
+      if (!sessions.some((existing) => existing.id === session.id)) sessions.push(session);
+    });
+  });
   const sourceDevice = sourceSession ? getString(sourceSession, "browser_token_hmac") : "";
   const seen = {};
   const candidates = [];
@@ -2992,6 +3550,21 @@ function serializeManualIpDeviceCandidates(candidates) {
   }));
 }
 
+function serializeManualIpCandidates(sources, settings) {
+  return (sources || []).map((source) => {
+    const display = source.kind === "session"
+      ? getVisitorSessionIpDisplay(source.record, settings)
+      : getRecordIpDisplay(source.record, settings);
+    return {
+      source_id: source.source_id,
+      ip_display: display.ip_display,
+      ip_resolution_status: display.ip_resolution_status,
+      last_seen_at: source.last_seen_at,
+      preselected: source.is_current === true,
+    };
+  });
+}
+
 function createSecurityBlockRecord(app, storeId, customer, actorId, parsed, signals) {
   const now = new Date();
   const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCKS_COLLECTION);
@@ -3016,8 +3589,12 @@ function createSecurityBlockRecord(app, storeId, customer, actorId, parsed, sign
   return block;
 }
 
-function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture, deviceHmacs) {
+function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCaptures, deviceHmacs) {
   const now = new Date();
+  const captures = (Array.isArray(ipCaptures) ? ipCaptures : [ipCaptures])
+    .filter((capture) => capture && isValidHmacValue(capture.ip_hmac));
+  const representative = captures[0];
+  const selectedIps = uniqueHmacValues(captures.map((capture) => capture.ip_hmac));
   const selectedDevices = uniqueHmacValues(deviceHmacs || []);
   const collection = app.findCollectionByNameOrId(STORE_SECURITY_BLOCKS_COLLECTION);
   const block = new Record(collection, {});
@@ -3031,16 +3608,16 @@ function createManualIpBlockRecord(app, storeId, actorId, parsed, ipCapture, dev
   block.set("match_mode", "any");
   block.set("phone_hmac_values", []);
   block.set("device_hmac_values", selectedDevices);
-  block.set("ip_hmac_values", [ipCapture.ip_hmac]);
+  block.set("ip_hmac_values", selectedIps);
   block.set("duration", parsed.duration);
   block.set("starts_at", now.toISOString());
   block.set("expires_at", durationExpiresAt(parsed.duration, now));
   block.set("reason_internal", parsed.reason);
   block.set("manual_ip", true);
-  block.set("manual_ip_masked", ipCapture.ip_masked || "");
-  block.set("manual_ip_encrypted", ipCapture.ip_encrypted || "");
-  block.set("manual_ip_family", ipCapture.ip_family || "unknown");
-  block.set("manual_ip_capture_status", ipCapture.capture_status || "partial");
+  block.set("manual_ip_masked", representative.ip_masked || "");
+  block.set("manual_ip_encrypted", representative.ip_encrypted || "");
+  block.set("manual_ip_family", representative.ip_family || "unknown");
+  block.set("manual_ip_capture_status", representative.capture_status || "partial");
   block.set("review_device_candidates", true);
   if (actorId) block.set("created_by", actorId);
   app.save(block);
@@ -3184,24 +3761,33 @@ function handleManualIpBlockCreate(e, auth, parsed) {
   const source = resolveManualIpSource($app, parsed, settings, secret);
   if (source.error === "visitor_not_found") return e.json(404, { ok: false, error: "not_found" });
   if (source.error === "visitor_ip_unavailable") return e.json(409, { ok: false, error: source.error });
+  if (source.error === "ip_source_ids") return e.json(400, { ok: false, error: source.error });
   if (source.error) return e.json(503, { ok: false, error: source.error });
 
   let result = null;
   $app.runInTransaction((txApp) => {
-    if (hasOverlappingActiveIpBlock(txApp, parsed.storeId, parsed.scope, source.capture.ip_hmac)) {
+    if (source.captures.some((capture) => hasOverlappingActiveIpBlock(txApp, parsed.storeId, parsed.scope, capture.ip_hmac))) {
       result = { status: 409, error: "overlapping_block" };
       return;
     }
-    const candidates = manualIpDeviceCandidates(txApp, parsed.storeId, source.capture.ip_hmac, source.sourceSession);
+    const candidateIpHmacs = source.sourceSession
+      ? source.allSources.map((item) => item.capture.ip_hmac)
+      : source.captures.map((capture) => capture.ip_hmac);
+    const candidates = manualIpDeviceCandidates(txApp, parsed.storeId, candidateIpHmacs, source.sourceSession);
     const selectedDevices = selectedManualDeviceHmacs(candidates, parsed.deviceSessionIds);
     if (selectedDevices.error) {
       result = { status: 400, error: selectedDevices.error };
       return;
     }
     const actorId = getString(auth, "id");
-    const block = createManualIpBlockRecord(txApp, parsed.storeId, actorId, parsed, source.capture, selectedDevices.values);
+    const block = createManualIpBlockRecord(txApp, parsed.storeId, actorId, parsed, source.captures, selectedDevices.values);
     createSecurityBlockAudit(txApp, parsed.storeId, "block_created", actorId, block, parsed.reason);
-    result = { status: 200, block, selectedDeviceCount: selectedDevices.values.length };
+    result = {
+      status: 200,
+      block,
+      selectedDeviceCount: selectedDevices.values.length,
+      selectedIpCount: source.captures.length,
+    };
   });
 
   if (!result) return e.json(500, { ok: false, error: "block_create_failed" });
@@ -3210,6 +3796,7 @@ function handleManualIpBlockCreate(e, auth, parsed) {
   return e.json(200, {
     ok: true,
     block: serializeSecurityBlock(result.block, settings),
+    selected_ip_count: result.selectedIpCount,
     selected_device_count: result.selectedDeviceCount,
   });
 }
@@ -3233,7 +3820,12 @@ function handleManualIpDeviceLookup(e) {
     if (source.error === "visitor_not_found") return e.json(404, { ok: false, error: "not_found" });
     if (source.error === "visitor_ip_unavailable") return e.json(409, { ok: false, error: source.error });
     if (source.error) return e.json(503, { ok: false, error: source.error });
-    const candidates = manualIpDeviceCandidates($app, parsed.storeId, source.capture.ip_hmac, source.sourceSession);
+    const candidates = manualIpDeviceCandidates(
+      $app,
+      parsed.storeId,
+      source.captures.map((capture) => capture.ip_hmac),
+      source.sourceSession
+    );
     const display = source.sourceSession
       ? getVisitorSessionIpDisplay(source.sourceSession, settings)
       : (getString(settings, "ip_visibility") === "hidden"
@@ -3245,6 +3837,7 @@ function handleManualIpDeviceLookup(e) {
       ok: true,
       ip_display: display.ip_display,
       ip_resolution_status: display.ip_resolution_status,
+      ip_candidates: source.sourceSession ? serializeManualIpCandidates(source.allSources, settings) : [],
       candidates: serializeManualIpDeviceCandidates(candidates),
     });
   } catch (_) {
@@ -3521,7 +4114,7 @@ function handleSecurityBlockAction(e) {
 }
 
 function parseBlocksPagePayload(body) {
-  const allowed = ["store_id", "page", "status", "scope", "search"];
+  const allowed = ["store_id", "page", "status", "scope", "search", "focus_id"];
   const keys = getBodyKeys(body);
   if (keys.length !== allowed.length || keys.some((key) => !allowed.includes(key))) return { error: "payload" };
   const storeId = String(getBodyValue(body, "store_id") || "").trim();
@@ -3529,11 +4122,13 @@ function parseBlocksPagePayload(body) {
   const status = String(getBodyValue(body, "status") || "").trim();
   const scope = String(getBodyValue(body, "scope") || "").trim();
   const search = limitText(getBodyValue(body, "search"), 80);
+  const focusId = String(getBodyValue(body, "focus_id") || "").trim();
   if (!isValidRecordId(storeId)) return { error: "store_id" };
   if (!page) return { error: "page" };
   if (!SECURITY_BLOCK_STATUSES.includes(status)) return { error: "status" };
   if (!(scope === "all" || SECURITY_BLOCK_SCOPES.includes(scope))) return { error: "scope" };
-  return { storeId, page, status, scope, search };
+  if (focusId && !isValidRecordId(focusId)) return { error: "focus_id" };
+  return { storeId, page, status, scope, search, focusId };
 }
 
 function blocksPageFilter(parsed) {
@@ -3541,6 +4136,10 @@ function blocksPageFilter(parsed) {
   const parts = ["store = {:store}"];
   if (parsed.status !== "all") parts.push(`status = "${parsed.status}"`);
   if (parsed.scope !== "all") parts.push(`scope = "${parsed.scope}"`);
+  if (parsed.focusId) {
+    parts.push("id = {:focusId}");
+    params.focusId = parsed.focusId;
+  }
   return { filter: parts.join(" && "), params };
 }
 
@@ -3671,8 +4270,28 @@ function handleSecurityBlocksPage(e) {
     getStoreRecordsByIds($app, STORE_CUSTOMERS_COLLECTION, parsed.storeId, pageItems.map((block) => getRelationId(block, "customer"))).forEach((customer) => {
       customerMap[customer.id] = customer;
     });
-    const actorMap = buildActorMap($app, pageItems.map((block) => getRelationId(block, "created_by")));
+    const actorIds = [];
+    pageItems.forEach((block) => {
+      actorIds.push(getRelationId(block, "created_by"));
+      actorIds.push(getRelationId(block, "revoked_by"));
+    });
+    const actorMap = buildActorMap($app, actorIds);
     const deviceReviewMap = buildBlockDeviceReviewMap($app, parsed.storeId, pageItems);
+    const serializedItems = pageItems.map((block) => {
+      const serialized = serializeBlockForList(
+        $app,
+        parsed.storeId,
+        block,
+        customerMap,
+        actorMap,
+        settings,
+        deviceReviewMap
+      );
+      if (parsed.focusId === block.id) {
+        serialized.detail = buildSecurityBlockDetail($app, parsed.storeId, block, settings);
+      }
+      return serialized;
+    });
 
     return e.json(200, {
       ok: true,
@@ -3681,15 +4300,7 @@ function handleSecurityBlocksPage(e) {
         perPage: SECURITY_BLOCKS_PER_PAGE,
         totalItems,
         totalPages,
-        items: pageItems.map((block) => serializeBlockForList(
-          $app,
-          parsed.storeId,
-          block,
-          customerMap,
-          actorMap,
-          settings,
-          deviceReviewMap
-        )),
+        items: serializedItems,
       },
       metrics: blocksMetrics(blocks),
     });
@@ -4048,6 +4659,11 @@ module.exports = {
     parseVisitorDetailPayload,
     buildVisitorCustomerOrdersDetail,
     buildVisitorVpnInfo,
+    buildVisitorNetworkState,
+    buildVisitorSecurityStatus,
+    buildActivityNavigation,
+    buildSecurityBlockDetail,
+    securityEventRelatesToBlock,
     visitorCustomerOrdersPerPage: VISITOR_CUSTOMER_ORDERS_PER_PAGE,
     normalizeDeliveryAddressPart,
     deliveryAddressFingerprint,

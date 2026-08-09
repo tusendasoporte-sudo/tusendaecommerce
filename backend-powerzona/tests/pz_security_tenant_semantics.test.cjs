@@ -103,6 +103,7 @@ const endpointCases = [
       status: 'all',
       scope: 'all',
       search: '',
+      focus_id: '',
     }),
   },
   {

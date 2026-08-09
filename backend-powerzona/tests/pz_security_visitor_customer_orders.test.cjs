@@ -7,8 +7,9 @@ const test = require('node:test');
 const STORE_ID = 'visitstore00001';
 const CUSTOMER_ID = 'visitcustomer01';
 const VISITOR_ID = 'visitsession001';
+const BLOCK_ID = 'activeblock0001';
 
-for (const id of [STORE_ID, CUSTOMER_ID, VISITOR_ID]) assert.equal(id.length, 15);
+for (const id of [STORE_ID, CUSTOMER_ID, VISITOR_ID, BLOCK_ID]) assert.equal(id.length, 15);
 
 const previousGlobals = {
   __hooks: global.__hooks,
@@ -145,5 +146,141 @@ test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP co
   assert.deepEqual(
     monitoring._test.buildVisitorVpnInfo(app, STORE_ID, new MockRecord({ id: VISITOR_ID })),
     { status: 'none', event_type: '', decision: '', risk_level: '', observed_at: '' },
+  );
+});
+
+test('VISITOR-VPN-IP: cada IP conserva solo su estado seguro sin exponer la huella protegida', () => {
+  const firstIpHmac = 'a'.repeat(64);
+  const currentIpHmac = 'b'.repeat(64);
+  const outsiderIpHmac = 'c'.repeat(64);
+  const visitor = new MockRecord({ id: VISITOR_ID, latest_ip_hmac: currentIpHmac });
+  const sources = [
+    { capture: { ip_hmac: firstIpHmac } },
+    { capture: { ip_hmac: currentIpHmac } },
+  ];
+  const events = [
+    new MockRecord({ event_type: 'vpn_check_unavailable', ip_hmac: firstIpHmac, occurred_at: '2026-08-08 19:00:00.000Z' }),
+    new MockRecord({ event_type: 'vpn_blocked', ip_hmac: firstIpHmac, occurred_at: '2026-08-08 18:00:00.000Z' }),
+    new MockRecord({ event_type: 'vpn_check_unavailable', ip_hmac: currentIpHmac, occurred_at: '2026-08-08 17:00:00.000Z' }),
+    new MockRecord({ event_type: 'vpn_detected', ip_hmac: outsiderIpHmac, occurred_at: '2026-08-08 16:00:00.000Z' }),
+  ];
+
+  const state = monitoring._test.buildVisitorNetworkState(visitor, sources, events);
+
+  assert.deepEqual(state.summary, {
+    ip_count: 2,
+    vpn_ip_count: 1,
+    unavailable_ip_count: 1,
+    current_ip_status: 'unavailable',
+    current_ip_observed_at: '2026-08-08 17:00:00.000Z',
+  });
+  assert.equal(state.statusByIpHmac[firstIpHmac].status, 'blocked');
+  assert.equal(state.statusByIpHmac[currentIpHmac].status, 'unavailable');
+  assert.equal(state.statusByIpHmac[outsiderIpHmac], undefined);
+  assert.doesNotMatch(JSON.stringify(state.summary), /a{32}|b{32}|c{32}/);
+});
+
+test('VISITOR-STATUS: prioriza bloqueos activos y usa observacion solo para senales que requieren atencion', () => {
+  const now = new Date('2026-08-08T20:00:00.000Z');
+  const visitor = new MockRecord({
+    id: VISITOR_ID,
+    browser_token_hmac: 'd'.repeat(64),
+    latest_ip_hmac: 'i'.repeat(64),
+  });
+  const vpnNone = { status: 'none' };
+  const activeIpBlock = new MockRecord({
+    status: 'active',
+    starts_at: '2026-08-08T19:00:00.000Z',
+    expires_at: '2026-08-09T19:00:00.000Z',
+    match_phone: false,
+    match_device: false,
+    match_ip: true,
+    match_mode: 'any',
+    ip_hmac_values: ['i'.repeat(64)],
+    device_hmac_values: [],
+  });
+  const expiredIpBlock = new MockRecord({
+    ...activeIpBlock.values,
+    expires_at: '2026-08-08T19:30:00.000Z',
+  });
+  const incompleteAllBlock = new MockRecord({
+    ...activeIpBlock.values,
+    match_phone: true,
+    match_mode: 'all',
+  });
+
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [], now), 'normal');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'watch' }, vpnNone, [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'detected' }, [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'unavailable' }, [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'blocked' }, [], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'blocked' }, vpnNone, [], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [activeIpBlock], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [expiredIpBlock], now), 'normal');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [incompleteAllBlock], now), 'normal');
+});
+
+test('ACTIVITY-ACTION: prioriza el bloqueo activo y usa historial solo con una sesion verificable', () => {
+  const browserTokenHmac = 'h'.repeat(64);
+  const event = new MockRecord({
+    id: 'activityevent01',
+    customer: CUSTOMER_ID,
+    browser_token_hmac: browserTokenHmac,
+    occurred_at: '2026-08-08 18:00:00.000Z',
+  });
+  const activeBlock = new MockRecord({
+    id: BLOCK_ID,
+    store: STORE_ID,
+    customer: CUSTOMER_ID,
+    status: 'active',
+    starts_at: '2026-08-08 16:00:00.000Z',
+    expires_at: '2026-08-09 16:00:00.000Z',
+    revoked_at: '',
+  });
+  const expiredBlock = new MockRecord({
+    ...activeBlock.values,
+    expires_at: '2026-08-08 17:00:00.000Z',
+  });
+  const visitor = new MockRecord({
+    id: VISITOR_ID,
+    store: STORE_ID,
+    day: '2026-08-08',
+    browser_token_hmac: browserTokenHmac,
+    first_seen_at: '2026-08-08 17:59:00.000Z',
+    last_seen_at: '2026-08-08 18:01:00.000Z',
+  });
+  let block = activeBlock;
+  const app = {
+    findCollectionByNameOrId() { return {}; },
+    findRecordsByFilter(name, filter, _sort, _limit, _offset, params) {
+      if (name === 'store_security_blocks') {
+        assert.match(filter, /customer = \{:customer\}/);
+        assert.equal(params.customer, CUSTOMER_ID);
+        return block ? [block] : [];
+      }
+      if (name === 'store_visitor_sessions') {
+        assert.match(filter, /browser_token_hmac = \{:browserTokenHmac\}/);
+        assert.equal(params.browserTokenHmac, browserTokenHmac);
+        return [visitor];
+      }
+      return [];
+    },
+  };
+
+  assert.deepEqual(
+    monitoring._test.buildActivityNavigation(app, STORE_ID, event, new Date('2026-08-08T18:30:00.000Z')),
+    { kind: 'block', target_id: BLOCK_ID },
+  );
+
+  block = expiredBlock;
+  assert.deepEqual(
+    monitoring._test.buildActivityNavigation(app, STORE_ID, event, new Date('2026-08-08T18:30:00.000Z')),
+    { kind: 'visitor', target_id: VISITOR_ID },
+  );
+
+  const noIdentityEvent = new MockRecord({ id: 'activityevent02', occurred_at: '2026-08-08 18:00:00.000Z' });
+  assert.deepEqual(
+    monitoring._test.buildActivityNavigation(app, STORE_ID, noIdentityEvent),
+    { kind: 'none', target_id: '' },
   );
 });

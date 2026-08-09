@@ -200,6 +200,7 @@ try {
         scope: String(formData.get('block_scope') || 'orders') as any,
         duration: String(formData.get('block_duration') || 'hours_24') as any,
         visitorSessionId: String(formData.get('visitor_session_id') || ''),
+        ipSourceIds: formData.getAll('manual_ip_source_ids').map(String),
         deviceSessionIds: formData.getAll('manual_device_session_ids').map(String),
         reason: String(formData.get('block_reason') || '').trim(),
       });
@@ -372,7 +373,8 @@ try {
       params.blockedPage,
       params.blockedStatus,
       params.blockedScope,
-      params.blockedSearch
+      params.blockedSearch,
+      params.blockedFocusId
     );
     blocksResult = blocksPage.blocks;
     blocksMetrics = blocksPage.metrics;

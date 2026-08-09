@@ -51,11 +51,23 @@ const showIp = String(settings.ip_visibility || 'hidden') !== 'hidden';
 const relatedCustomer = visitor.relatedCustomer;
 const vpnInfo = visitor.vpn;
 const hasVpnSignal = vpnInfo.status !== 'none';
+const networkSummary = visitor.network_summary;
 const vpnStatusLabel = vpnInfo.status === 'blocked'
   ? 'VPN o proxy bloqueado'
   : (vpnInfo.status === 'detected'
     ? 'VPN o proxy detectado'
     : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada'));
+const securityStatusLabels = {
+  normal: 'Normal',
+  watch: 'En observacion',
+  blocked: 'Bloqueado',
+};
+const networkStatusLabels = {
+  normal: 'Normal',
+  detected: 'VPN o proxy detectado',
+  blocked: 'VPN o proxy bloqueado',
+  unavailable: 'Verificacion no disponible',
+};
 const ordersOpen = Boolean(relatedCustomer && (orders.page > 1 || Astro.url.searchParams.get('orders_open') === '1'));
 const customerHref = relatedCustomer
   ? `${basePath}?section=customers&customer=${encodeURIComponent(relatedCustomer.id)}&orders_page=1&events_page=1`
@@ -96,6 +108,10 @@ function ordersPageHref(page: number) {
 function orderHref(order: SecurityOrder) {
   return adminOrdersPath && order.id ? `${adminOrdersPath}?order=${encodeURIComponent(order.id)}` : '';
 }
+
+function pluralIp(value: number) {
+  return `${formatNumber(value)} ${value === 1 ? 'IP registrada' : 'IP registradas'}`;
+}
 ---
 
 <section class="visitor-detail" aria-label={`Detalle de visitante de ${storeName}`}>
@@ -123,72 +139,79 @@ function orderHref(order: SecurityOrder) {
 
     <div class="summary-list">
       <div class="summary-row">
-        <span>Identificacion</span>
-        <strong><span class:list={['identity-pill', { 'is-customer': relatedCustomer }]}>{relatedCustomer ? 'Cliente identificado' : 'Visitante sin identificar'}</span></strong>
+        <span>Estado</span>
+        <strong><span class:list={['security-status-pill', `is-${visitor.security_status}`]}>{securityStatusLabels[visitor.security_status]}</span></strong>
       </div>
       <div class="summary-row">
-        <span>Cliente relacionado</span>
-        <strong>{relatedCustomer ? getVisitorDisplayName(visitor) : 'No relacionado'}</strong>
+        <span>Identidad</span>
+        <strong class="summary-value-stack">
+          <span class:list={['identity-pill', { 'is-customer': relatedCustomer }]}>{relatedCustomer ? 'Cliente identificado' : 'Visitante sin identificar'}</span>
+          <span>{relatedCustomer ? getVisitorDisplayName(visitor) : 'No relacionado'}</span>
+          {relatedCustomer && <small>{getVisitorPhone(visitor)} · Pedidos realizados: {formatNumber(relatedCustomer.orders_count)}</small>}
+        </strong>
       </div>
       <div class="summary-row">
-        <span>Telefono</span>
-        <strong>{getVisitorPhone(visitor)}</strong>
+        <span>Actividad</span>
+        <strong class="summary-value-stack">
+          <span>{formatNumber(visitor.pageviews_count)} {visitor.pageviews_count === 1 ? 'pagina visitada' : 'paginas visitadas'}</span>
+          <small>Primera visita: {formatDateTime(visitor.first_seen_at)} · Ultima actividad: {formatDateTime(visitor.last_seen_at)}</small>
+        </strong>
+      </div>
+      <div class="summary-row">
+        <span>Red</span>
+        <strong class="summary-value-stack">
+          <span>{pluralIp(networkSummary.ip_count)} · {formatNumber(networkSummary.vpn_ip_count)} con VPN o proxy</span>
+          {networkSummary.unavailable_ip_count > 0 && <small>{formatNumber(networkSummary.unavailable_ip_count)} sin verificacion disponible</small>}
+        </strong>
       </div>
       {showIp && (
         <div class="summary-row">
           <span>IP actual</span>
-          <strong>
-            {getIpDisplayValue(visitor)}
+          <strong class="summary-value-stack">
+            <span>{getIpDisplayValue(visitor)}</span>
+            <span class:list={['network-status-pill', `is-${networkSummary.current_ip_status}`]}>{networkStatusLabels[networkSummary.current_ip_status]}</span>
             {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
           </strong>
         </div>
       )}
-      <div class="summary-row">
-        <span>VPN o proxy</span>
-        <strong>
-          <span class:list={['vpn-status-pill', `is-${vpnInfo.status}`]}>{vpnStatusLabel}</span>
-        </strong>
-      </div>
-      {hasVpnSignal && vpnInfo.observed_at && (
-        <div class="summary-row">
-          <span>{vpnInfo.status === 'unavailable' ? 'Ultima verificacion' : 'Ultima deteccion'}</span>
-          <strong>{formatDateTime(vpnInfo.observed_at)}</strong>
-        </div>
-      )}
-      {hasVpnSignal && vpnInfo.decision && (
-        <div class="summary-row">
-          <span>Decision aplicada</span>
-          <strong>{labelFromMap(EVENT_DECISION_LABELS, vpnInfo.decision)}</strong>
-        </div>
-      )}
-      {hasVpnSignal && vpnInfo.risk_level && (
-        <div class="summary-row">
-          <span>Riesgo registrado</span>
-          <strong>{labelFromMap(EVENT_RISK_LABELS, vpnInfo.risk_level)}</strong>
-        </div>
-      )}
-      <div class="summary-row">
-        <span>Primera visita</span>
-        <strong>{formatDateTime(visitor.first_seen_at)}</strong>
-      </div>
-      <div class="summary-row">
-        <span>Ultima actividad</span>
-        <strong>{formatDateTime(visitor.last_seen_at)}</strong>
-      </div>
-      <div class="summary-row">
-        <span>Paginas visitadas</span>
-        <strong>{formatNumber(visitor.pageviews_count)}</strong>
-      </div>
-      {relatedCustomer && (
-        <div class="summary-row">
-          <span>Pedidos realizados</span>
-          <strong>{formatNumber(relatedCustomer.orders_count)}</strong>
-        </div>
-      )}
     </div>
 
-    {(vpnInfo.status === 'detected' || vpnInfo.status === 'blocked') && (
-      <p class="vpn-info-note">Deteccion historica asociada a este dispositivo. No significa que el VPN o proxy siga activo en este momento.</p>
+    {hasVpnSignal && (
+      <details class="security-details-disclosure">
+        <summary>
+          <span>Detalles de seguridad</span>
+          <small>Ver deteccion, decision y riesgo</small>
+        </summary>
+        <div class="security-details-content">
+          <div class="summary-list">
+            <div class="summary-row">
+              <span>VPN o proxy</span>
+              <strong><span class:list={['vpn-status-pill', `is-${vpnInfo.status}`]}>{vpnStatusLabel}</span></strong>
+            </div>
+            {vpnInfo.observed_at && (
+              <div class="summary-row">
+                <span>{vpnInfo.status === 'unavailable' ? 'Ultima verificacion' : 'Ultima deteccion'}</span>
+                <strong>{formatDateTime(vpnInfo.observed_at)}</strong>
+              </div>
+            )}
+            {vpnInfo.decision && (
+              <div class="summary-row">
+                <span>Decision aplicada</span>
+                <strong>{labelFromMap(EVENT_DECISION_LABELS, vpnInfo.decision)}</strong>
+              </div>
+            )}
+            {vpnInfo.risk_level && (
+              <div class="summary-row">
+                <span>Riesgo registrado</span>
+                <strong>{labelFromMap(EVENT_RISK_LABELS, vpnInfo.risk_level)}</strong>
+              </div>
+            )}
+          </div>
+          {(vpnInfo.status === 'detected' || vpnInfo.status === 'blocked') && (
+            <p class="vpn-info-note">Deteccion historica asociada a este dispositivo. No significa que el VPN o proxy siga activo en este momento.</p>
+          )}
+        </div>
+      </details>
     )}
 
     {customerHref && (
@@ -281,11 +304,19 @@ function orderHref(order: SecurityOrder) {
                   {showIp && (
                     <div class="table-cell ip-cell" role="cell" data-label="IP">
                       <span>{getIpDisplayValue(pageview)}</span>
+                      <span class:list={['network-status-pill', `is-${pageview.networkStatus}`]}>{networkStatusLabels[pageview.networkStatus]}</span>
                       {getIpUnavailableNote(pageview) && <small>{getIpUnavailableNote(pageview)}</small>}
                     </div>
                   )}
                   <div class="table-cell action-cell" role="cell" data-label="Accion">
-                    {canOpen ? <a class="row-action" href={pageview.openPath} target="_blank" rel="noreferrer">Abrir pagina</a> : <span>No disponible</span>}
+                    {canOpen ? (
+                      <details class="row-menu">
+                        <summary class="row-menu-trigger" aria-label="Acciones de pagina"><span aria-hidden="true">⋮</span></summary>
+                        <div class="row-menu-content">
+                          <a href={pageview.openPath} target="_blank" rel="noreferrer">Abrir pagina</a>
+                        </div>
+                      </details>
+                    ) : <span>No disponible</span>}
                   </div>
                 </article>
               );
@@ -433,7 +464,20 @@ function orderHref(order: SecurityOrder) {
     overflow-wrap: anywhere;
   }
 
+  .summary-value-stack {
+    display: grid;
+    justify-items: start;
+    gap: 5px;
+  }
+
+  .summary-value-stack > small {
+    margin: 0;
+    color: #64748b;
+  }
+
   .identity-pill,
+  .security-status-pill,
+  .network-status-pill,
   .vpn-status-pill,
   .order-status {
     display: inline-flex;
@@ -453,6 +497,25 @@ function orderHref(order: SecurityOrder) {
   .identity-pill.is-customer {
     background: #dcfce7;
     color: #166534;
+  }
+
+  .security-status-pill.is-normal,
+  .network-status-pill.is-normal {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .security-status-pill.is-watch,
+  .network-status-pill.is-detected,
+  .network-status-pill.is-unavailable {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .security-status-pill.is-blocked,
+  .network-status-pill.is-blocked {
+    background: #fee2e2;
+    color: #991b1b;
   }
 
   .vpn-status-pill.is-detected,
@@ -481,6 +544,42 @@ function orderHref(order: SecurityOrder) {
     font-size: 12px;
     line-height: 1.45;
     font-weight: 800;
+  }
+
+  .security-details-disclosure {
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .security-details-disclosure > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    list-style: none;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 1000;
+  }
+
+  .security-details-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .security-details-disclosure > summary small {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 850;
+  }
+
+  .security-details-content {
+    display: grid;
+    gap: 12px;
+    padding: 0 12px 12px;
   }
 
   .summary-actions {
@@ -640,7 +739,7 @@ function orderHref(order: SecurityOrder) {
 
   .pages-table {
     display: grid;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
     background: #f8fafc;
@@ -670,6 +769,7 @@ function orderHref(order: SecurityOrder) {
   }
 
   .table-row {
+    position: relative;
     padding: 14px;
     border-top: 1px solid #e2e8f0;
     background: #ffffff;
@@ -701,6 +801,11 @@ function orderHref(order: SecurityOrder) {
     gap: 4px;
   }
 
+  .ip-cell .network-status-pill {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
   .ip-cell small {
     color: #9a3412;
     font-size: 11px;
@@ -714,6 +819,58 @@ function orderHref(order: SecurityOrder) {
     justify-content: flex-end;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .row-menu {
+    position: relative;
+  }
+
+  .row-menu-trigger {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #0f172a;
+    cursor: pointer;
+    list-style: none;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 1000;
+  }
+
+  .row-menu-trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .row-menu-content {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 150px;
+    padding: 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, .16);
+  }
+
+  .row-menu-content a {
+    display: block;
+    border-radius: 6px;
+    padding: 10px 11px;
+    color: #1d4ed8;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 950;
+  }
+
+  .row-menu-content a:hover,
+  .row-menu-content a:focus-visible {
+    background: #eff6ff;
   }
 
   .pagination-bar > span {
@@ -793,6 +950,11 @@ function orderHref(order: SecurityOrder) {
       gap: 6px;
     }
 
+    .security-details-disclosure > summary {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
     .summary-actions {
       display: grid;
       grid-template-columns: 1fr;
@@ -863,6 +1025,15 @@ function orderHref(order: SecurityOrder) {
       display: grid;
       grid-template-columns: 1fr;
       justify-content: stretch;
+    }
+
+    .action-cell {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .row-menu-content {
+      right: 0;
     }
   }
 

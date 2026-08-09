@@ -26,6 +26,8 @@ import {
   type SecurityAvailableSignals,
   type SecurityAddressCandidate,
   type SecurityBlock,
+  type SecurityBlockHistoryEntry,
+  type SecurityBlockRelatedIp,
   type SecurityBlockCapabilities,
   type SecurityBlockHistorySummary,
   type SecurityBlocksMetrics,
@@ -136,6 +138,11 @@ const modeLabel = getSecurityModeLabel(settings.mode);
 const ipLabel = getSecurityIpVisibilityLabel(settings.ip_visibility);
 const vpnPolicyLabel = getSecurityVpnPolicyLabel(settings.vpn_policy);
 const manualIpPreviewReady = Boolean(manualIpDraft && manualIpDeviceLookup);
+const visitorSecurityStatusLabels = {
+  normal: 'Normal',
+  watch: 'En observacion',
+  blocked: 'Bloqueado',
+} as const;
 const statusOptions = [
   ['all', 'Todos'],
   ['normal', CUSTOMER_STATUS_LABELS.normal],
@@ -211,6 +218,16 @@ function blockedHref(page = 1, extra: Record<string, string | number | undefined
     blocked_scope: params.blockedScope,
     ...extra,
   });
+}
+
+function blockHistoryHref(blockId: string) {
+  const href = sectionHref('blocked', {
+    blocked_status: 'all',
+    blocked_scope: 'all',
+    blocked_page: 1,
+    block: blockId,
+  });
+  return `${href}#security-block-${encodeURIComponent(blockId)}`;
 }
 
 function customerDetailHref(customerId: string, extra: Record<string, string | number | undefined> = {}) {
@@ -315,6 +332,8 @@ function activityGroupSignature(event: SecurityEventRow) {
     event.mode_at_event,
     event.relatedCustomer?.id || '',
     event.relatedOrder?.id || '',
+    event.navigation?.kind || 'none',
+    event.navigation?.targetId || '',
     ip,
   ].join('|');
 }
@@ -354,6 +373,28 @@ function pluralLabel(count: number, singular: string, plural: string) {
 
 function visitorDetailHref(visitorSessionId: string) {
   return `${basePath}/visitors/${encodeURIComponent(visitorSessionId)}`;
+}
+
+function activityActionHref(event: SecurityEventRow) {
+  const targetId = String(event.navigation?.targetId || '');
+  if (!targetId) return '';
+  if (event.navigation.kind === 'block') {
+    const href = sectionHref('blocked', {
+      blocked_status: 'all',
+      blocked_scope: 'all',
+      blocked_page: 1,
+      block: targetId,
+    });
+    return `${href}#security-block-${encodeURIComponent(targetId)}`;
+  }
+  if (event.navigation.kind === 'visitor') return visitorDetailHref(targetId);
+  return '';
+}
+
+function activityActionLabel(event: SecurityEventRow) {
+  if (event.navigation?.kind === 'block') return 'Ver bloqueo';
+  if (event.navigation?.kind === 'visitor') return 'Ver historial';
+  return 'No disponible';
 }
 
 function lifecycleCounts(customer: SecurityCustomer | null | undefined) {
@@ -452,6 +493,47 @@ function blockCustomerSubtitle(block: SecurityBlock) {
   return String(block.primary_phone || '').trim() || 'Telefono no disponible';
 }
 
+const BLOCK_HISTORY_ACTION_LABELS: Record<string, string> = {
+  block_created: 'Bloqueo creado',
+  block_revoked: 'Bloqueo revocado',
+  block_expired: 'Bloqueo vencido',
+  block_device_candidate_detected: 'Dispositivo pendiente detectado',
+  block_device_candidate_confirmed: 'Dispositivo agregado al bloqueo',
+  block_device_candidate_dismissed: 'Dispositivo pendiente descartado',
+};
+
+function blockHistoryActionLabel(entry: SecurityBlockHistoryEntry) {
+  if (entry.kind === 'security_event') return labelFromMap(EVENT_TYPE_LABELS, entry.action);
+  return BLOCK_HISTORY_ACTION_LABELS[entry.action] || 'Actualizacion administrativa';
+}
+
+function blockIpSourceLabel(ip: SecurityBlockRelatedIp) {
+  if (ip.link_source === 'selected_ip') return 'Seleccionada en el bloqueo';
+  if (ip.link_source === 'device') return 'Detectada en dispositivo relacionado';
+  if (ip.link_source === 'customer') return 'Detectada en cliente relacionado';
+  return 'Detectada en actividad de seguridad';
+}
+
+function blockIpStateLabel(ip: SecurityBlockRelatedIp) {
+  if (ip.state === 'blocked') return 'Bloqueada';
+  if (ip.state === 'observed') return 'Observada';
+  if (ip.state === 'expired') return 'Bloqueo vencido';
+  return 'Bloqueo revocado';
+}
+
+function blockVpnLabel(ip: SecurityBlockRelatedIp) {
+  if (ip.vpn_status === 'blocked') return 'VPN o proxy bloqueado';
+  if (ip.vpn_status === 'detected') return 'VPN o proxy detectado';
+  return '';
+}
+
+function blockHistoryNavigationHref(entry: SecurityBlockHistoryEntry) {
+  if (entry.navigation.kind === 'visitor' && entry.navigation.targetId) {
+    return visitorDetailHref(entry.navigation.targetId);
+  }
+  return '';
+}
+
 function selectedBlocksMetrics() {
   return blocksMetrics || {
     active_blocks: 0,
@@ -479,6 +561,10 @@ function selectedAvailableSignals() {
 function selectedBlockHistorySummary() {
   return blockHistorySummary || { active: 0, expired: 0, revoked: 0 };
 }
+
+const focusedBlock = params.blockedFocusId
+  ? blocksResult?.items.find((block) => block.id === params.blockedFocusId) || null
+  : null;
 
 function observationActionLabel(customer: SecurityCustomer) {
   if (customer.status === 'watch') return 'Quitar de observacion';
@@ -1181,10 +1267,10 @@ function observationActionValue(customer: SecurityCustomer) {
               <span role="columnheader">Visitante</span>
               <span role="columnheader">Telefono</span>
               {showIp && <span role="columnheader">IP</span>}
-              <span role="columnheader">Primera visita</span>
+              <span role="columnheader">Estado</span>
               <span role="columnheader">Ultima actividad</span>
               <span role="columnheader">Paginas</span>
-              <span role="columnheader">Accion</span>
+              <span role="columnheader">Acciones</span>
             </div>
             <div class="table-body">
               {visitorsResult.items.map((visitor) => (
@@ -1204,7 +1290,9 @@ function observationActionValue(customer: SecurityCustomer) {
                       {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
                     </div>
                   )}
-                  <div class="table-cell" role="cell" data-label="Primera visita">{formatDateTime(visitor.first_seen_at)}</div>
+                  <div class="table-cell" role="cell" data-label="Estado">
+                    <span class={`status-pill status-${visitor.security_status}`}>{visitorSecurityStatusLabels[visitor.security_status]}</span>
+                  </div>
                   <div class="table-cell" role="cell" data-label="Ultima actividad">{formatDateTime(visitor.last_seen_at)}</div>
                   <div class="table-cell" role="cell" data-label="Paginas">{formatNumber(visitor.pageviews_count)}</div>
                   <div class="table-cell action-cell" role="cell" data-label="Accion">
@@ -1281,7 +1369,7 @@ function observationActionValue(customer: SecurityCustomer) {
               <span role="columnheader">Cliente / pedido</span>
               <span role="columnheader">Resultado</span>
               {showIp && <span role="columnheader">IP</span>}
-              <span role="columnheader" class="activity-actions-heading">Acciones</span>
+              <span role="columnheader">Accion</span>
             </div>
             <div class="table-body">
               {activityEventGroups.map((group) => {
@@ -1289,6 +1377,8 @@ function observationActionValue(customer: SecurityCustomer) {
                 const phone = eventCustomerPhoneValue(event);
                 const decisionLabel = labelFromMap(EVENT_DECISION_LABELS, event.decision);
                 const riskLabel = labelFromMap(EVENT_RISK_LABELS, event.risk_level);
+                const actionHref = activityActionHref(event);
+                const actionLabel = activityActionLabel(event);
                 return (
                 <article class="table-row" role="row">
                   <div class="table-cell main-cell activity-event-cell" role="cell" data-label="Actividad">
@@ -1316,27 +1406,12 @@ function observationActionValue(customer: SecurityCustomer) {
                       {getIpUnavailableNote(event) && <small>{getIpUnavailableNote(event)}</small>}
                     </div>
                   )}
-                  <div class="table-cell activity-action-cell" role="cell" data-label="Acciones">
-                    <details class="activity-detail-disclosure">
-                      <summary aria-label={`Ver detalles de ${activityEventTitle(group)}`}>
-                        <span class="activity-detail-dots" aria-hidden="true">&#8942;</span>
-                        <span class="activity-detail-label">Ver detalles</span>
-                      </summary>
-                      <div class="activity-detail-panel">
-                        <dl>
-                          <div><dt>Decision</dt><dd>{decisionLabel}</dd></div>
-                          <div><dt>Riesgo</dt><dd>{riskLabel}</dd></div>
-                          <div><dt>Modo</dt><dd>{labelFromMap(MODE_AT_EVENT_LABELS, event.mode_at_event)}</dd></div>
-                          <div><dt>Datos de seguridad</dt><dd>{labelFromMap(CAPTURE_STATUS_LABELS, event.capture_status)}</dd></div>
-                        </dl>
-                        {group.events.length > 1 && (
-                          <div class="activity-group-times">
-                            <strong>Registros agrupados</strong>
-                            <ul>{group.events.map((item) => <li>{formatDateTime(item.occurred_at || item.created)}</li>)}</ul>
-                          </div>
-                        )}
-                      </div>
-                    </details>
+                  <div class="table-cell activity-action-cell" role="cell" data-label="Accion">
+                    {actionHref ? (
+                      <a class:list={['activity-context-action', { 'is-block': event.navigation.kind === 'block' }]} href={actionHref}>{actionLabel}</a>
+                    ) : (
+                      <span class="activity-action-unavailable" aria-label="Historial no disponible">No disponible</span>
+                    )}
                   </div>
                 </article>
                 );
@@ -1442,11 +1517,15 @@ function observationActionValue(customer: SecurityCustomer) {
               <span role="columnheader">Creado</span>
               <span role="columnheader">Vencimiento</span>
               <span role="columnheader">Estado</span>
-              <span role="columnheader">Accion</span>
+              <span role="columnheader">Acciones</span>
             </div>
             <div class="table-body">
               {blocksResult.items.map((block) => (
-                <article class="table-row" role="row">
+                <article
+                  id={`security-block-${block.id}`}
+                  class:list={['table-row', { 'is-focused-block': params.blockedFocusId === block.id }]}
+                  role="row"
+                >
                   <div class="table-cell main-cell" role="cell" data-label="Cliente">
                     <strong>{blockCustomerTitle(block)}</strong>
                     <span>{blockCustomerSubtitle(block)}</span>
@@ -1470,7 +1549,11 @@ function observationActionValue(customer: SecurityCustomer) {
                   <div class="table-cell" role="cell" data-label="Creado">{formatDateTime(block.created || block.starts_at)}</div>
                   <div class="table-cell" role="cell" data-label="Vencimiento">{block.expires_at ? formatDateTime(block.expires_at) : 'Permanente'}</div>
                   <div class="table-cell" role="cell" data-label="Estado"><span class={`status-pill status-${block.status}`}>{blockStatusLabel(block.status)}</span></div>
-                  <div class="table-cell action-cell" role="cell" data-label="Accion">
+                  <div class="table-cell action-cell" role="cell" data-label="Acciones">
+                    <details class="inline-row-menu" data-inline-row-menu>
+                      <summary class="icon-action block-menu-trigger" aria-label={`Acciones de ${blockCustomerTitle(block)}`}><span aria-hidden="true">&#8942;</span></summary>
+                      <div class="inline-row-menu-panel" role="menu">
+                    <a class="floating-menu-item" href={blockHistoryHref(block.id)} role="menuitem">Ver historial</a>
                     {block.customer_id && <a class="row-action" href={customerDetailHref(block.customer_id, { orders_page: 1, events_page: 1 })}>Ver ficha</a>}
                     {block.status === 'active' && block.device_review.pending.map((candidate) => (
                       <div class="block-device-candidate-actions">
@@ -1512,11 +1595,101 @@ function observationActionValue(customer: SecurityCustomer) {
                     ) : (
                       <span class="muted-cell">Sin accion</span>
                     )}
+                      </div>
+                    </details>
                   </div>
                 </article>
               ))}
             </div>
           </div>
+
+          {focusedBlock?.detail && (
+            <section class="block-history-panel" aria-labelledby="block-history-title">
+              <div class="section-head block-history-head">
+                <div>
+                  <span class={`status-pill status-${focusedBlock.status}`}>{blockStatusLabel(focusedBlock.status)}</span>
+                  <h4 id="block-history-title">Historial del bloqueo</h4>
+                  <p>{blockCustomerTitle(focusedBlock)}</p>
+                </div>
+                <a class="secondary-action" href={sectionHref('blocked')}>Cerrar historial</a>
+              </div>
+
+              <dl class="premium-summary-list block-history-summary">
+                <div><dt>Motivo</dt><dd>{focusedBlock.reason || 'No disponible'}</dd></div>
+                <div><dt>Alcance</dt><dd>{blockScopeLabel(focusedBlock.scope)}</dd></div>
+                <div><dt>Duracion</dt><dd>{blockDurationLabel(focusedBlock.duration)}</dd></div>
+                <div><dt>Creado</dt><dd>{formatDateTime(focusedBlock.created || focusedBlock.starts_at)}</dd></div>
+                <div><dt>Creado por</dt><dd>{focusedBlock.created_by_name || 'Sistema'}</dd></div>
+                <div><dt>Vencimiento</dt><dd>{focusedBlock.expires_at ? formatDateTime(focusedBlock.expires_at) : 'Permanente'}</dd></div>
+                {focusedBlock.revoked_at && <div><dt>Revocado</dt><dd>{formatDateTime(focusedBlock.revoked_at)} · {focusedBlock.revoked_by_name || 'Sistema'}</dd></div>}
+                {focusedBlock.revoke_reason && <div><dt>Motivo de revocacion</dt><dd>{focusedBlock.revoke_reason}</dd></div>}
+                <div><dt>Senales protegidas</dt><dd>{blockSignalsLabel(focusedBlock)}</dd></div>
+                <div><dt>Dispositivos relacionados</dt><dd>{formatNumber(focusedBlock.detail.related_device_count)}</dd></div>
+                <div><dt>Direcciones protegidas</dt><dd>{formatNumber(focusedBlock.detail.related_address_count)}</dd></div>
+              </dl>
+
+              <details class="block-history-disclosure" open>
+                <summary>IPs relacionadas ({formatNumber(focusedBlock.detail.related_ip_count)})</summary>
+                {focusedBlock.detail.related_ips.length > 0 ? (
+                  <div class="block-related-ip-list">
+                    {focusedBlock.detail.related_ips.map((ip) => (
+                      <article class="block-related-ip-row">
+                        <div class="block-related-ip-main">
+                          <strong>{ip.ip_resolution_status === 'hidden' ? 'IP oculta por configuracion' : ip.ip_display || 'IP no disponible'}</strong>
+                          <span>{blockIpSourceLabel(ip)}</span>
+                          {blockVpnLabel(ip) && <small class="vpn-history-label">{blockVpnLabel(ip)}</small>}
+                        </div>
+                        <div><span>Estado</span><strong class={`status-pill status-${ip.state === 'blocked' ? 'active' : ip.state === 'observed' ? 'watch' : ip.state}`}>{blockIpStateLabel(ip)}</strong></div>
+                        <div><span>Primera deteccion</span><strong>{ip.first_seen_at ? formatDateTime(ip.first_seen_at) : 'No disponible'}</strong></div>
+                        <div><span>Ultima deteccion</span><strong>{ip.last_seen_at ? formatDateTime(ip.last_seen_at) : 'No disponible'}</strong></div>
+                        <div><span>Intentos bloqueados</span><strong>{formatNumber(ip.blocked_attempts)}</strong></div>
+                        <div class="block-related-ip-action">
+                          {ip.visitor_session_id
+                            ? <a class="row-action" href={visitorDetailHref(ip.visitor_session_id)}>Ver actividad</a>
+                            : <span class="muted-cell">Sin historial navegable</span>}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div class="empty-state">Todavia no hay una IP visible asociada a este bloqueo.</div>
+                )}
+                {focusedBlock.detail.related_ip_count > focusedBlock.detail.related_ips.length && (
+                  <p class="block-history-limit-note">Se muestran las {formatNumber(focusedBlock.detail.related_ips.length)} IP relacionadas mas recientes.</p>
+                )}
+              </details>
+
+              <details class="block-history-disclosure">
+                <summary>Cronologia ({formatNumber(focusedBlock.detail.history_count)})</summary>
+                {focusedBlock.detail.history.length > 0 ? (
+                  <div class="block-history-timeline">
+                    {focusedBlock.detail.history.map((entry) => {
+                      const navigationHref = blockHistoryNavigationHref(entry);
+                      return (
+                        <article class="block-history-entry">
+                          <div>
+                            <strong>{blockHistoryActionLabel(entry)}</strong>
+                            <span>{formatDateTime(entry.occurred_at)}</span>
+                          </div>
+                          <div class="block-history-entry-detail">
+                            <span>{entry.actor_name || 'Sistema'}</span>
+                            {entry.reason && <span>{entry.reason}</span>}
+                            {showIp && entry.ip_display && <span>IP: {entry.ip_display}</span>}
+                          </div>
+                          {navigationHref && <a class="row-action" href={navigationHref}>Ver visitante</a>}
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div class="empty-state">No hay eventos adicionales para este bloqueo.</div>
+                )}
+                {focusedBlock.detail.history_count > focusedBlock.detail.history.length && (
+                  <p class="block-history-limit-note">Se muestran los {formatNumber(focusedBlock.detail.history.length)} eventos mas recientes.</p>
+                )}
+              </details>
+            </section>
+          )}
 
           <div class="pagination-bar" aria-label="Paginacion de bloqueos">
             <span>{customerPageLabel(blocksResult)}</span>
@@ -1571,7 +1744,7 @@ function observationActionValue(customer: SecurityCustomer) {
         <input type="hidden" name="section" value="blocked" />
         <input type="hidden" name="security_action" value={manualIpPreviewReady ? 'manual_ip_block_create' : 'manual_ip_device_preview'} />
         <input type="hidden" name="visitor_session_id" value={manualIpDraft?.visitorSessionId || ''} data-manual-visitor-session />
-        <label class="field" for="security-manual-block-ip">
+        <label class="field" for="security-manual-block-ip" data-manual-ip-field hidden={Boolean(manualIpDraft?.visitorSessionId)}>
           <span>IP publica exacta</span>
           <input
             id="security-manual-block-ip"
@@ -1589,7 +1762,7 @@ function observationActionValue(customer: SecurityCustomer) {
           />
           <small>No se admiten rangos, redes internas, loopback ni direcciones reservadas.</small>
         </label>
-        <p class="monitoring-note" data-manual-visitor-source hidden={!manualIpDraft?.visitorSessionId}>Se usara la IP protegida del visitante seleccionado.</p>
+        <p class="monitoring-note" data-manual-visitor-source hidden={!manualIpDraft?.visitorSessionId}>Se revisaran las IP historicas protegidas de este visitante antes de crear el bloqueo.</p>
         <label class="field" for="security-manual-block-scope">
           <span>Alcance</span>
           <select id="security-manual-block-scope" name="block_scope" required>
@@ -1607,30 +1780,55 @@ function observationActionValue(customer: SecurityCustomer) {
           </select>
         </label>
         {manualIpPreviewReady ? (
-          <div class="field manual-device-selection">
-            <span>Dispositivos que se bloquearan ahora</span>
-            {manualIpDeviceLookup!.candidates.length > 1 && (
-              <button class="secondary-action" type="button" data-manual-select-all>Seleccionar todos</button>
+          <>
+            {manualIpDraft?.visitorSessionId && (
+              <div class="field manual-ip-selection">
+                <span>Direcciones IP que se bloquearan ahora</span>
+                {manualIpDeviceLookup!.ip_candidates.length > 1 && (
+                  <button class="secondary-action" type="button" data-manual-ip-select-all>Seleccionar todas</button>
+                )}
+                {manualIpDeviceLookup!.ip_candidates.map((candidate, index) => (
+                  <label class="signal-option">
+                    <input
+                      type="checkbox"
+                      name="manual_ip_source_ids"
+                      value={candidate.source_id}
+                      checked={candidate.preselected || manualIpDeviceLookup!.ip_candidates.length === 1}
+                    />
+                    <span>
+                      <strong>{candidate.ip_display || `IP protegida ${index + 1}`}</strong>
+                      <small>{candidate.preselected ? 'IP actual · ' : ''}Ultima actividad: {formatDateTime(candidate.last_seen_at)}</small>
+                    </span>
+                  </label>
+                ))}
+                <p class="modal-warning">Selecciona una, varias o todas. Las IP nuevas que aparezcan despues no se agregaran automaticamente y deberan revisarse por separado.</p>
+              </div>
             )}
-            {manualIpDeviceLookup!.candidates.length > 0 ? (
-              manualIpDeviceLookup!.candidates.map((candidate) => (
-                <label class="signal-option">
-                  <input
-                    type="checkbox"
-                    name="manual_device_session_ids"
-                    value={candidate.session_id}
-                    checked={candidate.preselected || manualIpDeviceLookup!.candidates.length === 1}
-                  />
-                  <span><strong>{candidate.label}</strong><small>Ultima actividad: {formatDateTime(candidate.last_seen_at)}</small></span>
-                </label>
-              ))
-            ) : (
-              <p class="modal-warning">No hay un dispositivo conocido para esta IP. Puedes crear el bloqueo solo por IP; cualquier dispositivo nuevo detectado aparecera luego para revision.</p>
-            )}
-            <p class="modal-warning">Una IP puede ser compartida. Selecciona uno, varios o todos solamente cuando correspondan al bloqueo.</p>
-          </div>
+            <div class="field manual-device-selection">
+              <span>Dispositivos que se bloquearan ahora</span>
+              {manualIpDeviceLookup!.candidates.length > 1 && (
+                <button class="secondary-action" type="button" data-manual-select-all>Seleccionar todos</button>
+              )}
+              {manualIpDeviceLookup!.candidates.length > 0 ? (
+                manualIpDeviceLookup!.candidates.map((candidate) => (
+                  <label class="signal-option">
+                    <input
+                      type="checkbox"
+                      name="manual_device_session_ids"
+                      value={candidate.session_id}
+                      checked={candidate.preselected || manualIpDeviceLookup!.candidates.length === 1}
+                    />
+                    <span><strong>{candidate.label}</strong><small>Ultima actividad: {formatDateTime(candidate.last_seen_at)}</small></span>
+                  </label>
+                ))
+              ) : (
+                <p class="modal-warning">No hay un dispositivo conocido para estas IP. Puedes crear el bloqueo solo por IP; cualquier dispositivo nuevo detectado aparecera luego para revision.</p>
+              )}
+              <p class="modal-warning">Una IP puede ser compartida. Selecciona uno, varios o todos solamente cuando correspondan al bloqueo.</p>
+            </div>
+          </>
         ) : (
-          <p class="monitoring-note">Primero buscaremos dispositivos vistos anteriormente con esta IP. Ningun bloqueo se creara en este paso.</p>
+          <p class="monitoring-note">Primero buscaremos IP y dispositivos vistos anteriormente. Ningun bloqueo se creara en este paso.</p>
         )}
         <label class="field" for="security-manual-block-reason">
           <span>Motivo interno</span>
@@ -3016,27 +3214,31 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .activity-table .table-head,
   .activity-table .table-row {
-    grid-template-columns: minmax(180px, 1.15fr) minmax(200px, 1.2fr) minmax(180px, .9fr) 44px;
+    grid-template-columns: minmax(190px, 1.2fr) minmax(220px, 1.3fr) minmax(180px, .8fr) minmax(104px, .46fr);
   }
 
   .activity-table.has-ip .table-head,
   .activity-table.has-ip .table-row {
-    grid-template-columns: minmax(180px, 1.15fr) minmax(200px, 1.2fr) minmax(180px, .9fr) minmax(118px, .68fr) 44px;
+    grid-template-columns: minmax(190px, 1.2fr) minmax(220px, 1.3fr) minmax(180px, .85fr) minmax(130px, .68fr) minmax(104px, .46fr);
   }
 
   .visitors-table .table-head,
   .visitors-table .table-row {
-    grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .78fr) minmax(130px, .86fr) minmax(130px, .86fr) minmax(80px, .48fr) minmax(86px, .52fr);
+    grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .78fr) minmax(108px, .68fr) minmax(130px, .86fr) minmax(72px, .42fr) minmax(76px, .46fr);
   }
 
   .visitors-table.has-ip .table-head,
   .visitors-table.has-ip .table-row {
-    grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .78fr) minmax(110px, .76fr) minmax(130px, .86fr) minmax(130px, .86fr) minmax(80px, .48fr) minmax(86px, .52fr);
+    grid-template-columns: minmax(150px, 1.2fr) minmax(120px, .78fr) minmax(110px, .76fr) minmax(108px, .68fr) minmax(130px, .86fr) minmax(72px, .42fr) minmax(76px, .46fr);
   }
 
   .blocks-table .table-head,
   .blocks-table .table-row {
-    grid-template-columns: minmax(160px, 1.15fr) minmax(120px, .72fr) minmax(130px, .82fr) minmax(130px, .82fr) minmax(130px, .82fr) minmax(92px, .5fr) minmax(160px, .92fr);
+    grid-template-columns: minmax(160px, 1.15fr) minmax(120px, .72fr) minmax(130px, .82fr) minmax(130px, .82fr) minmax(130px, .82fr) minmax(92px, .5fr) 44px;
+  }
+
+  .blocks-table {
+    overflow: visible;
   }
 
   .table-head {
@@ -3065,6 +3267,49 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .activity-table .table-row {
     padding: 10px 12px;
+  }
+
+  .activity-action-cell {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .activity-context-action,
+  .activity-action-unavailable {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.1;
+    font-weight: 1000;
+    text-align: center;
+  }
+
+  .activity-context-action {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+    text-decoration: none;
+  }
+
+  .activity-context-action.is-block {
+    border-color: #fecaca;
+    background: #fff1f2;
+    color: #b91c1c;
+  }
+
+  .activity-action-unavailable {
+    color: #94a3b8;
+    background: #f8fafc;
+  }
+
+  .blocks-table .table-row.is-focused-block {
+    scroll-margin-top: 24px;
+    outline: 3px solid rgba(37, 99, 235, .24);
+    background: #eff6ff;
   }
 
   .table-cell {
@@ -3237,122 +3482,6 @@ function observationActionValue(customer: SecurityCustomer) {
     color: #166534;
   }
 
-  .activity-actions-heading {
-    text-align: right;
-  }
-
-  .activity-action-cell {
-    display: flex;
-    justify-content: flex-end;
-    overflow: visible;
-  }
-
-  .activity-detail-disclosure {
-    position: relative;
-  }
-
-  .activity-detail-disclosure > summary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    border: 1px solid transparent;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #0f172a;
-    list-style: none;
-    cursor: pointer;
-  }
-
-  .activity-detail-disclosure > summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .activity-detail-disclosure > summary:hover,
-  .activity-detail-disclosure > summary:focus-visible,
-  .activity-detail-disclosure[open] > summary {
-    border-color: #cbd5e1;
-    background: #f8fafc;
-  }
-
-  .activity-detail-dots {
-    font-size: 22px;
-    line-height: 1;
-  }
-
-  .activity-detail-label {
-    display: none;
-  }
-
-  .activity-detail-panel {
-    position: absolute;
-    z-index: 20;
-    top: calc(100% + 6px);
-    right: 0;
-    width: 260px;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    background: #ffffff;
-    padding: 12px;
-    box-shadow: 0 16px 34px rgba(15, 23, 42, .16);
-  }
-
-  .activity-detail-panel dl {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 14px;
-    margin: 0;
-  }
-
-  .activity-detail-panel dt,
-  .activity-detail-panel dd {
-    margin: 0;
-  }
-
-  .activity-detail-panel dt {
-    color: #64748b;
-    font-size: 10px;
-    line-height: 1.2;
-    font-weight: 950;
-    text-transform: uppercase;
-  }
-
-  .activity-detail-panel dd {
-    margin-top: 3px;
-    color: #0f172a;
-    font-size: 12px;
-    line-height: 1.25;
-    font-weight: 950;
-  }
-
-  .activity-group-times {
-    display: grid;
-    gap: 6px;
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid #e2e8f0;
-  }
-
-  .activity-group-times > strong {
-    color: #334155;
-    font-size: 11px;
-    line-height: 1.2;
-    font-weight: 1000;
-  }
-
-  .activity-group-times ul {
-    display: grid;
-    gap: 3px;
-    margin: 0;
-    padding-left: 18px;
-    color: #64748b;
-    font-size: 11px;
-    line-height: 1.3;
-    font-weight: 800;
-  }
-
   .status-pill {
     display: inline-flex;
     align-items: center;
@@ -3371,6 +3500,11 @@ function observationActionValue(customer: SecurityCustomer) {
   .status-watch {
     background: #fff7ed;
     color: #9a3412;
+  }
+
+  .status-normal {
+    background: #dcfce7;
+    color: #166534;
   }
 
   .status-blocked {
@@ -3443,6 +3577,258 @@ function observationActionValue(customer: SecurityCustomer) {
     min-height: 34px;
     padding: 7px 9px;
     font-size: 11px;
+  }
+
+  .inline-row-menu {
+    position: relative;
+    justify-self: end;
+  }
+
+  .inline-row-menu > summary {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .inline-row-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .block-menu-trigger {
+    font-size: 23px;
+    line-height: 1;
+  }
+
+  .block-menu-trigger span {
+    display: block;
+    transform: translateY(-1px);
+  }
+
+  .inline-row-menu-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 80;
+    display: grid;
+    gap: 4px;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(320px, calc(100vw - 32px));
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
+  }
+
+  .inline-row-menu:not([open]) .inline-row-menu-panel {
+    display: none;
+  }
+
+  .inline-row-menu-panel .row-action,
+  .inline-row-menu-panel .secondary-action,
+  .inline-row-menu-panel .danger-action {
+    width: 100%;
+    justify-content: flex-start;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #334155;
+    text-align: left;
+  }
+
+  .inline-row-menu-panel .danger-action {
+    color: #b91c1c;
+  }
+
+  .inline-row-menu-panel .block-device-candidate-actions {
+    border-radius: 10px;
+  }
+
+  .block-history-panel {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+    padding: 18px;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    background: #f8fbff;
+    box-shadow: 0 16px 38px rgba(37, 99, 235, .08);
+    scroll-margin-top: 24px;
+  }
+
+  .block-history-head h4 {
+    margin: 8px 0 2px;
+    color: #0f172a;
+    font-size: 20px;
+  }
+
+  .block-history-head p {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .premium-summary-list {
+    display: grid;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .premium-summary-list > div {
+    display: grid;
+    grid-template-columns: minmax(170px, .48fr) minmax(0, 1fr);
+    gap: 16px;
+    padding: 11px 14px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .premium-summary-list > div:first-child {
+    border-top: 0;
+  }
+
+  .premium-summary-list dt,
+  .premium-summary-list dd {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .premium-summary-list dt {
+    color: #64748b;
+    font-weight: 900;
+  }
+
+  .premium-summary-list dd {
+    color: #0f172a;
+    font-weight: 900;
+    overflow-wrap: anywhere;
+  }
+
+  .block-history-disclosure {
+    overflow: hidden;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #ffffff;
+  }
+
+  .block-history-disclosure > summary {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 1000;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .block-history-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .block-history-disclosure > summary::after {
+    content: '+';
+    color: #2563eb;
+    font-size: 20px;
+  }
+
+  .block-history-disclosure[open] > summary::after {
+    content: '−';
+  }
+
+  .block-related-ip-list,
+  .block-history-timeline {
+    display: grid;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .block-related-ip-row {
+    display: grid;
+    grid-template-columns: minmax(175px, 1.2fr) minmax(110px, .65fr) minmax(130px, .8fr) minmax(130px, .8fr) minmax(92px, .5fr) minmax(110px, .58fr);
+    gap: 12px;
+    align-items: center;
+    padding: 13px 14px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .block-related-ip-row:first-child,
+  .block-history-entry:first-child {
+    border-top: 0;
+  }
+
+  .block-related-ip-row > div,
+  .block-related-ip-main,
+  .block-history-entry > div {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .block-related-ip-row span,
+  .block-history-entry span {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 850;
+  }
+
+  .block-related-ip-row strong,
+  .block-history-entry strong {
+    color: #0f172a;
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 950;
+    overflow-wrap: anywhere;
+  }
+
+  .block-related-ip-row .status-pill {
+    font-size: 10px;
+  }
+
+  .vpn-history-label {
+    width: max-content;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 4px 7px;
+    background: #fff7ed;
+    color: #9a3412 !important;
+  }
+
+  .block-related-ip-action {
+    justify-items: end;
+  }
+
+  .block-history-entry {
+    display: grid;
+    grid-template-columns: minmax(170px, .8fr) minmax(240px, 1.4fr) minmax(100px, .5fr);
+    gap: 14px;
+    align-items: center;
+    padding: 13px 14px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .block-history-entry > .row-action {
+    justify-self: end;
+  }
+
+  .block-history-limit-note {
+    margin: 0;
+    padding: 12px 14px;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 850;
   }
 
   .manual-device-review-option {
@@ -3717,6 +4103,55 @@ function observationActionValue(customer: SecurityCustomer) {
       margin-left: auto;
     }
 
+    .blocks-table .action-cell {
+      grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
+    }
+
+    .blocks-table .inline-row-menu {
+      grid-column: 2;
+      justify-self: end;
+    }
+
+    .blocks-table .block-menu-trigger {
+      width: 46px;
+      min-width: 46px;
+    }
+
+    .block-history-panel {
+      padding: 12px;
+    }
+
+    .block-history-head .secondary-action {
+      width: 100%;
+    }
+
+    .premium-summary-list > div {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+
+    .block-related-ip-row,
+    .block-history-entry {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .block-related-ip-row > div,
+    .block-history-entry > div {
+      grid-template-columns: minmax(120px, .6fr) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .block-related-ip-main {
+      grid-template-columns: 1fr !important;
+    }
+
+    .block-related-ip-action,
+    .block-history-entry > .row-action {
+      justify-items: stretch;
+      justify-self: stretch;
+    }
+
     .customers-table .customer-links-cell {
       display: grid;
       grid-template-columns: minmax(96px, .42fr) minmax(0, 1fr);
@@ -3850,42 +4285,18 @@ function observationActionValue(customer: SecurityCustomer) {
     }
 
     .activity-table .activity-action-cell {
-      grid-column: 1 / -1;
+      grid-column: 2;
       grid-row: 3;
-      display: block;
-      border-top: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 12px 12px 8px;
     }
 
-    .activity-detail-disclosure,
-    .activity-detail-disclosure > summary {
-      width: 100%;
-    }
-
-    .activity-detail-disclosure > summary {
-      min-height: 40px;
-      border: 0;
-      border-radius: 0 0 12px 12px;
-      color: #1d4ed8;
-      font-size: 12px;
-      font-weight: 1000;
-    }
-
-    .activity-detail-dots {
-      display: none;
-    }
-
-    .activity-detail-label {
-      display: inline;
-    }
-
-    .activity-detail-panel {
-      position: static;
-      width: 100%;
-      border: 0;
-      border-top: 1px solid #e2e8f0;
-      border-radius: 0 0 12px 12px;
-      background: #f8fafc;
-      box-shadow: none;
+    .activity-context-action,
+    .activity-action-unavailable {
+      min-height: 36px;
+      padding: 7px 9px;
+      font-size: 11px;
     }
 
     .activity-pagination {
@@ -4066,6 +4477,14 @@ function observationActionValue(customer: SecurityCustomer) {
     }
     activeVisitorMenuTrigger = null;
     visitorMenu.hidden = true;
+  }
+
+  function closeInlineRowMenus(exceptTarget = null) {
+    document.querySelectorAll('[data-inline-row-menu][open]').forEach((menu) => {
+      if (!(menu instanceof HTMLDetailsElement)) return;
+      if (exceptTarget instanceof Element && menu.contains(exceptTarget)) return;
+      menu.open = false;
+    });
   }
 
   function clampMenuPosition(value, min, max) {
@@ -4379,6 +4798,7 @@ function observationActionValue(customer: SecurityCustomer) {
     const returnSection = trigger.dataset.returnSection === 'blocked' ? 'blocked' : 'customers';
     const scope = trigger.dataset.blockScope || 'bloqueo activo';
     if (!blockId) return;
+    closeInlineRowMenus();
     closeCustomerMenu();
     closeOpenDialogs(blockRevokeDialog);
     setText(blockRevokeDialog, '[data-block-revoke-title]', `Revocar ${scope}`);
@@ -4399,6 +4819,7 @@ function observationActionValue(customer: SecurityCustomer) {
       const visitorSessionId = trigger.dataset.visitorSessionId || '';
       const visitorInput = manualIpBlockDialog.querySelector('[data-manual-visitor-session]');
       const ipInput = manualIpBlockDialog.querySelector('[name="manual_ip"]');
+      const ipField = manualIpBlockDialog.querySelector('[data-manual-ip-field]');
       const visitorNote = manualIpBlockDialog.querySelector('[data-manual-visitor-source]');
       if (visitorInput instanceof HTMLInputElement) visitorInput.value = visitorSessionId;
       if (ipInput instanceof HTMLInputElement) {
@@ -4406,6 +4827,7 @@ function observationActionValue(customer: SecurityCustomer) {
         ipInput.required = !visitorSessionId;
         ipInput.readOnly = Boolean(visitorSessionId);
       }
+      if (ipField instanceof HTMLElement) ipField.hidden = Boolean(visitorSessionId);
       if (visitorNote instanceof HTMLElement) visitorNote.hidden = !visitorSessionId;
       setSelectValue(manualIpBlockDialog, '[name="block_scope"]', 'orders');
       setSelectValue(manualIpBlockDialog, '[name="block_duration"]', 'hours_24');
@@ -4420,6 +4842,7 @@ function observationActionValue(customer: SecurityCustomer) {
     const action = trigger.dataset.reviewAction === 'dismiss' ? 'dismiss' : 'confirm';
     const label = trigger.dataset.candidateLabel || 'Dispositivo pendiente';
     if (!blockId || !candidateId) return;
+    closeInlineRowMenus();
     closeCustomerMenu();
     closeOpenDialogs(blockDeviceReviewDialog);
     setInputValue(blockDeviceReviewDialog, '[data-block-device-review-block]', blockId);
@@ -4461,6 +4884,7 @@ function observationActionValue(customer: SecurityCustomer) {
   document.addEventListener('click', (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
+    closeInlineRowMenus(target);
 
     const modalClose = target.closest('[data-modal-close], [data-modal-cancel]');
     if (modalClose instanceof HTMLButtonElement) {
@@ -4528,6 +4952,20 @@ function observationActionValue(customer: SecurityCustomer) {
       return;
     }
 
+    const manualIpSelectAll = target.closest('[data-manual-ip-select-all]');
+    if (manualIpSelectAll instanceof HTMLButtonElement && isDialogElement(manualIpBlockDialog)) {
+      const checkboxes = Array.from(manualIpBlockDialog.querySelectorAll('input[name="manual_ip_source_ids"]'));
+      const shouldSelect = checkboxes.some((item) => item instanceof HTMLInputElement && !item.checked);
+      checkboxes.forEach((item) => {
+        if (item instanceof HTMLInputElement) {
+          item.checked = shouldSelect;
+          item.setCustomValidity('');
+        }
+      });
+      manualIpSelectAll.textContent = shouldSelect ? 'Quitar seleccion' : 'Seleccionar todas';
+      return;
+    }
+
     const addressSelectAll = target.closest('[data-address-select-all]');
     if (addressSelectAll instanceof HTMLButtonElement && isDialogElement(blockCreateDialog)) {
       const checkboxes = Array.from(blockCreateDialog.querySelectorAll('[data-address-checkbox]'));
@@ -4569,6 +5007,7 @@ function observationActionValue(customer: SecurityCustomer) {
     if (event.key === 'Escape') {
       closeCustomerMenu();
       closeVisitorMenu();
+      closeInlineRowMenus();
       return;
     }
 
@@ -4596,6 +5035,7 @@ function observationActionValue(customer: SecurityCustomer) {
   function closeFloatingMenus() {
     closeCustomerMenu();
     closeVisitorMenu();
+    closeInlineRowMenus();
   }
 
   window.addEventListener('resize', closeFloatingMenus);
@@ -4675,6 +5115,25 @@ function observationActionValue(customer: SecurityCustomer) {
         if (firstAddress instanceof HTMLInputElement) {
           firstAddress.setCustomValidity('Selecciona al menos una direccion para la alerta.');
           firstAddress.reportValidity();
+        }
+        return;
+      }
+    }
+    if (form.hasAttribute('data-manual-ip-block-form')) {
+      const visitorInput = form.querySelector('[data-manual-visitor-session]');
+      const ipCheckboxes = Array.from(form.querySelectorAll('input[name="manual_ip_source_ids"]'))
+        .filter((checkbox) => checkbox instanceof HTMLInputElement);
+      ipCheckboxes.forEach((checkbox) => {
+        if (checkbox instanceof HTMLInputElement) checkbox.setCustomValidity('');
+      });
+      const requiresHistoricalIp = visitorInput instanceof HTMLInputElement && Boolean(visitorInput.value) && ipCheckboxes.length > 0;
+      const hasSelectedIp = ipCheckboxes.some((checkbox) => checkbox instanceof HTMLInputElement && checkbox.checked);
+      if (requiresHistoricalIp && !hasSelectedIp) {
+        event.preventDefault();
+        const firstIp = ipCheckboxes[0];
+        if (firstIp instanceof HTMLInputElement) {
+          firstIp.setCustomValidity('Selecciona al menos una direccion IP para el bloqueo.');
+          firstIp.reportValidity();
         }
         return;
       }

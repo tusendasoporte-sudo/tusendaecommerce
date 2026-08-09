@@ -15,6 +15,7 @@ test('MANUAL-IP: cliente SSR envia solo el contrato administrativo estricto', ()
   assert.match(create, /action: 'create_manual_ip'/);
   assert.match(create, /ip: String\(options\.ip/);
   assert.match(create, /visitor_session_id: String\(options\.visitorSessionId/);
+  assert.match(create, /ip_source_ids: Array\.from\(new Set\(options\.ipSourceIds/);
   assert.match(create, /device_session_ids: Array\.from\(new Set\(options\.deviceSessionIds/);
   assert.match(create, /\/api\/pz\/security\/manual-ip-devices/);
   assert.match(create, /\.filter\(\(candidate: any\) => isValidRecordId\(candidate\?\.session_id\)\)/);
@@ -38,6 +39,7 @@ test('MANUAL-IP: tienda y Master procesan crear, confirmar y descartar con redir
     assert.match(page, /runSecurityManualIpBlockCreate/);
     assert.match(page, /block_device_candidate_review/);
     assert.match(page, /runSecurityBlockDeviceCandidateAction/);
+    assert.match(page, /getAll\('manual_ip_source_ids'\)/);
     assert.match(page, /section=blocked&notice=manual_ip_block_created/);
     assert.doesNotMatch(page, /console\.(?:log|info|warn)|checkOrigin\s*:\s*false/);
   }
@@ -50,8 +52,12 @@ test('MANUAL-IP: interfaz previsualiza y selecciona dispositivos sin exponer ide
   assert.match(view, /selected=\{value === \(manualIpDraft\?\.scope \|\| 'orders'\)\}/);
   assert.match(view, /selected=\{value === \(manualIpDraft\?\.duration \|\| 'hours_24'\)\}/);
   assert.match(view, /manual_ip_device_preview/);
+  assert.match(view, /name="manual_ip_source_ids"/);
   assert.match(view, /name="manual_device_session_ids"/);
+  assert.match(view, /data-manual-ip-select-all/);
+  assert.match(view, />Seleccionar todas</);
   assert.match(view, />Seleccionar todos</);
+  assert.match(view, /Las IP nuevas que aparezcan despues no se agregaran automaticamente y deberan revisarse por separado/);
   assert.match(view, /Ningun bloqueo se creara en este paso/);
   assert.match(view, /Buscar dispositivos/);
   assert.match(view, /Crear bloqueo/);
