@@ -75,7 +75,9 @@ test('VISITOR-VPN: detalle muestra una deteccion historica vinculada al disposit
   assert.match(backend, /buildVisitorVpnInfo\(\$app, payload\.storeId, visitor(?:, vpnEvents)?\)/);
   assert.doesNotMatch(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /ip_hmac|ip_masked|resolved_ip/);
   assert.match(detail, />VPN o proxy</);
-  assert.match(detail, /VPN o proxy detectado/);
+  assert.match(detail, /vpnInfo\.status === 'blocked' \|\| vpnInfo\.status === 'detected'/);
+  assert.match(detail, /\? 'VPN o proxy'/);
+  assert.doesNotMatch(detail, /VPN o proxy bloqueado|VPN o proxy detectado/);
   assert.match(detail, /Ultima deteccion/);
   assert.match(detail, /Riesgo registrado/);
 });

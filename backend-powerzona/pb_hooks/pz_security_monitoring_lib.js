@@ -1525,8 +1525,7 @@ function buildVisitorSecurityStatus(session, relatedCustomer, vpnInfo, activeBlo
     return "blocked";
   }
   const vpnStatus = String(vpnInfo && vpnInfo.status || "none");
-  if (vpnStatus === "blocked") return "blocked";
-  if (customerStatus === "watch" || vpnStatus === "detected" || vpnStatus === "unavailable") return "watch";
+  if (customerStatus === "watch" || vpnStatus === "blocked" || vpnStatus === "detected" || vpnStatus === "unavailable") return "watch";
   return "normal";
 }
 

@@ -213,7 +213,7 @@ test('VISITOR-STATUS: prioriza bloqueos activos y usa observacion solo para sena
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'watch' }, vpnNone, [], now), 'watch');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'detected' }, [], now), 'watch');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'unavailable' }, [], now), 'watch');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'blocked' }, [], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'blocked' }, [], now), 'watch');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'blocked' }, vpnNone, [], now), 'blocked');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [activeIpBlock], now), 'blocked');
   assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [expiredIpBlock], now), 'normal');

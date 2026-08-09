@@ -52,11 +52,10 @@ const relatedCustomer = visitor.relatedCustomer;
 const vpnInfo = visitor.vpn;
 const hasVpnSignal = vpnInfo.status !== 'none';
 const networkSummary = visitor.network_summary;
-const vpnStatusLabel = vpnInfo.status === 'blocked'
-  ? 'VPN o proxy bloqueado'
-  : (vpnInfo.status === 'detected'
-    ? 'VPN o proxy detectado'
-    : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada'));
+const vpnStatusLabel = vpnInfo.status === 'blocked' || vpnInfo.status === 'detected'
+  ? 'VPN o proxy'
+  : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada');
+const vpnBadgeStatus = vpnInfo.status === 'blocked' ? 'detected' : vpnInfo.status;
 const securityStatusLabels = {
   normal: 'Normal',
   watch: 'En observacion',
@@ -64,10 +63,11 @@ const securityStatusLabels = {
 };
 const networkStatusLabels = {
   normal: 'Normal',
-  detected: 'VPN o proxy detectado',
-  blocked: 'VPN o proxy bloqueado',
+  detected: 'VPN o proxy',
+  blocked: 'VPN o proxy',
   unavailable: 'Verificacion no disponible',
 };
+const currentIpBadgeStatus = networkSummary.current_ip_status === 'blocked' ? 'detected' : networkSummary.current_ip_status;
 const ordersOpen = Boolean(relatedCustomer && (orders.page > 1 || Astro.url.searchParams.get('orders_open') === '1'));
 const customerHref = relatedCustomer
   ? `${basePath}?section=customers&customer=${encodeURIComponent(relatedCustomer.id)}&orders_page=1&events_page=1`
@@ -169,7 +169,7 @@ function pluralIp(value: number) {
           <span>IP actual</span>
           <strong class="summary-value-stack">
             <span>{getIpDisplayValue(visitor)}</span>
-            <span class:list={['network-status-pill', `is-${networkSummary.current_ip_status}`]}>{networkStatusLabels[networkSummary.current_ip_status]}</span>
+            <span class:list={['network-status-pill', `is-${currentIpBadgeStatus}`]}>{networkStatusLabels[networkSummary.current_ip_status]}</span>
             {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
           </strong>
         </div>
@@ -186,7 +186,7 @@ function pluralIp(value: number) {
           <div class="summary-list">
             <div class="summary-row">
               <span>VPN o proxy</span>
-              <strong><span class:list={['vpn-status-pill', `is-${vpnInfo.status}`]}>{vpnStatusLabel}</span></strong>
+              <strong><span class:list={['vpn-status-pill', `is-${vpnBadgeStatus}`]}>{vpnStatusLabel}</span></strong>
             </div>
             {vpnInfo.observed_at && (
               <div class="summary-row">
@@ -295,6 +295,7 @@ function pluralIp(value: number) {
           <div class="table-body">
             {pageviews.items.map((pageview) => {
               const canOpen = pageview.canOpen && Boolean(pageview.openPath);
+              const networkBadgeStatus = pageview.networkStatus === 'blocked' ? 'detected' : pageview.networkStatus;
               return (
                 <article class="table-row" role="row">
                   <div class="table-cell" role="cell" data-label="Hora">{formatDateTime(pageview.occurred_at || pageview.created)}</div>
@@ -304,7 +305,7 @@ function pluralIp(value: number) {
                   {showIp && (
                     <div class="table-cell ip-cell" role="cell" data-label="IP">
                       <span>{getIpDisplayValue(pageview)}</span>
-                      <span class:list={['network-status-pill', `is-${pageview.networkStatus}`]}>{networkStatusLabels[pageview.networkStatus]}</span>
+                      <span class:list={['network-status-pill', `is-${networkBadgeStatus}`]}>{networkStatusLabels[pageview.networkStatus]}</span>
                       {getIpUnavailableNote(pageview) && <small>{getIpUnavailableNote(pageview)}</small>}
                     </div>
                   )}
