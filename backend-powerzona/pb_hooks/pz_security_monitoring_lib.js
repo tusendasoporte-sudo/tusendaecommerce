@@ -1253,16 +1253,22 @@ function parseVisitorDetailPayload(body) {
   const keys = getBodyKeys(body).sort();
   const baseKeys = ["orders_page", "page", "store_id", "visitor_session_id"];
   const rangeKeys = ["orders_page", "page", "range", "store_id", "visitor_session_id"];
+  const historyKeys = ["full_history", "network_page", "orders_page", "page", "range", "store_id", "visitor_session_id"];
   const validKeys = (keys.length === baseKeys.length && keys.every((key, index) => key === baseKeys[index]))
-    || (keys.length === rangeKeys.length && keys.every((key, index) => key === rangeKeys[index]));
+    || (keys.length === rangeKeys.length && keys.every((key, index) => key === rangeKeys[index]))
+    || (keys.length === historyKeys.length && keys.every((key, index) => key === historyKeys[index]));
   if (!validKeys) return null;
   const storeId = String(getBodyValue(body, "store_id") || "").trim();
   const visitorSessionId = String(getBodyValue(body, "visitor_session_id") || "").trim();
   const page = normalizePositivePage(getBodyValue(body, "page"));
   const ordersPage = normalizePositivePage(getBodyValue(body, "orders_page"));
   const range = normalizeVisitorRange(getBodyValue(body, "range"));
-  if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId) || !page || !ordersPage) return null;
-  return { storeId, visitorSessionId, page, ordersPage, range };
+  const hasHistoryOptions = keys.length === historyKeys.length;
+  const rawFullHistory = hasHistoryOptions ? getBodyValue(body, "full_history") : false;
+  const networkPage = hasHistoryOptions ? normalizePositivePage(getBodyValue(body, "network_page")) : 1;
+  if (hasHistoryOptions && typeof rawFullHistory !== "boolean") return null;
+  if (!isValidRecordId(storeId) || !isValidRecordId(visitorSessionId) || !page || !ordersPage || !networkPage) return null;
+  return { storeId, visitorSessionId, page, ordersPage, range, fullHistory: rawFullHistory === true, networkPage };
 }
 
 function listSecurityPage(app, collection, filter, sort, page, params) {
@@ -1524,6 +1530,23 @@ function listRelatedVisitorSessions(app, storeId, sourceSession, range) {
   if (identity.field === "id") return [sourceSession];
   const today = getHavanaDay(new Date());
   const cutoffDay = visitorRangeCutoffDay(today, range);
+  const params = { store: storeId, cutoffDay, today, identity: identity.value };
+  const sessions = listRecordsPaged(
+    app,
+    VISITOR_SESSIONS_COLLECTION,
+    `store = {:store} && day >= {:cutoffDay} && day <= {:today} && ${identity.field} = {:identity}`,
+    "-last_seen_at,-id",
+    params,
+    200
+  );
+  return sessions.length ? sessions : [sourceSession];
+}
+
+function listRelatedVisitorSessionsForHistory(app, storeId, sourceSession) {
+  const identity = visitorSessionIdentity(sourceSession);
+  if (identity.field === "id") return [sourceSession];
+  const today = getHavanaDay(new Date());
+  const cutoffDay = addDaysToDay(today, -(VISITOR_SESSION_RETENTION_DAYS - 1));
   const params = { store: storeId, cutoffDay, today, identity: identity.value };
   const sessions = listRecordsPaged(
     app,
@@ -1859,20 +1882,27 @@ function handleSecurityVisitorDetail(e) {
       return e.json(404, { ok: false, error: "not_found" });
     }
     const relatedSessions = listRelatedVisitorSessions($app, payload.storeId, visitor, payload.range);
-    const visitorGroup = buildVisitorSessionGroup(relatedSessions) || buildVisitorSessionGroup([visitor]);
+    const historicalSessions = listRelatedVisitorSessionsForHistory($app, payload.storeId, visitor);
+    const displayedSessions = payload.fullHistory ? historicalSessions : relatedSessions;
+    const visitorGroup = buildVisitorSessionGroup(displayedSessions) || buildVisitorSessionGroup([visitor]);
     const representative = visitorGroup.representative;
     const customerId = visitorGroup.customerId;
     const customerMap = buildSanitizedCustomerMap($app, payload.storeId, [customerId]);
     const relatedCustomer = customerMap[customerId] || null;
-    const historicalIpSources = visitorHistoricalIpSources($app, payload.storeId, relatedSessions);
+    const historicalIpSources = visitorHistoricalIpSources($app, payload.storeId, historicalSessions);
     const vpnEvents = listVisitorVpnEvents($app, payload.storeId, representative, 200);
     const vpn = buildVisitorVpnInfo($app, payload.storeId, representative, vpnEvents);
     const network = buildVisitorNetworkState(representative, historicalIpSources, vpnEvents);
+    const networkHistory = paginateArray(
+      buildVisitorNetworkHistory(historicalIpSources, network, access.settings),
+      payload.networkPage,
+      SECURITY_MONITORING_PAGE_SIZE
+    );
     const activeBlocks = listVisitorStatusBlocks($app, payload.storeId);
     const pageviewFilter = buildStoreRelationFilter(
       payload.storeId,
       "visitor_session",
-      relatedSessions.map((session) => session.id)
+      displayedSessions.map((session) => session.id)
     );
     const allPageviews = pageviewFilter
       ? listRecordsPaged($app, VISITOR_PAGEVIEWS_COLLECTION, pageviewFilter.filter, "occurred_at,id", pageviewFilter.params, 200)
@@ -1892,6 +1922,9 @@ function handleSecurityVisitorDetail(e) {
     return e.json(200, {
       ok: true,
       range: payload.range,
+      full_history: payload.fullHistory,
+      history_retention_days: VISITOR_SESSION_RETENTION_DAYS,
+      pageview_retention_days: VISITOR_PAGEVIEW_RETENTION_DAYS,
       visitor: Object.assign(
         serializeVisitorSessionGroup(visitorGroup, access.settings, customerMap),
         {
@@ -1902,6 +1935,7 @@ function handleSecurityVisitorDetail(e) {
       ),
       orders,
       orders_error: ordersError,
+      network_history: networkHistory,
       pageviews: {
         page: pageviews.page,
         perPage: pageviews.perPage,
@@ -3587,24 +3621,49 @@ function visitorHistoricalIpSources(app, storeId, sourceSession) {
     .filter((session) => session && getRelationId(session, "store") === storeId);
   if (!sourceSessions.length) return [];
   const sources = [];
-  const seenHmacs = {};
-  const addSource = (record, kind, capture, lastSeenAt, isCurrent) => {
+  const sourceByHmac = {};
+  const addSource = (record, kind, capture, firstSeenAt, lastSeenAt, isCurrent) => {
     const sourceId = String(record && record.id || "").trim();
     const ipHmac = String(capture && capture.ip_hmac || "").trim();
-    if (!isValidRecordId(sourceId) || !isValidHmacValue(ipHmac) || seenHmacs[ipHmac] || sources.length >= 50) return;
-    seenHmacs[ipHmac] = true;
-    sources.push({
+    if (!isValidRecordId(sourceId) || !isValidHmacValue(ipHmac)) return;
+    const firstSeen = String(firstSeenAt || lastSeenAt || "");
+    const lastSeen = String(lastSeenAt || firstSeenAt || "");
+    const existing = sourceByHmac[ipHmac];
+    if (existing) {
+      if (!existing.first_seen_at || (firstSeen && Date.parse(firstSeen) < Date.parse(existing.first_seen_at))) {
+        existing.first_seen_at = firstSeen;
+      }
+      if (!existing.last_seen_at || (lastSeen && Date.parse(lastSeen) > Date.parse(existing.last_seen_at))) {
+        existing.last_seen_at = lastSeen;
+      }
+      existing.sightings_count += 1;
+      existing.is_current = existing.is_current || isCurrent === true;
+      return;
+    }
+    if (sources.length >= 50) return;
+    const source = {
       source_id: sourceId,
       kind,
       record,
       capture,
-      last_seen_at: String(lastSeenAt || ""),
+      first_seen_at: firstSeen,
+      last_seen_at: lastSeen,
+      sightings_count: 1,
       is_current: isCurrent === true,
-    });
+    };
+    sourceByHmac[ipHmac] = source;
+    sources.push(source);
   };
 
   sourceSessions.forEach((session, index) => {
-    addSource(session, "session", captureFromVisitorSession(session), getString(session, "last_seen_at"), index === 0);
+    addSource(
+      session,
+      "session",
+      captureFromVisitorSession(session),
+      getString(session, "first_seen_at") || getString(session, "created"),
+      getString(session, "last_seen_at") || getString(session, "updated"),
+      index === 0
+    );
   });
   if (!findCollectionSafe(app, VISITOR_PAGEVIEWS_COLLECTION)) return sources;
   let pageviews = [];
@@ -3624,9 +3683,37 @@ function visitorHistoricalIpSources(app, storeId, sourceSession) {
       : [];
   }
   pageviews.forEach((pageview) => {
-    addSource(pageview, "pageview", captureFromVisitorPageview(pageview), getString(pageview, "occurred_at"), false);
+    const occurredAt = getString(pageview, "occurred_at") || getString(pageview, "created");
+    addSource(pageview, "pageview", captureFromVisitorPageview(pageview), occurredAt, occurredAt, false);
   });
   return sources;
+}
+
+function buildVisitorNetworkHistory(ipSources, networkState, settings) {
+  const statusByIpHmac = networkState && networkState.statusByIpHmac || {};
+  return (Array.isArray(ipSources) ? ipSources : [])
+    .map((source) => {
+      const ipHmac = String(source && source.capture && source.capture.ip_hmac || "").trim();
+      const display = source.kind === "session"
+        ? getVisitorSessionIpDisplay(source.record, settings)
+        : getRecordIpDisplay(source.record, settings);
+      const network = statusByIpHmac[ipHmac] || { status: "normal", observed_at: "" };
+      return {
+        ip_display: display.ip_display,
+        ip_resolution_status: display.ip_resolution_status,
+        network_status: network.status,
+        network_observed_at: network.observed_at,
+        first_seen_at: String(source.first_seen_at || source.last_seen_at || ""),
+        last_seen_at: String(source.last_seen_at || source.first_seen_at || ""),
+        sightings_count: Math.max(1, Number(source.sightings_count) || 1),
+      };
+    })
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.last_seen_at);
+      const rightTime = Date.parse(right.last_seen_at);
+      return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0)
+        || String(left.ip_display || "").localeCompare(String(right.ip_display || ""));
+    });
 }
 
 function resolveManualIpSource(app, parsed, settings, secret) {
@@ -4823,6 +4910,7 @@ module.exports = {
     normalizeVisitorRange,
     visitorRangeCutoffDay,
     groupVisitorSessions,
+    listRelatedVisitorSessionsForHistory,
     paginateArray,
     visitorRetentionCutoffs,
     cleanupVisitors,
@@ -4831,6 +4919,7 @@ module.exports = {
     buildVisitorCustomerOrdersDetail,
     buildVisitorVpnInfo,
     buildVisitorNetworkState,
+    buildVisitorNetworkHistory,
     buildVisitorSecurityStatus,
     buildActivityNavigation,
     buildSecurityBlockDetail,

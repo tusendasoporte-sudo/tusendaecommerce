@@ -17,6 +17,7 @@ import {
   type PaginatedResult,
   type SecurityOrder,
   type SecuritySettingsView,
+  type SecurityVisitorNetworkHistoryRow,
   type SecurityVisitorPageviewRow,
   type SecurityVisitorSessionRow,
   type VisitorRangeFilter,
@@ -28,10 +29,12 @@ interface Props {
   adminOrdersPath?: string;
   backHref?: string;
   visitorRange?: VisitorRangeFilter;
+  fullHistory?: boolean;
   settings: SecuritySettingsView;
   visitor: SecurityVisitorSessionRow;
   orders: PaginatedResult<SecurityOrder>;
   ordersError?: boolean;
+  networkHistory: PaginatedResult<SecurityVisitorNetworkHistoryRow>;
   pageviews: PaginatedResult<SecurityVisitorPageviewRow>;
   viewError?: string;
 }
@@ -42,10 +45,12 @@ const {
   adminOrdersPath = '',
   backHref = '',
   visitorRange = 'today',
+  fullHistory = false,
   settings,
   visitor,
   orders,
   ordersError = false,
+  networkHistory,
   pageviews,
   viewError = '',
 } = Astro.props;
@@ -61,6 +66,10 @@ const rangeDescriptions: Record<VisitorRangeFilter, string> = {
   days_30: 'Actividad registrada durante los últimos 30 días.',
 };
 const visitorsBackHref = backHref || `${basePath}?section=visitors${visitorRange === 'today' ? '' : `&visitor_range=${encodeURIComponent(visitorRange)}`}`;
+const detailScopeLabel = fullHistory ? 'Historial completo' : rangeLabels[visitorRange];
+const detailScopeDescription = fullHistory
+  ? 'Resumen e IP relacionadas conservadas hasta 90 días. La navegación detallada se conserva hasta 30 días.'
+  : rangeDescriptions[visitorRange];
 
 const showIp = String(settings.ip_visibility || 'hidden') !== 'hidden';
 const relatedCustomer = visitor.relatedCustomer;
@@ -106,8 +115,10 @@ function pageLabel(result: PaginatedResult<unknown>) {
 function detailHref(page: number, ordersPage: number, keepOrdersOpen = false) {
   const query = new URLSearchParams();
   if (visitorRange !== 'today') query.set('visitor_range', visitorRange);
+  if (fullHistory) query.set('history', 'full');
   if (page > 1) query.set('page', String(page));
   if (ordersPage > 1) query.set('orders_page', String(ordersPage));
+  if (fullHistory && networkHistory.page > 1) query.set('network_page', String(networkHistory.page));
   if (keepOrdersOpen) query.set('orders_open', '1');
   const suffix = query.toString();
   return `${basePath}/visitors/${encodeURIComponent(visitor.id)}${suffix ? `?${suffix}` : ''}`;
@@ -119,6 +130,25 @@ function detailPageHref(page: number) {
 
 function ordersPageHref(page: number) {
   return detailHref(pageviews.page, page, true);
+}
+
+function networkPageHref(page: number) {
+  const query = new URLSearchParams();
+  if (visitorRange !== 'today') query.set('visitor_range', visitorRange);
+  query.set('history', 'full');
+  if (pageviews.page > 1) query.set('page', String(pageviews.page));
+  if (orders.page > 1) query.set('orders_page', String(orders.page));
+  if (page > 1) query.set('network_page', String(page));
+  if (ordersOpen) query.set('orders_open', '1');
+  return `${basePath}/visitors/${encodeURIComponent(visitor.id)}?${query.toString()}`;
+}
+
+function historyModeHref(showFullHistory: boolean) {
+  const query = new URLSearchParams();
+  if (visitorRange !== 'today') query.set('visitor_range', visitorRange);
+  if (showFullHistory) query.set('history', 'full');
+  const suffix = query.toString();
+  return `${basePath}/visitors/${encodeURIComponent(visitor.id)}${suffix ? `?${suffix}` : ''}`;
 }
 
 function orderHref(order: SecurityOrder) {
@@ -133,7 +163,7 @@ function pluralIp(value: number) {
 <section class="visitor-detail" aria-label={`Detalle de visitante de ${storeName}`}>
   <header class="detail-head">
     <div>
-      <p class="detail-kicker">Visitantes · {rangeLabels[visitorRange]}</p>
+      <p class="detail-kicker">Visitantes · {detailScopeLabel}</p>
       <div class="detail-title-row">
         <h2>{getVisitorDisplayName(visitor)}</h2>
         {relatedCustomer && <span class="identity-pill is-customer">Cliente identificado</span>}
@@ -153,7 +183,7 @@ function pluralIp(value: number) {
       <div>
         <p class="admin-compact-summary__eyebrow">Resumen</p>
         <h3 id="visitor-summary-title" class="admin-compact-summary__title">Visitante</h3>
-        <p class="admin-compact-summary__subtitle">{rangeDescriptions[visitorRange]}</p>
+        <p class="admin-compact-summary__subtitle">{detailScopeDescription}</p>
       </div>
     </div>
 
@@ -178,10 +208,11 @@ function pluralIp(value: number) {
         </p>
       </article>
       <article class="admin-compact-summary__item is-warn">
-        <p class="admin-compact-summary__label">Red</p>
+        <p class="admin-compact-summary__label">Red conocida</p>
         <p class="admin-compact-summary__value is-text summary-value-stack">
-          <span>{pluralIp(networkSummary.ip_count)} · {formatNumber(networkSummary.vpn_ip_count)} con VPN o proxy</span>
+          <span>{pluralIp(networkSummary.ip_count)} relacionadas · {formatNumber(networkSummary.vpn_ip_count)} con VPN o proxy</span>
           {networkSummary.unavailable_ip_count > 0 && <small>{formatNumber(networkSummary.unavailable_ip_count)} sin verificacion disponible</small>}
+          <small>Historial del mismo visitante conservado hasta 90 días</small>
         </p>
       </article>
       {showIp && (
@@ -234,12 +265,70 @@ function pluralIp(value: number) {
       </details>
     )}
 
-    {customerHref && (
-      <div class="summary-actions">
+    <div class="summary-actions">
+      <a class="row-action" href={historyModeHref(!fullHistory)}>{fullHistory ? `Volver a ${rangeLabels[visitorRange]}` : 'Ver historial completo'}</a>
+      {customerHref && (
         <a class="row-action" href={customerHref}>Ver ficha del cliente</a>
-      </div>
-    )}
+      )}
+    </div>
   </section>
+
+  {fullHistory && (
+    <section class="detail-card" aria-labelledby="visitor-network-history-title">
+      <div class="section-head">
+        <div>
+          <h3 id="visitor-network-history-title">Historial de red</h3>
+          <p>IP relacionadas con este visitante durante los últimos 90 días.</p>
+        </div>
+      </div>
+
+      {networkHistory.items.length > 0 ? (
+        <>
+          <div class="network-history-table" role="table" aria-label="Historial de IP relacionadas con el visitante">
+            <div class="table-head" role="row">
+              <span role="columnheader">IP</span>
+              <span role="columnheader">Estado</span>
+              <span role="columnheader">Primera detección</span>
+              <span role="columnheader">Última detección</span>
+              <span role="columnheader">Registros</span>
+            </div>
+            <div class="table-body">
+              {networkHistory.items.map((networkEntry) => {
+                const historyBadgeStatus = networkEntry.networkStatus === 'blocked' ? 'detected' : networkEntry.networkStatus;
+                return (
+                  <article class="table-row" role="row">
+                    <div class="table-cell ip-cell" role="cell" data-label="IP">
+                      <strong>{getIpDisplayValue(networkEntry)}</strong>
+                      {getIpUnavailableNote(networkEntry) && <small>{getIpUnavailableNote(networkEntry)}</small>}
+                    </div>
+                    <div class="table-cell" role="cell" data-label="Estado">
+                      <span class:list={['network-status-pill', `is-${historyBadgeStatus}`]}>{networkStatusLabels[networkEntry.networkStatus]}</span>
+                    </div>
+                    <div class="table-cell" role="cell" data-label="Primera detección">{formatDateTime(networkEntry.first_seen_at)}</div>
+                    <div class="table-cell" role="cell" data-label="Última detección">{formatDateTime(networkEntry.last_seen_at)}</div>
+                    <div class="table-cell" role="cell" data-label="Registros">{formatNumber(networkEntry.sightings_count)}</div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          {networkHistory.totalPages > 1 && (
+            <div class="pagination-bar" aria-label="Paginación del historial de red">
+              <span>{pageLabel(networkHistory)}</span>
+              <div class="pagination-actions">
+                <a class:list={['page-button', { disabled: networkHistory.page <= 1 }]} href={networkPageHref(Math.max(1, networkHistory.page - 1))}>Anterior</a>
+                {pageWindow(networkHistory).map((page) => <a class:list={['page-button', { 'is-active': page === networkHistory.page }]} href={networkPageHref(page)}>{page}</a>)}
+                <a class:list={['page-button', { disabled: networkHistory.page >= networkHistory.totalPages }]} href={networkPageHref(Math.min(networkHistory.totalPages, networkHistory.page + 1))}>Siguiente</a>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div class="empty-state">No hay IP relacionadas disponibles para este visitante.</div>
+      )}
+    </section>
+  )}
 
   {relatedCustomer && (
     <details class="detail-card customer-orders-disclosure" open={ordersOpen}>
@@ -298,6 +387,7 @@ function pluralIp(value: number) {
       <div>
         <h3 id="visitor-pages-title">Paginas navegadas</h3>
         <p>{pageLabel(pageviews)}</p>
+        {fullHistory && <p>Detalle disponible dentro de la retención de 30 días.</p>}
       </div>
     </div>
 
@@ -763,7 +853,8 @@ function pluralIp(value: number) {
     background: #f8fafc;
   }
 
-  .pages-table {
+  .pages-table,
+  .network-history-table {
     display: grid;
     overflow: visible;
     border: 1px solid #e2e8f0;
@@ -783,6 +874,11 @@ function pluralIp(value: number) {
   .pages-table.has-ip .table-head,
   .pages-table.has-ip .table-row {
     grid-template-columns: minmax(120px, .8fr) minmax(110px, .7fr) minmax(150px, 1fr) minmax(170px, 1.1fr) minmax(120px, .75fr) minmax(96px, .55fr);
+  }
+
+  .network-history-table .table-head,
+  .network-history-table .table-row {
+    grid-template-columns: minmax(150px, 1fr) minmax(125px, .7fr) minmax(165px, 1fr) minmax(165px, 1fr) minmax(90px, .45fr);
   }
 
   .table-head {
@@ -1004,7 +1100,8 @@ function pluralIp(value: number) {
       justify-content: stretch;
     }
 
-    .pages-table {
+    .pages-table,
+    .network-history-table {
       border: 0;
       background: transparent;
       overflow: visible;
@@ -1020,7 +1117,8 @@ function pluralIp(value: number) {
     }
 
     .table-row,
-    .pages-table.has-ip .table-row {
+    .pages-table.has-ip .table-row,
+    .network-history-table .table-row {
       display: grid;
       grid-template-columns: 1fr;
       gap: 8px;

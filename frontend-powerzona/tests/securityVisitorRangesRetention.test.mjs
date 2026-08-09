@@ -38,11 +38,39 @@ test('VISITOR-RANGE-DETAIL: el detalle y el boton volver conservan el periodo', 
   assert.match(detail, /visitorRange\?: VisitorRangeFilter/);
   assert.match(detail, /query\.set\('visitor_range', visitorRange\)/);
   assert.match(detail, /visitorsBackHref/);
-  assert.match(detail, /rangeDescriptions\[visitorRange\]/);
+  assert.match(detail, /detailScopeDescription/);
   for (const route of [storeRoute, masterRoute]) {
     assert.match(route, /normalizeVisitorRangeFilter\(Astro\.url\.searchParams\.get\('visitor_range'\)\)/);
-    assert.match(route, /getSecurityVisitorDetail\([^\n]+ordersPage, visitorRange\)/);
+    assert.match(route, /getSecurityVisitorDetail\([^\n]+ordersPage, visitorRange, fullHistory, networkPage\)/);
     assert.match(route, /visitorRange=\{visitorRange\}/);
+  }
+});
+
+test('VISITOR-HISTORY: Red conocida es global y el historial completo conserva el periodo de retorno', () => {
+  const detail = read('../src/components/admin/SecurityVisitorDetailView.astro');
+  const client = read('../src/lib/securityMonitoring.ts');
+  const backend = read('../../backend-powerzona/pb_hooks/pz_security_monitoring_lib.js');
+  const storeRoute = read('../src/pages/t/[storeSlug]/admin/security/visitors/[visitorSessionId].astro');
+  const masterRoute = read('../src/pages/master/security/[storeId]/visitors/[visitorSessionId].astro');
+
+  assert.match(detail, />Red conocida</);
+  assert.match(detail, /Historial del mismo visitante conservado hasta 90 días/);
+  assert.match(detail, /'Ver historial completo'/);
+  assert.match(detail, /historyModeHref/);
+  assert.match(detail, /networkPageHref/);
+  assert.match(detail, /Historial de red/);
+  assert.match(detail, /networkHistory\.totalPages > 1/);
+  assert.match(detail, /retención de 30 días/);
+  assert.match(client, /full_history: fullHistory === true/);
+  assert.match(client, /network_page: safeNetworkPage/);
+  assert.match(client, /networkHistory: normalizeEndpointPage/);
+  assert.match(backend, /listRelatedVisitorSessionsForHistory/);
+  assert.match(backend, /historicalIpSources = visitorHistoricalIpSources\(\$app, payload\.storeId, historicalSessions\)/);
+  assert.match(backend, /network_history: networkHistory/);
+  for (const route of [storeRoute, masterRoute]) {
+    assert.match(route, /searchParams\.get\('history'\) === 'full'/);
+    assert.match(route, /searchParams\.get\('network_page'\)/);
+    assert.match(route, /networkHistory=\{networkHistory\}/);
   }
 });
 

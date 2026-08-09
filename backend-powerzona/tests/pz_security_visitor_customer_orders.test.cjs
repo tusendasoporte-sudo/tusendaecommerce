@@ -84,11 +84,43 @@ test('VISITOR-ORDERS: detalle exige pagina independiente de pedidos', () => {
     page: 1,
     ordersPage: 2,
     range: 'today',
+    fullHistory: false,
+    networkPage: 1,
   });
   assert.equal(monitoring._test.parseVisitorDetailPayload({
     store_id: STORE_ID,
     visitor_session_id: VISITOR_ID,
     page: 1,
+  }), null);
+});
+
+test('VISITOR-HISTORY: acepta el historial completo con paginacion de red estricta', () => {
+  assert.deepEqual(monitoring._test.parseVisitorDetailPayload({
+    store_id: STORE_ID,
+    visitor_session_id: VISITOR_ID,
+    page: 2,
+    orders_page: 3,
+    range: 'days_7',
+    full_history: true,
+    network_page: 4,
+  }), {
+    storeId: STORE_ID,
+    visitorSessionId: VISITOR_ID,
+    page: 2,
+    ordersPage: 3,
+    range: 'days_7',
+    fullHistory: true,
+    networkPage: 4,
+  });
+
+  assert.equal(monitoring._test.parseVisitorDetailPayload({
+    store_id: STORE_ID,
+    visitor_session_id: VISITOR_ID,
+    page: 1,
+    orders_page: 1,
+    range: 'today',
+    full_history: 'true',
+    network_page: 1,
   }), null);
 });
 
@@ -282,6 +314,48 @@ test('VISITOR-VPN-IP: cada IP conserva solo su estado seguro sin exponer la huel
   assert.equal(state.statusByIpHmac[currentIpHmac].status, 'unavailable');
   assert.equal(state.statusByIpHmac[outsiderIpHmac], undefined);
   assert.doesNotMatch(JSON.stringify(state.summary), /a{32}|b{32}|c{32}/);
+});
+
+test('VISITOR-HISTORY-IP: serializa el historial sin exponer huellas protegidas', () => {
+  const firstIpHmac = 'h'.repeat(64);
+  const secondIpHmac = 'j'.repeat(64);
+  const settings = new MockRecord({ ip_visibility: 'partial' });
+  const sources = [
+    {
+      kind: 'session',
+      record: new MockRecord({ latest_ip_masked: '203.0.113.x' }),
+      capture: { ip_hmac: firstIpHmac },
+      first_seen_at: '2026-08-01 10:00:00.000Z',
+      last_seen_at: '2026-08-09 10:00:00.000Z',
+      sightings_count: 6,
+    },
+    {
+      kind: 'pageview',
+      record: new MockRecord({ ip_masked: '198.51.100.x' }),
+      capture: { ip_hmac: secondIpHmac },
+      first_seen_at: '2026-08-02 10:00:00.000Z',
+      last_seen_at: '2026-08-08 10:00:00.000Z',
+      sightings_count: 3,
+    },
+  ];
+  const history = monitoring._test.buildVisitorNetworkHistory(sources, {
+    statusByIpHmac: {
+      [firstIpHmac]: { status: 'detected', observed_at: '2026-08-09 10:00:00.000Z' },
+    },
+  }, settings);
+
+  assert.equal(history.length, 2);
+  assert.deepEqual(history[0], {
+    ip_display: '203.0.113.x',
+    ip_resolution_status: 'masked',
+    network_status: 'detected',
+    network_observed_at: '2026-08-09 10:00:00.000Z',
+    first_seen_at: '2026-08-01 10:00:00.000Z',
+    last_seen_at: '2026-08-09 10:00:00.000Z',
+    sightings_count: 6,
+  });
+  assert.equal(history[1].network_status, 'normal');
+  assert.doesNotMatch(JSON.stringify(history), /h{32}|j{32}|ip_hmac/);
 });
 
 test('VISITOR-STATUS: prioriza bloqueos activos y usa observacion solo para senales que requieren atencion', () => {

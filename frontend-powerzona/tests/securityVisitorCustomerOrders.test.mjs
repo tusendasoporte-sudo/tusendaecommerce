@@ -62,7 +62,7 @@ test('VISITOR-ORDERS: pedidos son desplegables, paginados de cinco y conservan a
   assert.match(detail, /Ver pedido/);
   for (const route of [storeRoute, masterRoute]) {
     assert.match(route, /searchParams\.get\('orders_page'\)/);
-    assert.match(route, /getSecurityVisitorDetail\([^\n]+ordersPage, visitorRange\)/);
+    assert.match(route, /getSecurityVisitorDetail\([^\n]+ordersPage, visitorRange, fullHistory, networkPage\)/);
     assert.match(route, /orders=\{orders\}/);
   }
 });
@@ -92,7 +92,7 @@ test('VISITOR-VPN-IP: detalle compacto muestra el estado por IP y agrupa la acci
 
   assert.match(detail, />Estado</);
   assert.match(detail, />Actividad</);
-  assert.match(detail, />Red</);
+  assert.match(detail, />Red conocida</);
   assert.match(detail, /networkSummary\.vpn_ip_count/);
   assert.match(detail, /pageview\.networkStatus/);
   assert.match(detail, /class="row-menu"/);

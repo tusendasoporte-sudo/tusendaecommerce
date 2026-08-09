@@ -518,6 +518,17 @@ export type SecurityVisitorNetworkSummary = {
   current_ip_observed_at: string;
 };
 
+export type SecurityVisitorNetworkHistoryRow = {
+  ip_masked: string;
+  resolved_ip: string;
+  ip_resolution_status: IpResolutionStatus;
+  networkStatus: SecurityVisitorIpNetworkStatus;
+  networkObservedAt: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  sightings_count: number;
+};
+
 export type SecurityVisitorSessionRow = SecurityVisitorSession & {
   relatedCustomer: RelatedCustomer | null;
   vpn: SecurityVisitorVpnInfo;
@@ -556,6 +567,7 @@ export type SecurityVisitorDetailResult = {
   visitor: SecurityVisitorSessionRow | null;
   orders: PaginatedResult<SecurityOrder>;
   ordersError: boolean;
+  networkHistory: PaginatedResult<SecurityVisitorNetworkHistoryRow>;
   pageviews: PaginatedResult<SecurityVisitorPageviewRow>;
 };
 
@@ -1752,6 +1764,20 @@ function normalizeVisitorEndpointPageview(record: any): SecurityVisitorPageviewR
   };
 }
 
+function normalizeVisitorNetworkHistoryRow(record: any): SecurityVisitorNetworkHistoryRow {
+  const ip = normalizeEndpointIp(record);
+  return {
+    ip_masked: ip.ip_masked,
+    resolved_ip: ip.resolved_ip,
+    ip_resolution_status: ip.ip_resolution_status,
+    networkStatus: normalizeVisitorIpNetworkStatus(record?.network_status),
+    networkObservedAt: String(record?.network_observed_at || ''),
+    first_seen_at: String(record?.first_seen_at || ''),
+    last_seen_at: String(record?.last_seen_at || ''),
+    sightings_count: Math.max(0, normalizeNumber(record?.sightings_count)),
+  };
+}
+
 function emptyVisitorDetail(page: number, ordersPage: number): SecurityVisitorDetailResult {
   return {
     visitor: null,
@@ -1763,6 +1789,13 @@ function emptyVisitorDetail(page: number, ordersPage: number): SecurityVisitorDe
       items: [],
     },
     ordersError: false,
+    networkHistory: {
+      page: 1,
+      perPage: VISITORS_PER_PAGE,
+      totalItems: 0,
+      totalPages: 1,
+      items: [],
+    },
     pageviews: {
       page: normalizePage(page),
       perPage: VISITOR_PAGEVIEWS_PER_PAGE,
@@ -1779,10 +1812,13 @@ export async function getSecurityVisitorDetail(
   visitorSessionId: string,
   page: number,
   ordersPage = 1,
-  range: VisitorRangeFilter = 'today'
+  range: VisitorRangeFilter = 'today',
+  fullHistory = false,
+  networkPage = 1
 ): Promise<SecurityVisitorDetailResult> {
   const safePage = normalizePage(page);
   const safeOrdersPage = normalizePage(ordersPage);
+  const safeNetworkPage = normalizePage(networkPage);
   const safeRange = normalizeVisitorRangeFilter(range);
   if (!isValidRecordId(visitorSessionId)) return emptyVisitorDetail(safePage, safeOrdersPage);
 
@@ -1795,6 +1831,8 @@ export async function getSecurityVisitorDetail(
         page: safePage,
         orders_page: safeOrdersPage,
         range: safeRange,
+        full_history: fullHistory === true,
+        network_page: safeNetworkPage,
       },
     });
     if (!response?.ok) throw new Error(String(response?.error || 'visitor_detail_failed'));
@@ -1804,10 +1842,14 @@ export async function getSecurityVisitorDetail(
     const orderItems = Array.isArray(response?.orders?.items)
       ? response.orders.items.map(normalizeCustomerDetailOrder)
       : [];
+    const networkHistoryItems = Array.isArray(response?.network_history?.items)
+      ? response.network_history.items.map(normalizeVisitorNetworkHistoryRow)
+      : [];
     return {
       visitor: response.visitor ? normalizeVisitorEndpointSession(response.visitor) : null,
       orders: normalizeEndpointPage(response.orders, orderItems, safeOrdersPage, VISITOR_CUSTOMER_ORDERS_PER_PAGE),
       ordersError: response?.orders_error === true,
+      networkHistory: normalizeEndpointPage(response.network_history, networkHistoryItems, safeNetworkPage, VISITORS_PER_PAGE),
       pageviews: normalizeEndpointPage(response.pageviews, pageviewItems, safePage, VISITOR_PAGEVIEWS_PER_PAGE),
     };
   } catch (error: any) {

@@ -11,6 +11,7 @@ import {
   normalizeVisitorRangeFilter,
   type PaginatedResult,
   type SecurityOrder,
+  type SecurityVisitorNetworkHistoryRow,
   type SecurityVisitorPageviewRow,
   type SecurityVisitorSessionRow,
 } from '../../../../../lib/securityMonitoring';
@@ -58,7 +59,9 @@ if (!securitySettings.exists) {
 
 const page = normalizePage(Astro.url.searchParams.get('page'));
 const ordersPage = normalizePage(Astro.url.searchParams.get('orders_page'));
+const networkPage = normalizePage(Astro.url.searchParams.get('network_page'));
 const visitorRange = normalizeVisitorRangeFilter(Astro.url.searchParams.get('visitor_range'));
+const fullHistory = Astro.url.searchParams.get('history') === 'full';
 const storeName = String(storeRecord?.name || storeRecord?.slug || 'Tienda').trim();
 const currentStore = {
   id: storeId,
@@ -71,21 +74,23 @@ const basePath = `/master/security/${encodeURIComponent(storeId)}`;
 let visitor: SecurityVisitorSessionRow | null = null;
 let orders: PaginatedResult<SecurityOrder> | null = null;
 let ordersError = false;
+let networkHistory: PaginatedResult<SecurityVisitorNetworkHistoryRow> | null = null;
 let pageviews: PaginatedResult<SecurityVisitorPageviewRow> | null = null;
 let viewError = '';
 
 try {
-  const detail = await getSecurityVisitorDetail(authPb, storeId, visitorSessionId, page, ordersPage, visitorRange);
+  const detail = await getSecurityVisitorDetail(authPb, storeId, visitorSessionId, page, ordersPage, visitorRange, fullHistory, networkPage);
   visitor = detail.visitor;
   if (!visitor) return Astro.redirect(`${basePath}?section=visitors`);
   orders = detail.orders;
   ordersError = detail.ordersError;
+  networkHistory = detail.networkHistory;
   pageviews = detail.pageviews;
 } catch (_) {
   viewError = 'No se pudo cargar el detalle de este visitante en este momento.';
 }
 
-if (!visitor || !orders || !pageviews) {
+if (!visitor || !orders || !networkHistory || !pageviews) {
   return Astro.redirect(`${basePath}?section=visitors`);
 }
 ---
@@ -101,10 +106,12 @@ if (!visitor || !orders || !pageviews) {
         basePath={basePath}
         backHref={`${basePath}?section=visitors${visitorRange === 'today' ? '' : `&visitor_range=${encodeURIComponent(visitorRange)}`}`}
         visitorRange={visitorRange}
+        fullHistory={fullHistory}
         settings={securitySettings}
         visitor={visitor}
         orders={orders}
         ordersError={ordersError}
+        networkHistory={networkHistory}
         pageviews={pageviews}
         viewError={viewError}
       />
