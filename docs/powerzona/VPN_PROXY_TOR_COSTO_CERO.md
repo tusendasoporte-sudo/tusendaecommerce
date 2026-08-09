@@ -48,6 +48,8 @@ Este cambio no modifica la resolución de la IP del visitante ni confía ciegame
 
 `security.checkOrigin` debe permanecer activo. No se autoriza desactivarlo para resolver problemas de proxy, origen o CSRF.
 
+El estado principal y los detalles de seguridad de un visitante corresponden a su IP más reciente. Las IP anteriores bloqueadas o sospechosas permanecen visibles en `Red conocida`, las páginas navegadas y el historial completo, pero no contaminan el estado de una IP actual normal. Un bloqueo manual activo del cliente, dispositivo o IP conserva prioridad sobre esta regla.
+
 ## Flujo de validación en staging
 
 1. Comenzar con `vpn_policy=monitor` y revisar etiquetas y metadatos; activar `block` solo mediante una acción autorizada posterior.

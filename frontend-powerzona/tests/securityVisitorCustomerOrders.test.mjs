@@ -67,7 +67,7 @@ test('VISITOR-ORDERS: pedidos son desplegables, paginados de cinco y conservan a
   }
 });
 
-test('VISITOR-VPN: detalle muestra una deteccion historica vinculada al dispositivo', () => {
+test('VISITOR-VPN: detalle muestra la evaluacion correspondiente a la IP actual', () => {
   const detail = read('../src/components/admin/SecurityVisitorDetailView.astro');
   const client = read('../src/lib/securityMonitoring.ts');
   const backend = read('../../backend-powerzona/pb_hooks/pz_security_monitoring_lib.js');
@@ -75,8 +75,13 @@ test('VISITOR-VPN: detalle muestra una deteccion historica vinculada al disposit
   assert.match(client, /export type SecurityVisitorVpnInfo/);
   assert.match(client, /vpn: normalizeVisitorVpnInfo\(record\?\.vpn\)/);
   assert.match(backend, /browser_token_hmac = \{:browserTokenHmac\}/);
+  assert.match(backend, /ip_hmac = \{:currentIpHmac\}/);
   assert.match(backend, /buildVisitorVpnInfo\(\$app, payload\.storeId, (?:visitor|representative)(?:, vpnEvents)?\)/);
-  assert.doesNotMatch(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /ip_hmac|ip_masked|resolved_ip/);
+  assert.match(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /latest_ip_hmac/);
+  assert.doesNotMatch(backend.slice(backend.indexOf('function buildVisitorVpnInfo'), backend.indexOf('function visitorNetworkStatusFromEvent')), /ip_masked|resolved_ip/);
+  assert.match(detail, /Estado actual/);
+  assert.match(detail, /Detalles de la IP actual/);
+  assert.match(detail, /Las IP anteriores permanecen en Red conocida y en el historial completo/);
   assert.match(detail, /isVpnEvent \? 'VPN o proxy' : 'Senal de red'/);
   assert.match(detail, /labelFromMap\(EVENT_TYPE_LABELS, vpnInfo\.event_type\)/);
   assert.match(detail, /vpnInfo\.event_type === 'vpn_detected' \|\| vpnInfo\.event_type === 'vpn_blocked'/);
@@ -91,7 +96,7 @@ test('VISITOR-VPN-IP: detalle compacto muestra el estado por IP y agrupa la acci
   const client = read('../src/lib/securityMonitoring.ts');
   const backend = read('../../backend-powerzona/pb_hooks/pz_security_monitoring_lib.js');
 
-  assert.match(detail, />Estado</);
+  assert.match(detail, />Estado actual</);
   assert.match(detail, />Actividad</);
   assert.match(detail, />Red conocida</);
   assert.match(detail, /networkSummary\.vpn_ip_count/);

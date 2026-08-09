@@ -241,36 +241,41 @@ test('VISITOR-ORDERS: pagina de pedidos contiene maximo cinco y queda aislada po
   assert.equal(second.items[0].order_number, 'PZ-1006');
 });
 
-test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP compartida', () => {
+test('VISITOR-VPN: detalle relaciona la deteccion con el dispositivo y su IP actual', () => {
   const browserTokenHmac = 'v'.repeat(43);
-  const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: browserTokenHmac });
+  const currentIpHmac = 'z'.repeat(64);
+  const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: browserTokenHmac, latest_ip_hmac: currentIpHmac });
   const app = {
     findRecordsByFilter(name, filter, sort, limit, offset, params) {
       assert.equal(name, 'store_security_events');
       assert.match(filter, /browser_token_hmac = \{:browserTokenHmac\}/);
-      assert.doesNotMatch(filter, /ip_hmac|ip_masked|resolved_ip/);
+      assert.match(filter, /ip_hmac = \{:currentIpHmac\}/);
+      assert.doesNotMatch(filter, /ip_masked|resolved_ip/);
       assert.equal(sort, '-occurred_at,-created');
       assert.equal(limit, 50);
       assert.equal(offset, 0);
       assert.equal(params.store, STORE_ID);
       assert.equal(params.browserTokenHmac, browserTokenHmac);
+      assert.equal(params.currentIpHmac, currentIpHmac);
       return [
         new MockRecord({
-          event_type: 'vpn_check_unavailable',
-          decision: 'monitored',
-          risk_level: 'observation',
-          occurred_at: '2026-08-08 18:00:00.000Z',
-        }),
-        new MockRecord({
           event_type: 'vpn_blocked',
+          ip_hmac: currentIpHmac,
           decision: 'blocked',
           risk_level: 'blocked',
-          occurred_at: '2026-08-08 17:00:00.000Z',
+          occurred_at: '2026-08-08 18:00:00.000Z',
           metadata_json: {
             provider: 'ipapi_is:proxycheck_io',
             provider_confidence: 97,
             hosting_consensus: true,
           },
+        }),
+        new MockRecord({
+          event_type: 'vpn_check_unavailable',
+          ip_hmac: currentIpHmac,
+          decision: 'monitored',
+          risk_level: 'observation',
+          occurred_at: '2026-08-08 17:00:00.000Z',
         }),
       ];
     },
@@ -281,7 +286,7 @@ test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP co
     event_type: 'vpn_blocked',
     decision: 'blocked',
     risk_level: 'blocked',
-    observed_at: '2026-08-08 17:00:00.000Z',
+    observed_at: '2026-08-08 18:00:00.000Z',
     provider: 'ipapi_is:proxycheck_io',
     provider_confidence: 97,
     hosting_consensus: true,
@@ -315,10 +320,12 @@ test('VISITOR-VPN: detalle relaciona la deteccion por dispositivo y no por IP co
 });
 
 test('VISITOR-STRICT-NETWORK: prioriza abuso y hosting bloqueados con motivo preciso', () => {
-  const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: 'w'.repeat(43) });
+  const currentIpHmac = 'r'.repeat(64);
+  const visitor = new MockRecord({ id: VISITOR_ID, browser_token_hmac: 'w'.repeat(43), latest_ip_hmac: currentIpHmac });
   const events = [
     new MockRecord({
       event_type: 'abusive_ip_blocked',
+      ip_hmac: currentIpHmac,
       decision: 'blocked',
       risk_level: 'blocked',
       occurred_at: '2026-08-09 21:00:00.000Z',
@@ -349,6 +356,37 @@ test('VISITOR-STRICT-NETWORK: prioriza abuso y hosting bloqueados con motivo pre
   );
   assert.equal(state.summary.current_ip_status, 'blocked');
   assert.equal(state.summary.vpn_ip_count, 1);
+});
+
+test('VISITOR-CURRENT-IP: una IP normal actual no hereda un bloqueo historico', () => {
+  const blockedIpHmac = 'o'.repeat(64);
+  const currentIpHmac = 'n'.repeat(64);
+  const visitor = new MockRecord({
+    id: VISITOR_ID,
+    browser_token_hmac: 'x'.repeat(43),
+    latest_ip_hmac: currentIpHmac,
+  });
+  const events = [
+    new MockRecord({
+      event_type: 'vpn_blocked',
+      ip_hmac: blockedIpHmac,
+      decision: 'blocked',
+      risk_level: 'blocked',
+      occurred_at: '2026-08-09 20:00:00.000Z',
+    }),
+  ];
+
+  const info = monitoring._test.buildVisitorVpnInfo({}, STORE_ID, visitor, events);
+  const state = monitoring._test.buildVisitorNetworkState(
+    visitor,
+    [{ capture: { ip_hmac: blockedIpHmac } }, { capture: { ip_hmac: currentIpHmac } }],
+    events,
+  );
+
+  assert.equal(info.status, 'none');
+  assert.equal(state.summary.current_ip_status, 'normal');
+  assert.equal(state.summary.vpn_ip_count, 1);
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, state.summary.current_ip_status, [], new Date()), 'normal');
 });
 
 test('VISITOR-VPN-IP: cada IP conserva solo su estado seguro sin exponer la huella protegida', () => {
@@ -439,7 +477,6 @@ test('VISITOR-STATUS: prioriza bloqueos activos y usa observacion solo para sena
     browser_token_hmac: 'd'.repeat(64),
     latest_ip_hmac: 'i'.repeat(64),
   });
-  const vpnNone = { status: 'none' };
   const activeIpBlock = new MockRecord({
     status: 'active',
     starts_at: '2026-08-08T19:00:00.000Z',
@@ -461,15 +498,15 @@ test('VISITOR-STATUS: prioriza bloqueos activos y usa observacion solo para sena
     match_mode: 'all',
   });
 
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [], now), 'normal');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'watch' }, vpnNone, [], now), 'watch');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'detected' }, [], now), 'watch');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'unavailable' }, [], now), 'watch');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, { status: 'blocked' }, [], now), 'blocked');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'blocked' }, vpnNone, [], now), 'blocked');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [activeIpBlock], now), 'blocked');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [expiredIpBlock], now), 'normal');
-  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, vpnNone, [incompleteAllBlock], now), 'normal');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'normal', [], now), 'normal');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'watch' }, 'normal', [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'detected', [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'unavailable', [], now), 'watch');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'blocked', [], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, { status: 'blocked' }, 'normal', [], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'normal', [activeIpBlock], now), 'blocked');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'normal', [expiredIpBlock], now), 'normal');
+  assert.equal(monitoring._test.buildVisitorSecurityStatus(visitor, null, 'normal', [incompleteAllBlock], now), 'normal');
 });
 
 test('ACTIVITY-ACTION: prioriza el bloqueo activo y usa historial solo con una sesion verificable', () => {

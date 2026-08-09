@@ -1580,17 +1580,19 @@ function emptyVisitorVpnInfo() {
 
 function listVisitorVpnEvents(app, storeId, session, limit) {
   const browserTokenHmac = getString(session, "browser_token_hmac");
-  if (!browserTokenHmac) return [];
+  const currentIpHmac = getString(session, "latest_ip_hmac");
+  if (!browserTokenHmac || !isValidHmacValue(currentIpHmac)) return [];
   try {
     return app.findRecordsByFilter(
       SECURITY_EVENTS_COLLECTION,
-      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:suspectedType} || event_type = {:hostingBlockedType} || event_type = {:abuseDetectedType} || event_type = {:abuseBlockedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
+      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && ip_hmac = {:currentIpHmac} && (event_type = {:suspectedType} || event_type = {:hostingBlockedType} || event_type = {:abuseDetectedType} || event_type = {:abuseBlockedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
       "-occurred_at,-created",
       Math.max(1, Number(limit) || 50),
       0,
       {
         store: storeId,
         browserTokenHmac,
+        currentIpHmac,
         suspectedType: "network_suspected",
         hostingBlockedType: "hosting_blocked",
         abuseDetectedType: "abusive_ip_detected",
@@ -1606,19 +1608,18 @@ function listVisitorVpnEvents(app, storeId, session, limit) {
 }
 
 function buildVisitorVpnInfo(app, storeId, session, suppliedEvents) {
-  const events = Array.isArray(suppliedEvents) ? suppliedEvents : listVisitorVpnEvents(app, storeId, session, 50);
-
-  const blockedEvent = events.find((event) => {
-    const eventType = getString(event, "event_type");
-    return eventType === "vpn_blocked" || eventType === "hosting_blocked" || eventType === "abusive_ip_blocked";
-  });
-  const detectedEvent = events.find((event) => {
-    const eventType = getString(event, "event_type");
-    return eventType === "vpn_detected" || eventType === "abusive_ip_detected";
-  });
-  const suspectedEvent = events.find((event) => getString(event, "event_type") === "network_suspected");
-  const unavailableEvent = events.find((event) => getString(event, "event_type") === "vpn_check_unavailable");
-  const event = blockedEvent || detectedEvent || suspectedEvent || unavailableEvent;
+  const currentIpHmac = getString(session, "latest_ip_hmac");
+  if (!isValidHmacValue(currentIpHmac)) return emptyVisitorVpnInfo();
+  const events = (Array.isArray(suppliedEvents) ? suppliedEvents : listVisitorVpnEvents(app, storeId, session, 50))
+    .filter((event) => getString(event, "ip_hmac") === currentIpHmac)
+    .slice()
+    .sort((left, right) => {
+      const leftTime = Date.parse(getString(left, "occurred_at") || getString(left, "created"));
+      const rightTime = Date.parse(getString(right, "occurred_at") || getString(right, "created"));
+      return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0)
+        || String(right && right.id || "").localeCompare(String(left && left.id || ""));
+    });
+  const event = events[0];
   if (!event) return emptyVisitorVpnInfo();
 
   const eventType = getString(event, "event_type");
@@ -1727,16 +1728,16 @@ function visitorStatusBlockIsActive(block, now) {
   return !Number.isFinite(expiresAt) || expiresAt > now.getTime();
 }
 
-function buildVisitorSecurityStatus(session, relatedCustomer, vpnInfo, activeBlocks, nowValue) {
+function buildVisitorSecurityStatus(session, relatedCustomer, currentNetworkStatus, activeBlocks, nowValue) {
   const customerStatus = String(relatedCustomer && relatedCustomer.status || "").trim();
   if (customerStatus === "blocked") return "blocked";
   const now = nowValue instanceof Date ? nowValue : new Date();
   if ((activeBlocks || []).some((block) => visitorStatusBlockIsActive(block, now) && visitorBlockMatchesSession(block, session))) {
     return "blocked";
   }
-  const vpnStatus = String(vpnInfo && vpnInfo.status || "none");
-  if (vpnStatus === "blocked") return "blocked";
-  if (customerStatus === "watch" || vpnStatus === "detected" || vpnStatus === "suspected" || vpnStatus === "unavailable") return "watch";
+  const networkStatus = String(currentNetworkStatus || "normal");
+  if (networkStatus === "blocked") return "blocked";
+  if (customerStatus === "watch" || networkStatus === "detected" || networkStatus === "suspected" || networkStatus === "unavailable") return "watch";
   return "normal";
 }
 
@@ -1901,7 +1902,7 @@ function handleSecurityVisitorsPage(e) {
           serializeVisitorSessionGroup(group, access.settings, customerMap),
           {
             vpn,
-            security_status: buildVisitorSecurityStatus(session, relatedCustomer, vpn, activeBlocks),
+            security_status: buildVisitorSecurityStatus(session, relatedCustomer, vpn.status, activeBlocks),
           }
         );
       }),
@@ -1973,7 +1974,7 @@ function handleSecurityVisitorDetail(e) {
         serializeVisitorSessionGroup(visitorGroup, access.settings, customerMap),
         {
           vpn,
-          security_status: buildVisitorSecurityStatus(representative, relatedCustomer, vpn, activeBlocks),
+          security_status: buildVisitorSecurityStatus(representative, relatedCustomer, network.summary.current_ip_status, activeBlocks),
           network_summary: network.summary,
         }
       ),

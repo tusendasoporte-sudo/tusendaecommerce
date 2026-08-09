@@ -193,7 +193,7 @@ function pluralIp(value: number) {
 
     <div class="admin-compact-summary__list">
       <article class:list={['admin-compact-summary__item', visitor.security_status === 'blocked' ? 'is-danger' : visitor.security_status === 'watch' ? 'is-warn' : 'is-ok']}>
-        <p class="admin-compact-summary__label">Estado</p>
+        <p class="admin-compact-summary__label">Estado actual</p>
         <p class="admin-compact-summary__value is-text"><span class:list={['security-status-pill', `is-${visitor.security_status}`]}>{securityStatusLabels[visitor.security_status]}</span></p>
       </article>
       <article class="admin-compact-summary__item">
@@ -235,8 +235,8 @@ function pluralIp(value: number) {
     {hasVpnSignal && (
       <details class="security-details-disclosure">
         <summary>
-          <span>Detalles de seguridad</span>
-          <small>Ver deteccion, decision y riesgo</small>
+          <span>Detalles de la IP actual</span>
+          <small>Ver evaluacion, decision y riesgo</small>
         </summary>
         <div class="security-details-content">
           <div class="admin-compact-summary__list security-detail-list">
@@ -296,7 +296,7 @@ function pluralIp(value: number) {
             )}
           </div>
           {isVpnEvent && (
-            <p class="vpn-info-note">Deteccion historica asociada a este dispositivo. No significa que el VPN o proxy siga activo en este momento.</p>
+            <p class="vpn-info-note">Ultima evaluacion de riesgo registrada para la IP actual. Las IP anteriores permanecen en Red conocida y en el historial completo.</p>
           )}
           {isAbuseEvent && (
             <p class="vpn-info-note">La IP alcanzo el umbral de abuso configurado para PowerZona. El bloqueo se registra como IP abusiva, no como VPN.</p>
