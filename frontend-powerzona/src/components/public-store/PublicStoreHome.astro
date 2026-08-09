@@ -730,7 +730,18 @@ function getProductOfferView(product: any) {
       margin: 0 0 16px;
       padding: 0;
     }
-    .public-store-brand { gap: 12px; text-decoration: none; }
+    .public-store-brand {
+      width: 100%;
+      min-width: 0;
+      gap: 12px;
+      overflow: hidden;
+      text-decoration: none;
+    }
+    .public-store-brand > div:last-child {
+      min-width: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
     .public-store-logo, .drawer-logo {
       border-radius: 8px;
       background: linear-gradient(135deg, #0b63f6, #2588ff);
@@ -739,6 +750,8 @@ function getProductOfferView(product: any) {
     .public-store-logo { width: 58px; height: 58px; font-size: 23px; }
     .public-store-name {
       display: block;
+      width: 100%;
+      max-width: 100%;
       margin: 0;
       color: #071345;
       font-size: 25px;
@@ -2095,7 +2108,7 @@ function getProductOfferView(product: any) {
     <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
       <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
       <div>
-        <strong class="public-store-name">{storeName}</strong>
+        <strong class="public-store-name" title={storeName}>{storeName}</strong>
       </div>
     </a>
     <a class="public-search-shell" href={searchPath} aria-label="Buscar productos y categorias">

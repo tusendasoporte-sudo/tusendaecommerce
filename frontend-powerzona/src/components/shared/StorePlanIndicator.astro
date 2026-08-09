@@ -64,15 +64,16 @@ const detail = variant === 'store-sidebar'
   .store-plan-indicator--warning { --plan-color: #b45309; --plan-border: #fed7aa; --plan-bg: #fff7ed; }
   .store-plan-indicator--danger { --plan-color: #b91c1c; --plan-border: #fecaca; --plan-bg: #fff1f2; }
   .store-plan-indicator--store-sidebar {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    width: 100%;
-    border: 1px solid var(--plan-border);
-    border-radius: 12px;
-    background: var(--plan-bg);
-    padding: 9px 10px;
+    gap: 7px;
+    width: max-content;
+    max-width: 100%;
+    min-height: 28px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--plan-bg) 72%, transparent);
+    padding: 4px 9px 4px 5px;
   }
   .store-plan-indicator__icon {
     display: inline-flex;
@@ -86,28 +87,33 @@ const detail = variant === 'store-sidebar'
     background: color-mix(in srgb, var(--plan-bg) 60%, #fff);
     color: var(--plan-color);
   }
-  .store-plan-indicator--store-sidebar .store-plan-indicator__icon { width: 34px; height: 34px; }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__icon { width: 20px; height: 20px; border: 0; }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__icon svg { width: 13px; height: 13px; }
   .store-plan-indicator__icon svg { width: 18px; height: 18px; fill: currentColor; }
   .store-plan-indicator__copy { display: flex; min-width: 0; }
-  .store-plan-indicator--store-sidebar .store-plan-indicator__copy { display: grid; gap: 3px; }
+  .store-plan-indicator--store-sidebar .store-plan-indicator__copy { display: flex; align-items: center; gap: 6px; overflow: hidden; }
   .store-plan-indicator__title,
   .store-plan-indicator__detail { min-width: 0; }
   .store-plan-indicator__title { color: var(--plan-color); font-weight: 950; }
   .store-plan-indicator--store-sidebar .store-plan-indicator__title {
     overflow: hidden;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.15;
-    letter-spacing: .025em;
+    letter-spacing: .045em;
     text-overflow: ellipsis;
+    text-transform: uppercase;
     white-space: nowrap;
   }
   .store-plan-indicator__detail { color: #475569; font-weight: 750; }
   .store-plan-indicator--store-sidebar .store-plan-indicator__detail {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-size: 10.5px;
+    gap: 5px;
+    overflow: hidden;
+    font-size: 10px;
     line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .store-plan-indicator__dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #94a3b8; }
   .store-plan-indicator__dot.is-info { background: #3b82f6; }
