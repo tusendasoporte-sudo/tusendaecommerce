@@ -78,7 +78,9 @@ const hasVpnSignal = vpnInfo.status !== 'none';
 const networkSummary = visitor.network_summary;
 const vpnStatusLabel = vpnInfo.status === 'blocked' || vpnInfo.status === 'detected'
   ? 'VPN o proxy'
-  : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada');
+  : (vpnInfo.status === 'suspected'
+    ? 'Red sospechosa sin confirmar VPN'
+    : (vpnInfo.status === 'unavailable' ? 'Verificacion no disponible' : 'Sin deteccion registrada'));
 const vpnBadgeStatus = vpnInfo.status === 'blocked' ? 'detected' : vpnInfo.status;
 const securityStatusLabels = {
   normal: 'Normal',
@@ -87,6 +89,7 @@ const securityStatusLabels = {
 };
 const networkStatusLabels = {
   normal: 'Normal',
+  suspected: 'Red sospechosa',
   detected: 'VPN o proxy',
   blocked: 'VPN o proxy',
   unavailable: 'Verificacion no disponible',
@@ -211,6 +214,7 @@ function pluralIp(value: number) {
         <p class="admin-compact-summary__label">Red conocida</p>
         <p class="admin-compact-summary__value is-text summary-value-stack">
           <span>{pluralIp(networkSummary.ip_count)} relacionadas · {formatNumber(networkSummary.vpn_ip_count)} con VPN o proxy</span>
+          {networkSummary.suspected_ip_count > 0 && <small>{formatNumber(networkSummary.suspected_ip_count)} sospechosas sin confirmar VPN</small>}
           {networkSummary.unavailable_ip_count > 0 && <small>{formatNumber(networkSummary.unavailable_ip_count)} sin verificacion disponible</small>}
           <small>Historial del mismo visitante conservado hasta 90 días</small>
         </p>
@@ -236,12 +240,18 @@ function pluralIp(value: number) {
         <div class="security-details-content">
           <div class="admin-compact-summary__list security-detail-list">
             <article class:list={['admin-compact-summary__item', vpnBadgeStatus === 'blocked' ? 'is-danger' : 'is-warn']}>
-              <p class="admin-compact-summary__label">VPN o proxy</p>
+              {vpnInfo.status === 'suspected'
+                ? <p class="admin-compact-summary__label">Senal de red</p>
+                : <p class="admin-compact-summary__label">VPN o proxy</p>}
               <p class="admin-compact-summary__value is-text"><span class:list={['vpn-status-pill', `is-${vpnBadgeStatus}`]}>{vpnStatusLabel}</span></p>
             </article>
             {vpnInfo.observed_at && (
               <article class="admin-compact-summary__item">
-                <p class="admin-compact-summary__label">{vpnInfo.status === 'unavailable' ? 'Última verificación' : 'Última detección'}</p>
+                <p class="admin-compact-summary__label">
+                  {vpnInfo.status === 'unavailable'
+                    ? 'Última verificación'
+                    : (vpnInfo.status === 'suspected' ? 'Última observación' : 'Última detección')}
+                </p>
                 <p class="admin-compact-summary__value is-text">{formatDateTime(vpnInfo.observed_at)}</p>
               </article>
             )}
@@ -260,6 +270,9 @@ function pluralIp(value: number) {
           </div>
           {(vpnInfo.status === 'detected' || vpnInfo.status === 'blocked') && (
             <p class="vpn-info-note">Deteccion historica asociada a este dispositivo. No significa que el VPN o proxy siga activo en este momento.</p>
+          )}
+          {vpnInfo.status === 'suspected' && (
+            <p class="vpn-info-note">La red presenta contexto de datacenter o abuso, pero el proveedor no confirmo VPN, proxy ni Tor. Esta senal nunca bloquea por si sola.</p>
           )}
         </div>
       </details>
@@ -622,6 +635,7 @@ function pluralIp(value: number) {
   }
 
   .security-status-pill.is-watch,
+  .network-status-pill.is-suspected,
   .network-status-pill.is-detected,
   .network-status-pill.is-unavailable {
     background: #fef3c7;
@@ -634,6 +648,7 @@ function pluralIp(value: number) {
     color: #991b1b;
   }
 
+  .vpn-status-pill.is-suspected,
   .vpn-status-pill.is-detected,
   .vpn-status-pill.is-unavailable {
     background: #fef3c7;

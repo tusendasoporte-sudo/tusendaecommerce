@@ -306,6 +306,7 @@ test('VISITOR-VPN-IP: cada IP conserva solo su estado seguro sin exponer la huel
   assert.deepEqual(state.summary, {
     ip_count: 2,
     vpn_ip_count: 1,
+    suspected_ip_count: 0,
     unavailable_ip_count: 1,
     current_ip_status: 'unavailable',
     current_ip_observed_at: '2026-08-08 17:00:00.000Z',
@@ -314,6 +315,13 @@ test('VISITOR-VPN-IP: cada IP conserva solo su estado seguro sin exponer la huel
   assert.equal(state.statusByIpHmac[currentIpHmac].status, 'unavailable');
   assert.equal(state.statusByIpHmac[outsiderIpHmac], undefined);
   assert.doesNotMatch(JSON.stringify(state.summary), /a{32}|b{32}|c{32}/);
+
+  const suspected = monitoring._test.buildVisitorNetworkState(visitor, sources, [
+    new MockRecord({ event_type: 'network_suspected', ip_hmac: currentIpHmac, occurred_at: '2026-08-08 20:00:00.000Z' }),
+  ]);
+  assert.equal(suspected.summary.suspected_ip_count, 1);
+  assert.equal(suspected.summary.vpn_ip_count, 0);
+  assert.equal(suspected.summary.current_ip_status, 'suspected');
 });
 
 test('VISITOR-HISTORY-IP: serializa el historial sin exponer huellas protegidas', () => {

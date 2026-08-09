@@ -44,7 +44,7 @@ const VISITOR_PAGEVIEW_RETENTION_DAYS = 30;
 const VISITOR_SESSION_RETENTION_DAYS = 90;
 
 const ALLOWED_PAGE_TYPES = ["store_home", "category", "subcategory", "product", "gifts", "search", "checkout", "landing_qr", "other"];
-const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
+const SECURITY_ACTIVITY_EVENT_TYPES = ["all", "order_created", "order_rejected", "review_submitted", "raffle_entry", "blocked_attempt", "blocked_address_match", "network_suspected", "vpn_detected", "vpn_blocked", "vpn_check_unavailable", "admin_action"];
 const SECURITY_ACTIVITY_RISK_LEVELS = ["all", "normal", "suspicious", "blocked"];
 const RESOLVE_SOURCES = ["security_event", "visitor_session", "visitor_pageview"];
 const SECURITY_BLOCK_SCOPES = ["orders", "reviews", "raffles", "all_interactions", "full_access"];
@@ -1575,13 +1575,14 @@ function listVisitorVpnEvents(app, storeId, session, limit) {
   try {
     return app.findRecordsByFilter(
       SECURITY_EVENTS_COLLECTION,
-      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
+      "store = {:store} && browser_token_hmac = {:browserTokenHmac} && (event_type = {:suspectedType} || event_type = {:detectedType} || event_type = {:blockedType} || event_type = {:unavailableType})",
       "-occurred_at,-created",
       Math.max(1, Number(limit) || 50),
       0,
       {
         store: storeId,
         browserTokenHmac,
+        suspectedType: "network_suspected",
         detectedType: "vpn_detected",
         blockedType: "vpn_blocked",
         unavailableType: "vpn_check_unavailable",
@@ -1599,14 +1600,16 @@ function buildVisitorVpnInfo(app, storeId, session, suppliedEvents) {
     const eventType = getString(event, "event_type");
     return eventType === "vpn_detected" || eventType === "vpn_blocked";
   });
-  const event = detectedEvent || events[0];
+  const suspectedEvent = events.find((event) => getString(event, "event_type") === "network_suspected");
+  const unavailableEvent = events.find((event) => getString(event, "event_type") === "vpn_check_unavailable");
+  const event = detectedEvent || suspectedEvent || unavailableEvent;
   if (!event) return emptyVisitorVpnInfo();
 
   const eventType = getString(event, "event_type");
   return {
     status: eventType === "vpn_blocked"
       ? "blocked"
-      : (eventType === "vpn_detected" ? "detected" : "unavailable"),
+      : (eventType === "vpn_detected" ? "detected" : (eventType === "network_suspected" ? "suspected" : "unavailable")),
     event_type: eventType,
     decision: getString(event, "decision"),
     risk_level: getString(event, "risk_level"),
@@ -1618,6 +1621,7 @@ function visitorNetworkStatusFromEvent(event) {
   const eventType = getString(event, "event_type");
   if (eventType === "vpn_blocked") return "blocked";
   if (eventType === "vpn_detected") return "detected";
+  if (eventType === "network_suspected") return "suspected";
   if (eventType === "vpn_check_unavailable") return "unavailable";
   return "normal";
 }
@@ -1654,6 +1658,7 @@ function buildVisitorNetworkState(session, ipSources, events) {
     summary: {
       ip_count: Object.keys(allowedIpHmacs).length,
       vpn_ip_count: statuses.filter((status) => status === "detected" || status === "blocked").length,
+      suspected_ip_count: statuses.filter((status) => status === "suspected").length,
       unavailable_ip_count: statuses.filter((status) => status === "unavailable").length,
       current_ip_status: current.status,
       current_ip_observed_at: current.observed_at,
@@ -1692,7 +1697,7 @@ function buildVisitorSecurityStatus(session, relatedCustomer, vpnInfo, activeBlo
     return "blocked";
   }
   const vpnStatus = String(vpnInfo && vpnInfo.status || "none");
-  if (customerStatus === "watch" || vpnStatus === "blocked" || vpnStatus === "detected" || vpnStatus === "unavailable") return "watch";
+  if (customerStatus === "watch" || vpnStatus === "blocked" || vpnStatus === "detected" || vpnStatus === "suspected" || vpnStatus === "unavailable") return "watch";
   return "normal";
 }
 

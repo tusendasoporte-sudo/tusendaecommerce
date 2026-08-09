@@ -3,7 +3,7 @@ import type { StoreSecuritySettings } from './security';
 
 export const SECURITY_MONITORING_SECTIONS = ['summary', 'activity', 'customers', 'visitors', 'blocked', 'rules'] as const;
 export const CUSTOMER_STATUS_FILTERS = ['all', 'normal', 'watch', 'blocked', 'archived'] as const;
-export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'blocked_address_match', 'vpn_detected', 'vpn_blocked', 'vpn_check_unavailable', 'admin_action'] as const;
+export const EVENT_TYPE_FILTERS = ['all', 'order_created', 'order_rejected', 'review_submitted', 'raffle_entry', 'blocked_attempt', 'blocked_address_match', 'network_suspected', 'vpn_detected', 'vpn_blocked', 'vpn_check_unavailable', 'admin_action'] as const;
 export const EVENT_RISK_FILTERS = ['all', 'normal', 'suspicious', 'blocked'] as const;
 export const SECURITY_BLOCK_STATUS_FILTERS = ['all', 'active', 'expired', 'revoked'] as const;
 export const SECURITY_BLOCK_SCOPE_FILTERS = ['all', 'orders', 'reviews', 'raffles', 'all_interactions', 'full_access'] as const;
@@ -499,7 +499,7 @@ export type SecurityVisitorSession = {
 };
 
 export type SecurityVisitorVpnInfo = {
-  status: 'none' | 'detected' | 'blocked' | 'unavailable';
+  status: 'none' | 'suspected' | 'detected' | 'blocked' | 'unavailable';
   event_type: string;
   decision: string;
   risk_level: string;
@@ -508,11 +508,12 @@ export type SecurityVisitorVpnInfo = {
 
 export type SecurityVisitorStatus = 'normal' | 'watch' | 'blocked';
 
-export type SecurityVisitorIpNetworkStatus = 'normal' | 'detected' | 'blocked' | 'unavailable';
+export type SecurityVisitorIpNetworkStatus = 'normal' | 'suspected' | 'detected' | 'blocked' | 'unavailable';
 
 export type SecurityVisitorNetworkSummary = {
   ip_count: number;
   vpn_ip_count: number;
+  suspected_ip_count: number;
   unavailable_ip_count: number;
   current_ip_status: SecurityVisitorIpNetworkStatus;
   current_ip_observed_at: string;
@@ -1677,7 +1678,7 @@ export async function getSecurityVisitorsTodayPage(
 
 function normalizeVisitorVpnInfo(record: any): SecurityVisitorVpnInfo {
   const rawStatus = String(record?.status || 'none');
-  const status = ['none', 'detected', 'blocked', 'unavailable'].includes(rawStatus)
+  const status = ['none', 'suspected', 'detected', 'blocked', 'unavailable'].includes(rawStatus)
     ? rawStatus as SecurityVisitorVpnInfo['status']
     : 'none';
   return {
@@ -1691,7 +1692,7 @@ function normalizeVisitorVpnInfo(record: any): SecurityVisitorVpnInfo {
 
 function normalizeVisitorIpNetworkStatus(value: unknown): SecurityVisitorIpNetworkStatus {
   const status = String(value || 'normal');
-  return ['normal', 'detected', 'blocked', 'unavailable'].includes(status)
+  return ['normal', 'suspected', 'detected', 'blocked', 'unavailable'].includes(status)
     ? status as SecurityVisitorIpNetworkStatus
     : 'normal';
 }
@@ -1700,6 +1701,7 @@ function normalizeVisitorNetworkSummary(record: any): SecurityVisitorNetworkSumm
   return {
     ip_count: normalizeNumber(record?.ip_count),
     vpn_ip_count: normalizeNumber(record?.vpn_ip_count),
+    suspected_ip_count: normalizeNumber(record?.suspected_ip_count),
     unavailable_ip_count: normalizeNumber(record?.unavailable_ip_count),
     current_ip_status: normalizeVisitorIpNetworkStatus(record?.current_ip_status),
     current_ip_observed_at: String(record?.current_ip_observed_at || ''),
@@ -1905,6 +1907,7 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   raffle_entry: 'Participacion registrada',
   blocked_attempt: 'Intento bloqueado',
   blocked_address_match: 'Dirección vinculada a bloqueo',
+  network_suspected: 'Red sospechosa sin confirmar VPN',
   vpn_detected: 'VPN o proxy detectado',
   vpn_blocked: 'VPN o proxy bloqueado',
   vpn_check_unavailable: 'Verificacion VPN no disponible',

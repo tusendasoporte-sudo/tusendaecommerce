@@ -50,6 +50,9 @@ function fixture(policy = 'monitor', mode = 'protection') {
   const tables = {
     store_security_ip_reputation_cache: [],
     store_security_events: [],
+    security_ip_reputation_usage: [],
+    security_tor_exit_nodes: [],
+    security_tor_feed_state: [],
   };
   const collections = {};
   let sequence = 0;
@@ -66,6 +69,12 @@ function fixture(policy = 'monitor', mode = 'protection') {
         found = rows.find((item) => item.get('store') === params.store && item.get('ip_hmac') === params.ipHmac);
       } else if (name === 'store_security_events') {
         found = rows.find((item) => item.get('event_key') === params.eventKey);
+      } else if (name === 'security_ip_reputation_usage') {
+        found = rows.find((item) => item.get('provider') === params.provider && item.get('utc_day') === params.utcDay);
+      } else if (name === 'security_tor_feed_state') {
+        found = rows.find((item) => item.get('state_key') === params.stateKey);
+      } else if (name === 'security_tor_exit_nodes') {
+        found = rows.find((item) => item.get('batch_id') === params.batchId && item.get('ip_address') === params.ipAddress);
       }
       if (!found) throw new Error(`not_found:${name}`);
       return found;
@@ -174,6 +183,198 @@ test('VPN-POLICY: solo acepta las tres banderas explicitas del proveedor', () =>
   const incomplete = reputation._test.normalizeProviderResponse({ is_vpn: false }, checkedAt);
   assert.equal(incomplete.available, false);
   assert.equal(incomplete.verdict, 'unavailable');
+});
+
+test('VPN-POLICY: red contextual queda en observacion y nunca bloquea', () => {
+  const data = fixture('block', 'protection');
+  const apiKey = 'free-api-key-for-tests';
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals(), normalizedIp(), {
+    now: new Date('2026-08-09T18:00:00.000Z'),
+    apiKey,
+    send: (request) => {
+      assert.deepEqual(JSON.parse(request.body), { q: '8.8.8.8', key: apiKey });
+      return {
+        statusCode: 200,
+        json: {
+          is_vpn: false,
+          is_proxy: false,
+          is_tor: false,
+          is_datacenter: true,
+          is_abuser: false,
+          is_crawler: false,
+          is_mobile: false,
+        },
+      };
+    },
+  });
+
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'network_suspected');
+  assert.equal(decision.result.detected, false);
+  assert.equal(decision.result.suspected, true);
+  assert.equal(data.tables.store_security_events[0].get('event_type'), 'network_suspected');
+  const persisted = JSON.stringify(data.tables);
+  assert.doesNotMatch(persisted, new RegExp(apiKey));
+});
+
+test('VPN-POLICY: crawler de datacenter no se presenta como red sospechosa', () => {
+  const result = reputation._test.normalizeProviderResponse({
+    is_vpn: false,
+    is_proxy: false,
+    is_tor: false,
+    is_datacenter: true,
+    is_abuser: false,
+    is_crawler: true,
+  }, '2026-08-09T18:00:00.000Z');
+  assert.equal(result.verdict, 'clean');
+  assert.equal(result.suspected, false);
+});
+
+test('VPN-POLICY: proxycheck exige confianza alta para confirmar VPN proxy o Tor', () => {
+  const checkedAt = '2026-08-09T18:00:00.000Z';
+  const highConfidence = reputation._test.normalizeProxycheckResponse({
+    status: 'ok',
+    '8.8.8.8': {
+      network: { type: 'Hosting' },
+      detections: {
+        vpn: true,
+        proxy: false,
+        tor: false,
+        hosting: true,
+        compromised: false,
+        scraper: false,
+        confidence: 96,
+      },
+    },
+  }, '8.8.8.8', checkedAt);
+  assert.equal(highConfidence.available, true);
+  assert.equal(highConfidence.detected, true);
+  assert.equal(highConfidence.is_vpn, true);
+  assert.equal(highConfidence.confidence, 96);
+
+  const lowConfidence = reputation._test.normalizeProxycheckResponse({
+    status: 'ok',
+    '8.8.8.8': {
+      network: { type: 'Hosting' },
+      detections: {
+        vpn: false,
+        proxy: true,
+        tor: false,
+        hosting: true,
+        compromised: false,
+        scraper: false,
+        confidence: 82,
+      },
+    },
+  }, '8.8.8.8', checkedAt);
+  assert.equal(lowConfidence.available, true);
+  assert.equal(lowConfidence.detected, false);
+  assert.equal(lowConfidence.suspected, true);
+  assert.equal(lowConfidence.is_proxy, false);
+  assert.equal(lowConfidence.verdict, 'network_suspected');
+});
+
+test('VPN-POLICY: proxycheck complementa un resultado limpio de ipapi y conserva la cache', () => {
+  const data = fixture('block', 'protection');
+  const ipapiKey = 'ipapi-free-key-for-tests';
+  const proxycheckKey = 'proxycheck-free-key-for-tests';
+  let calls = 0;
+  const send = (request) => {
+    calls += 1;
+    if (request.url === 'https://api.ipapi.is') {
+      assert.deepEqual(JSON.parse(request.body), { q: '8.8.8.8', key: ipapiKey });
+      return {
+        statusCode: 200,
+        json: { is_vpn: false, is_proxy: false, is_tor: false, is_datacenter: false },
+      };
+    }
+    assert.equal(request.method, 'GET');
+    assert.equal(request.timeout, 2);
+    assert.match(request.url, /^https:\/\/proxycheck\.io\/v3\/8\.8\.8\.8\?/);
+    assert.match(request.url, /tag=0/);
+    assert.match(request.url, /p=0/);
+    assert.match(request.url, /ver=24-June-2026/);
+    return {
+      statusCode: 200,
+      json: {
+        status: 'ok',
+        '8.8.8.8': {
+          network: { type: 'Hosting' },
+          detections: {
+            vpn: true,
+            proxy: false,
+            tor: false,
+            hosting: true,
+            compromised: false,
+            scraper: false,
+            confidence: 97,
+          },
+        },
+      },
+    };
+  };
+  const first = reputation.evaluate(data.app, data.store, data.settings, signals('e'), normalizedIp(), {
+    now: new Date('2026-08-09T20:00:00.000Z'),
+    apiKey: ipapiKey,
+    proxycheckApiKey: proxycheckKey,
+    send,
+  });
+  const second = reputation.evaluate(data.app, data.store, data.settings, signals('e'), normalizedIp(), {
+    now: new Date('2026-08-09T20:01:00.000Z'),
+    apiKey: ipapiKey,
+    proxycheckApiKey: proxycheckKey,
+    send: () => { throw new Error('must_use_cache'); },
+  });
+
+  assert.equal(first.blocked, true);
+  assert.equal(first.result.is_vpn, true);
+  assert.equal(first.result.provider, 'ipapi_is:proxycheck_io');
+  assert.equal(second.blocked, true);
+  assert.equal(second.result.source, 'cache');
+  assert.equal(calls, 2);
+  assert.deepEqual(data.tables.security_ip_reputation_usage.map((row) => row.get('provider')).sort(), [
+    'ipapi_is',
+    'proxycheck_io',
+  ]);
+  assert.equal(data.tables.store_security_events[0].get('metadata_json').provider_confidence, 97);
+  const persisted = JSON.stringify(data.tables);
+  assert.doesNotMatch(persisted, new RegExp(ipapiKey));
+  assert.doesNotMatch(persisted, new RegExp(proxycheckKey));
+});
+
+test('VPN-POLICY: proxycheck con confianza baja solo genera sospecha y nunca bloquea', () => {
+  const data = fixture('block', 'protection');
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('f'), normalizedIp(), {
+    now: new Date('2026-08-09T20:00:00.000Z'),
+    proxycheckApiKey: 'proxycheck-free-key-for-tests',
+    send: (request) => {
+      if (request.url === 'https://api.ipapi.is') {
+        return { statusCode: 200, json: { is_vpn: false, is_proxy: false, is_tor: false } };
+      }
+      return {
+        statusCode: 200,
+        json: {
+          status: 'ok',
+          '8.8.8.8': {
+            network: { type: 'Hosting' },
+            detections: {
+              vpn: false,
+              proxy: true,
+              tor: false,
+              hosting: true,
+              compromised: false,
+              scraper: false,
+              confidence: 75,
+            },
+          },
+        },
+      };
+    },
+  });
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'network_suspected');
+  assert.equal(decision.result.detected, false);
+  assert.equal(data.tables.store_security_events[0].get('event_type'), 'network_suspected');
 });
 
 test('VPN-POLICY: migracion es aditiva, privada, idempotente y reversible', () => {
@@ -315,4 +516,77 @@ test('VPN-POLICY: la cache queda aislada por tienda aunque coincida el HMAC', ()
     'storevpn0000001',
     'storevpn0000002',
   ]);
+});
+
+test('VPN-POLICY: presupuesto anonimo reserva 90 consultas y luego falla abierto', () => {
+  const data = fixture('monitor');
+  data.tables.security_ip_reputation_usage.push(record('security_ip_reputation_usage', {
+    provider: 'ipapi_is',
+    utc_day: '2026-08-09',
+    requests: reputation._test.constants.anonymousDailyBudget,
+  }));
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('b'), normalizedIp('1.1.1.1'), {
+    now: new Date('2026-08-09T20:00:00.000Z'),
+    send: () => { calls += 1; return { statusCode: 200, json: {} }; },
+  });
+  assert.equal(calls, 0);
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'unavailable');
+  assert.equal(decision.result.source, 'budget');
+});
+
+test('VPN-POLICY: presupuesto proxycheck de 300 conserva el resultado valido de ipapi', () => {
+  const data = fixture('block', 'protection');
+  data.tables.security_ip_reputation_usage.push(record('security_ip_reputation_usage', {
+    provider: reputation._test.constants.proxycheckProviderName,
+    utc_day: '2026-08-09',
+    requests: reputation._test.constants.proxycheckDailyBudget,
+  }));
+  let calls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('g'), normalizedIp(), {
+    now: new Date('2026-08-09T20:00:00.000Z'),
+    proxycheckApiKey: 'proxycheck-free-key-for-tests',
+    send: (request) => {
+      calls += 1;
+      assert.equal(request.url, 'https://api.ipapi.is');
+      return { statusCode: 200, json: { is_vpn: false, is_proxy: false, is_tor: false } };
+    },
+  });
+  assert.equal(calls, 1);
+  assert.equal(decision.blocked, false);
+  assert.equal(decision.reason, 'clean');
+  assert.equal(decision.result.available, true);
+  assert.equal(decision.result.provider, 'ipapi_is:proxycheck_io');
+});
+
+test('VPN-POLICY: sin contador de cuota no llama al proveedor ni bloquea', () => {
+  const reservation = reputation._test.reserveProviderRequest({
+    findCollectionByNameOrId() { throw new Error('collection_unavailable'); },
+  }, new Date('2026-08-09T20:00:00.000Z'), true);
+  assert.deepEqual(reservation, {
+    allowed: false,
+    tracked: false,
+    limit: reputation._test.constants.authenticatedDailyBudget,
+    used: 0,
+  });
+});
+
+test('VPN-POLICY: Tor local se resuelve antes del proveedor y conserva bloqueo explicito', () => {
+  const data = fixture('block', 'protection');
+  let providerCalls = 0;
+  const decision = reputation.evaluate(data.app, data.store, data.settings, signals('c'), normalizedIp('203.0.113.9'), {
+    now: new Date('2026-08-09T20:00:00.000Z'),
+    lookupTor: () => ({
+      detected: true,
+      provider: 'tor_project_onionoo',
+      checked_at: '2026-08-09T19:30:00.000Z',
+    }),
+    send: () => { providerCalls += 1; throw new Error('must_not_run'); },
+  });
+  assert.equal(providerCalls, 0);
+  assert.equal(decision.blocked, true);
+  assert.equal(decision.result.is_tor, true);
+  assert.equal(decision.result.provider, 'tor_project_onionoo');
+  assert.equal(data.tables.store_security_events[0].get('event_type'), 'vpn_blocked');
 });

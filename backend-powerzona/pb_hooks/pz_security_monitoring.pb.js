@@ -120,3 +120,15 @@ cronAdd(
   "13 * * * *",
   () => require(`${__hooks}/pz_security_monitoring_lib.js`).handleSecurityBlocksExpiry()
 );
+
+cronAdd(
+  "pz_security_tor_exit_refresh",
+  "31 3 * * *",
+  () => require(`${__hooks}/pz_security_tor_feed_lib.js`).handleTorExitRefresh()
+);
+
+cronAdd(
+  "pz_security_ip_reputation_cleanup",
+  "43 4 * * *",
+  () => require(`${__hooks}/pz_security_ip_reputation_lib.js`).handleCacheCleanup()
+);
