@@ -541,8 +541,8 @@ function handleCacheCleanup() {
   return cleanupExpired($app, new Date());
 }
 
-function eventKey(storeId, policy, eventType, ipHmac, checkedAt) {
-  const material = [storeId, policy, eventType, ipHmac, checkedAt].join("|");
+function eventKey(storeId, policy, eventType, ipHmac, deviceHmac, checkedAt) {
+  const material = [storeId, policy, eventType, ipHmac, text(deviceHmac), checkedAt].join("|");
   try { return `ip_reputation:${String($security.sha256(material) || "").slice(0, 128)}`; } catch (_) { return ""; }
 }
 
@@ -567,7 +567,14 @@ function recordEvent(app, store, settings, signals, result, policy, blocked, now
   const eventType = result.available
     ? (result.suspected ? "network_suspected" : (blocked ? "vpn_blocked" : "vpn_detected"))
     : "vpn_check_unavailable";
-  const key = eventKey(storeId, policy, eventType, signals.ip, result.checked_at || now.toISOString());
+  const key = eventKey(
+    storeId,
+    policy,
+    eventType,
+    signals.ip,
+    signals.device,
+    result.checked_at || now.toISOString(),
+  );
   if (!key) return null;
   let event = findFirst(app, EVENTS_COLLECTION, "event_key = {:eventKey}", { eventKey: key });
   if (event) return event;

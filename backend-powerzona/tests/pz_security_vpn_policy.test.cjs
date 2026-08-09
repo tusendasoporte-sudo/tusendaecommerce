@@ -461,6 +461,52 @@ test('VPN-POLICY: monitor detecta, cachea por HMAC y nunca conserva la IP plana'
   assert.match(data.tables.store_security_ip_reputation_cache[0].get('ip_hmac'), /^[a-z0-9]{64}$/);
 });
 
+test('VPN-POLICY: la misma IP registra una observacion por navegador sin repetir proveedores', () => {
+  const data = fixture('monitor');
+  let calls = 0;
+  const send = () => {
+    calls += 1;
+    return {
+      statusCode: 200,
+      json: {
+        is_vpn: false,
+        is_proxy: false,
+        is_tor: false,
+        is_datacenter: true,
+        is_abuser: false,
+        is_crawler: false,
+      },
+    };
+  };
+  const sharedIpSignals = signals('h');
+  const firstBrowser = { ...sharedIpSignals, device: '1'.repeat(64) };
+  const secondBrowser = { ...sharedIpSignals, device: '2'.repeat(64) };
+  const now = new Date('2026-08-09T21:20:00.000Z');
+
+  const first = reputation.evaluate(data.app, data.store, data.settings, firstBrowser, normalizedIp(), { now, send });
+  const second = reputation.evaluate(data.app, data.store, data.settings, secondBrowser, normalizedIp(), {
+    now: new Date('2026-08-09T21:21:00.000Z'),
+    send,
+  });
+  reputation.evaluate(data.app, data.store, data.settings, secondBrowser, normalizedIp(), {
+    now: new Date('2026-08-09T21:22:00.000Z'),
+    send,
+  });
+
+  assert.equal(first.reason, 'network_suspected');
+  assert.equal(second.reason, 'network_suspected');
+  assert.equal(second.result.source, 'cache');
+  assert.equal(calls, 1);
+  assert.equal(data.tables.store_security_ip_reputation_cache.length, 1);
+  assert.equal(data.tables.store_security_events.length, 2);
+  assert.equal(new Set(data.tables.store_security_events.map((event) => event.get('event_key'))).size, 2);
+  assert.deepEqual(data.tables.store_security_events.map((event) => event.get('browser_token_hmac')).sort(), [
+    '1'.repeat(64),
+    '2'.repeat(64),
+  ]);
+  assert.ok(data.tables.store_security_events.every((event) => event.get('event_type') === 'network_suspected'));
+});
+
 test('VPN-POLICY: block solo bloquea una deteccion en modo proteccion', () => {
   const send = () => ({ statusCode: 200, json: { is_vpn: false, is_proxy: true, is_tor: false } });
   const protection = fixture('block', 'protection');

@@ -20,6 +20,8 @@ La detección de VPN comercial sigue siendo probabilística. Una IP no detectada
 3. Si ipapi no confirma VPN, proxy o Tor y existe `PZ_PROXYCHECK_KEY`, se consulta la API estable v3 de `https://proxycheck.io` como segunda opinión. Una marca explícita de VPN, proxy o Tor solo se confirma si la confianza es al menos 90. Hosting, datacenter o una detección con confianza inferior quedan como `network_suspected` y no bloquean.
 4. Las respuestas combinadas se guardan 24 horas en caché privada. Si ya existía una respuesta de ipapi y posteriormente se configura proxycheck, la siguiente visita puede enriquecer esa entrada sin repetir ipapi. Los errores totales o el presupuesto agotado se guardan 5 minutos para evitar reintentos agresivos.
 
+La caché se comparte por tienda e IP protegida para no repetir consultas. Los eventos de observación se deduplican además por navegador protegido: dos navegadores que visiten desde la misma IP reciben el mismo estado de red, pero cada uno conserva su propia relación verificable en Visitantes. Repetir páginas desde el mismo navegador no genera eventos adicionales.
+
 Presupuestos internos por día UTC:
 
 - sin clave: 90 consultas, debajo del límite anónimo oficial de 100;
