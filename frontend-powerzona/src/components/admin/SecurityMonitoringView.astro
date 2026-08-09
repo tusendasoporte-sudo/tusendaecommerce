@@ -182,7 +182,8 @@ function queryString(entries: Record<string, string | number | undefined>) {
   const query = new URLSearchParams();
   Object.entries(entries).forEach(([key, value]) => {
     const text = String(value ?? '').trim();
-    if (!text || text === 'all' || text === '1') return;
+    if (!text || text === '1') return;
+    if (text === 'all' && key !== 'blocked_status') return;
     query.set(key, text);
   });
   const serialized = query.toString();
@@ -1451,28 +1452,13 @@ function observationActionValue(customer: SecurityCustomer) {
         >Agregar bloqueo por IP</button>
       </div>
 
-      <section class="metrics-grid block-metrics" aria-label="Metricas de bloqueos">
-        <article class="metric-card">
-          <span>Bloqueos activos</span>
-          <strong>{formatNumber(selectedBlocksMetrics().active_blocks)}</strong>
-        </article>
-        <article class="metric-card">
-          <span>Clientes afectados</span>
-          <strong>{formatNumber(selectedBlocksMetrics().affected_customers)}</strong>
-        </article>
-        <article class="metric-card">
-          <span>IPs manuales activas</span>
-          <strong>{formatNumber(selectedBlocksMetrics().manual_ip_blocks)}</strong>
-        </article>
-        <article class="metric-card">
-          <span>Vencen hoy</span>
-          <strong>{formatNumber(selectedBlocksMetrics().expires_today)}</strong>
-        </article>
-        <article class="metric-card">
-          <span>Permanentes</span>
-          <strong>{formatNumber(selectedBlocksMetrics().permanent_blocks)}</strong>
-        </article>
-      </section>
+      <dl class="premium-summary-list blocked-metrics-summary" aria-label="Resumen de bloqueos">
+        <div><dt>Bloqueos activos</dt><dd>{formatNumber(selectedBlocksMetrics().active_blocks)}</dd></div>
+        <div><dt>Clientes afectados</dt><dd>{formatNumber(selectedBlocksMetrics().affected_customers)}</dd></div>
+        <div><dt>IPs manuales activas</dt><dd>{formatNumber(selectedBlocksMetrics().manual_ip_blocks)}</dd></div>
+        <div><dt>Vencen hoy</dt><dd>{formatNumber(selectedBlocksMetrics().expires_today)}</dd></div>
+        <div><dt>Permanentes</dt><dd>{formatNumber(selectedBlocksMetrics().permanent_blocks)}</dd></div>
+      </dl>
 
       <form class="block-filter-form" method="POST" action={sectionHref('blocked')}>
         <input type="hidden" name="section" value="blocked" />
@@ -2560,10 +2546,6 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .metrics-grid.compact {
     grid-template-columns: repeat(7, minmax(0, 1fr));
-  }
-
-  .metrics-grid.block-metrics {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .metric-card,
@@ -3894,8 +3876,7 @@ function observationActionValue(customer: SecurityCustomer) {
 
   @media (max-width: 1120px) {
     .metrics-grid,
-    .metrics-grid.compact,
-    .metrics-grid.block-metrics {
+    .metrics-grid.compact {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -3957,7 +3938,6 @@ function observationActionValue(customer: SecurityCustomer) {
 
     .metrics-grid,
     .metrics-grid.compact,
-    .metrics-grid.block-metrics,
     .customer-search,
     .block-filter-form,
     .activity-filter-grid,

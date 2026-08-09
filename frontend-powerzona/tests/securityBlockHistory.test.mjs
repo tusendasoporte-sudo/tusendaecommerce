@@ -22,6 +22,29 @@ test('BLOCK-HISTORY: Clientes bloqueados ofrece historial contextual en menu de 
   assert.match(blocked, /blockHistoryNavigationHref\(entry\)/);
 });
 
+test('BLOCKED-UI: resumen usa una lista premium sin tarjetas de metricas', () => {
+  const view = read('../src/components/admin/SecurityMonitoringView.astro');
+  const start = view.indexOf("params.section === 'blocked'");
+  const end = view.indexOf('</section>\n\n<dialog id="security-manual-ip-block-dialog"', start);
+  const blocked = view.slice(start, end);
+
+  assert.match(blocked, /<dl class="premium-summary-list blocked-metrics-summary" aria-label="Resumen de bloqueos">/);
+  assert.match(blocked, /<dt>Bloqueos activos<\/dt>/);
+  assert.match(blocked, /<dt>Clientes afectados<\/dt>/);
+  assert.match(blocked, /<dt>IPs manuales activas<\/dt>/);
+  assert.match(blocked, /<dt>Vencen hoy<\/dt>/);
+  assert.match(blocked, /<dt>Permanentes<\/dt>/);
+  assert.doesNotMatch(blocked, /metrics-grid block-metrics|<article class="metric-card">/);
+});
+
+test('BLOCKED-FILTER: Todos conserva el estado all porque el valor predeterminado es Activos', () => {
+  const view = read('../src/components/admin/SecurityMonitoringView.astro');
+
+  assert.match(view, /if \(text === 'all' && key !== 'blocked_status'\) return;/);
+  assert.match(view, /blockedHref\(1, \{ blocked_status: value \}\)/);
+  assert.match(view, /\['all', 'Todos'\]/);
+});
+
 test('BLOCK-HISTORY: contrato normaliza solo datos seguros y limita IP e historial', () => {
   const client = read('../src/lib/securityMonitoring.ts');
   const start = client.indexOf('function normalizeBlockRelatedIp');
