@@ -51,8 +51,8 @@ test('VISITOR-RETENTION-UI: Reglas informa 30 dias de detalle y 90 dias de resum
   const backend = read('../../backend-powerzona/pb_hooks/pz_security_monitoring_lib.js');
   const hook = read('../../backend-powerzona/pb_hooks/pz_security_monitoring.pb.js');
 
-  assert.match(view, /<span>Navegacion detallada<\/span><strong>30 dias<\/strong>/);
-  assert.match(view, /<span>Resumen de visitantes<\/span><strong>90 dias<\/strong>/);
+  assert.match(view, /admin-compact-summary__label">Navegación detallada[\s\S]*?admin-compact-summary__value is-text">30 días/);
+  assert.match(view, /admin-compact-summary__label">Resumen de visitantes[\s\S]*?admin-compact-summary__value is-text">90 días/);
   assert.match(backend, /VISITOR_PAGEVIEW_RETENTION_DAYS = 30/);
   assert.match(backend, /VISITOR_SESSION_RETENTION_DAYS = 90/);
   assert.match(hook, /pz_security_visitor_retention/);

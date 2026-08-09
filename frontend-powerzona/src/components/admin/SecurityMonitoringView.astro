@@ -131,7 +131,6 @@ const {
 
 const ipVisibility = String(settings.ip_visibility || 'hidden');
 const showIp = ipVisibility !== 'hidden';
-const isFullIp = ipVisibility === 'full';
 const canCreateManualIpBlock = actionsEnabled
   && settings.mode === 'protection'
   && settings.manual_blocking_enabled === true;
@@ -139,6 +138,13 @@ const titlePrefix = context === 'master' ? 'Monitoreo Master' : 'Seguridad';
 const modeLabel = getSecurityModeLabel(settings.mode);
 const ipLabel = getSecurityIpVisibilityLabel(settings.ip_visibility);
 const vpnPolicyLabel = getSecurityVpnPolicyLabel(settings.vpn_policy);
+const administeredCapabilities = [
+  { label: 'Bloqueo manual', enabled: settings.manual_blocking_enabled === true },
+  { label: 'Bloqueo de acceso completo', enabled: settings.full_access_blocking_enabled === true },
+  { label: 'Bloqueos permanentes', enabled: settings.permanent_blocks_enabled === true },
+  { label: 'Notificar intentos bloqueados', enabled: settings.notify_blocked_attempts === true },
+];
+const enabledCapabilitiesCount = administeredCapabilities.filter((capability) => capability.enabled).length;
 const manualIpPreviewReady = Boolean(manualIpDraft && manualIpDeviceLookup);
 const visitorSecurityStatusLabels = {
   normal: 'Normal',
@@ -631,38 +637,39 @@ function observationActionValue(customer: SecurityCustomer) {
   )}
 
   {params.section === 'summary' && (
-    <section class="metrics-grid" aria-label="Metricas de seguridad">
-      <article class="metric-card">
-        <span>Clientes registrados</span>
-        <strong>{renderSummaryValue(summary?.customersCount)}</strong>
+    <section class="summary-layout" aria-label="Resumen de Seguridad">
+      <article class="admin-compact-summary security-compact-summary summary-general-card" aria-label="Resumen general de Seguridad">
+        <div class="admin-compact-summary__head">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 19V9"></path><path d="M10 19V5"></path><path d="M16 19v-7"></path><path d="M22 19H2"></path></svg>
+          </span>
+          <div>
+            <p class="admin-compact-summary__eyebrow">Resumen</p>
+            <h3 class="admin-compact-summary__title">Seguridad</h3>
+            <p class="admin-compact-summary__subtitle">Estado general de clientes, visitantes y eventos.</p>
+          </div>
+        </div>
+        <div class="admin-compact-summary__list" aria-label="Métricas de seguridad">
+          <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Clientes registrados</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.customersCount)}</p></article>
+          <article class="admin-compact-summary__item is-muted"><p class="admin-compact-summary__label">Clientes archivados</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.archivedCustomersCount)}</p></article>
+          <article class="admin-compact-summary__item is-purple"><p class="admin-compact-summary__label">Eventos registrados</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.eventsCount)}</p></article>
+          <article class="admin-compact-summary__item is-ok"><p class="admin-compact-summary__label">Visitantes hoy</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.visitorsTodayCount)}</p></article>
+          <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">Clientes en observación</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.watchCustomersCount)}</p></article>
+          <article class="admin-compact-summary__item is-danger"><p class="admin-compact-summary__label">Clientes bloqueados</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.blockedCustomersCount)}</p></article>
+        </div>
       </article>
-      <article class="metric-card">
-        <span>Clientes archivados</span>
-        <strong>{renderSummaryValue(summary?.archivedCustomersCount)}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Eventos registrados</span>
-        <strong>{renderSummaryValue(summary?.eventsCount)}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Visitantes registrados hoy</span>
-        <strong>{renderSummaryValue(summary?.visitorsTodayCount)}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Clientes en observacion</span>
-        <strong>{renderSummaryValue(summary?.watchCustomersCount)}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Clientes con estado bloqueado</span>
-        <strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong>
-      </article>
-    </section>
-  )}
 
-  {params.section === 'summary' && (
-    <section class="info-grid" aria-label="Configuracion actual">
-      <article class="monitoring-card">
-        <h3>Resumen</h3>
+      <article class="admin-compact-summary security-compact-summary summary-settings-card" aria-label="Configuración de Seguridad">
+        <div class="admin-compact-summary__head">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 6h10"></path><path d="M18 6h2"></path><circle cx="16" cy="6" r="2"></circle><path d="M4 12h2"></path><path d="M10 12h10"></path><circle cx="8" cy="12" r="2"></circle><path d="M4 18h7"></path><path d="M15 18h5"></path><circle cx="13" cy="18" r="2"></circle></svg>
+          </span>
+          <div>
+            <p class="admin-compact-summary__eyebrow">Resumen</p>
+            <h3 class="admin-compact-summary__title">Configuración</h3>
+            <p class="admin-compact-summary__subtitle">Políticas activas de protección y retención.</p>
+          </div>
+        </div>
         {context === 'store' && settings.id && (
           <span
             class="pz-last-modification"
@@ -673,44 +680,51 @@ function observationActionValue(customer: SecurityCustomer) {
             data-useful-empty="true"
           ><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
         )}
-        <div class="fact-grid">
-          <div class="fact-box">
-            <span>Modo actual</span>
-            <strong>{modeLabel}</strong>
-          </div>
-          <div class="fact-box">
-            <span>Retencion</span>
-            <strong>30 / 90 dias</strong>
-          </div>
-          <div class="fact-box">
-            <span>Politica de IP</span>
-            <strong>{ipLabel}</strong>
-          </div>
-          <div class="fact-box">
-            <span>VPN y proxy</span>
-            <strong>{vpnPolicyLabel}</strong>
-          </div>
-        </div>
-        {isFullIp && <p class="monitoring-note">La IP completa se muestra directamente en las vistas privadas de Seguridad para usuarios autorizados.</p>}
-      </article>
-
-      <article class="monitoring-card">
-        <h3>Capacidades administradas</h3>
-        <div class="capability-list">
-          <div class="capability-row"><span>Bloqueo manual</span><strong>{settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Bloqueo de acceso completo</span><strong>{settings.full_access_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Bloqueos permanentes</span><strong>{settings.permanent_blocks_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Notificar intentos bloqueados</span><strong>{settings.notify_blocked_attempts ? 'Habilitada' : 'No habilitada'}</strong></div>
+        <div class="admin-compact-summary__list" aria-label="Configuración actual">
+          <article class="admin-compact-summary__item is-ok"><p class="admin-compact-summary__label">Modo actual</p><p class="admin-compact-summary__value is-text">{modeLabel}</p></article>
+          <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Retención</p><p class="admin-compact-summary__value is-text">30 / 90 días</p></article>
+          <article class="admin-compact-summary__item is-purple"><p class="admin-compact-summary__label">Visibilidad de IP</p><p class="admin-compact-summary__value is-text">{ipLabel}</p></article>
+          <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">VPN y proxy</p><p class="admin-compact-summary__value is-text">{vpnPolicyLabel}</p></article>
         </div>
       </article>
 
+      <details class="admin-compact-summary security-compact-summary security-compact-disclosure summary-capabilities-disclosure">
+        <summary class="admin-compact-summary__head security-compact-disclosure__summary">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.8 3 8.2 7.5 9.5 4.5-1.3 7.5-4.7 7.5-9.5V6L12 3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+          </span>
+          <span class="security-compact-disclosure__copy">
+            <span class="admin-compact-summary__eyebrow">Controles</span>
+            <strong class="admin-compact-summary__title">Capacidades administrativas</strong>
+            <small class="admin-compact-summary__subtitle">{enabledCapabilitiesCount} de {administeredCapabilities.length} habilitadas</small>
+          </span>
+          <span class="rules-disclosure-icon" aria-hidden="true">⌄</span>
+        </summary>
+        <div class="admin-compact-summary__list security-compact-disclosure__list">
+          {administeredCapabilities.map((capability) => (
+            <article class:list={['admin-compact-summary__item', capability.enabled ? 'is-ok' : 'is-muted']}>
+              <p class="admin-compact-summary__label">{capability.label}</p>
+              <p class="admin-compact-summary__value is-text">{capability.enabled ? 'Habilitada' : 'No habilitada'}</p>
+            </article>
+          ))}
+        </div>
+      </details>
     </section>
   )}
 
   {params.section === 'rules' && (
     <section class="info-grid rules-layout" aria-label="Reglas de Seguridad">
-      <article class="monitoring-card rules-summary-card">
-        <h3>Resumen</h3>
+      <article class="admin-compact-summary security-compact-summary rules-summary-card" aria-label="Resumen de reglas de Seguridad">
+        <div class="admin-compact-summary__head">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.8 3 8.2 7.5 9.5 4.5-1.3 7.5-4.7 7.5-9.5V6L12 3Z"></path><path d="M8.5 12h7"></path><path d="M12 8.5v7"></path></svg>
+          </span>
+          <div>
+            <p class="admin-compact-summary__eyebrow">Resumen</p>
+            <h3 class="admin-compact-summary__title">Reglas de Seguridad</h3>
+            <p class="admin-compact-summary__subtitle">Configuración vigente de monitoreo y protección.</p>
+          </div>
+        </div>
         {context === 'store' && settings.id && (
           <span
             class="pz-last-modification"
@@ -721,28 +735,32 @@ function observationActionValue(customer: SecurityCustomer) {
             data-useful-empty="true"
           ><span class="pz-last-modification__skeleton">Cargando última modificación…</span></span>
         )}
-        <div class="capability-list rules-premium-list">
-          <div class="capability-row"><span>Modo actual</span><strong>{modeLabel}</strong></div>
-          <div class="capability-row"><span>Navegacion detallada</span><strong>30 dias</strong></div>
-          <div class="capability-row"><span>Resumen de visitantes</span><strong>90 dias</strong></div>
-          <div class="capability-row"><span>Politica de IP</span><strong>{ipLabel}</strong></div>
-          <div class="capability-row"><span>VPN y proxy</span><strong>{vpnPolicyLabel}</strong></div>
+        <div class="admin-compact-summary__list">
+          <article class="admin-compact-summary__item is-ok"><p class="admin-compact-summary__label">Modo actual</p><p class="admin-compact-summary__value is-text">{modeLabel}</p></article>
+          <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Navegación detallada</p><p class="admin-compact-summary__value is-text">30 días</p></article>
+          <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Resumen de visitantes</p><p class="admin-compact-summary__value is-text">90 días</p></article>
+          <article class="admin-compact-summary__item is-purple"><p class="admin-compact-summary__label">Política de IP</p><p class="admin-compact-summary__value is-text">{ipLabel}</p></article>
+          <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">VPN y proxy</p><p class="admin-compact-summary__value is-text">{vpnPolicyLabel}</p></article>
         </div>
       </article>
 
-      <details class="monitoring-card rules-disclosure">
-        <summary class="rules-disclosure-summary">
-          <span>
-            <strong>Capacidades administrativas</strong>
-            <small>4 controles de Seguridad</small>
+      <details class="admin-compact-summary security-compact-summary security-compact-disclosure">
+        <summary class="admin-compact-summary__head security-compact-disclosure__summary">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.8 3 8.2 7.5 9.5 4.5-1.3 7.5-4.7 7.5-9.5V6L12 3Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+          </span>
+          <span class="security-compact-disclosure__copy">
+            <span class="admin-compact-summary__eyebrow">Controles</span>
+            <strong class="admin-compact-summary__title">Capacidades administrativas</strong>
+            <small class="admin-compact-summary__subtitle">4 controles de Seguridad</small>
           </span>
           <span class="rules-disclosure-icon" aria-hidden="true">⌄</span>
         </summary>
-        <div class="capability-list rules-disclosure-body">
-          <div class="capability-row"><span>Bloqueo manual</span><strong>{settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Bloqueo de acceso completo</span><strong>{settings.full_access_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Bloqueos permanentes</span><strong>{settings.permanent_blocks_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Notificar intentos bloqueados</span><strong>{settings.notify_blocked_attempts ? 'Habilitada' : 'No habilitada'}</strong></div>
+        <div class="admin-compact-summary__list security-compact-disclosure__list">
+          <article class:list={['admin-compact-summary__item', settings.manual_blocking_enabled ? 'is-ok' : 'is-muted']}><p class="admin-compact-summary__label">Bloqueo manual</p><p class="admin-compact-summary__value is-text">{settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</p></article>
+          <article class:list={['admin-compact-summary__item', settings.full_access_blocking_enabled ? 'is-ok' : 'is-muted']}><p class="admin-compact-summary__label">Bloqueo de acceso completo</p><p class="admin-compact-summary__value is-text">{settings.full_access_blocking_enabled ? 'Habilitada' : 'No habilitada'}</p></article>
+          <article class:list={['admin-compact-summary__item', settings.permanent_blocks_enabled ? 'is-ok' : 'is-muted']}><p class="admin-compact-summary__label">Bloqueos permanentes</p><p class="admin-compact-summary__value is-text">{settings.permanent_blocks_enabled ? 'Habilitada' : 'No habilitada'}</p></article>
+          <article class:list={['admin-compact-summary__item', settings.notify_blocked_attempts ? 'is-ok' : 'is-muted']}><p class="admin-compact-summary__label">Notificar intentos bloqueados</p><p class="admin-compact-summary__value is-text">{settings.notify_blocked_attempts ? 'Habilitada' : 'No habilitada'}</p></article>
         </div>
       </details>
 
@@ -763,18 +781,22 @@ function observationActionValue(customer: SecurityCustomer) {
         </form>
       </article>
 
-      <details class="monitoring-card rules-disclosure">
-        <summary class="rules-disclosure-summary">
-          <span>
-            <strong>Bloqueos privados</strong>
-            <small>{renderSummaryValue(summary?.blockedCustomersCount)} clientes con bloqueo activo</small>
+      <details class="admin-compact-summary security-compact-summary security-compact-disclosure">
+        <summary class="admin-compact-summary__head security-compact-disclosure__summary">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg>
+          </span>
+          <span class="security-compact-disclosure__copy">
+            <span class="admin-compact-summary__eyebrow">Protección</span>
+            <strong class="admin-compact-summary__title">Bloqueos privados</strong>
+            <small class="admin-compact-summary__subtitle">{renderSummaryValue(summary?.blockedCustomersCount)} clientes con bloqueo activo</small>
           </span>
           <span class="rules-disclosure-icon" aria-hidden="true">⌄</span>
         </summary>
-        <div class="capability-list rules-disclosure-body">
-          <div class="capability-row"><span>Clientes con bloqueo activo</span><strong>{renderSummaryValue(summary?.blockedCustomersCount)}</strong></div>
-          <div class="capability-row"><span>Observacion privada</span><strong>{settings.mode === 'monitoring' || settings.mode === 'protection' ? 'Habilitada' : 'No habilitada'}</strong></div>
-          <div class="capability-row"><span>Gestion de bloqueos</span><strong>{settings.mode === 'protection' && settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</strong></div>
+        <div class="admin-compact-summary__list security-compact-disclosure__list">
+          <article class="admin-compact-summary__item is-danger"><p class="admin-compact-summary__label">Clientes con bloqueo activo</p><p class="admin-compact-summary__value">{renderSummaryValue(summary?.blockedCustomersCount)}</p></article>
+          <article class:list={['admin-compact-summary__item', settings.mode === 'monitoring' || settings.mode === 'protection' ? 'is-ok' : 'is-muted']}><p class="admin-compact-summary__label">Observación privada</p><p class="admin-compact-summary__value is-text">{settings.mode === 'monitoring' || settings.mode === 'protection' ? 'Habilitada' : 'No habilitada'}</p></article>
+          <article class:list={['admin-compact-summary__item', settings.mode === 'protection' && settings.manual_blocking_enabled ? 'is-ok' : 'is-muted']}><p class="admin-compact-summary__label">Gestión de bloqueos</p><p class="admin-compact-summary__value is-text">{settings.mode === 'protection' && settings.manual_blocking_enabled ? 'Habilitada' : 'No habilitada'}</p></article>
         </div>
       </details>
     </section>
@@ -1490,13 +1512,25 @@ function observationActionValue(customer: SecurityCustomer) {
         >Agregar bloqueo por IP</button>
       </div>
 
-      <dl class="premium-summary-list blocked-metrics-summary" aria-label="Resumen de bloqueos">
-        <div><dt>Bloqueos activos</dt><dd>{formatNumber(selectedBlocksMetrics().active_blocks)}</dd></div>
-        <div><dt>Clientes afectados</dt><dd>{formatNumber(selectedBlocksMetrics().affected_customers)}</dd></div>
-        <div><dt>IPs manuales activas</dt><dd>{formatNumber(selectedBlocksMetrics().manual_ip_blocks)}</dd></div>
-        <div><dt>Vencen hoy</dt><dd>{formatNumber(selectedBlocksMetrics().expires_today)}</dd></div>
-        <div><dt>Permanentes</dt><dd>{formatNumber(selectedBlocksMetrics().permanent_blocks)}</dd></div>
-      </dl>
+      <section class="admin-compact-summary security-compact-summary security-inline-summary blocked-metrics-summary" aria-label="Resumen de bloqueos">
+        <div class="admin-compact-summary__head">
+          <span class="admin-compact-summary__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="m5.6 5.6 12.8 12.8"></path></svg>
+          </span>
+          <div>
+            <p class="admin-compact-summary__eyebrow">Resumen</p>
+            <h4 class="admin-compact-summary__title">Bloqueos</h4>
+            <p class="admin-compact-summary__subtitle">Estado actual de las restricciones privadas.</p>
+          </div>
+        </div>
+        <div class="admin-compact-summary__list">
+          <article class="admin-compact-summary__item is-danger"><p class="admin-compact-summary__label">Bloqueos activos</p><p class="admin-compact-summary__value">{formatNumber(selectedBlocksMetrics().active_blocks)}</p></article>
+          <article class="admin-compact-summary__item is-purple"><p class="admin-compact-summary__label">Clientes afectados</p><p class="admin-compact-summary__value">{formatNumber(selectedBlocksMetrics().affected_customers)}</p></article>
+          <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">IPs manuales activas</p><p class="admin-compact-summary__value">{formatNumber(selectedBlocksMetrics().manual_ip_blocks)}</p></article>
+          <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Vencen hoy</p><p class="admin-compact-summary__value">{formatNumber(selectedBlocksMetrics().expires_today)}</p></article>
+          <article class="admin-compact-summary__item is-muted"><p class="admin-compact-summary__label">Permanentes</p><p class="admin-compact-summary__value">{formatNumber(selectedBlocksMetrics().permanent_blocks)}</p></article>
+        </div>
+      </section>
 
       <form class="block-filter-form" method="POST" action={sectionHref('blocked')}>
         <input type="hidden" name="section" value="blocked" />
@@ -1638,19 +1672,31 @@ function observationActionValue(customer: SecurityCustomer) {
                 <a class="secondary-action" href={sectionHref('blocked')}>Cerrar historial</a>
               </div>
 
-              <dl class="premium-summary-list block-history-summary">
-                <div><dt>Motivo</dt><dd>{focusedBlock.reason || 'No disponible'}</dd></div>
-                <div><dt>Alcance</dt><dd>{blockScopeLabel(focusedBlock.scope)}</dd></div>
-                <div><dt>Duracion</dt><dd>{blockDurationLabel(focusedBlock.duration)}</dd></div>
-                <div><dt>Creado</dt><dd>{formatDateTime(focusedBlock.created || focusedBlock.starts_at)}</dd></div>
-                <div><dt>Creado por</dt><dd>{focusedBlock.created_by_name || 'Sistema'}</dd></div>
-                <div><dt>Vencimiento</dt><dd>{focusedBlock.expires_at ? formatDateTime(focusedBlock.expires_at) : 'Permanente'}</dd></div>
-                {focusedBlock.revoked_at && <div><dt>Revocado</dt><dd>{formatDateTime(focusedBlock.revoked_at)} · {focusedBlock.revoked_by_name || 'Sistema'}</dd></div>}
-                {focusedBlock.revoke_reason && <div><dt>Motivo de revocacion</dt><dd>{focusedBlock.revoke_reason}</dd></div>}
-                <div><dt>Senales protegidas</dt><dd>{blockSignalsLabel(focusedBlock)}</dd></div>
-                <div><dt>Dispositivos relacionados</dt><dd>{formatNumber(focusedBlock.detail.related_device_count)}</dd></div>
-                <div><dt>Direcciones protegidas</dt><dd>{formatNumber(focusedBlock.detail.related_address_count)}</dd></div>
-              </dl>
+              <section class="admin-compact-summary security-compact-summary security-inline-summary block-history-summary" aria-label="Resumen del historial del bloqueo">
+                <div class="admin-compact-summary__head">
+                  <span class="admin-compact-summary__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+                  </span>
+                  <div>
+                    <p class="admin-compact-summary__eyebrow">Resumen</p>
+                    <h5 class="admin-compact-summary__title">Detalle del bloqueo</h5>
+                    <p class="admin-compact-summary__subtitle">Datos principales de la restricción seleccionada.</p>
+                  </div>
+                </div>
+                <div class="admin-compact-summary__list">
+                  <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Motivo</p><p class="admin-compact-summary__value is-text">{focusedBlock.reason || 'No disponible'}</p></article>
+                  <article class="admin-compact-summary__item is-purple"><p class="admin-compact-summary__label">Alcance</p><p class="admin-compact-summary__value is-text">{blockScopeLabel(focusedBlock.scope)}</p></article>
+                  <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Duración</p><p class="admin-compact-summary__value is-text">{blockDurationLabel(focusedBlock.duration)}</p></article>
+                  <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Creado</p><p class="admin-compact-summary__value is-text">{formatDateTime(focusedBlock.created || focusedBlock.starts_at)}</p></article>
+                  <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Creado por</p><p class="admin-compact-summary__value is-text">{focusedBlock.created_by_name || 'Sistema'}</p></article>
+                  <article class="admin-compact-summary__item"><p class="admin-compact-summary__label">Vencimiento</p><p class="admin-compact-summary__value is-text">{focusedBlock.expires_at ? formatDateTime(focusedBlock.expires_at) : 'Permanente'}</p></article>
+                  {focusedBlock.revoked_at && <article class="admin-compact-summary__item is-muted"><p class="admin-compact-summary__label">Revocado</p><p class="admin-compact-summary__value is-text">{formatDateTime(focusedBlock.revoked_at)} · {focusedBlock.revoked_by_name || 'Sistema'}</p></article>}
+                  {focusedBlock.revoke_reason && <article class="admin-compact-summary__item is-muted"><p class="admin-compact-summary__label">Motivo de revocación</p><p class="admin-compact-summary__value is-text">{focusedBlock.revoke_reason}</p></article>}
+                  <article class="admin-compact-summary__item is-ok"><p class="admin-compact-summary__label">Señales protegidas</p><p class="admin-compact-summary__value is-text">{blockSignalsLabel(focusedBlock)}</p></article>
+                  <article class="admin-compact-summary__item is-purple"><p class="admin-compact-summary__label">Dispositivos relacionados</p><p class="admin-compact-summary__value">{formatNumber(focusedBlock.detail.related_device_count)}</p></article>
+                  <article class="admin-compact-summary__item is-warn"><p class="admin-compact-summary__label">Direcciones protegidas</p><p class="admin-compact-summary__value">{formatNumber(focusedBlock.detail.related_address_count)}</p></article>
+                </div>
+              </section>
 
               <details class="block-history-disclosure" open>
                 <summary>IPs relacionadas ({formatNumber(focusedBlock.detail.related_ip_count)})</summary>
@@ -2576,6 +2622,57 @@ function observationActionValue(customer: SecurityCustomer) {
 
   .rules-layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .summary-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 520px));
+    align-items: start;
+    gap: 18px;
+  }
+
+  .security-compact-summary {
+    margin: 0;
+  }
+
+  .security-inline-summary {
+    width: min(100%, 520px);
+  }
+
+  .security-compact-disclosure__summary {
+    position: relative;
+    padding-right: 46px;
+    margin-bottom: 0;
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .security-compact-disclosure__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .security-compact-disclosure__copy {
+    display: grid;
+    min-width: 0;
+  }
+
+  .security-compact-disclosure__summary .rules-disclosure-icon {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .security-compact-disclosure[open] .security-compact-disclosure__summary {
+    margin-bottom: 2px;
+  }
+
+  .security-compact-disclosure[open] .rules-disclosure-icon {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  .security-compact-disclosure__list {
+    margin-top: 4px;
   }
 
   .fact-grid {
@@ -3736,6 +3833,15 @@ function observationActionValue(customer: SecurityCustomer) {
     overflow-wrap: anywhere;
   }
 
+  .summary-premium-list > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .summary-premium-list dd {
+    text-align: right;
+  }
+
   .block-history-disclosure {
     overflow: hidden;
     border: 1px solid #dbeafe;
@@ -3950,6 +4056,10 @@ function observationActionValue(customer: SecurityCustomer) {
   }
 
   @media (max-width: 760px) {
+    .summary-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
     .monitoring-head,
     .section-head,
     .pagination-bar,
@@ -3999,6 +4109,11 @@ function observationActionValue(customer: SecurityCustomer) {
     }
 
     .rules-premium-list .capability-row {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .summary-capabilities-disclosure .capability-row {
       flex-direction: row;
       align-items: center;
     }
@@ -4160,6 +4275,11 @@ function observationActionValue(customer: SecurityCustomer) {
     .premium-summary-list > div {
       grid-template-columns: 1fr;
       gap: 4px;
+    }
+
+    .summary-premium-list > div {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
     }
 
     .block-related-ip-row,

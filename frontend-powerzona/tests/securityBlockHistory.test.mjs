@@ -22,19 +22,21 @@ test('BLOCK-HISTORY: Clientes bloqueados ofrece historial contextual en menu de 
   assert.match(blocked, /blockHistoryNavigationHref\(entry\)/);
 });
 
-test('BLOCKED-UI: resumen usa una lista premium sin tarjetas de metricas', () => {
+test('BLOCKED-UI: resumen usa la lista compacta compartida con Productos', () => {
   const view = read('../src/components/admin/SecurityMonitoringView.astro');
   const start = view.indexOf("params.section === 'blocked'");
   const end = view.indexOf('</section>\n\n<dialog id="security-manual-ip-block-dialog"', start);
   const blocked = view.slice(start, end);
 
-  assert.match(blocked, /<dl class="premium-summary-list blocked-metrics-summary" aria-label="Resumen de bloqueos">/);
-  assert.match(blocked, /<dt>Bloqueos activos<\/dt>/);
-  assert.match(blocked, /<dt>Clientes afectados<\/dt>/);
-  assert.match(blocked, /<dt>IPs manuales activas<\/dt>/);
-  assert.match(blocked, /<dt>Vencen hoy<\/dt>/);
-  assert.match(blocked, /<dt>Permanentes<\/dt>/);
+  assert.match(blocked, /class="admin-compact-summary security-compact-summary security-inline-summary blocked-metrics-summary"/);
+  assert.match(blocked, /admin-compact-summary__label">Bloqueos activos/);
+  assert.match(blocked, /admin-compact-summary__label">Clientes afectados/);
+  assert.match(blocked, /admin-compact-summary__label">IPs manuales activas/);
+  assert.match(blocked, /admin-compact-summary__label">Vencen hoy/);
+  assert.match(blocked, /admin-compact-summary__label">Permanentes/);
+  assert.match(blocked, /class="admin-compact-summary security-compact-summary security-inline-summary block-history-summary"/);
   assert.doesNotMatch(blocked, /metrics-grid block-metrics|<article class="metric-card">/);
+  assert.doesNotMatch(blocked, /premium-summary-list/);
 });
 
 test('BLOCKED-FILTER: Todos conserva el estado all porque el valor predeterminado es Activos', () => {

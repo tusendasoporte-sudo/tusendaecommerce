@@ -145,50 +145,54 @@ function pluralIp(value: number) {
 
   {viewError && <div class="detail-alert" role="alert">{viewError}</div>}
 
-  <section class="detail-card" aria-labelledby="visitor-summary-title">
-    <div class="section-head">
+  <section class="admin-compact-summary security-detail-summary" aria-labelledby="visitor-summary-title">
+    <div class="admin-compact-summary__head">
+      <span class="admin-compact-summary__icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4.5 20c.8-4.2 3.3-6.3 7.5-6.3s6.7 2.1 7.5 6.3"></path></svg>
+      </span>
       <div>
-        <h3 id="visitor-summary-title">Resumen del visitante</h3>
-        <p>{rangeDescriptions[visitorRange]}</p>
+        <p class="admin-compact-summary__eyebrow">Resumen</p>
+        <h3 id="visitor-summary-title" class="admin-compact-summary__title">Visitante</h3>
+        <p class="admin-compact-summary__subtitle">{rangeDescriptions[visitorRange]}</p>
       </div>
     </div>
 
-    <div class="summary-list">
-      <div class="summary-row">
-        <span>Estado</span>
-        <strong><span class:list={['security-status-pill', `is-${visitor.security_status}`]}>{securityStatusLabels[visitor.security_status]}</span></strong>
-      </div>
-      <div class="summary-row">
-        <span>Identidad</span>
-        <strong class="summary-value-stack">
+    <div class="admin-compact-summary__list">
+      <article class:list={['admin-compact-summary__item', visitor.security_status === 'blocked' ? 'is-danger' : visitor.security_status === 'watch' ? 'is-warn' : 'is-ok']}>
+        <p class="admin-compact-summary__label">Estado</p>
+        <p class="admin-compact-summary__value is-text"><span class:list={['security-status-pill', `is-${visitor.security_status}`]}>{securityStatusLabels[visitor.security_status]}</span></p>
+      </article>
+      <article class="admin-compact-summary__item">
+        <p class="admin-compact-summary__label">Identidad</p>
+        <p class="admin-compact-summary__value is-text summary-value-stack">
           <span class:list={['identity-pill', { 'is-customer': relatedCustomer }]}>{relatedCustomer ? 'Cliente identificado' : 'Visitante sin identificar'}</span>
           <span>{relatedCustomer ? getVisitorDisplayName(visitor) : 'No relacionado'}</span>
           {relatedCustomer && <small>{getVisitorPhone(visitor)} · Pedidos realizados: {formatNumber(relatedCustomer.orders_count)}</small>}
-        </strong>
-      </div>
-      <div class="summary-row">
-        <span>Actividad</span>
-        <strong class="summary-value-stack">
+        </p>
+      </article>
+      <article class="admin-compact-summary__item is-purple">
+        <p class="admin-compact-summary__label">Actividad</p>
+        <p class="admin-compact-summary__value is-text summary-value-stack">
           <span>{formatNumber(visitor.pageviews_count)} {visitor.pageviews_count === 1 ? 'pagina visitada' : 'paginas visitadas'}</span>
           <small>Primera visita: {formatDateTime(visitor.first_seen_at)} · Ultima actividad: {formatDateTime(visitor.last_seen_at)}</small>
-        </strong>
-      </div>
-      <div class="summary-row">
-        <span>Red</span>
-        <strong class="summary-value-stack">
+        </p>
+      </article>
+      <article class="admin-compact-summary__item is-warn">
+        <p class="admin-compact-summary__label">Red</p>
+        <p class="admin-compact-summary__value is-text summary-value-stack">
           <span>{pluralIp(networkSummary.ip_count)} · {formatNumber(networkSummary.vpn_ip_count)} con VPN o proxy</span>
           {networkSummary.unavailable_ip_count > 0 && <small>{formatNumber(networkSummary.unavailable_ip_count)} sin verificacion disponible</small>}
-        </strong>
-      </div>
+        </p>
+      </article>
       {showIp && (
-        <div class="summary-row">
-          <span>IP actual</span>
-          <strong class="summary-value-stack">
+        <article class="admin-compact-summary__item">
+          <p class="admin-compact-summary__label">IP actual</p>
+          <p class="admin-compact-summary__value is-text summary-value-stack">
             <span>{getIpDisplayValue(visitor)}</span>
             <span class:list={['network-status-pill', `is-${currentIpBadgeStatus}`]}>{networkStatusLabels[networkSummary.current_ip_status]}</span>
             {getIpUnavailableNote(visitor) && <small>{getIpUnavailableNote(visitor)}</small>}
-          </strong>
-        </div>
+          </p>
+        </article>
       )}
     </div>
 
@@ -199,28 +203,28 @@ function pluralIp(value: number) {
           <small>Ver deteccion, decision y riesgo</small>
         </summary>
         <div class="security-details-content">
-          <div class="summary-list">
-            <div class="summary-row">
-              <span>VPN o proxy</span>
-              <strong><span class:list={['vpn-status-pill', `is-${vpnBadgeStatus}`]}>{vpnStatusLabel}</span></strong>
-            </div>
+          <div class="admin-compact-summary__list security-detail-list">
+            <article class:list={['admin-compact-summary__item', vpnBadgeStatus === 'blocked' ? 'is-danger' : 'is-warn']}>
+              <p class="admin-compact-summary__label">VPN o proxy</p>
+              <p class="admin-compact-summary__value is-text"><span class:list={['vpn-status-pill', `is-${vpnBadgeStatus}`]}>{vpnStatusLabel}</span></p>
+            </article>
             {vpnInfo.observed_at && (
-              <div class="summary-row">
-                <span>{vpnInfo.status === 'unavailable' ? 'Ultima verificacion' : 'Ultima deteccion'}</span>
-                <strong>{formatDateTime(vpnInfo.observed_at)}</strong>
-              </div>
+              <article class="admin-compact-summary__item">
+                <p class="admin-compact-summary__label">{vpnInfo.status === 'unavailable' ? 'Última verificación' : 'Última detección'}</p>
+                <p class="admin-compact-summary__value is-text">{formatDateTime(vpnInfo.observed_at)}</p>
+              </article>
             )}
             {vpnInfo.decision && (
-              <div class="summary-row">
-                <span>Decision aplicada</span>
-                <strong>{labelFromMap(EVENT_DECISION_LABELS, vpnInfo.decision)}</strong>
-              </div>
+              <article class="admin-compact-summary__item is-purple">
+                <p class="admin-compact-summary__label">Decisión aplicada</p>
+                <p class="admin-compact-summary__value is-text">{labelFromMap(EVENT_DECISION_LABELS, vpnInfo.decision)}</p>
+              </article>
             )}
             {vpnInfo.risk_level && (
-              <div class="summary-row">
-                <span>Riesgo registrado</span>
-                <strong>{labelFromMap(EVENT_RISK_LABELS, vpnInfo.risk_level)}</strong>
-              </div>
+              <article class="admin-compact-summary__item is-warn">
+                <p class="admin-compact-summary__label">Riesgo registrado</p>
+                <p class="admin-compact-summary__value is-text">{labelFromMap(EVENT_RISK_LABELS, vpnInfo.risk_level)}</p>
+              </article>
             )}
           </div>
           {(vpnInfo.status === 'detected' || vpnInfo.status === 'blocked') && (
@@ -427,6 +431,10 @@ function pluralIp(value: number) {
     padding: 18px;
   }
 
+  .security-detail-summary {
+    margin: 0;
+  }
+
   .section-head,
   .pagination-bar {
     display: flex;
@@ -483,8 +491,9 @@ function pluralIp(value: number) {
 
   .summary-value-stack {
     display: grid;
-    justify-items: start;
+    justify-items: end;
     gap: 5px;
+    text-align: right;
   }
 
   .summary-value-stack > small {

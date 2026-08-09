@@ -9,7 +9,7 @@ test('VISITOR-ORDERS: cliente identificado queda visible en la lista de visitant
 
   assert.match(view, /visitor\.relatedCustomer && <span class="visitor-customer-pill">Cliente<\/span>/);
   assert.match(view, /pluralLabel\(visitor\.relatedCustomer\.orders_count, 'pedido realizado', 'pedidos realizados'\)/);
-  assert.match(view, /params\.section === 'summary' && \([\s\S]*?aria-label="Metricas de seguridad"/);
+  assert.match(view, /params\.section === 'summary' && \([\s\S]*?aria-label="Métricas de seguridad"/);
 });
 
 test('VISITOR-STATUS: reemplaza primera visita por un estado de seguridad verificable', () => {
@@ -32,12 +32,15 @@ test('VISITOR-STATUS: reemplaza primera visita por un estado de seguridad verifi
   assert.match(backend, /security_status: buildVisitorSecurityStatus/);
 });
 
-test('VISITOR-ORDERS: detalle usa una lista premium y no mosaico de tarjetas', () => {
+test('VISITOR-ORDERS: detalle usa la lista compacta compartida con Productos', () => {
   const detail = read('../src/components/admin/SecurityVisitorDetailView.astro');
 
-  assert.match(detail, /<h3 id="visitor-summary-title">Resumen del visitante<\/h3>/);
-  assert.match(detail, /<div class="summary-list">/);
+  assert.match(detail, /<section class="admin-compact-summary security-detail-summary"/);
+  assert.match(detail, /<h3 id="visitor-summary-title" class="admin-compact-summary__title">Visitante<\/h3>/);
+  assert.match(detail, /<div class="admin-compact-summary__list">/);
+  assert.match(detail, /class="admin-compact-summary__value is-text summary-value-stack"/);
   assert.doesNotMatch(detail, /fact-grid|fact-box/);
+  assert.doesNotMatch(detail, /class="summary-list"|class="summary-row"/);
   assert.match(detail, /Cliente identificado/);
   assert.match(detail, /Pedidos realizados/);
   assert.match(detail, /Ver ficha del cliente/);
@@ -78,7 +81,7 @@ test('VISITOR-VPN: detalle muestra una deteccion historica vinculada al disposit
   assert.match(detail, /vpnInfo\.status === 'blocked' \|\| vpnInfo\.status === 'detected'/);
   assert.match(detail, /\? 'VPN o proxy'/);
   assert.doesNotMatch(detail, /VPN o proxy bloqueado|VPN o proxy detectado/);
-  assert.match(detail, /Ultima deteccion/);
+  assert.match(detail, /Última detección/);
   assert.match(detail, /Riesgo registrado/);
 });
 

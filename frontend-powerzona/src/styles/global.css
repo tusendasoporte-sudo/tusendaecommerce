@@ -555,7 +555,7 @@ body {
    Resumen admin como UNA SOLA tarjeta tipo lista
    ========================================================= */
 
-.pz-admin-content .admin-compact-summary {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary {
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -572,7 +572,7 @@ body {
   box-sizing: border-box;
 }
 
-.pz-admin-content .admin-compact-summary__head {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__head {
   min-width: 0;
   display: flex;
   align-items: center;
@@ -586,7 +586,7 @@ body {
   box-shadow: none;
 }
 
-.pz-admin-content .admin-compact-summary__icon {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__icon {
   width: 42px;
   height: 42px;
   min-width: 42px;
@@ -599,7 +599,7 @@ body {
   box-shadow: 0 10px 22px rgba(37, 99, 235, 0.12);
 }
 
-.pz-admin-content .admin-compact-summary__icon svg {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__icon svg {
   width: 20px;
   height: 20px;
   display: block;
@@ -610,7 +610,7 @@ body {
   stroke-linejoin: round;
 }
 
-.pz-admin-content .admin-compact-summary__eyebrow {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__eyebrow {
   margin: 0 0 3px;
   color: #2563eb;
   font-size: 10px;
@@ -620,7 +620,7 @@ body {
   letter-spacing: 0.08em;
 }
 
-.pz-admin-content .admin-compact-summary__title {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__title {
   margin: 0;
   color: #0f172a;
   font-size: 18px;
@@ -629,7 +629,7 @@ body {
   letter-spacing: -0.035em;
 }
 
-.pz-admin-content .admin-compact-summary__subtitle {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__subtitle {
   margin: 5px 0 0;
   color: #64748b;
   font-size: 12px;
@@ -637,7 +637,7 @@ body {
   font-weight: 800;
 }
 
-.pz-admin-content .admin-compact-summary__list {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__list {
   min-width: 0;
   display: grid;
   grid-template-columns: 1fr;
@@ -645,7 +645,7 @@ body {
   margin-top: 4px;
 }
 
-.pz-admin-content .admin-compact-summary__item {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item {
   min-width: 0;
   min-height: 0;
   padding: 13px 0;
@@ -661,12 +661,12 @@ body {
   overflow: visible;
 }
 
-.pz-admin-content .admin-compact-summary__item:last-child {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item:last-child {
   border-bottom: 0;
   padding-bottom: 0;
 }
 
-.pz-admin-content .admin-compact-summary__label {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__label {
   min-width: 0;
   max-width: 100%;
   margin: 0;
@@ -680,7 +680,7 @@ body {
   overflow-wrap: anywhere;
 }
 
-.pz-admin-content .admin-compact-summary__value {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__value {
   min-width: 0;
   max-width: 100%;
   margin: 0;
@@ -693,7 +693,7 @@ body {
   white-space: nowrap;
 }
 
-.pz-admin-content .admin-compact-summary__hint {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__hint {
   grid-column: 1 / -1;
   margin: -5px 0 0;
   color: #64748b;
@@ -702,74 +702,87 @@ body {
   font-weight: 800;
 }
 
-.pz-admin-content .admin-compact-summary__item.is-ok .admin-compact-summary__value {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item.is-ok .admin-compact-summary__value {
   color: #16a34a;
 }
 
-.pz-admin-content .admin-compact-summary__item.is-warn .admin-compact-summary__value {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item.is-warn .admin-compact-summary__value {
   color: #f97316;
 }
 
-.pz-admin-content .admin-compact-summary__item.is-muted .admin-compact-summary__value {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item.is-muted .admin-compact-summary__value {
   color: #64748b;
 }
 
-.pz-admin-content .admin-compact-summary__item.is-purple .admin-compact-summary__value {
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item.is-purple .admin-compact-summary__value {
   color: #4f46e5;
 }
 
+:is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item.is-danger .admin-compact-summary__value {
+  color: #dc2626;
+}
+
+:is(.security-monitoring, .visitor-detail) .admin-compact-summary__value.is-text {
+  max-width: 300px;
+  font-size: 14px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 1024px) {
-  .pz-admin-content .admin-compact-summary {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary {
     max-width: 520px;
   }
 
-  .pz-admin-content .admin-compact-summary--marketing {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary--marketing {
     max-width: 620px;
   }
 }
 
 @media (max-width: 760px) {
-  .pz-admin-content .admin-compact-summary {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary {
     padding: 16px;
     border-radius: 22px;
   }
 
-  .pz-admin-content .admin-compact-summary__head {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__head {
     align-items: flex-start;
     padding-bottom: 13px;
   }
 
-  .pz-admin-content .admin-compact-summary__title {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__title {
     font-size: 17px;
   }
 
-  .pz-admin-content .admin-compact-summary__subtitle {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__subtitle {
     font-size: 12px;
   }
 
-  .pz-admin-content .admin-compact-summary__item {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item {
     padding: 12px 0;
   }
 
-  .pz-admin-content .admin-compact-summary__label {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__label {
     font-size: 12px;
   }
 
-  .pz-admin-content .admin-compact-summary__value {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__value {
     font-size: 19px;
   }
 }
 
 @media (max-width: 390px) {
-  .pz-admin-content .admin-compact-summary {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary {
     padding: 14px;
   }
 
-  .pz-admin-content .admin-compact-summary__item {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__item {
     gap: 10px;
   }
 
-  .pz-admin-content .admin-compact-summary__value {
+  :is(.pz-admin-content, .security-monitoring, .visitor-detail) .admin-compact-summary__value {
     font-size: 18px;
   }
 }
