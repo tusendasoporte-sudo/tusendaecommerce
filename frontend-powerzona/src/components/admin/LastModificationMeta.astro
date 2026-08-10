@@ -60,6 +60,7 @@ const {
 
   type LastModificationWindow = typeof window & {
     PZ_LAST_MODIFICATION_CLEANUP?: () => void;
+    __pzStoreSettingsAuthToken?: () => string;
   };
 
   const lastModificationWindow = window as LastModificationWindow;
@@ -177,7 +178,7 @@ const {
     const entries = [...byKey.entries()].slice(0, 100);
     if (!entries.length) return;
     entries.forEach(([key]) => inFlight.add(key));
-    const token = readPocketBaseAuthToken();
+    const token = String(lastModificationWindow.__pzStoreSettingsAuthToken?.() || '') || readPocketBaseAuthToken();
     if (!token) {
       entries.forEach(([, value]) => value.elements.forEach(renderUnavailable));
       entries.forEach(([key]) => inFlight.delete(key));

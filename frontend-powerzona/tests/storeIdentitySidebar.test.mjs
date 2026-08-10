@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { getStoreInitials } from '../src/lib/storeIdentity.ts';
+import { getStoreInitials, getStoreOrderPrefix } from '../src/lib/storeIdentity.ts';
 
 const sidebar = readFileSync(new URL('../src/components/admin/AdminSidebar.astro', import.meta.url), 'utf8');
 const indicator = readFileSync(new URL('../src/components/shared/StorePlanIndicator.astro', import.meta.url), 'utf8');
@@ -16,6 +16,12 @@ test('las iniciales de tienda se derivan del nombre real', () => {
   assert.doesNotMatch(sidebar, /brand-logo">PZ</);
 });
 
+test('el prefijo inicial usa dos letras del nombre y queda en ASCII', () => {
+  assert.equal(getStoreOrderPrefix('Lo que estás buscando aquí lo encuentras'), 'LQ');
+  assert.equal(getStoreOrderPrefix('PowerZona'), 'PZ');
+  assert.equal(getStoreOrderPrefix('Ámbar'), 'AM');
+});
+
 test('el encabezado y el plan del sidebar permiten mostrar todo el contenido', () => {
   assert.match(sidebar, /\.pz-admin-sidebar__brand-title\s*\{[\s\S]*?overflow-wrap:\s*anywhere\s*!important;[\s\S]*?white-space:\s*normal\s*!important;/);
   assert.match(indicator, /\.store-plan-indicator--store-sidebar \.store-plan-indicator__copy\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?overflow:\s*visible;/);
@@ -24,7 +30,18 @@ test('el encabezado y el plan del sidebar permiten mostrar todo el contenido', (
 
 test('una tienda nueva usa su nombre al crear los ajustes y un ejemplo genérico', () => {
   assert.match(settings, /value=\{currentStoreName\} placeholder="Ej: Mi tienda 84"/);
+  assert.match(settings, /value=\{currentStorePrefix\} placeholder="Ej: MT"/);
   assert.match(settings, /CURRENT_STORE_NAME_PUBLIC_SETTINGS/);
+  assert.match(settings, /CURRENT_STORE_PREFIX_PUBLIC_SETTINGS/);
   assert.doesNotMatch(settings, /stored_name:\s*'PowerZona'/);
   assert.doesNotMatch(settings, /store_name:\s*'PowerZona'/);
+});
+
+test('los ajustes nuevos detectan cambios parciales y resuelven la carga inicial', () => {
+  assert.match(settings, /window\.__pzStoreSettingsAuthToken = \(\) => String\(adminAuthToken \|\| ''\)/);
+  assert.match(settings, /orderPrefix:\s*cleanOrderPrefix\(fields\.orderPrefix\?\.value \|\| ''\)/);
+  assert.match(settings, /fields\.storeName\?\.value\?\.trim\(\) && fields\.orderPrefix\?\.value\?\.trim\(\)/);
+  assert.doesNotMatch(settings, /fields\.storeName\?\.value\?\.trim\(\) && fields\.welcome\?\.value\?\.trim\(\)/);
+  assert.doesNotMatch(settings, /id="settings-whatsapp-number"[^>]*required/);
+  assert.match(settings, /loadSettings\(\)\.catch\(\(\) => \{[\s\S]*?renderSettings\(\);/);
 });
