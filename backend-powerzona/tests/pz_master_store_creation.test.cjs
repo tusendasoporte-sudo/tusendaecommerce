@@ -144,9 +144,39 @@ test('la ruta exige autenticaciÃ³n y ejecuta la operaciÃ³n dentro de una tra
   assert.match(route, /\/api\/pz\/master\/stores\/create/);
   assert.match(route, /\$apis\.requireAuth\(\)/);
   assert.match(route, /onRecordUpdateRequest[\s\S]*enforceFixedCurrencyUpdate/);
+  assert.match(route, /onRecordCreateRequest[\s\S]*rejectDuplicateFixedCurrencyCreate/);
   assert.match(route, /onRecordDeleteRequest[\s\S]*rejectFixedCurrencyDelete/);
   assert.match(source, /\$app\.runInTransaction/);
   assert.match(source, /createStoreWithSystemCurrencies\(txApp/);
+});
+
+test('rechaza crear otra moneda fija con el mismo codigo en una tienda', () => {
+  const duplicate = mutableRecord('newcurrency0001', { store: 'storecurrency01', code: ' usd ' });
+  assert.throws(
+    () => creation.rejectDuplicateFixedCurrencyCreate({
+      record: duplicate,
+      app: {
+        findRecordsByFilter(name, _filter, _sort, limit, offset, params) {
+          assert.equal(name, 'currencies');
+          assert.equal(limit, 1);
+          assert.equal(offset, 0);
+          assert.deepEqual(params, { store: 'storecurrency01', code: 'USD' });
+          return [mutableRecord('existingusd0001')];
+        },
+      },
+      next() {},
+    }),
+    /Ya existe esta moneda fija/,
+  );
+
+  let continued = 0;
+  creation.rejectDuplicateFixedCurrencyCreate({
+    record: duplicate,
+    app: { findRecordsByFilter() { return []; } },
+    next() { continued += 1; },
+  });
+  assert.equal(continued, 1);
+  assert.equal(duplicate.code, 'USD');
 });
 
 test('las monedas fijas no pueden renombrarse, moverse de tienda ni eliminarse', () => {
@@ -301,6 +331,67 @@ test('el backfill crea las cinco fijas y conserva una moneda predeterminada eleg
   } finally {
     global.migrate = previousMigrate;
     global.Record = previousRecord;
+    delete require.cache[require.resolve(migrationPath)];
+  }
+});
+
+test('la limpieza mueve referencias y elimina solamente el USD duplicado confirmado', () => {
+  const migrationPath = path.resolve(__dirname, '../pb_migrations/1786486500_cleanup_duplicate_usd.js');
+  const previousMigrate = global.migrate;
+  let up = null;
+  global.migrate = (upHandler) => { up = upHandler; };
+
+  const canonical = mutableRecord('piepj7egaqsdokj', {
+    store: 'storecurrency01', code: 'USD', exchange_rate: 5, active: false,
+    is_default: false, is_system: false, is_base: false,
+  });
+  const duplicate = mutableRecord('qmedtz0hcb6ufjf', {
+    store: 'storecurrency01', code: 'USD', exchange_rate: 1, active: true,
+    is_default: false, is_system: true, is_base: true,
+  });
+  const setting = mutableRecord('settingscurr001', { default_currency: duplicate.id });
+  const order = mutableRecord('ordercurrency01', { currency: duplicate.id });
+  const records = new Map([[canonical.id, canonical], [duplicate.id, duplicate]]);
+  const deleted = [];
+  const saved = [];
+  const app = {
+    findRecordById(name, id) {
+      if (name !== 'currencies' || !records.has(id)) throw new Error('not_found');
+      return records.get(id);
+    },
+    findRecordsByFilter(name, _filter, _sort, limit, offset, params) {
+      assert.equal(params.duplicate, duplicate.id);
+      const source = name === 'settings' ? [setting] : name === 'orders' ? [order] : [];
+      return source.slice(offset, offset + limit);
+    },
+    save(record) { saved.push(record); return record; },
+    delete(record) { deleted.push(record.id); records.delete(record.id); },
+  };
+
+  try {
+    delete require.cache[require.resolve(migrationPath)];
+    require(migrationPath);
+    assert.equal(typeof up, 'function');
+    up(app);
+
+    assert.equal(setting.default_currency, canonical.id);
+    assert.equal(order.currency, canonical.id);
+    assert.equal(canonical.exchange_rate, 1);
+    assert.equal(canonical.active, true);
+    assert.equal(canonical.is_system, true);
+    assert.equal(canonical.is_base, true);
+    assert.equal(canonical.is_default, true);
+    assert.deepEqual(deleted, [duplicate.id]);
+    assert.equal(records.has(canonical.id), true);
+    assert.equal(records.has(duplicate.id), false);
+    assert.ok(saved.includes(setting));
+    assert.ok(saved.includes(order));
+
+    const savedBeforeNoOp = saved.length;
+    up(app);
+    assert.equal(saved.length, savedBeforeNoOp);
+  } finally {
+    global.migrate = previousMigrate;
     delete require.cache[require.resolve(migrationPath)];
   }
 });

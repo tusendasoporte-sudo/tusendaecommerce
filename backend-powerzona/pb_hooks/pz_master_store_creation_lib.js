@@ -94,6 +94,32 @@ function rejectFixedCurrencyDelete(e) {
   return e.next();
 }
 
+function rejectDuplicateFixedCurrencyCreate(e) {
+  const current = e && e.record;
+  const code = normalizedCurrencyCode(current);
+  if (!SYSTEM_CURRENCY_CODES.includes(code)) return e.next();
+
+  const storeId = recordString(current, "store");
+  if (!storeId) return e.next();
+  const app = e && e.app;
+  if (!app || typeof app.findRecordsByFilter !== "function") {
+    throw new Error("currency_validation_unavailable");
+  }
+
+  const existing = (app.findRecordsByFilter(
+    "currencies",
+    "store = {:store} && code = {:code}",
+    "id",
+    1,
+    0,
+    { store: storeId, code }
+  ) || [])[0] || null;
+  if (existing) throwFixedCurrencyError("Ya existe esta moneda fija para la tienda.");
+
+  current.set("code", code);
+  return e.next();
+}
+
 function isActiveMaster(record) {
   return recordString(record, "role") === "master_admin"
     && recordString(record, "status").toLowerCase() === "active";
@@ -262,6 +288,7 @@ module.exports = {
   isActiveMaster,
   normalizeStoreSlug,
   parseCreateStorePayload,
+  rejectDuplicateFixedCurrencyCreate,
   rejectFixedCurrencyDelete,
   requireAuthenticatedUser,
   storeSlugExists,

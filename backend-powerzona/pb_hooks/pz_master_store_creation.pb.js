@@ -15,6 +15,11 @@ onRecordUpdateRequest(
   "currencies"
 );
 
+onRecordCreateRequest(
+  (e) => require(`${__hooks}/pz_master_store_creation_lib.js`).rejectDuplicateFixedCurrencyCreate(e),
+  "currencies"
+);
+
 onRecordDeleteRequest(
   (e) => require(`${__hooks}/pz_master_store_creation_lib.js`).rejectFixedCurrencyDelete(e),
   "currencies"
