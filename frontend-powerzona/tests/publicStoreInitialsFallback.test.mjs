@@ -68,3 +68,7 @@ test('no quedan placeholders publicos fijos de PZ', () => {
   assert.doesNotMatch(publicBrandingSources, /:\s*['"]PZ['"]/);
   assert.doesNotMatch(publicBrandingSources, />PZ</);
 });
+
+test('la tienda publica muestra una categoria por fila cuando no existe preferencia', () => {
+  assert.match(publicHome, /settings\?\.public_category_columns \|\| '1'/);
+});

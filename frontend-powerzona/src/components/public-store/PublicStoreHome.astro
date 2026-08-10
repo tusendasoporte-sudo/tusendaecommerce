@@ -53,7 +53,7 @@ const storeName = currentStore?.name || settings?.store_name || settings?.stored
 const storeInitials = getStoreInitials(storeName);
 const welcomeText = String(settings?.welcome_text || '').trim();
 const storeDescription = String(settings?.store_description || '').trim();
-const publicCategoryColumns = String(settings?.public_category_columns || '2') === '1' ? '1' : '2';
+const publicCategoryColumns = String(settings?.public_category_columns || '1') === '1' ? '1' : '2';
 const publicProvince = String(settings?.province || '').trim();
 const publicMunicipality = String(settings?.municipality || '').trim();
 const publicLocationText = publicProvince ? `${publicProvince}, ${publicMunicipality || 'Cuba'}` : '';

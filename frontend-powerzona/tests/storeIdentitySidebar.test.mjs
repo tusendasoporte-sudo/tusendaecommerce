@@ -44,6 +44,12 @@ test('el contacto publico inicia con el WhatsApp indicado por el master admin', 
   assert.match(settings, /data\.append\('whatsapp_number', composeWhatsappNumber\(\)\)/);
 });
 
+test('la vista inicial de categorias usa una fila y permite cambiar a dos', () => {
+  assert.match(settings, /settings-public-category-columns"><option value="1">1 por fila<\/option><option value="2">2 por fila<\/option>/);
+  assert.match(settings, /record\.public_category_columns \|\| '1'/);
+  assert.match(settings, /public_category_columns:\s*fields\.categoryColumns\.value \|\| '1'/);
+});
+
 test('los ajustes nuevos detectan cambios parciales y resuelven la carga inicial', () => {
   assert.match(settings, /window\.__pzStoreSettingsAuthToken = \(\) => String\(adminAuthToken \|\| ''\)/);
   assert.match(settings, /orderPrefix:\s*cleanOrderPrefix\(fields\.orderPrefix\?\.value \|\| ''\)/);

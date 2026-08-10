@@ -3543,7 +3543,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
 
               <details class="general-settings-accordion business-type-accordion">
                 <summary class="general-settings-summary"><div class="general-settings-summary-main"><span class="general-settings-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4V5Zm2 2v10h12V7H6Zm2 2h8v2H8V9Zm0 4h6v2H8v-2Z"/></svg></span><div><h3>Tipo de negocio</h3><p>Clasificaci&oacute;n p&uacute;blica de tu tienda.</p></div></div><div class="general-settings-summary-meta"><span id="general-status-business" class="general-settings-badge pending">Pendiente</span><button class="settings-help-btn" type="button" data-help-key="general-business">L&eacute;eme</button><span class="general-settings-chevron">&#8964;</span></div></summary>
-                <div class="general-settings-body"><div class="general-settings-grid"><div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="2">2 por fila</option><option value="1">1 por fila</option></select></div><div class="field full"><label>Tipo de negocio</label><div class="business-type-picker"><button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button><div id="business-type-chips" class="chip-list"></div><div id="business-type-panel" class="business-type-panel hidden"><input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." /><div id="business-type-options"></div></div></div><p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p></div></div></div>
+                <div class="general-settings-body"><div class="general-settings-grid"><div class="field"><label for="settings-public-category-columns">Vista de categor&iacute;as</label><select id="settings-public-category-columns"><option value="1">1 por fila</option><option value="2">2 por fila</option></select></div><div class="field full"><label>Tipo de negocio</label><div class="business-type-picker"><button id="business-type-trigger" class="mini-btn business-type-trigger" type="button" aria-expanded="false">Seleccionar tipos de negocio <span aria-hidden="true">&#8964;</span></button><div id="business-type-chips" class="chip-list"></div><div id="business-type-panel" class="business-type-panel hidden"><input id="business-type-search" type="search" placeholder="Buscar tipo de negocio..." /><div id="business-type-options"></div></div></div><p id="business-type-help" class="form-help">Puedes seleccionar hasta 3 tipos de negocio.</p></div></div></div>
               </details>
 
               <details class="general-settings-accordion">
@@ -5697,7 +5697,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
             coverMode: fields.coverMode?.value || 'single',
             storeDescription: fields.storeDescription?.value?.trim() || '',
             welcome: fields.welcome?.value?.trim() || '',
-            categoryColumns: fields.categoryColumns?.value || '2',
+            categoryColumns: fields.categoryColumns?.value || '1',
             notificationsEnabled: fields.notificationsEnabled?.checked !== false,
             notifyNewOrder: fields.notifyNewOrder?.checked !== false,
             notifyPendingOrder: fields.notifyPendingOrder?.checked !== false,
@@ -6009,7 +6009,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
             whatsapp_number: composeWhatsappNumber(),
             store_description: fields.storeDescription.value.trim(),
             welcome_text: fields.welcome.value.trim(),
-            public_category_columns: fields.categoryColumns.value || '2',
+            public_category_columns: fields.categoryColumns.value || '1',
             notifications_enabled: fields.notificationsEnabled?.checked !== false,
             notify_new_order: fields.notifyNewOrder?.checked !== false,
             notify_pending_order: fields.notifyPendingOrder?.checked !== false,
@@ -6126,7 +6126,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           fields.whatsapp.value = whatsapp.number;
           fields.storeDescription.value = record.store_description || '';
           fields.welcome.value = record.welcome_text || '';
-          fields.categoryColumns.value = String(record.public_category_columns || '2') === '1' ? '1' : '2';
+          fields.categoryColumns.value = String(record.public_category_columns || '1') === '1' ? '1' : '2';
           if (fields.notificationsEnabled) fields.notificationsEnabled.checked = record.notifications_enabled !== false;
           if (fields.notifyNewOrder) fields.notifyNewOrder.checked = record.notify_new_order !== false;
           if (fields.notifyPendingOrder) fields.notifyPendingOrder.checked = record.notify_pending_order !== false;
@@ -6208,7 +6208,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
             data.append('whatsapp_number', composeWhatsappNumber());
             data.append('store_description', fields.storeDescription.value.trim());
             data.append('welcome_text', fields.welcome.value.trim());
-            data.append('public_category_columns', fields.categoryColumns.value || '2');
+            data.append('public_category_columns', fields.categoryColumns.value || '1');
             data.append('notifications_enabled', fields.notificationsEnabled?.checked !== false);
             data.append('notify_new_order', fields.notifyNewOrder?.checked !== false);
             data.append('notify_pending_order', fields.notifyPendingOrder?.checked !== false);
