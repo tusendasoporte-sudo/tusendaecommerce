@@ -9,6 +9,8 @@ function read(relativePath) {
 }
 
 const productCard = read('../src/components/ProductCard.astro');
+const cart = read('../src/components/Cart.astro');
+const layout = read('../src/layouts/Layout.astro');
 const publicHome = read('../src/components/public-store/PublicStoreHome.astro');
 const categoryPage = read('../src/pages/categoria/[slug].astro');
 const subcategoryPage = read('../src/pages/subcategoria/[slug].astro');
@@ -16,6 +18,7 @@ const productPage = read('../src/pages/producto/[slug].astro');
 const searchPage = read('../src/pages/buscar.astro');
 const giftsPage = read('../src/pages/regalos/index.astro');
 const receiptPage = read('../src/pages/orden/[orderNumber]/[token].astro');
+const checkoutPage = read('../src/pages/checkout.astro');
 
 const publicBrandingSources = [
   publicHome,
@@ -50,6 +53,15 @@ test('productos sin foto usan un fallback nativo con las iniciales', () => {
   assert.match(productPage, /product-main-image-fallback/);
   assert.match(productPage, /related-image-fallback/);
   assert.doesNotMatch(publicBrandingSources, /placehold\.co\/\d+x\d+\?text=PowerZona/i);
+});
+
+test('carrito y checkout reemplazan placeholders heredados por las iniciales', () => {
+  assert.match(layout, /<Cart storeInitials=\{currentStoreInitials\} \/>/);
+  assert.match(cart, /renderCartItemMedia\(item, isUnavailable\)/);
+  assert.match(cart, /text=PowerZona\|text=PZ/);
+  assert.doesNotMatch(cart, /<img src="\$\{item\.image\}" alt="\$\{item\.title\}"/);
+  assert.match(checkoutPage, /renderCheckoutItemMedia\(item\)/);
+  assert.doesNotMatch(checkoutPage, /src="\$\{item\.image\}"/);
 });
 
 test('no quedan placeholders publicos fijos de PZ', () => {

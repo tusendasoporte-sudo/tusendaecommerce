@@ -3,6 +3,7 @@ import '../styles/global.css';
 import Cart from '../components/Cart.astro';
 import CurrencySwitcher from '../components/CurrencySwitcher.astro';
 import SocialMeta from '../components/SocialMeta.astro';
+import { getStoreInitials } from '../lib/storeIdentity';
 import { getCurrentStore, getStorePathPrefix, isStoreRoute } from '../lib/stores';
 
 const {
@@ -16,6 +17,7 @@ const hideStoreFloatingUi = Boolean(isBazar || isMaster || hideStoreFloatingUiPr
 const currentStore = hideStoreFloatingUi ? { id: '', slug: '' } : await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
 const currentStoreSlug = currentStore.slug || 'powerzona';
+const currentStoreInitials = getStoreInitials(currentStore?.name || currentStoreSlug);
 const publicPathPrefix = getStorePathPrefix(currentStore, Astro.url.pathname);
 const normalizedPathname = Astro.url.pathname.replace(/\/$/, '') || '/';
 const isCheckoutPage = normalizedPathname === '/checkout' || (isStoreRoute(Astro.url.pathname) && normalizedPathname === `${publicPathPrefix}/checkout`);
@@ -553,7 +555,7 @@ const contentContainerClass = isMaster
 		  })();
 		</script>
 		{!hideStoreFloatingUi && <CurrencySwitcher hideFloatingSwitcher={isCheckoutPage} />}
-		{!hideStoreFloatingUi && <Cart />}
+		{!hideStoreFloatingUi && <Cart storeInitials={currentStoreInitials} />}
 
 	</body>
 </html>

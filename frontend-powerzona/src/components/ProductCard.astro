@@ -42,7 +42,8 @@ const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
 const ratingAverageNumber = Number(ratingAverage || 0);
 const ratingCountNumber = Number(ratingCount || 0);
 const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingAverageNumber > 0;
-const hasImage = Boolean(String(image || '').trim());
+const imageUrl = String(image || '').trim();
+const hasImage = Boolean(imageUrl) && !/placehold\.co\/.*(?:text=PowerZona|text=PZ)/i.test(imageUrl);
 const storeInitials = getStoreInitials(storeName);
 ---
 

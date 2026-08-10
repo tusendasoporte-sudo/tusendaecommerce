@@ -1,12 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import StoreAnalyticsTracker from '../components/StoreAnalyticsTracker.astro';
+import { getStoreInitials } from '../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const currentStore = await getCurrentStore(Astro);
 const currentStoreId = currentStore.id;
 const currentStoreSlug = currentStore.slug || 'powerzona';
+const storeInitials = getStoreInitials(currentStore?.name || currentStoreSlug);
 const currentPathname = Astro.url.pathname;
 const homePath = getPublicPath('/', currentStore, currentPathname);
 ---
@@ -339,7 +341,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		</div>
 	</section>
 
-	<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug, homePath }}>
+	<script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreSlug, homePath, storeInitials }}>
 		const checkoutEmpty = document.getElementById('checkout-empty');
 		const checkoutContent = document.getElementById('checkout-content');
 		const checkoutItems = document.getElementById('checkout-items');
@@ -398,6 +400,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		let businessHoursStatus = { mode: 'always_available', isAvailable: true, isClosed: false, title: '', message: '', note: '', allowOrders: true };
 		const CURRENT_STORE_ID = currentStoreId || '';
 		const CURRENT_STORE_SLUG = currentStoreSlug || 'powerzona';
+		const STORE_INITIALS = String(storeInitials || 'TS').trim().slice(0, 2).toUpperCase() || 'TS';
 		const COUPON_STORE_KEY = CURRENT_STORE_ID || 'powerzona';
 		const SAVED_COUPONS_KEY = `powerzona_saved_coupons_${COUPON_STORE_KEY}`;
 		const SELECTED_COUPON_KEY = `powerzona_selected_coupon_${COUPON_STORE_KEY}`;
@@ -1056,6 +1059,18 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				.replace(/>/g, '&gt;')
 				.replace(/"/g, '&quot;')
 				.replace(/'/g, '&#039;');
+		}
+
+		function hasUsableProductImage(value) {
+			const imageUrl = String(value || '').trim();
+			return Boolean(imageUrl) && !/placehold\.co\/.*(?:text=PowerZona|text=PZ)/i.test(imageUrl);
+		}
+
+		function renderCheckoutItemMedia(item) {
+			if (hasUsableProductImage(item?.image)) {
+				return `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" class="w-20 h-20 object-cover rounded-2xl border border-gray-100">`;
+			}
+			return `<span role="img" aria-label="Producto sin foto" class="w-20 h-20 shrink-0 rounded-2xl border border-gray-100 bg-slate-200 text-slate-500 flex items-center justify-center text-xl font-black">${escapeHtml(STORE_INITIALS)}</span>`;
 		}
 
 		function cleanPhoneDigits(value) {
@@ -1731,11 +1746,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 				checkoutItems.innerHTML += `
 					<div class="p-5 flex gap-4">
-						<img
-							src="${item.image}"
-							alt="${item.title}"
-							class="w-20 h-20 object-cover rounded-2xl border border-gray-100"
-						/>
+						${renderCheckoutItemMedia(item)}
 
 						<div class="flex-1">
 							<div class="flex justify-between gap-3">

@@ -1,4 +1,5 @@
 ---
+const { storeInitials = 'TS' } = Astro.props;
 ---
 
 
@@ -62,7 +63,7 @@
 
 </div>
 
-<script>
+<script define:vars={{ storeInitials }}>
   const floatingBtn = document.getElementById('cart-floating-btn');
   const cartCount = document.getElementById('cart-count');
   const cartSidebar = document.getElementById('cart-sidebar');
@@ -78,6 +79,7 @@
   const currentStoreId = String(window.PZ_CURRENT_STORE_ID || '');
   const cartStorage = window.PZCartStorage || null;
   const ONE_TO_ONE_RATE_TOLERANCE = 0.000001;
+  const CART_STORE_INITIALS = String(storeInitials || 'TS').trim().slice(0, 2).toUpperCase() || 'TS';
   const parseCart = (value) => {
     try {
       const parsed = JSON.parse(value || '[]');
@@ -115,6 +117,13 @@
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+  const hasUsableCartImage = (value) => {
+    const imageUrl = String(value || '').trim();
+    return Boolean(imageUrl) && !/placehold\.co\/.*(?:text=PowerZona|text=PZ)/i.test(imageUrl);
+  };
+  const renderCartItemMedia = (item, isUnavailable) => hasUsableCartImage(item?.image)
+    ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" class="w-16 h-16 object-cover rounded-lg ${isUnavailable ? 'grayscale' : ''}">`
+    : `<span role="img" aria-label="Producto sin foto" class="w-16 h-16 shrink-0 rounded-lg border border-gray-100 bg-slate-200 text-slate-500 flex items-center justify-center text-lg font-black ${isUnavailable ? 'grayscale' : ''}">${escapeHtml(CART_STORE_INITIALS)}</span>`;
   const getCartValidator = () => window.PZCartLiveValidator || null;
   const isCartItemUnavailable = (item) => Boolean(getCartValidator()?.isCartItemUnavailable?.(item))
     || (!item?.is_gift && itemTracksStock(item) && !item.preorder && Number(item.stock || 0) <= 0);
@@ -347,7 +356,7 @@ if (isCheckoutPage) {
 
         cartItemsContainer.innerHTML += `
           <div class="flex gap-4 border-b border-gray-100 pb-4 relative pr-8 ${isUnavailable ? 'opacity-70' : ''}">
-            <img src="${item.image}" alt="${item.title}" class="w-16 h-16 object-cover rounded-lg ${isUnavailable ? 'grayscale' : ''}">
+            ${renderCartItemMedia(item, isUnavailable)}
 
             <div class="flex-1">
               <h4 class="text-sm font-bold text-gray-800 line-clamp-2">
