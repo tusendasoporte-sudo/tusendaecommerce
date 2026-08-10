@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="brand_badge">84</string>
+    <string name="offline_title">Sin conexión</string>
+    <string name="offline_message">Comprueba tu conexión a internet para continuar administrando la tienda.</string>
+    <string name="retry">Reintentar</string>
+    <string name="push_channel_orders">Pedidos</string>
+    <string name="push_channel_orders_description">Pedidos nuevos y pedidos pendientes.</string>
+    <string name="push_channel_inventory">Inventario</string>
+    <string name="push_channel_inventory_description">Existencias bajas, agotados y vencimientos.</string>
+    <string name="push_channel_security">Seguridad</string>
+    <string name="push_channel_security_description">Intentos bloqueados y alertas críticas de seguridad.</string>
+    <string name="push_channel_general">Avisos generales</string>
+    <string name="push_channel_general_description">Reseñas, rifas y otros avisos administrativos.</string>
+</resources>

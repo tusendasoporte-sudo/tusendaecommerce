@@ -1621,26 +1621,26 @@ Nota: este cierre actualiza la bitacora como completado local por confirmacion d
 
 Documento interno de trabajo. No incluir datos sensibles ni notas visibles de produccion.
 
-**M-015 · IDEA FUTURA · PRIORIDAD MEDIA/ALTA**
+**M-015 · IMPLEMENTADO LOCAL · APK ADMINISTRATIVA DE PRUEBA**
 
 | Campo | Detalle |
 |---|---|
-| Tipo | Mejora futura / app Android / white-label por tienda |
+| Tipo | App Android / contenedor web / configurable por tienda |
 | Seccion | Proyecto Tu Senda 84 -> Apps individuales por tienda |
 | Alcance | Fase inicial: APK contenedora usando la web actual |
-| Estado | Registrado para futuro; no implementar ahora |
+| Estado | Implementacion local completada; APK debug validada en emulador Android 16. Firma de produccion pendiente. |
 | Fecha de registro | 06 de julio de 2026 |
-| Via inicial aprobada | Una APK por tienda que abre su URL fija, por ejemplo /t/[storeSlug]. |
+| Via inicial aprobada | Una base Android configurable que abre una URL administrativa fija, por defecto /admin. |
 
 ### Objetivo
 
-Registrar como mejora futura la posibilidad de crear una APK individual para cada tienda de Tu Senda 84 usando la web actual como base. La meta inicial no es reconstruir una app nativa desde cero, sino empaquetar la tienda existente en Android con marca propia.
+Empaquetar la administracion web existente de Tu Senda 84 como APK Android sin reconstruir ni duplicar la logica del sistema. La primera entrega abre /admin y conserva el inicio de sesion, la seleccion automatica de tienda y todos los datos en el backend actual.
 
 ### Idea clave
 
 Un mismo codigo base puede generar apps diferentes por tienda: nombre, icono, color, pantalla inicial, identificador Android y URL de inicio. Ejemplo: PowerZona APK abre directo la tienda /t/powerzona, mientras otra tienda abriria su propio /t/[storeSlug].
 
-### Configuracion futura por tienda
+### Configuracion por tienda
 
 APP_NAME: nombre publico de la app, por ejemplo PowerZona.
 
@@ -1651,6 +1651,8 @@ APP_LOGO / APP_COLOR: logo, icono, splash y color principal propios de la tienda
 START_URL: URL fija de la tienda en tusenda84.com/t/[storeSlug].
 
 PACKAGE_ID: identificador Android unico por tienda, por ejemplo com.tusenda84.powerzona.
+
+En la implementacion Android estos valores se proporcionan al compilar como PZ_APP_NAME, PZ_ADMIN_URL y PZ_APPLICATION_ID.
 
 <!-- PDF fuente: página 43 -->
 
@@ -1664,13 +1666,41 @@ PACKAGE_ID: identificador Android unico por tienda, por ejemplo com.tusenda84.po
 
 - Mantener una sola base de mantenimiento: las correcciones del sitio benefician tambien a las APK generadas.
 
+### Implementacion local del 09 de agosto de 2026
+
+- Modulo fuente: mobile-admin.
+
+- Tecnologia elegida: Activity Android nativa con WebView segura y sin duplicar pantallas ni reglas del negocio.
+
+- URL inicial predeterminada: https://tusenda84.com/admin; una sesion ausente redirige al acceso normal de la web.
+
+- Incluye sesion persistente, gesto Atras, selector de archivos e imagenes, descargas autenticadas, enlaces externos para WhatsApp/telefono/correo, bloqueo de HTTP plano, cancelacion de errores SSL y vista de reintento sin conexion.
+
+- Validacion local: assembleDebug y lintDebug correctos, 0 errores; firma APK v2 verificada; instalacion y arranque en frio correctos en emulador Android 16 / API 36.
+
+- Artefacto local: mobile-admin/releases/TuSenda84Admin-1.0.0-debug.apk.
+
+- La APK debug es instalable para pruebas. La firma privada release y la publicacion en Google Play permanecen fuera de esta entrega.
+
+### Extension local de notificaciones Android del 09 de agosto de 2026
+
+- La APK incorpora Firebase Cloud Messaging con permiso runtime en Android 13+, canales separados para pedidos, inventario, seguridad y avisos generales, y apertura segura de la pantalla correspondiente al tocar el aviso.
+
+- El panel registra el Firebase Installation ID mediante endpoints autenticados; la coleccion store_push_devices mantiene las reglas CRUD cerradas, separa tienda/usuario y no expone identificadores al navegador ni a otros tenants.
+
+- Cada alta de store_notifications puede enviarse al relay SSR interno. El relay exige un secreto compartido de al menos 32 caracteres, agrupa por package ID, limita lotes a 500 y deshabilita instalaciones que Firebase declare permanentemente invalidas.
+
+- La entrega respeta notifications.view y, para avisos de vencimiento, catalog.expirations.manage. Los datos del aviso no incluyen token de sesion, credenciales ni metadatos privados.
+
+- Validacion local: 14/14 pruebas backend focales, 7/7 pruebas del payload/puente SSR, Astro build correcto y compilacion/lint Android correctos. La app Android fue registrada en el proyecto Firebase tu-senda-84, `google-services.json` quedo protegido por Git y la APK obtuvo un Firebase Installation ID en emulador Android 16 con Google Play Services. La prueba real con la app cerrada queda pendiente de conectar la cuenta de servicio del propietario al relay desplegado.
+
 ### Fuera de alcance por ahora
 
 - No crear app nativa completa desde cero en esta etapa.
 
 - No duplicar catalogo, carrito, checkout ni logica de pedidos dentro de Android.
 
-- No implementar push con la web cerrada hasta hablar una fase separada.
+- No activar push en produccion ni hacer una prueba real con la web cerrada hasta conectar las credenciales Firebase del propietario en el despliegue.
 
 - Si se publica en tiendas oficiales, revisar requisitos vigentes, fichas, politicas y materiales de cada app antes de avanzar.
 

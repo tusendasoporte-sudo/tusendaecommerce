@@ -19,6 +19,9 @@ pnpm-debug.log*
 .env.production
 .env.*.local
 
+# local private credentials
+.secrets/
+
 # macOS / Windows files
 .DS_Store
 Thumbs.db
@@ -36,6 +39,7 @@ backend-powerzona/pb_data/
 backend-powerzona/pb_logs/
 backend-powerzona/pb_public/
 backend-powerzona/pocketbase.exe
+backend-powerzona/.tmp/
 # archives / backups
 *.zip
 *.rar
@@ -46,3 +50,9 @@ backend-powerzona/pocketbase.exe
 # local temp
 tmp/
 temp/
+
+# Android local/build files
+mobile-admin/.gradle/
+mobile-admin/local.properties
+mobile-admin/**/build/
+mobile-admin/captures/

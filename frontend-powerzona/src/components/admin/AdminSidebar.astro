@@ -642,6 +642,8 @@ const marketingVisualSubClass = (subsection: string) => {
     let realtimePb = null;
     let realtimeUnsubscribe = null;
     let realtimeRefreshTimer = null;
+    let nativeRegistrationSyncTimer = null;
+    let nativePushState = null;
     let audioContext = null;
 
     if (!panel || !list || !storeId || !baseUrl) return;
@@ -678,8 +680,19 @@ const marketingVisualSubClass = (subsection: string) => {
       document.title = `(${value > 99 ? '99+' : value}) ${originalDocumentTitle}`;
     }
 
+    function getNativePushBridge() {
+      try {
+        const bridge = window.PZAndroidPush;
+        return bridge && typeof bridge.isAvailable === 'function' && bridge.isAvailable()
+          ? bridge
+          : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
     function browserNotificationsSupported() {
-      return 'Notification' in window;
+      return !!getNativePushBridge() || 'Notification' in window;
     }
 
     function getBrowserNotificationsEnabled() {
@@ -729,6 +742,19 @@ const marketingVisualSubClass = (subsection: string) => {
 
     function renderBrowserNotificationsButton() {
       if (!browserNotificationsButton) return;
+      const nativeBridge = getNativePushBridge();
+      if (nativeBridge) {
+        const permission = String(nativePushState?.permission || nativeBridge.permissionState?.() || 'prompt');
+        browserNotificationsButton.disabled = false;
+        if (permission === 'denied') {
+          browserNotificationsButton.textContent = 'Abrir permisos de avisos en Android';
+          return;
+        }
+        browserNotificationsButton.textContent = permission === 'granted' && getBrowserNotificationsEnabled()
+          ? 'Pausar avisos de Android'
+          : 'Activar avisos de Android';
+        return;
+      }
       if (!browserNotificationsSupported()) {
         browserNotificationsButton.textContent = 'Avisos no compatibles';
         browserNotificationsButton.disabled = true;
@@ -773,7 +799,8 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     function shouldShowBrowserNotification() {
-      return browserNotificationsSupported()
+      return !getNativePushBridge()
+        && browserNotificationsSupported()
         && Notification.permission === 'granted'
         && getBrowserNotificationsEnabled()
         && (document.hidden || !document.hasFocus());
@@ -1237,6 +1264,11 @@ const marketingVisualSubClass = (subsection: string) => {
         window.clearTimeout(realtimeRefreshTimer);
         realtimeRefreshTimer = null;
       }
+      if (nativeRegistrationSyncTimer) {
+        window.clearTimeout(nativeRegistrationSyncTimer);
+        nativeRegistrationSyncTimer = null;
+      }
+      window.removeEventListener('pz:android-push-state', handleNativePushState);
       try {
         if (typeof realtimeUnsubscribe === 'function') realtimeUnsubscribe();
         else realtimePb?.collection('store_notifications')?.unsubscribe('*');
@@ -1244,6 +1276,92 @@ const marketingVisualSubClass = (subsection: string) => {
       }
       realtimeUnsubscribe = null;
       realtimePb = null;
+    }
+
+    function nativePushPayload(state) {
+      return {
+        installation_id: String(state?.installation_id || '').trim(),
+        app_id: String(state?.app_id || '').trim(),
+        device_label: String(state?.device_label || '').trim().slice(0, 120),
+        os_version: String(state?.os_version || '').trim().slice(0, 40),
+        app_version: String(state?.app_version || '').trim().slice(0, 40),
+      };
+    }
+
+    function handleNativePushState(event) {
+      const detail = event?.detail;
+      if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return;
+      nativePushState = {
+        permission: String(detail.permission || 'prompt'),
+        installation_id: String(detail.installation_id || ''),
+        app_id: String(detail.app_id || ''),
+        device_label: String(detail.device_label || ''),
+        os_version: String(detail.os_version || ''),
+        app_version: String(detail.app_version || ''),
+      };
+      renderBrowserNotificationsButton();
+    }
+
+    function requestNativePushState(bridge, timeoutMs = 900) {
+      return new Promise((resolve) => {
+        let completed = false;
+        const finish = () => {
+          if (completed) return;
+          completed = true;
+          window.removeEventListener('pz:android-push-state', onState);
+          resolve(nativePushState);
+        };
+        const onState = () => finish();
+        window.addEventListener('pz:android-push-state', onState, { once: true });
+        window.setTimeout(finish, timeoutMs);
+        try { bridge.requestState?.(); } catch (error) { finish(); }
+      });
+    }
+
+    function scheduleNativePushSync(attempt) {
+      if (nativeRegistrationSyncTimer) window.clearTimeout(nativeRegistrationSyncTimer);
+      nativeRegistrationSyncTimer = window.setTimeout(() => {
+        nativeRegistrationSyncTimer = null;
+        syncNativePushRegistration(attempt).catch(() => {});
+      }, 1000);
+    }
+
+    async function syncNativePushRegistration(attempt = 0) {
+      const bridge = getNativePushBridge();
+      if (!bridge || !getBrowserNotificationsEnabled()) return false;
+      const state = await requestNativePushState(bridge);
+      const permission = String(state?.permission || bridge.permissionState?.() || 'prompt');
+      renderBrowserNotificationsButton();
+      if (permission !== 'granted') {
+        if (permission === 'prompt' && attempt < 30) scheduleNativePushSync(attempt + 1);
+        return false;
+      }
+      const installationId = String(state?.installation_id || '').trim();
+      if (!installationId) {
+        if (attempt < 30) scheduleNativePushSync(attempt + 1);
+        return false;
+      }
+      const payload = nativePushPayload(state);
+      if (!payload.app_id) return false;
+      await api('/api/pz/store-push/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      renderBrowserNotificationsButton();
+      return true;
+    }
+
+    async function disableNativePushRegistration(bridge) {
+      const state = await requestNativePushState(bridge);
+      const installationId = String(state?.installation_id || '').trim();
+      const appId = String(state?.app_id || '').trim();
+      if (!installationId || !appId) return;
+      await api('/api/pz/store-push/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ installation_id: installationId, app_id: appId }),
+      });
     }
 
     function shouldRunNotificationCleanup(settings = {}) {
@@ -1796,6 +1914,25 @@ const marketingVisualSubClass = (subsection: string) => {
     browserNotificationsButton?.addEventListener('click', async () => {
       try {
         if (!browserNotificationsSupported()) return;
+        const nativeBridge = getNativePushBridge();
+        if (nativeBridge) {
+          const permission = String(nativePushState?.permission || nativeBridge.permissionState?.() || 'prompt');
+          if (permission === 'denied') {
+            nativeBridge.openSettings?.();
+            return;
+          }
+          if (permission === 'granted' && getBrowserNotificationsEnabled()) {
+            setBrowserNotificationsEnabled(false);
+            await disableNativePushRegistration(nativeBridge);
+            if (typeof window.adminToast === 'function') window.adminToast('Avisos de Android pausados', 'info');
+          } else {
+            setBrowserNotificationsEnabled(true);
+            nativeBridge.requestPermission?.();
+            scheduleNativePushSync(0);
+            if (typeof window.adminToast === 'function') window.adminToast('Activando avisos de Android...', 'info');
+          }
+          return;
+        }
         let permission = Notification.permission;
         if (permission === 'default') permission = await Notification.requestPermission();
         if (permission === 'granted') {
@@ -1823,13 +1960,16 @@ const marketingVisualSubClass = (subsection: string) => {
     });
     window.addEventListener('focus', () => {
       renderBrowserNotificationsButton();
+      syncNativePushRegistration().catch(() => {});
       loadAll({ detectNewOrders: true, detectPending: true }).catch((error) => {
       });
     });
     window.addEventListener('pagehide', cleanupRealtimeNotifications);
     window.addEventListener('beforeunload', cleanupRealtimeNotifications);
+    window.addEventListener('pz:android-push-state', handleNativePushState);
 
     renderBrowserNotificationsButton();
+    syncNativePushRegistration().catch(() => {});
     setupRealtimeNotifications().catch(() => {});
     loadAll({ detectNewOrders: true, detectPending: true }).catch((error) => {
     });

@@ -1,0 +1,64 @@
+plugins {
+    id 'com.android.application'
+}
+
+def firebaseConfigFile = file('google-services.json')
+if (firebaseConfigFile.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}
+
+def configuredAppName = (project.findProperty('PZ_APP_NAME') ?: 'Tu Senda 84 Admin').toString()
+def configuredAdminUrl = (project.findProperty('PZ_ADMIN_URL') ?: 'https://tusenda84.com/admin').toString()
+def configuredApplicationId = (project.findProperty('PZ_APPLICATION_ID') ?: 'com.tusenda84.admin').toString()
+
+def javaStringLiteral = { String value ->
+    '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+
+android {
+    namespace 'com.tusenda84.admin'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId configuredApplicationId
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+
+        manifestPlaceholders = [appName: configuredAppName]
+        buildConfigField 'String', 'ADMIN_URL', javaStringLiteral(configuredAdminUrl)
+        buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(configuredAppName)
+        buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        debug {
+            versionNameSuffix '-debug'
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:34.17.0')
+    implementation 'com.google.firebase:firebase-messaging'
+}
