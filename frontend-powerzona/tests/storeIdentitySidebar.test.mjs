@@ -37,6 +37,13 @@ test('una tienda nueva usa su nombre al crear los ajustes y un ejemplo genérico
   assert.doesNotMatch(settings, /store_name:\s*'PowerZona'/);
 });
 
+test('el contacto publico inicia con el WhatsApp indicado por el master admin', () => {
+  assert.match(settings, /const currentStoreOwnerPhone = String\(adminContext\.store\.owner_phone \|\| ''\)\.trim\(\);/);
+  assert.match(settings, /CURRENT_STORE_OWNER_PHONE_PUBLIC_SETTINGS = String\(currentStoreOwnerPhone \|\| ''\)\.trim\(\);/);
+  assert.match(settings, /record\.whatsapp_number \|\| CURRENT_STORE_OWNER_PHONE_PUBLIC_SETTINGS/);
+  assert.match(settings, /data\.append\('whatsapp_number', composeWhatsappNumber\(\)\)/);
+});
+
 test('los ajustes nuevos detectan cambios parciales y resuelven la carga inicial', () => {
   assert.match(settings, /window\.__pzStoreSettingsAuthToken = \(\) => String\(adminAuthToken \|\| ''\)/);
   assert.match(settings, /orderPrefix:\s*cleanOrderPrefix\(fields\.orderPrefix\?\.value \|\| ''\)/);

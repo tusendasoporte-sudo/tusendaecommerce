@@ -29,6 +29,7 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
+const currentStoreOwnerPhone = String(adminContext.store.owner_phone || '').trim();
 const currentStorePrefix = getStoreOrderPrefix(currentStoreName);
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
 const landingQrAccess = resolveStoreCapabilityAccess(
@@ -78,7 +79,7 @@ try {
 } catch (_) {
   footerPreviewSettings = {
     ...footerPreviewSettings,
-    whatsapp_number: adminContext.store.owner_phone || '',
+    whatsapp_number: currentStoreOwnerPhone,
   };
 }
 const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
@@ -5215,12 +5216,13 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       else if (window.location.hash === '#landing') showTab('landing');
       else showTab(FIRST_ALLOWED_SETTINGS_TAB);
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, currentStorePrefix, canManageSettings, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, currentStoreOwnerPhone, currentStorePrefix, canManageSettings, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
       (() => {
         if (canManageSettings !== true) return;
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
         const CURRENT_STORE_NAME_PUBLIC_SETTINGS = String(currentStoreName || '').trim() || 'Mi tienda 84';
+        const CURRENT_STORE_OWNER_PHONE_PUBLIC_SETTINGS = String(currentStoreOwnerPhone || '').trim();
         const CURRENT_STORE_PREFIX_PUBLIC_SETTINGS = String(currentStorePrefix || '').trim() || 'MT';
         const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(window.__pzStoreSettingsAuthToken?.() || '');
@@ -6119,7 +6121,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           clearSinglePreview('settings-cover-preview');
           fields.storeName.value = record.store_name || record.stored_name || CURRENT_STORE_NAME_PUBLIC_SETTINGS;
           fields.orderPrefix.value = normalizeOrderPrefix(record.order_prefix);
-          const whatsapp = splitWhatsappNumber(record.whatsapp_number || '');
+          const whatsapp = splitWhatsappNumber(record.whatsapp_number || CURRENT_STORE_OWNER_PHONE_PUBLIC_SETTINGS);
           if (fields.whatsappCountry) fields.whatsappCountry.value = whatsapp.countryCode;
           fields.whatsapp.value = whatsapp.number;
           fields.storeDescription.value = record.store_description || '';
