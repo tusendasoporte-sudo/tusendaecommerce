@@ -12,7 +12,7 @@ const PROHIBITED_KEY_PATTERN = /(password|secret|token|cookie|digest|hmac|cipher
 // secret-bearing components while keeping those non-secret action labels usable.
 const SOURCE_KEY_PROHIBITED_PATTERN = /(secret|cookie|digest|hmac|cipher|private|metadata|payload|address|email|phone|customer_note|browser|user_agent|receipt|proof|binary|image_data|full_ip|ip_address|(^|_)ip($|_))/i;
 const RELATION_VALUE_FIELDS = new Set([
-  "category", "subcategory", "product", "order", "shipping_zone", "currency",
+  "category", "subcategory", "product", "order", "shipping_zone", "currency", "price_currency",
   "raffle", "gift", "related_products", "target_id", "default_currency",
 ]);
 const FILE_VALUE_FIELDS = new Set(["images", "image", "attachment"]);
@@ -29,15 +29,15 @@ const COLLECTION_CONFIG = Object.freeze({
   }),
   products: Object.freeze({
     module: "catalog", resourceType: "product", labelFields: ["name"],
-    safeFields: ["name", "slug", "active", "visible", "visibility", "status", "featured", "featured_order", "category", "subcategory", "base_price_usd", "regular_price_usd", "offer_price_usd", "price", "price_usd", "cost_usd", "profit_margin", "is_offer", "stock", "track_stock", "allow_preorder", "expiration_date", "has_variations", "variation_view", "related_products", "images", "only_usd", "delivery_mode"],
+    safeFields: ["name", "slug", "active", "visible", "visibility", "status", "featured", "featured_order", "category", "subcategory", "price_currency", "regular_price_amount", "offer_price_amount", "cost_amount", "base_price_usd", "regular_price_usd", "offer_price_usd", "price", "price_usd", "cost_usd", "profit_margin", "is_offer", "stock", "track_stock", "allow_preorder", "expiration_date", "has_variations", "variation_view", "related_products", "images", "only_usd", "delivery_mode"],
     markerFields: ["description", "extra_info", "image_order", "internal_ref"],
-    criticalFields: ["base_price_usd", "regular_price_usd", "offer_price_usd", "price", "price_usd", "stock", "active", "visible", "status"],
+    criticalFields: ["price_currency", "regular_price_amount", "offer_price_amount", "base_price_usd", "regular_price_usd", "offer_price_usd", "price", "price_usd", "stock", "active", "visible", "status"],
   }),
   product_variations: Object.freeze({
     module: "catalog", resourceType: "product_variation", labelFields: ["value", "variation_type"],
-    safeFields: ["variation_type", "value", "active", "product", "price_usd", "cost_usd", "offer_price_usd", "is_offer", "stock", "sort_order", "allow_preorder", "expiration_date", "image"],
+    safeFields: ["variation_type", "value", "active", "product", "price_currency", "price_amount", "offer_price_amount", "cost_amount", "price_usd", "cost_usd", "offer_price_usd", "is_offer", "stock", "sort_order", "allow_preorder", "expiration_date", "image"],
     markerFields: ["internal_ref"],
-    criticalFields: ["price", "price_usd", "offer_price", "offer_price_usd", "stock", "active", "visible", "status"],
+    criticalFields: ["price_currency", "price_amount", "offer_price_amount", "price", "price_usd", "offer_price", "offer_price_usd", "stock", "active", "visible", "status"],
   }),
   categories: Object.freeze({
     module: "catalog", resourceType: "category", labelFields: ["name"],
@@ -508,7 +508,9 @@ function operationSummary(operation, config, label, changed) {
   const friendly = {
     active: "visibilidad", visible: "visibilidad", status: "estado", stock: "stock",
     price: "precio", price_usd: "precio", base_price_usd: "precio", regular_price_usd: "precio",
-    offer_price: "precio de oferta", offer_price_usd: "precio de oferta", expiration_date: "vencimiento",
+    price_currency: "moneda del precio", regular_price_amount: "precio", price_amount: "precio",
+    offer_price: "precio de oferta", offer_price_usd: "precio de oferta", offer_price_amount: "precio de oferta",
+    cost_amount: "costo", expiration_date: "vencimiento",
     quantity: "cantidad", category: "categoría", subcategory: "subcategoría",
   };
   const labels = [...new Set(changed.map((key) => friendly[key] || key.replace(/_/g, " ")))].slice(0, 3);

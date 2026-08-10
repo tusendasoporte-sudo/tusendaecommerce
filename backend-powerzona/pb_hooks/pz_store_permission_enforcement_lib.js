@@ -83,6 +83,7 @@ const COUPON_USAGE_CONTACT_PRIVATE_FIELDS = Object.freeze([
 ]);
 const PUBLIC_PRODUCT_PRIVATE_FIELDS = Object.freeze([
   "cost_usd",
+  "cost_amount",
   "profit_margin",
   "internal_ref",
   "expiration_date",
@@ -96,6 +97,7 @@ const PUBLIC_PRODUCT_PRIVATE_FIELDS = Object.freeze([
 ]);
 const PUBLIC_VARIATION_PRIVATE_FIELDS = Object.freeze([
   "cost_usd",
+  "cost_amount",
   "internal_ref",
   "expiration_date",
   "supplier",
@@ -127,8 +129,8 @@ const ORDER_EXPAND_COLLECTIONS = Object.freeze([
 ]);
 
 const RELATION_COLLECTIONS = Object.freeze({
-  products: Object.freeze({ category: "categories", subcategory: "subcategories", related_products: "products" }),
-  product_variations: Object.freeze({ product: "products" }),
+  products: Object.freeze({ category: "categories", subcategory: "subcategories", related_products: "products", price_currency: "currencies" }),
+  product_variations: Object.freeze({ product: "products", price_currency: "currencies" }),
   subcategories: Object.freeze({ category: "categories" }),
   orders: Object.freeze({ shipping_zone: "shipping_zones", currency: "currencies", customer: "store_customers" }),
   order_items: Object.freeze({ order: "orders", product: "products", variation: "product_variations", gift: "gifts" }),
@@ -167,6 +169,11 @@ const PRODUCT_FIELD_PERMISSIONS = Object.freeze({
   expiration_date: "catalog.expirations.manage",
   base_price_usd: "catalog.products.price",
   regular_price_usd: "catalog.products.price",
+  price_currency: "catalog.products.price",
+  regular_price_amount: "catalog.products.price",
+  price_amount: "catalog.products.price",
+  offer_price_amount: "catalog.products.price",
+  cost_amount: "catalog.products.price",
   cost_usd: "catalog.products.price",
   profit_margin: "catalog.products.price",
   extra_price: "catalog.products.price",

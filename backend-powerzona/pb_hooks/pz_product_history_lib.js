@@ -13,7 +13,7 @@ const MAX_PAGE_SIZE = 50;
 const SCOPES = Object.freeze(["all", "product", "variations", "expirations", "price_stock", "visibility", "images", "category"]);
 const SAFE_ERRORS = new Set(["unauthorized", "permission_denied", "invalid_payload", "product_not_found", "variation_not_found", "history_event_not_found", "history_unavailable"]);
 const FIELD_GROUPS = Object.freeze({
-  price: new Set(["base_price_usd", "regular_price_usd", "offer_price_usd", "price", "price_usd", "cost_usd", "profit_margin", "is_offer"]),
+  price: new Set(["price_currency", "regular_price_amount", "price_amount", "offer_price_amount", "cost_amount", "base_price_usd", "regular_price_usd", "offer_price_usd", "price", "price_usd", "cost_usd", "profit_margin", "is_offer"]),
   stock: new Set(["stock", "track_stock", "allow_preorder"]),
   expiration: new Set(["expiration_date", "expired"]),
   images: new Set(["image", "images", "image_order"]),

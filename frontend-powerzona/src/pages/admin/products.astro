@@ -275,6 +275,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .price-offer-card-title { margin:0; font-size:1rem; font-weight:1000; color:#0f172a; letter-spacing:-.01em; }
       .price-offer-card-subtitle { margin:4px 0 0; color:#64748b; font-size:0.8rem; line-height:1.35; font-weight:750; }
       .price-offer-grid { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:12px; align-items:start; }
+      .price-currency-field { grid-column: 1 / -1; }
+      .price-currency-note { display:flex; align-items:center; gap:7px; color:#475569; }
+      .price-currency-note::before { content:""; width:7px; height:7px; border-radius:999px; background:#2563eb; flex:0 0 auto; }
       .product-offer-compact { grid-column: 1 / -1; border: 1px solid rgba(148, 163, 184, 0.20); border-radius: 16px; background: rgba(248, 250, 252, 0.74); overflow: hidden; }
       .product-offer-compact-head { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 14px; }
       .product-offer-compact-title { margin: 0; color: #0f172a; font-size: 0.9rem; font-weight: 1000; }
@@ -601,7 +604,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       #variation-manager .variation-row > .stock,
       #variation-manager .variation-row > .pill,
       #variation-manager .variation-row > .variation-order-value { min-width: 0; color: #0f172a; font-size: 0.9rem; font-weight: 900; white-space: nowrap; }
-      #variation-manager .variation-row > .price::before { content: "Precio USD"; display: block; color: #64748b; font-size: 0.68rem; font-weight: 850; margin-bottom: 3px; }
+      #variation-manager .variation-row > .price::before { content: "Precio"; display: block; color: #64748b; font-size: 0.68rem; font-weight: 850; margin-bottom: 3px; }
       #variation-manager .variation-row > .offer-price::before { content: "Oferta"; display: block; color: #64748b; font-size: 0.68rem; font-weight: 850; margin-bottom: 3px; }
       #variation-manager .variation-row > .stock::before { content: "Stock"; display: block; color: #64748b; font-size: 0.68rem; font-weight: 850; margin-bottom: 3px; }
       #variation-manager .variation-row > .pill::before { content: "Estado"; display: block; color: #64748b; font-size: 0.68rem; font-weight: 850; margin-bottom: 3px; }
@@ -2842,14 +2845,22 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       </div>
                     </div>
                     <div class="price-offer-grid">
+                      <div class="field price-currency-field">
+                        <label for="product-price-currency">Moneda del precio</label>
+                        <select id="product-price-currency" required>
+                          <option value="">Cargando monedas...</option>
+                        </select>
+                        <p id="product-price-currency-help" class="form-help price-currency-note">El importe queda fijado en esta moneda; USD se usa internamente para cálculos y conversiones.</p>
+                      </div>
                       <div class="field">
-                        <label for="product-price">Precio USD</label>
+                        <label id="product-price-label" for="product-price">Precio</label>
                         <input id="product-price" type="number" min="0" step="0.01" placeholder="0.00" required />
                         <p id="product-price-help" class="form-help">Producto sin variaciones: este precio se usa para la compra.</p>
                       </div>
                       <div class="field">
-                        <label for="product-cost">Costo USD</label>
+                        <label id="product-cost-label" for="product-cost">Costo</label>
                         <input id="product-cost" type="number" min="0" step="0.01" placeholder="0.00" />
+                        <p id="product-price-equivalent" class="form-help">Equivalente interno: 0.00 USD</p>
                       </div>
                       <div class="product-offer-compact" id="product-offer-compact">
                         <div class="product-offer-compact-head">
@@ -2863,7 +2874,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                           </label>
                         </div>
                         <div class="product-offer-compact-body">
-                          <label for="product-offer-price">Precio oferta USD</label>
+                          <label id="product-offer-price-label" for="product-offer-price">Precio oferta</label>
                           <input id="product-offer-price" type="number" min="0" step="0.01" placeholder="0.00" disabled />
                           <p id="product-offer-help" class="offer-hint">Activa la oferta y escribe un precio menor al precio normal.</p>
                         </div>
@@ -2988,7 +2999,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <div class="check-grid">
                       <label class:list={['check-card', !canManageProductVisibility && 'hidden']}><input id="product-active" type="checkbox" checked disabled={!canManageProductVisibility} /> Visible en tienda</label>
                       <label class:list={['check-card', !canManageProductVisibility && 'hidden']}><input id="product-featured" type="checkbox" disabled={!canManageProductVisibility} /> Destacado</label>
-                      <label class:list={['check-card', !canManageProductPrice && 'hidden']}><input id="product-only-usd" type="checkbox" disabled={!canManageProductPrice} /> Solo USD</label>
+                      <label class:list={['check-card', !canManageProductPrice && 'hidden']} title="Limita la moneda de pago del cliente; no cambia la moneda en que fijaste el precio."><input id="product-only-usd" type="checkbox" disabled={!canManageProductPrice} /> Cobrar solo en USD</label>
                       <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-allow-preorder" type="checkbox" disabled={!canManageProductStock} /> Preorder si está agotado</label>
                       <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-track-stock" type="checkbox" checked disabled={!canManageProductStock} /> Descontar stock en órdenes</label>
                       <label id="product-has-variations-option" class="check-card hidden"><input id="product-has-variations" type="checkbox" /> Usa variaciones</label>
@@ -3054,8 +3065,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                         <input id="variation-value" type="text" placeholder="Ej: Chocolate" />
                       </div>
                       <div class:list={['field variation-field-price', !canManageProductPrice && 'hidden']}>
-                        <label for="variation-price">Precio USD</label>
+                        <label id="variation-price-label" for="variation-price">Precio</label>
                         <input id="variation-price" type="number" min="0" step="0.01" placeholder="0.00" />
+                        <p id="variation-price-currency-help" class="form-help">Usa la moneda elegida en el producto.</p>
                       </div>
                       <div class:list={['field variation-offer-accordion', !canManageProductPrice && 'hidden']}>
                         <button type="button" class="variation-offer-summary" id="variation-offer-summary" aria-expanded="false" aria-controls="variation-offer-body">
@@ -3069,13 +3081,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                           </span>
                         </button>
                         <div class="variation-offer-body" id="variation-offer-body">
-                        <label for="variation-offer-price">Precio oferta USD</label>
+                        <label id="variation-offer-price-label" for="variation-offer-price">Precio oferta</label>
                         <input id="variation-offer-price" type="number" min="0" step="0.01" placeholder="0.00" disabled />
                         <p id="variation-offer-help" class="form-help">Activa Oferta y escribe un precio menor al precio normal de la variación.</p>
                         </div>
                       </div>
                       <div class:list={['field variation-field-cost', !canManageProductPrice && 'hidden']}>
-                        <label for="variation-cost">Costo USD</label>
+                        <label id="variation-cost-label" for="variation-cost">Costo</label>
                         <input id="variation-cost" type="number" min="0" step="0.01" placeholder="0.00" />
                       </div>
                       <div class:list={['field variation-field-stock', !canManageProductStock && 'hidden']}>
@@ -3379,6 +3391,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let categories = [];
       let subcategories = [];
       let products = [];
+      let currencies = [];
       let shippingZoneConfigurationLoaded = false;
       let hasActiveShippingZones = true;
       let productVariations = [];
@@ -3387,7 +3400,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let pendingUrlVariationId = '';
       let selectedRelatedProductIds = [];
       let modalRelatedProductIds = [];
-      let lockedRegularPriceUsd = 0;
+      let lockedRegularPriceAmount = 0;
+      let lastPriceCurrencyId = '';
       let pendingVariationProductId = "";
       let pendingDeleteProductId = "";
       let pendingSoldoutProductId = "";
@@ -3427,14 +3441,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productSlugInput = document.getElementById('product-slug');
       const productCategoryInput = document.getElementById('product-category');
       const productSubcategoryInput = document.getElementById('product-subcategory');
+      const productPriceCurrencyInput = document.getElementById('product-price-currency');
+      const productPriceCurrencyHelp = document.getElementById('product-price-currency-help');
+      const productPriceLabel = document.getElementById('product-price-label');
       const productPriceInput = document.getElementById('product-price');
       const productPriceHelp = document.getElementById('product-price-help');
+      const productPriceEquivalent = document.getElementById('product-price-equivalent');
       const productIsOfferInput = document.getElementById('product-is-offer');
       const productOfferPriceInput = document.getElementById('product-offer-price');
+      const productOfferPriceLabel = document.getElementById('product-offer-price-label');
       const productOfferHelp = document.getElementById('product-offer-help');
       const productOfferCompact = document.getElementById('product-offer-compact');
       const productOfferCompactSubtitle = productOfferCompact?.querySelector('.product-offer-compact-subtitle');
       const productCostInput = document.getElementById('product-cost');
+      const productCostLabel = document.getElementById('product-cost-label');
       const productInternalRefInput = document.getElementById('product-internal-ref');
       const productStockInput = document.getElementById('product-stock');
       const productStockField = document.getElementById('product-stock-field');
@@ -3530,13 +3550,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const variationTypeInput = document.getElementById('variation-type');
       const variationValueInput = document.getElementById('variation-value');
       const variationPriceInput = document.getElementById('variation-price');
+      const variationPriceLabel = document.getElementById('variation-price-label');
+      const variationPriceCurrencyHelp = document.getElementById('variation-price-currency-help');
       const variationIsOfferInput = document.getElementById('variation-is-offer');
       const variationOfferPriceInput = document.getElementById('variation-offer-price');
+      const variationOfferPriceLabel = document.getElementById('variation-offer-price-label');
       const variationOfferHelp = document.getElementById('variation-offer-help');
       const variationOfferAccordion = document.querySelector('#variation-editor .variation-offer-accordion');
       const variationOfferSummary = document.getElementById('variation-offer-summary');
       const variationOfferBody = document.getElementById('variation-offer-body');
       const variationCostInput = document.getElementById('variation-cost');
+      const variationCostLabel = document.getElementById('variation-cost-label');
       const variationStockInput = document.getElementById('variation-stock');
       const variationStockHelp = document.getElementById('variation-stock-help');
       const variationExpirationDateInput = document.getElementById('variation-expiration-date');
@@ -3608,6 +3632,145 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function formatUsd(value) {
         return `${Number(value || 0).toFixed(2)} USD`;
+      }
+      function normalizedCurrencyCode(currency) {
+        return String(currency?.code || 'USD').trim().toUpperCase() || 'USD';
+      }
+      function currencyRate(currency) {
+        const rate = Number(currency?.exchange_rate || 0);
+        return Number.isFinite(rate) && rate > 0 ? rate : 1;
+      }
+      function getPriceCurrency(currencyId = productPriceCurrencyInput?.value || '') {
+        return currencies.find((currency) => currency.id === currencyId)
+          || currencies.find((currency) => normalizedCurrencyCode(currency) === 'USD')
+          || currencies[0]
+          || { id: '', code: 'USD', symbol: '$', exchange_rate: 1 };
+      }
+      function getDefaultPriceCurrency() {
+        return currencies.find((currency) => currency.is_default === true && currency.active !== false)
+          || currencies.find((currency) => normalizedCurrencyCode(currency) === 'USD')
+          || currencies[0]
+          || null;
+      }
+      function amountToUsd(amount, currency = getPriceCurrency()) {
+        return Math.max(0, Number(amount || 0)) / currencyRate(currency);
+      }
+      function usdToAmount(amount, currency = getPriceCurrency()) {
+        return Math.max(0, Number(amount || 0)) * currencyRate(currency);
+      }
+      function formatCurrencyAmount(value, currency = getPriceCurrency()) {
+        return `${Number(value || 0).toFixed(2)} ${normalizedCurrencyCode(currency)}`;
+      }
+      function recordSourceAmount(record, sourceField, canonicalField, currency) {
+        const source = record?.[sourceField];
+        if (source !== undefined && source !== null && String(source) !== '') return Math.max(0, Number(source || 0));
+        return usdToAmount(record?.[canonicalField] || 0, currency);
+      }
+      function productCurrency(product) {
+        return getPriceCurrency(product?.price_currency || '');
+      }
+      function productRegularAmount(product) {
+        const currency = productCurrency(product);
+        const canonical = Number(product?.regular_price_usd || product?.base_price_usd || 0);
+        return recordSourceAmount(product, 'regular_price_amount', canonical === Number(product?.regular_price_usd || 0) ? 'regular_price_usd' : 'base_price_usd', currency);
+      }
+      function productOfferAmount(product) {
+        return recordSourceAmount(product, 'offer_price_amount', 'offer_price_usd', productCurrency(product));
+      }
+      function productActiveAmount(product) {
+        return productHasActiveOffer(product) ? productOfferAmount(product) : productRegularAmount(product);
+      }
+      function variationPriceAmount(variation) {
+        return recordSourceAmount(variation, 'price_amount', 'price_usd', getPriceCurrency(variation?.price_currency || productPriceCurrencyInput?.value || ''));
+      }
+      function variationOfferAmount(variation) {
+        return recordSourceAmount(variation, 'offer_price_amount', 'offer_price_usd', getPriceCurrency(variation?.price_currency || productPriceCurrencyInput?.value || ''));
+      }
+      function renderPriceCurrencyOptions(selectedId = '') {
+        if (!productPriceCurrencyInput) return;
+        const activeCurrencies = currencies.filter((currency) => currency.active !== false || currency.id === selectedId);
+        const fallback = getDefaultPriceCurrency();
+        const resolvedId = activeCurrencies.some((currency) => currency.id === selectedId)
+          ? selectedId
+          : (fallback?.id || activeCurrencies[0]?.id || '');
+        productPriceCurrencyInput.innerHTML = activeCurrencies.length
+          ? activeCurrencies.map((currency) => `<option value="${escapeHtml(currency.id)}">${escapeHtml(normalizedCurrencyCode(currency))} · ${escapeHtml(currency.name || 'Moneda')}</option>`).join('')
+          : '<option value="">No hay monedas activas</option>';
+        productPriceCurrencyInput.value = resolvedId;
+        lastPriceCurrencyId = resolvedId;
+        syncPriceCurrencyUi();
+      }
+      function syncPriceCurrencyUi() {
+        const currency = getPriceCurrency();
+        const code = normalizedCurrencyCode(currency);
+        if (productPriceLabel) productPriceLabel.textContent = `Precio (${code})`;
+        if (productCostLabel) productCostLabel.textContent = `Costo (${code})`;
+        if (productOfferPriceLabel) productOfferPriceLabel.textContent = `Precio oferta (${code})`;
+        if (variationPriceLabel) variationPriceLabel.textContent = `Precio (${code})`;
+        if (variationCostLabel) variationCostLabel.textContent = `Costo (${code})`;
+        if (variationOfferPriceLabel) variationOfferPriceLabel.textContent = `Precio oferta (${code})`;
+        if (variationPriceCurrencyHelp) variationPriceCurrencyHelp.textContent = `Esta variación hereda ${code} del producto.`;
+        if (productPriceCurrencyHelp) {
+          productPriceCurrencyHelp.textContent = code === 'USD'
+            ? 'El precio queda fijado en USD, la moneda base del sistema.'
+            : `El importe queda fijado en ${code}; su equivalente USD se recalcula cuando cambie la tasa.`;
+        }
+        if (productPriceEquivalent) {
+          productPriceEquivalent.textContent = `Equivalente interno del precio: ${formatUsd(amountToUsd(readRegularPriceInput(), currency))}`;
+        }
+      }
+      async function handleProductPriceCurrencyChange() {
+        const nextId = productPriceCurrencyInput?.value || '';
+        const previousId = lastPriceCurrencyId || nextId;
+        if (!nextId || nextId === previousId) {
+          lastPriceCurrencyId = nextId;
+          syncPriceCurrencyUi();
+          updateProductFormState();
+          return;
+        }
+        const previousCurrency = getPriceCurrency(previousId);
+        const nextCurrency = getPriceCurrency(nextId);
+        const hasAmounts = [productPriceInput, productOfferPriceInput, productCostInput]
+          .some((input) => Number(input?.value || 0) > 0) || productVariations.some((variation) => variationPriceAmount(variation) > 0);
+        if (hasAmounts) {
+          const confirmed = await window.adminConfirm({
+            title: 'Cambiar moneda del producto',
+            message: `Los importes se convertirán de ${normalizedCurrencyCode(previousCurrency)} a ${normalizedCurrencyCode(nextCurrency)} conservando su valor actual. Las variaciones heredarán la nueva moneda.`,
+            confirmText: 'Convertir y continuar',
+            cancelText: 'Cancelar',
+            tone: 'warning',
+          });
+          if (!confirmed) {
+            productPriceCurrencyInput.value = previousId;
+            syncPriceCurrencyUi();
+            updateProductFormState();
+            return;
+          }
+        }
+        const convertInput = (input) => {
+          if (!input || String(input.value || '').trim() === '') return;
+          input.value = usdToAmount(amountToUsd(input.value, previousCurrency), nextCurrency).toFixed(2);
+        };
+        convertInput(productPriceInput);
+        convertInput(productOfferPriceInput);
+        convertInput(productCostInput);
+        lockedRegularPriceAmount = usdToAmount(amountToUsd(lockedRegularPriceAmount, previousCurrency), nextCurrency);
+        productVariations = productVariations.map((variation) => {
+          const regularUsd = amountToUsd(variationPriceAmount(variation), previousCurrency);
+          const offerUsd = amountToUsd(variationOfferAmount(variation), previousCurrency);
+          const costUsd = amountToUsd(recordSourceAmount(variation, 'cost_amount', 'cost_usd', previousCurrency), previousCurrency);
+          return {
+            ...variation,
+            price_currency: nextCurrency.id,
+            price_amount: usdToAmount(regularUsd, nextCurrency),
+            offer_price_amount: usdToAmount(offerUsd, nextCurrency),
+            cost_amount: usdToAmount(costUsd, nextCurrency),
+          };
+        });
+        lastPriceCurrencyId = nextId;
+        syncPriceCurrencyUi();
+        renderVariations();
+        updateProductFormState({ showMessage: true });
       }
       function getAdminToken() {
         const authCookie = String(document.cookie || '')
@@ -4467,10 +4630,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           slug: productSlugInput?.value?.trim() || '',
           category: productCategoryInput?.value || '',
           subcategory: productSubcategoryInput?.value || '',
-          price_usd: Number(readRegularPriceInput() || 0),
+          price_currency: productPriceCurrencyInput?.value || '',
+          regular_price_amount: Number(readRegularPriceInput() || 0),
           is_offer: Boolean(productIsOfferInput?.checked),
-          offer_price_usd: offerState.enabled ? Number(productOfferPriceInput?.value || 0) : 0,
-          cost_usd: Number(productCostInput?.value || 0),
+          offer_price_amount: offerState.enabled ? Number(productOfferPriceInput?.value || 0) : 0,
+          cost_amount: Number(productCostInput?.value || 0),
           stock: Number(productStockInput?.value || 0),
           delivery_mode: productDeliveryModeInput?.value || 'both',
           expiration_date: productExpirationDateInput?.value || '',
@@ -4504,10 +4668,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           id: variationIdInput?.value || '',
           variation_type: variationTypeInput?.value?.trim() || 'Sabor',
           value: variationValueInput?.value?.trim() || '',
-          price_usd: Number(variationPriceInput?.value || 0),
+          price_currency: productPriceCurrencyInput?.value || '',
+          price_amount: Number(variationPriceInput?.value || 0),
           is_offer: variationOfferState.enabled,
-          offer_price_usd: variationOfferState.enabled ? Number(variationOfferPriceInput?.value || 0) : 0,
-          cost_usd: Number(variationCostInput?.value || 0),
+          offer_price_amount: variationOfferState.enabled ? Number(variationOfferPriceInput?.value || 0) : 0,
+          cost_amount: Number(variationCostInput?.value || 0),
           stock: Number(variationStockInput?.value || 0),
           expiration_date: variationExpirationDateInput?.value || '',
           internal_ref: variationRefInput?.value?.trim() || '',
@@ -4548,6 +4713,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           relatedProductsOpenBtn,
           relatedProductsApplyBtn,
         ], !canManageGeneral);
+        if (productPriceCurrencyInput) productPriceCurrencyInput.disabled = !CAN_MANAGE_PRODUCT_PRICE;
         if (productExtraAddBtn) productExtraAddBtn.disabled = !canManageGeneral || productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT;
         const usesVariations = Boolean(isEditing && productHasVariationsInput?.checked);
         if (productPriceInput) productPriceInput.disabled = !CAN_MANAGE_PRODUCT_PRICE || usesVariations || Boolean(productIsOfferInput?.checked);
@@ -4666,12 +4832,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
 
         const missingName = !name;
+        const missingPriceCurrency = CAN_MANAGE_PRODUCT_PRICE && !productPriceCurrencyInput?.value;
         const missingStock = CAN_MANAGE_PRODUCT_STOCK && trackStock && !useVariations && !hasValidStock;
         const invalidOffer = CAN_MANAGE_PRODUCT_PRICE && !useVariations && offerState.enabled && !offerState.valid;
         const missingValidVariation = useVariations && !hasModeEligibleVariation();
         const invalidParentConfiguration = !useVariations ? parentCommercialValidationMessage() : '';
         const isDirtyEnough = isEditing ? hasProductChanges() : true;
-        productSaveBtn.disabled = isSavingProduct || missingName || missingStock || invalidOffer || missingValidVariation || Boolean(invalidParentConfiguration) || !isDirtyEnough;
+        productSaveBtn.disabled = isSavingProduct || missingName || missingPriceCurrency || missingStock || invalidOffer || missingValidVariation || Boolean(invalidParentConfiguration) || !isDirtyEnough;
         productSaveBtn.textContent = isSavingProduct ? 'Guardando...' : 'Guardar producto';
         if (editorSideSaveBtn) {
           editorSideSaveBtn.disabled = productSaveBtn.disabled;
@@ -4682,10 +4849,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         applyProductPermissionState();
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
+          else if (missingPriceCurrency) setFormAlert('Selecciona la moneda del precio.', 'info');
           else if (missingValidVariation) setFormAlert('Crea o conserva al menos una variación activa con precio válido antes de activar este modo.', 'info');
           else if (invalidParentConfiguration) setFormAlert(invalidParentConfiguration, 'info');
           else if (missingStock) setFormAlert('Este producto descuenta stock. Escribe un stock válido.', 'info');
-          else if (invalidOffer) setFormAlert('El precio de oferta debe ser menor que el Precio USD.', 'info');
+          else if (invalidOffer) setFormAlert('El precio de oferta debe ser menor que el precio normal.', 'info');
           else setFormAlert('');
         }
       }
@@ -4717,8 +4885,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const tracksStock = productTrackStockInput?.checked !== false;
         const previewVariation = hasVariations ? productVariations.find(variationIsModeEligible) : null;
         const parentOfferState = getValidOfferState();
-        const variationRegularPrice = Math.max(0, Number(previewVariation?.price_usd ?? previewVariation?.precio_usd ?? 0));
-        const variationOfferPrice = Math.max(0, Number(previewVariation?.offer_price_usd || 0));
+        const variationRegularPrice = previewVariation ? variationPriceAmount(previewVariation) : 0;
+        const variationOfferPrice = previewVariation ? variationOfferAmount(previewVariation) : 0;
         const variationOfferEnabled = Boolean(previewVariation?.is_offer) && variationOfferPrice > 0 && variationOfferPrice < variationRegularPrice;
         const offerState = hasVariations
           ? {
@@ -4738,9 +4906,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             : 'PZ';
         }
         editorPreviewName.textContent = name;
-        editorPreviewPrice.textContent = formatUsd(priceValue);
+        editorPreviewPrice.textContent = formatCurrencyAmount(priceValue);
         if (editorPreviewRegularPrice) {
-          editorPreviewRegularPrice.textContent = formatUsd(offerState.regularPrice);
+          editorPreviewRegularPrice.textContent = formatCurrencyAmount(offerState.regularPrice);
           editorPreviewRegularPrice.classList.toggle('hidden', !offerState.valid);
         }
         const visible = productActiveInput?.checked !== false;
@@ -4767,13 +4935,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       function syncLockedRegularPrice({ force = false } = {}) {
         const enabled = Boolean(productIsOfferInput?.checked);
-        if (enabled && (force || lockedRegularPriceUsd <= 0)) {
-          lockedRegularPriceUsd = readRegularPriceInput();
+        if (enabled && (force || lockedRegularPriceAmount <= 0)) {
+          lockedRegularPriceAmount = readRegularPriceInput();
         }
         if (!enabled) {
-          lockedRegularPriceUsd = readRegularPriceInput();
+          lockedRegularPriceAmount = readRegularPriceInput();
         }
-        return lockedRegularPriceUsd;
+        return lockedRegularPriceAmount;
       }
 
       function getValidOfferState() {
@@ -4809,7 +4977,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           variationOfferPriceInput.value = '';
           if (variationOfferHelp) variationOfferHelp.textContent = 'Escribe un precio menor al precio normal de la variacion.';
         } else if (state.valid) {
-          if (variationOfferHelp) variationOfferHelp.textContent = `Oferta activa. El cliente ahorra ${formatUsd(state.savings)}.`;
+          if (variationOfferHelp) variationOfferHelp.textContent = `Oferta activa. El cliente ahorra ${formatCurrencyAmount(state.savings)}.`;
         } else if (variationOfferHelp) {
           variationOfferHelp.textContent = 'El precio de oferta debe ser mayor que 0 y menor que el precio normal de la variacion.';
         }
@@ -4853,14 +5021,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productOfferPriceInput.required = state.enabled;
         if (state.enabled && state.regularPrice > 0) productPriceInput.value = state.regularPrice.toFixed(2);
         if (!state.enabled) {
-          if (productOfferHelp) productOfferHelp.textContent = 'Activa Oferta y escribe un precio menor al Precio USD.';
+          if (productOfferHelp) productOfferHelp.textContent = 'Activa la oferta y escribe un precio menor al precio normal.';
           syncProductOfferCompact();
           return;
         }
         if (state.valid) {
-          if (productOfferHelp) productOfferHelp.textContent = `Oferta activa. Precio USD bloqueado en ${formatUsd(state.regularPrice)}. El cliente ahorra ${formatUsd(state.savings)}.`;
+          if (productOfferHelp) productOfferHelp.textContent = `Oferta activa. Precio normal bloqueado en ${formatCurrencyAmount(state.regularPrice)}. El cliente ahorra ${formatCurrencyAmount(state.savings)}.`;
         } else {
-          if (productOfferHelp) productOfferHelp.textContent = 'El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.';
+          if (productOfferHelp) productOfferHelp.textContent = 'El precio de oferta debe ser mayor que 0 y menor que el precio normal bloqueado.';
         }
         syncProductOfferCompact();
       }
@@ -4960,10 +5128,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (variationFormTitle) variationFormTitle.textContent = 'Editar variación';
         variationTypeInput.value = variation.variation_type || 'Sabor';
         variationValueInput.value = variation.value || '';
-        variationPriceInput.value = Number(variation.price_usd || 0).toFixed(2);
+        variationPriceInput.value = variationPriceAmount(variation).toFixed(2);
         if (variationIsOfferInput) variationIsOfferInput.checked = Boolean(variation.is_offer);
-        if (variationOfferPriceInput) variationOfferPriceInput.value = variation.is_offer ? Number(variation.offer_price_usd || 0).toFixed(2) : '';
-        variationCostInput.value = Number(variation.cost_usd || 0).toFixed(2);
+        if (variationOfferPriceInput) variationOfferPriceInput.value = variation.is_offer ? variationOfferAmount(variation).toFixed(2) : '';
+        variationCostInput.value = recordSourceAmount(variation, 'cost_amount', 'cost_usd', getPriceCurrency(variation.price_currency || productPriceCurrencyInput?.value || '')).toFixed(2);
         variationStockInput.value = Number(variation.stock || 0);
         if (variationExpirationDateInput) variationExpirationDateInput.value = dateForInput(variation.expiration_date);
         variationRefInput.value = variation.internal_ref || '';
@@ -5058,8 +5226,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             : (state.effective_status === 'hidden_expired' ? 'hidden-expired' : 'hidden-state');
           const stockNumber = Number(variation.stock || 0);
           const preorder = Boolean(variation.allow_preorder);
-          const regularPrice = Number(variation.price_usd || 0);
-          const offerPrice = Number(variation.offer_price_usd || 0);
+          const variationCurrency = getPriceCurrency(variation.price_currency || productPriceCurrencyInput?.value || '');
+          const regularPrice = variationPriceAmount(variation);
+          const offerPrice = variationOfferAmount(variation);
           const hasOffer = Boolean(variation.is_offer) && offerPrice > 0 && offerPrice < regularPrice;
           const refText = variation.internal_ref || 'Sin ref interna';
           return `
@@ -5079,11 +5248,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               </div>
               <div class="variation-stat">
                 <span class="variation-stat-label">Precio</span>
-                <span class="variation-stat-value">${escapeHtml(formatUsd(regularPrice))}</span>
+                <span class="variation-stat-value">${escapeHtml(formatCurrencyAmount(regularPrice, variationCurrency))}</span>
               </div>
               <div class="variation-stat">
                 <span class="variation-stat-label">Oferta</span>
-                <span class="variation-stat-value">${hasOffer ? escapeHtml(formatUsd(offerPrice)) : '&mdash;'}</span>
+                <span class="variation-stat-value">${hasOffer ? escapeHtml(formatCurrencyAmount(offerPrice, variationCurrency)) : '&mdash;'}</span>
               </div>
               <div class="variation-stat">
                 <span class="variation-stat-label">Stock</span>
@@ -5195,13 +5364,21 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const currentProductId = productIdInput.value;
         if (!source || !currentProductId) return;
         const formData = new FormData();
+        const priceCurrency = getPriceCurrency();
+        const sourcePriceAmount = variationPriceAmount(source);
+        const sourceOfferAmount = variationOfferAmount(source);
+        const sourceCostAmount = recordSourceAmount(source, 'cost_amount', 'cost_usd', priceCurrency);
         formData.append('product', currentProductId);
         formData.append('variation_type', source.variation_type || 'Sabor');
         formData.append('value', `${source.value || 'Variacion'} copia`);
-        formData.append('price_usd', String(Math.max(0, Number(source.price_usd || 0))));
+        formData.append('price_currency', priceCurrency.id);
+        formData.append('price_amount', String(sourcePriceAmount));
+        formData.append('price_usd', String(amountToUsd(sourcePriceAmount, priceCurrency)));
         formData.append('is_offer', source.is_offer === true ? 'true' : 'false');
-        formData.append('offer_price_usd', source.is_offer === true ? String(Math.max(0, Number(source.offer_price_usd || 0))) : '0');
-        formData.append('cost_usd', String(Math.max(0, Number(source.cost_usd || 0))));
+        formData.append('offer_price_amount', source.is_offer === true ? String(sourceOfferAmount) : '0');
+        formData.append('offer_price_usd', source.is_offer === true ? String(amountToUsd(sourceOfferAmount, priceCurrency)) : '0');
+        formData.append('cost_amount', String(sourceCostAmount));
+        formData.append('cost_usd', String(amountToUsd(sourceCostAmount, priceCurrency)));
         formData.append('stock', '0');
         formData.append('internal_ref', '');
         formData.append('sort_order', String(nextVariationOrder()));
@@ -5351,10 +5528,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         formData.append('product', currentProductId);
         formData.append('variation_type', type);
         formData.append('value', value);
-        formData.append('price_usd', String(Math.max(0, variationPrice)));
+        const priceCurrency = getPriceCurrency();
+        if (!priceCurrency?.id) throw new Error('Selecciona la moneda del producto.');
+        formData.append('price_currency', priceCurrency.id);
+        formData.append('price_amount', String(Math.max(0, variationPrice)));
+        formData.append('price_usd', String(amountToUsd(variationPrice, priceCurrency)));
         formData.append('is_offer', variationOfferState.valid ? 'true' : 'false');
-        formData.append('offer_price_usd', variationOfferState.valid ? String(variationOfferState.offerPrice) : '0');
-        formData.append('cost_usd', String(Math.max(0, Number(variationCostInput.value || 0))));
+        formData.append('offer_price_amount', variationOfferState.valid ? String(variationOfferState.offerPrice) : '0');
+        formData.append('offer_price_usd', variationOfferState.valid ? String(amountToUsd(variationOfferState.offerPrice, priceCurrency)) : '0');
+        const variationCostAmount = Math.max(0, Number(variationCostInput.value || 0));
+        formData.append('cost_amount', String(variationCostAmount));
+        formData.append('cost_usd', String(amountToUsd(variationCostAmount, priceCurrency)));
         formData.append('stock', String(Math.max(0, Math.floor(Number.isFinite(variationStock) ? variationStock : 0))));
         if (EXPIRATION_TOOLS_ENABLED) formData.append('expiration_date', variationExpirationDateInput?.value || '');
         formData.append('internal_ref', variationRefInput.value.trim());
@@ -5419,7 +5603,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productManualActive = true;
         productActiveInput.checked = true;
         productCostInput.value = '';
-        lockedRegularPriceUsd = 0;
+        lockedRegularPriceAmount = 0;
+        renderPriceCurrencyOptions(getDefaultPriceCurrency()?.id || '');
         selectedRelatedProductIds = [];
         modalRelatedProductIds = [];
         renderSelectedRelatedProducts();
@@ -5508,18 +5693,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productSlugInput.value = product.slug || '';
         productCategoryInput.value = product.category || '';
         renderProductSubcategoryOptions(product.subcategory || '');
+        const selectedPriceCurrency = productCurrency(product);
+        renderPriceCurrencyOptions(selectedPriceCurrency.id || '');
         const productHasActiveOffer = Boolean(product.is_offer);
         const activePriceUsd = Number(product.base_price_usd || 0);
         const savedRegularPriceUsd = Number(product.regular_price_usd || 0);
         const savedOfferPriceUsd = Number(product.offer_price_usd || 0);
-        const regularPriceUsd = productHasActiveOffer
-          ? (savedRegularPriceUsd > 0 ? savedRegularPriceUsd : Math.max(activePriceUsd, savedOfferPriceUsd))
-          : activePriceUsd;
-        lockedRegularPriceUsd = regularPriceUsd;
-        productPriceInput.value = regularPriceUsd > 0 ? regularPriceUsd.toFixed(2) : '';
+        const regularPriceAmount = recordSourceAmount(product, 'regular_price_amount', savedRegularPriceUsd > 0 ? 'regular_price_usd' : 'base_price_usd', selectedPriceCurrency);
+        lockedRegularPriceAmount = regularPriceAmount;
+        productPriceInput.value = regularPriceAmount > 0 ? regularPriceAmount.toFixed(2) : '';
         if (productIsOfferInput) productIsOfferInput.checked = productHasActiveOffer;
-        if (productOfferPriceInput) productOfferPriceInput.value = productHasActiveOffer ? Number(savedOfferPriceUsd || activePriceUsd || 0).toFixed(2) : '';
-        productCostInput.value = Number(product.cost_usd || 0).toFixed(2);
+        if (productOfferPriceInput) productOfferPriceInput.value = productHasActiveOffer
+          ? recordSourceAmount(product, 'offer_price_amount', savedOfferPriceUsd > 0 ? 'offer_price_usd' : 'base_price_usd', selectedPriceCurrency).toFixed(2)
+          : '';
+        productCostInput.value = recordSourceAmount(product, 'cost_amount', 'cost_usd', selectedPriceCurrency).toFixed(2);
         productInternalRefInput.value = product.internal_ref || '';
         productStockInput.value = Number(product.stock || 0);
         productDeliveryModeInput.value = product.delivery_mode || 'both';
@@ -5634,14 +5821,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (isEditing || category) formData.append('category', category);
         if (isEditing || subcategory) formData.append('subcategory', subcategory);
         const offerState = getValidOfferState();
-        if (CAN_MANAGE_PRODUCT_PRICE && !shouldUseVariations && offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el Precio USD bloqueado.');
-        const regularPriceUsd = offerState.enabled ? offerState.regularPrice : readRegularPriceInput();
-        const activePriceUsd = offerState.enabled ? offerState.offerPrice : regularPriceUsd;
+        if (CAN_MANAGE_PRODUCT_PRICE && !shouldUseVariations && offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el precio normal bloqueado.');
+        const priceCurrency = getPriceCurrency();
+        if (!priceCurrency?.id) throw new Error('Selecciona la moneda del precio.');
+        const regularPriceAmount = offerState.enabled ? offerState.regularPrice : readRegularPriceInput();
+        const activePriceAmount = offerState.enabled ? offerState.offerPrice : regularPriceAmount;
+        const regularPriceUsd = amountToUsd(regularPriceAmount, priceCurrency);
+        const activePriceUsd = amountToUsd(activePriceAmount, priceCurrency);
+        formData.append('price_currency', priceCurrency.id);
+        formData.append('regular_price_amount', String(regularPriceAmount));
+        formData.append('offer_price_amount', offerState.enabled ? String(offerState.offerPrice) : '0');
         formData.append('base_price_usd', String(activePriceUsd));
         formData.append('regular_price_usd', String(regularPriceUsd));
         formData.append('is_offer', offerState.enabled ? 'true' : 'false');
-        formData.append('offer_price_usd', offerState.enabled ? String(offerState.offerPrice) : '0');
-        const parentCostUsd = Math.max(0, Number(productCostInput.value || 0));
+        formData.append('offer_price_usd', offerState.enabled ? String(amountToUsd(offerState.offerPrice, priceCurrency)) : '0');
+        const parentCostAmount = Math.max(0, Number(productCostInput.value || 0));
+        const parentCostUsd = amountToUsd(parentCostAmount, priceCurrency);
+        formData.append('cost_amount', String(parentCostAmount));
         formData.append('cost_usd', String(parentCostUsd));
         formData.append('internal_ref', productInternalRefInput.value.trim());
         const finalStock = Math.max(0, Math.floor(Number(productStockInput.value || 0)));
@@ -5909,7 +6105,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function productFieldMutationAllowed(key, { create = false } = {}) {
         const normalized = normalizedMutationKey(key);
         if (['id', 'store', 'product', 'collectionId', 'collectionName', 'created', 'updated'].includes(normalized)) return true;
-        if (['base_price_usd', 'regular_price_usd', 'cost_usd', 'profit_margin', 'extra_price', 'is_offer', 'price', 'price_usd', 'precio', 'precio_usd', 'offer_price', 'offer_price_usd', 'only_usd'].includes(normalized)) {
+        if (['price_currency', 'regular_price_amount', 'price_amount', 'offer_price_amount', 'cost_amount', 'base_price_usd', 'regular_price_usd', 'cost_usd', 'profit_margin', 'extra_price', 'is_offer', 'price', 'price_usd', 'precio', 'precio_usd', 'offer_price', 'offer_price_usd', 'only_usd'].includes(normalized)) {
           return CAN_MANAGE_PRODUCT_PRICE;
         }
         if (['stock', 'track_stock', 'allow_preorder'].includes(normalized)) return CAN_MANAGE_PRODUCT_STOCK;
@@ -6029,10 +6225,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         return `<img class="related-product-thumb" src="${url}" alt="${name}" loading="lazy" />`;
       }
       function relatedProductPriceText(product) {
-        const activePrice = Number(product?.base_price_usd || 0);
-        const regularPrice = Number(product?.regular_price_usd || activePrice || 0);
+        const currency = productCurrency(product);
+        const activePrice = productActiveAmount(product);
+        const regularPrice = productRegularAmount(product);
         const hasOffer = Boolean(product?.is_offer) && regularPrice > activePrice && activePrice > 0;
-        return hasOffer ? `Oferta · ${formatUsd(activePrice)}` : `${formatUsd(activePrice)}`;
+        return hasOffer ? `Oferta · ${formatCurrencyAmount(activePrice, currency)}` : `${formatCurrencyAmount(activePrice, currency)}`;
       }
       function getRelatedProductCandidates() {
         const currentId = productIdInput?.value || '';
@@ -6315,8 +6512,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const categoryText = category?.name || 'Sin categoria';
           const subcategoryText = subcategory?.name || (category ? 'Producto directo' : 'Pagina principal');
           const refText = product.internal_ref ? `Ref: ${product.internal_ref}` : '';
-          const activePriceUsd = Number(product.base_price_usd || 0);
-          const regularPriceUsd = Number(product.regular_price_usd || 0);
+          const rowCurrency = productCurrency(product);
+          const activePriceAmount = productActiveAmount(product);
+          const regularPriceAmount = productRegularAmount(product);
           const hasActiveOffer = productHasActiveOffer(product);
           const canOpenEditor = canMutateExistingProduct();
           return `
@@ -6338,7 +6536,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
               </div>
               <span class="category-cell"><span class="category-name">${escapeHtml(categoryText)}</span><span class="category-sub">${escapeHtml(subcategoryText)}</span></span>
-              <span class="price">${variationMode ? 'Precio por variación' : (hasActiveOffer ? `<span class="price-offer-admin"><span class="old">${escapeHtml(formatUsd(regularPriceUsd))}</span><span class="new">${escapeHtml(formatUsd(activePriceUsd))}</span></span>` : escapeHtml(formatUsd(activePriceUsd)))}</span>
+              <span class="price">${variationMode ? `Precio por variación · ${escapeHtml(normalizedCurrencyCode(rowCurrency))}` : (hasActiveOffer ? `<span class="price-offer-admin"><span class="old">${escapeHtml(formatCurrencyAmount(regularPriceAmount, rowCurrency))}</span><span class="new">${escapeHtml(formatCurrencyAmount(activePriceAmount, rowCurrency))}</span></span>` : escapeHtml(formatCurrencyAmount(activePriceAmount, rowCurrency)))}</span>
               <span class="stock">${variationMode ? 'Stock por variación' : (trackStock ? `Stock: ${stockNumber}${isOutOfStock ? (allowPreorder ? ' · Preorder' : ' · Agotado') : ''}` : 'Sin stock descontable')}</span>
               <span class="pill ${effectivePillClass}">${effectiveLabel}</span>
               <div class="row-actions">
@@ -6404,14 +6602,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (refreshBtn) refreshBtn.disabled = true;
         productsList.innerHTML = '<div class="empty-state">Cargando productos...</div>';
         try {
-          const [categoryRecords, subcategoryRecords, productRecords, activeShippingZoneRecords] = await Promise.all([
+          const [categoryRecords, subcategoryRecords, productRecords, currencyRecords, activeShippingZoneRecords] = await Promise.all([
             loadAllRecords('categories', withStoreFilter('sort=order,name')),
             loadAllRecords('subcategories', withStoreFilter('sort=order,name')),
             loadAllRecords('products', withStoreFilter('sort=name')),
+            loadAllRecords('currencies', withStoreFilter('sort=-is_default,-is_base,code')),
             loadAllRecords('shipping_zones', withStoreFilter('filter=active=true&fields=id')).catch(() => null),
           ]);
           categories = categoryRecords;
           subcategories = subcategoryRecords;
+          currencies = currencyRecords.filter((currency) => Number(currency.exchange_rate || 0) > 0);
+          renderPriceCurrencyOptions(productPriceCurrencyInput?.value || getDefaultPriceCurrency()?.id || '');
           if (Array.isArray(activeShippingZoneRecords)) {
             shippingZoneConfigurationLoaded = true;
             hasActiveShippingZones = activeShippingZoneRecords.length > 0;
@@ -6485,14 +6686,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateProductFormState();
       });
       productPriceInput?.addEventListener('input', () => {
-        if (!productIsOfferInput?.checked) lockedRegularPriceUsd = readRegularPriceInput();
+        if (!productIsOfferInput?.checked) lockedRegularPriceAmount = readRegularPriceInput();
+        syncPriceCurrencyUi();
         updateProductFormState();
       });
+      productPriceCurrencyInput?.addEventListener('change', handleProductPriceCurrencyChange);
       productIsOfferInput?.addEventListener('change', () => {
         syncLockedRegularPrice({ force: productIsOfferInput.checked });
         updateProductFormState({ showMessage: true });
       });
-      productOfferPriceInput?.addEventListener('input', () => updateProductFormState());
+      productOfferPriceInput?.addEventListener('input', () => {
+        syncPriceCurrencyUi();
+        updateProductFormState();
+      });
       productStockInput?.addEventListener('input', () => updateProductFormState());
       productTrackStockInput?.addEventListener('change', () => updateProductFormState({ showMessage: true }));
       productActiveInput?.addEventListener('change', () => {
