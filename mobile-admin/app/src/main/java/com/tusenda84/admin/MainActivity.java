@@ -342,9 +342,11 @@ public final class MainActivity extends Activity {
 
     private String resolvePushTarget(Intent intent) {
         if (intent == null) return "";
-        String target = String.valueOf(intent.getStringExtra(PushNotifications.EXTRA_TARGET_URL) == null
-                ? ""
-                : intent.getStringExtra(PushNotifications.EXTRA_TARGET_URL)).trim();
+        String target = intent.getStringExtra(PushNotifications.EXTRA_TARGET_URL);
+        if (target == null || target.trim().isEmpty()) {
+            target = intent.getStringExtra("target_url");
+        }
+        target = target == null ? "" : target.trim();
         if (target.isEmpty()) return "";
 
         Uri configured = Uri.parse(BuildConfig.ADMIN_URL);

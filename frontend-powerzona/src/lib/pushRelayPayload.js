@@ -83,14 +83,15 @@ export function groupDevicesByAppId(devices) {
 }
 
 export function androidMessagePriority(notification) {
+  return notification ? 'high' : 'normal';
+}
+
+export function androidNotificationChannelId(notification) {
   const type = clean(notification?.type, 80).toLowerCase();
-  return notification?.priority === 'critical'
-    || notification?.priority === 'important'
-    || type.includes('order')
-    || type.includes('security')
-    || type.includes('blocked')
-    ? 'high'
-    : 'normal';
+  if (type.includes('order')) return 'pz_admin_orders';
+  if (type.includes('stock') || type.includes('expir')) return 'pz_admin_inventory';
+  if (type.includes('security') || type.includes('blocked')) return 'pz_admin_security';
+  return 'pz_admin_general';
 }
 
 export function isInvalidInstallationError(error) {

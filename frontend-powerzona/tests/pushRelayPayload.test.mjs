@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
   androidMessagePriority,
+  androidNotificationChannelId,
   groupDevicesByAppId,
   isInvalidInstallationError,
   normalizeRelayPayload,
@@ -56,11 +57,19 @@ test('agrupa por package ID para restrictedPackageName', () => {
   assert.equal(groups.get('com.tusenda84.admin')[0].id, 'one');
 });
 
-test('pedidos, seguridad y prioridad importante usan entrega Android alta', () => {
+test('todos los avisos visibles usan entrega Android alta', () => {
   assert.equal(androidMessagePriority({ type: 'new_order', priority: 'normal' }), 'high');
   assert.equal(androidMessagePriority({ type: 'security_warning', priority: 'normal' }), 'high');
-  assert.equal(androidMessagePriority({ type: 'review_pending', priority: 'normal' }), 'normal');
+  assert.equal(androidMessagePriority({ type: 'review_pending', priority: 'normal' }), 'high');
   assert.equal(androidMessagePriority({ type: 'review_pending', priority: 'important' }), 'high');
+});
+
+test('selecciona el canal Android correspondiente al tipo de aviso', () => {
+  assert.equal(androidNotificationChannelId({ type: 'new_order' }), 'pz_admin_orders');
+  assert.equal(androidNotificationChannelId({ type: 'variation_stock_low' }), 'pz_admin_inventory');
+  assert.equal(androidNotificationChannelId({ type: 'product_expired' }), 'pz_admin_inventory');
+  assert.equal(androidNotificationChannelId({ type: 'security_warning' }), 'pz_admin_security');
+  assert.equal(androidNotificationChannelId({ type: 'review_pending' }), 'pz_admin_general');
 });
 
 test('solo invalida errores permanentes de instalacion', () => {
@@ -82,4 +91,15 @@ test('el puente Android no devuelve el FID directamente a frames del WebView', (
   assert.match(bridgeSource, /public void requestState\(\)/);
   assert.match(activitySource, /pz:android-push-state/);
   assert.match(activitySource, /isAllowedWebHost\(current\.getHost\(\)\)/);
+  assert.match(activitySource, /getStringExtra\("target_url"\)/);
+});
+
+test('el relay envia payload hibrido para que Android lo muestre con la app cerrada', () => {
+  const relaySource = readFileSync(
+    new URL('../src/pages/api/internal/push/send.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(relaySource, /notification:\s*\{\s*title:\s*payload\.notification\.title,[\s\S]*?body:\s*payload\.notification\.body/);
+  assert.match(relaySource, /channelId:\s*androidNotificationChannelId\(payload\.notification\)/);
+  assert.match(relaySource, /priority:\s*androidMessagePriority\(payload\.notification\)/);
 });
