@@ -226,6 +226,16 @@ function activeMaster(user) {
   return !!user && recordString(user, "role") === "master_admin" && recordString(user, "status") === "active";
 }
 
+function requestHeader(info, name) {
+  const target = String(name || "").toLowerCase();
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") return bounded(headers.get(name) || headers.get(target), 80);
+  } catch (_) {}
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  return key ? bounded(headers[key], 80) : "";
+}
+
 function teamReady(app) {
   try {
     const stores = app.findCollectionByNameOrId("stores");
@@ -282,31 +292,34 @@ function lockStore(app, storeId) {
   app.db().newQuery("UPDATE stores SET id = id WHERE id = {:storeId}").bind({ storeId }).execute();
 }
 
-function loadActorContext(app, actorId, requirePrimary) {
+function loadActorContext(app, actorId, requirePrimary, requestedStoreId) {
   const actor = findRecord(app, "users", actorId);
-  if (!activeStoreUser(actor)) throw codedError("unauthorized");
-  const storeId = relationId(actor, "store");
+  const master = activeMaster(actor);
+  if (!master && !activeStoreUser(actor)) throw codedError("unauthorized");
+  const storeId = master ? bounded(requestedStoreId, 15) : relationId(actor, "store");
+  if (!isValidId(storeId)) throw codedError("unauthorized");
   const store = findRecord(app, "stores", storeId);
-  if (!store || recordString(store, "status") !== "active") throw codedError("unauthorized");
-  if (permissions.isBlockedByPlan(app, actor, store)) throw codedError("blocked_by_plan");
-  const isPrimary = permissions.isPrimaryAdmin(app, actor, store);
+  if (!store || (!master && recordString(store, "status") !== "active")) throw codedError("unauthorized");
+  if (!master && permissions.isBlockedByPlan(app, actor, store)) throw codedError("blocked_by_plan");
+  const isPrimary = master || permissions.isPrimaryAdmin(app, actor, store);
   if (requirePrimary && !isPrimary) {
     if (!relationId(store, "primary_admin_user")) throw codedError("principal_not_configured");
     throw codedError("permission_denied");
   }
-  return { actor, store, isPrimary };
+  return { actor, store, isPrimary, master };
 }
 
 function requestContext(e, parser, requirePrimary) {
   setPrivateHeaders(e);
   try {
     const info = e.requestInfo();
-    if (!info || !activeStoreUser(info.auth)) throw codedError("unauthorized");
+    if (!info || (!activeStoreUser(info.auth) && !activeMaster(info.auth))) throw codedError("unauthorized");
     if (!teamReady($app)) throw codedError("team_unavailable");
     const parsed = parser(info.body || {});
     const actorId = recordString(info.auth, "id");
     if (!parsed || !isValidId(actorId)) throw codedError("invalid_payload");
-    const loaded = loadActorContext($app, actorId, requirePrimary !== false);
+    const supportStoreId = activeMaster(info.auth) ? requestHeader(info, "X-PZ-Support-Store") : "";
+    const loaded = loadActorContext($app, actorId, requirePrimary !== false, supportStoreId);
     return { info, parsed, actorId, ...loaded };
   } catch (error) {
     return { error };
@@ -766,9 +779,11 @@ function handleAccessContext(e) {
   const context = requestContext(e, parseEmpty, false);
   if (context.error) return sendError(e, context.error, "team_unavailable");
   try {
-    const resolved = permissions.resolveEffectiveStorePermissions($app, context.actor, context.store);
+    const resolved = context.master
+      ? permissions.ASSIGNABLE_PERMISSION_KEYS.slice()
+      : permissions.resolveEffectiveStorePermissions($app, context.actor, context.store);
     const effective = Array.isArray(resolved) ? resolved : (resolved.permissions || []);
-    const access = findAccess($app, context.store.id, context.actor.id);
+    const access = context.master ? null : findAccess($app, context.store.id, context.actor.id);
     return e.json(200, {
       ok: true,
       user: {
@@ -783,7 +798,7 @@ function handleAccessContext(e) {
         is_primary_admin: context.isPrimary,
         blocked_by_plan: false,
         permissions: effective.slice().sort(),
-        template_code: context.isPrimary ? "primary_admin" : bounded(recordString(access, "template_code"), 40),
+        template_code: context.master ? "primary_admin" : (context.isPrimary ? "primary_admin" : bounded(recordString(access, "template_code"), 40)),
       },
       plan: storePlan(context.store),
     });
@@ -825,7 +840,7 @@ function handleCreate(e) {
   try {
     $app.runInTransaction((app) => {
       lockStore(app, context.store.id);
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       if (emailExists(app, context.parsed.email, "")) throw codedError("email_exists");
       const plan = storePlan(loaded.store);
       const counts = teamCounts(app, loaded.store.id);
@@ -854,7 +869,7 @@ function handleUpdate(e) {
   try {
     $app.runInTransaction((app) => {
       lockStore(app, context.store.id);
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       const target = loadTarget(app, loaded.store, context.parsed.userId);
       const previousAccess = findAccess(app, loaded.store.id, target.id);
       const previous = userSnapshot(target, previousAccess);
@@ -894,7 +909,7 @@ function mutateStatus(e, nextStatus) {
   try {
     $app.runInTransaction((app) => {
       lockStore(app, context.store.id);
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       const target = loadTarget(app, loaded.store, context.parsed.userId);
       const access = findAccess(app, loaded.store.id, target.id);
       const previous = userSnapshot(target, access);
@@ -926,7 +941,7 @@ function handleIssueTemporaryAccess(e) {
   try {
     $app.runInTransaction((app) => {
       lockStore(app, context.store.id);
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       const target = loadTarget(app, loaded.store, context.parsed.userId);
       const access = findAccess(app, loaded.store.id, target.id);
       const snapshot = userSnapshot(target, access);
@@ -957,7 +972,7 @@ function handleRevokeSessions(e) {
   let response = null;
   try {
     $app.runInTransaction((app) => {
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       const target = loadTarget(app, loaded.store, context.parsed.userId);
       const access = findAccess(app, loaded.store.id, target.id);
       const snapshot = userSnapshot(target, access);
@@ -976,7 +991,7 @@ function handleRevokeDevices(e) {
   let response = null;
   try {
     $app.runInTransaction((app) => {
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       const target = loadTarget(app, loaded.store, context.parsed.userId);
       const access = findAccess(app, loaded.store.id, target.id);
       const snapshot = userSnapshot(target, access);
@@ -1012,7 +1027,7 @@ function handleDelete(e) {
   try {
     $app.runInTransaction((app) => {
       lockStore(app, context.store.id);
-      const loaded = loadActorContext(app, context.actorId, true);
+      const loaded = loadActorContext(app, context.actorId, true, context.store.id);
       const target = loadTarget(app, loaded.store, context.parsed.userId);
       response = masterUsers.deleteStoreUserTransactional(app, {
         store: loaded.store,

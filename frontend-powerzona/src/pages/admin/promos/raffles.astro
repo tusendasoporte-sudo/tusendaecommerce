@@ -13,7 +13,7 @@ import '../../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';

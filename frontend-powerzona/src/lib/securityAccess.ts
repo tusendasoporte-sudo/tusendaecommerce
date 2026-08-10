@@ -24,11 +24,14 @@ export function resolveSecurityCapability(store: unknown) {
 }
 
 export async function resolveSecurityAdminAccess(
-  adminContext: Pick<AdminStoreContext, 'store'>,
+  adminContext: Pick<AdminStoreContext, 'store' | 'storeId' | 'isMasterSupport'>,
   options: { baseUrl?: string; token: string },
 ): Promise<SecurityAdminAccess> {
   const capability = resolveSecurityCapability(adminContext?.store);
-  const storeAccess = await getStoreAccessContext(options).catch(() => null);
+  const storeAccess = await getStoreAccessContext({
+    ...options,
+    supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+  }).catch(() => null);
   const permissionContext = storeAccess
     ? {
         permissions: storeAccess.access.permissions,

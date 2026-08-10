@@ -42,11 +42,14 @@ export function resolveRafflesCapability(store: unknown) {
 }
 
 export async function resolveRafflesAdminAccess(
-  adminContext: Pick<AdminStoreContext, 'store'>,
+  adminContext: Pick<AdminStoreContext, 'store' | 'storeId' | 'isMasterSupport'>,
   options: { baseUrl?: string; token: string },
 ): Promise<RafflesAdminAccess> {
   const capability = resolveRafflesCapability(adminContext?.store);
-  const storeAccess = await getStoreAccessContext(options).catch(() => null);
+  const storeAccess = await getStoreAccessContext({
+    ...options,
+    supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
+  }).catch(() => null);
   const isPrimaryAdmin = storeAccess?.access.is_primary_admin === true;
   const hasPermission = Boolean(storeAccess && hasStorePermission({
     permissions: storeAccess.access.permissions,
@@ -64,7 +67,7 @@ export async function resolveRafflesAdminAccess(
 }
 
 export async function requireRafflesAdminAccess(
-  adminContext: Pick<AdminStoreContext, 'store'>,
+  adminContext: Pick<AdminStoreContext, 'store' | 'storeId' | 'isMasterSupport'>,
   options: { baseUrl?: string; token: string },
 ) {
   const access = await resolveRafflesAdminAccess(adminContext, options);

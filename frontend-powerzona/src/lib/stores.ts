@@ -352,16 +352,23 @@ export async function createStoreFromMaster(input: MasterStoreInput, client = pb
   requireMasterClient(client);
   const payload = getMasterStorePayload(input);
   await assertUniqueStoreSlug(payload.slug, '', client);
-
-  return client.collection('stores').create({
-    ...payload,
-    plan: 'free',
-    featured: false,
-    featured_order: 0,
-    views_count: 0,
-    orders_count: 0,
-    protected: false,
-  });
+  try {
+    const response = await client.send<{ ok: true; store: MasterStoreSummary }>(
+      '/api/pz/master/stores/create',
+      {
+        method: 'POST',
+        body: payload,
+        requestKey: null,
+      },
+    );
+    return response.store;
+  } catch (error: any) {
+    const code = String(error?.data?.error || error?.response?.error || '');
+    if (code === 'store_slug_exists') throw new Error('Ya existe una tienda con ese slug.');
+    if (code === 'invalid_payload') throw new Error('Revisa los datos de la tienda.');
+    if (code === 'unauthorized') throw new Error('No tienes permisos para crear tiendas.');
+    throw error;
+  }
 }
 
 export async function updateStoreFromMaster(storeId: string, input: MasterStoreInput, client = pb) {

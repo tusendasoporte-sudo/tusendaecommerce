@@ -37,8 +37,14 @@ export type AdminStoreContext = {
   user: AuthUser;
   store: PublicStore;
   storeId: string;
-  roleLabel: 'Administrador' | 'Colaborador';
+  roleLabel: 'Master Admin' | 'Administrador' | 'Colaborador';
+  isMasterSupport: boolean;
 };
+
+export type AdminStoreContextOptions = Readonly<{
+  pathname?: string;
+  storeSlug?: string;
+}>;
 
 function escapePocketBaseValue(value: string) {
   return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -51,6 +57,23 @@ function isSuspended(value: unknown) {
 function normalizeStoreId(value: unknown) {
   if (Array.isArray(value)) return String(value[0] || '').trim();
   return String(value || '').trim();
+}
+
+function normalizeStoreSlug(value: unknown) {
+  return String(value || '').trim().toLowerCase();
+}
+
+export function getSupportStoreSlug(options: AdminStoreContextOptions = {}) {
+  const explicit = normalizeStoreSlug(options.storeSlug);
+  if (explicit) return explicit;
+  const pathname = String(options.pathname || '');
+  const match = pathname.match(/^\/t\/([^/]+)\/admin(?:\/|$)/i);
+  if (!match) return '';
+  try {
+    return normalizeStoreSlug(decodeURIComponent(match[1]));
+  } catch (_) {
+    return '';
+  }
 }
 
 export function getStoreAdminRoleLabel(user: AuthUser | null | undefined) {
@@ -73,7 +96,10 @@ export async function getCurrentStoreForAdmin(client: PocketBase = pb) {
   }
 }
 
-export async function requireCurrentStoreForAdmin(client: PocketBase = pb): Promise<AdminStoreContext> {
+export async function requireCurrentStoreForAdmin(
+  client: PocketBase = pb,
+  options: AdminStoreContextOptions = {},
+): Promise<AdminStoreContext> {
   const user = getCurrentUser(client);
 
   if (!user) {
@@ -85,7 +111,31 @@ export async function requireCurrentStoreForAdmin(client: PocketBase = pb): Prom
   }
 
   if (isMasterAdmin(user)) {
-    throw new StoreContextError(STORE_CONTEXT_ERRORS.MASTER_ADMIN, 'El panel principal del Master Admin esta en /master.');
+    const storeSlug = getSupportStoreSlug(options);
+    if (!storeSlug) {
+      throw new StoreContextError(STORE_CONTEXT_ERRORS.MASTER_ADMIN, 'Selecciona una tienda desde el panel Master para iniciar el modo soporte.');
+    }
+
+    let supportStore: PublicStore | null = null;
+    try {
+      supportStore = await client.collection('stores').getFirstListItem(
+        `slug="${escapePocketBaseValue(storeSlug)}"`,
+      ) as PublicStore;
+    } catch (error: any) {
+      if (error?.status !== 404) throw error;
+    }
+
+    if (!supportStore) {
+      throw new StoreContextError(STORE_CONTEXT_ERRORS.STORE_NOT_FOUND, 'La tienda seleccionada para soporte no existe.');
+    }
+
+    return {
+      user,
+      store: supportStore,
+      storeId: String(supportStore.id || '').trim(),
+      roleLabel: 'Master Admin',
+      isMasterSupport: true,
+    };
   }
 
   if (!isStoreUser(user)) {
@@ -126,19 +176,24 @@ export async function requireCurrentStoreForAdmin(client: PocketBase = pb): Prom
     store,
     storeId,
     roleLabel: isStoreStaff(user) ? 'Colaborador' : getStoreAdminRoleLabel(user),
+    isMasterSupport: false,
   };
 }
 
-export async function requireStoreContext(client: PocketBase = pb) {
-  return requireCurrentStoreForAdmin(client);
+export async function requireStoreContext(client: PocketBase = pb, options: AdminStoreContextOptions = {}) {
+  return requireCurrentStoreForAdmin(client, options);
 }
 
-export async function getCurrentStoreIdForAdmin(client: PocketBase = pb) {
-  const context = await requireCurrentStoreForAdmin(client);
+export async function getCurrentStoreIdForAdmin(client: PocketBase = pb, options: AdminStoreContextOptions = {}) {
+  const context = await requireCurrentStoreForAdmin(client, options);
   return context.storeId;
 }
 
-export async function getStoreFilterForAdmin(fieldName = 'store', client: PocketBase = pb) {
-  const storeId = await getCurrentStoreIdForAdmin(client);
+export async function getStoreFilterForAdmin(
+  fieldName = 'store',
+  client: PocketBase = pb,
+  options: AdminStoreContextOptions = {},
+) {
+  const storeId = await getCurrentStoreIdForAdmin(client, options);
   return `${fieldName}="${escapePocketBaseValue(storeId)}"`;
 }

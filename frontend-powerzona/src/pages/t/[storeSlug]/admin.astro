@@ -2,7 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import AdminDashboard from '../../admin/index.astro';
 import { getSettings } from '../../../lib/api';
-import { isMasterAdmin, refreshAuthFromCookie } from '../../../lib/auth';
+import { refreshAuthFromCookie } from '../../../lib/auth';
 import { requireCurrentStoreForAdmin, StoreContextError, STORE_CONTEXT_ERRORS } from '../../../lib/storeContext';
 import { ACTIVE_STORE_STATUS, getStoreBySlugAnyStatus } from '../../../lib/stores';
 
@@ -24,12 +24,8 @@ let showDashboard = false;
 let loginBlockMessage = '';
 
 if (authPb.authStore.isValid && authPb.authStore.record) {
-  if (isMasterAdmin(authPb.authStore.record as any)) {
-    return Astro.redirect('/master');
-  }
-
   try {
-    const adminContext = await requireCurrentStoreForAdmin(authPb);
+    const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
     if (String(adminContext.store.slug || '').trim().toLowerCase() === storeSlug) {
       showDashboard = true;
     } else {

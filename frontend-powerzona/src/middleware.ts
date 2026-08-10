@@ -162,12 +162,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
-  if (isMasterAdmin(authPb.authStore.record as any)) {
+  if (isMasterAdmin(authPb.authStore.record as any) && !isProfessionalAdminRoute) {
     return context.redirect('/master');
   }
 
   try {
-    const adminContext = await requireCurrentStoreForAdmin(authPb);
+    const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname });
     const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
     const canonicalAdminPath = getStoreAdminBasePath(currentStoreSlug);
     const temporaryPath = getTemporaryPasswordRedirect(adminContext.user, currentStoreSlug)
@@ -176,7 +176,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const isTemporaryRoute = normalizedPath === temporaryPath
       || normalizedPath === '/admin/change-temporary-password';
 
-    if (requiresTemporaryPasswordChange(adminContext.user)) {
+    if (!adminContext.isMasterSupport && requiresTemporaryPasswordChange(adminContext.user)) {
       if (normalizedPath !== temporaryPath) return context.redirect(temporaryPath);
       return next();
     }
@@ -186,6 +186,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const requestedSection = isAdminRoute
       ? getLegacyAdminSection(pathname)
       : String(professionalAdminMatch?.[2] || '');
+    if (adminContext.isMasterSupport
+      && (requestedSection === 'account' || requestedSection === 'change-temporary-password')) {
+      return context.redirect(`/master/stores/${encodeURIComponent(adminContext.storeId)}`);
+    }
     const accessRule = adminAccessRule(requestedSection);
     if (accessRule) {
       let storeAccess;
@@ -193,6 +197,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
         storeAccess = await getStoreAccessContext({
           baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
           token: authPb.authStore.token,
+          supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
         });
       } catch (_) {
         return renderAdminBlock('No se pudo validar tus permisos. Inicia sesión nuevamente.');

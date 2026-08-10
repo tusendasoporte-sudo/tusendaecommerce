@@ -81,20 +81,30 @@ function findRecord(app, collection, id) {
   try { return app.findRecordById(collection, id); } catch (_) { return null; }
 }
 
-function loadStoreContext(app, auth) {
+function headerValue(info, name) {
+  const target = String(name || "").toLowerCase();
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") return safeText(headers.get(name) || headers.get(target), 80);
+  } catch (_) {}
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  return key ? safeText(headers[key], 80) : "";
+}
+
+function loadStoreContext(app, auth, supportStoreId) {
   const authId = recordString(auth, "id");
   if (!RECORD_ID_PATTERN.test(authId)) return null;
   const actor = findRecord(app, "users", authId);
   if (!actor) return null;
   const role = recordString(actor, "role");
-  const storeId = relationId(actor, "store");
-  if (!["store_admin", "store_staff"].includes(role)
-    || recordString(actor, "status") !== "active"
-    || !RECORD_ID_PATTERN.test(storeId)) return null;
+  const master = role === "master_admin" && recordString(actor, "status") === "active";
+  const storeId = master ? safeText(supportStoreId, 15) : relationId(actor, "store");
+  if ((!master && !["store_admin", "store_staff"].includes(role))
+    || recordString(actor, "status") !== "active" || !RECORD_ID_PATTERN.test(storeId)) return null;
   const store = findRecord(app, "stores", storeId);
-  if (!store || recordString(store, "status") !== "active") return null;
-  if (permissions.isBlockedByPlan(app, actor, store)) return null;
-  return { actor, store, storeId };
+  if (!store || (!master && recordString(store, "status") !== "active")) return null;
+  if (!master && permissions.isBlockedByPlan(app, actor, store)) return null;
+  return { actor, store, storeId, master };
 }
 
 function nonNegativeInteger(value) {
@@ -243,9 +253,9 @@ function handleSummary(e) {
     const payload = parseSummaryPayload(info && info.body || {});
     if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
     const app = e.app || $app;
-    const context = loadStoreContext(app, info && info.auth);
+    const context = loadStoreContext(app, info && info.auth, headerValue(info, "X-PZ-Support-Store"));
     if (!context) return e.json(403, { ok: false, error: "unauthorized" });
-    if (!permissions.hasStorePermission(app, context.actor, context.store, "analytics.view")) {
+    if (!context.master && !permissions.hasStorePermission(app, context.actor, context.store, "analytics.view")) {
       return e.json(403, { ok: false, error: "permission_denied" });
     }
     return e.json(200, buildSummary(app, context, payload, new Date()));

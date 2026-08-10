@@ -7,12 +7,12 @@ import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const adminAuthToken = authPb.authStore.token;
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
-const currentStoreFilter = await getStoreFilterForAdmin('store', authPb);
+const currentStoreFilter = await getStoreFilterForAdmin('store', authPb, { pathname: Astro.url.pathname });
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminOrdersPath = getStoreAdminPath(currentStoreSlug, 'orders');
 ---

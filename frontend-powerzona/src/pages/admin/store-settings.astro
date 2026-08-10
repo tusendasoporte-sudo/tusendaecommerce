@@ -18,7 +18,7 @@ import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
@@ -37,7 +37,7 @@ const landingQrAccess = resolveStoreCapabilityAccess(
   'landing_qr_enabled',
   { enforceExpiration: true },
 );
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
 const effectivePermissions = storeAccessContext?.access.permissions || [];
 const isPrimaryAdmin = storeAccessContext?.access.is_primary_admin === true;
 const canManageSettings = hasStorePermission({ permissions: effectivePermissions }, 'store.settings.manage');

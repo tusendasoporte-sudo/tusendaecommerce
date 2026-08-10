@@ -258,6 +258,16 @@ function requestAuthRecord(e) {
   }
 }
 
+function requestHeader(info, name) {
+  const target = String(name || "").toLowerCase();
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") return String(headers.get(name) || headers.get(target) || "").trim().slice(0, 80);
+  } catch (_) {}
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  return key ? String(headers[key] || "").trim().slice(0, 80) : "";
+}
+
 function authCanManageStore(e, storeId) {
   const auth = requestAuthRecord(e);
   const app = e && e.app ? e.app : (typeof $app === "undefined" ? null : $app);
@@ -965,14 +975,16 @@ function handleAdminExpirationQuery(e) {
   setPrivateHeaders(e);
   try {
     const info = e.requestInfo();
-    if (!info.auth || recordString(info.auth, "role") === "master_admin" || recordString(info.auth, "status").toLowerCase() !== "active") {
+    if (!info.auth || recordString(info.auth, "status").toLowerCase() !== "active") {
       return e.json(403, { ok: false, error: "unauthorized" });
     }
-    const storeId = relationId(info.auth, "store");
+    const master = recordString(info.auth, "role") === "master_admin";
+    const storeId = master ? requestHeader(info, "X-PZ-Support-Store") : relationId(info.auth, "store");
+    if (!RECORD_ID_PATTERN.test(storeId)) return e.json(403, { ok: false, error: "unauthorized" });
     const app = e && e.app ? e.app : $app;
     const store = findRecord(app, "stores", storeId);
     if (!store || !storeExpirationEnabled(store)) return e.json(403, { ok: false, error: "premium_required" });
-    if (!authCanManageStore(e, storeId)) return e.json(403, { ok: false, error: "permission_denied" });
+    if (!master && !authCanManageStore(e, storeId)) return e.json(403, { ok: false, error: "permission_denied" });
     const parsed = parseAdminQueryPayload(info.body || {});
     if (!parsed) return e.json(400, { ok: false, error: "invalid_payload" });
     const units = productExpirationUnits(app, storeId, new Date());

@@ -114,22 +114,35 @@ function findRecord(app, collection, id) {
   try { return app.findRecordById(collection, id); } catch (_) { return null; }
 }
 
-function loadStoreContext(app, auth) {
+function headerValue(info, name) {
+  const target = String(name || "").toLowerCase();
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") return recordString({ value: headers.get(name) || headers.get(target) }, "value");
+  } catch (_) {}
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  return key ? String(headers[key] || "").trim().slice(0, 80) : "";
+}
+
+function loadStoreContext(app, auth, supportStoreId) {
   const actorId = recordString(auth, "id");
   if (!RECORD_ID_PATTERN.test(actorId)) return null;
   const actor = findRecord(app, "users", actorId);
   if (!actor) return null;
-  const storeId = relationId(actor, "store");
-  if (!["store_admin", "store_staff"].includes(recordString(actor, "role"))
+  const role = recordString(actor, "role");
+  const master = role === "master_admin" && recordString(actor, "status") === "active";
+  const storeId = master ? String(supportStoreId || "").trim().slice(0, 15) : relationId(actor, "store");
+  if ((!master && !["store_admin", "store_staff"].includes(role))
     || recordString(actor, "status") !== "active"
     || !RECORD_ID_PATTERN.test(storeId)) return null;
   const store = findRecord(app, "stores", storeId);
-  if (!store || recordString(store, "status") !== "active") return null;
-  if (permissions.isBlockedByPlan(app, actor, store)) return null;
-  return { actor, store, storeId };
+  if (!store || (!master && recordString(store, "status") !== "active")) return null;
+  if (!master && permissions.isBlockedByPlan(app, actor, store)) return null;
+  return { actor, store, storeId, master };
 }
 
 function hasSelectorPermission(app, context) {
+  if (context && context.master) return true;
   return SELECTOR_PERMISSIONS.some((permission) => (
     permissions.hasStorePermission(app, context.actor, context.store, permission)
   ));
@@ -503,7 +516,7 @@ function handleSelectors(e) {
     const payload = parseSelectorsPayload(info && info.body || {});
     if (!payload) return e.json(400, { ok: false, error: "invalid_payload" });
     const app = e.app || $app;
-    const context = loadStoreContext(app, info && info.auth);
+    const context = loadStoreContext(app, info && info.auth, headerValue(info, "X-PZ-Support-Store"));
     if (!context) return e.json(403, { ok: false, error: "unauthorized" });
     if (!hasSelectorPermission(app, context)) {
       return e.json(403, { ok: false, error: "permission_denied" });

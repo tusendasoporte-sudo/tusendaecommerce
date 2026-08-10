@@ -40,6 +40,9 @@ function initials(value: string) {
     </div>
   </div>
   <div class="master-store-heading__actions">
+    <a class="master-btn master-btn--primary" href={`/t/${encodeURIComponent(store.slug)}/admin`}>
+      <MasterIcon name="settings" size={19} /> Administrar tienda
+    </a>
     <a class="master-btn master-btn--secondary" href={`/t/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer">
       <MasterIcon name="external" size={19} /> Ver tienda pública
     </a>

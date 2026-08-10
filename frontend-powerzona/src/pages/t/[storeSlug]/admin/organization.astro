@@ -4,7 +4,7 @@ import { getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
 
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const currentStoreSlug = adminContext.store.slug || Astro.params.storeSlug || '';
 
 return Astro.redirect(`${getStoreAdminPath(currentStoreSlug, 'promos')}#visuales`);

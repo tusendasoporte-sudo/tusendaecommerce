@@ -126,8 +126,20 @@ function count(value) {
 
 function activeActor(record) {
   return !!record
-    && ["store_admin", "store_staff"].includes(recordString(record, "role", 40))
+    && ["master_admin", "store_admin", "store_staff"].includes(recordString(record, "role", 40))
     && recordString(record, "status", 40).toLowerCase() === "active";
+}
+
+function requestHeader(e, name) {
+  let info = null;
+  try { info = e.requestInfo(); } catch (_) {}
+  const target = String(name || "").toLowerCase();
+  const headers = info && info.headers || {};
+  try {
+    if (typeof headers.get === "function") return text(headers.get(name) || headers.get(target), 80);
+  } catch (_) {}
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  return key ? text(headers[key], 80) : "";
 }
 
 function loadContext(app, e) {
@@ -135,14 +147,17 @@ function loadContext(app, e) {
   try { actor = e.requestInfo().auth || actor; } catch (_) {}
   actor = findRecord(app, "users", text(actor && actor.id, 15));
   if (!activeActor(actor)) throw codedError("unauthorized");
-  const storeId = relationId(actor, "store");
+  const master = recordString(actor, "role", 40) === "master_admin";
+  const storeId = master ? requestHeader(e, "X-PZ-Support-Store") : relationId(actor, "store");
+  if (!RECORD_ID_PATTERN.test(storeId)) throw codedError("unauthorized");
   const store = findRecord(app, "stores", storeId);
-  if (!store || recordString(store, "status", 40).toLowerCase() !== "active" || permissions.isBlockedByPlan(app, actor, store)) {
+  if (!store || (!master && recordString(store, "status", 40).toLowerCase() !== "active")
+    || (!master && permissions.isBlockedByPlan(app, actor, store))) {
     throw codedError("unauthorized");
   }
-  const granted = permissions.resolveEffectiveStorePermissions(app, actor, store);
+  const granted = master ? permissions.ASSIGNABLE_PERMISSION_KEYS.slice() : permissions.resolveEffectiveStorePermissions(app, actor, store);
   if (!granted.includes("catalog.view")) throw codedError("permission_denied");
-  return { actor, store, storeId, granted, primary: permissions.isPrimaryAdmin(app, actor, store) };
+  return { actor, store, storeId, granted, primary: master || permissions.isPrimaryAdmin(app, actor, store), master };
 }
 
 function parseId(value, code) {

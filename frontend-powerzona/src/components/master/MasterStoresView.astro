@@ -131,7 +131,10 @@ const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1
               <button class="master-icon-btn" type="button" data-action-more aria-label={`Más acciones para ${store.name}`} aria-haspopup="menu" aria-expanded="false">
                 <MasterIcon name="more" size={21} />
               </button>
-              <a class="master-btn master-btn--primary" href={`/master/stores/${encodeURIComponent(store.id)}`}>Abrir panel</a>
+              <a class="master-btn master-btn--secondary" href={`/master/stores/${encodeURIComponent(store.id)}`}>Abrir resumen</a>
+              <a class="master-btn master-btn--primary" href={`/t/${encodeURIComponent(store.slug)}/admin`}>
+                <MasterIcon name="settings" size={18} /> Administrar tienda
+              </a>
             </div>
           </article>
         ))}

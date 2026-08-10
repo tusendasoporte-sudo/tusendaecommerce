@@ -28,6 +28,7 @@ export const STORE_TEAM_API_PATHS = Object.freeze({
 export type StoreTeamClientOptions = Readonly<{
   baseUrl?: string;
   token: string;
+  supportStoreId?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
 }>;
@@ -288,6 +289,10 @@ async function postStoreTeam<T>(
   if (!token) throw new StoreTeamApiError('unauthenticated', 401, null);
   if (!baseUrl) throw new StoreTeamApiError('team_request_failed', 503, null);
   const fetcher = options.fetcher || fetch;
+  const browserSupportStoreId = typeof window === 'undefined'
+    ? ''
+    : text((window as any).PZ_MASTER_SUPPORT_CONTEXT?.storeId);
+  const supportStoreId = text(options?.supportStoreId) || browserSupportStoreId;
   let response: Response;
   try {
     response = await fetcher(`${baseUrl}${path}`, {
@@ -296,6 +301,7 @@ async function postStoreTeam<T>(
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Accept: 'application/json',
+        ...(supportStoreId ? { 'X-PZ-Support-Store': supportStoreId } : {}),
       },
       body: JSON.stringify(body),
       cache: 'no-store',

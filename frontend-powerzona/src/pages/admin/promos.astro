@@ -12,7 +12,7 @@ import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const currentStoreId = adminContext.storeId;
 const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
@@ -27,7 +27,7 @@ const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminRafflesPath = getStoreAdminPath(currentStoreSlug, 'promos/raffles');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const publicCheckoutPath = getPublicStorePath(currentStoreSlug, '/checkout');
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
 const marketingPermissionContext = storeAccessContext
   ? {
       permissions: storeAccessContext.access.permissions,
@@ -4093,6 +4093,8 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         const headers = { ...(options.headers || {}) };
         const token = getAdminToken();
         if (token) headers.Authorization = `Bearer ${token}`;
+        const supportStoreId = String(window.PZ_MASTER_SUPPORT_CONTEXT?.storeId || '');
+        if (supportStoreId) headers['X-PZ-Support-Store'] = supportStoreId;
         const response = await fetch(`${POCKETBASE_URL}${path}`, { ...options, headers });
         const result = await response.json().catch(() => null);
         if (!response.ok) throw new Error(pocketBaseErrorMessage(result));

@@ -20,6 +20,7 @@ export type StoreActivityActorState = 'active' | 'deleted' | 'system' | string;
 export type StoreActivityClientOptions = Readonly<{
   baseUrl?: string;
   token: string;
+  supportStoreId?: string;
   fetcher?: typeof fetch;
   signal?: AbortSignal;
 }>;
@@ -532,6 +533,11 @@ async function postStoreActivity<T>(
   if (!token) throw new StoreActivityApiError('unauthenticated', 401, null);
   if (!baseUrl) throw new StoreActivityApiError('activity_request_failed', 503, null);
   const fetcher = options.fetcher || fetch;
+  const browserSupportStoreId = typeof window === 'undefined'
+    ? ''
+    : text((window as any).PZ_MASTER_SUPPORT_CONTEXT?.storeId);
+  const supportStoreId = text(options?.supportStoreId) || browserSupportStoreId;
+  const requestBody = supportStoreId ? { ...body, store_id: supportStoreId } : body;
   let response: Response;
   try {
     response = await fetcher(`${baseUrl}${path}`, {
@@ -541,7 +547,7 @@ async function postStoreActivity<T>(
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
       cache: 'no-store',
       credentials: 'same-origin',
       signal: options.signal,

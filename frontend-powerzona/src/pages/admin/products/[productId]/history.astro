@@ -9,7 +9,7 @@ import '../../../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const authToken = authPb.authStore.token;
 const storeSlug = String(adminContext.store.slug || '');
 const productId = /^[a-z0-9]{15}$/.test(String(Astro.params.productId || '')) ? String(Astro.params.productId) : '';
@@ -173,7 +173,10 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle:'medium', timeStyle:'short' }).format(date) : 'Fecha no disponible';
         };
         async function post(path, body) {
-          const response = await fetch(`${API_BASE}${path}`, { method:'POST', headers:{ Authorization:`Bearer ${token()}`, 'Content-Type':'application/json', Accept:'application/json' }, body:JSON.stringify(body), cache:'no-store', credentials:'omit' });
+          const supportStoreId = String(window.PZ_MASTER_SUPPORT_CONTEXT?.storeId || '');
+          const headers = { Authorization:`Bearer ${token()}`, 'Content-Type':'application/json', Accept:'application/json' };
+          if (supportStoreId) headers['X-PZ-Support-Store'] = supportStoreId;
+          const response = await fetch(`${API_BASE}${path}`, { method:'POST', headers, body:JSON.stringify(body), cache:'no-store', credentials:'omit' });
           const result = await response.json().catch(() => ({}));
           if (!response.ok || result?.ok !== true) throw new Error(result?.error || 'history_unavailable');
           return result;

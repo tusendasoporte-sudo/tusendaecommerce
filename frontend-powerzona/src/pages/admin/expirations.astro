@@ -14,7 +14,7 @@ import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb);
+const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const adminAuthToken = authPb.authStore.token;
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
@@ -23,7 +23,7 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken }).catch(() => null);
+const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
 const expirationPermissionContext = storeAccessContext
   ? {
       permissions: storeAccessContext.access.permissions,
@@ -691,9 +691,12 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           pagination.innerHTML = '';
           pagination.hidden = true;
           try {
+            const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+            const supportStoreId = String(window.PZ_MASTER_SUPPORT_CONTEXT?.storeId || '');
+            if (supportStoreId) headers['X-PZ-Support-Store'] = supportStoreId;
             const response = await fetch(`${baseUrl}/api/pz/admin/product-expirations`, {
               method: 'POST',
-              headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+              headers,
               cache: 'no-store',
               body: JSON.stringify({ view, window_days: windowDays, page, page_size: 10, query }),
             });
