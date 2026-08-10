@@ -45,3 +45,15 @@ La app admite avisos de pedidos, inventario, seguridad y notificaciones generale
 ## APK de produccion
 
 La variante `release` requiere una clave privada de firma del propietario. No se guarda ninguna clave ni contrasena en el repositorio. Antes de publicar en Google Play se debe configurar la firma de produccion, incrementar `versionCode` y validar la ficha y las politicas vigentes de la tienda.
+
+Para generar el Android App Bundle firmado que acepta Google Play, crea localmente
+`.secrets/mobile-admin-upload.properties` con `storeFile`, `storePassword`, `keyAlias`
+y `keyPassword`, y ejecuta:
+
+```powershell
+./gradlew.bat bundleRelease
+```
+
+El archivo resultante se crea en `app/build/outputs/bundle/release/app-release.aab`.
+La clave de carga y su archivo de propiedades deben conservarse en un gestor de
+contraseñas o una copia de seguridad cifrada; ambos están excluidos de Git.

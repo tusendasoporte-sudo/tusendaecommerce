@@ -10,6 +10,26 @@ if (firebaseConfigFile.exists()) {
 def configuredAppName = (project.findProperty('PZ_APP_NAME') ?: 'Tu Senda 84 Admin').toString()
 def configuredAdminUrl = (project.findProperty('PZ_ADMIN_URL') ?: 'https://tusenda84.com/admin').toString()
 def configuredApplicationId = (project.findProperty('PZ_APPLICATION_ID') ?: 'com.tusenda84.admin').toString()
+def releaseKeystorePropertiesFile = rootProject.file('../.secrets/mobile-admin-upload.properties')
+def releaseKeystoreProperties = new Properties()
+if (releaseKeystorePropertiesFile.exists()) {
+    releaseKeystorePropertiesFile.withInputStream { stream ->
+        releaseKeystoreProperties.load(stream)
+    }
+}
+def releaseSigningConfigured = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every { key ->
+    releaseKeystoreProperties.getProperty(key)?.trim()
+}
+
+def releasePackagingRequested = gradle.startParameter.taskNames.any { taskName ->
+    def normalized = taskName.toLowerCase()
+    normalized.contains('bundlerelease') || normalized.contains('assemblerelease')
+}
+if (releasePackagingRequested && !releaseSigningConfigured) {
+    throw new GradleException(
+        'La firma release no esta configurada. Crea .secrets/mobile-admin-upload.properties.'
+    )
+}
 
 def javaStringLiteral = { String value ->
     '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
@@ -36,11 +56,25 @@ android {
         buildConfig true
     }
 
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile rootProject.file(releaseKeystoreProperties.getProperty('storeFile'))
+                storePassword releaseKeystoreProperties.getProperty('storePassword')
+                keyAlias releaseKeystoreProperties.getProperty('keyAlias')
+                keyPassword releaseKeystoreProperties.getProperty('keyPassword')
+            }
+        }
+    }
+
     buildTypes {
         debug {
             versionNameSuffix '-debug'
         }
         release {
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
