@@ -7,6 +7,7 @@ import { resolveStorePlanPresentation, type StorePlanValues } from '../../lib/st
 import { getStoreAccessContext, type StoreAccessContext } from '../../lib/storeTeam';
 import { hasStorePermission, type StorePermission } from '../../lib/storeTeamPermissions';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
+import { getStoreInitials } from '../../lib/storeIdentity';
 
 interface Props {
   storeSlug?: string;
@@ -47,6 +48,8 @@ const {
 } = Astro.props;
 
 const planPresentation = resolveStorePlanPresentation(storePlanValues);
+const resolvedStoreName = String(storeName || 'Tienda').trim() || 'Tienda';
+const storeInitials = getStoreInitials(resolvedStoreName);
 
 const adminBasePath = getStoreAdminPath(storeSlug);
 const adminPageviewsPath = getStoreAdminPath(storeSlug, 'pageviews');
@@ -329,9 +332,9 @@ const marketingVisualSubClass = (subsection: string) => {
   <div class="pz-admin-sidebar__inner">
     <div class="pz-admin-sidebar__brand">
       <div class="pz-admin-sidebar__brand-row">
-        <span class="pz-admin-sidebar__brand-logo">PZ</span>
+        <span class="pz-admin-sidebar__brand-logo" aria-hidden="true">{storeInitials}</span>
         <div class="pz-admin-sidebar__brand-copy">
-          <p class="pz-admin-sidebar__brand-title">{storeName || 'PowerZona'}</p>
+          <p class="pz-admin-sidebar__brand-title" title={resolvedStoreName}>{resolvedStoreName}</p>
           <p class="pz-admin-sidebar__brand-subtitle">Admin Panel</p>
         </div>
         <button class="pz-admin-sidebar__close" type="button" aria-label="Cerrar menú" data-sidebar-close>&times;</button>
@@ -2548,11 +2551,12 @@ const marketingVisualSubClass = (subsection: string) => {
   }
   .pz-admin-sidebar__brand-row {
     display: flex !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     gap: 11px !important;
     min-width: 0 !important;
   }
   .pz-admin-sidebar__brand-copy {
+    flex: 1 1 auto !important;
     min-width: 0 !important;
   }
   .pz-admin-sidebar__brand-logo {
@@ -2570,15 +2574,15 @@ const marketingVisualSubClass = (subsection: string) => {
     box-shadow: 0 8px 18px rgba(15,23,42,.14) !important;
   }
   .pz-admin-sidebar__brand-title {
-    overflow: hidden !important;
+    overflow: visible !important;
     margin: 0 !important;
     color: #0f172a !important;
     font-size: 19px !important;
-    line-height: 1.1 !important;
+    line-height: 1.12 !important;
     letter-spacing: -.035em !important;
     font-weight: 1000 !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
   }
   .pz-admin-sidebar__brand-subtitle {
     margin: 2px 0 0 !important;

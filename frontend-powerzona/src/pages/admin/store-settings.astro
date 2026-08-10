@@ -3508,7 +3508,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
                   <div class="general-settings-summary-meta"><span id="general-status-main" class="general-settings-badge pending">Pendiente</span><button class="settings-help-btn" type="button" data-help-key="general-main">L&eacute;eme</button><span class="general-settings-chevron">&#8964;</span></div>
                 </summary>
                 <div class="general-settings-body"><div class="general-settings-grid">
-                  <div class="field"><label for="settings-store-name">Nombre p&uacute;blico de la tienda</label><input id="settings-store-name" type="text" placeholder="Ej: PowerZona" required /></div>
+                  <div class="field"><label for="settings-store-name">Nombre p&uacute;blico de la tienda</label><input id="settings-store-name" type="text" value={currentStoreName} placeholder="Ej: Mi tienda 84" required /></div>
                   <div class="field"><label for="settings-order-prefix">Prefijo de &oacute;rdenes</label><input id="settings-order-prefix" type="text" placeholder="Ej: PP" maxlength="3" pattern="[A-Za-z]{0,3}" autocomplete="off" /></div>
                   <div class="field full"><label for="settings-welcome-text">Texto corto de bienvenida</label><textarea id="settings-welcome-text" placeholder="Ej: Suplementos, vitaminas y ofertas seleccionadas para ti."></textarea></div>
                 </div></div>
@@ -5220,11 +5220,12 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       else if (window.location.hash === '#landing') showTab('landing');
       else showTab(FIRST_ALLOWED_SETTINGS_TAB);
     </script>
-    <script define:vars={{ pocketbaseUrl, currentStoreId, canManageSettings, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, canManageSettings, expirationToolsEnabled, businessTypeGroups: BUSINESS_TYPE_GROUPS, cubaLocations: CUBA_LOCATIONS }}>
       (() => {
         if (canManageSettings !== true) return;
         const POCKETBASE_URL_PUBLIC_SETTINGS = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID_PUBLIC_SETTINGS = String(currentStoreId || '');
+        const CURRENT_STORE_NAME_PUBLIC_SETTINGS = String(currentStoreName || '').trim() || 'Mi tienda 84';
         const STORE_FILTER_PUBLIC_SETTINGS = `store="${CURRENT_STORE_ID_PUBLIC_SETTINGS.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const ADMIN_AUTH_TOKEN_PUBLIC_SETTINGS = String(window.__pzStoreSettingsAuthToken?.() || '');
         const EXPIRATION_TOOLS_ENABLED = expirationToolsEnabled === true;
@@ -6005,8 +6006,8 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         }
         async function createSettingsRecord() {
           const payload = {
-            stored_name: fields.storeName.value.trim() || 'PowerZona',
-            store_name: fields.storeName.value.trim() || 'PowerZona',
+            stored_name: fields.storeName.value.trim() || CURRENT_STORE_NAME_PUBLIC_SETTINGS,
+            store_name: fields.storeName.value.trim() || CURRENT_STORE_NAME_PUBLIC_SETTINGS,
             whatsapp_number: composeWhatsappNumber(),
             store_description: fields.storeDescription.value.trim(),
             welcome_text: fields.welcome.value.trim(),
@@ -6111,7 +6112,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           });
           clearSinglePreview('settings-logo-preview');
           clearSinglePreview('settings-cover-preview');
-          fields.storeName.value = record.store_name || record.stored_name || 'PowerZona';
+          fields.storeName.value = record.store_name || record.stored_name || CURRENT_STORE_NAME_PUBLIC_SETTINGS;
           fields.orderPrefix.value = normalizeOrderPrefix(record.order_prefix || 'PP');
           const whatsapp = splitWhatsappNumber(record.whatsapp_number || '');
           if (fields.whatsappCountry) fields.whatsappCountry.value = whatsapp.countryCode;
@@ -6194,8 +6195,8 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           }
           try {
             const data = new FormData();
-            data.append('store_name', fields.storeName.value.trim() || 'PowerZona');
-            data.append('stored_name', fields.storeName.value.trim() || 'PowerZona');
+            data.append('store_name', fields.storeName.value.trim() || CURRENT_STORE_NAME_PUBLIC_SETTINGS);
+            data.append('stored_name', fields.storeName.value.trim() || CURRENT_STORE_NAME_PUBLIC_SETTINGS);
             data.append('order_prefix', normalizeOrderPrefix(fields.orderPrefix.value));
             data.append('whatsapp_number', composeWhatsappNumber());
             data.append('store_description', fields.storeDescription.value.trim());
@@ -6504,7 +6505,7 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         if (canManageReviews !== true) return;
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
-        const CURRENT_STORE_NAME = String(currentStoreName || '');
+        const CURRENT_STORE_NAME = String(currentStoreName || '').trim() || 'Mi tienda 84';
         const CAN_CONTACT_ORDER_CUSTOMERS = canContactOrderCustomers === true;
         const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '');
         const PUBLIC_STORE_PATH = String(publicStorePath || '').replace(/\/$/, '');
@@ -6741,8 +6742,8 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         }
         async function createSettingsRecord() {
           const payload = {
-            stored_name: 'PowerZona',
-            store_name: 'PowerZona',
+            stored_name: CURRENT_STORE_NAME,
+            store_name: CURRENT_STORE_NAME,
             active: true,
             store: CURRENT_STORE_ID,
             reviews_enabled: boolValue(fields.reviewsEnabled),
@@ -7364,11 +7365,12 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       })();
     </script>
 
-    <script define:vars={{ pocketbaseUrl, currentStoreId, canManageSettings }}>
+    <script define:vars={{ pocketbaseUrl, currentStoreId, currentStoreName, canManageSettings }}>
       (() => {
         if (canManageSettings !== true) return;
         const POCKETBASE_URL = String(pocketbaseUrl || '').replace(/\/$/, '');
         const CURRENT_STORE_ID = String(currentStoreId || '');
+        const CURRENT_STORE_NAME = String(currentStoreName || '').trim() || 'Mi tienda 84';
         const ADMIN_AUTH_TOKEN = String(window.__pzStoreSettingsAuthToken?.() || '');
         const STORE_FILTER = `store="${CURRENT_STORE_ID.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
         const CLOSED_MESSAGE_DEFAULT = 'Estamos fuera de horario, pero puedes realizar tu pedido. Lo atenderemos en horario laboral.';
@@ -7585,8 +7587,8 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
         }
         async function createSettingsRecord() {
           const payload = {
-            stored_name: 'PowerZona',
-            store_name: 'PowerZona',
+            stored_name: CURRENT_STORE_NAME,
+            store_name: CURRENT_STORE_NAME,
             active: true,
             store: CURRENT_STORE_ID,
             business_hours_mode: selectedMode(),
