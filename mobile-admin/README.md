@@ -18,6 +18,20 @@ En PowerShell, desde este directorio:
 
 El APK se crea en `app/build/outputs/apk/debug/app-debug.apk`. Esta variante se firma automaticamente con la clave de desarrollo de Android y se puede instalar manualmente para pruebas.
 
+Para validar cambios locales de la web en el emulador antes de desplegarlos, inicia Astro escuchando en la red local y compila la variante `debug` contra el host especial del emulador:
+
+```powershell
+# Terminal 1
+cd ../frontend-powerzona
+npm run dev -- --host 0.0.0.0
+
+# Terminal 2
+./gradlew.bat assembleDebug `
+  -PPZ_ADMIN_URL="http://10.0.2.2:4321/admin"
+```
+
+Solo la variante `debug` permite HTTP para esta validacion local. Las compilaciones `release` continúan bloqueando trafico sin HTTPS.
+
 ## Configuracion de marca o servidor
 
 La misma base permite generar variantes para otra marca o URL administrativa:
@@ -57,3 +71,18 @@ y `keyPassword`, y ejecuta:
 El archivo resultante se crea en `app/build/outputs/bundle/release/app-release.aab`.
 La clave de carga y su archivo de propiedades deben conservarse en un gestor de
 contraseñas o una copia de seguridad cifrada; ambos están excluidos de Git.
+
+Para generar una APK firmada que pueda instalarse directamente, ejecuta:
+
+```powershell
+./gradlew.bat assembleRelease
+```
+
+El archivo se crea en `app/build/outputs/apk/release/app-release.apk`. Firebase y
+las notificaciones siguen funcionando en una instalación directa siempre que el
+package ID, `google-services.json` y el servidor correspondan a la misma app.
+
+Si Google Play App Signing usa una clave distinta de la clave de carga local, una
+APK local y la versión instalada desde Play no pueden actualizarse entre sí. Para
+permitir esa transición sin reinstalar, descarga desde Google Play Console una APK
+universal firmada por Play después de subir el AAB.

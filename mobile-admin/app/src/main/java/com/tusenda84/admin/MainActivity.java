@@ -46,6 +46,8 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 import java.net.URISyntaxException;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -62,6 +64,7 @@ public final class MainActivity extends Activity {
     private TextView errorMessage;
     private ValueCallback<Uri[]> fileChooserCallback;
     private PendingDownload pendingDownload;
+    private final ExecutorService pushRegistrationExecutor = Executors.newSingleThreadExecutor();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -320,11 +323,21 @@ public final class MainActivity extends Activity {
     }
 
     private void enablePushRegistration() {
-        FirebaseMessaging messaging = FirebaseMessaging.getInstance();
-        messaging.setAutoInitEnabled(true);
-        messaging.register().addOnFailureListener(error ->
-                Toast.makeText(this, "No se pudo registrar este teléfono para avisos.", Toast.LENGTH_LONG).show()
-        );
+        pushRegistrationExecutor.execute(() -> {
+            try {
+                FirebaseMessaging messaging = FirebaseMessaging.getInstance();
+                messaging.setAutoInitEnabled(true);
+                messaging.register().addOnFailureListener(error ->
+                        Toast.makeText(this, "No se pudo registrar este teléfono para avisos.", Toast.LENGTH_LONG).show()
+                );
+            } catch (RuntimeException error) {
+                runOnUiThread(() -> Toast.makeText(
+                        this,
+                        "No se pudo registrar este teléfono para avisos.",
+                        Toast.LENGTH_LONG
+                ).show());
+            }
+        });
     }
 
     private String resolvePushTarget(Intent intent) {
@@ -510,6 +523,7 @@ public final class MainActivity extends Activity {
             } else {
                 Toast.makeText(this, "Puedes activar los avisos desde los ajustes de Android.", Toast.LENGTH_LONG).show();
             }
+            emitPushStateToWeb();
             return;
         }
         if (requestCode != STORAGE_PERMISSION_REQUEST || pendingDownload == null) return;
@@ -580,6 +594,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        pushRegistrationExecutor.shutdown();
         if (fileChooserCallback != null) {
             fileChooserCallback.onReceiveValue(null);
             fileChooserCallback = null;

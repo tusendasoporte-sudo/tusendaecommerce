@@ -589,6 +589,10 @@ const marketingVisualSubClass = (subsection: string) => {
     if (window.__pzAdminNotificationsReady) return;
     window.__pzAdminNotificationsReady = true;
 
+    if (window.PZAndroidPush || String(navigator.userAgent || '').includes('TuSenda84Admin/')) {
+      document.documentElement.classList.add('pz-android-app');
+    }
+
     function readCookieValue(name) {
       const prefix = `${name}=`;
       const cookies = String(document.cookie || '').split(';');
@@ -631,6 +635,9 @@ const marketingVisualSubClass = (subsection: string) => {
     const archiveAllButton = document.querySelector('[data-pz-admin-archive-all]');
     const panelSummary = document.querySelector('[data-pz-admin-notifications-summary]');
     const browserNotificationsButton = document.querySelector('[data-pz-admin-browser-notifications]');
+    const nativePushOnboarding = document.querySelector('[data-pz-native-push-onboarding]');
+    const nativePushOnboardingButton = document.querySelector('[data-pz-native-push-onboarding-action]');
+    const nativePushOnboardingStatus = document.querySelector('[data-pz-native-push-onboarding-status]');
     const originalDocumentTitle = String(document.title || '').replace(/^\((?:99\+|\d+)\)\s+/, '');
     const browserNotificationsStorageKey = 'pz_admin_browser_notifications_enabled';
     const liveNotificationIdMemoryLimit = 300;
@@ -710,6 +717,35 @@ const marketingVisualSubClass = (subsection: string) => {
       }
     }
 
+    function renderNativePushOnboarding() {
+      if (!nativePushOnboarding) return;
+      const nativeBridge = getNativePushBridge();
+      if (!nativeBridge) {
+        nativePushOnboarding.hidden = true;
+        nativePushOnboarding.setAttribute('aria-hidden', 'true');
+        return;
+      }
+
+      const permission = String(nativePushState?.permission || nativeBridge.permissionState?.() || 'prompt');
+      const notificationsEnabled = getBrowserNotificationsEnabled();
+      const isActive = permission === 'granted' && notificationsEnabled;
+      nativePushOnboarding.hidden = isActive;
+      nativePushOnboarding.setAttribute('aria-hidden', isActive ? 'true' : 'false');
+      if (isActive || !nativePushOnboardingButton || !nativePushOnboardingStatus) return;
+
+      nativePushOnboardingButton.disabled = false;
+      if (permission === 'denied') {
+        nativePushOnboardingButton.textContent = 'Abrir ajustes de notificaciones';
+        nativePushOnboardingStatus.textContent = 'Android tiene los avisos desactivados. Abre los ajustes para permitirlos y no perder alertas importantes.';
+        return;
+      }
+
+      nativePushOnboardingButton.textContent = 'Activar notificaciones';
+      nativePushOnboardingStatus.textContent = permission === 'granted'
+        ? 'Los avisos est\u00e1n pausados. Act\u00edvalos para volver a recibir pedidos, inventario y alertas de seguridad.'
+        : 'Recibe avisos de pedidos, inventario y accesos sospechosos aunque la app est\u00e9 cerrada.';
+    }
+
     function ensureAudioContext() {
       if (!audioContext) {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -741,6 +777,7 @@ const marketingVisualSubClass = (subsection: string) => {
     }
 
     function renderBrowserNotificationsButton() {
+      renderNativePushOnboarding();
       if (!browserNotificationsButton) return;
       const nativeBridge = getNativePushBridge();
       if (nativeBridge) {
@@ -1950,6 +1987,28 @@ const marketingVisualSubClass = (subsection: string) => {
       } finally {
         renderBrowserNotificationsButton();
       }
+    });
+
+    nativePushOnboardingButton?.addEventListener('click', () => {
+      const nativeBridge = getNativePushBridge();
+      if (!nativeBridge) return;
+      const permission = String(nativePushState?.permission || nativeBridge.permissionState?.() || 'prompt');
+      if (permission === 'denied') {
+        nativeBridge.openSettings?.();
+        return;
+      }
+
+      setBrowserNotificationsEnabled(true);
+      nativePushOnboardingButton.disabled = true;
+      nativeBridge.requestPermission?.();
+      scheduleNativePushSync(0);
+      if (typeof window.adminToast === 'function') {
+        window.adminToast('Activando avisos de Android...', 'info');
+      }
+      window.setTimeout(() => {
+        nativePushOnboardingButton.disabled = false;
+        renderBrowserNotificationsButton();
+      }, 700);
     });
 
     document.addEventListener('keydown', (event) => {
@@ -4443,6 +4502,271 @@ const marketingVisualSubClass = (subsection: string) => {
       overflow: hidden !important;
       text-overflow: ellipsis !important;
       white-space: nowrap !important;
+    }
+  }
+
+  .pz-admin-push-onboarding {
+    width: 100% !important;
+    margin: 0 0 20px !important;
+    padding: 18px !important;
+    display: grid !important;
+    grid-template-columns: 52px minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 15px !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 22px !important;
+    background: linear-gradient(135deg, #eff6ff 0%, #ffffff 68%, #f8fafc 100%) !important;
+    box-shadow: 0 16px 38px rgba(37, 99, 235, .10) !important;
+    box-sizing: border-box !important;
+  }
+
+  .pz-admin-push-onboarding[hidden] {
+    display: none !important;
+  }
+
+  .pz-admin-push-onboarding__icon {
+    width: 52px !important;
+    height: 52px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 18px !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 28px rgba(37, 99, 235, .24) !important;
+  }
+
+  .pz-admin-push-onboarding__icon svg {
+    width: 24px !important;
+    height: 24px !important;
+    fill: currentColor !important;
+  }
+
+  .pz-admin-push-onboarding__copy {
+    min-width: 0 !important;
+  }
+
+  .pz-admin-push-onboarding__eyebrow {
+    margin: 0 0 4px !important;
+    color: #2563eb !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 1000 !important;
+    letter-spacing: .09em !important;
+    text-transform: uppercase !important;
+  }
+
+  .pz-admin-push-onboarding__copy h2 {
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+    font-weight: 1000 !important;
+    letter-spacing: -.025em !important;
+  }
+
+  .pz-admin-push-onboarding__copy > p:last-child {
+    margin: 6px 0 0 !important;
+    color: #526173 !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    font-weight: 750 !important;
+  }
+
+  .pz-admin-push-onboarding__action {
+    min-height: 46px !important;
+    padding: 0 17px !important;
+    border: 0 !important;
+    border-radius: 15px !important;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 28px rgba(37, 99, 235, .22) !important;
+    font-family: inherit !important;
+    font-size: 13px !important;
+    line-height: 1.1 !important;
+    font-weight: 1000 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+  }
+
+  .pz-admin-push-onboarding__action:disabled {
+    opacity: .62 !important;
+    cursor: wait !important;
+  }
+
+  @media (max-width: 720px) {
+    .pz-admin-push-onboarding {
+      grid-template-columns: 48px minmax(0, 1fr) !important;
+      gap: 12px !important;
+      padding: 16px !important;
+      border-radius: 22px !important;
+    }
+
+    .pz-admin-push-onboarding__icon {
+      width: 48px !important;
+      height: 48px !important;
+      border-radius: 16px !important;
+    }
+
+    .pz-admin-push-onboarding__copy h2 {
+      font-size: 17px !important;
+    }
+
+    .pz-admin-push-onboarding__action {
+      grid-column: 1 / -1 !important;
+      width: 100% !important;
+      min-height: 48px !important;
+    }
+  }
+
+  /* =========================================================
+     PZ-MOBILE-DOCKED-NAV-001
+     Barras globales pegadas a las areas seguras del dispositivo
+     ========================================================= */
+
+  @media (max-width: 1023px) {
+    :root {
+      --pz-admin-mobile-topbar-offset: 96px;
+      --pz-admin-mobile-bottom-offset: 98px;
+      --pz-admin-mobile-scroll-offset: 92px;
+    }
+
+    .pz-admin-mobile-topbar {
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      min-height: calc(72px + env(safe-area-inset-top, 0px)) !important;
+      padding:
+        calc(9px + env(safe-area-inset-top, 0px))
+        max(10px, env(safe-area-inset-right, 0px))
+        9px
+        max(10px, env(safe-area-inset-left, 0px)) !important;
+      border-top: 0 !important;
+      border-left: 0 !important;
+      border-right: 0 !important;
+      border-radius: 0 0 24px 24px !important;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, .12) !important;
+    }
+
+    .pz-admin-notifications-panel {
+      top: calc(80px + env(safe-area-inset-top, 0px)) !important;
+      max-height: calc(100dvh - 178px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    .pz-admin-mobile-back-link {
+      top: calc(80px + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .pz-admin-mobile-bottom-nav {
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      min-height: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+      padding:
+        8px
+        max(8px, env(safe-area-inset-right, 0px))
+        calc(8px + env(safe-area-inset-bottom, 0px))
+        max(8px, env(safe-area-inset-left, 0px)) !important;
+      border-right: 0 !important;
+      border-bottom: 0 !important;
+      border-left: 0 !important;
+      border-radius: 24px 24px 0 0 !important;
+      box-shadow: 0 -12px 34px rgba(15, 23, 42, .13) !important;
+    }
+
+    .pz-admin-content {
+      padding-top: calc(96px + env(safe-area-inset-top, 0px)) !important;
+      padding-bottom: calc(98px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.has-pz-admin-mobile-back .pz-admin-content {
+      padding-top: calc(144px + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .pz-admin-content section,
+    .pz-admin-content [id],
+    .pz-admin-content details,
+    .pz-admin-content .settings-panel,
+    .pz-admin-content .panel-card,
+    .pz-admin-content .general-settings-accordion,
+    .pz-admin-content .marketing-featured-panel,
+    .pz-admin-content .marketing-settings-hero,
+    .pz-admin-content .tab-panel {
+      scroll-margin-top: calc(92px + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    html.pz-android-app .pz-admin-mobile-topbar {
+      min-height: 72px !important;
+      padding: 9px 10px !important;
+    }
+
+    html.pz-android-app .pz-admin-mobile-bottom-nav {
+      min-height: 76px !important;
+      padding: 8px !important;
+    }
+
+    html.pz-android-app .pz-admin-content {
+      padding-top: 96px !important;
+      padding-bottom: 98px !important;
+    }
+
+    html.pz-android-app body.has-pz-admin-mobile-back .pz-admin-content {
+      padding-top: 144px !important;
+    }
+  }
+
+  @media (max-width: 430px) {
+    .pz-admin-mobile-topbar {
+      min-height: calc(68px + env(safe-area-inset-top, 0px)) !important;
+      padding:
+        calc(8px + env(safe-area-inset-top, 0px))
+        max(8px, env(safe-area-inset-right, 0px))
+        8px
+        max(8px, env(safe-area-inset-left, 0px)) !important;
+      border-radius: 0 0 22px 22px !important;
+    }
+
+    .pz-admin-mobile-bottom-nav {
+      min-height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+      padding:
+        7px
+        max(7px, env(safe-area-inset-right, 0px))
+        calc(7px + env(safe-area-inset-bottom, 0px))
+        max(7px, env(safe-area-inset-left, 0px)) !important;
+      border-radius: 22px 22px 0 0 !important;
+    }
+
+    .pz-admin-notifications-panel,
+    .pz-admin-mobile-back-link {
+      top: calc(76px + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .pz-admin-content {
+      padding-top: calc(90px + env(safe-area-inset-top, 0px)) !important;
+      padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.has-pz-admin-mobile-back .pz-admin-content {
+      padding-top: calc(136px + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    html.pz-android-app .pz-admin-mobile-topbar {
+      min-height: 68px !important;
+      padding: 8px !important;
+    }
+
+    html.pz-android-app .pz-admin-mobile-bottom-nav {
+      min-height: 72px !important;
+      padding: 7px !important;
+    }
+
+    html.pz-android-app .pz-admin-content {
+      padding-top: 90px !important;
+      padding-bottom: 92px !important;
+    }
+
+    html.pz-android-app body.has-pz-admin-mobile-back .pz-admin-content {
+      padding-top: 136px !important;
     }
   }
 </style>
