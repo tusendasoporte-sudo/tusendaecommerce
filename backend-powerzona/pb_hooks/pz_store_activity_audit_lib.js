@@ -518,7 +518,13 @@ function operationSummary(operation, config, label, changed) {
 function requestHeader(e, name) {
   try {
     const headers = e.requestInfo().headers || {};
-    return text(headers[name] || headers[name.toLowerCase()] || headers[name.toUpperCase()], 120);
+    const lower = String(name || "").toLowerCase();
+    const target = lower.replace(/-/g, "_");
+    if (typeof headers.get === "function") {
+      return text(headers.get(name) || headers.get(lower) || headers.get(target), 120);
+    }
+    const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase().replace(/-/g, "_") === target);
+    return key ? text(headers[key], 120) : "";
   } catch (_) { return ""; }
 }
 

@@ -25,6 +25,7 @@ test('analiticas, selectores e historial aceptan la tienda de soporte solo desde
     const source = read(name);
     assert.match(source, /X-PZ-Support-Store/, name);
     assert.match(source, /master_admin/, name);
+    assert.match(source, /replace\(\/-\/g, "_"\)/, name);
   }
 });
 

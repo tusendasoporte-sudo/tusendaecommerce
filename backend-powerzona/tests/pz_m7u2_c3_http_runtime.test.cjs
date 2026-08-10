@@ -824,6 +824,16 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
       });
     }
 
+    const masterSupportContext = await request('/api/pz/store/access/context', {
+      token: masterAuth.data.token,
+      body: {},
+      headers: { 'X-PZ-Support-Store': fixtures[0].store.id },
+    });
+    assertStatus(masterSupportContext, 200, 'Master abre contexto de soporte de una tienda');
+    assert.equal(masterSupportContext.data.user.role, 'master_admin');
+    assert.equal(masterSupportContext.data.store.slug, fixtures[0].store.slug);
+    assert.equal(masterSupportContext.data.access.is_primary_admin, true);
+
     for (const fixture of fixtures.filter((item) => item.changed)) {
       assertStatus(
         await refresh(fixture.oldToken, fixture.device),

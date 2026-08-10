@@ -115,12 +115,13 @@ function findRecord(app, collection, id) {
 }
 
 function headerValue(info, name) {
-  const target = String(name || "").toLowerCase();
+  const lower = String(name || "").toLowerCase();
+  const target = lower.replace(/-/g, "_");
   const headers = info && info.headers || {};
   try {
-    if (typeof headers.get === "function") return recordString({ value: headers.get(name) || headers.get(target) }, "value");
+    if (typeof headers.get === "function") return recordString({ value: headers.get(name) || headers.get(lower) || headers.get(target) }, "value");
   } catch (_) {}
-  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase().replace(/-/g, "_") === target);
   return key ? String(headers[key] || "").trim().slice(0, 80) : "";
 }
 

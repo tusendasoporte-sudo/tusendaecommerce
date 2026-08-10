@@ -259,12 +259,13 @@ function requestAuthRecord(e) {
 }
 
 function requestHeader(info, name) {
-  const target = String(name || "").toLowerCase();
+  const lower = String(name || "").toLowerCase();
+  const target = lower.replace(/-/g, "_");
   const headers = info && info.headers || {};
   try {
-    if (typeof headers.get === "function") return String(headers.get(name) || headers.get(target) || "").trim().slice(0, 80);
+    if (typeof headers.get === "function") return String(headers.get(name) || headers.get(lower) || headers.get(target) || "").trim().slice(0, 80);
   } catch (_) {}
-  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase() === target);
+  const key = Object.keys(headers).find((candidate) => String(candidate).toLowerCase().replace(/-/g, "_") === target);
   return key ? String(headers[key] || "").trim().slice(0, 80) : "";
 }
 
