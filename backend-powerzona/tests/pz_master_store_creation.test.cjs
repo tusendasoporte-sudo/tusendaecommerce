@@ -20,9 +20,10 @@ function mutableRecord(id, values = {}, collection = null) {
   };
 }
 
-function fixture({ existingSlug = false, failCurrency = false } = {}) {
+function fixture({ existingSlug = false, failCurrency = false, failSettings = false } = {}) {
   const stores = { name: 'stores' };
   const currencies = { name: 'currencies' };
+  const settings = { name: 'settings' };
   const actor = mutableRecord(MASTER_ID, { role: 'master_admin', status: 'active' });
   const saved = [];
   let sequence = 0;
@@ -37,6 +38,7 @@ function fixture({ existingSlug = false, failCurrency = false } = {}) {
     findCollectionByNameOrId(name) {
       if (name === 'stores') return stores;
       if (name === 'currencies') return currencies;
+      if (name === 'settings') return settings;
       throw new Error('collection_not_found');
     },
     findRecordById(name, id) {
@@ -49,6 +51,7 @@ function fixture({ existingSlug = false, failCurrency = false } = {}) {
     },
     save(record) {
       if (failCurrency && record._collection === currencies) throw new Error('currency_failed');
+      if (failSettings && record._collection === settings) throw new Error('settings_failed');
       saved.push(record);
       return record;
     },
@@ -80,13 +83,13 @@ test('valida un payload cerrado y normalizado para crear tiendas', () => {
   }), null);
 });
 
-test('crea la tienda y las cinco monedas fijas con solo USD activa', () => {
+test('crea la tienda, las cinco monedas fijas y sus ajustes activos', () => {
   const current = fixture();
   try {
     const result = creation.createStoreWithSystemCurrencies(current.app, MASTER_ID, {
       name: 'Mi Tienda', slug: 'mi-tienda', status: 'active', ownerPhone: '+53 50000000',
     });
-    assert.equal(current.saved.length, 6);
+    assert.equal(current.saved.length, 7);
     assert.equal(result.store.name, 'Mi Tienda');
     assert.equal(result.store.plan, 'free');
     assert.equal(result.store.plan_updated_by, MASTER_ID);
@@ -105,12 +108,21 @@ test('crea la tienda y las cinco monedas fijas con solo USD activa', () => {
       assert.equal(currency.is_default, false);
       assert.equal(currency.is_base, false);
     });
+    assert.equal(result.settings.store, result.store.id);
+    assert.equal(result.settings.store_name, 'Mi Tienda');
+    assert.equal(result.settings.whatsapp_number, '+53 50000000');
+    assert.equal(result.settings.default_currency, usd.id);
+    assert.equal(result.settings.order_prefix, 'MT');
+    assert.equal(result.settings.public_category_columns, '1');
+    assert.equal(result.settings.active, true);
+    assert.equal(result.settings.notifications_enabled, true);
+    assert.equal(result.settings.allow_orders_when_closed, true);
   } finally {
     current.restore();
   }
 });
 
-test('rechaza slug duplicado y propaga cualquier fallo de monedas para rollback', () => {
+test('rechaza slug duplicado y propaga fallos de aprovisionamiento para rollback', () => {
   const duplicate = fixture({ existingSlug: true });
   try {
     assert.throws(
@@ -136,6 +148,26 @@ test('rechaza slug duplicado y propaga cualquier fallo de monedas para rollback'
   } finally {
     failed.restore();
   }
+
+  const failedSettings = fixture({ failSettings: true });
+  try {
+    assert.throws(
+      () => creation.createStoreWithSystemCurrencies(failedSettings.app, MASTER_ID, {
+        name: 'Sin ajustes', slug: 'sin-ajustes', status: 'active', ownerPhone: '',
+      }),
+      /settings_failed/,
+    );
+    assert.equal(failedSettings.saved.length, 6);
+  } finally {
+    failedSettings.restore();
+  }
+});
+
+test('deriva el prefijo de orden con la misma identidad visual de la tienda', () => {
+  assert.equal(creation.storeOrderPrefix('Lo que estas buscando'), 'LQ');
+  assert.equal(creation.storeOrderPrefix('PowerZona'), 'PZ');
+  assert.equal(creation.storeOrderPrefix('Éxito'), 'EX');
+  assert.equal(creation.storeOrderPrefix(''), 'MT');
 });
 
 test('la ruta exige autenticaciÃ³n y ejecuta la operaciÃ³n dentro de una transacciÃ³n', () => {
@@ -148,6 +180,8 @@ test('la ruta exige autenticaciÃ³n y ejecuta la operaciÃ³n dentro de una tra
   assert.match(route, /onRecordDeleteRequest[\s\S]*rejectFixedCurrencyDelete/);
   assert.match(source, /\$app\.runInTransaction/);
   assert.match(source, /createStoreWithSystemCurrencies\(txApp/);
+  assert.match(source, /createDefaultStoreSettings\(app, store, currencies\[0\]\)/);
+  assert.match(source, /settings:\s*settingsResponse\(created\.settings\)/);
 });
 
 test('rechaza crear otra moneda fija con el mismo codigo en una tienda', () => {
@@ -328,6 +362,91 @@ test('el backfill crea las cinco fijas y conserva una moneda predeterminada eleg
     assert.equal(currencies.find((record) => record.id === 'zellecurrency01').exchange_rate, 1);
     assert.match(app.findCollectionByNameOrId('currencies').deleteRule, /is_system != true/);
     assert.match(app.findCollectionByNameOrId('currencies').deleteRule, /code != "ZELLE"/);
+  } finally {
+    global.migrate = previousMigrate;
+    global.Record = previousRecord;
+    delete require.cache[require.resolve(migrationPath)];
+  }
+});
+
+test('el backfill crea ajustes activos solo para tiendas que todavia no los tienen', () => {
+  const migrationPath = path.resolve(__dirname, '../pb_migrations/1786486700_store_default_settings.js');
+  const previousMigrate = global.migrate;
+  const previousRecord = global.Record;
+  let up = null;
+  let nextId = 0;
+  global.migrate = (upHandler) => { up = upHandler; };
+
+  const settingsCollection = {
+    name: 'settings',
+    fields: {
+      whatsapp: { required: true },
+      getByName(name) {
+        if (name === 'whatsapp_number') return this.whatsapp;
+        throw new Error('field_not_found');
+      },
+    },
+  };
+  global.Record = class FakeRecord {
+    constructor(collection) {
+      nextId += 1;
+      return mutableRecord(`settings${String(nextId).padStart(7, '0')}`.slice(0, 15), {}, collection);
+    }
+  };
+
+  const stores = [
+    mutableRecord('storewithset001', { name: 'Con Ajustes', owner_phone: '+53 50000001' }),
+    mutableRecord('storewithout001', { name: 'Lo que Buscas', owner_phone: '+53 50000002' }),
+  ];
+  const currencies = [
+    mutableRecord('usdwithsetting1', { store: stores[0].id, code: 'USD' }),
+    mutableRecord('usdwithoutset1', { store: stores[1].id, code: 'USD' }),
+  ];
+  const existing = mutableRecord('existingsetting1', {
+    store: stores[0].id, store_name: 'Con Ajustes', active: false,
+  }, settingsCollection);
+  const settings = [existing];
+  const saved = [];
+  const app = {
+    findCollectionByNameOrId(name) {
+      if (name === 'settings') return settingsCollection;
+      throw new Error('collection_not_found');
+    },
+    findRecordsByFilter(name, _filter, _sort, limit, offset, params) {
+      let source = [];
+      if (name === 'stores') source = stores;
+      if (name === 'currencies') source = currencies.filter((record) => record.store === params.store);
+      if (name === 'settings') source = settings.filter((record) => record.store === params.store);
+      return source.slice(offset, offset + limit);
+    },
+    save(record) {
+      saved.push(record);
+      if (record._collection === settingsCollection && record !== existing && !settings.includes(record)) settings.push(record);
+      return record;
+    },
+  };
+
+  try {
+    delete require.cache[require.resolve(migrationPath)];
+    require(migrationPath);
+    assert.equal(typeof up, 'function');
+    up(app);
+
+    assert.equal(settingsCollection.fields.whatsapp.required, false);
+    assert.equal(settings.filter((record) => record.store === stores[0].id).length, 1);
+    const created = settings.find((record) => record.store === stores[1].id);
+    assert.ok(created);
+    assert.equal(created.store_name, 'Lo que Buscas');
+    assert.equal(created.whatsapp_number, '+53 50000002');
+    assert.equal(created.default_currency, currencies[1].id);
+    assert.equal(created.order_prefix, 'LQ');
+    assert.equal(created.public_category_columns, '1');
+    assert.equal(created.active, true);
+    assert.ok(saved.includes(settingsCollection));
+
+    const settingsCount = settings.length;
+    up(app);
+    assert.equal(settings.length, settingsCount);
   } finally {
     global.migrate = previousMigrate;
     global.Record = previousRecord;

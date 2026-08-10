@@ -194,6 +194,57 @@ function createSystemCurrencies(app, storeId) {
   return SYSTEM_CURRENCY_DEFAULTS.map((definition) => createSystemCurrency(app, storeId, definition));
 }
 
+function storeOrderPrefix(value, fallback) {
+  const normalized = String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toUpperCase();
+  const words = normalized.split(/[^A-Z]+/).filter(Boolean);
+  const prefix = words.length >= 2
+    ? words.slice(0, 2).map((word) => word[0]).join("")
+    : String(words[0] || "").slice(0, 2);
+  const safeFallback = String(fallback || "MT").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2);
+  return prefix || safeFallback || "MT";
+}
+
+function createDefaultStoreSettings(app, store, defaultCurrency) {
+  if (!store || !store.id || !defaultCurrency || !defaultCurrency.id) {
+    throw new Error("store_settings_dependencies_missing");
+  }
+
+  const storeName = recordString(store, "name") || "Mi tienda";
+  const settings = new Record(app.findCollectionByNameOrId("settings"), {});
+  settings.set("store_name", storeName);
+  settings.set("whatsapp_number", recordString(store, "owner_phone"));
+  settings.set("default_currency", defaultCurrency.id);
+  settings.set("order_prefix", storeOrderPrefix(storeName));
+  settings.set("public_category_columns", "1");
+  settings.set("notifications_enabled", true);
+  settings.set("notify_new_order", true);
+  settings.set("notify_pending_order", true);
+  settings.set("notify_review_pending", true);
+  settings.set("pending_order_hours", 2);
+  settings.set("notification_priority_enabled", true);
+  settings.set("notification_priority_important_min_usd", 50);
+  settings.set("notification_priority_critical_min_usd", 100);
+  settings.set("notification_show_order_subtotal", true);
+  settings.set("notification_bell_priority_colors", true);
+  settings.set("notify_low_stock", true);
+  settings.set("low_stock_threshold", 3);
+  settings.set("notify_out_of_stock", true);
+  settings.set("notification_cleanup_enabled", true);
+  settings.set("notification_cleanup_days", 15);
+  settings.set("cover_mode", "single");
+  settings.set("business_hours_mode", "always_available");
+  settings.set("allow_orders_when_closed", true);
+  settings.set("maintenance_mode", false);
+  settings.set("active", true);
+  settings.set("store", store.id);
+  app.save(settings);
+  return settings;
+}
+
 function createStoreWithSystemCurrencies(app, actorId, payload) {
   const actor = findRecord(app, "users", actorId);
   if (!actor || !isActiveMaster(actor)) throw new Error("unauthorized");
@@ -214,7 +265,8 @@ function createStoreWithSystemCurrencies(app, actorId, payload) {
   app.save(store);
 
   const currencies = createSystemCurrencies(app, store.id);
-  return { store, currencies };
+  const settings = createDefaultStoreSettings(app, store, currencies[0]);
+  return { store, currencies, settings };
 }
 
 function storeResponse(record) {
@@ -235,6 +287,16 @@ function currencyResponse(record) {
     is_base: recordValue(record, "is_base") === true,
     is_default: recordValue(record, "is_default") === true,
     active: recordValue(record, "active") === true,
+  };
+}
+
+function settingsResponse(record) {
+  return {
+    id: String(record && record.id || ""),
+    active: recordValue(record, "active") === true,
+    default_currency: recordString(record, "default_currency"),
+    order_prefix: recordString(record, "order_prefix"),
+    store: recordString(record, "store"),
   };
 }
 
@@ -261,6 +323,7 @@ function handleCreate(e) {
       ok: true,
       store: storeResponse(created.store),
       currencies: created.currencies.map(currencyResponse),
+      settings: settingsResponse(created.settings),
     });
   } catch (error) {
     const code = safeErrorCode(error);
@@ -279,6 +342,7 @@ function handleCreate(e) {
 module.exports = {
   SYSTEM_CURRENCY_CODES,
   SYSTEM_CURRENCY_DEFAULTS,
+  createDefaultStoreSettings,
   createStoreWithSystemCurrencies,
   createSystemCurrencies,
   createSystemCurrency,
@@ -291,5 +355,6 @@ module.exports = {
   rejectDuplicateFixedCurrencyCreate,
   rejectFixedCurrencyDelete,
   requireAuthenticatedUser,
+  storeOrderPrefix,
   storeSlugExists,
 };
