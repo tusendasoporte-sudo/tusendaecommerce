@@ -1,6 +1,7 @@
 ---
 export const prerender = false;
 import Layout from '../../../layouts/Layout.astro';
+import { getStoreInitials } from '../../../lib/storeIdentity';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const { orderNumber, token } = Astro.params;
@@ -71,13 +72,14 @@ const receiptStoreName =
   receiptSettings?.stored_name ||
   receiptStore?.name ||
   'Tu Senda 84';
+const receiptStoreInitials = getStoreInitials(receiptStoreName);
 
 const receiptStoreLogo =
   buildPbFileUrl('stores', receiptStore, 'logo', '512x512') ||
   buildPbFileUrl('settings', receiptSettings, 'logo_image', '512x512') ||
   buildPbFileUrl('stores', receiptStore, 'banner', '1200x630') ||
   buildPbFileUrl('settings', receiptSettings, 'cover_image', '1200x630') ||
-  '/brand/tusenda84-bazzar-logo.webp';
+  '';
 
 const receiptSeo = {
   title: receiptOrder?.order_number
@@ -86,7 +88,7 @@ const receiptSeo = {
   description: receiptOrder?.order_number
     ? `Recibo de pedido ${receiptOrder.order_number}`
     : 'Recibo de pedido',
-  image: absoluteUrl(receiptStoreLogo),
+  image: absoluteUrl(receiptStoreLogo || '/brand/tusenda84-bazzar-logo.webp'),
   canonical: absoluteUrl(Astro.url.pathname),
   type: 'website',
   siteName: receiptStoreName,
@@ -122,7 +124,7 @@ const receiptSeo = {
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
           <div class="flex items-center gap-4">
             <div id="store-logo-box" class="w-16 h-16 rounded-3xl bg-white/10 border border-white/15 flex items-center justify-center overflow-hidden shadow-sm">
-              <span id="store-logo-fallback" class="text-xl font-black">PZ</span>
+              <span id="store-logo-fallback" class="text-xl font-black">{receiptStoreInitials}</span>
               <img id="store-logo-img" class="hidden w-full h-full object-cover" alt="Logo de la tienda" />
             </div>
             <div>
@@ -216,6 +218,16 @@ const receiptSeo = {
 
     function formatUSD(value) {
       return `$${Number(value || 0).toFixed(2)} USD`;
+    }
+
+    function getStoreInitials(value) {
+      const words = String(value || '')
+        .normalize('NFKC')
+        .trim()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean);
+      if (words.length >= 2) return words.slice(0, 2).map((word) => Array.from(word)[0]).join('').toLocaleUpperCase('es');
+      return Array.from(words[0] || '').slice(0, 2).join('').toLocaleUpperCase('es') || 'TS';
     }
 
     function formatMoney(value, code = 'USD') {
@@ -358,6 +370,7 @@ const receiptSeo = {
 
       document.getElementById('store-name').textContent = storeName;
       document.title = `Orden ${ORDER_NUMBER} - ${storeName}`;
+      document.getElementById('store-logo-fallback').textContent = getStoreInitials(storeName);
 
       const infoParts = [whatsapp, address].filter(Boolean);
       const storeInfo = document.getElementById('store-info');

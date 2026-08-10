@@ -9,6 +9,7 @@ import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
 import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
+import { getStoreInitials } from '../../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 import { BUSINESS_TYPE_GROUPS } from '../../lib/businessTypes';
 import { getVisibleRafflesForStore } from '../../lib/raffles';
@@ -49,6 +50,7 @@ const promoVisualItems = visualItems.filter((item) => item.type === 'promo_visua
 const quickAccessItems = visualItems.filter((item) => item.type === 'acceso_rapido');
 
 const storeName = currentStore?.name || settings?.store_name || settings?.stored_name || 'Tienda';
+const storeInitials = getStoreInitials(storeName);
 const welcomeText = String(settings?.welcome_text || '').trim();
 const storeDescription = String(settings?.store_description || '').trim();
 const publicCategoryColumns = String(settings?.public_category_columns || '2') === '1' ? '1' : '2';
@@ -106,19 +108,6 @@ const featuredCategoryIds = new Set(featuredCategories.map((category) => categor
 const normalCategories = categories.filter((category) => !featuredCategoryIds.has(category.id));
 const publicCategoryCards = [...featuredCategories, ...normalCategories];
 const quickCategories = categories.filter((category) => !category.parent && !category.parent_category && !category.category);
-
-function storeInitials(name: string) {
-  return String(name || 'Tienda')
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'T';
-}
-
-function categoryInitial(name: string) {
-  return String(name || 'C').trim()[0]?.toUpperCase() || 'C';
-}
 
 function cleanWhatsappNumber(value: string | undefined) {
   return String(value || '').replace(/[^0-9]/g, '');
@@ -2095,7 +2084,7 @@ function getProductOfferView(product: any) {
   {isTemporarilyClosed && (
     <main class="store-temporary-closed-page">
       <section class="store-temporary-closed-card" aria-labelledby="store-temporary-closed-title">
-        <div class="store-temporary-closed-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
+        <div class="store-temporary-closed-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
         <p class="store-temporary-closed-kicker">Tienda no disponible</p>
         <h1 id="store-temporary-closed-title">Negocio cerrado temporalmente</h1>
         <p>{temporarilyClosedMessage}</p>
@@ -2106,7 +2095,7 @@ function getProductOfferView(product: any) {
 
   <div class="public-store-head" aria-label="Acciones principales">
     <a class="public-store-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
-      <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</div>
+      <div class="public-store-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
       <div>
         <strong class="public-store-name" title={storeName}>{storeName}</strong>
       </div>
@@ -2129,7 +2118,7 @@ function getProductOfferView(product: any) {
   <div id="public-drawer-overlay" class="public-drawer-overlay" hidden></div>
   <aside id="public-drawer" class="public-drawer" aria-hidden="true">
     <div class="drawer-head">
-      <a class="drawer-logo" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials(storeName)}</a>
+      <a class="drawer-logo" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</a>
       <button id="public-menu-close" class="drawer-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
     <nav class="drawer-nav">
@@ -2287,7 +2276,7 @@ function getProductOfferView(product: any) {
             return (
               <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-category-premium-card" aria-label={`Abrir categoría ${category.name}`}>
                 <div class="quick-category-premium-thumb">
-                  {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{categoryInitial(category.name)}</div>}
+                  {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{storeInitials}</div>}
                 </div>
                 <div class="quick-category-premium-copy">
                   <p class="quick-category-premium-name">{category.name}</p>
@@ -2311,7 +2300,7 @@ function getProductOfferView(product: any) {
               return (
                 <a href={getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)} class="quick-categories-modal-card" aria-label={`Abrir categoría ${category.name}`}>
                   <div class="quick-categories-modal-thumb">
-                    {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{categoryInitial(category.name)}</div>}
+                    {category.imageUrl ? <img src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="quick-category-fallback">{storeInitials}</div>}
                   </div>
                   <div class="quick-categories-modal-text">
                     <p class="quick-categories-modal-name">{category.name}</p>
@@ -2373,7 +2362,7 @@ function getProductOfferView(product: any) {
       <div class="featured-strip" aria-label="Carrusel de productos destacados">
         {featuredProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
+            <ProductCard view="compact" storeName={storeName} title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] || ''} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>
@@ -2425,7 +2414,7 @@ function getProductOfferView(product: any) {
                 <span class="category-showcase-button">Ver categoría</span>
               </div>
               <div class="category-showcase-media">
-                {category.imageUrl ? <img class="category-showcase-image" src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="category-showcase-fallback">{categoryInitial(category.name)}</div>}
+                {category.imageUrl ? <img class="category-showcase-image" src={category.imageUrl} alt={category.name} loading="lazy" /> : <div class="category-showcase-fallback">{storeInitials}</div>}
               </div>
             </a>
           );
@@ -2445,7 +2434,7 @@ function getProductOfferView(product: any) {
       <div class="homepage-products-grid">
         {homepageProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="compact" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
+            <ProductCard view="compact" storeName={storeName} title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] || ''} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>

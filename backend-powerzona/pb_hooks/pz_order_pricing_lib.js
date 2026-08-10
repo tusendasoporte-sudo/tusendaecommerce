@@ -255,7 +255,7 @@ function parseCheckoutPayload(body) {
     couponCode,
     customerName,
     customerPhone,
-    customerAddress: deliveryMethod === "delivery" ? customerAddress : "",
+    customerAddress: deliveryMethod === "delivery" || deliveryMethod === "coordinate" ? customerAddress : "",
     customerMunicipality,
     customerNote,
     items,

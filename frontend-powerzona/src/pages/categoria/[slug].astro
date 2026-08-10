@@ -6,6 +6,7 @@ import PublicCategoryActions from '../../components/PublicCategoryActions.astro'
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
+import { getStoreInitials } from '../../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 export async function getStaticPaths() {
@@ -27,8 +28,9 @@ const automaticPromotions = await getAutomaticPromotions(storeQuery);
 const category = categories.find((item) => item.slug === slug);
 if (!category) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 
-const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
-const logoImageUrl = settings?.logoImageUrl || '';
+const storeName = settings?.store_name || settings?.stored_name || currentStore?.name || 'Tienda';
+const storeInitials = getStoreInitials(storeName);
+const logoImageUrl = settings?.logoImageUrl || currentStore?.logoUrl || '';
 const homePath = getPublicPath('/', currentStore, currentPathname);
 const categoryAnchorPath = getPublicPath('/#categorias', currentStore, currentPathname);
 const categorySubcategories = subcategories.filter((subcategory) => subcategory.category === category.id);
@@ -50,10 +52,6 @@ const productReviewSummaries = showProductRating
 
 function productsBySubcategory(subcategoryId: string) {
   return products.filter((product) => product.subcategory === subcategoryId);
-}
-
-function subcategoryInitial(name: string) {
-  return String(name || 'S').trim()[0]?.toUpperCase() || 'S';
 }
 
 function getProductOfferView(product: any) {
@@ -139,7 +137,7 @@ function getProductOfferView(product: any) {
 
   <div class="category-top">
     <a class="brand-link" href={homePath}>
-      <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+      <div class="brand-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
       <p class="brand-name">INICIO</p>
     </a>
     <div class="category-top-actions">
@@ -159,7 +157,7 @@ function getProductOfferView(product: any) {
   </div>
 
   <section class="category-hero">
-    {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="category-hero-fallback">PZ</div>}
+    {category.imageUrl ? <img src={category.imageUrl} alt={category.name} /> : <div class="category-hero-fallback">{storeInitials}</div>}
   </section>
 
   {categorySubcategories.length > 0 && (
@@ -173,7 +171,7 @@ function getProductOfferView(product: any) {
           return (
             <a href={getPublicPath(`/subcategoria/${subcategory.slug}`, currentStore, currentPathname)} class="subcategory-card" aria-label={`Abrir subcategoría ${subcategory.name}`}>
               <div class="subcategory-media">
-                {subcategory.imageUrl ? <img src={subcategory.imageUrl} alt={subcategory.name} loading="lazy" /> : <div class="subcategory-fallback">{subcategoryInitial(subcategory.name)}</div>}
+                {subcategory.imageUrl ? <img src={subcategory.imageUrl} alt={subcategory.name} loading="lazy" /> : <div class="subcategory-fallback">{storeInitials}</div>}
               </div>
               <div class="subcategory-copy">
                 <strong>{subcategory.name}</strong>
@@ -197,7 +195,7 @@ function getProductOfferView(product: any) {
       <div class="product-grid">
         {directProducts.map((product) => (
           <a href={getPublicPath(`/producto/${product.slug}`, currentStore, currentPathname)} class="block">
-            <ProductCard view="large" title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] ?? 'https://placehold.co/500x500?text=PowerZona'} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
+            <ProductCard view="large" storeName={storeName} title={product.name} price={String(getProductOfferView(product).price)} regularPrice={String(getProductOfferView(product).regularPrice)} isOffer={getProductOfferView(product).isOffer} pricePrefix={getProductOfferView(product).pricePrefix} image={product.imageUrls?.[0] || ''} stock={product.has_variations ? product.variation_public_stock : product.stock} allowPreorder={product.has_variations ? product.variation_public_allow_preorder : product.allow_preorder} variationAvailable={product.has_variations ? product.variation_public_available : undefined} trackStock={product.track_stock !== false} hasVariations={Boolean(product.has_variations)} onlyUsd={Boolean(product.only_usd)} promoText={getProductAutomaticPromotionText(product, automaticPromotions)} showRating={showProductRating} ratingAverage={productReviewSummaries[product.id]?.average || 0} ratingCount={productReviewSummaries[product.id]?.count || 0} />
           </a>
         ))}
       </div>

@@ -5,6 +5,7 @@ import PublicConfirm from '../../components/public-store/PublicConfirm.astro';
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
 import { getSettings, getPublicGifts } from '../../lib/api';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
+import { getStoreInitials } from '../../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
@@ -13,8 +14,9 @@ const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
 if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 const gifts = await getPublicGifts(storeQuery);
-const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
-const logoImageUrl = settings?.logoImageUrl || '';
+const storeName = settings?.store_name || settings?.stored_name || currentStore?.name || 'Tienda';
+const storeInitials = getStoreInitials(storeName);
+const logoImageUrl = settings?.logoImageUrl || currentStore?.logoUrl || '';
 const giftsPublicActive = settings?.gifts_public_active !== false;
 const giftsPublicTitle = settings?.gifts_public_title || 'Regalos';
 const giftsPublicImageUrl = settings?.giftsPublicImageUrl || '';
@@ -71,7 +73,7 @@ const giftsSeoUrl = getPublicPath('/regalos', currentStore, currentPathname);
 
   <div class="gift-page-head">
     <a class="gift-brand" href={homePath} aria-label={`Ir al inicio de ${storeName}`}>
-      <div class="gift-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+      <div class="gift-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
       <p class="gift-brand-text">INICIO</p>
     </a>
     <a class="back-link" href={categoryAnchorPath}>Categorías</a>

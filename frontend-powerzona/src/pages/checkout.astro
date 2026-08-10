@@ -126,7 +126,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 							<label id="delivery-option-coordinate" class="delivery-option border border-gray-200 rounded-2xl p-4 cursor-pointer hover:border-blue-500 transition">
 								<input type="radio" name="delivery_method" value="coordinate" class="mr-2" />
-								<span class="font-bold text-gray-800">Coordinar</span>
+								<span class="font-bold text-gray-800">Coordinar entrega</span>
 								<p class="text-xs text-gray-500 mt-1">
 									Un admin confirma contigo.
 								</p>
@@ -232,7 +232,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 							<div id="address-field-box" class="hidden md:col-span-2">
 								<label for="customer-address" class="block text-sm font-semibold text-gray-700 mb-2">
-									Dirección o referencia <span class="text-red-500">*</span>
+									Dirección o referencia <span id="customer-address-required" class="text-red-500">*</span><span id="customer-address-optional" class="hidden text-gray-500"> (opcional)</span>
 								</label>
 								<input
 									id="customer-address"
@@ -244,6 +244,9 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 								/>
 								<p id="customer-address-error" class="hidden text-xs text-red-500 font-semibold mt-2">
 									Escribe una dirección o referencia para la entrega.
+								</p>
+								<p id="customer-address-helper" class="hidden text-xs text-blue-700 font-semibold mt-2">
+									Puedes agregar una dirección o referencia para facilitar la coordinación.
 								</p>
 							</div>
 
@@ -350,6 +353,9 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 		const customerPhoneError = document.getElementById('customer-phone-error');
 		const customerMunicipality = document.getElementById('customer-municipality');
 		const customerAddress = document.getElementById('customer-address');
+		const customerAddressRequired = document.getElementById('customer-address-required');
+		const customerAddressOptional = document.getElementById('customer-address-optional');
+		const customerAddressHelper = document.getElementById('customer-address-helper');
 		const customerShippingZone = document.getElementById('customer-shipping-zone');
 		const customerNote = document.getElementById('customer-note');
 
@@ -1141,6 +1147,27 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			return [...new Set(shippingZones.map((zone) => zone.municipality).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 		}
 
+		function hasActiveShippingZones() {
+			return shippingZones.length > 0;
+		}
+
+		function cartIncludesDeliveryOption(cart = getCart()) {
+			return cart
+				.filter((item) => !item.is_gift)
+				.some((item) => ['delivery', 'both'].includes(normalizeDeliveryMode(item.delivery_mode)));
+		}
+
+		function shouldCoordinateShippingFallback(method = getSelectedDeliveryMethod()) {
+			return method === 'coordinate'
+				&& shippingZonesLoaded
+				&& !hasActiveShippingZones()
+				&& cartIncludesDeliveryOption();
+		}
+
+		function shouldPersistCustomerAddress(method = getSelectedDeliveryMethod()) {
+			return method === 'delivery' || shouldCoordinateShippingFallback(method);
+		}
+
 		function normalizeDeliveryMode(deliveryMode) {
 			const value = String(deliveryMode || 'both').trim().toLowerCase();
 
@@ -1306,20 +1333,20 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const hasDeliveryOnly = normalizedModes.includes('delivery');
 			const hasPickupOnly = normalizedModes.includes('pickup');
 			const hasFlexible = normalizedModes.includes('both');
+			let methods;
 
 			if (hasPickupOnly && (hasDeliveryOnly || hasFlexible)) {
-				return ['coordinate'];
+				methods = ['coordinate'];
+			} else if (hasDeliveryOnly) {
+				methods = ['delivery', 'coordinate'];
+			} else if (hasPickupOnly) {
+				methods = ['pickup', 'coordinate'];
+			} else {
+				methods = ['delivery', 'pickup', 'coordinate'];
 			}
 
-			if (hasDeliveryOnly) {
-				return ['delivery', 'coordinate'];
-			}
-
-			if (hasPickupOnly) {
-				return ['pickup', 'coordinate'];
-			}
-
-			return ['delivery', 'pickup', 'coordinate'];
+			if (!methods.includes('delivery') || !shippingZonesLoaded || hasActiveShippingZones()) return methods;
+			return ['coordinate', ...methods.filter((method) => method !== 'delivery' && method !== 'coordinate')];
 		}
 
 		function updateDeliveryOptions(cart) {
@@ -1350,6 +1377,16 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 
 		function updateDeliveryUI() {
 			const method = getSelectedDeliveryMethod();
+			const coordinatedShippingFallback = shouldCoordinateShippingFallback(method);
+			const requiresAddress = method === 'delivery';
+			if (customerAddress) customerAddress.required = requiresAddress;
+			customerAddressRequired?.classList.toggle('hidden', !requiresAddress);
+			customerAddressOptional?.classList.toggle('hidden', !coordinatedShippingFallback);
+			customerAddressHelper?.classList.toggle('hidden', !coordinatedShippingFallback);
+			if (!requiresAddress) {
+				setError('customer-address-error', false);
+				setFieldInvalid(customerAddress, false);
+			}
 
 			document.querySelectorAll('.delivery-option').forEach((label) => {
 				const input = label.querySelector('input[name="delivery_method"]');
@@ -1372,8 +1409,10 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			} else if (method === 'coordinate') {
 				municipalityFieldBox?.classList.add('hidden');
 				shippingZoneFieldBox?.classList.add('hidden');
-				addressFieldBox?.classList.add('hidden');
-				deliveryHelper.textContent = 'Un administrador confirmará contigo la mejor forma de entrega según los productos del pedido.';
+				addressFieldBox?.classList.toggle('hidden', !coordinatedShippingFallback);
+				deliveryHelper.textContent = coordinatedShippingFallback
+					? 'Esta tienda todavía no ha definido zonas de envío. Envía tu pedido y el administrador coordinará contigo la entrega y su costo por WhatsApp.'
+					: 'Un administrador confirmará contigo la mejor forma de entrega según los productos del pedido.';
 			} else {
 				municipalityFieldBox?.classList.add('hidden');
 				shippingZoneFieldBox?.classList.add('hidden');
@@ -2444,6 +2483,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 						`*Zona*: ${checkoutData.shipping_zone_name || 'No seleccionada'}`,
 						`*Dirección*: ${checkoutData.customer_address}`,
 					);
+				} else if (shouldCoordinateShippingFallback(checkoutData.delivery_method) && checkoutData.customer_address) {
+					messageLines.push(`*Dirección o referencia*: ${checkoutData.customer_address}`);
 				}
 
 				messageLines.push(
@@ -2505,7 +2546,7 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				throw new Error('La configuración activa no tiene número de WhatsApp.');
 			}
 
-			const selectedShippingZone = getSelectedShippingZone();
+			const selectedShippingZone = validation.data.delivery_method === 'delivery' ? getSelectedShippingZone() : null;
 			const previewTotals = calculateTotals(cart, selectedShippingZone, validation.data.delivery_method);
 
 			const selectedCurrency = getSelectedCurrencyObject();
@@ -2517,8 +2558,8 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 			const receiptToken = getCheckoutAttemptKey(cart, {
 				customer_name: validation.data.customer_name,
 				customer_phone: validation.data.customer_phone,
-				customer_address: validation.data.delivery_method === 'delivery' ? validation.data.customer_address : '',
-				customer_municipality: validation.data.customer_municipality || '',
+				customer_address: shouldPersistCustomerAddress(validation.data.delivery_method) ? validation.data.customer_address : '',
+				customer_municipality: validation.data.delivery_method === 'delivery' ? validation.data.customer_municipality : '',
 				customer_note: validation.data.customer_note || '',
 				currency_id: currencyId,
 				delivery_method: validation.data.delivery_method,
@@ -2530,10 +2571,10 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 				idempotency_key: receiptToken,
 				customer_name: validation.data.customer_name,
 				customer_phone: validation.data.customer_phone,
-				customer_address: validation.data.delivery_method === 'delivery'
+				customer_address: shouldPersistCustomerAddress(validation.data.delivery_method)
 					? validation.data.customer_address
 					: '',
-				customer_municipality: validation.data.customer_municipality || '',
+				customer_municipality: validation.data.delivery_method === 'delivery' ? validation.data.customer_municipality : '',
 				customer_note: validation.data.customer_note || '',
 				currency_id: currencyId,
 				delivery_method: validation.data.delivery_method,

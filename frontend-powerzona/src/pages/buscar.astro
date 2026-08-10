@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import StoreAnalyticsTracker from '../components/StoreAnalyticsTracker.astro';
 import { getSettings, getCategories, getSubcategories, getProducts } from '../lib/api';
 import { isStoreTemporarilyClosed } from '../lib/storeAvailability';
+import { getStoreInitials } from '../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../lib/stores';
 
 const currentStore = await getCurrentStore(Astro);
@@ -14,8 +15,9 @@ const categories = await getCategories(storeQuery);
 const subcategories = await getSubcategories(storeQuery);
 const products = await getProducts(storeQuery);
 
-const storeName = settings?.store_name || settings?.stored_name || 'PowerZona';
-const logoImageUrl = settings?.logoImageUrl || '';
+const storeName = settings?.store_name || settings?.stored_name || currentStore?.name || 'Tienda';
+const storeInitials = getStoreInitials(storeName);
+const logoImageUrl = settings?.logoImageUrl || currentStore?.logoUrl || '';
 const homePath = getPublicPath('/', currentStore, currentPathname);
 const searchSeoTitle = `Buscar en ${storeName}`;
 const searchSeoImage = settings?.coverImageUrl || logoImageUrl || '/brand/tusenda84-bazzar-logo.webp';
@@ -138,7 +140,7 @@ const searchItems = [
   <div class="search-shell">
     <div class="search-head">
       <a class="search-brand" href={homePath} aria-label={`Volver a ${storeName}`}>
-        <div class="search-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : 'PZ'}</div>
+        <div class="search-logo">{logoImageUrl ? <img src={logoImageUrl} alt={storeName} /> : storeInitials}</div>
         <p class="search-store">INICIO</p>
       </a>
       <a class="back-btn" href={homePath}>Volver</a>
@@ -166,7 +168,7 @@ const searchItems = [
     <div id="empty-recent" class="empty-card" hidden>Todavía no hay búsquedas recientes en este dispositivo.</div>
   </div>
 
-  <script define:vars={{ searchItems, initialQuery }}>
+  <script define:vars={{ searchItems, initialQuery, storeInitials }}>
     const STORAGE_KEY = 'powerzona_recent_searches_v1';
     const MAX_RECENT_SEARCHES = 5;
     const input = document.getElementById('public-search-input');
@@ -242,7 +244,7 @@ const searchItems = [
 
     function resultImage(item) {
       if (item.image) return `<img class="result-img" src="${item.image}" alt="${item.name}">`;
-      return `<div class="result-img">${item.type === 'Producto' ? 'PZ' : item.type === 'Categoría' ? 'C' : 'S'}</div>`;
+      return `<div class="result-img">${storeInitials}</div>`;
     }
 
     function renderResults(matches, query) {

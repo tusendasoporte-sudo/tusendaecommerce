@@ -1,4 +1,6 @@
 ---
+import { getStoreInitials } from '../lib/storeIdentity';
+
 const {
   title,
   price,
@@ -18,6 +20,7 @@ const {
   buttonText = 'Comprar',
   pricePrefix = '',
   variationAvailable = null,
+  storeName = 'Tienda',
 } = Astro.props;
 
 const stockNumber = Number(stock || 0);
@@ -39,6 +42,8 @@ const savingsNumber = hasValidOffer ? regularPriceNumber - finalPriceNumber : 0;
 const ratingAverageNumber = Number(ratingAverage || 0);
 const ratingCountNumber = Number(ratingCount || 0);
 const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingAverageNumber > 0;
+const hasImage = Boolean(String(image || '').trim());
+const storeInitials = getStoreInitials(storeName);
 ---
 
 <div class={`product-card ${isCompact ? 'product-card-compact' : ''} ${isLarge ? 'product-card-large' : ''} bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full ${isOutOfStock && !canPreorder ? 'opacity-90' : ''}`}>
@@ -52,6 +57,7 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
     }
     .product-card:hover { transform: translateY(-2px); box-shadow: 0 20px 48px rgba(37,99,235,.12) !important; }
     .product-card-image-wrap { position: relative; width: 100%; padding-top: 100%; overflow: hidden; background: linear-gradient(180deg, #fff, #f4f9ff); }
+    .product-card-image-fallback { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 34%, #f8fafc 0%, #e2e8f0 58%, #cbd5e1 100%); color: #64748b; font-size: clamp(42px, 9vw, 72px); font-weight: 1000; letter-spacing: -.06em; }
     .product-card-compact .product-card-image-wrap { padding-top: 78%; }
     .product-card-large .product-card-image-wrap { padding-top: 104%; }
     .product-buy-chip { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border-radius: 8px; background: #0b63f6; color: #fff; padding: 12px 12px; font-size: 13px; font-weight: 1000; box-shadow: 0 14px 26px rgba(11,99,246,.22); }
@@ -70,12 +76,18 @@ const shouldShowRating = Boolean(showRating) && ratingCountNumber > 0 && ratingA
   </style>
 
   <div class="product-card-image-wrap">
-    <img
-      src={image}
-      alt={title}
-      class="absolute top-0 left-0 w-full h-full object-contain transition-transform duration-500 hover:scale-105 p-2"
-      loading="lazy"
-    />
+    {hasImage ? (
+      <img
+        src={image}
+        alt={title}
+        class="absolute top-0 left-0 w-full h-full object-contain transition-transform duration-500 hover:scale-105 p-2"
+        loading="lazy"
+      />
+    ) : (
+      <div class="product-card-image-fallback" role="img" aria-label={`Producto sin foto de ${storeName}`}>
+        {storeInitials}
+      </div>
+    )}
 
     {hasValidOffer && (
       <span class="offer-ribbon">Oferta</span>

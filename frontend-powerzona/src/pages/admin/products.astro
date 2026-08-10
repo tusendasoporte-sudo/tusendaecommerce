@@ -303,6 +303,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .price-offer-admin .old { color:#94a3b8; text-decoration:line-through; font-size:12px; font-weight:900; }
       .price-offer-admin .new { color:#dc2626; font-weight:1000; }
       .form-help { margin: 7px 0 0; color: #64748b; font-size: 12px; line-height: 1.4; font-weight: 750; }
+      .delivery-zone-warning { padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 12px; background: #fff7ed; color: #9a3412; }
+      .delivery-zone-warning a { color: #c2410c; font-weight: 950; text-decoration: underline; text-underline-offset: 2px; }
       body.quick-modal-open { overflow: hidden; }
       .quick-create-panel {
         position: fixed;
@@ -2752,6 +2754,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       <option value="delivery">Solo envío</option>
                       <option value="pickup">Solo recogida</option>
                     </select>
+                    <p id="product-delivery-zone-warning" class="form-help delivery-zone-warning hidden">
+                      Aún no has configurado zonas de envío activas. Los pedidos de este producto se recibirán como entrega por coordinar.
+                      <a href={adminShippingPath}>Configurar zonas de envío</a>
+                    </p>
                   </div>
                   <div class="field full">
                     <label for="product-description">Descripción</label>
@@ -3373,6 +3379,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let categories = [];
       let subcategories = [];
       let products = [];
+      let shippingZoneConfigurationLoaded = false;
+      let hasActiveShippingZones = true;
       let productVariations = [];
       let persistedHasVariations = false;
       let variationModeConfirmationPending = false;
@@ -3432,6 +3440,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productStockField = document.getElementById('product-stock-field');
       const productStockHelp = document.getElementById('product-stock-help');
       const productDeliveryModeInput = document.getElementById('product-delivery-mode');
+      const productDeliveryZoneWarning = document.getElementById('product-delivery-zone-warning');
       const productExpirationDateInput = document.getElementById('product-expiration-date');
       const productExpirationHelp = document.getElementById('product-expiration-help');
       const productDescriptionInput = document.getElementById('product-description');
@@ -3801,6 +3810,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (value === 'delivery') return 'Solo envío';
         if (value === 'pickup') return 'Solo recogida';
         return 'Envío o recogida';
+      }
+      function syncProductDeliveryZoneWarning() {
+        if (!productDeliveryZoneWarning) return;
+        const shouldShow = shippingZoneConfigurationLoaded
+          && !hasActiveShippingZones
+          && productDeliveryModeInput?.value === 'delivery';
+        productDeliveryZoneWarning.classList.toggle('hidden', !shouldShow);
       }
       function renderProductSelectOptions() {
         const selectedCategory = productCategoryInput.value && productCategoryInput.value !== CREATE_CATEGORY_VALUE ? productCategoryInput.value : '';
@@ -4599,6 +4615,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function updateProductFormState({ showMessage = false } = {}) {
         if (!productSaveBtn) return;
+        syncProductDeliveryZoneWarning();
         const name = productNameInput.value.trim();
         const trackStock = productTrackStockInput ? productTrackStockInput.checked : true;
         const isEditing = Boolean(productIdInput.value);
@@ -6387,17 +6404,23 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (refreshBtn) refreshBtn.disabled = true;
         productsList.innerHTML = '<div class="empty-state">Cargando productos...</div>';
         try {
-          const [categoryRecords, subcategoryRecords, productRecords] = await Promise.all([
+          const [categoryRecords, subcategoryRecords, productRecords, activeShippingZoneRecords] = await Promise.all([
             loadAllRecords('categories', withStoreFilter('sort=order,name')),
             loadAllRecords('subcategories', withStoreFilter('sort=order,name')),
             loadAllRecords('products', withStoreFilter('sort=name')),
+            loadAllRecords('shipping_zones', withStoreFilter('filter=active=true&fields=id')).catch(() => null),
           ]);
           categories = categoryRecords;
           subcategories = subcategoryRecords;
+          if (Array.isArray(activeShippingZoneRecords)) {
+            shippingZoneConfigurationLoaded = true;
+            hasActiveShippingZones = activeShippingZoneRecords.length > 0;
+          }
           products = EXPIRATION_TOOLS_ENABLED
             ? productRecords
             : productRecords.map(({ expiration_date: _ignoredExpirationDate, ...product }) => product);
           renderProductSelectOptions();
+          syncProductDeliveryZoneWarning();
           renderFilters();
           syncFiltersFromUrl();
           renderProducts();
