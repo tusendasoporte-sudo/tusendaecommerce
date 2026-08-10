@@ -47,7 +47,7 @@ La misma base permite generar variantes para otra marca o URL administrativa:
 
 ## Notificaciones push de Android
 
-La app admite avisos de pedidos, inventario, seguridad y notificaciones generales aun cuando el panel este cerrado. Firebase debe registrar exactamente el mismo package ID usado al compilar (por defecto `com.tusenda84.admin`).
+La app admite avisos de pedidos nuevos o pendientes, reseñas pendientes, stock bajo o agotado, vencimientos de productos y variaciones, seguridad y resultados de rifas aun cuando el panel este cerrado. El backend genera los eventos y Firebase los entrega al teléfono; los recordatorios temporizados de pedidos y rifas se revisan cada cinco minutos. Firebase debe registrar exactamente el mismo package ID usado al compilar (por defecto `com.tusenda84.admin`).
 
 1. Crea o selecciona el proyecto en Firebase y registra la aplicacion Android.
 2. Descarga `google-services.json` y guardalo localmente como `app/google-services.json`.
