@@ -56,7 +56,7 @@ function createOrRepairSystemCurrency(app, collection, storeId, existing, defini
   currency.set("symbol", text(currency, "symbol") || definition.symbol);
   currency.set("exchange_rate", definition.code === "USD"
     ? 1
-    : (Number.isFinite(currentRate) && currentRate >= 0 ? currentRate : 1));
+    : (Number.isFinite(currentRate) && currentRate > 0 ? currentRate : 1));
   currency.set("active", definition.code === "USD" ? true : (existing ? value(currency, "active") === true : false));
   currency.set("is_system", true);
   currency.set("is_base", definition.isBase);

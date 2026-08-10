@@ -224,6 +224,10 @@ test('el backfill crea las cinco fijas y conserva una moneda predeterminada eleg
       store: stores[2].id, code: 'CUP', name: 'Peso cubano', symbol: 'CUP', exchange_rate: 350,
       active: true, is_default: false, is_system: true, is_base: true,
     }, currencyCollection),
+    mutableRecord('zellecurrency01', {
+      store: stores[2].id, code: 'ZELLE', name: 'Zelle', symbol: 'Zelle', exchange_rate: 0,
+      active: false, is_default: false, is_system: true, is_base: false,
+    }, currencyCollection),
   ];
   const settings = [
     mutableRecord('settingscurr001', { store: stores[0].id, default_currency: '' }),
@@ -291,6 +295,7 @@ test('el backfill crea las cinco fijas y conserva una moneda predeterminada eleg
     assert.equal(usdC.is_base, true);
     assert.equal(usdC.is_default, true);
     assert.equal(currencies[2].is_base, false);
+    assert.equal(currencies.find((record) => record.id === 'zellecurrency01').exchange_rate, 1);
     assert.match(app.findCollectionByNameOrId('currencies').deleteRule, /is_system != true/);
     assert.match(app.findCollectionByNameOrId('currencies').deleteRule, /code != "ZELLE"/);
   } finally {
