@@ -243,13 +243,16 @@ test('BLOCKS03B: diagnostico de proxy solo devuelve clasificaciones y no valores
   );
 });
 
-test('BLOCKS03B: diagnostico temporal exige host exacto de staging y cabecera explicita', () => {
+test('BLOCKS03B: diagnostico temporal exige un host exacto permitido y cabecera explicita', () => {
   const navigationApi = read('../src/pages/api/security/track-navigation.ts');
   assert.match(navigationApi, /STAGING_DIAGNOSTIC_HOST = 'mob76fcvxkxyb8tq0nwys18o\.91\.99\.99\.83\.sslip\.io'/);
+  assert.match(navigationApi, /PRODUCTION_DIAGNOSTIC_HOST = 'tusenda84\.com'/);
+  assert.match(navigationApi, /PROXY_DIAGNOSTIC_HOSTS\.has\(new URL\(request\.url\)\.hostname\.toLowerCase\(\)\)/);
+  assert.doesNotMatch(navigationApi, /hostname\.(?:endsWith|includes)\(/);
   assert.match(navigationApi, /request\.headers\.get\(PROXY_DIAGNOSTIC_HEADER\) === 'classify'/);
   assert.match(navigationApi, /publicSecurityProxyDiagnostics\(request, clientAddress\)/);
   assert.ok(
-    navigationApi.indexOf('isStagingProxyDiagnostic(request)')
+    navigationApi.indexOf('isAllowedProxyDiagnostic(request)')
       < navigationApi.indexOf("request.headers.get('content-length')"),
   );
 });

@@ -7,6 +7,11 @@ import {
 
 const MAX_BODY_BYTES = 8192;
 const STAGING_DIAGNOSTIC_HOST = 'mob76fcvxkxyb8tq0nwys18o.91.99.99.83.sslip.io';
+const PRODUCTION_DIAGNOSTIC_HOST = 'tusenda84.com';
+const PROXY_DIAGNOSTIC_HOSTS = new Set([
+  STAGING_DIAGNOSTIC_HOST,
+  PRODUCTION_DIAGNOSTIC_HOST,
+]);
 const PROXY_DIAGNOSTIC_HEADER = 'x-pz-proxy-diagnostics';
 const PRIVATE_HEADERS = {
   'Cache-Control': 'private, no-store, max-age=0',
@@ -21,9 +26,9 @@ function json(status: number) {
   });
 }
 
-function isStagingProxyDiagnostic(request: Request) {
+function isAllowedProxyDiagnostic(request: Request) {
   try {
-    return new URL(request.url).hostname === STAGING_DIAGNOSTIC_HOST
+    return PROXY_DIAGNOSTIC_HOSTS.has(new URL(request.url).hostname.toLowerCase())
       && request.headers.get(PROXY_DIAGNOSTIC_HEADER) === 'classify';
   } catch (_) {
     return false;
@@ -31,7 +36,7 @@ function isStagingProxyDiagnostic(request: Request) {
 }
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
-  if (isStagingProxyDiagnostic(request)) {
+  if (isAllowedProxyDiagnostic(request)) {
     return new Response(JSON.stringify(publicSecurityProxyDiagnostics(request, clientAddress)), {
       status: 200,
       headers: { ...PRIVATE_HEADERS, 'Content-Type': 'application/json' },
