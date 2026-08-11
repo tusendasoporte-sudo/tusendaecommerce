@@ -249,6 +249,8 @@ export function publicSecurityProxyDiagnostics(request: Request, clientAddress?:
       truncated: forwardedEntries.length > MAX_DIAGNOSTIC_FORWARDED_ENTRIES,
     },
     x_real_ip: proxyIpClass(request.headers.get('x-real-ip')),
+    cf_connecting_ip: proxyIpClass(request.headers.get('cf-connecting-ip')),
+    cf_connecting_ipv6: proxyIpClass(request.headers.get('cf-connecting-ipv6')),
     forwarded_host_present: Boolean(String(request.headers.get('x-forwarded-host') || '').trim()),
     forwarded_proto: forwardedProto === 'http' || forwardedProto === 'https'
       ? forwardedProto

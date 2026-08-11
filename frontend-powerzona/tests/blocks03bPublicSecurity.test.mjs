@@ -216,6 +216,8 @@ test('BLOCKS03B: diagnostico de proxy solo devuelve clasificaciones y no valores
     headers: {
       'x-forwarded-for': '10.0.1.1, 198.51.100.24:443, forged',
       'x-real-ip': '203.0.113.10',
+      'cf-connecting-ip': '198.51.100.30',
+      'cf-connecting-ipv6': '2001:db8::10',
       'x-forwarded-host': 'private.example',
       'x-forwarded-proto': 'https',
     },
@@ -234,12 +236,14 @@ test('BLOCKS03B: diagnostico de proxy solo devuelve clasificaciones y no valores
       truncated: false,
     },
     x_real_ip: 'public',
+    cf_connecting_ip: 'public',
+    cf_connecting_ipv6: 'public',
     forwarded_host_present: true,
     forwarded_proto: 'https',
   });
   assert.doesNotMatch(
     JSON.stringify(result),
-    /10\.0\.1\.1|198\.51\.100\.24|203\.0\.113\.10|private\.example/,
+    /10\.0\.1\.1|198\.51\.100\.(?:24|30)|203\.0\.113\.10|2001:db8::10|private\.example/,
   );
 });
 
