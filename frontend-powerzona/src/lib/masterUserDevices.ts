@@ -42,7 +42,32 @@ function requireMaster(client: PocketBase) {
   if (!isMasterAdmin(client.authStore.record as any)) throw new Error('unauthorized');
 }
 
+async function postThroughSameOrigin<T>(action: string, body: Record<string, unknown>) {
+  const response = await fetch('/api/master/store-user-devices', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ action, ...body }),
+  });
+  const payload = await response.json().catch(() => ({
+    ok: false,
+    error: 'device_authorization_unavailable',
+  }));
+  if (!response.ok || payload?.ok !== true) {
+    const code = getMasterDeviceErrorCode(payload) || 'device_authorization_unavailable';
+    throw Object.assign(new Error(code), {
+      code,
+      data: payload,
+      response: { status: response.status, data: payload },
+    });
+  }
+  return payload as T;
+}
+
 function post<T>(client: PocketBase, action: string, body: Record<string, unknown>) {
+  if (client === pb && typeof window !== 'undefined') {
+    return postThroughSameOrigin<T>(action, body);
+  }
   requireMaster(client);
   return client.send<T>(`/api/pz/master/store-user-devices/${action}`, {
     method: 'POST',
@@ -51,16 +76,35 @@ function post<T>(client: PocketBase, action: string, body: Record<string, unknow
   });
 }
 
-export function getMasterDeviceErrorMessage(error: unknown) {
+const MASTER_DEVICE_ERROR_CODES = new Set([
+  'unauthorized',
+  'invalid_payload',
+  'store_not_found',
+  'user_not_found',
+  'device_not_found',
+  'device_revoked',
+  'device_authorization_unavailable',
+  'device_list_failed',
+  'device_revocation_failed',
+  'audit_load_failed',
+]);
+
+export function getMasterDeviceErrorCode(error: unknown) {
   const candidate = error as any;
   const code = String(
-    candidate?.data?.error
+    candidate?.error
+      || candidate?.data?.error
       || candidate?.response?.error
       || candidate?.response?.data?.error
       || candidate?.code
       || candidate?.message
       || '',
   );
+  return MASTER_DEVICE_ERROR_CODES.has(code) ? code : '';
+}
+
+export function getMasterDeviceErrorMessage(error: unknown) {
+  const code = getMasterDeviceErrorCode(error);
   const messages: Record<string, string> = {
     unauthorized: 'No tienes permisos para gestionar dispositivos.',
     store_not_found: 'No se encontró la tienda.',

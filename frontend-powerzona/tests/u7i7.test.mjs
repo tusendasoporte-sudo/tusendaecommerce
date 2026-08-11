@@ -10,6 +10,7 @@ const auth = read('src/lib/auth.ts');
 const middleware = read('src/middleware.ts');
 const masterUsers = read('src/lib/masterUsers.ts');
 const devices = read('src/lib/masterUserDevices.ts');
+const devicesProxy = read('src/pages/api/master/store-user-devices.ts');
 const account = read('src/lib/storeAccount.ts');
 const listView = read('src/components/master/MasterStoreUsersView.astro');
 const detailView = read('src/components/master/MasterStoreUserDetailView.astro');
@@ -68,6 +69,17 @@ test('acciones Master siempre sincronizan la cookie activa antes de usar el clie
     assert.doesNotMatch(component, /if \(!pb\.authStore\.isValid\)\s+pb\.authStore\.loadFromCookie/);
   }
   assert.match(devices, /candidate\?\.message/);
+});
+
+test('acciones dinÃ¡micas de dispositivos usan un proxy mismo origen con la cookie Master', () => {
+  assert.match(devices, /fetch\('\/api\/master\/store-user-devices'/);
+  assert.match(devices, /credentials: 'same-origin'/);
+  assert.match(devices, /client === pb && typeof window !== 'undefined'/);
+  assert.match(devicesProxy, /refreshAuthFromCookie\(request\.headers\.get\('cookie'\)/);
+  assert.match(devicesProxy, /requireMasterAdmin/);
+  assert.match(devicesProxy, /listMasterUserDevices[\s\S]*revokeMasterUserDevice[\s\S]*getMasterUserDeviceAudit/);
+  assert.match(devicesProxy, /hasExactKeys\(body, ACTION_KEYS\[action\]\)/);
+  assert.doesNotMatch(devicesProxy, /authStore\.token|Authorization/);
 });
 
 test('servicio de cuenta limpia auth y cookie despues de mutaciones', () => {
