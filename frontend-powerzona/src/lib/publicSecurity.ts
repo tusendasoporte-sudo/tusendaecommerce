@@ -1,4 +1,4 @@
-import { isIP } from 'node:net';
+import { BlockList, isIP } from 'node:net';
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 
 export type PublicSecurityResolver =
@@ -18,6 +18,38 @@ const MAX_FORWARDED_FOR_BYTES = 2048;
 const MAX_DIAGNOSTIC_FORWARDED_ENTRIES = 20;
 const SAFE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{16,120}$/;
 const LEGACY_STORE_PATH = /^\/(?:buscar(?:\/|$)|categoria(?:\/|$)|subcategoria(?:\/|$)|producto(?:\/|$)|checkout(?:\/|$)|regalos(?:\/|$)|qr(?:\/|$)|links(?:\/|$))/;
+
+// Official Cloudflare ranges: https://www.cloudflare.com/ips/
+// Keeping them local avoids adding a network request to public traffic.
+const CLOUDFLARE_PROXY_RANGES = [
+  ['173.245.48.0', 20, 'ipv4'],
+  ['103.21.244.0', 22, 'ipv4'],
+  ['103.22.200.0', 22, 'ipv4'],
+  ['103.31.4.0', 22, 'ipv4'],
+  ['141.101.64.0', 18, 'ipv4'],
+  ['108.162.192.0', 18, 'ipv4'],
+  ['190.93.240.0', 20, 'ipv4'],
+  ['188.114.96.0', 20, 'ipv4'],
+  ['197.234.240.0', 22, 'ipv4'],
+  ['198.41.128.0', 17, 'ipv4'],
+  ['162.158.0.0', 15, 'ipv4'],
+  ['104.16.0.0', 13, 'ipv4'],
+  ['104.24.0.0', 14, 'ipv4'],
+  ['172.64.0.0', 13, 'ipv4'],
+  ['131.0.72.0', 22, 'ipv4'],
+  ['2400:cb00::', 32, 'ipv6'],
+  ['2606:4700::', 32, 'ipv6'],
+  ['2803:f800::', 32, 'ipv6'],
+  ['2405:b500::', 32, 'ipv6'],
+  ['2405:8100::', 32, 'ipv6'],
+  ['2a06:98c0::', 29, 'ipv6'],
+  ['2c0f:f248::', 32, 'ipv6'],
+] as const;
+
+const CLOUDFLARE_PROXY_BLOCKLIST = new BlockList();
+for (const [network, prefix, family] of CLOUDFLARE_PROXY_RANGES) {
+  CLOUDFLARE_PROXY_BLOCKLIST.addSubnet(network, prefix, family);
+}
 
 function decodedSegment(value: string) {
   try { return decodeURIComponent(value || '').trim(); } catch (_) { return ''; }
@@ -107,6 +139,50 @@ function isPrivateProxyAddress(value: string) {
   return ip.startsWith('fc') || ip.startsWith('fd') || /^fe[89ab]/.test(ip);
 }
 
+function comparableIp(value: string) {
+  let ip = normalizedIp(value).toLowerCase();
+  if (!ip) return '';
+  if (ip.startsWith('::ffff:') && isIP(ip.slice('::ffff:'.length)) === 4) {
+    ip = ip.slice('::ffff:'.length);
+  }
+  return ip;
+}
+
+function isCloudflareProxyAddress(value: string) {
+  const ip = comparableIp(value);
+  const family = isIP(ip);
+  if (family === 4) return CLOUDFLARE_PROXY_BLOCKLIST.check(ip, 'ipv4');
+  if (family === 6) return CLOUDFLARE_PROXY_BLOCKLIST.check(ip, 'ipv6');
+  return false;
+}
+
+function sameIp(left: string, right: string) {
+  const comparableLeft = comparableIp(left);
+  const comparableRight = comparableIp(right);
+  const family = isIP(comparableLeft);
+  if (!family || family !== isIP(comparableRight)) return false;
+  if (family === 4) return comparableLeft === comparableRight;
+  const exactAddress = new BlockList();
+  exactAddress.addAddress(comparableLeft, 'ipv6');
+  return exactAddress.check(comparableRight, 'ipv6');
+}
+
+function trustedCloudflareClientAddress(request: Request, publicAddresses: string[]) {
+  const edgeAddress = publicAddresses.at(-1) || '';
+  if (!edgeAddress || !isCloudflareProxyAddress(edgeAddress)) return '';
+
+  const connectingAddress = normalizedIp(request.headers.get('cf-connecting-ip'));
+  if (!connectingAddress
+    || isPrivateProxyAddress(connectingAddress)
+    || isCloudflareProxyAddress(connectingAddress)) return '';
+
+  return publicAddresses
+    .slice(0, -1)
+    .some((address) => sameIp(address, connectingAddress))
+    ? connectingAddress
+    : '';
+}
+
 type ProxyIpClass = 'missing' | 'public' | 'private' | 'invalid';
 
 function proxyIpClass(value: unknown): ProxyIpClass {
@@ -128,7 +204,10 @@ function resolvedClientAddress(request: Request, clientAddress?: string) {
     .split(',')
     .map(normalizedIp)
     .filter(Boolean);
-  return forwardedAddresses.findLast((address) => !isPrivateProxyAddress(address)) || runtimeAddress;
+  const publicAddresses = forwardedAddresses.filter((address) => !isPrivateProxyAddress(address));
+  return trustedCloudflareClientAddress(request, publicAddresses)
+    || publicAddresses.at(-1)
+    || runtimeAddress;
 }
 
 export function publicSecurityProxyDiagnostics(request: Request, clientAddress?: string) {

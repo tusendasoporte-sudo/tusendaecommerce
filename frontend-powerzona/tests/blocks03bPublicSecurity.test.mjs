@@ -92,6 +92,72 @@ test('BLOCKS03B: proxy privado usa la IP publica del extremo derecho de X-Forwar
   assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
 });
 
+test('VPN-PILOT: produccion usa el cliente validado antes del borde IPv4 de Cloudflare', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '198.51.100.24, 104.22.102.50, 10.0.1.1',
+      'cf-connecting-ip': '198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
+});
+
+test('VPN-PILOT: produccion ignora IP inyectada antes del cliente confirmado por Cloudflare', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '203.0.113.99, 198.51.100.24, 172.70.35.89, 10.0.1.1',
+      'cf-connecting-ip': '198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
+});
+
+test('VPN-PILOT: no confia en cabeceras Cloudflare falsificadas desde un borde no Cloudflare', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '203.0.113.99, 104.22.102.50, 198.51.100.24, 10.0.1.1',
+      'cf-connecting-ip': '203.0.113.99',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
+});
+
+test('VPN-PILOT: discrepancia de Cloudflare conserva el borde derecho como opcion segura', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '203.0.113.99, 104.22.102.50, 10.0.1.1',
+      'cf-connecting-ip': '198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '104.22.102.50');
+});
+
+test('VPN-PILOT: produccion resuelve cliente IPv6 antes del borde IPv6 de Cloudflare', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '2001:db8:1234:0:0:0:0:8, 2606:4700:3030::6816:6632, fd00::1',
+      'cf-connecting-ip': '2001:db8:1234::8',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, 'fd00::1');
+  assert.equal(headers['X-Forwarded-For'], '2001:db8:1234::8');
+});
+
+test('VPN-PILOT: cabecera sobredimensionada no sustituye la direccion privada del runtime', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '198.51.100.24,'.repeat(200),
+      'cf-connecting-ip': '198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '10.0.1.1');
+  assert.equal(headers['X-Forwarded-For'], '10.0.1.1');
+});
+
 test('BLOCKS03B: cliente publico directo ignora X-Forwarded-For controlado por el usuario', () => {
   const request = new Request('https://shop.example/api/security/track-navigation', {
     headers: {
