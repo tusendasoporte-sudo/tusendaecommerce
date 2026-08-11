@@ -11,6 +11,7 @@ export const SECURITY_BLOCK_SCOPES = ['orders', 'reviews', 'raffles', 'all_inter
 export const SECURITY_BLOCK_DURATIONS = ['hours_24', 'days_7', 'days_30', 'permanent'] as const;
 export const SECURITY_BLOCK_MATCH_MODES = ['any', 'all'] as const;
 export const VISITOR_RANGE_FILTERS = ['today', 'days_7', 'days_30'] as const;
+export const SECURITY_TIME_ZONE = 'America/Havana';
 
 export const CUSTOMERS_PER_PAGE = 20;
 export const ACTIVITY_PER_PAGE = 10;
@@ -697,7 +698,7 @@ export function getVisitorPageviewFieldsForIpVisibility(ipVisibility: unknown) {
 
 export function getCubaDay(date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Havana',
+    timeZone: SECURITY_TIME_ZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -1986,6 +1987,7 @@ export function formatDateTime(value: unknown) {
   if (!Number.isFinite(date.getTime())) return 'No disponible';
 
   return new Intl.DateTimeFormat('es-VE', {
+    timeZone: SECURITY_TIME_ZONE,
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);

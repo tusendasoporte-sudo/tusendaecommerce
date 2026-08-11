@@ -2,7 +2,24 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import {
+  formatDateTime,
+  SECURITY_TIME_ZONE,
+} from '../src/lib/securityMonitoring.ts';
+
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
+
+test('SEGURIDAD-HORA: muestra fechas en America/Havana durante verano e invierno', () => {
+  assert.equal(SECURITY_TIME_ZONE, 'America/Havana');
+
+  const summer = formatDateTime('2026-08-11T21:01:00.000Z');
+  const winter = formatDateTime('2026-01-11T22:01:00.000Z');
+
+  assert.match(summer, /5:01/);
+  assert.doesNotMatch(summer, /9:01/);
+  assert.match(winter, /5:01/);
+  assert.doesNotMatch(winter, /10:01/);
+});
 
 test('VISITOR-RANGE-UI: la seccion se llama Visitantes y ofrece Hoy, 7 dias y 30 dias', () => {
   const view = read('../src/components/admin/SecurityMonitoringView.astro');
