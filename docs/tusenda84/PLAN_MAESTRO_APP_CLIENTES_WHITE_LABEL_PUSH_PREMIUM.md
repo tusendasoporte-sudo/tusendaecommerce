@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PLANIFICACIÓN |
-| Versión del documento | 1.1 |
+| Estado general | EN EJECUCIÓN — PZ-APP-C01 COMPLETADO; PZ-APP-C02 PENDIENTE DE AUTORIZACIÓN |
+| Versión del documento | 1.7 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C01 |
+| Próximo prompt | PZ-APP-C02 — pendiente de autorización expresa |
 
 ### Convención de estados
 
@@ -50,7 +50,7 @@ Cuando una fase requiera intervención humana, Codex debe mostrar claramente **P
 
 Construir una app Android pública para los clientes de PowerZona que muestre la tienda web, funcione sin inicio de sesión obligatorio y reciba notificaciones incluso cuando la app esté cerrada. La solución debe ser white-label: el mismo código permitirá generar una app diferente para otra tienda de Tu Senda 84 cambiando su configuración, marca, URL, identificador Android y credenciales de Firebase.
 
-El panel administrativo incorporará, como función del plan Premium, un módulo de campañas push para crear, segmentar, programar, enviar y medir notificaciones con texto, imagen WebP y enlaces internos. Al tocar una notificación, la app podrá abrir un producto, categoría, sección, seguimiento de pedido, rifa o cupón.
+La app pública white-label y su panel de campañas serán productos exclusivos del plan Premium. El panel permitirá crear, segmentar, programar, enviar y medir notificaciones con texto, imagen WebP y enlaces internos. Al tocar una notificación, la app podrá abrir un producto, categoría, sección, seguimiento de pedido, rifa o cupón.
 
 ## 3. Decisiones aprobadas
 
@@ -66,6 +66,7 @@ El panel administrativo incorporará, como función del plan Premium, un módulo
 10. Toda entidad móvil pertenecerá a una sola tienda. Ninguna campaña, instalación, imagen o evento podrá cruzar datos entre tiendas.
 11. El permiso Premium se comprobará en el backend; ocultar botones en la interfaz no será suficiente.
 12. Ninguna fase se desplegará en producción sin pasar primero por staging, emulador y teléfono físico cuando corresponda.
+13. La app pública white-label, su configuración, builds y campañas solo se provisionarán para tiendas con plan Premium activo.
 
 ## 4. Resumen vivo del proyecto
 
@@ -87,7 +88,7 @@ El panel administrativo incorporará, como función del plan Premium, un módulo
 - [x] Frontend y PocketBase fueron desplegados y validados después de la corrección.
 - [x] El commit desplegado durante esa validación fue `f5b023bc81075691c5b78f70e4a98279920967e1`.
 
-### 4.2 Componentes existentes que deben auditarse antes de reutilizar
+### 4.2 Componentes existentes auditados en PZ-APP-C01
 
 - `backend-powerzona/pb_hooks/pz_store_push_dispatch_lib.js`
 - `backend-powerzona/pb_hooks/pz_store_push_devices_lib.js`
@@ -97,19 +98,25 @@ El panel administrativo incorporará, como función del plan Premium, un módulo
 - Lógica Android de Firebase, registro y deep links en `mobile-admin`.
 - Ayudantes de planes y permisos, entre ellos `pz_store_plans_lib.js` y `pz_store_team_permissions_lib.js`.
 
+Resultado: el canal administrativo puede conservarse sin cambios, pero no se reutilizarán sus colecciones, identidad, permiso, rutas ni contrato de relay como canal público. Solo se reutilizarán patrones probados: FID de Firebase, entrega híbrida notificación/datos, `restrictedPackageName`, lotes de hasta 500, canales Android y desactivación de instalaciones rechazadas permanentemente.
+
 ### 4.3 Separación obligatoria
 
 La colección administrativa `store_push_devices` no debe reutilizarse automáticamente para clientes. El registro actual está ligado a usuarios administrativos autenticados y a reglas operativas del panel. La app pública necesita instalaciones anónimas, consentimiento de notificaciones y métricas diferentes.
 
-Se propone crear modelos específicos para la app pública. Sus nombres definitivos se confirmarán en PZ-APP-C01 y PZ-APP-C02:
+Se crearán modelos específicos para la app pública. Los nombres definitivos acordados técnicamente en PZ-APP-C01 son:
 
 - `storefront_app_configs`
 - `storefront_installations`
-- `push_campaigns`
-- `push_campaign_deliveries` o agregados diarios equivalentes
-- `push_events`
+- `storefront_web_sessions`
+- `storefront_order_links`
 - `push_media`
-- `push_daily_stats`, solo si el volumen justifica precálculo
+- `push_campaigns`
+- `push_campaign_deliveries`
+- `push_events`
+- `push_daily_stats`, diferida a PZ-APP-C09
+
+No se creará una colección pública de lotes: el bloqueo, intento y resultado se conservarán en `push_campaign_deliveries` y en campos de control de `push_campaigns`.
 
 ## 5. Arquitectura objetivo
 
@@ -140,9 +147,9 @@ Cada marca tendrá una configuración declarativa con, al menos:
 | Clave interna | `powerzona` | Configurable |
 | Nombre visible | PowerZona | Configurable |
 | URL inicial | `https://tusenda84.com/t/powerzona` | URL de la tienda |
-| `applicationId` | POR CONFIRMAR | Único por app |
-| Icono y splash | Marca PowerZona | Marca de la tienda |
-| Colores | Marca PowerZona | Configurables |
+| `applicationId` | `com.tusenda84.powerzona`, aprobado | Único por app |
+| Icono y splash | V1 y v2 A/B rechazados. Maestro premium, símbolo launcher y splash v3 aprobados por el propietario en `docs/tusenda84/brand/powerzona/` | Marca de la tienda |
+| Colores | Paleta v1 rechazada. Paleta v3 zafiro, cobalto, platino y blanco perlado aprobada con tokens exactos en `powerzona-palette-v3.svg` | Configurables |
 | Firebase Android app | Exclusiva | Exclusiva |
 | `google-services.json` | Fuera de configuración pública | Uno por app |
 | Firma Android | Segura y separada | Una política por marca |
@@ -154,15 +161,15 @@ Cada app publicada en Google Play necesita un `applicationId`, ficha, firma y ve
 
 Al abrir la app por primera vez:
 
-1. La app obtiene o genera un identificador de instalación.
+1. La app obtiene el Firebase Installation ID (FID) de su Firebase Android app.
 2. Solicita permiso de notificaciones en el momento apropiado en Android 13 o superior.
-3. Obtiene el token FCM.
-4. Registra la instalación contra la tienda configurada.
+3. Obtiene un token de Firebase App Check con Play Integrity.
+4. La capa Android nativa registra la instalación; el WebView nunca recibe el FID ni la credencial de instalación.
 5. Envía versión de la app, versión de Android, modelo, idioma, zona horaria y estado del permiso.
-6. El servidor registra `first_seen` y actualiza `last_seen` de forma idempotente.
-7. Al renovarse el token FCM, la misma instalación se actualiza sin duplicarse.
+6. El servidor resuelve la tienda mediante la app Firebase/configuración validada, registra `first_seen`, actualiza `last_seen` de forma idempotente y devuelve una credencial opaca de instalación.
+7. Si Firebase rota el FID, la app vuelve a registrar la instalación; la credencial anterior se revoca o vincula mediante un cambio auditado.
 
-La reinstalación, eliminación de datos o restauración puede producir un identificador nuevo. Por esa razón, el panel hablará de **instalaciones** o **dispositivos registrados**, no de personas únicas exactas.
+En este repositorio y en las API actuales de Firebase utilizadas por la app administrativa, FCM trabaja con FID, no con el registration token histórico. La reinstalación, eliminación de datos o restauración puede producir un identificador nuevo. Por esa razón, el panel hablará de **instalaciones** o **dispositivos registrados**, no de personas únicas exactas.
 
 ### 5.3 Contenido y apertura de una notificación
 
@@ -170,10 +177,12 @@ El mensaje incluirá una carga de datos normalizada:
 
 ```json
 {
+  "schema_version": "1",
+  "channel": "storefront",
   "store_key": "powerzona",
   "campaign_id": "ID_DE_CAMPANA",
   "target_type": "product",
-  "target_value": "/t/powerzona/producto/slug",
+  "target_path": "/t/powerzona/producto/slug",
   "image_url": "https://media.tusenda84.com/push/powerzona/archivo.webp"
 }
 ```
@@ -181,7 +190,6 @@ El mensaje incluirá una carga de datos normalizada:
 Tipos iniciales propuestos:
 
 - `home`: abre la portada de la tienda.
-- `url`: abre una ruta interna permitida de la tienda.
 - `product`: abre un producto.
 - `category`: abre una categoría.
 - `section`: abre una sección especial.
@@ -189,7 +197,7 @@ Tipos iniciales propuestos:
 - `raffle`: abre una rifa.
 - `coupon`: abre la tienda y solicita aplicar un cupón válido.
 
-Los enlaces serán validados contra una lista de hosts y rutas autorizados. No se debe permitir que una campaña abra esquemas o dominios arbitrarios.
+No existirá un tipo `url` libre. El servidor resolverá relaciones de la misma tienda a rutas canónicas y la app validará host HTTPS, slug y familia de ruta. Una app PowerZona no podrá abrir rutas `/admin`, `/master`, `/api`, `/login` ni `/t/<otra-tienda>`. Los enlaces externos se abrirán fuera del WebView solo cuando pertenezcan a esquemas explícitamente permitidos por la navegación normal, nunca por un payload push.
 
 Para un cupón, la app no confiará en un descuento contenido solamente en la notificación. Abrirá una URL segura con un identificador o código; el backend validará vigencia, tienda, límites, elegibilidad y condiciones antes de aplicarlo.
 
@@ -233,7 +241,7 @@ Segmentos iniciales recomendados:
 - País o región aproximada, solo cuando la precisión y privacidad lo permitan.
 - Segmentos de comportamiento futuros basados en eventos de tienda.
 
-No se enviará por token uno a uno desde el navegador. El backend resolverá destinatarios, aplicará límites, dividirá lotes, registrará resultados y desactivará tokens inválidos.
+No se enviará por FID uno a uno desde el navegador. El backend resolverá destinatarios, aplicará límites, dividirá lotes, registrará resultados y desactivará FID inválidos.
 
 ### 5.6 Métricas
 
@@ -242,7 +250,7 @@ Panel de instalaciones:
 - Instalaciones registradas totales.
 - Activas hoy, últimos 7 días y últimos 30 días.
 - Permiso concedido, denegado o desconocido.
-- Tokens activos, inválidos o revocados.
+- FID activos, inválidos o revocados.
 - Versión de app y Android.
 - Modelo del dispositivo.
 - Primera y última actividad.
@@ -252,7 +260,7 @@ Embudo de campaña:
 
 1. Dispositivos seleccionados.
 2. Mensajes aceptados por Firebase.
-3. Envíos fallidos o tokens inválidos.
+3. Envíos fallidos o FID inválidos.
 4. Notificaciones abiertas mediante toque.
 5. Destino visualizado.
 6. Cupón aplicado, cuando corresponda.
@@ -267,21 +275,272 @@ Una respuesta aceptada por Firebase no significa que el usuario leyó la notific
 - Las consultas administrativas siempre filtrarán por tienda y permisos.
 - Las funciones de envío comprobarán plan Premium y permiso, por ejemplo `marketing.push.manage`.
 - Se establecerá un máximo de destinatarios y frecuencia por campaña.
-- Se evitará registrar tokens FCM, secretos o IP completos en logs generales.
+- Se evitará registrar FID, credenciales, secretos o IP completos en logs generales.
 - Se definirá retención para IP, eventos individuales y campañas.
 - Se permitirá desactivar una instalación o sus notificaciones.
-- Se eliminarán o invalidarán tokens rechazados permanentemente por Firebase.
+- Se eliminarán o invalidarán FID rechazados permanentemente por Firebase.
 - Las imágenes serán públicas por necesidad técnica, pero usarán nombres aleatorios y no contendrán datos sensibles.
 - La pantalla administrativa mostrará consentimiento, finalidad y límites de las métricas.
 - El WebView solo abrirá hosts permitidos y bloqueará esquemas inseguros.
 - La navegación, cargas de archivos y puentes JavaScript se revisarán contra abuso.
 - Las cuentas de servicio de Firebase tendrán privilegios mínimos y rotación documentada.
 
+### 6.1 Resultado de la auditoría PZ-APP-C01
+
+Auditoría local realizada sobre `064d584f9de8c98638d4cb1bb035eb05b76c2458`. El repositorio estaba limpio antes de la edición documental y no existía `.tmp/`. No se abrió `pb_data`, no se usaron credenciales reales y no se ejecutaron migraciones, builds, servidores, despliegues ni acciones sobre Cloudflare, Coolify, Firebase o producción.
+
+| Área | Estado real confirmado | Consecuencia para la app pública |
+|---|---|---|
+| Android administrativo | `mobile-admin` es Android nativo Java 17, SDK/target 36, minSdk 26, versión 1.0.2 y paquete predeterminado `com.tusenda84.admin`. El WebView bloquea acceso a archivos, mixed content y errores SSL; FCM auto-init se activa después del consentimiento. | Crear `mobile-storefront` independiente. Reutilizar patrones, no autenticación, cookies, puente ni paquete administrativo. |
+| Marca PowerZona | No existían recursos inequívocos de PowerZona. El propietario rechazó v1 y v2 A/B, aportó una referencia y aprobó el maestro v3 original con P/Z inclinada, rayo, órbita y acabado zafiro/platino sobre blanco perlado. C01 derivó un símbolo launcher, splash y paleta exacta v3 en `docs/tusenda84/brand/powerzona/`; los tres fueron aprobados. | C07 no usará recursos rechazados y solo generará densidades/recursos Android finales desde la familia v3 aprobada. |
+| Navegación Android | `MainActivity.java` permite navegación interna por host configurado y abre esquemas externos de forma controlada. Esa frontera es suficiente para un panel de un solo tenant, pero no para un host público que sirve muchas tiendas. | Validar HTTPS + host + slug fijo + familia de ruta. Un payload no podrá aportar una URL arbitraria. |
+| Identidad push administrativa | `/api/pz/store-push/register` exige usuario autenticado, dispositivo administrativo autorizado y permiso `notifications.view`; persiste en `store_push_devices`. | No reutilizar `store_push_devices`. La instalación pública no representa a un usuario ni consume la cuota de dispositivos administrativos. |
+| Alertas administrativas | Hooks crean `store_notifications`; el hook posterior a creación selecciona dispositivos administrativos activos de la misma tienda y envía al relay. | No reutilizar `store_notifications`. Las campañas comerciales tendrán ciclo de vida, audiencia, cuota, imagen, programación y métricas propios. |
+| Relay Firebase | `/api/internal/push/send` exige secreto compartido, agrupa por `app_id`, usa FID, `restrictedPackageName`, prioridad alta y payload híbrido. El límite implementado por lote es 500. | Mantener este endpoint como v1 administrativo. Crear v2 separado para campañas y evitar regresiones. |
+| Planes | Free y Básico comparten capacidades avanzadas desactivadas; Premium las activa. PowerZona está migrada como Premium permanente. | Añadir la capability `push_campaigns_enabled`; no inferir Premium solo desde el frontend y reevaluarla también al ejecutar. |
+| Permisos | El catálogo posee 28 permisos asignables y cinco reservados; no existe permiso de campañas. El principal activo hereda el conjunto autorizado y los colaboradores usan permisos persistidos. | Añadir `marketing.push.manage`, incluirlo en la plantilla de marketing y exigirlo en lectura operativa y mutaciones sensibles. |
+| Rutas multi-tienda | La ruta pública canónica es `/t/:storeSlug`; `/admin` es legado y `/t/:storeSlug/admin` es canónica. PowerZona es el slug predeterminado. | La app fija una sola configuración de tienda. Ni el cliente ni el payload pueden escoger otro `store_id`/slug. |
+| Medios | PocketBase 0.38.2 guarda archivos bajo `pb_data/storage`; el frontend ya incluye `sharp` 0.34.5. El Dockerfile crea `/app/pb_data`, pero no declara por sí mismo un volumen. La documentación de despliegue dice que Coolify monta persistencia, sin prueba remota en C01. | Recomendación: archivo PocketBase en el volumen persistente existente, procesado primero por SSR con `sharp`. La persistencia real debe probarse en staging antes de aprobar C04. |
+| Programación | PocketBase ya ejecuta `cronAdd` para avisos operativos cada cinco minutos. | Usar un cron nuevo cada minuto con lease transaccional e idempotencia por entrega. No mezclarlo con el cron operativo. |
+| Borrado de tiendas | `pz_master_store_deletion_lib.js` cuenta, borra y verifica explícitamente las colecciones de cada tienda. | Toda colección nueva debe añadirse al preview, orden de borrado y verificación para no dejar datos huérfanos ni romper la eliminación. |
+| Despliegue | Astro 6.4.3 usa adaptador Node; requiere Node >=22.12. PocketBase se construye en imagen 0.38.2. Producción conocida usa Git/Coolify/Hetzner/Cloudflare y relay en `tusenda84.com`. | Los cambios serán append-only y se probarán primero en staging. C01 no verificó ni alteró el estado remoto. |
+
+Flujo administrativo actual, que debe permanecer compatible:
+
+```mermaid
+sequenceDiagram
+    participant H as "Hook/acción administrativa"
+    participant N as "store_notifications"
+    participant D as "Dispatch PocketBase"
+    participant A as "store_push_devices autorizados"
+    participant R as "Relay /api/internal/push/send"
+    participant F as "Firebase FCM"
+    participant M as "Tu Senda 84 Admin"
+    H->>N: crea alerta operativa de una tienda
+    N->>D: onRecordAfterCreateSuccess
+    D->>A: filtra tienda, usuario activo y notifications.view
+    D->>R: FID + app_id + destino administrativo
+    R->>F: lote <= 500 y restrictedPackageName
+    F-->>M: notificación/datos aun con app cerrada
+```
+
+### 6.2 Arquitectura definitiva propuesta para el canal público
+
+```mermaid
+sequenceDiagram
+    participant M as "mobile-storefront nativa"
+    participant G as "Gateway Astro /api/storefront/v1"
+    participant C as "Firebase App Check"
+    participant P as "PocketBase privado"
+    participant S as "Scheduler campañas"
+    participant R as "Relay v2"
+    participant F as "Firebase FCM"
+    M->>C: obtiene token Play Integrity
+    M->>G: FID + metadatos + App Check
+    G->>C: verifica token y Firebase app id
+    G->>P: llamada interna autenticada; sin store_id del cliente
+    P-->>M: credencial opaca de instalación
+    S->>P: reclama campaña y snapshot de destinatarios
+    S->>R: entregas de una sola tienda, lotes <= 500
+    R->>F: FID, packageName e imagen pública
+    F-->>M: campaña storefront
+    M->>G: apertura/evento + App Check + credencial
+    G->>P: evento idempotente y acotado a instalación/tienda
+```
+
+Fronteras obligatorias:
+
+1. La app nativa conoce una `app_key` pública compilada y su Firebase Android app; no envía un `store_id` confiable.
+2. El gateway Astro verifica Firebase App Check y deriva `firebase_app_id`. PocketBase resuelve desde ese identificador una sola `storefront_app_configs` activa.
+3. Gateway y PocketBase usan un secreto interno nuevo, mínimo 32 caracteres, distinto de `PZ_PUSH_RELAY_SECRET` y de los secretos de seguridad existentes.
+4. El FID y la credencial de instalación solo viven en código nativo y backend. No se exponen a JavaScript, URLs, analítica web ni logs generales.
+5. La credencial de instalación es aleatoria, rota, se guarda en Android mediante Keystore/almacenamiento cifrado y solo se persiste como digest HMAC en el servidor.
+6. Firebase App Check prueba que la solicitud procede de una app admitida; no sustituye la credencial de instalación ni la autorización de tienda.
+7. Las reglas CRUD directas de las colecciones nuevas quedan cerradas. Clientes públicos pasan por gateway; administradores pasan por endpoints autenticados que vuelven a comprobar tienda, plan y permiso.
+8. Todo registro contiene `store`; las relaciones referenciadas deben tener el mismo `store`, validado en backend. La tienda se deriva del actor o de `storefront_app_configs`, nunca de un campo libre.
+9. La cuenta de servicio Firebase, `google-services.json`, secretos internos y firmas Android permanecen fuera de Git.
+
+### 6.3 Colecciones, campos sensibles e índices
+
+| Colección | Propósito y campos principales | Acceso e índices obligatorios |
+|---|---|---|
+| `storefront_app_configs` | `store`, `app_key`, `display_name`, `package_name`, `firebase_app_id`, `public_origin`, `store_path_prefix`, `status`, versiones mínimas. | CRUD directo cerrado; Master para administración futura. Solo puede provisionarse/activarse para Premium. Únicos `app_key`, `package_name`, `firebase_app_id`; único compuesto `store + app_key`. `store` no cambia tras crear. |
+| `storefront_installations` | `store`, `app_config`, `fid` oculto, `fid_digest`, `credential_digest`, `status`, `notification_permission`, `app_version`, `android_version`, `device_model`, `locale`, `timezone`, `first_seen`, `last_seen`, `last_ip_encrypted`/seguridad y geografía aproximada. | CRUD cerrado. Único `app_config + fid_digest`; índices `store + status + last_seen`, `store + notification_permission`. FID/IP nunca en respuestas o logs generales. |
+| `storefront_web_sessions` | Sesión web efímera que vincula una instalación nativa con el WebView sin revelar FID/credencial: `store`, `installation`, `session_digest`, `expires_at`, `last_seen`, `status`. | CRUD cerrado; único `session_digest`; índices `store + installation + status`, `expires_at`. Cookie `HttpOnly`, `Secure`, `SameSite=Lax`; bootstrap de un solo uso. |
+| `storefront_order_links` | Asociación verificada `store`, `installation`, `order`, `created_at`, `status` para destino/atribución de orden. | CRUD cerrado; único `installation + order`; todas las relaciones deben pertenecer a la misma tienda. No almacena el token de recibo en eventos ni FCM. |
+| `push_media` | `store`, archivo PocketBase `file`, `sha256`, `width`, `height`, `bytes`, `status`, `created_by`, `referenced_at`, `delete_after`. | CRUD cerrado; archivo público por URL no predecible; índices `store + status + created`, `sha256`. Backend valida cuota y referencias antes de borrar. |
+| `push_campaigns` | `store`, `created_by`, `status`, `title`, `body`, `media`, audiencia declarativa, destino tipado, `scheduled_at`, zona horaria de presentación, contadores, `lock_token`, `lock_expires_at`, `started_at`, `completed_at`, `canceled_at`, `failure_code`. Relaciones de destino separadas: producto, categoría, orden, rifa o cupón; sección como enum. | CRUD cerrado; índices `store + status + scheduled_at`, `store + created`, `lock_expires_at`. Backend impone exactamente un destino compatible y la misma tienda. |
+| `push_campaign_deliveries` | Snapshot por destinatario: `store`, `campaign`, `installation`, `status`, `attempt_count`, `claim_token`, `lease_expires_at`, `firebase_message_id`, código de error normalizado y timestamps. | Único `campaign + installation`; índices `campaign + status`, `store + status + updated`, `lease_expires_at`. No copia FID ni IP. |
+| `push_events` | `store`, `campaign`, `delivery`, `installation`, `event_type`, `idempotency_key`, `occurred_at`, `received_at`, versión de esquema y metadatos permitidos. | CRUD cerrado; único `installation + idempotency_key`; índices `store + campaign + event_type + occurred_at`, `received_at`. Payload con lista cerrada y reloj acotado. |
+| `push_daily_stats` | Agregados diarios por tienda/campaña/plataforma; se crea en C09, no en C02. | Único por dimensión y fecha; nunca contiene FID, IP ni credencial. |
+
+Las migraciones deben usar relaciones sin cascade automático desde `stores`; el flujo Master de eliminación mantendrá un inventario explícito y transaccional. Las reglas directas no se abrirán como sustituto de los endpoints.
+
+### 6.4 Contratos HTTP definitivos
+
+Rutas externas nativas en Astro, por defecto `POST`, con JSON estricto, límite de cuerpo, rate limit, HTTPS, App Check y respuestas sin secretos. La única excepción es el consumo WebView de un código bootstrap de un solo uso:
+
+| Ruta | Autenticación adicional | Resultado |
+|---|---|---|
+| `/api/storefront/v1/installations/register` | App Check; FID en cuerpo nativo | Alta/upsert idempotente y credencial de instalación rotada. |
+| `/api/storefront/v1/installations/heartbeat` | App Check + credencial | Actualiza metadatos y `last_seen` con límites. |
+| `/api/storefront/v1/installations/permission` | App Check + credencial | Registra `granted`, `denied` o `unknown`. |
+| `/api/storefront/v1/installations/disable` | App Check + credencial | Revoca credencial y excluye entregas. |
+| `POST /api/storefront/v1/session/bootstrap` | App Check + credencial | Devuelve una URL con código aleatorio de un solo uso y vida máxima de 60 segundos. |
+| `GET /api/storefront/v1/session/bootstrap/{code}` | Código de un solo uso | Lo consume atómicamente, establece cookie HttpOnly y redirige a la tienda fija; repetición o expiración falla cerrado. |
+| `/api/storefront/v1/events` | App Check + credencial | Acepta evento tipado e idempotente. |
+| `/api/storefront/v1/campaigns/resolve-target` | App Check + credencial | Resuelve un destino vigente de la misma entrega; es obligatorio para orden. |
+
+Rutas PocketBase internas equivalentes bajo `/api/pz/storefront/v1/*` exigirán `X-PZ-Storefront-Internal`, aceptarán el Firebase app id ya verificado por el gateway y volverán a resolver app/tienda. Ninguna confiará en `X-Forwarded-For` o `store_id` aportado por el teléfono; la IP efectiva se obtiene en la capa pública conforme a la topología Cloudflare/Coolify y se pasa en un sobre firmado interno.
+
+Rutas administrativas PocketBase, con sesión normal, CSRF/origen según el patrón actual, `push_campaigns_enabled` y `marketing.push.manage`:
+
+- `GET /api/pz/storefront/v1/campaigns`
+- `GET /api/pz/storefront/v1/campaigns/{id}`
+- `POST /api/pz/storefront/v1/campaigns/save`
+- `POST /api/pz/storefront/v1/campaigns/audience-preview`
+- `POST /api/pz/storefront/v1/campaigns/schedule`
+- `POST /api/pz/storefront/v1/campaigns/cancel`
+- `POST /api/pz/storefront/v1/campaigns/duplicate`
+- `POST /api/pz/storefront/v1/media/attach`
+- `POST /api/pz/storefront/v1/media/delete`
+
+El procesador SSR de imagen será `POST /api/admin/storefront-push/media`. El relay nuevo será `POST /api/internal/push/v2/send`, solo interno. El v1 actual `/api/internal/push/send` no cambiará de contrato.
+
+### 6.5 Deep links y navegación segura
+
+El payload FCM llevará como máximo `schema_version`, `channel`, `store_key`, `campaign_id`, `target_type`, `target_path` cuando sea público y `image_url`; se mantendrá holgadamente por debajo de 4096 bytes. `target_path` siempre se genera en servidor.
+
+| Tipo | Fuente autorizada | Ruta canónica / regla |
+|---|---|---|
+| `home` | Sin referencia | `/t/{slug}` |
+| `product` | Relación `products` activa de la misma tienda | `/t/{slug}/producto/{slug-actual}` |
+| `category` | Relación `categories` activa de la misma tienda | `/t/{slug}/categoria/{slug-actual}` |
+| `section` | Enum cerrado `search`, `links`, `gifts`, `raffles`, `checkout` | Ruta pública conocida bajo `/t/{slug}`. |
+| `raffle` | Relación `raffles` de la misma tienda | `/t/{slug}/rifa/{raffleSlug}`; si venció, respaldo `/t/{slug}/rifa`. |
+| `coupon` | Relación `manual_coupons` de la misma tienda | `/t/{slug}?coupon={codigo}`; el checkout vuelve a validar tienda, vigencia, límites y precios. |
+| `order` | `storefront_order_links` activo y audiencia de una sola instalación | No se incluye el token de orden en FCM. `resolve-target` autentica la instalación y devuelve temporalmente `/orden/{orderNumber}/{token}`. |
+
+La app acepta únicamente `https://tusenda84.com` y `https://www.tusenda84.com` si el origen canónico mantiene ambos, más el prefijo exacto de su tienda y la ruta de recibo resuelta por servidor. Un destino eliminado, vencido, de otra tienda o mal formado abre `/t/{slug}` y reporta un error no sensible. El mensaje no debe contener datos privados: FCM no es un canal de cifrado de extremo a extremo para información sensible.
+
+### 6.6 Medios persistentes
+
+Decisión técnica aprobada por el propietario: usar el campo file de `push_media` en PocketBase. El archivo físico quedará en el `pb_data/storage` persistente del mismo servicio, no en el contenedor efímero de Astro y no en un segundo volumen dedicado en V1. El frontend SSR autenticado decodifica con `sharp`, corrige orientación, elimina metadatos al recodificar y envía el WebP final a PocketBase. PocketBase vuelve a validar tienda, estado y metadatos esperados.
+
+Límites recomendados:
+
+- Entrada: JPG, PNG o WebP real; máximo 8 MiB, 6000 px por lado y 36 megapíxeles.
+- Salida: WebP `fit: inside`, máximo 1200 × 630, calidad inicial 82 y máximo 750 KiB; si no baja del límite tras la estrategia de calidad, se rechaza.
+- Cuota: 250 MiB activos por tienda; máximo 100 medios no archivados; huérfanos borrables después de 30 días.
+- Nombre: 128 bits aleatorios + extensión `.webp`, sin nombre original ni datos de cliente.
+- Caché: URL inmutable, `Cache-Control: public, max-age=31536000, immutable`; reemplazar crea otro archivo.
+- Host inicial: URL pública estable del PocketBase existente. Recomendación de alias: `media.tusenda84.com`, apuntando al mismo origen para permitir una migración futura sin cambiar las apps.
+- Backup: incluir `pb_data/storage` y la base PocketBase como una unidad consistente; probar restauración y persistencia en staging durante C04.
+
+El Dockerfile no prueba que Coolify tenga el volumen montado. Antes de C04 se deberá confirmar el mount exacto `/app/pb_data`, backup y restore de staging; no se presupone el estado remoto desde este repositorio.
+
+### 6.7 Plan Premium, permiso, cuotas y downgrade
+
+- Capability definitiva: `push_campaigns_enabled`, `true` solo en Premium activo.
+- Elegibilidad de producto aprobada: la app pública white-label, su configuración, builds y campañas se ofrecen exclusivamente a tiendas con plan Premium activo. Si una tienda ya publicada baja de plan, la app instalada conserva acceso seguro al escaparate público, pero se suspenden altas push y campañas para no romper la navegación de clientes existentes.
+- Permiso definitivo: `marketing.push.manage`; se añade al catálogo asignable y a la plantilla `marketing_promotions`. El administrador principal activo lo obtiene por la semántica vigente; colaboradores requieren asignación explícita.
+- El backend comprueba capability y permiso al guardar contenido enviable, calcular audiencia, programar, enviar ahora, cancelar y duplicar; el scheduler vuelve a comprobar plan, tienda activa y autorización vigente del creador antes de reclamar destinatarios.
+- Free/Básico pueden ver una explicación comercial, pero no datos de instalaciones, borradores o métricas del módulo.
+- Cuota diaria aprobada por el propietario: máximo 6 campañas iniciadas por tienda en cada día calendario de su zona horaria configurada. Los borradores y las campañas canceladas antes de comenzar no cuentan.
+- Frecuencia aprobada por instalación: una instalación elegible puede recibir las 6 campañas de ese día. El contador se reinicia con el día calendario de la tienda; las alertas administrativas no cuentan para este límite.
+- Cuota mensual aprobada por el propietario: máximo 186 campañas iniciadas por tienda, suficiente para mantener 6 diarias durante un mes de 31 días.
+- Audiencia aprobada por el propietario: no existe un máximo fijo de instalaciones por campaña. Una campaña dirigida a todos se procesa para todas las instalaciones activas y elegibles, sin excluir silenciosamente las que superen 20 000 o 100 000.
+- FCM es un producto sin coste por cantidad de mensajes. El límite técnico oficial actual del API HTTP v1 es una cuota predeterminada de 600 000 mensajes downstream por minuto y proyecto, sujeta a cambio o ampliación; no es una cuota mensual de facturación. El motor consultará/monitorizará la cuota real, enviará en lotes de hasta 500, distribuirá la carga y respetará `Retry-After` ante `429 RESOURCE_EXHAUSTED`.
+- Si una tienda baja de Premium: conservar borradores, medios e historial en solo lectura; bloquear nuevas acciones; pasar lo programado aún no iniciado a `paused_plan`; no reanudar automáticamente al recuperar Premium. Un administrador autorizado debe revisar y reprogramar para evitar un envío antiguo inesperado.
+
+La exclusividad Premium, las cuotas y el comportamiento de downgrade fueron aprobados por el propietario en C01.
+
+### 6.8 Programación, concurrencia e idempotencia
+
+PocketBase ejecutará `cronAdd("pz_storefront_push_campaigns", "* * * * *", ...)` dentro del proceso `serve`. El motor:
+
+1. Busca campañas `scheduled` con `scheduled_at <= now`.
+2. En transacción SQLite vuelve a validar tienda, Premium, permiso del creador, cuotas, destino y medio; adquiere `lock_token` con lease corto.
+3. Materializa una vez el snapshot de destinatarios en `push_campaign_deliveries`; el índice único `campaign + installation` impide repetir filas.
+4. Reclama entregas pendientes mediante `claim_token`/`lease_expires_at` y las divide en lotes de hasta 500.
+5. Llama al relay v2. Este devuelve por `delivery_id` aceptación, fallo permanente o fallo transitorio, sin devolver FID en logs/respuestas generales.
+6. Marca FID permanentemente inválidos como `invalid`; reintenta fallos transitorios hasta tres veces con backoff y nunca cruza tienda/app/package.
+7. Si el resultado de red es ambiguo después de entregar a Firebase, marca `unknown` y no reintenta automáticamente; requiere revisión. Esto prioriza evitar duplicados sobre ocultar una incertidumbre.
+8. Consolida `sent`, `partially_sent` o `failed`, libera el lease y registra contadores auditables.
+
+El bloqueo transaccional protege también si en el futuro hay más de una réplica, pero C11 debe confirmar cuántos procesos `serve`/scheduler existen. FCM no ofrece idempotencia de entrega extremo a extremo: un fallo entre la aceptación de Firebase y la persistencia local puede dejar resultado incierto. La app usará una etiqueta estable por campaña para reemplazar visualmente duplicados, pero el panel no prometerá “exactly once”.
+
+### 6.9 Métricas, privacidad y atribución
+
+- `selected` significa snapshot de instalaciones elegibles; `accepted` significa que Firebase aceptó el mensaje, no que Android lo entregó o el cliente lo leyó.
+- `opened` solo se cuenta cuando la app nativa procesa el toque y envía un evento autenticado e idempotente.
+- `destination_viewed` se registra por la sesión web efímera después de cargar un destino válido.
+- Un cupón se atribuye únicamente si el servidor lo aplicó en checkout, coincide tienda/campaña/instalación y ocurrió dentro de siete días del toque.
+- Una orden se atribuye solo si se crea mediante una `storefront_web_sessions` vinculada, después del toque y dentro de siete días; correlación temporal sin vínculo de instalación no basta.
+- Retención recomendada: IP completa cifrada 30 días; sesiones web 30 días tras expirar; eventos individuales y entregas 180 días; campañas/contadores 24 meses; agregados diarios sin identificadores, 36 meses. Al vencer, se agregan o anonimizan antes de borrar.
+- Store Admin ve agregados y datos operativos de su tienda, nunca IP completa/FID/credenciales. Master/seguridad puede revelar el IP solo por el flujo auditado existente o una extensión equivalente.
+
+### 6.10 Compatibilidad, migración y rollback
+
+1. Migraciones append-only: crear colecciones/capability/permiso sin alterar datos de `store_push_devices` o `store_notifications`.
+2. Relay paralelo: v1 administrativo permanece intacto; v2 comparte solo inicialización Firebase y validadores puros probados.
+3. App paralela: `mobile-storefront` usa paquete, Firebase app, firma, datos y configuración separados; nunca actualiza ni sustituye `com.tusenda84.admin`.
+4. Secretos paralelos: `PZ_STOREFRONT_INTERNAL_SECRET` y App Check no reutilizan el secreto del relay administrativo.
+5. Activación progresiva: colecciones y endpoints cerrados → gateway/App Check → medios → motor deshabilitado → app staging → panel staging → pruebas C11 → producción C12.
+6. Rollback antes de producción: desactivar `storefront_app_configs`/scheduler y volver a la imagen anterior; las tablas nuevas pueden quedar inertes. El `down` de migraciones solo se usará en una base desechable o si está demostrado que no contiene datos útiles.
+7. No hay migración de dispositivos administrativos a instalaciones públicas. Cada cliente debe registrarse desde `mobile-storefront`.
+8. Cada nueva colección se incorpora al preview/borrado Master y a pruebas de aislamiento antes de habilitar el módulo.
+
+### 6.11 Inventario exacto previsto de archivos de C02-C12
+
+Este inventario es el contrato de implementación conocido en C01. Si una fase descubre que necesita otro archivo, debe registrarlo primero en la bitácora de esa fase y justificarlo; no autoriza editarlo durante C01.
+
+| Fase | Archivos nuevos o modificados previstos |
+|---|---|
+| C02 | `backend-powerzona/pb_migrations/1786579200_storefront_push_foundation.js`; `backend-powerzona/pb_migrations/1786579300_storefront_push_permission.js`; `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`; `backend-powerzona/pb_hooks/pz_store_plans_lib.js`; `backend-powerzona/pb_hooks/pz_store_capabilities_lib.js`; `backend-powerzona/pb_hooks/pz_store_team_permissions_lib.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement_lib.js`; `backend-powerzona/pb_hooks/pz_master_store_deletion_lib.js`; `frontend-powerzona/src/lib/storeCapabilities.ts`; `frontend-powerzona/src/lib/storeTeamPermissions.ts`; `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`; `backend-powerzona/tests/pz_storefront_push_permissions.test.cjs`; `backend-powerzona/tests/pz_master_store_deletion_storefront.test.cjs`; `backend-powerzona/tests/pz_store_plans.test.cjs`; `backend-powerzona/tests/pz_store_capabilities.test.cjs`; `backend-powerzona/tests/pz_store_team_permissions.test.cjs`; `backend-powerzona/tests/pz_store_plan_management.test.cjs`. |
+| C03 | `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `frontend-powerzona/src/lib/storefrontPushAppCheck.ts`; `frontend-powerzona/src/lib/storefrontPushContracts.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/register.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/heartbeat.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/permission.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/disable.ts`; `frontend-powerzona/src/pages/api/storefront/v1/session/bootstrap.ts`; `frontend-powerzona/src/pages/api/storefront/v1/session/bootstrap/[code].ts`; `backend-powerzona/tests/pz_storefront_installations.test.cjs`; `frontend-powerzona/tests/storefrontPushGateway.test.mjs`; `backend-powerzona/.env.example`; `frontend-powerzona/.env.example`. |
+| C04 | `backend-powerzona/pb_hooks/pz_storefront_push_media.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_push_media_lib.js`; `frontend-powerzona/src/lib/storefrontPushMedia.ts`; `frontend-powerzona/src/pages/api/admin/storefront-push/media.ts`; `backend-powerzona/tests/pz_storefront_push_media.test.cjs`; `frontend-powerzona/tests/storefrontPushMedia.test.mjs`; `docs/tusenda84/STORE_FRONT_PUSH_MEDIA_OPERATIONS.md`; `backend-powerzona/.env.example`; `frontend-powerzona/.env.example`. |
+| C05 | `backend-powerzona/pb_hooks/pz_storefront_campaigns.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_push_dispatch_lib.js`; `frontend-powerzona/src/lib/pushRelayV2Payload.ts`; `frontend-powerzona/src/pages/api/internal/push/v2/send.ts`; `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`; `backend-powerzona/tests/pz_storefront_push_dispatch.test.cjs`; `frontend-powerzona/tests/pushRelayV2Payload.test.mjs`; `backend-powerzona/.env.example`; `frontend-powerzona/.env.example`. |
+| C06 | `mobile-storefront/settings.gradle`; `build.gradle`; `gradle.properties`; `gradlew`; `gradlew.bat`; `gradle/wrapper/gradle-wrapper.jar`; `gradle/wrapper/gradle-wrapper.properties`; `.gitignore`; `README.md`; `app/build.gradle`; `app/proguard-rules.pro`; `app/src/main/AndroidManifest.xml`; Java bajo `app/src/main/java/com/tusenda84/storefront/`: `StorefrontActivity.java`, `StorefrontMessagingService.java`, `StorefrontRegistrationClient.java`, `StorefrontInstallationStore.java`, `StorefrontDeepLink.java`, `StorefrontConfig.java`; recursos `res/layout/activity_storefront.xml`, `res/layout/view_storefront_offline.xml`, `res/values/strings.xml`, `colors.xml`, `themes.xml`, `res/xml/network_security_config.xml`; pruebas unitarias `StorefrontConfigTest.java`, `StorefrontDeepLinkTest.java`, `StorefrontPushPayloadTest.java`. |
+| C07 | `mobile-storefront/config/powerzona.properties`; `mobile-storefront/brands/powerzona/brand.json`; `icon.png`; `splash.png`; pruebas `app/src/test/java/com/tusenda84/storefront/PowerZonaDestinationsTest.java`; `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/tests/pz_storefront_order_targets.test.cjs`. La configuración Firebase real seguirá en un archivo local ignorado, no en Git. |
+| C08 | `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`. |
+| C09 | `backend-powerzona/pb_migrations/1786579400_storefront_push_daily_stats.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events_lib.js`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `backend-powerzona/tests/pz_storefront_push_events.test.cjs`; `backend-powerzona/tests/pz_storefront_push_retention.test.cjs`; `frontend-powerzona/tests/storefrontPushMetrics.test.mjs`. |
+| C10 | `scripts/build-store-app.ps1`; `mobile-storefront/config/schema.json`; `mobile-storefront/config/demo.properties`; `mobile-storefront/brands/demo/brand.json`; `icon.png`; `splash.png`; `mobile-storefront/README.md`; `mobile-storefront/scripts/validate-store-config.ps1`; `mobile-storefront/scripts/test-store-config.ps1`. |
+| C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
+| C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
+
+No se reservan en C01 números de versión, secretos, archivos `google-services.json`, keystores, artefactos APK/AAB ni archivos generados. C11 y C12 documentarán por separado despliegue y evidencias.
+
+### 6.12 Referencias técnicas verificadas
+
+- Firebase Admin, multicast y límite de 500 FID: <https://firebase.google.com/docs/cloud-messaging/send/admin-sdk>
+- Precio FCM: producto sin coste, sin tope diario o mensual de mensajes facturables: <https://firebase.google.com/pricing> y <https://firebase.google.com/products/cloud-messaging/>
+- Cuota técnica downstream predeterminada: 600 000 mensajes/minuto/proyecto y manejo de `429`: <https://firebase.google.com/docs/cloud-messaging/throttling-and-quotas>
+- Firebase Installation ID y ciclo de vida de instalaciones: <https://firebase.google.com/docs/projects/manage-installations>
+- App Check con Play Integrity y backend propio: <https://firebase.google.com/docs/app-check/android/play-integrity-provider> y <https://firebase.google.com/docs/app-check/custom-resource-backend>
+- Tipos de mensaje FCM, límite de payload e imágenes: <https://firebase.google.com/docs/cloud-messaging/customize-messages/set-message-type> y <https://firebase.google.com/docs/cloud-messaging/customize-messages/cross-platform>
+- PocketBase: cron embebido, archivos y rutas personalizadas: <https://pocketbase.io/docs/js-jobs-scheduling/>, <https://pocketbase.io/docs/files-handling/> y <https://pocketbase.io/docs/js-routing/>
+
+### 6.13 Estado de decisiones humanas para cerrar C01
+
+**PRUEBA MANUAL COMPLETADA — el propietario aprobó el maestro v3 y confirmó `derivados v3 aprobados`.**
+
+Estado vigente:
+
+1. Identidad: nombre `PowerZona`, `applicationId` `com.tusenda84.powerzona`, maestro premium v3, símbolo launcher sin wordmark, splash vertical y paleta v3 exacta aprobados. V1 y v2 A/B quedan solo como historial rechazado.
+2. Medios aprobados: `push_media.file` en `pb_data/storage` del servidor Tu Senda 84, alias `media.tusenda84.com`, entrada 8 MiB/6000 px/36 MP, WebP 1200 × 630 y 750 KiB, cuota 250 MiB/100 activos.
+3. Campañas: aprobados 6 por día, 186 por mes, que cada instalación elegible pueda recibir las 6 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
+4. Downgrade aprobado: historial/borradores/medios en solo lectura; programadas pasan a `paused_plan` y requieren reprogramación manual tras recuperar Premium.
+5. Retención aprobada: IP completa cifrada 30 días; entregas/eventos 180 días; campañas 24 meses; agregados 36 meses.
+6. Atribución aprobada: ventana de siete días desde el toque; orden solo con sesión/instalación verificada y cupón solo aplicado por validación server-side.
+7. Distribución directa aprobada: App Check/Play Integrity se configura y prueba por separado para APK directo y Google Play, sin reducir silenciosamente la protección.
+8. Elegibilidad aprobada: la app white-label es exclusiva de Premium; un downgrade suspende push/provisión pero no rompe el escaparate de una app ya instalada.
+
 ## 7. Tabla general de prompts
 
 | ID | Entregable | Estado | Dependencia | Prueba manual | Modelo y razonamiento recomendado |
 |---|---|---|---|---|---|
-| PZ-APP-C01 | Auditoría y diseño técnico definitivo | PENDIENTE | Ninguna | Sí: aprobación del diseño | Sol — Extra High |
+| PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
 | PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | PENDIENTE | C01 | Limitada: inspección en staging | Sol — Extra High |
 | PZ-APP-C03 | Registro público seguro de instalaciones | PENDIENTE | C02 | Sí: ciclo de registro en staging | Sol — High |
 | PZ-APP-C04 | Canal persistente de imágenes WebP | PENDIENTE | C02 | Sí: carga, visualización y persistencia | Terra — High |
@@ -298,7 +557,7 @@ Una respuesta aceptada por Firebase no significa que el usuario leyó la notific
 
 Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO`, añadir una entrada a la bitácora y no iniciar otro prompt hasta terminar o marcarlo `BLOQUEADO`.
 
-### [ ] PZ-APP-C01 — Auditoría y diseño técnico definitivo
+### [x] PZ-APP-C01 — Auditoría y diseño técnico definitivo
 
 **Objetivo:** convertir este plan conceptual en un contrato técnico basado en el código y despliegue reales, sin cambiar todavía el comportamiento de producción.
 
@@ -312,14 +571,14 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Criterios de aceptación:**
 
-- [ ] Se documentó el flujo administrativo actual de extremo a extremo.
-- [ ] Se definió el flujo público nuevo y sus fronteras de seguridad.
-- [ ] Se confirmó si PocketBase almacenará directamente los archivos o si habrá un servicio persistente dedicado.
-- [ ] Se definieron nombres de colecciones, rutas y permisos.
-- [ ] Se confirmó el `applicationId` de PowerZona.
-- [ ] Se especificó cómo se ejecutarán campañas programadas.
-- [ ] No se modificó producción.
-- [ ] Este documento quedó actualizado con resultados y próximo paso.
+- [x] Se documentó el flujo administrativo actual de extremo a extremo.
+- [x] Se definió el flujo público nuevo y sus fronteras de seguridad.
+- [x] Se confirmó que PocketBase almacenará los archivos en `pb_data/storage` persistente del servidor Tu Senda 84.
+- [x] Se definieron nombres de colecciones, rutas y permisos.
+- [x] Se confirmó el `applicationId` de PowerZona: `com.tusenda84.powerzona`.
+- [x] Se especificó cómo se ejecutarán campañas programadas.
+- [x] No se modificó producción.
+- [x] Este documento quedó actualizado con resultados y próximo paso.
 
 ### [ ] PZ-APP-C02 — Modelo de datos, migraciones y aislamiento
 
@@ -327,7 +586,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Prompt para ejecutar:**
 
-> Implementa las migraciones y reglas de acceso acordadas en PZ-APP-C01 para la app pública y las campañas push. Mantén separadas las colecciones administrativas existentes. Cada registro debe pertenecer inequívocamente a una tienda. Agrega índices para búsquedas de token, identificador de instalación, estado, programación, fechas y campañas. Define estados válidos, retención, timestamps y relaciones. Las reglas de acceso directo deben ser de mínimo privilegio; las operaciones sensibles pasarán por hooks o endpoints controlados. Incluye rollback seguro cuando la arquitectura del proyecto lo permita. Añade pruebas automatizadas de aislamiento entre dos tiendas, duplicados, permisos y plan Premium. No despliegues a producción.
+> Implementa las migraciones y reglas de acceso acordadas en PZ-APP-C01 para la app pública y las campañas push. Mantén separadas las colecciones administrativas existentes. Cada registro debe pertenecer inequívocamente a una tienda. Agrega índices para búsquedas de digest de FID, instalación, estado, programación, fechas y campañas. Define estados válidos, retención, timestamps y relaciones. Las reglas de acceso directo deben ser de mínimo privilegio; las operaciones sensibles pasarán por hooks o endpoints controlados. Incluye rollback seguro cuando la arquitectura del proyecto lo permita. Añade pruebas automatizadas de aislamiento entre dos tiendas, duplicados, permisos y plan Premium. No despliegues a producción.
 
 **Modelo y nivel recomendado:** Sol — Extra High. Las migraciones, permisos y aislamiento multi-tienda tienen impacto crítico y requieren revisar consecuencias y rollback.
 
@@ -348,19 +607,19 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Prompt para ejecutar:**
 
-> Implementa endpoints públicos controlados para registrar, actualizar, renovar token, enviar heartbeat y desactivar una instalación de la app de una tienda. Usa una identidad de instalación estable dentro de lo posible, firma o credencial de app acordada, validación de tienda, rate limiting e idempotencia. Captura únicamente metadatos necesarios: versión, Android, modelo, idioma, zona horaria, permiso y estado. Obtén el IP desde el request confiable del servidor, no desde un campo manipulable del cliente. Restringe el IP completo al ámbito Master/seguridad y prepara datos geográficos agregados. No uses el IP como identificador. Añade pruebas de reinstalación simulada, renovación de FCM, duplicados, abuso y cruce de tiendas. Actualiza la documentación de privacidad.
+> Implementa endpoints públicos controlados para registrar, actualizar, detectar rotación de FID, enviar heartbeat y desactivar una instalación de la app de una tienda. Usa Firebase App Check y la credencial de instalación acordada, validación de tienda, rate limiting e idempotencia. Captura únicamente metadatos necesarios: versión, Android, modelo, idioma, zona horaria, permiso y estado. Obtén el IP desde el request confiable del servidor, no desde un campo manipulable del cliente. Restringe el IP completo al ámbito Master/seguridad y prepara datos geográficos agregados. No uses el IP como identificador. Añade pruebas de reinstalación simulada, rotación de FID, duplicados, abuso y cruce de tiendas. Actualiza la documentación de privacidad.
 
 **Modelo y nivel recomendado:** Sol — High. El contrato queda definido en las fases anteriores, pero la seguridad pública, idempotencia e identidad de instalación exigen razonamiento alto.
 
-**Prueba manual requerida:** Sí, en staging. Codex probará primero el API automáticamente y luego indicará cómo registrar una instalación, repetir el registro, renovar el token y desactivarla. La validación en teléfono puede posponerse hasta PZ-APP-C06, pero debe quedar registrada como pendiente.
+**Prueba manual requerida:** Sí, en staging. Codex probará primero el API automáticamente y luego indicará cómo registrar una instalación, repetir el registro, simular rotación de FID y desactivarla. La validación en teléfono puede posponerse hasta PZ-APP-C06, pero debe quedar registrada como pendiente.
 
 **Criterios de aceptación:**
 
 - [ ] Repetir el registro no crea duplicados para la misma instalación.
-- [ ] Renovar el token no pierde el historial de instalación.
+- [ ] Rotar el FID no pierde el historial auditable de instalación.
 - [ ] Una app no puede registrarse en una tienda arbitraria.
 - [ ] Existe rate limiting y validación de entradas.
-- [ ] IP y token no aparecen en logs generales.
+- [ ] IP, FID y credencial no aparecen en logs generales.
 - [ ] Se prueban altas, heartbeats, desactivación y errores.
 
 ### [ ] PZ-APP-C04 — Imágenes WebP persistentes
@@ -390,18 +649,18 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Prompt para ejecutar:**
 
-> Implementa el ciclo de vida de campañas: borrador, programada, procesando, enviada, parcialmente enviada, fallida y cancelada. Exige tienda, plan Premium activo y permiso `marketing.push.manage` o el nombre definitivo. Valida título, cuerpo, imagen y destino. Resuelve la audiencia solo dentro de la tienda, divide tokens en lotes compatibles con Firebase, registra resultados agregados y desactiva tokens inválidos permanentes. Protege contra envíos duplicados mediante idempotencia y bloqueos. Implementa envío inmediato y el mecanismo acordado para programación. Reutiliza el relay Firebase existente solo si la auditoría confirma que puede ampliarse sin comprometer las alertas administrativas. Añade pruebas de aislamiento, límites, reintentos, duplicados, Firebase parcial y downgrade de Premium.
+> Implementa el ciclo de vida de campañas: borrador, programada, procesando, enviada, parcialmente enviada, fallida y cancelada. Exige tienda, plan Premium activo y permiso `marketing.push.manage`. Valida título, cuerpo, imagen y destino. Resuelve la audiencia solo dentro de la tienda, divide FID en lotes compatibles con Firebase, registra resultados agregados y desactiva FID inválidos permanentes. Protege contra envíos duplicados mediante idempotencia y bloqueos. Implementa envío inmediato y el mecanismo acordado para programación. Mantén el relay administrativo v1 intacto y crea el contrato v2 acordado. Añade pruebas de aislamiento, límites, reintentos, duplicados, Firebase parcial y downgrade de Premium.
 
 **Modelo y nivel recomendado:** Sol — Extra High. Es el núcleo de la entrega y mezcla concurrencia, facturación Premium, Firebase, reintentos e aislamiento multi-tienda.
 
-**Prueba manual requerida:** Sí, con destinatarios de staging. Enviar una campaña inmediata y una programada, provocar al menos un token inválido y verificar que no haya duplicados. La recepción visual completa se repetirá después con la app PowerZona en PZ-APP-C07.
+**Prueba manual requerida:** Sí, con destinatarios de staging. Enviar una campaña inmediata y una programada, provocar al menos un FID inválido y verificar que no haya duplicados. La recepción visual completa se repetirá después con la app PowerZona en PZ-APP-C07.
 
 **Criterios de aceptación:**
 
 - [ ] Un usuario sin Premium o sin permiso no puede enviar.
 - [ ] Nunca se seleccionan instalaciones de otra tienda.
 - [ ] Los reintentos no duplican una campaña completa.
-- [ ] Tokens inválidos cambian de estado automáticamente.
+- [ ] FID inválidos cambian de estado automáticamente.
 - [ ] Las campañas programadas se ejecutan una sola vez.
 - [ ] Un fallo parcial queda visible y auditable.
 - [ ] Las alertas administrativas actuales continúan funcionando.
@@ -412,7 +671,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Prompt para ejecutar:**
 
-> Crea un proyecto Android nativo independiente llamado `mobile-storefront`, inspirado en las partes probadas de `mobile-admin` pero sin código de autenticación o permisos administrativos innecesarios. La app debe recibir su marca y URL desde una configuración de tienda, mostrar la web pública en un WebView seguro, gestionar estados sin conexión, abrir enlaces permitidos, solicitar permiso de notificaciones, obtener/renovar FCM y registrarse anónimamente con el backend. Implementa recepción FCM en primer plano, segundo plano y app cerrada. Añade manejo de deep links y eventos de apertura. No incluyas secretos ni un `google-services.json` real en Git. Incluye pruebas unitarias y build debug reproducible.
+> Crea un proyecto Android nativo independiente llamado `mobile-storefront`, inspirado en las partes probadas de `mobile-admin` pero sin código de autenticación o permisos administrativos innecesarios. La app debe recibir su marca y URL desde una configuración de tienda, mostrar la web pública en un WebView seguro, gestionar estados sin conexión, abrir enlaces permitidos, solicitar permiso de notificaciones, obtener/detectar cambios de FID y registrarse anónimamente con el backend. Implementa recepción FCM en primer plano, segundo plano y app cerrada. Añade manejo de deep links y eventos de apertura. No incluyas secretos ni un `google-services.json` real en Git. Incluye pruebas unitarias y build debug reproducible.
 
 **Modelo y nivel recomendado:** Sol — High. Hay varios componentes Android y de seguridad, pero el alcance estará definido por los contratos anteriores.
 
@@ -424,7 +683,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 - [ ] No comparte `applicationId` con la app administrativa.
 - [ ] La tienda abre sin inicio de sesión.
 - [ ] El permiso se solicita con contexto y puede reactivarse desde una tarjeta visible.
-- [ ] El token se registra y renueva correctamente.
+- [ ] El FID se registra y su rotación se procesa correctamente.
 - [ ] El WebView limita hosts, descargas y esquemas.
 - [ ] Existen pruebas para configuración y parsing de destinos.
 
@@ -472,7 +731,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 ### [ ] PZ-APP-C09 — Analítica de instalaciones y campañas
 
-**Objetivo:** medir instalaciones, salud de tokens y resultados reales de campañas sin exagerar la precisión.
+**Objetivo:** medir instalaciones, salud de FID y resultados reales de campañas sin exagerar la precisión.
 
 **Prompt para ejecutar:**
 
@@ -518,7 +777,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Prompt para ejecutar:**
 
-> Despliega únicamente en staging las migraciones, backend, medios, relay y panel ya aprobados. Ejecuta pruebas automáticas y una matriz manual en emulador y teléfono Android físico. Instala la app PowerZona de staging, acepta y deniega permisos, fuerza renovación de token, cierra por completo la app y envía campañas de todos los tipos. Verifica imagen WebP, deep links, cupón, programación, cancelación, tokens inválidos, modo ahorro de batería, reinicio del teléfono, desconexión temporal y aislamiento con una segunda tienda. Registra evidencias, logs sanitizados, tiempos y resultados en este documento. No despliegues producción durante este prompt.
+> Despliega únicamente en staging las migraciones, backend, medios, relay y panel ya aprobados. Ejecuta pruebas automáticas y una matriz manual en emulador y teléfono Android físico. Instala la app PowerZona de staging, acepta y deniega permisos, simula rotación de FID, cierra por completo la app y envía campañas de todos los tipos. Verifica imagen WebP, deep links, cupón, programación, cancelación, FID inválidos, modo ahorro de batería, reinicio del teléfono, desconexión temporal y aislamiento con una segunda tienda. Registra evidencias, logs sanitizados, tiempos y resultados en este documento. No despliegues producción durante este prompt.
 
 **Modelo y nivel recomendado:** Sol — Max. Es la revisión integral con mayor cantidad de componentes y combinaciones antes de producción; aquí la profundidad importa más que la velocidad.
 
@@ -531,7 +790,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 - [ ] El toque abre cada destino esperado.
 - [ ] La campaña programada se ejecuta una sola vez.
 - [ ] La segunda tienda no recibe la campaña de PowerZona.
-- [ ] Permiso denegado y token inválido se reflejan correctamente.
+- [ ] Permiso denegado y FID inválido se reflejan correctamente.
 - [ ] No hay regresión en la app administrativa 1.0.2.
 - [ ] El propietario aprueba explícitamente pasar a producción.
 
@@ -571,7 +830,7 @@ El proyecto completo solo se marcará terminado cuando:
 - [ ] Solo planes Premium autorizados pueden enviar campañas.
 - [ ] No existe fuga de datos o destinatarios entre tiendas.
 - [ ] El panel muestra instalaciones y métricas con definiciones honestas.
-- [ ] Los tokens inválidos se detectan y desactivan.
+- [ ] Los FID inválidos se detectan y desactivan.
 - [ ] Se controlan frecuencia, audiencia, tamaño de imagen y cuotas.
 - [ ] No existen secretos o firmas dentro del repositorio.
 - [ ] Se puede construir otra app de tienda cambiando configuración, sin duplicar el código.
@@ -598,7 +857,7 @@ El proyecto completo solo se marcará terminado cuando:
 | Restricciones de batería de Samsung/Android | Push tardía | Mensajes FCM adecuados y pruebas físicas con ahorro de energía |
 | Filtración entre tiendas | Crítico | Filtros backend, reglas e integración con dos tiendas en pruebas |
 | Abuso de campañas | Coste y daño reputacional | Premium backend, permisos, cuotas, confirmaciones y rate limits |
-| Token FCM inválido | Métricas y envíos degradados | Limpieza automática según respuestas de Firebase |
+| FID inválido | Métricas y envíos degradados | Limpieza automática según respuestas de Firebase |
 | Archivos maliciosos | Seguridad | Decodificar, validar, reconvertir y limitar del lado servidor |
 | Pérdida de imágenes en despliegue | Campañas rotas | Volumen persistente, backup y URL estable |
 | Deep link inseguro | Phishing o escape del WebView | Allowlist de hosts/rutas y contratos tipados |
@@ -611,7 +870,7 @@ El proyecto completo solo se marcará terminado cuando:
 
 ### Puerta A — Antes de modificar datos
 
-- [ ] PZ-APP-C01 aprobado.
+- [x] PZ-APP-C01 aprobado.
 - [ ] Backup y rollback definidos.
 - [ ] Nombres y reglas de colecciones confirmados.
 
@@ -635,22 +894,27 @@ El proyecto completo solo se marcará terminado cuando:
 - [ ] Versionado, firma y Data Safety confirmados.
 - [ ] Aprobación explícita separada para publicación pública.
 
-## 13. Decisiones pendientes
+## 13. Decisiones de PZ-APP-C01
 
-Estas decisiones deben resolverse en PZ-APP-C01 y registrarse aquí:
+Todas las decisiones requeridas para cerrar PZ-APP-C01 quedaron resueltas y registradas:
 
-- [ ] `applicationId` definitivo de PowerZona, por ejemplo `com.tusenda84.powerzona` o una identidad propia de la marca.
-- [ ] Nombre visible exacto de la app.
-- [ ] Icono, splash y paleta aprobados.
-- [ ] Subdominio de medios definitivo.
-- [ ] Uso de archivos PocketBase o volumen persistente dedicado.
-- [ ] Peso y dimensiones máximas de la imagen original y WebP final.
-- [ ] Retención del IP completo y de eventos individuales.
-- [ ] Límite de campañas por día/mes y máximo de audiencia por tienda.
-- [ ] Proveedor/mecanismo del trabajo programado.
-- [ ] Comportamiento del módulo cuando una tienda baja de Premium.
-- [ ] Nombre definitivo del permiso administrativo.
-- [ ] Reglas exactas de atribución de orden y cupón.
+- [x] `applicationId` definitivo de PowerZona: `com.tusenda84.powerzona`.
+- [x] Nombre visible exacto de la app: `PowerZona`.
+- [x] Maestro de identidad premium v3 aprobado por el propietario; v1 y v2 A/B rechazados y conservados solo como historial.
+- [x] Símbolo launcher, splash y paleta v3 derivados y aprobados explícitamente por el propietario.
+- [x] Subdominio de medios definitivo: `media.tusenda84.com` como alias estable.
+- [x] Uso de archivos PocketBase: `push_media.file` en el `pb_data/storage` persistente del servidor Tu Senda 84.
+- [x] Peso y dimensiones máximas: 8 MiB/6000 px/36 MP de entrada; 1200 × 630/750 KiB de salida.
+- [x] Retención del IP completo y de eventos individuales: 30 y 180 días respectivamente.
+- [x] Límite diario: 6 campañas iniciadas por tienda; cada instalación elegible puede recibir las 6 en el día calendario de la tienda.
+- [x] Límite mensual: 186 campañas iniciadas por tienda.
+- [x] Audiencia por campaña: todas las instalaciones activas y elegibles, sin máximo fijo; lotes de hasta 500 y control de velocidad según la cuota vigente de FCM.
+- [x] Proveedor/mecanismo del trabajo programado: `cronAdd` de PocketBase cada minuto, con lease transaccional, snapshot único y entregas idempotentes.
+- [x] Comportamiento cuando una tienda baja de Premium: solo lectura y `paused_plan`, sin reanudación automática; el escaparate instalado no se rompe.
+- [x] Nombre definitivo del permiso administrativo: `marketing.push.manage`; capability: `push_campaigns_enabled`.
+- [x] Reglas de atribución de orden y cupón: vínculo de instalación verificado y ventana de siete días desde el toque.
+- [x] App pública white-label, configuración, builds y campañas exclusivos del plan Premium.
+- [x] App Check/Play Integrity obligatorio y probado por separado para APK directo y Google Play.
 
 ## 14. Protocolo para completar cada prompt
 
@@ -816,3 +1080,74 @@ Se añadió a cada prompt el modelo y nivel de razonamiento recomendado, junto c
 #### Siguiente paso
 
 - Ejecutar PZ-APP-C01 con Sol — Extra High.
+
+### 2026-08-11 — PZ-APP-C01 — Auditoría y diseño técnico definitivo
+
+- Estado: COMPLETADO
+- Responsable: Codex / propietario de Tu Senda 84
+- Entorno: local (auditoría documental; sin despliegues)
+- Branch: `HEAD` separado en `064d584f9de8c98638d4cb1bb035eb05b76c2458`
+- Commit: pendiente
+- Fecha/hora de inicio: 2026-08-11 17:32:56 -04:00
+- Fecha/hora de cierre: 2026-08-11 19:43:07 -04:00
+
+#### Objetivo ejecutado
+
+Se completó la auditoría técnica local del código y se documentó el diseño definitivo de la app pública white-label y las campañas push Premium. El propietario aprobó identidad nominal, `applicationId`, exclusividad Premium, almacenamiento, límites, downgrade, retención, atribución, App Check, el maestro visual v3 y sus derivados. V1 y v2 A/B permanecen como historial rechazado. PZ-APP-C01 cumple todos sus criterios de aceptación y queda completado. No se implementó PZ-APP-C02.
+
+#### Archivos modificados
+
+- `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
+- `docs/tusenda84/brand/powerzona/BRAND_GUIDE.md`
+- `docs/tusenda84/brand/powerzona/powerzona-icon-master-v1.png`
+- `docs/tusenda84/brand/powerzona/powerzona-splash-master-v1.png`
+- `docs/tusenda84/brand/powerzona/powerzona-palette.svg`
+- `docs/tusenda84/brand/powerzona/powerzona-icon-premium-v2a.png`
+- `docs/tusenda84/brand/powerzona/powerzona-icon-premium-v2b.png`
+- `docs/tusenda84/brand/powerzona/powerzona-icon-premium-v3.png`
+- `docs/tusenda84/brand/powerzona/powerzona-icon-symbol-v3.png`
+- `docs/tusenda84/brand/powerzona/powerzona-splash-premium-v3.png`
+- `docs/tusenda84/brand/powerzona/powerzona-palette-v3.svg`
+
+#### Migraciones o infraestructura
+
+- Ninguna.
+
+#### Pruebas y resultados
+
+- Preflight Git: `HEAD` separado en `064d584f9de8c98638d4cb1bb035eb05b76c2458`; árbol inicialmente limpio; `.tmp/` ausente.
+- Se leyó completamente este plan y se auditó `mobile-admin`, hooks/migraciones/pruebas PocketBase, relay SSR Firebase, planes, capabilities, permisos, middleware, rutas públicas/admin, configuración de despliegue y borrado multi-tienda.
+- Backend focal: `node --test tests\\pz_store_push_devices.test.cjs tests\\pz_store_push_dispatch.test.cjs tests\\pz_store_background_notifications.test.cjs tests\\pz_store_plans.test.cjs tests\\pz_store_capabilities.test.cjs tests\\pz_store_team_permissions.test.cjs tests\\pz_store_plan_management.test.cjs` → **104/104 aprobadas**.
+- Frontend relay: `node --test tests\\pushRelayPayload.test.mjs` → **9/9 aprobadas**.
+- No se ejecutó build: el único cambio es Markdown y `frontend-powerzona/node_modules` no está instalado en este worktree; no se descargaron dependencias para una auditoría documental.
+- Revisión oficial: Firebase FID/FCM/App Check/payloads y PocketBase cron/files/routes, referencias registradas en 6.12.
+
+#### Decisiones tomadas
+
+- Separar completamente instalaciones/campañas públicas de `store_push_devices`/`store_notifications`.
+- Usar gateway Astro con Firebase App Check, secreto interno dedicado y endpoints PocketBase cerrados.
+- Usar nombres, contratos, deep links tipados, aislamiento y programación definidos en 6.3-6.8.
+- Reservar `marketing.push.manage` y `push_campaigns_enabled`.
+- Mantener el relay administrativo v1 sin cambios y crear v2 para storefront.
+- Decisión humana inicial, sustituida posteriormente: máximo 5 campañas por tienda al día y 155 al mes.
+- Decisión humana vigente: máximo 6 campañas por tienda al día, 186 al mes y cada instalación elegible puede recibir las 6 diarias.
+- Decisión humana registrada: sin máximo fijo de audiencia; cada campaña alcanza a todas las instalaciones elegibles y el backend respeta la cuota técnica de FCM.
+- Decisión humana registrada: la app white-label es exclusiva de Premium; un downgrade suspende push/provisión sin romper el escaparate instalado.
+- Decisión humana registrada: medios en PocketBase `pb_data/storage` del servidor Tu Senda 84, con alias, límites y retención definidos en 6.6 y 6.13.
+- Decisión humana registrada: downgrade, retención, atribución de siete días y App Check/Play Integrity aprobados.
+- La habilidad `imagegen` produjo la v1 y v2 A/B, luego rechazados y preservados, y el maestro v3 original que el propietario aprobó. Desde v3 derivó el símbolo launcher y splash; la paleta v3 se creó determinísticamente como SVG con tokens exactos. Prompts, hashes, reglas y estados quedaron documentados en la guía de marca.
+
+#### Riesgos, deuda o bloqueos
+
+- Prueba manual visual completada: el propietario confirmó `derivados v3 aprobados`. No quedan bloqueos abiertos de PZ-APP-C01.
+- El repositorio no demuestra el mount real de Coolify para `/app/pb_data`; C04 debe probar persistencia y restauración en staging.
+- App Check/Play Integrity para APK directo debe configurarse y probarse por separado del canal Google Play.
+- FCM no ofrece exactly-once extremo a extremo; los timeouts ambiguos se marcarán `unknown` sin reintento automático.
+
+#### Despliegue
+
+- No realizado ni autorizado. No se modificaron producción, staging, Cloudflare, Coolify, Firebase ni PocketBase runtime.
+
+#### Siguiente paso
+
+- PZ-APP-C01 cerrado. PZ-APP-C02 permanece `PENDIENTE` y no debe iniciarse sin autorización expresa del propietario.

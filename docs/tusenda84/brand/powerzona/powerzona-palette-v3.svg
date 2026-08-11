@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">PowerZona — Paleta premium v3</title>
+  <desc id="desc">Paleta zafiro, cobalto, platino y blanco perlado aprobada como candidata para la identidad v3.</desc>
+  <rect width="1200" height="720" fill="#F8FAFF"/>
+  <text x="72" y="88" fill="#081735" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="700">PowerZona</text>
+  <text x="72" y="128" fill="#465574" font-family="Inter, Arial, sans-serif" font-size="22" letter-spacing="2">PALETA PREMIUM V3</text>
+
+  <g transform="translate(72 190)">
+    <rect width="330" height="190" rx="24" fill="#071F63"/>
+    <text x="28" y="136" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Zafiro profundo</text>
+    <text x="28" y="170" fill="#DCE7FF" font-family="ui-monospace, Consolas, monospace" font-size="21">#071F63</text>
+  </g>
+  <g transform="translate(435 190)">
+    <rect width="330" height="190" rx="24" fill="#155EEB"/>
+    <text x="28" y="136" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Cobalto energía</text>
+    <text x="28" y="170" fill="#EAF1FF" font-family="ui-monospace, Consolas, monospace" font-size="21">#155EEB</text>
+  </g>
+  <g transform="translate(798 190)">
+    <rect width="330" height="190" rx="24" fill="#4A8DFF"/>
+    <text x="28" y="136" fill="#071F63" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Azul destello</text>
+    <text x="28" y="170" fill="#071F63" font-family="ui-monospace, Consolas, monospace" font-size="21">#4A8DFF</text>
+  </g>
+
+  <g transform="translate(72 414)">
+    <rect width="330" height="190" rx="24" fill="#C7D0DE"/>
+    <text x="28" y="136" fill="#081735" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Platino</text>
+    <text x="28" y="170" fill="#081735" font-family="ui-monospace, Consolas, monospace" font-size="21">#C7D0DE</text>
+  </g>
+  <g transform="translate(435 414)">
+    <rect width="330" height="190" rx="24" fill="#E9F1FF" stroke="#C7D0DE" stroke-width="2"/>
+    <text x="28" y="136" fill="#081735" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Hielo luminoso</text>
+    <text x="28" y="170" fill="#465574" font-family="ui-monospace, Consolas, monospace" font-size="21">#E9F1FF</text>
+  </g>
+  <g transform="translate(798 414)">
+    <rect width="330" height="190" rx="24" fill="#FFFFFF" stroke="#C7D0DE" stroke-width="2"/>
+    <text x="28" y="136" fill="#081735" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Blanco perla</text>
+    <text x="28" y="170" fill="#465574" font-family="ui-monospace, Consolas, monospace" font-size="21">#FFFFFF</text>
+  </g>
+
+  <text x="72" y="672" fill="#465574" font-family="Inter, Arial, sans-serif" font-size="19">Base de implementación: Zafiro #071F63 · Primario #155EEB · Texto oscuro #081735 · Fondo #F8FAFF</text>
+</svg>
