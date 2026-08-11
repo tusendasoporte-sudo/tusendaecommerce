@@ -103,6 +103,39 @@ test('VPN-PILOT: produccion usa el cliente validado antes del borde IPv4 de Clou
   assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
 });
 
+test('VPN-PILOT: runtime publico IPv4 de Cloudflare usa la IP real confirmada', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '198.51.100.24',
+      'cf-connecting-ip': '198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '104.23.248.93');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
+});
+
+test('VPN-PILOT: runtime publico IPv6 de Cloudflare usa la IP real confirmada', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '2001:db8:1234:0:0:0:0:8',
+      'cf-connecting-ip': '2001:db8:1234::8',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '2606:4700:3030::6816:6632');
+  assert.equal(headers['X-Forwarded-For'], '2001:db8:1234::8');
+});
+
+test('VPN-PILOT: runtime Cloudflare con cabeceras discrepantes conserva el borde', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '203.0.113.99',
+      'cf-connecting-ip': '198.51.100.24',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '104.23.248.93');
+  assert.equal(headers['X-Forwarded-For'], '104.23.248.93');
+});
+
 test('VPN-PILOT: produccion ignora IP inyectada antes del cliente confirmado por Cloudflare', () => {
   const request = new Request('https://tusenda84.com/api/security/track-navigation', {
     headers: {

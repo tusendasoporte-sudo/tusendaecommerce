@@ -167,8 +167,11 @@ function sameIp(left: string, right: string) {
   return exactAddress.check(comparableRight, 'ipv6');
 }
 
-function trustedCloudflareClientAddress(request: Request, publicAddresses: string[]) {
-  const edgeAddress = publicAddresses.at(-1) || '';
+function trustedCloudflareClientAddress(
+  request: Request,
+  publicAddresses: string[],
+  edgeAddress = publicAddresses.at(-1) || '',
+) {
   if (!edgeAddress || !isCloudflareProxyAddress(edgeAddress)) return '';
 
   const connectingAddress = normalizedIp(request.headers.get('cf-connecting-ip'));
@@ -176,8 +179,11 @@ function trustedCloudflareClientAddress(request: Request, publicAddresses: strin
     || isPrivateProxyAddress(connectingAddress)
     || isCloudflareProxyAddress(connectingAddress)) return '';
 
-  return publicAddresses
-    .slice(0, -1)
+  const edgeIndex = publicAddresses.findLastIndex((address) => sameIp(address, edgeAddress));
+  const clientCandidates = edgeIndex >= 0
+    ? publicAddresses.slice(0, edgeIndex)
+    : publicAddresses;
+  return clientCandidates
     .some((address) => sameIp(address, connectingAddress))
     ? connectingAddress
     : '';
@@ -195,7 +201,10 @@ function proxyIpClass(value: unknown): ProxyIpClass {
 
 function resolvedClientAddress(request: Request, clientAddress?: string) {
   const runtimeAddress = normalizedIp(clientAddress);
-  if (!runtimeAddress || !isPrivateProxyAddress(runtimeAddress)) return runtimeAddress;
+  if (!runtimeAddress) return '';
+  const privateRuntime = isPrivateProxyAddress(runtimeAddress);
+  const cloudflareRuntime = isCloudflareProxyAddress(runtimeAddress);
+  if (!privateRuntime && !cloudflareRuntime) return runtimeAddress;
 
   const forwardedFor = request.headers.get('x-forwarded-for') || '';
   if (!forwardedFor || forwardedFor.length > MAX_FORWARDED_FOR_BYTES) return runtimeAddress;
@@ -205,6 +214,10 @@ function resolvedClientAddress(request: Request, clientAddress?: string) {
     .map(normalizedIp)
     .filter(Boolean);
   const publicAddresses = forwardedAddresses.filter((address) => !isPrivateProxyAddress(address));
+  if (cloudflareRuntime) {
+    return trustedCloudflareClientAddress(request, publicAddresses, runtimeAddress)
+      || runtimeAddress;
+  }
   return trustedCloudflareClientAddress(request, publicAddresses)
     || publicAddresses.at(-1)
     || runtimeAddress;
