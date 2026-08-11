@@ -474,7 +474,7 @@ const totalPages = products?.page.total_pages || 1;
   const shell = document.querySelector<HTMLElement>('[data-master-products-store]');
   const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   if (shell && pocketbaseUrl) {
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     shell.querySelectorAll<HTMLButtonElement>('[data-watch-enable]').forEach((button) => {
       button.addEventListener('click', async () => {
         const productId = String(button.dataset.watchEnable || '');

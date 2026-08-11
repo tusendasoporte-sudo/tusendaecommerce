@@ -49,6 +49,27 @@ test('servicio de dispositivos usa solo endpoints privados sanitizados', () => {
   for (const secret of ['device_digest', 'tokenKey', 'user_agent', 'location', 'latitude', 'longitude']) assert.doesNotMatch(devices, new RegExp(secret, 'i'));
 });
 
+test('acciones Master siempre sincronizan la cookie activa antes de usar el cliente compartido', () => {
+  const masterComponents = [
+    'MasterStoreUsersView.astro',
+    'MasterStoreUserDetailView.astro',
+    'MasterStoreProductsView.astro',
+    'MasterStorePlanView.astro',
+    'MasterStoreDeleteDialog.astro',
+    'MasterNotificationsDeleteAllDialog.astro',
+    'MasterNotificationsBell.astro',
+    'MasterProductReadonlyView.astro',
+    'MasterNotificationsView.astro',
+    'MasterPriceWatchDetailView.astro',
+    'MasterStoreActionsController.astro',
+  ].map((name) => read(`src/components/master/${name}`));
+  for (const component of masterComponents) {
+    assert.match(component, /pb\.authStore\.loadFromCookie\(document\.cookie, 'pb_auth'\)/);
+    assert.doesNotMatch(component, /if \(!pb\.authStore\.isValid\)\s+pb\.authStore\.loadFromCookie/);
+  }
+  assert.match(devices, /candidate\?\.message/);
+});
+
 test('servicio de cuenta limpia auth y cookie despues de mutaciones', () => {
   assert.match(account, /change-temporary-password/);
   assert.match(account, /change-password/);

@@ -237,7 +237,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
       }
       setLoading(true);
       syncSubmitState();
-      if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+      pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
       if (!pocketbaseUrl || !pb.authStore.isValid || !pb.authStore.token) {
         if (sequence !== requestSequence) return;
         setLoading(false);
@@ -299,7 +299,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
     submitButton?.addEventListener('click', async () => {
       if (executing || !preview || !confirmationInput || confirmationInput.value !== preview.confirmation_phrase) return;
-      if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+      pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
       if (!pb.authStore.isValid || !pb.authStore.token) {
         setError('Tu sesión Master ya no está disponible. No se eliminó la tienda.');
         return;

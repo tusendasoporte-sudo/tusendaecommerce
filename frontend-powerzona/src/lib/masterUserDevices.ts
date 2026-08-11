@@ -53,7 +53,14 @@ function post<T>(client: PocketBase, action: string, body: Record<string, unknow
 
 export function getMasterDeviceErrorMessage(error: unknown) {
   const candidate = error as any;
-  const code = String(candidate?.data?.error || candidate?.response?.error || candidate?.response?.data?.error || '');
+  const code = String(
+    candidate?.data?.error
+      || candidate?.response?.error
+      || candidate?.response?.data?.error
+      || candidate?.code
+      || candidate?.message
+      || '',
+  );
   const messages: Record<string, string> = {
     unauthorized: 'No tienes permisos para gestionar dispositivos.',
     store_not_found: 'No se encontró la tienda.',

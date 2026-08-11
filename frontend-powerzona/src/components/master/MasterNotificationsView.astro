@@ -184,7 +184,7 @@ const firstPageHref = pageHref(1);
   const notificationsView = document.querySelector<HTMLElement>('[data-notifications-view]');
   const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   if (notificationsView && pocketbaseUrl) {
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     const currentPage = Math.max(1, Number(notificationsView.dataset.currentPage || 1));
     const firstPageHref = String(notificationsView.dataset.firstPageHref || '/master/notifications');
 

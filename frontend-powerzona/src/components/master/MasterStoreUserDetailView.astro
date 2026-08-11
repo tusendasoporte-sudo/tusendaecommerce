@@ -137,7 +137,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
   import { pb } from '../../lib/pocketbase';
   const root = document.querySelector<HTMLElement>('[data-master-user-detail]');
   if (root) {
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     const storeId = root.dataset.storeId || ''; const userId = root.dataset.userId || '';
     const readView = root.querySelector<HTMLElement>('[data-user-read-view]'); const editForm = root.querySelector<HTMLFormElement>('[data-user-edit-form]'); const editMessage = root.querySelector<HTMLElement>('[data-edit-message]');
     root.querySelector('[data-edit-user]')?.addEventListener('click', () => { if (readView) readView.hidden = true; if (editForm) editForm.hidden = false; });

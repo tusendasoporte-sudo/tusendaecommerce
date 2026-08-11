@@ -142,7 +142,7 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
   import { pb } from '../../lib/pocketbase';
   const root = document.querySelector<HTMLElement>('[data-master-users-root]');
   if (root) {
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     const storeId = root.dataset.storeId || '';
     const compactMode = root.dataset.compactMode === 'true';
     const primaryAdminId = root.dataset.primaryAdminId || '';

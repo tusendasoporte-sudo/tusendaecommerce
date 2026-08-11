@@ -455,7 +455,7 @@ const watch = history?.watch || {
   const watchDetail = document.querySelector<HTMLElement>('[data-watch-detail]');
   const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   if (watchDetail && pocketbaseUrl) {
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     watchDetail.querySelectorAll<HTMLButtonElement>('[data-watch-action]').forEach((button) => {
       button.addEventListener('click', async () => {
         const action = String(button.dataset.watchAction || '') as 'enable' | 'pause' | 'resume';

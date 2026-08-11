@@ -237,7 +237,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
     panel.style.removeProperty('width');
     panel.style.removeProperty('top');
 
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
     let unreadCount = 0;
     let initialLoadComplete = false;
     let refreshTimer = 0;

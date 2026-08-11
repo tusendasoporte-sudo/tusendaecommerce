@@ -293,7 +293,7 @@ const planCopy: Record<MasterPlanCode, { title: string; price: string; period: s
   const root = document.querySelector<HTMLElement>('[data-plan-page]');
   if (root && root.dataset.planInitialized !== 'true') {
     root.dataset.planInitialized = 'true';
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
 
     const storeId = String(root.dataset.storeId || '');
     const currentPlan = String(root.dataset.currentPlan || 'free') as MasterPlanCode;

@@ -95,7 +95,7 @@ import MasterStoreDeleteDialog from './MasterStoreDeleteDialog.astro';
   const controller = document.querySelector<HTMLElement>('[data-master-store-actions-controller]');
   if (controller && controller.dataset.initialized !== 'true') {
     controller.dataset.initialized = 'true';
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
 
     const storeMenu = controller.querySelector<HTMLElement>('#master-store-actions');
     const securityMenu = controller.querySelector<HTMLElement>('#master-security-actions');

@@ -55,7 +55,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 
     confirmButton?.addEventListener('click', async () => {
       if (!pocketbaseUrl || !confirmButton) return;
-      if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+      pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
       if (!pb.authStore.isValid || !pb.authStore.token) return;
       confirmButton.disabled = true;
       if (cancelButton) cancelButton.disabled = true;

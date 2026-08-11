@@ -225,7 +225,7 @@ function movementPrice(value: number) {
   const root = document.querySelector<HTMLElement>('[data-price-watch-detail]');
   const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
   if (root && pocketbaseUrl) {
-    if (!pb.authStore.isValid) pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
+    pb.authStore.loadFromCookie(document.cookie, 'pb_auth');
 
     root.querySelectorAll<HTMLButtonElement>('[data-watch-action]').forEach((button) => {
       button.addEventListener('click', async () => {
