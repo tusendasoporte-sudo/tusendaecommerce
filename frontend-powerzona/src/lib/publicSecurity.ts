@@ -167,6 +167,14 @@ function sameIp(left: string, right: string) {
   return exactAddress.check(comparableRight, 'ipv6');
 }
 
+function cloudflareConnectingAddress(request: Request) {
+  const connectingAddress = normalizedIp(request.headers.get('cf-connecting-ip'));
+  if (!connectingAddress
+    || isPrivateProxyAddress(connectingAddress)
+    || isCloudflareProxyAddress(connectingAddress)) return '';
+  return connectingAddress;
+}
+
 function trustedCloudflareClientAddress(
   request: Request,
   publicAddresses: string[],
@@ -174,10 +182,8 @@ function trustedCloudflareClientAddress(
 ) {
   if (!edgeAddress || !isCloudflareProxyAddress(edgeAddress)) return '';
 
-  const connectingAddress = normalizedIp(request.headers.get('cf-connecting-ip'));
-  if (!connectingAddress
-    || isPrivateProxyAddress(connectingAddress)
-    || isCloudflareProxyAddress(connectingAddress)) return '';
+  const connectingAddress = cloudflareConnectingAddress(request);
+  if (!connectingAddress) return '';
 
   const edgeIndex = publicAddresses.findLastIndex((address) => sameIp(address, edgeAddress));
   const clientCandidates = edgeIndex >= 0
@@ -205,6 +211,9 @@ function resolvedClientAddress(request: Request, clientAddress?: string) {
   const privateRuntime = isPrivateProxyAddress(runtimeAddress);
   const cloudflareRuntime = isCloudflareProxyAddress(runtimeAddress);
   if (!privateRuntime && !cloudflareRuntime) return runtimeAddress;
+  if (cloudflareRuntime) {
+    return cloudflareConnectingAddress(request) || runtimeAddress;
+  }
 
   const forwardedFor = request.headers.get('x-forwarded-for') || '';
   if (!forwardedFor || forwardedFor.length > MAX_FORWARDED_FOR_BYTES) return runtimeAddress;
@@ -214,10 +223,6 @@ function resolvedClientAddress(request: Request, clientAddress?: string) {
     .map(normalizedIp)
     .filter(Boolean);
   const publicAddresses = forwardedAddresses.filter((address) => !isPrivateProxyAddress(address));
-  if (cloudflareRuntime) {
-    return trustedCloudflareClientAddress(request, publicAddresses, runtimeAddress)
-      || runtimeAddress;
-  }
   return trustedCloudflareClientAddress(request, publicAddresses)
     || publicAddresses.at(-1)
     || runtimeAddress;
@@ -249,8 +254,6 @@ export function publicSecurityProxyDiagnostics(request: Request, clientAddress?:
       truncated: forwardedEntries.length > MAX_DIAGNOSTIC_FORWARDED_ENTRIES,
     },
     x_real_ip: proxyIpClass(request.headers.get('x-real-ip')),
-    cf_connecting_ip: proxyIpClass(request.headers.get('cf-connecting-ip')),
-    cf_connecting_ipv6: proxyIpClass(request.headers.get('cf-connecting-ipv6')),
     forwarded_host_present: Boolean(String(request.headers.get('x-forwarded-host') || '').trim()),
     forwarded_proto: forwardedProto === 'http' || forwardedProto === 'https'
       ? forwardedProto

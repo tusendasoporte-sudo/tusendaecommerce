@@ -125,7 +125,7 @@ test('VPN-PILOT: runtime publico IPv6 de Cloudflare usa la IP real confirmada', 
   assert.equal(headers['X-Forwarded-For'], '2001:db8:1234::8');
 });
 
-test('VPN-PILOT: runtime Cloudflare con cabeceras discrepantes conserva el borde', () => {
+test('VPN-PILOT: runtime Cloudflare confia en su cabecera aunque Coolify reescriba X-Forwarded-For', () => {
   const request = new Request('https://tusenda84.com/api/security/track-navigation', {
     headers: {
       'x-forwarded-for': '203.0.113.99',
@@ -133,7 +133,30 @@ test('VPN-PILOT: runtime Cloudflare con cabeceras discrepantes conserva el borde
     },
   });
   const headers = publicSecurityProxyHeaders(request, '104.23.248.93');
+  assert.equal(headers['X-Forwarded-For'], '198.51.100.24');
+});
+
+test('VPN-PILOT: runtime Cloudflare sin cabecera de cliente conserva el borde', () => {
+  const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+    headers: {
+      'x-forwarded-for': '203.0.113.99',
+    },
+  });
+  const headers = publicSecurityProxyHeaders(request, '104.23.248.93');
   assert.equal(headers['X-Forwarded-For'], '104.23.248.93');
+});
+
+test('VPN-PILOT: runtime Cloudflare rechaza una cabecera de cliente privada, invalida o de borde', () => {
+  for (const connectingIp of ['10.0.1.7', 'not-an-ip', '104.22.102.50']) {
+    const request = new Request('https://tusenda84.com/api/security/track-navigation', {
+      headers: {
+        'x-forwarded-for': '203.0.113.99',
+        'cf-connecting-ip': connectingIp,
+      },
+    });
+    const headers = publicSecurityProxyHeaders(request, '104.23.248.93');
+    assert.equal(headers['X-Forwarded-For'], '104.23.248.93', connectingIp);
+  }
 });
 
 test('VPN-PILOT: produccion ignora IP inyectada antes del cliente confirmado por Cloudflare', () => {
@@ -195,6 +218,7 @@ test('BLOCKS03B: cliente publico directo ignora X-Forwarded-For controlado por e
   const request = new Request('https://shop.example/api/security/track-navigation', {
     headers: {
       'x-forwarded-for': '10.0.1.1, 203.0.113.99',
+      'cf-connecting-ip': '203.0.113.99',
     },
   });
   const headers = publicSecurityProxyHeaders(request, '198.51.100.8');
@@ -216,8 +240,6 @@ test('BLOCKS03B: diagnostico de proxy solo devuelve clasificaciones y no valores
     headers: {
       'x-forwarded-for': '10.0.1.1, 198.51.100.24:443, forged',
       'x-real-ip': '203.0.113.10',
-      'cf-connecting-ip': '198.51.100.30',
-      'cf-connecting-ipv6': '2001:db8::10',
       'x-forwarded-host': 'private.example',
       'x-forwarded-proto': 'https',
     },
@@ -236,27 +258,23 @@ test('BLOCKS03B: diagnostico de proxy solo devuelve clasificaciones y no valores
       truncated: false,
     },
     x_real_ip: 'public',
-    cf_connecting_ip: 'public',
-    cf_connecting_ipv6: 'public',
     forwarded_host_present: true,
     forwarded_proto: 'https',
   });
   assert.doesNotMatch(
     JSON.stringify(result),
-    /10\.0\.1\.1|198\.51\.100\.(?:24|30)|203\.0\.113\.10|2001:db8::10|private\.example/,
+    /10\.0\.1\.1|198\.51\.100\.24|203\.0\.113\.10|private\.example/,
   );
 });
 
-test('BLOCKS03B: diagnostico temporal exige un host exacto permitido y cabecera explicita', () => {
+test('BLOCKS03B: diagnostico temporal exige host exacto de staging y cabecera explicita', () => {
   const navigationApi = read('../src/pages/api/security/track-navigation.ts');
   assert.match(navigationApi, /STAGING_DIAGNOSTIC_HOST = 'mob76fcvxkxyb8tq0nwys18o\.91\.99\.99\.83\.sslip\.io'/);
-  assert.match(navigationApi, /PRODUCTION_DIAGNOSTIC_HOST = 'tusenda84\.com'/);
-  assert.match(navigationApi, /PROXY_DIAGNOSTIC_HOSTS\.has\(new URL\(request\.url\)\.hostname\.toLowerCase\(\)\)/);
-  assert.doesNotMatch(navigationApi, /hostname\.(?:endsWith|includes)\(/);
+  assert.doesNotMatch(navigationApi, /PRODUCTION_DIAGNOSTIC_HOST|tusenda84\.com/);
   assert.match(navigationApi, /request\.headers\.get\(PROXY_DIAGNOSTIC_HEADER\) === 'classify'/);
   assert.match(navigationApi, /publicSecurityProxyDiagnostics\(request, clientAddress\)/);
   assert.ok(
-    navigationApi.indexOf('isAllowedProxyDiagnostic(request)')
+    navigationApi.indexOf('isStagingProxyDiagnostic(request)')
       < navigationApi.indexOf("request.headers.get('content-length')"),
   );
 });
