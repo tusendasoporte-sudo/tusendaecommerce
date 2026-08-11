@@ -375,12 +375,33 @@ runtimeTest('U7I7 HTTP PocketBase 0.38.2 valida temporales, sesiones, dispositiv
     assert.equal(expiredLogin.status, 400);
     assert.equal(expiredLogin.data.data.temporary_password_expired.code, 'temporary_password_expired');
 
+    const pushInstallationId = `U7I7${suffix.replace(/-/g, '')}push`;
+    const pushRegistration = await request('/api/pz/store-push/register', {
+      token: resetLoginAgain.data.token,
+      headers: { 'X-PZ-Admin-Device': deviceAdmin },
+      body: {
+        installation_id: pushInstallationId,
+        app_id: 'com.tusenda84.admin',
+        device_label: 'Pixel U7I7',
+        os_version: 'Android 16',
+        app_version: '1.0.2',
+      },
+    });
+    assert.equal(pushRegistration.status, 200, JSON.stringify(pushRegistration.data));
+
     const revokeDevice = await request('/api/pz/master/store-user-devices/revoke', {
       token: masterToken,
       body: { store_id: premiumStore.id, user_id: createAdmin.data.user.id, device_id: deviceList.data.devices[0].id, reason: 'Prueba revocación U7I7' },
     });
     assert.equal(revokeDevice.status, 200);
     assert.equal(revokeDevice.data.sessions_revoked_for_user, true);
+    assert.equal(revokeDevice.data.push_devices_disabled, 1);
+    const disabledPush = await request(`/api/collections/store_push_devices/records/${pushRegistration.data.device.id}`, {
+      token: superToken,
+    });
+    assert.equal(disabledPush.status, 200);
+    assert.equal(disabledPush.data.status, 'disabled');
+    assert.equal(disabledPush.data.admin_device, deviceList.data.devices[0].id);
     const revokeAgain = await request('/api/pz/master/store-user-devices/revoke', {
       token: masterToken,
       body: { store_id: premiumStore.id, user_id: createAdmin.data.user.id, device_id: deviceList.data.devices[0].id, reason: 'Repetida' },
@@ -388,16 +409,28 @@ runtimeTest('U7I7 HTTP PocketBase 0.38.2 valida temporales, sesiones, dispositiv
     assert.equal(revokeAgain.status, 200);
     assert.equal(revokeAgain.data.already_revoked, true);
     assert.equal(revokeAgain.data.sessions_revoked_for_user, false);
+    const deleteDevice = await request('/api/pz/master/store-user-devices/delete', {
+      token: masterToken,
+      body: { store_id: premiumStore.id, user_id: createAdmin.data.user.id, device_id: deviceList.data.devices[0].id, reason: 'Permitir registro nuevo U7I7' },
+    });
+    assert.equal(deleteDevice.status, 200, JSON.stringify(deleteDevice.data));
+    assert.equal(deleteDevice.data.deleted, true);
+    const loginAfterDelete = await request('/api/collections/users/auth-with-password', {
+      body: { identity: createAdmin.data.user.email, password: password.resetTempAgain },
+      headers: { 'X-PZ-Admin-Device': deviceAdmin },
+    });
+    assert.equal(loginAfterDelete.status, 200, JSON.stringify(loginAfterDelete.data));
     const deviceAudit = await request('/api/pz/master/store-user-devices/audit', {
       token: masterToken,
       body: { store_id: premiumStore.id, user_id: createAdmin.data.user.id, page: 1, per_page: 50 },
     });
     assert.equal(deviceAudit.status, 200);
     assert.equal(deviceAudit.data.audit.filter((item) => item.action === 'device_revoked').length, 1);
+    assert.equal(deviceAudit.data.audit.filter((item) => item.action === 'device_deleted').length, 1);
   } finally {
     if (superToken) {
       for (const storeId of ids.stores) {
-        for (const collection of ['store_user_device_audit', 'store_user_audit', 'store_user_devices']) {
+        for (const collection of ['store_push_devices', 'store_user_device_audit', 'store_user_audit', 'store_user_devices']) {
           await deleteByFilter(collection, `store = "${storeId}"`);
         }
         await deleteByFilter('users', `store = "${storeId}"`);

@@ -3,6 +3,9 @@
 const permissions = typeof __hooks === "undefined"
   ? require("./pz_store_team_permissions_lib.js")
   : require(`${__hooks}/pz_store_team_permissions_lib.js`);
+const userDevices = typeof __hooks === "undefined"
+  ? require("./pz_store_user_devices_lib.js")
+  : require(`${__hooks}/pz_store_user_devices_lib.js`);
 
 const COLLECTION = "store_push_devices";
 const INSTALLATION_DOMAIN = "pz_admin_push_fid:v1|";
@@ -14,6 +17,7 @@ const SAFE_ERRORS = new Set([
   "permission_denied",
   "invalid_payload",
   "store_not_found",
+  "device_not_authorized",
   "registration_unavailable",
 ]);
 
@@ -56,6 +60,20 @@ function relationId(record, key) {
   if (Array.isArray(value)) return String(value[0] || "").trim();
   if (value && typeof value === "object") return String(value.id || "").trim();
   return String(value || "").trim();
+}
+
+function requestHeader(e, info, name) {
+  try {
+    if (e && e.request && e.request.header && typeof e.request.header.get === "function") {
+      const value = String(e.request.header.get(name) || "").trim();
+      if (value) return value;
+    }
+  } catch (_) {}
+  const headers = info && info.headers;
+  if (!headers || typeof headers !== "object") return "";
+  const expected = name.toLowerCase().replace(/-/g, "_");
+  const key = Object.keys(headers).find((candidate) => candidate.toLowerCase().replace(/-/g, "_") === expected);
+  return key ? String(headers[key] || "").trim() : "";
 }
 
 function bounded(value, max) {
@@ -153,7 +171,7 @@ function errorCode(error) {
 }
 
 function statusForError(code) {
-  if (["unauthorized", "permission_denied"].includes(code)) return 403;
+  if (["unauthorized", "permission_denied", "device_not_authorized"].includes(code)) return 403;
   if (code === "store_not_found") return 404;
   if (code === "invalid_payload") return 400;
   return 503;
@@ -179,7 +197,14 @@ function requestContext(e, parser) {
   if (!permissions.hasStorePermission($app, auth, store, "notifications.view")) {
     return { error: "permission_denied" };
   }
-  return { auth, store, parsed: parsed.value };
+  let adminDevice = null;
+  try {
+    const rawDeviceToken = requestHeader(e, info, userDevices.DEVICE_HEADER);
+    adminDevice = userDevices.resolveAuthorizedUserDevice($app, auth, rawDeviceToken);
+  } catch (_) {
+    return { error: "device_not_authorized" };
+  }
+  return { auth, store, adminDevice, parsed: parsed.value };
 }
 
 function findDevice(app, digest) {
@@ -209,6 +234,7 @@ function handleRegister(e) {
     const now = new Date().toISOString();
     device.set("store", context.store.id);
     device.set("user", context.auth.id || recordString(context.auth, "id"));
+    device.set("admin_device", context.adminDevice.id || recordString(context.adminDevice, "id"));
     device.set("installation_id", context.parsed.installationId);
     device.set("installation_digest", digest);
     device.set("app_id", context.parsed.appId);
@@ -259,5 +285,6 @@ module.exports = {
   isValidInstallationId,
   parseDisablePayload,
   parseRegisterPayload,
+  requestHeader,
   requireAuthenticatedUser,
 };

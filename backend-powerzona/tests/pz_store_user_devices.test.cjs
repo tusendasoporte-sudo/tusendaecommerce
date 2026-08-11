@@ -153,7 +153,7 @@ test('plan desconocido falla cerrado y nunca hereda Premium', () => {
   );
 });
 
-test('payloads Master son exactos y la revocación exige motivo', () => {
+test('payloads Master son exactos y revocar o borrar exigen motivo', () => {
   assert.equal(devices.parseListPayload({
     store_id: STORE_ID, user_id: USER_ID, page: 1, per_page: 10, status: 'all',
   }).ok, true);
@@ -165,6 +165,12 @@ test('payloads Master son exactos y la revocación exige motivo', () => {
   }).ok, true);
   assert.equal(devices.parseRevokePayload({
     store_id: STORE_ID, user_id: USER_ID, device_id: DEVICE_ID, reason: '   ',
+  }).ok, false);
+  assert.equal(devices.parseDeletePayload({
+    store_id: STORE_ID, user_id: USER_ID, device_id: DEVICE_ID, reason: 'Equipo reemplazado',
+  }).ok, true);
+  assert.equal(devices.parseDeletePayload({
+    store_id: STORE_ID, user_id: USER_ID, device_id: DEVICE_ID, reason: '',
   }).ok, false);
 });
 
@@ -219,6 +225,22 @@ test('auditoría de revocación registra rotación de todas las sesiones', () =>
   assert.equal(values.sessions_revoked, true);
   assert.equal(values.action, 'device_revoked');
   assert.equal(values.reason, 'Riesgo');
+});
+
+test('auditoría de borrado conserva la instantánea sin marcar sesiones cerradas', () => {
+  const master = valueRecord('mastertestd7a60', {
+    email: 'master@example.test', display_name: 'Master', role: 'master_admin', status: 'active',
+  });
+  const target = valueRecord(USER_ID, {
+    email: 'staff@example.test', role: 'store_staff', status: 'active', store: STORE_ID,
+  });
+  const device = valueRecord(DEVICE_ID, {
+    label: 'Firefox en Linux', browser_name: 'Firefox', os_name: 'Linux', device_type: 'desktop',
+  });
+  const values = devices.buildAuditValues(store('premium'), target, device, master, 'device_deleted', false, 'Equipo reemplazado');
+  assert.equal(values.sessions_revoked, false);
+  assert.equal(values.action, 'device_deleted');
+  assert.equal(values.device_id_snapshot, DEVICE_ID);
 });
 
 test('last_seen aplica throttling de quince minutos', () => {
@@ -290,21 +312,32 @@ test('dispositivo autorizado existente se evalúa antes de capacidades para sopo
 
 test('revocación es transaccional, idempotente y rota tokenKey del usuario', () => {
   const source = read('../pb_hooks/pz_store_user_devices_lib.js');
-  const revoke = source.slice(source.indexOf('function handleRevoke'), source.indexOf('function handleAudit'));
+  const revoke = source.slice(source.indexOf('function handleRevoke'), source.indexOf('function handleDelete'));
   assert.match(revoke, /runInTransaction/);
   assert.match(revoke, /recordString\(device, "status"\) === "revoked"/);
   assert.match(revoke, /refreshTokenKey\(\)/);
   assert.match(revoke, /sessions_revoked_for_user: true/);
   assert.match(revoke, /createAudit/);
+  assert.match(revoke, /disablePushDevicesForAdminDevice/);
 });
 
 test('fallo de auditoría queda dentro de la misma transacción de revocación', () => {
   const source = read('../pb_hooks/pz_store_user_devices_lib.js');
-  const revoke = source.slice(source.indexOf('function handleRevoke'), source.indexOf('function handleAudit'));
+  const revoke = source.slice(source.indexOf('function handleRevoke'), source.indexOf('function handleDelete'));
   const responseIndex = revoke.search(/\}\);\r?\n    return e\.json/);
   assert.ok(revoke.indexOf('createAudit(') > revoke.indexOf('txApp.save(device)'));
   assert.ok(responseIndex > -1);
   assert.ok(revoke.indexOf('createAudit(') < responseIndex);
+});
+
+test('borrado exige un revocado, conserva auditoría y elimina dentro de la transacción', () => {
+  const source = read('../pb_hooks/pz_store_user_devices_lib.js');
+  const deletion = source.slice(source.indexOf('function handleDelete'), source.indexOf('function handleAudit'));
+  assert.match(deletion, /runInTransaction/);
+  assert.match(deletion, /status"\) !== "revoked"/);
+  assert.match(deletion, /device_must_be_revoked/);
+  assert.ok(deletion.indexOf('createAudit(') < deletion.indexOf('txApp.delete(device)'));
+  assert.match(deletion, /"device_deleted"/);
 });
 
 test('Plan y límites usa dispositivos administrativos autorizados y no clientes públicos', () => {
@@ -327,11 +360,19 @@ test('eliminación completa incluye conteo, orden y verificación a cero', () =>
 
 test('los endpoints son POST privados, no-store y sin activity log de éxito', () => {
   const source = read('../pb_hooks/pz_store_user_devices.pb.js');
-  assert.equal((source.match(/"POST"/g) || []).length, 3);
-  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 3);
-  assert.equal((source.match(/\$apis\.bodyLimit\(/g) || []).length, 3);
-  assert.equal((source.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 3);
+  assert.equal((source.match(/"POST"/g) || []).length, 4);
+  assert.equal((source.match(/\$apis\.requireAuth\(\)/g) || []).length, 4);
+  assert.equal((source.match(/\$apis\.bodyLimit\(/g) || []).length, 4);
+  assert.equal((source.match(/\$apis\.skipSuccessActivityLog\(\)/g) || []).length, 4);
+  assert.match(source, /store-user-devices\/delete/);
   assert.match(read('../pb_hooks/pz_store_user_devices_lib.js'), /Cache-Control", "private, no-store/);
+});
+
+test('migración enlaza push con dispositivo administrativo y amplía la auditoría', () => {
+  const source = read('../pb_migrations/1786492800_store_user_device_deletion.js');
+  assert.match(source, /name: "admin_device"/);
+  assert.match(source, /idx_store_push_devices_admin_device_status/);
+  assert.match(source, /device_deleted/);
 });
 
 test('el listado separa el filtro SQL del filtro de registros PocketBase', () => {

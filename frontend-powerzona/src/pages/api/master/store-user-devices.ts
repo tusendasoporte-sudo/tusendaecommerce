@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { refreshAuthFromCookie, requireMasterAdmin } from '../../../lib/auth';
 import {
+  deleteMasterUserDevice,
   getMasterDeviceErrorCode,
   getMasterUserDeviceAudit,
   listMasterUserDevices,
@@ -11,6 +12,7 @@ const MAX_BODY_BYTES = 4096;
 const ACTION_KEYS = Object.freeze({
   list: ['action', 'store_id', 'user_id', 'page', 'per_page', 'status'],
   revoke: ['action', 'store_id', 'user_id', 'device_id', 'reason'],
+  delete: ['action', 'store_id', 'user_id', 'device_id', 'reason'],
   audit: ['action', 'store_id', 'user_id', 'page', 'per_page'],
 });
 
@@ -36,7 +38,7 @@ function hasExactKeys(body: Record<string, unknown>, expected: readonly string[]
 function errorStatus(code: string) {
   if (code === 'unauthorized') return 403;
   if (['store_not_found', 'user_not_found', 'device_not_found'].includes(code)) return 404;
-  if (code === 'device_revoked') return 409;
+  if (['device_revoked', 'device_must_be_revoked'].includes(code)) return 409;
   if (code === 'invalid_payload') return 400;
   return 503;
 }
@@ -95,6 +97,16 @@ export const POST: APIRoute = async ({ request }) => {
       );
       return json(200, result);
     }
+    if (action === 'delete') {
+      const result = await deleteMasterUserDevice(
+        String(body.store_id || ''),
+        String(body.user_id || ''),
+        String(body.device_id || ''),
+        String(body.reason || ''),
+        authPb,
+      );
+      return json(200, result);
+    }
     const result = await getMasterUserDeviceAudit(
       String(body.store_id || ''),
       String(body.user_id || ''),
@@ -107,7 +119,9 @@ export const POST: APIRoute = async ({ request }) => {
       ? 'device_list_failed'
       : action === 'revoke'
         ? 'device_revocation_failed'
-        : 'audit_load_failed';
+        : action === 'delete'
+          ? 'device_delete_failed'
+          : 'audit_load_failed';
     const code = getMasterDeviceErrorCode(error) || fallback;
     return json(errorStatus(code), { ok: false, error: code });
   }

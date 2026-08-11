@@ -9,6 +9,7 @@ const activityAudit = typeof __hooks === "undefined"
 
 const DEVICE_COLLECTION = "store_user_devices";
 const AUDIT_COLLECTION = "store_user_device_audit";
+const PUSH_DEVICE_COLLECTION = "store_push_devices";
 const DEVICE_HEADER = "X-PZ-Admin-Device";
 const DIGEST_DOMAIN = "pz_admin_device:v1|";
 const DIGEST_VERSION = "sha256-v1";
@@ -17,7 +18,7 @@ const RECORD_ID_PATTERN = /^[a-z0-9]{15}$/;
 const STORE_ROLES = Object.freeze(["store_admin", "store_staff"]);
 const DEVICE_STATUSES = Object.freeze(["authorized", "revoked"]);
 const DEVICE_TYPES = Object.freeze(["desktop", "mobile", "tablet", "unknown"]);
-const AUDIT_ACTIONS = Object.freeze(["device_authorized", "device_revoked"]);
+const AUDIT_ACTIONS = Object.freeze(["device_authorized", "device_revoked", "device_deleted"]);
 const LAST_SEEN_THROTTLE_MS = 15 * 60 * 1000;
 const ORIGINAL_USER_AGENT_STORE_KEY = "pz_admin_original_user_agent";
 const SAFE_CODES = new Set([
@@ -33,6 +34,8 @@ const SAFE_CODES = new Set([
   "store_device_limit_reached",
   "device_authorization_unavailable",
   "device_revocation_failed",
+  "device_must_be_revoked",
+  "device_delete_failed",
   "device_list_failed",
   "audit_load_failed",
 ]);
@@ -282,6 +285,48 @@ function findUserDevice(app, userId, digest) {
   return records.length ? records[0] : null;
 }
 
+function resolveAuthorizedUserDevice(app, user, rawToken, options) {
+  if (!isActiveStoreUser(user)) throw codedError("device_not_authorized");
+  const digest = hashDeviceToken(rawToken, options && options.sha256);
+  const userId = String(user.id || recordString(user, "id"));
+  const device = findUserDevice(app, userId, digest);
+  if (!device
+    || relationId(device, "store") !== relationId(user, "store")
+    || recordString(device, "status") !== "authorized") {
+    throw codedError("device_not_authorized");
+  }
+  return device;
+}
+
+function disablePushDevicesForAdminDevice(app, storeId, userId, deviceId, now) {
+  try {
+    app.findCollectionByNameOrId(PUSH_DEVICE_COLLECTION);
+  } catch (_) {
+    return 0;
+  }
+  const records = app.findRecordsByFilter(
+    PUSH_DEVICE_COLLECTION,
+    'store = {:storeId} && user = {:userId} && status = "active"',
+    "id",
+    2000,
+    0,
+    { storeId, userId }
+  ) || [];
+  let disabled = 0;
+  records.forEach((pushDevice) => {
+    const linkedDeviceId = relationId(pushDevice, "admin_device");
+    // Los registros creados antes de incorporar el enlace se desactivan de
+    // forma conservadora. Las instalaciones enlazadas a otros dispositivos
+    // administrativos no se modifican.
+    if (linkedDeviceId && linkedDeviceId !== deviceId) return;
+    pushDevice.set("status", "disabled");
+    pushDevice.set("disabled_at", now);
+    app.save(pushDevice);
+    disabled += 1;
+  });
+  return disabled;
+}
+
 function authorizedUserDeviceCount(app, userId) {
   const row = queryOne(app, `
     SELECT COUNT(*) AS deviceCount
@@ -411,14 +456,23 @@ function createAudit(app, store, targetUser, device, actor, action, sessionsRevo
     actor,
     module: "team",
     action,
-    severity: action === "device_revoked" ? "important" : "normal",
+    severity: action === "device_authorized" ? "normal" : "important",
     resourceType: "team_user",
     resourceId: targetUser.id,
     resourceLabel: targetName,
     changedFields: ["devices", ...(sessionsRevoked ? ["sessions_revoked"] : [])],
-    previousValues: { device_status: action === "device_revoked" ? "authorized" : "not_authorized" },
-    newValues: { device_status: action === "device_revoked" ? "revoked" : "authorized", sessions_revoked: sessionsRevoked === true },
-    summary: action === "device_revoked" ? `Revocó un dispositivo de ${targetName}` : `Autorizó un dispositivo para ${targetName}`,
+    previousValues: {
+      device_status: action === "device_deleted" ? "revoked" : action === "device_revoked" ? "authorized" : "not_authorized",
+    },
+    newValues: {
+      device_status: action === "device_deleted" ? "deleted" : action === "device_revoked" ? "revoked" : "authorized",
+      sessions_revoked: sessionsRevoked === true,
+    },
+    summary: action === "device_deleted"
+      ? `Eliminó un dispositivo revocado de ${targetName}`
+      : action === "device_revoked"
+        ? `Revocó un dispositivo de ${targetName}`
+        : `Autorizó un dispositivo para ${targetName}`,
     sourceEventKey: `team:${action}:${audit.id}`,
   });
   return audit;
@@ -648,6 +702,19 @@ function parseRevokePayload(body) {
   return valid({ storeId, userId, deviceId, reason: reason.trim() });
 }
 
+function parseDeletePayload(body) {
+  if (!exactPayload(body, ["store_id", "user_id", "device_id", "reason"])) {
+    return invalid("invalid_payload");
+  }
+  const storeId = bodyValue(body, "store_id");
+  const userId = bodyValue(body, "user_id");
+  const deviceId = bodyValue(body, "device_id");
+  const reason = bodyValue(body, "reason");
+  if (![storeId, userId, deviceId].every(isValidRecordId)) return invalid("invalid_payload");
+  if (typeof reason !== "string" || !reason.trim() || reason.length > 500) return invalid("invalid_payload");
+  return valid({ storeId, userId, deviceId, reason: reason.trim() });
+}
+
 function parseAuditPayload(body) {
   if (!exactPayload(body, ["store_id", "user_id", "page", "per_page"])) {
     return invalid("invalid_payload");
@@ -758,7 +825,7 @@ function limitsResponse(app, store, user) {
 function statusForCode(code) {
   if (code === "unauthorized") return 403;
   if (["store_not_found", "user_not_found", "device_not_found"].includes(code)) return 404;
-  if (["user_device_limit_reached", "store_device_limit_reached", "device_revoked"].includes(code)) return 409;
+  if (["user_device_limit_reached", "store_device_limit_reached", "device_revoked", "device_must_be_revoked"].includes(code)) return 409;
   if (code === "invalid_payload" || code === "device_required") return 400;
   if (code === "device_authorization_unavailable") return 503;
   return 500;
@@ -834,11 +901,19 @@ function handleRevoke(e) {
         throw codedError("device_not_found");
       }
       if (recordString(device, "status") === "revoked") {
+        const pushDevicesDisabled = disablePushDevicesForAdminDevice(
+          txApp,
+          loaded.store.id,
+          loaded.user.id,
+          device.id,
+          new Date().toISOString()
+        );
         response = {
           ok: true,
           device: mapDevice(device),
           already_revoked: true,
           sessions_revoked_for_user: false,
+          push_devices_disabled: pushDevicesDisabled,
         };
         return;
       }
@@ -849,9 +924,17 @@ function handleRevoke(e) {
       device.set("revoked_by", loaded.actor.id);
       device.set("revoke_reason", context.parsed.reason);
       loaded.user.refreshTokenKey();
+      let pushDevicesDisabled = 0;
       try {
         txApp.save(loaded.user);
         txApp.save(device);
+        pushDevicesDisabled = disablePushDevicesForAdminDevice(
+          txApp,
+          loaded.store.id,
+          loaded.user.id,
+          device.id,
+          now
+        );
         createAudit(
           txApp,
           loaded.store,
@@ -870,6 +953,7 @@ function handleRevoke(e) {
         device: mapDevice(device),
         already_revoked: false,
         sessions_revoked_for_user: true,
+        push_devices_disabled: pushDevicesDisabled,
       };
     });
     return e.json(200, response);
@@ -878,6 +962,63 @@ function handleRevoke(e) {
     if (code) return sendError(e, code, "device_revocation_failed");
     logFailure("master_revoke");
     return sendError(e, "", "device_revocation_failed");
+  }
+}
+
+function handleDelete(e) {
+  const context = requestContext(e, parseDeletePayload);
+  if (context.error) return sendError(e, context.error, "device_delete_failed");
+  let response = null;
+  try {
+    $app.runInTransaction((txApp) => {
+      const loaded = loadMasterTarget(
+        txApp,
+        context.actorId,
+        context.parsed.storeId,
+        context.parsed.userId
+      );
+      const device = findRecord(txApp, DEVICE_COLLECTION, context.parsed.deviceId);
+      if (!device
+        || relationId(device, "store") !== loaded.store.id
+        || relationId(device, "user") !== loaded.user.id) {
+        throw codedError("device_not_found");
+      }
+      if (recordString(device, "status") !== "revoked") throw codedError("device_must_be_revoked");
+      const pushDevicesDisabled = disablePushDevicesForAdminDevice(
+        txApp,
+        loaded.store.id,
+        loaded.user.id,
+        device.id,
+        new Date().toISOString()
+      );
+      try {
+        createAudit(
+          txApp,
+          loaded.store,
+          loaded.user,
+          device,
+          loaded.actor,
+          "device_deleted",
+          false,
+          context.parsed.reason
+        );
+        txApp.delete(device);
+      } catch (_) {
+        throw codedError("device_delete_failed");
+      }
+      response = {
+        ok: true,
+        deleted: true,
+        device_id: context.parsed.deviceId,
+        push_devices_disabled: pushDevicesDisabled,
+      };
+    });
+    return e.json(200, response);
+  } catch (error) {
+    const code = errorCode(error);
+    if (code) return sendError(e, code, "device_delete_failed");
+    logFailure("master_delete_device");
+    return sendError(e, "", "device_delete_failed");
   }
 }
 
@@ -946,6 +1087,7 @@ module.exports = {
   evaluateNewDeviceCapacity,
   exactPayload,
   handleAudit,
+  handleDelete,
   handleList,
   handleRevoke,
   hashDeviceToken,
@@ -960,9 +1102,11 @@ module.exports = {
   normalizeUserAgent,
   originalUserAgent,
   parseAuditPayload,
+  parseDeletePayload,
   parseListPayload,
   parseRevokePayload,
   requireAuthenticatedUser,
+  resolveAuthorizedUserDevice,
   shouldTouchLastSeen,
   scrubRequestUserAgent,
   targetBelongsToStore,

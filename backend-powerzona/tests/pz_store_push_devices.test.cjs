@@ -80,6 +80,23 @@ test('la migracion mantiene tokens privados, reglas cerradas e indices de tenant
   assert.match(source, /listRule:\s*null/);
   assert.match(source, /idx_store_push_devices_installation/);
   assert.match(source, /idx_store_push_devices_store_status/);
+  const linkMigration = fs.readFileSync(
+    path.resolve(__dirname, '../pb_migrations/1786492800_store_user_device_deletion.js'),
+    'utf8',
+  );
+  assert.match(linkMigration, /name: "admin_device"/);
+  assert.match(linkMigration, /idx_store_push_devices_admin_device_status/);
+});
+
+test('el registro push exige y enlaza el dispositivo administrativo autorizado', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../pb_hooks/pz_store_push_devices_lib.js'),
+    'utf8',
+  );
+  assert.match(source, /userDevices\.DEVICE_HEADER/);
+  assert.match(source, /resolveAuthorizedUserDevice/);
+  assert.match(source, /device\.set\("admin_device", context\.adminDevice/);
+  assert.match(source, /device_not_authorized/);
 });
 
 test('los endpoints exigen auth, limite de body y no exponen CRUD directo', () => {

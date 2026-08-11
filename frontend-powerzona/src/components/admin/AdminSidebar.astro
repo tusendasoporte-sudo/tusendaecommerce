@@ -652,6 +652,7 @@ const marketingVisualSubClass = (subsection: string) => {
     const storeId = String(config.storeId || '');
     const baseUrl = String(config.pocketbaseUrl || '').replace(/\/$/, '');
     const token = readAuthTokenFromCookie();
+    const adminDeviceToken = readCookieValue('pz_admin_device');
     const ordersPath = String(config.ordersPath || '');
     const productsPath = String(config.productsPath || '');
     const rafflesPath = String(config.rafflesPath || '');
@@ -699,6 +700,9 @@ const marketingVisualSubClass = (subsection: string) => {
     async function api(path, options = {}) {
       const headers = Object.assign({}, options.headers || {});
       if (token) headers.Authorization = `Bearer ${token}`;
+      if (/^[A-Za-z0-9_-]{43}$/.test(adminDeviceToken)) {
+        headers['X-PZ-Admin-Device'] = adminDeviceToken;
+      }
       const response = await fetch(`${baseUrl}${path}`, Object.assign({}, options, { headers }));
       const result = await response.json().catch(() => null);
       if (!response.ok) throw new Error(result?.message || 'PocketBase request failed.');

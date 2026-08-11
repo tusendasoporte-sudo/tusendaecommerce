@@ -22,7 +22,7 @@ const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => par
 const exact = (value?: string) => { const date = new Date(value || ''); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date) : 'Nunca'; };
 const relative = (value?: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
 const accessLabel = user.temporary_password_state === 'expired' ? 'Contraseña temporal vencida' : user.temporary_password_state === 'pending' ? 'Cambio de contraseña pendiente' : 'Acceso normal';
-const auditLabels: Record<string, string> = { user_created: 'Usuario creado', user_updated: 'Información actualizada', password_changed: 'Evento histórico de contraseña Master', temporary_password_issued: 'Contraseña temporal emitida', forced_password_changed: 'Contraseña personal creada por el usuario', sessions_revoked: 'Sesiones cerradas', self_password_changed: 'Contraseña cambiada voluntariamente por el Admin', user_deleted: 'Usuario eliminado permanentemente', primary_admin_assigned: 'Administrador principal definido', primary_admin_replaced: 'Administrador principal reemplazado', team_user_updated: 'Acceso adicional configurado', team_user_suspended: 'Usuario suspendido tras reemplazo', device_authorized: 'Dispositivo autorizado', device_revoked: 'Dispositivo revocado' };
+const auditLabels: Record<string, string> = { user_created: 'Usuario creado', user_updated: 'Información actualizada', password_changed: 'Evento histórico de contraseña Master', temporary_password_issued: 'Contraseña temporal emitida', forced_password_changed: 'Contraseña personal creada por el usuario', sessions_revoked: 'Sesiones cerradas', self_password_changed: 'Contraseña cambiada voluntariamente por el Admin', user_deleted: 'Usuario eliminado permanentemente', primary_admin_assigned: 'Administrador principal definido', primary_admin_replaced: 'Administrador principal reemplazado', team_user_updated: 'Acceso adicional configurado', team_user_suspended: 'Usuario suspendido tras reemplazo', device_authorized: 'Dispositivo autorizado', device_revoked: 'Dispositivo revocado', device_deleted: 'Dispositivo eliminado' };
 const roleLabel = (value: string) => value === 'store_admin' ? 'Administrador' : value === 'store_staff' ? 'Personal' : value;
 const statusLabel = (value: string) => value === 'active' ? 'Activo' : value === 'suspended' ? 'Suspendido' : value;
 const auditChanges = (item: MasterStoreUserAudit | MasterDeviceAudit) => {
@@ -80,9 +80,9 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
       </details>
 
       <details class="master-card master-mobile-accordion" open>
-        <summary class="master-card-header"><div><h2 class="master-card-title">Dispositivos autorizados</h2><p class="master-card-subtitle" data-devices-summary>{devices.authorized_for_user} de {devices.user_limit} dispositivos</p></div></summary>
-        <div class="master-card-body"><div class="master-users-heading__badges"><button class="master-btn master-btn--secondary" type="button" data-device-filter="authorized">Autorizados</button><button class="master-btn master-btn--ghost" type="button" data-device-filter="revoked">Revocados</button><button class="master-btn master-btn--ghost" type="button" data-device-filter="all">Todos</button></div><div class="master-device-list" data-device-list>
-          {devices.devices.length ? devices.devices.map((device, index) => <article class="master-device-item"><div class="master-device-item__head"><div><strong>{device.label}</strong><div class="master-users-heading__badges"><span class:list={['master-pill', device.status === 'authorized' ? 'master-pill--success' : 'master-pill--danger']}>{device.status === 'authorized' ? 'Autorizado' : 'Revocado'}</span><span class="master-pill">{device.device_type}</span></div></div>{device.status === 'authorized' && <button class="master-btn master-btn--danger" type="button" data-revoke-device-index={index}>Revocar</button>}</div><div class="master-device-item__meta"><span>{device.browser_name} · {device.os_name}</span><span>Primera actividad: {exact(device.first_seen_at)}</span><span>Última actividad: {exact(device.last_seen_at)}</span></div></article>) : <p class="master-empty">No hay dispositivos en este filtro.</p>}
+        <summary class="master-card-header"><div><h2 class="master-card-title">Dispositivos administrativos</h2><p class="master-card-subtitle" data-devices-summary>{devices.authorized_for_user} de {devices.user_limit} dispositivos autorizados</p></div></summary>
+        <div class="master-card-body"><div class="master-users-heading__badges" data-device-filters aria-label="Filtrar dispositivos"><button class="master-btn master-btn--secondary" type="button" data-device-filter="authorized" aria-pressed="true">Autorizados</button><button class="master-btn master-btn--ghost" type="button" data-device-filter="revoked" aria-pressed="false">Revocados</button><button class="master-btn master-btn--ghost" type="button" data-device-filter="all" aria-pressed="false">Todos</button></div><div class="master-device-list" data-device-list>
+          {devices.devices.length ? devices.devices.map((device, index) => <article class="master-device-item"><div class="master-device-item__head"><div><strong>{device.label}</strong><div class="master-users-heading__badges"><span class:list={['master-pill', device.status === 'authorized' ? 'master-pill--success' : 'master-pill--danger']}>{device.status === 'authorized' ? 'Autorizado' : 'Revocado'}</span><span class="master-pill">{device.device_type}</span></div></div>{device.status === 'authorized' ? <button class="master-btn master-btn--danger" type="button" data-revoke-device-index={index}>Revocar</button> : <button class="master-btn master-btn--danger" type="button" data-delete-device-index={index}>Borrar</button>}</div><div class="master-device-item__meta"><span>{device.browser_name} · {device.os_name}</span><span>Primera actividad: {exact(device.first_seen_at)}</span><span>Última actividad: {exact(device.last_seen_at)}</span></div></article>) : <p class="master-empty">No hay dispositivos en este filtro.</p>}
         </div></div>
       </details>
 
@@ -109,6 +109,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
   <MasterDialog id="master-user-sessions-dialog" title="Cerrar todas las sesiones" description="Se invalidarán todas las sesiones activas de este usuario en todos sus dispositivos." tone="danger"><div class="master-users-field"><label for="sessions-reason">Motivo interno</label><textarea id="sessions-reason" class="master-users-control" maxlength="500" required></textarea></div><p class="master-users-message" data-sessions-message aria-live="polite"></p><div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--danger-solid" type="button" data-sessions-submit>Cerrar sesiones</button></div></MasterDialog>
 
   <MasterDialog id="master-device-revoke-dialog" title="Revocar dispositivo" description="Al revocar este dispositivo se cerrarán todas las sesiones activas del usuario, no solamente la sesión de este dispositivo." tone="danger"><p data-revoke-device-name></p><div class="master-users-field"><label for="device-revoke-reason">Motivo interno</label><textarea id="device-revoke-reason" class="master-users-control" maxlength="500" required></textarea></div><p class="master-users-message" data-device-message aria-live="polite"></p><div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--danger-solid" type="button" data-device-submit>Revocar dispositivo</button></div></MasterDialog>
+  <MasterDialog id="master-device-delete-dialog" title="Borrar dispositivo revocado" description="El dispositivo podrá registrarse como nuevo la próxima vez que inicie sesión. El historial de auditoría se conservará." tone="danger"><p data-delete-device-name></p><div class="master-users-field"><label for="device-delete-reason">Motivo interno</label><textarea id="device-delete-reason" class="master-users-control" maxlength="500" required></textarea></div><p class="master-users-message" data-device-delete-message aria-live="polite"></p><div slot="footer"><button class="master-btn master-btn--secondary" type="button" data-master-dialog-close>Cancelar</button><button class="master-btn master-btn--danger-solid" type="button" data-device-delete-submit>Borrar dispositivo</button></div></MasterDialog>
   <MasterDialog id="master-user-edit-confirm-dialog" title="Confirmar cambio de acceso" description="Este cambio cerrará todas las sesiones activas del usuario." tone="warning">
     <div class="master-users-field"><label for="edit-critical-reason">Motivo interno</label><textarea id="edit-critical-reason" class="master-users-control" maxlength="500" required></textarea></div>
     <p class="master-users-message" data-edit-confirm-message aria-live="polite"></p>
@@ -133,7 +134,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
 
 <script>
   import { deleteMasterStoreUser, getMasterStoreUserAudit, getMasterStoreUserDetail, getMasterStoreUserErrorMessage, issueMasterTemporaryPassword, revokeMasterStoreUserSessions, updateMasterStoreUser } from '../../lib/masterUsers';
-  import { getMasterDeviceErrorMessage, getMasterUserDeviceAudit, listMasterUserDevices, revokeMasterUserDevice } from '../../lib/masterUserDevices';
+  import { deleteMasterUserDevice, getMasterDeviceErrorMessage, getMasterUserDeviceAudit, listMasterUserDevices, revokeMasterUserDevice } from '../../lib/masterUserDevices';
   import { pb } from '../../lib/pocketbase';
   const root = document.querySelector<HTMLElement>('[data-master-user-detail]');
   if (root) {
@@ -224,36 +225,70 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
     let currentDevices: any[] = Array.isArray((window as any).__pzInitialMasterDevices) ? (window as any).__pzInitialMasterDevices : [];
     let selectedDevice: any = null;
     let currentDeviceFilter: 'authorized' | 'revoked' | 'all' = 'authorized';
+    let deviceLoadSequence = 0;
     const deviceList = root.querySelector<HTMLElement>('[data-device-list]');
+    const deviceFilterButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-device-filter]'));
     const escape = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[char] || char);
     const exact = (value: string) => { const date = new Date(value || ''); return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('es', { dateStyle:'medium', timeStyle:'short' }).format(date) : 'Nunca'; };
     const relativeClient = (value: string) => { const time = new Date(value || '').getTime(); if (!Number.isFinite(time)) return 'Nunca'; const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000)); if (minutes < 1) return 'Ahora'; if (minutes < 60) return `Hace ${minutes} min`; if (minutes < 1440) return `Hace ${Math.floor(minutes / 60)} h`; return `Hace ${Math.floor(minutes / 1440)} d`; };
-    function renderDevices() { if (!deviceList) return; deviceList.innerHTML = currentDevices.length ? currentDevices.map((device,index) => `<article class="master-device-item"><div class="master-device-item__head"><div><strong>${escape(device.label)}</strong><div class="master-users-heading__badges"><span class="master-pill ${device.status === 'authorized' ? 'master-pill--success' : 'master-pill--danger'}">${device.status === 'authorized' ? 'Autorizado' : 'Revocado'}</span><span class="master-pill">${escape(device.device_type)}</span></div></div>${device.status === 'authorized' ? `<button class="master-btn master-btn--danger" type="button" data-revoke-device-index="${index}">Revocar</button>` : ''}</div><div class="master-device-item__meta"><span>${escape(device.browser_name)} · ${escape(device.os_name)}</span><span>Primera actividad: ${escape(exact(device.first_seen_at))}</span><span>Última actividad: ${escape(exact(device.last_seen_at))}</span></div></article>`).join('') : '<p class="master-empty">No hay dispositivos en este filtro.</p>'; }
+    function renderDevices() { if (!deviceList) return; deviceList.innerHTML = currentDevices.length ? currentDevices.map((device,index) => `<article class="master-device-item"><div class="master-device-item__head"><div><strong>${escape(device.label)}</strong><div class="master-users-heading__badges"><span class="master-pill ${device.status === 'authorized' ? 'master-pill--success' : 'master-pill--danger'}">${device.status === 'authorized' ? 'Autorizado' : 'Revocado'}</span><span class="master-pill">${escape(device.device_type)}</span></div></div>${device.status === 'authorized' ? `<button class="master-btn master-btn--danger" type="button" data-revoke-device-index="${index}">Revocar</button>` : `<button class="master-btn master-btn--danger" type="button" data-delete-device-index="${index}">Borrar</button>`}</div><div class="master-device-item__meta"><span>${escape(device.browser_name)} · ${escape(device.os_name)}</span><span>Primera actividad: ${escape(exact(device.first_seen_at))}</span><span>Última actividad: ${escape(exact(device.last_seen_at))}</span></div></article>`).join('') : '<p class="master-empty">No hay dispositivos en este filtro.</p>'; }
+    function syncDeviceFilterButtons(filter: 'authorized' | 'revoked' | 'all') {
+      deviceFilterButtons.forEach((button) => {
+        const selected = button.dataset.deviceFilter === filter;
+        button.classList.toggle('master-btn--secondary', selected);
+        button.classList.toggle('master-btn--ghost', !selected);
+        button.setAttribute('aria-pressed', String(selected));
+      });
+    }
     function updateSummary(detailResult: any, deviceResult: any) {
       const devicesSummary = root.querySelector<HTMLElement>('[data-devices-summary]');
       const deviceCount = root.querySelector<HTMLElement>('[data-summary-device-count]');
       const lastActivity = root.querySelector<HTMLElement>('[data-summary-last-activity]');
       const activeCount = root.querySelector<HTMLElement>('[data-summary-active-count]');
-      if (devicesSummary) devicesSummary.textContent = `${deviceResult.authorized_for_user} de ${deviceResult.user_limit} dispositivos`;
+      if (devicesSummary) devicesSummary.textContent = `${deviceResult.authorized_for_user} de ${deviceResult.user_limit} dispositivos autorizados`;
       if (deviceCount) deviceCount.textContent = `${deviceResult.authorized_for_user} / ${deviceResult.user_limit}`;
       if (lastActivity) lastActivity.textContent = relativeClient(detailResult.user.last_admin_activity_at || '');
       if (activeCount) activeCount.textContent = `${detailResult.plan.active_users} / ${detailResult.plan.max_active_users}`;
     }
     async function loadDevices(filter: 'authorized' | 'revoked' | 'all') {
+      const loadSequence = ++deviceLoadSequence;
       currentDeviceFilter = filter;
+      syncDeviceFilterButtons(filter);
       if (deviceList) deviceList.innerHTML = '<div class="master-users-loading">Cargando dispositivos…</div>';
       try {
-        const result = await listMasterUserDevices(storeId, userId, { page:1, perPage:20, status:filter });
+        const [result, detailResult] = await Promise.all([
+          listMasterUserDevices(storeId, userId, { page:1, perPage:20, status:filter }),
+          getMasterStoreUserDetail(storeId, userId),
+        ]);
+        if (loadSequence !== deviceLoadSequence) return;
         currentDevices = result.devices;
         renderDevices();
-        const detailResult = await getMasterStoreUserDetail(storeId, userId);
         updateSummary(detailResult, result);
       } catch (error) {
+        if (loadSequence !== deviceLoadSequence) return;
         if (deviceList) deviceList.innerHTML = `<p class="master-empty">${escape(getMasterDeviceErrorMessage(error))}</p>`;
       }
     }
-    root.querySelectorAll<HTMLElement>('[data-device-filter]').forEach((button) => button.addEventListener('click', () => void loadDevices((button.dataset.deviceFilter || 'authorized') as 'authorized' | 'revoked' | 'all')));
-    deviceList?.addEventListener('click', (event) => { const button = (event.target as Element).closest<HTMLElement>('[data-revoke-device-index]'); if (!button) return; selectedDevice = currentDevices[Number(button.dataset.revokeDeviceIndex || 0)]; const nameNode = root.querySelector<HTMLElement>('[data-revoke-device-name]'); if (nameNode) nameNode.textContent = selectedDevice?.label || 'Dispositivo'; window.PZMasterDialog?.open('master-device-revoke-dialog', button); });
+    deviceFilterButtons.forEach((button) => button.addEventListener('click', () => void loadDevices((button.dataset.deviceFilter || 'authorized') as 'authorized' | 'revoked' | 'all')));
+    deviceList?.addEventListener('click', (event) => {
+      const target = event.target as Element;
+      const revokeButton = target.closest<HTMLElement>('[data-revoke-device-index]');
+      const deleteButton = target.closest<HTMLElement>('[data-delete-device-index]');
+      const button = revokeButton || deleteButton;
+      if (!button) return;
+      const index = Number(revokeButton?.dataset.revokeDeviceIndex ?? deleteButton?.dataset.deleteDeviceIndex ?? -1);
+      selectedDevice = currentDevices[index];
+      if (!selectedDevice) return;
+      if (revokeButton) {
+        const nameNode = root.querySelector<HTMLElement>('[data-revoke-device-name]');
+        if (nameNode) nameNode.textContent = selectedDevice.label || 'Dispositivo';
+        window.PZMasterDialog?.open('master-device-revoke-dialog', revokeButton);
+        return;
+      }
+      const nameNode = root.querySelector<HTMLElement>('[data-delete-device-name]');
+      if (nameNode) nameNode.textContent = selectedDevice.label || 'Dispositivo';
+      window.PZMasterDialog?.open('master-device-delete-dialog', deleteButton as HTMLElement);
+    });
 
     const auditList = root.querySelector<HTMLElement>('[data-audit-list]');
     const auditMoreButton = root.querySelector<HTMLButtonElement>('[data-load-more-audit]');
@@ -262,7 +297,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
     let userAuditHasMore = Number(root.dataset.userAuditPages || 1) > 1;
     let deviceAuditHasMore = Number(root.dataset.deviceAuditPages || 1) > 1;
     const seenAudit = new Set<string>(Array.from(auditList?.querySelectorAll<HTMLElement>('[data-audit-id]') || []).map((item) => item.dataset.auditId || '').filter(Boolean));
-    const labels: Record<string,string> = { user_created:'Usuario creado',user_updated:'Información actualizada',password_changed:'Evento histórico de contraseña Master',temporary_password_issued:'Contraseña temporal emitida',forced_password_changed:'Contraseña personal creada por el usuario',sessions_revoked:'Sesiones cerradas',self_password_changed:'Contraseña cambiada voluntariamente por el Admin',user_deleted:'Usuario eliminado permanentemente',primary_admin_assigned:'Administrador principal definido',primary_admin_replaced:'Administrador principal reemplazado',team_user_updated:'Acceso adicional configurado',team_user_suspended:'Usuario suspendido tras reemplazo',device_authorized:'Dispositivo autorizado',device_revoked:'Dispositivo revocado' };
+    const labels: Record<string,string> = { user_created:'Usuario creado',user_updated:'Información actualizada',password_changed:'Evento histórico de contraseña Master',temporary_password_issued:'Contraseña temporal emitida',forced_password_changed:'Contraseña personal creada por el usuario',sessions_revoked:'Sesiones cerradas',self_password_changed:'Contraseña cambiada voluntariamente por el Admin',user_deleted:'Usuario eliminado permanentemente',primary_admin_assigned:'Administrador principal definido',primary_admin_replaced:'Administrador principal reemplazado',team_user_updated:'Acceso adicional configurado',team_user_suspended:'Usuario suspendido tras reemplazo',device_authorized:'Dispositivo autorizado',device_revoked:'Dispositivo revocado',device_deleted:'Dispositivo eliminado' };
     const readableRole = (value: string) => value === 'store_admin' ? 'Administrador' : value === 'store_staff' ? 'Personal' : value;
     const readableStatus = (value: string) => value === 'active' ? 'Activo' : value === 'suspended' ? 'Suspendido' : value;
     function userUpdatedChanges(item: any) {
@@ -337,7 +372,7 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
       syncAuditMoreButton();
     });
 
-    async function refreshAfterDeviceRevocation() {
+    async function refreshAfterDeviceMutation() {
       const [detailResult, deviceResult, usersAudit, devicesAudit] = await Promise.all([
         getMasterStoreUserDetail(storeId, userId),
         listMasterUserDevices(storeId, userId, { page: 1, perPage: 20, status: currentDeviceFilter }),
@@ -369,7 +404,25 @@ const deleteBlocked = isPrimaryAdmin || detail.protection.last_active_admin || d
         if (reasonInput) reasonInput.value = '';
         selectedDevice = null;
         if (message) message.textContent = '';
-        await refreshAfterDeviceRevocation();
+        await refreshAfterDeviceMutation();
+      } catch (error) {
+        if (message) message.textContent = getMasterDeviceErrorMessage(error);
+      }
+    });
+
+    root.querySelector('[data-device-delete-submit]')?.addEventListener('click', async () => {
+      const reasonInput = document.getElementById('device-delete-reason') as HTMLTextAreaElement | null;
+      const reason = reasonInput?.value.trim() || '';
+      const message = root.querySelector<HTMLElement>('[data-device-delete-message]');
+      if (!reason) { if (message) message.textContent = 'Escribe el motivo interno.'; return; }
+      if (!selectedDevice) return;
+      try {
+        await deleteMasterUserDevice(storeId, userId, selectedDevice.id, reason);
+        window.PZMasterDialog?.close('master-device-delete-dialog');
+        if (reasonInput) reasonInput.value = '';
+        selectedDevice = null;
+        if (message) message.textContent = '';
+        await refreshAfterDeviceMutation();
       } catch (error) {
         if (message) message.textContent = getMasterDeviceErrorMessage(error);
       }

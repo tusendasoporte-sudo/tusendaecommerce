@@ -47,6 +47,7 @@ test('servicio Master expone filtros paginacion actividad planes y estado tempor
 test('servicio de dispositivos usa solo endpoints privados sanitizados', () => {
   assert.match(devices, /\/api\/pz\/master\/store-user-devices\//);
   assert.match(devices, /authorized.*revoked.*all/s);
+  assert.match(devices, /deleteMasterUserDevice/);
   for (const secret of ['device_digest', 'tokenKey', 'user_agent', 'location', 'latitude', 'longitude']) assert.doesNotMatch(devices, new RegExp(secret, 'i'));
 });
 
@@ -77,7 +78,9 @@ test('acciones dinÃ¡micas de dispositivos usan un proxy mismo origen con la co
   assert.match(devices, /client === pb && typeof window !== 'undefined'/);
   assert.match(devicesProxy, /refreshAuthFromCookie\(request\.headers\.get\('cookie'\)/);
   assert.match(devicesProxy, /requireMasterAdmin/);
-  assert.match(devicesProxy, /listMasterUserDevices[\s\S]*revokeMasterUserDevice[\s\S]*getMasterUserDeviceAudit/);
+  for (const action of ['listMasterUserDevices', 'revokeMasterUserDevice', 'deleteMasterUserDevice', 'getMasterUserDeviceAudit']) {
+    assert.match(devicesProxy, new RegExp(action));
+  }
   assert.match(devicesProxy, /hasExactKeys\(body, ACTION_KEYS\[action\]\)/);
   assert.doesNotMatch(devicesProxy, /authStore\.token|Authorization/);
 });
@@ -154,10 +157,21 @@ test('dispositivos no inventan IP ubicacion ni identificadores visibles', () => 
   for (const visible of ['label', 'browser_name', 'os_name', 'device_type', 'first_seen_at', 'last_seen_at']) assert.match(detailView, new RegExp(visible));
   for (const forbidden of ['Ubicación', 'Ciudad', 'País', 'IP:', 'device_digest', 'User-Agent']) assert.doesNotMatch(detailView, new RegExp(forbidden, 'i'));
   assert.match(detailView, /no solamente la sesión de este dispositivo/);
+  assert.match(detailView, /data-delete-device-index/);
+  assert.match(detailView, /Borrar dispositivo revocado/);
+  assert.match(detailView, /deleteMasterUserDevice/);
+});
+
+test('filtros de dispositivos marcan la pestaña seleccionada', () => {
+  assert.match(detailView, /data-device-filter="authorized" aria-pressed="true"/);
+  assert.match(detailView, /data-device-filter="revoked" aria-pressed="false"/);
+  assert.match(detailView, /syncDeviceFilterButtons/);
+  assert.match(detailView, /classList\.toggle\('master-btn--secondary', selected\)/);
+  assert.match(detailView, /setAttribute\('aria-pressed', String\(selected\)\)/);
 });
 
 test('auditoria combinada traduce eventos y carga incremental sin duplicados', () => {
-  for (const action of ['user_created', 'user_updated', 'temporary_password_issued', 'forced_password_changed', 'sessions_revoked', 'self_password_changed', 'device_authorized', 'device_revoked']) assert.match(detailView, new RegExp(action));
+  for (const action of ['user_created', 'user_updated', 'temporary_password_issued', 'forced_password_changed', 'sessions_revoked', 'self_password_changed', 'device_authorized', 'device_revoked', 'device_deleted']) assert.match(detailView, new RegExp(action));
   assert.match(detailView, /new Set/);
   assert.match(detailView, /data-audit-id=\{`\$\{item\.auditNamespace\}:\$\{item\.id\}`\}/);
   assert.match(detailView, /userAuditHasMore/);
@@ -167,8 +181,8 @@ test('auditoria combinada traduce eventos y carga incremental sin duplicados', (
   assert.match(detailView, /Cargar más/);
 });
 
-test('revocar dispositivo recarga detalle lista contador y ambas auditorias', () => {
-  assert.match(detailView, /refreshAfterDeviceRevocation/);
+test('mutaciones de dispositivo recargan detalle lista contador y ambas auditorias', () => {
+  assert.match(detailView, /refreshAfterDeviceMutation/);
   assert.match(detailView, /getMasterStoreUserDetail/);
   assert.match(detailView, /currentDeviceFilter/);
   assert.match(detailView, /getMasterStoreUserAudit/);
@@ -176,6 +190,11 @@ test('revocar dispositivo recarga detalle lista contador y ambas auditorias', ()
   assert.match(detailView, /data-summary-device-count/);
   assert.match(detailView, /data-summary-last-activity/);
   assert.match(detailView, /data-summary-active-count/);
+});
+
+test('registro push asocia la instalación con la identidad administrativa', () => {
+  assert.match(sidebar, /readCookieValue\('pz_admin_device'\)/);
+  assert.match(sidebar, /headers\['X-PZ-Admin-Device'\] = adminDeviceToken/);
 });
 
 test('existe un solo formulario oficial de creacion y create=1 abre una vez', () => {

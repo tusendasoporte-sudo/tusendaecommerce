@@ -35,6 +35,16 @@ routerAdd(
 
 routerAdd(
   "POST",
+  "/api/pz/master/store-user-devices/delete",
+  (e) => require(`${__hooks}/pz_store_user_devices_lib.js`).handleDelete(e),
+  (e) => require(`${__hooks}/pz_store_user_devices_lib.js`).requireAuthenticatedUser(e),
+  $apis.requireAuth(),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog()
+);
+
+routerAdd(
+  "POST",
   "/api/pz/master/store-user-devices/audit",
   (e) => require(`${__hooks}/pz_store_user_devices_lib.js`).handleAudit(e),
   (e) => require(`${__hooks}/pz_store_user_devices_lib.js`).requireAuthenticatedUser(e),
