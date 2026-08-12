@@ -81,7 +81,7 @@ El `backend-powerzona/Dockerfile` crea `/app/pb_data`, pero una ruta dentro de u
 
 `/var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data -> /app/pb_data`
 
-También confirmó `121,6 MiB` en `pb_data`, `5,1 MiB` en `storage` y 82 archivos. Para aprobar C04 todavía se debe reconfirmar después del despliegue y completar:
+También confirmó `121,6 MiB` en `pb_data`, `5,1 MiB` en `storage` y 82 archivos. La prueba manual C04 reconfirmó después del despliegue:
 
 1. El servicio PocketBase de staging tiene un volumen persistente montado exactamente en `/app/pb_data`.
 2. `pb_data/data.db` y `pb_data/storage` pertenecen al mismo mount persistente.
@@ -115,9 +115,9 @@ La prueba automática C04 realiza además la ruta manual segura con PocketBase d
 - Con PocketBase detenido, copia base y storage como una unidad, inicia la copia restaurada y vuelve a verificar el mismo archivo.
 - Los dos directorios de datos se eliminan al terminar; no se crea ni modifica `.tmp/` del repositorio.
 
-## PRUEBA MANUAL NECESARIA — staging
+## PRUEBA MANUAL COMPLETADA — staging
 
-La puerta manual de C04 sigue pendiente hasta completar todos estos pasos en staging. Requiere una cuenta de tienda Premium con `marketing.push.manage`; no requiere teléfono.
+La puerta manual de C04 se completó el 2026-08-12. Este procedimiento queda como runbook reproducible; requiere una cuenta de tienda Premium con `marketing.push.manage` y no requiere teléfono.
 
 1. Desplegar únicamente backend y frontend de staging desde el commit exacto de C04. Confirmar que producción no está incluida.
 2. Confirmar el mount persistente `/app/pb_data` y crear un backup integrado antes de cargar datos de prueba.
@@ -149,3 +149,15 @@ input.click();
 10. Conservar localmente una copia de prueba si hace falta. Dejar vencer un medio desechable y confirmar, después del siguiente ciclo de cinco minutos, que el registro y el archivo ya no existen y que una campaña de prueba quedó sin referencia de imagen.
 
 Evidencia a registrar en el plan maestro: commit, despliegues de staging, mount exacto, id sanitizado del medio, dimensiones/bytes, encabezados, resultado antes y después del redeploy, identificador del backup, resultado de restauración y confirmación explícita de que producción no se tocó.
+
+### Resultado ejecutado
+
+- Commit exacto: `6d514726670f498d8e048cb37eaa0dd25ff77a0f` en ambos servicios de `tusenda-staging`.
+- Despliegue PocketBase: `px26fllr244caqktaxya381q`; despliegue frontend: `k7dq34p33fkke2xs9e1i5gbd`; reinicio controlado posterior de PocketBase: `n9v0gu0nlctzg9n0ym4vy4yl`.
+- Mount reconfirmado: volumen `imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging` hacia `/app/pb_data`.
+- Backup previo: `c04_predeploy_20260812_1900.zip`, 18,79 MiB. Backup con la muestra: `c04_with_media_20260812_2254.zip`, 18,8 MiB.
+- JPG de entrada: 1600×1000. WebP de salida: 1008×630, 1232 bytes, id sanitizado `czsb9…`, SHA-256 `d6bf75632971ebfb1cffa93d490f185b82185f418c3d19d5f2c7297095da5a59` y vencimiento cercano a 24 horas.
+- URL anónima antes y después del reinicio: HTTP `200`, `Content-Type: image/webp`, `Cache-Control: public, max-age=300, must-revalidate`, `X-Content-Type-Options: nosniff`, mismos bytes y SHA-256.
+- Restauración: el backup posterior se extrajo en un directorio local aislado y se abrió con PocketBase oficial 0.38.2; salud HTTP `200` y archivo restaurado de 1232 bytes con el mismo SHA-256. La descarga, base aislada, proceso y credenciales temporales locales se eliminaron.
+- Limpieza: un segundo medio sanitizado `3gtds…` se venció de forma controlada solo en staging; el cron lo eliminó y su URL pasó a HTTP `404`. No se creó campaña C05; la limpieza de referencias quedó verificada por la prueba backend C04.
+- Estado final: `push_media` volvió a cero registros, se eliminó la cuenta desechable y los dos recursos staging continúan `Running` en la SHA indicada. Producción no se abrió ni modificó y `.tmp/` se preservó.

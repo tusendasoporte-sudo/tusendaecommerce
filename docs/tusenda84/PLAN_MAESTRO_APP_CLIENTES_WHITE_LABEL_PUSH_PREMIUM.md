@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C04 EN CURSO — canal persistente de imágenes WebP |
-| Versión del documento | 1.21 |
+| Estado general | PZ-APP-C04 COMPLETADO — C03 continúa BLOQUEADO |
+| Versión del documento | 1.22 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-12 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C04 EN CURSO — canal persistente de imágenes WebP |
+| Próximo prompt | Sin prompt autorizado: C03 sigue BLOQUEADO y C05 no debe iniciarse |
 
 ### Convención de estados
 
@@ -546,7 +546,7 @@ Estado vigente:
 | PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
 | PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | COMPLETADO | C01 | Completada: inspección controlada A/B en staging | Sol — Extra High |
 | PZ-APP-C03 | Registro público seguro de instalaciones | BLOQUEADO | C02; validación pendiente de la SHA-256 real del certificado Android de C06 | Sí: ciclo de registro en staging | Sol — High |
-| PZ-APP-C04 | Canal persistente de imágenes WebP | EN CURSO | C02 | Sí: carga, visualización y persistencia | Terra — High |
+| PZ-APP-C04 | Canal persistente de imágenes WebP | COMPLETADO | C02 | Completada: carga, visualización, persistencia, limpieza y restauración aislada en staging | Terra — High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | PENDIENTE | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | PENDIENTE | C01, C03 | Sí: emulador y teléfono | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | PENDIENTE | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
@@ -631,7 +631,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [ ] IP, FID y credencial no aparecen en logs generales.
 - [ ] Se prueban altas, heartbeats, desactivación y errores.
 
-### [ ] PZ-APP-C04 — Imágenes WebP persistentes
+### [x] PZ-APP-C04 — Imágenes WebP persistentes
 
 **Objetivo:** permitir imágenes de campaña optimizadas y alojadas en Hetzner con URL estable durante su vigencia de 24 horas.
 
@@ -645,14 +645,14 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] Toda imagen publicada termina validada como WebP.
-- [ ] La WebP pesa como máximo 100 KiB después de la conversión adaptativa.
-- [ ] La URL funciona sin autenticación para que FCM/Android pueda descargarla.
-- [ ] No se aceptan tipos falsificados ni rutas manipuladas.
-- [ ] La imagen y sus referencias vencen de forma segura después de 24 horas.
-- [ ] Hay cuota por tienda, alerta global a 35 GiB, bloqueo a 40 GiB, limpieza y respaldo documentados.
-- [ ] La imagen sobrevive reinicios y despliegues.
-- [ ] La caché no impide reemplazos ni limpieza correctos.
+- [x] Toda imagen publicada termina validada como WebP.
+- [x] La WebP pesa como máximo 100 KiB después de la conversión adaptativa.
+- [x] La URL funciona sin autenticación para que FCM/Android pueda descargarla.
+- [x] No se aceptan tipos falsificados ni rutas manipuladas.
+- [x] La imagen y sus referencias vencen de forma segura después de 24 horas.
+- [x] Hay cuota por tienda, alerta global a 35 GiB, bloqueo a 40 GiB, limpieza y respaldo documentados.
+- [x] La imagen sobrevive reinicios y despliegues.
+- [x] La caché no impide reemplazos ni limpieza correctos.
 
 ### [ ] PZ-APP-C05 — Motor de campañas y entrega FCM
 
@@ -1369,13 +1369,13 @@ Implementar exclusivamente el registro público seguro de instalaciones definido
 
 ### 2026-08-12 — PZ-APP-C04 — Canal persistente de imágenes WebP
 
-- Estado: EN CURSO
+- Estado: COMPLETADO
 - Responsable: Codex
-- Entorno: local; staging pendiente de la prueba manual obligatoria de C04
+- Entorno: local y staging; producción fuera de alcance y sin abrir
 - Branch: `dev`; implementación preparada en worktree desacoplado y consolidada por fast-forward local
 - Commit base: `5652bd4aaef5e0958d4639998e61b00a5ba24e1b`
 - Fecha/hora de inicio: 2026-08-12 08:07:15 -04:00
-- Fecha/hora de cierre: pendiente
+- Fecha/hora de cierre: 2026-08-12 19:06:25 -04:00
 
 #### Objetivo en curso
 
@@ -1438,9 +1438,14 @@ Implementar exclusivamente el canal persistente de imágenes WebP definido para 
 - Docker reportó 3,21 GB de caché de build recuperable y 3,516 GB de imágenes recuperables. No se ejecutó ninguna poda: la operación exige distinguir caché segura de imágenes necesarias para rollback.
 - Se documentaron como mejoras separadas: swap de 2 GiB, rotación de logs, limpieza selectiva de build cache, alertas del disco raíz y backup externo. Ninguna se aplicó remotamente durante C04.
 
-#### Estado y puerta manual
+#### Prueba manual de staging y cierre
 
-- A las 2026-08-12 18:30:38 -04:00 la implementación actualizada, pruebas y documentación locales quedaron listas, pero C04 permanece `EN CURSO`: no se marcan sus criterios como completados hasta ejecutar y registrar la prueba manual de staging exigida por el plan.
-- **PRUEBA MANUAL NECESARIA:** desplegar solo C04 en staging, reconfirmar el mount persistente `/app/pb_data`, cargar JPG/PNG, revisar la WebP de hasta 100 KiB y sus cabeceras, redesplegar PocketBase y validar la misma URL antes del vencimiento, comprobar el borrado después de 24 horas y probar una restauración aislada. Los pasos y la evidencia solicitada están en `docs/tusenda84/PZ_APP_C04_MEDIA_OPERATIONS.md`.
-- No se inició C05 ni ninguna fase posterior. No se modificó C03, no se generó firma Android ni `google-services.json`, no se abrió producción y `.tmp/` permaneció ausente e intacta.
-- Por solicitud del propietario, todos los cambios C04 quedaron alineados en la rama local `dev`; no se realizó push a `origin/dev` ni despliegue remoto.
+- Antes del despliegue se reconfirmaron exclusivamente los recursos `powerzona-pocketbase-repo-staging` y `powerzona-frontend-staging` dentro del proyecto `tusenda-staging`; ambos seguían configurados con rama `dev` y commit `HEAD`. El storage persistente de PocketBase se verificó visualmente como volumen `imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging` con destino exacto `/app/pb_data`.
+- Se creó primero el backup integrado `c04_predeploy_20260812_1900.zip` de 18,79 MiB. PocketBase staging desplegó `6d514726670f498d8e048cb37eaa0dd25ff77a0f` mediante `px26fllr244caqktaxya381q` y el frontend staging la misma SHA mediante `k7dq34p33fkke2xs9e1i5gbd`; ambos terminaron correctamente.
+- Con una cuenta desechable Premium de la plantilla Marketing, que incluía `marketing.push.manage`, se cargó por el endpoint SSR un JPG sintético de 1600×1000. La respuesta fue HTTP `201`; el registro sanitizado `czsb9…` produjo WebP 1008×630 de 1232 bytes, con vencimiento exactamente cercano a 24 horas y URL pública HTTPS.
+- La descarga anónima respondió HTTP `200`, `Content-Type: image/webp`, `Cache-Control: public, max-age=300, must-revalidate` y `X-Content-Type-Options: nosniff`. Los 1232 bytes descargados conservaron SHA-256 `d6bf75632971ebfb1cffa93d490f185b82185f418c3d19d5f2c7297095da5a59`, idéntica a la registrada, y la miniatura de PocketBase permitió revisar visualmente el resultado.
+- Se reinició únicamente PocketBase staging mediante `n9v0gu0nlctzg9n0ym4vy4yl`. Después del rolling update la misma URL continuó respondiendo HTTP `200`, con los mismos 1232 bytes, SHA-256 y cabeceras; esto confirmó persistencia fuera del contenedor efímero.
+- Para comprobar el vencimiento sin esperar un día se creó un segundo medio desechable `3gtds…` y, solo como superusuario de staging, se adelantó su `delete_after` a una hora pasada. El cron de cinco minutos eliminó el registro y el archivo; su URL pasó a HTTP `404`. No se creó ninguna campaña C05: la limpieza transaccional de referencias permanece cubierta por la prueba backend C04 aprobada.
+- Se generó el backup integrado posterior `c04_with_media_20260812_2254.zip` de 18,8 MiB. Se descargó, extrajo y arrancó únicamente en un directorio local aislado con el binario oficial PocketBase 0.38.2, cuyo ZIP volvió a verificar SHA-256 `9114bb978c694f49064bbf6f7ae28cf2bf01042a4ae9be26df1b98a4729a597e`. La API aislada respondió saludable y el archivo restaurado conservó 1232 bytes y el mismo SHA-256. El proceso, descarga, base restaurada y estados locales con credenciales se eliminaron al concluir.
+- Los dos medios y la cuenta desechable se eliminaron del runtime activo; `push_media` volvió a `Total: 0` y la tienda volvió a un único usuario. Los dos backups integrados permanecen en PocketBase staging como evidencia y protección operativa.
+- C04 queda `COMPLETADO` con todos sus criterios marcados. C03 continúa `BLOQUEADO` exclusivamente por la SHA-256 real del certificado Android/Play Integrity que corresponde a C06. No se inició C05 ni ninguna fase posterior, no se generó firma Android ni `google-services.json`, no se abrió ni modificó producción y `.tmp/` permaneció preservada.
