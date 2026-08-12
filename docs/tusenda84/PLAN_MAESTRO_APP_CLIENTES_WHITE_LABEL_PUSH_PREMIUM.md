@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | EN EJECUCIÓN — PZ-APP-C02 |
-| Versión del documento | 1.12 |
+| Estado general | PZ-APP-C02 COMPLETADO — listo para iniciar PZ-APP-C03 en un chat nuevo |
+| Versión del documento | 1.13 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C02 — confirmación visual final del propietario |
+| Próximo prompt | PZ-APP-C03 — registro público seguro de instalaciones |
 
 ### Convención de estados
 
@@ -541,7 +541,7 @@ Estado vigente:
 | ID | Entregable | Estado | Dependencia | Prueba manual | Modelo y razonamiento recomendado |
 |---|---|---|---|---|---|
 | PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
-| PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | EN CURSO | C01 | Limitada: inspección en staging | Sol — Extra High |
+| PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | COMPLETADO | C01 | Completada: inspección controlada A/B en staging | Sol — Extra High |
 | PZ-APP-C03 | Registro público seguro de instalaciones | PENDIENTE | C02 | Sí: ciclo de registro en staging | Sol — High |
 | PZ-APP-C04 | Canal persistente de imágenes WebP | PENDIENTE | C02 | Sí: carga, visualización y persistencia | Terra — High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | PENDIENTE | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
@@ -580,7 +580,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 - [x] No se modificó producción.
 - [x] Este documento quedó actualizado con resultados y próximo paso.
 
-### [ ] PZ-APP-C02 — Modelo de datos, migraciones y aislamiento
+### [x] PZ-APP-C02 — Modelo de datos, migraciones y aislamiento
 
 **Objetivo:** crear la base de datos segura para configuraciones de app, instalaciones públicas, campañas, medios y eventos.
 
@@ -605,7 +605,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 El acceso administrativo exige simultáneamente `marketing.push.manage` y `push_campaigns_enabled`; la capability es `false` en Free/Básico y `true` solo en Premium vigente o permanente. El permiso fue incorporado a las plantillas `secondary_admin` y `marketing_promotions`, con migración reversible de los registros persistidos. Las instalaciones y campañas públicas no reutilizan `store_push_devices` ni `store_notifications`.
 
-Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. Retención acordada: IP completo 30 días; sesiones 30 días tras expirar; entregas/eventos 180 días; campañas 24 meses; agregados diarios 36 meses cuando se creen en C09. La inspección controlada con dos tiendas desechables terminó correctamente en staging y todos sus datos temporales fueron eliminados. C02 permanece `EN CURSO` únicamente hasta que el propietario confirme visualmente la evidencia registrada; producción no fue modificada.
+Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. Retención acordada: IP completo 30 días; sesiones 30 días tras expirar; entregas/eventos 180 días; campañas 24 meses; agregados diarios 36 meses cuando se creen en C09. La inspección controlada con dos tiendas desechables terminó correctamente en staging, todos sus datos temporales fueron eliminados y el propietario confirmó la validación. C02 queda `COMPLETADO`; producción no fue modificada.
 
 ### [ ] PZ-APP-C03 — Registro público seguro de instalaciones
 
@@ -1160,17 +1160,17 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 
 ### 2026-08-11 — PZ-APP-C02 — Modelo de datos, migraciones y aislamiento
 
-- Estado: EN CURSO
+- Estado: COMPLETADO
 - Responsable: Codex
 - Entorno: local integrado en `dev`; backend y frontend desplegados en staging
 - Branch: `dev`
 - Commit de implementación: `7b720764e1380b9a342caecdcb23e1e7fb021ddd`
 - Fecha/hora de inicio: 2026-08-11 19:59:08 -04:00
-- Fecha/hora de cierre: pendiente
+- Fecha/hora de cierre: 2026-08-11 22:02:03 -04:00
 
 #### Objetivo ejecutado
 
-Implementación y validación controlada terminadas para las ocho colecciones privadas, migraciones reproducibles, capability Premium, permiso administrativo, reglas cerradas, índices, estados, retención, validación de relaciones y borrado multi-tienda definidos en C01. La prueba limitada de staging se ejecutó con dos tiendas y usuarios desechables, ya eliminados. C02 no se cierra todavía porque falta la confirmación visual explícita del propietario sobre esta evidencia.
+Implementación y validación controlada terminadas para las ocho colecciones privadas, migraciones reproducibles, capability Premium, permiso administrativo, reglas cerradas, índices, estados, retención, validación de relaciones y borrado multi-tienda definidos en C01. La prueba limitada de staging se ejecutó con dos tiendas y usuarios desechables, ya eliminados. El propietario respondió `Confirmo la validación de C02.` y autorizó preparar C03 exclusivamente en un chat nuevo.
 
 #### Archivos modificados
 
@@ -1252,9 +1252,9 @@ Implementación y validación controlada terminadas para las ocho colecciones pr
 #### Riesgos, deuda o bloqueos
 
 - No quedan bloqueos técnicos conocidos de C02. La comprobación manual de `(installation, order)` quedó limitada deliberadamente a prueba automatizada e inspección del índice porque una orden válida solo puede nacer del checkout canónico; no se contaminó staging con una orden comercial artificial.
-- C02 continúa `EN CURSO` únicamente hasta recibir la confirmación visual del propietario sobre la evidencia anterior. No se inicia C03.
+- No quedan riesgos o bloqueos abiertos que impidan cerrar C02. C03 no se inició en este chat.
 
-#### PRUEBA MANUAL NECESARIA — staging
+#### PRUEBA MANUAL COMPLETADA — staging
 
 - Entorno: staging aislado de Tu Senda 84, PocketBase 0.38.2; backend C02 en `37c619a`, frontend corregido en `572d1223c24e76b861f89c9e7d133f6d49dd14ea`; no requiere teléfono.
 - El propietario autorizó expresamente la prueba con dos tiendas y datos desechables. Nunca se usó producción.
@@ -1266,7 +1266,7 @@ Implementación y validación controlada terminadas para las ocho colecciones pr
 5. [x] El preview Master mostró las ocho colecciones agrupadas, con seis registros C02 por tienda. Las dos tiendas eran desechables y se verificó también la eliminación completa.
 6. [x] Se guardó evidencia visual sin secretos y se comprobó la limpieza total de tiendas, usuarios, dispositivos y registros C02 temporales.
 
-- Puerta de salida: el propietario confirma visualmente estructura/reglas/índices y Codex registra el resultado. Hasta esa confirmación, C02 permanece `EN CURSO` y C03 no inicia.
+- Puerta de salida cumplida: el propietario confirmó visualmente la validación de C02 el 2026-08-11. C02 queda `COMPLETADO`.
 
 #### Despliegue
 
@@ -1276,4 +1276,4 @@ Implementación y validación controlada terminadas para las ocho colecciones pr
 
 #### Siguiente paso
 
-- **PRUEBA MANUAL NECESARIA:** el propietario revisa el resumen de resultados y responde si confirma la validación visual de C02. Solo después de esa confirmación se cambiará PZ-APP-C02 a `COMPLETADO`; C03 no se inicia automáticamente.
+- Abrir un chat nuevo y comenzar exclusivamente PZ-APP-C03 desde el cierre confirmado de C02. Al iniciar ese nuevo trabajo, volver a comprobar `dev`, `origin/dev`, el estado real del repositorio y `.tmp/`, y entonces marcar solo C03 `EN CURSO` conforme al protocolo.
