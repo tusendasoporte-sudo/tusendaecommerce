@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C02 COMPLETADO — listo para iniciar PZ-APP-C03 en un chat nuevo |
-| Versión del documento | 1.13 |
+| Estado general | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
+| Versión del documento | 1.14 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C03 — registro público seguro de instalaciones |
+| Próximo prompt | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
 
 ### Convención de estados
 
@@ -480,6 +480,8 @@ El bloqueo transaccional protege también si en el futuro hay más de una répli
 - Retención recomendada: IP completa cifrada 30 días; sesiones web 30 días tras expirar; eventos individuales y entregas 180 días; campañas/contadores 24 meses; agregados diarios sin identificadores, 36 meses. Al vencer, se agregan o anonimizan antes de borrar.
 - Store Admin ve agregados y datos operativos de su tienda, nunca IP completa/FID/credenciales. Master/seguridad puede revelar el IP solo por el flujo auditado existente o una extensión equivalente.
 
+Contrato de privacidad aplicado en C03: la app nativa envía únicamente FID, versión de app, versión Android, modelo, idioma, zona horaria y permiso de notificaciones. No puede declarar `store_id`, IP, país o región. El gateway obtiene el IP desde la topología confiable del runtime, PocketBase lo cifra con AES-256-GCM y fija `ip_delete_after` a 30 días; nunca lo usa como identidad. País/región aproximados solo se aceptan desde metadatos del proxy y quedan separados del IP completo. FID y credencial se buscan mediante HMAC con dominios distintos; la credencial solo se devuelve a la capa nativa y no se registra en activity logs. Las respuestas públicas omiten FID, digests, IP y secretos. El administrador de tienda no recibe acceso CRUD a estos campos; el IP completo sigue restringido a Superuser/Master-seguridad y requerirá un flujo auditado específico si se incorpora a una interfaz futura.
+
 ### 6.10 Compatibilidad, migración y rollback
 
 1. Migraciones append-only: crear colecciones/capability/permiso sin alterar datos de `store_push_devices` o `store_notifications`.
@@ -542,7 +544,7 @@ Estado vigente:
 |---|---|---|---|---|---|
 | PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
 | PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | COMPLETADO | C01 | Completada: inspección controlada A/B en staging | Sol — Extra High |
-| PZ-APP-C03 | Registro público seguro de instalaciones | PENDIENTE | C02 | Sí: ciclo de registro en staging | Sol — High |
+| PZ-APP-C03 | Registro público seguro de instalaciones | EN CURSO | C02 | Sí: ciclo de registro en staging | Sol — High |
 | PZ-APP-C04 | Canal persistente de imágenes WebP | PENDIENTE | C02 | Sí: carga, visualización y persistencia | Terra — High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | PENDIENTE | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | PENDIENTE | C01, C03 | Sí: emulador y teléfono | Sol — High |
@@ -1277,3 +1279,64 @@ Implementación y validación controlada terminadas para las ocho colecciones pr
 #### Siguiente paso
 
 - Abrir un chat nuevo y comenzar exclusivamente PZ-APP-C03 desde el cierre confirmado de C02. Al iniciar ese nuevo trabajo, volver a comprobar `dev`, `origin/dev`, el estado real del repositorio y `.tmp/`, y entonces marcar solo C03 `EN CURSO` conforme al protocolo.
+
+### 2026-08-11 — PZ-APP-C03 — Registro público seguro de instalaciones
+
+- Estado: EN CURSO
+- Responsable: Codex
+- Entorno: local; staging pendiente de la puerta manual de C03
+- Branch: `dev`
+- Commit base: `fd46936d3bbb06f87269f048be857a0d30c5d691`
+- Fecha/hora de inicio: 2026-08-11 22:05:39 -04:00
+- Fecha/hora de cierre: pendiente
+
+#### Objetivo en curso
+
+Implementar exclusivamente el registro público seguro de instalaciones definido para C03, sin iniciar C04 ni fases posteriores y sin modificar producción.
+
+#### Comprobaciones de inicio
+
+- `dev`, la referencia local `origin/dev` y la consulta directa a `refs/heads/dev` en GitHub apuntan a `fd46936d3bbb06f87269f048be857a0d30c5d691`.
+- El árbol de trabajo comenzó limpio en `dev`; `.tmp/` existe, está ignorada por Git y se preservará.
+- C02 está `COMPLETADO`; C04-C12 continúan `PENDIENTE`.
+
+#### Archivos modificados hasta esta validación local
+
+- `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`
+- `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`
+- `backend-powerzona/tests/pz_storefront_installations.test.cjs`
+- `backend-powerzona/.env.example`
+- `frontend-powerzona/src/lib/storefrontPushAppCheck.ts`
+- `frontend-powerzona/src/lib/storefrontPushContracts.ts`
+- `frontend-powerzona/src/pages/api/storefront/v1/installations/register.ts`
+- `frontend-powerzona/src/pages/api/storefront/v1/installations/heartbeat.ts`
+- `frontend-powerzona/src/pages/api/storefront/v1/installations/permission.ts`
+- `frontend-powerzona/src/pages/api/storefront/v1/installations/disable.ts`
+- `frontend-powerzona/src/pages/api/storefront/v1/session/bootstrap.ts`
+- `frontend-powerzona/src/pages/api/storefront/v1/session/bootstrap/[code].ts`
+- `frontend-powerzona/tests/storefrontPushGateway.test.mjs`
+- `frontend-powerzona/.env.example`
+- `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
+
+#### Implementación local
+
+- Gateway Astro con Firebase App Check obligatorio, HTTPS, cuerpos JSON exactos, límites de tamaño y rate limiting por operación.
+- Sobre interno canónico firmado HMAC-SHA256, secreto dedicado, timestamp acotado y nonce anti-replay; PocketBase vuelve a validar firma, payload, app y tenant.
+- Registro idempotente por `app_config + fid_digest`, credencial opaca HMAC, rotación de FID que conserva `id`/`first_seen_at`, reinstalación con FID nuevo y separación total de `store_push_devices`.
+- Heartbeat, permiso, desactivación idempotente y bootstrap WebView de un solo uso; la cookie resultante es `HttpOnly`, `Secure` y `SameSite=Lax` y solo redirige al `store_path_prefix` configurado.
+- IP obtenido por el gateway desde el runtime, cifrado en PocketBase y con vencimiento de 30 días; país/región quedan limitados a datos aproximados del proxy. IP, FID, credenciales y digests no aparecen en respuestas generales ni logs de actividad exitosos.
+
+#### Pruebas locales y resultados provisionales
+
+- `node --test tests/pz_storefront_installations.test.cjs` → 12/12 aprobadas. Incluye PocketBase 0.38.2 real en base temporal del sistema, CRUD anónimo `403`, alta, repetición, rotación, heartbeat, permiso, bootstrap/consumo único y disable; la base temporal fue eliminada.
+- Regresión backend C02/canal administrativo + C03 → 129/129 aprobadas.
+- `node --test tests/storefrontPushGateway.test.mjs` → 11/11 aprobadas.
+- Regresión frontend de capabilities, permisos, borrado Master, relay administrativo, resolución de IP y gateway C03 → 94/94 aprobadas.
+- `npm.cmd run build` → aprobado; solo emitió las advertencias preexistentes de `getStaticPaths()` ignorado en tres rutas dinámicas.
+- `node --check` de los dos hooks C03 y `git diff --check` → aprobados.
+
+#### Riesgos o puertas pendientes
+
+- C03 continúa `EN CURSO`: falta configurar secretos y App Check fuera de Git, desplegar únicamente en staging y completar allí el ciclo manual obligatorio.
+- La validación en teléfono puede posponerse hasta C06 conforme al plan; si se pospone, debe quedar registrada explícitamente.
+- Producción, Firebase de producción, Cloudflare y C04-C12 permanecen fuera de alcance y sin cambios.
