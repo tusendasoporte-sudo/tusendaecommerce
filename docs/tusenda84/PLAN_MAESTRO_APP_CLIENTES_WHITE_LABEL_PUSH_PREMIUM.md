@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | Estado general | EN EJECUCIÓN — PZ-APP-C02 |
-| Versión del documento | 1.11 |
+| Versión del documento | 1.12 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C02 — validación manual limitada en staging |
+| Próximo prompt | PZ-APP-C02 — confirmación visual final del propietario |
 
 ### Convención de estados
 
@@ -605,7 +605,7 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 El acceso administrativo exige simultáneamente `marketing.push.manage` y `push_campaigns_enabled`; la capability es `false` en Free/Básico y `true` solo en Premium vigente o permanente. El permiso fue incorporado a las plantillas `secondary_admin` y `marketing_promotions`, con migración reversible de los registros persistidos. Las instalaciones y campañas públicas no reutilizan `store_push_devices` ni `store_notifications`.
 
-Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. Retención acordada: IP completo 30 días; sesiones 30 días tras expirar; entregas/eventos 180 días; campañas 24 meses; agregados diarios 36 meses cuando se creen en C09. C02 permanece `EN CURSO` únicamente por la inspección manual limitada obligatoria en staging; no se autoriza ni ejecuta desde este trabajo local.
+Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. Retención acordada: IP completo 30 días; sesiones 30 días tras expirar; entregas/eventos 180 días; campañas 24 meses; agregados diarios 36 meses cuando se creen en C09. La inspección controlada con dos tiendas desechables terminó correctamente en staging y todos sus datos temporales fueron eliminados. C02 permanece `EN CURSO` únicamente hasta que el propietario confirme visualmente la evidencia registrada; producción no fue modificada.
 
 ### [ ] PZ-APP-C03 — Registro público seguro de instalaciones
 
@@ -1170,7 +1170,7 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 
 #### Objetivo ejecutado
 
-Implementación local terminada de las ocho colecciones privadas, migraciones reproducibles, capability Premium, permiso administrativo, reglas cerradas, índices, estados, retención, validación de relaciones y borrado multi-tienda definidos en C01. C02 no se cierra todavía porque falta la prueba manual limitada obligatoria en staging.
+Implementación y validación controlada terminadas para las ocho colecciones privadas, migraciones reproducibles, capability Premium, permiso administrativo, reglas cerradas, índices, estados, retención, validación de relaciones y borrado multi-tienda definidos en C01. La prueba limitada de staging se ejecutó con dos tiendas y usuarios desechables, ya eliminados. C02 no se cierra todavía porque falta la confirmación visual explícita del propietario sobre esta evidencia.
 
 #### Archivos modificados
 
@@ -1195,9 +1195,12 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - `frontend-powerzona/src/lib/storeTeam.ts`
 - `frontend-powerzona/src/lib/masterStorePlans.ts`
 - `frontend-powerzona/src/components/master/MasterStorePlanView.astro`
+- `frontend-powerzona/src/components/master/MasterStoreDeleteDialog.astro`
+- `frontend-powerzona/src/lib/masterStoreDeletion.ts`
 - `frontend-powerzona/tests/storeCapabilities.test.mjs`
 - `frontend-powerzona/tests/m7u2StoreTeam.test.mjs`
 - `frontend-powerzona/tests/m7u2C3FrontendPermissions.test.mjs`
+- `frontend-powerzona/tests/masterStoreDeletion.test.mjs`
 - `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
 
 #### Migraciones o infraestructura
@@ -1207,6 +1210,7 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - PocketBase oficial 0.38.2 se descargó en el directorio temporal del sistema, verificando SHA-256 `9114bb978c694f49064bbf6f7ae28cf2bf01042a4ae9be26df1b98a4729a597e`; no se añadió el binario ni la base efímera al repositorio y el directorio temporal fue eliminado al terminar.
 - Ciclo real en base limpia: todas las migraciones `up`; `down 2` de C02; segundo `up` de C02. Resultado: `Applied/Reverted` correcto en ambos sentidos.
 - Las migraciones fueron aplicadas en PocketBase staging por el arranque del contenedor construido desde `d4933bc9739254a8997946891ae1b815caa99822`; las ocho colecciones están presentes. Firebase, Cloudflare y producción permanecieron fuera de alcance y no se modificaron.
+- El preview Master ya incluía correctamente las ocho colecciones en backend, pero el contrato de conteos del frontend no contemplaba esas claves. La corrección `572d1223c24e76b861f89c9e7d133f6d49dd14ea` alineó el tipo, la normalización, el diálogo visible y sus pruebas; no alteró el procedimiento de borrado ni datos reales.
 
 #### Pruebas y resultados
 
@@ -1220,13 +1224,22 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - Integración en el worktree principal: avance rápido de `dev` desde `6b95711a194abaac174d2818f9a38bedcc4030a1` hasta `7b720764e1380b9a342caecdcb23e1e7fb021ddd`; `.tmp/` se confirmó presente y preservada.
 - Revalidación sobre `dev` integrado: backend 147/147; frontend 109/109; ciclo PocketBase `up → down 2 → up` correcto; 8 colecciones, 8/8 con reglas cerradas y 31 índices.
 - `npm.cmd run build` completó correctamente sobre `dev`; solo emitió las advertencias preexistentes de `getStaticPaths()` ignorado en rutas dinámicas.
-- GitHub quedó alineado: `dev` y `origin/dev` apuntan a `d4933bc9739254a8997946891ae1b815caa99822`; árbol limpio y `.tmp/` preservada.
+- GitHub quedó alineado tras la implementación inicial: `dev` y `origin/dev` apuntaron a `d4933bc9739254a8997946891ae1b815caa99822`; el árbol quedó limpio y `.tmp/` preservada.
 - Coolify no inició autodespliegue con el push. Se ejecutó `Redeploy` manual únicamente en los recursos `powerzona-pocketbase-repo-staging` y `powerzona-frontend-staging`, ambos configurados con rama `dev`/`HEAD`.
 - PocketBase staging: despliegue manual `ettya2u0ablgwyjs2yh14p9b`, `Success`, 2026-08-12 00:50:04–00:50:20 UTC, commit `d4933bc`.
 - Frontend staging: despliegue manual `q5udllffnuyug7yqt37ur3g9`, `Success`, 2026-08-12 00:54:00–00:56:25 UTC, commit `d4933bc`; el build remoto terminó `Complete!` y la ruta `/t/powerzona` respondió correctamente sin error de aplicación.
 - Inspección visual en PocketBase staging: 8/8 colecciones C02 presentes y vacías; `store_push_devices`/`store_notifications` siguen como colecciones separadas; 8/8 contienen `store` requerido; conteos de índices `4 + 5 + 4 + 2 + 3 + 4 + 5 + 4 = 31`; las cinco reglas de cada colección muestran `Superusers only` (40/40 cerradas); `push_events.store` confirmó `Cascade delete = False`.
 - Comprobación anónima de solo lectura: listar cada una de las ocho colecciones por REST devolvió HTTP `403` en todos los casos.
 - Staging contiene dos tiendas existentes: PowerZona Premium permanente y una tienda Free. No se crearon, editaron ni eliminaron registros para esta inspección.
+- Con autorización del propietario se crearon las tiendas desechables `QA-C02-A` y `QA-C02-B`. La primera se cambió a Premium permanente mediante el flujo Master oficial y mostró `Campañas push públicas: Incluido`; la segunda permaneció Free. El aprovisionamiento inicial Free de ambas confirmó además el hook de planes.
+- Cada tienda recibió, exclusivamente para la prueba, una configuración de app, una instalación pública, una sesión web, una campaña, una entrega y un evento. No se reutilizaron `store_push_devices` ni `store_notifications`; los dos dispositivos administrativos temporales solo se usaron para autenticar los usuarios de tienda y comprobar la frontera entre ambos modelos.
+- PocketBase rechazó visualmente como duplicados `app_key`, `package_name`, `firebase_app_id`, `(app_config, fid_digest)`, `credential_digest`, `session_digest`, `(campaign, installation)` e `(installation, idempotency_key)`. La unicidad `(installation, order)` se verificó en prueba automatizada y en el índice de esquema: no se forzó manualmente porque `orders` exige el checkout canónico y crear una orden comercial ficticia habría excedido el alcance de C02.
+- El acceso directo anónimo ya había dado `403` en 8/8 colecciones. Los usuarios temporales de A y B —incluido A Premium con `marketing.push.manage` persistido— recibieron `403` al listar las ocho colecciones y al intentar ver, crear o modificar `storefront_app_configs`; ningún usuario obtuvo registros de la otra tienda.
+- El primer preview de borrado no eliminó nada y reveló de forma segura que el frontend rechazaba las nuevas claves de conteo C02. Se añadió una prueba focal del contrato (7/7 junto con los avisos Master), el build Astro terminó correctamente y la corrección se desplegó en el frontend de staging.
+- Tras la corrección, el preview mostró para A y B exactamente `App pública y campañas push: 6`, además de sus dependencias administrativas, y totales 12 y 11 respectivamente. Se confirmó cada slug y se eliminaron solo las dos tiendas desechables mediante el flujo Master.
+- Limpieza verificada: las ocho colecciones C02 volvieron a total 0; no quedan las tiendas, usuarios ni dispositivos administrativos `QA-C02-*`; las dos tiendas reales permanecen visibles y sin modificaciones. No se registraron ni expusieron FID, credenciales, IP, tokens o Firebase message ID reales.
+- Pruebas focales de la corrección Master: 7/7 aprobadas; `npm.cmd run build` aprobado. La ejecución amplia histórica `node --test tests/*.test.mjs` conserva tres fallos preexistentes ajenos a C02 en validaciones M7U2; no apareció un fallo nuevo atribuible a este cambio.
+- `git diff --check` aprobó la corrección y `dev`/`origin/dev` quedaron en `572d1223c24e76b861f89c9e7d133f6d49dd14ea` antes de esta actualización documental; `.tmp/` continuó preservada.
 
 #### Decisiones tomadas
 
@@ -1238,29 +1251,29 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 
 #### Riesgos, deuda o bloqueos
 
-- La inspección estructural de staging está aprobada técnicamente. Aún falta la parte controlada con datos de dos tiendas: restricciones únicas, tokens de tienda y preview de borrado Master; no se improvisó sobre datos existentes.
-- C02 continúa `EN CURSO` hasta completar esa prueba cruzada y recibir la confirmación visual del propietario. No se inicia C03.
+- No quedan bloqueos técnicos conocidos de C02. La comprobación manual de `(installation, order)` quedó limitada deliberadamente a prueba automatizada e inspección del índice porque una orden válida solo puede nacer del checkout canónico; no se contaminó staging con una orden comercial artificial.
+- C02 continúa `EN CURSO` únicamente hasta recibir la confirmación visual del propietario sobre la evidencia anterior. No se inicia C03.
 
 #### PRUEBA MANUAL NECESARIA — staging
 
-- Entorno: staging aislado de Tu Senda 84, PocketBase 0.38.2, commit `d4933bc9739254a8997946891ae1b815caa99822`; no requiere teléfono.
-- Antes de completar la parte pendiente: obtener backup consistente de base y `pb_data/storage` y confirmar qué dos tiendas/registros desechables pueden usarse; nunca usar producción.
+- Entorno: staging aislado de Tu Senda 84, PocketBase 0.38.2; backend C02 en `37c619a`, frontend corregido en `572d1223c24e76b861f89c9e7d133f6d49dd14ea`; no requiere teléfono.
+- El propietario autorizó expresamente la prueba con dos tiendas y datos desechables. Nunca se usó producción.
 
 1. [x] Aplicar las migraciones en staging desde el commit exacto y comprobar las ocho colecciones resultantes.
 2. [x] Abrir las ocho colecciones: confirmar 40/40 reglas cerradas, 31 índices, `store` requerido, relación sin cascada inspeccionada y separación de las colecciones administrativas.
-3. Crear con acceso Master datos mínimos válidos para Tienda A y Tienda B. Verificar que duplicar `app_key`, `package_name`, `firebase_app_id`, `(app_config, fid_digest)`, `credential_digest`, `session_digest`, `(installation, order)`, `(campaign, installation)` e `(installation, idempotency_key)` falla por restricción única.
-4. [x] El acceso anónimo directo quedó denegado con HTTP `403` en 8/8 colecciones. Pendiente: repetir con un usuario válido de cada tienda —incluido uno Premium con `marketing.push.manage`— e intentar listar, ver, crear y modificar por CRUD REST. Resultado esperado: acceso directo denegado y ningún cruce A/B.
-5. Ejecutar preview de borrado Master para una tienda de prueba y comprobar que los conteos incluyen las ocho colecciones C02. Cancelar el borrado salvo que se haya creado una tienda desechable específica para verificar la eliminación completa.
-6. Guardar como evidencia capturas sin FID, credenciales, IP, tokens ni Firebase message ID; registrar aprobado/fallido y limpiar los datos de prueba de forma controlada.
+3. [x] Se crearon datos mínimos para A/B y se comprobaron ocho restricciones únicas visualmente. `(installation, order)` quedó aprobado por automatización e índice, sin crear una orden comercial fuera de alcance.
+4. [x] Anónimo y ambos usuarios de tienda recibieron HTTP `403` en el CRUD REST directo; A era Premium y tenía `marketing.push.manage`. No hubo cruce A/B.
+5. [x] El preview Master mostró las ocho colecciones agrupadas, con seis registros C02 por tienda. Las dos tiendas eran desechables y se verificó también la eliminación completa.
+6. [x] Se guardó evidencia visual sin secretos y se comprobó la limpieza total de tiendas, usuarios, dispositivos y registros C02 temporales.
 
 - Puerta de salida: el propietario confirma visualmente estructura/reglas/índices y Codex registra el resultado. Hasta esa confirmación, C02 permanece `EN CURSO` y C03 no inicia.
 
 #### Despliegue
 
-- `dev` publicado en GitHub en `d4933bc9739254a8997946891ae1b815caa99822`.
-- Coolify staging actualizado manualmente: backend `Success` (`ettya2u0ablgwyjs2yh14p9b`) y frontend `Success` (`q5udllffnuyug7yqt37ur3g9`).
+- Implementación C02 de `dev` publicada en GitHub y desplegada en staging; la corrección del preview quedó publicada en `572d1223c24e76b861f89c9e7d133f6d49dd14ea`.
+- Backend staging conserva la implementación correcta C02 de `37c619a`; no requirió redeploy por la corrección exclusivamente frontend. Frontend staging: despliegue `dwfxg5reo8kd63rllvonybw3`, `Success`, 2026-08-12 01:52:20–01:53:40 UTC, commit `572d122`.
 - Producción no autorizada y no modificada; no hubo merge ni push a `main`, ni cambios en Firebase o Cloudflare.
 
 #### Siguiente paso
 
-- Preparar datos desechables y ejecutar los pasos 3–5 restantes de la `PRUEBA MANUAL NECESARIA`; solicitar confirmación visual al propietario. Solo entonces cambiar PZ-APP-C02 a `COMPLETADO` y habilitar PZ-APP-C03.
+- **PRUEBA MANUAL NECESARIA:** el propietario revisa el resumen de resultados y responde si confirma la validación visual de C02. Solo después de esa confirmación se cambiará PZ-APP-C02 a `COMPLETADO`; C03 no se inicia automáticamente.
