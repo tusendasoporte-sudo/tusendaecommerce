@@ -3,6 +3,9 @@
 const capabilities = typeof __hooks === "undefined"
   ? require("./pz_store_capabilities_lib.js")
   : require(`${__hooks}/pz_store_capabilities_lib.js`);
+const storageBudget = typeof __hooks === "undefined"
+  ? require("./pz_store_storage_budget_lib.js")
+  : require(`${__hooks}/pz_store_storage_budget_lib.js`);
 
 const PRODUCT_IMAGE_PHYSICAL_LIMIT = 4;
 const PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
@@ -32,6 +35,14 @@ const SAFE_ERRORS = Object.freeze({
   invalid_product_image: Object.freeze({
     status: 400,
     message: "La foto debe ser JPEG, PNG o WebP válido y pesar como máximo 2 MiB.",
+  }),
+  store_storage_full: Object.freeze({
+    status: 507,
+    message: "El almacenamiento de las tiendas alcanzó el límite de 40 GiB.",
+  }),
+  store_storage_unavailable: Object.freeze({
+    status: 503,
+    message: "No se pudo verificar el espacio disponible. Intenta de nuevo.",
   }),
   product_image_management_unavailable: Object.freeze({
     status: 400,
@@ -530,6 +541,13 @@ function validateProductImageRequest(event, mode) {
     const store = resolveRequestStore(event, mode, flags);
     const activeImageLimit = resolveActiveImageLimit(store);
     validateUploadedProductImages(flags.unsavedFiles);
+    if (flags.unsavedFiles.length > 0) {
+      const incomingBytes = flags.unsavedFiles.reduce(
+        (total, file) => total + Number(file && file.size || 0),
+        0,
+      );
+      storageBudget.assertStoreStorageBudget(event.app, incomingBytes, { now: new Date() });
+    }
     const afterImages = finalProductImagesForRequest(record, original, flags, mode);
     const result = evaluateProductImageMutation({
       activeImageLimit,

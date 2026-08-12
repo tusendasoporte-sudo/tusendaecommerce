@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
-| Versión del documento | 1.17 |
+| Estado general | PZ-APP-C04 EN CURSO — canal persistente de imágenes WebP |
+| Versión del documento | 1.21 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-12 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
+| Próximo prompt | PZ-APP-C04 EN CURSO — canal persistente de imágenes WebP |
 
 ### Convención de estados
 
@@ -213,10 +213,10 @@ Flujo previsto:
 6. Convierte a WebP con calidad controlada.
 7. Genera un nombre aleatorio no predecible.
 8. Guarda en almacenamiento persistente, nunca dentro del sistema de archivos efímero del contenedor frontend.
-9. Devuelve una URL HTTPS estable, preferiblemente bajo `media.tusenda84.com`.
-10. Cloudflare sirve la imagen con caché.
+9. Devuelve una URL HTTPS estable durante la vigencia de 24 horas, preferiblemente bajo `media.tusenda84.com`.
+10. El origen sirve la imagen con caché pública acotada a cinco minutos; una integración futura de Cloudflare deberá respetarla.
 
-Se añadirán cuotas por tienda, limpieza de imágenes huérfanas, copias de seguridad y política de retención. Si en el futuro se migra a R2 o S3, el dominio público estable evitará cambios en las apps.
+Se añaden cuotas por tienda, vencimiento físico absoluto, presupuesto global, copias de seguridad y política de retención. Si en el futuro se migra a R2 o S3, el dominio público estable evitará cambios en las apps.
 
 ### 5.5 Panel Premium de campañas
 
@@ -430,10 +430,11 @@ Decisión técnica aprobada por el propietario: usar el campo file de `push_medi
 Límites recomendados:
 
 - Entrada: JPG, PNG o WebP real; máximo 8 MiB, 6000 px por lado y 36 megapíxeles.
-- Salida: WebP `fit: inside`, máximo 1200 × 630, calidad inicial 82 y máximo 750 KiB; si no baja del límite tras la estrategia de calidad, se rechaza.
-- Cuota: 250 MiB activos por tienda; máximo 100 medios no archivados; huérfanos borrables después de 30 días.
+- Salida: WebP `fit: inside`, máximo 1200 × 630, calidad inicial 82 y máximo 100 KiB; la estrategia reduce calidad de forma acotada hasta 28 y usa perfiles descendentes hasta 480 × 252. Si aun así no baja del límite, se rechaza.
+- Cuota: 250 MiB y máximo 100 medios físicos por tienda. El almacenamiento físico global de tiendas tiene alerta crítica al Master desde 35 GiB y bloqueo de nuevas cargas por encima de 40 GiB; protege cargas push y productos sin adelantar la futura conversión de productos.
+- Vigencia: cada imagen push vence de forma absoluta a las 24 horas. El cron elimina el archivo y retira transaccionalmente referencias de campañas; si el cliente necesita conservarlo, debe guardar una copia propia antes del vencimiento.
 - Nombre: 128 bits aleatorios + extensión `.webp`, sin nombre original ni datos de cliente.
-- Caché: URL inmutable, `Cache-Control: public, max-age=31536000, immutable`; reemplazar crea otro archivo.
+- Caché: `Cache-Control: public, max-age=300, must-revalidate`; reemplazar crea otro archivo y el origen deja de servirlo al vencer.
 - Host inicial: URL pública estable del PocketBase existente. Recomendación de alias: `media.tusenda84.com`, apuntando al mismo origen para permitir una migración futura sin cambiar las apps.
 - Backup: incluir `pb_data/storage` y la base PocketBase como una unidad consistente; probar restauración y persistencia en staging durante C04.
 
@@ -501,12 +502,12 @@ Este inventario es el contrato de implementación conocido en C01. Si una fase d
 |---|---|
 | C02 | `backend-powerzona/pb_migrations/1786579200_storefront_push_foundation.js`; `backend-powerzona/pb_migrations/1786579300_storefront_push_permission.js`; `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`; `backend-powerzona/pb_hooks/pz_store_plans_lib.js`; `backend-powerzona/pb_hooks/pz_store_capabilities_lib.js`; `backend-powerzona/pb_hooks/pz_store_team_permissions_lib.js`; `backend-powerzona/pb_hooks/pz_store_permission_enforcement_lib.js`; `backend-powerzona/pb_hooks/pz_master_store_deletion_lib.js`; `frontend-powerzona/src/lib/storeCapabilities.ts`; `frontend-powerzona/src/lib/storeTeamPermissions.ts`; `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`; `backend-powerzona/tests/pz_storefront_push_permissions.test.cjs`; `backend-powerzona/tests/pz_master_store_deletion_storefront.test.cjs`; `backend-powerzona/tests/pz_store_plans.test.cjs`; `backend-powerzona/tests/pz_store_capabilities.test.cjs`; `backend-powerzona/tests/pz_store_team_permissions.test.cjs`; `backend-powerzona/tests/pz_store_plan_management.test.cjs`. |
 | C03 | `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `frontend-powerzona/src/lib/storefrontPushAppCheck.ts`; `frontend-powerzona/src/lib/storefrontPushContracts.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/register.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/heartbeat.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/permission.ts`; `frontend-powerzona/src/pages/api/storefront/v1/installations/disable.ts`; `frontend-powerzona/src/pages/api/storefront/v1/session/bootstrap.ts`; `frontend-powerzona/src/pages/api/storefront/v1/session/bootstrap/[code].ts`; `backend-powerzona/tests/pz_storefront_installations.test.cjs`; `frontend-powerzona/tests/storefrontPushGateway.test.mjs`; `backend-powerzona/.env.example`; `frontend-powerzona/.env.example`. |
-| C04 | `backend-powerzona/pb_hooks/pz_storefront_push_media.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_push_media_lib.js`; `frontend-powerzona/src/lib/storefrontPushMedia.ts`; `frontend-powerzona/src/pages/api/admin/storefront-push/media.ts`; `backend-powerzona/tests/pz_storefront_push_media.test.cjs`; `frontend-powerzona/tests/storefrontPushMedia.test.mjs`; `docs/tusenda84/STORE_FRONT_PUSH_MEDIA_OPERATIONS.md`; `backend-powerzona/.env.example`; `frontend-powerzona/.env.example`. |
+| C04 | `backend-powerzona/pb_migrations/1786579400_storefront_push_media_100k.js`; `backend-powerzona/pb_hooks/pz_storefront_media.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_media_lib.js`; `backend-powerzona/pb_hooks/pz_store_storage_budget_lib.js`; `backend-powerzona/pb_hooks/pz_product_image_limits_lib.js`; `backend-powerzona/pb_hooks/pz_product_image_limits.pb.js`; `backend-powerzona/tests/pz_storefront_media.test.cjs`; `backend-powerzona/tests/pz_storefront_media_runtime.test.cjs`; `backend-powerzona/tests/pz_store_storage_budget.test.cjs`; `frontend-powerzona/src/lib/storefrontPushMedia.ts`; `frontend-powerzona/src/lib/storefrontPushMediaAccess.ts`; `frontend-powerzona/src/pages/api/admin/push-media.ts`; `frontend-powerzona/tests/storefrontPushMedia.test.mjs`; `docs/tusenda84/PZ_APP_C04_MEDIA_OPERATIONS.md`; `frontend-powerzona/.env.example`. |
 | C05 | `backend-powerzona/pb_hooks/pz_storefront_campaigns.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_campaigns_lib.js`; `backend-powerzona/pb_hooks/pz_storefront_push_dispatch_lib.js`; `frontend-powerzona/src/lib/pushRelayV2Payload.ts`; `frontend-powerzona/src/pages/api/internal/push/v2/send.ts`; `backend-powerzona/tests/pz_storefront_campaigns.test.cjs`; `backend-powerzona/tests/pz_storefront_push_dispatch.test.cjs`; `frontend-powerzona/tests/pushRelayV2Payload.test.mjs`; `backend-powerzona/.env.example`; `frontend-powerzona/.env.example`. |
 | C06 | `mobile-storefront/settings.gradle`; `build.gradle`; `gradle.properties`; `gradlew`; `gradlew.bat`; `gradle/wrapper/gradle-wrapper.jar`; `gradle/wrapper/gradle-wrapper.properties`; `.gitignore`; `README.md`; `app/build.gradle`; `app/proguard-rules.pro`; `app/src/main/AndroidManifest.xml`; Java bajo `app/src/main/java/com/tusenda84/storefront/`: `StorefrontActivity.java`, `StorefrontMessagingService.java`, `StorefrontRegistrationClient.java`, `StorefrontInstallationStore.java`, `StorefrontDeepLink.java`, `StorefrontConfig.java`; recursos `res/layout/activity_storefront.xml`, `res/layout/view_storefront_offline.xml`, `res/values/strings.xml`, `colors.xml`, `themes.xml`, `res/xml/network_security_config.xml`; pruebas unitarias `StorefrontConfigTest.java`, `StorefrontDeepLinkTest.java`, `StorefrontPushPayloadTest.java`. |
 | C07 | `mobile-storefront/config/powerzona.properties`; `mobile-storefront/brands/powerzona/brand.json`; `icon.png`; `splash.png`; pruebas `app/src/test/java/com/tusenda84/storefront/PowerZonaDestinationsTest.java`; `frontend-powerzona/src/pages/api/storefront/v1/campaigns/resolve-target.ts`; `backend-powerzona/pb_hooks/pz_storefront_installations.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_installations_lib.js`; `backend-powerzona/tests/pz_storefront_order_targets.test.cjs`. La configuración Firebase real seguirá en un archivo local ignorado, no en Git. |
 | C08 | `frontend-powerzona/src/pages/admin/push-campaigns.astro`; `frontend-powerzona/src/pages/t/[storeSlug]/admin/push-campaigns.astro`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `frontend-powerzona/src/components/admin/AdminSidebar.astro`; `frontend-powerzona/src/middleware.ts`; `frontend-powerzona/src/lib/storefrontPushAdmin.ts`; `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`; `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`. |
-| C09 | `backend-powerzona/pb_migrations/1786579400_storefront_push_daily_stats.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events_lib.js`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `backend-powerzona/tests/pz_storefront_push_events.test.cjs`; `backend-powerzona/tests/pz_storefront_push_retention.test.cjs`; `frontend-powerzona/tests/storefrontPushMetrics.test.mjs`. |
+| C09 | `backend-powerzona/pb_migrations/1786579500_storefront_push_daily_stats.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events.pb.js`; `backend-powerzona/pb_hooks/pz_storefront_push_events_lib.js`; `frontend-powerzona/src/pages/api/storefront/v1/events.ts`; `frontend-powerzona/src/components/admin/PushCampaignsView.astro`; `backend-powerzona/tests/pz_storefront_push_events.test.cjs`; `backend-powerzona/tests/pz_storefront_push_retention.test.cjs`; `frontend-powerzona/tests/storefrontPushMetrics.test.mjs`. |
 | C10 | `scripts/build-store-app.ps1`; `mobile-storefront/config/schema.json`; `mobile-storefront/config/demo.properties`; `mobile-storefront/brands/demo/brand.json`; `icon.png`; `splash.png`; `mobile-storefront/README.md`; `mobile-storefront/scripts/validate-store-config.ps1`; `mobile-storefront/scripts/test-store-config.ps1`. |
 | C11 | `docs/tusenda84/reportes/PZ-APP-C11-staging.md` y este plan para resultados/evidencias; no se añadirán credenciales, bases temporales, capturas sensibles ni artefactos generados a Git. |
 | C12 | `docs/tusenda84/reportes/PZ-APP-C12-produccion.md` y este plan para versiones, checksums, despliegue y rollback; APK/AAB firmados quedan fuera de Git. |
@@ -530,7 +531,7 @@ No se reservan en C01 números de versión, secretos, archivos `google-services.
 Estado vigente:
 
 1. Identidad: nombre `PowerZona`, `applicationId` `com.tusenda84.powerzona`, maestro premium v3, símbolo launcher sin wordmark, splash vertical y paleta v3 exacta aprobados. V1 y v2 A/B quedan solo como historial rechazado.
-2. Medios aprobados: `push_media.file` en `pb_data/storage` del servidor Tu Senda 84, alias `media.tusenda84.com`, entrada 8 MiB/6000 px/36 MP, WebP 1200 × 630 y 750 KiB, cuota 250 MiB/100 activos.
+2. Medios aprobados: `push_media.file` en `pb_data/storage` del servidor Tu Senda 84, alias `media.tusenda84.com`, entrada 8 MiB/6000 px/36 MP, WebP de hasta 1200 × 630 y 100 KiB, cuota 250 MiB/100 por tienda, vencimiento absoluto a 24 horas, alerta global a 35 GiB y límite global de carga a 40 GiB.
 3. Campañas: aprobados 6 por día, 186 por mes, que cada instalación elegible pueda recibir las 6 diarias y que cada campaña alcance a toda su audiencia elegible sin máximo fijo. El motor respetará la cuota técnica vigente de FCM mediante lotes y control de velocidad.
 4. Downgrade aprobado: historial/borradores/medios en solo lectura; programadas pasan a `paused_plan` y requieren reprogramación manual tras recuperar Premium.
 5. Retención aprobada: IP completa cifrada 30 días; entregas/eventos 180 días; campañas 24 meses; agregados 36 meses.
@@ -544,8 +545,8 @@ Estado vigente:
 |---|---|---|---|---|---|
 | PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
 | PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | COMPLETADO | C01 | Completada: inspección controlada A/B en staging | Sol — Extra High |
-| PZ-APP-C03 | Registro público seguro de instalaciones | EN CURSO | C02 | Sí: ciclo de registro en staging | Sol — High |
-| PZ-APP-C04 | Canal persistente de imágenes WebP | PENDIENTE | C02 | Sí: carga, visualización y persistencia | Terra — High |
+| PZ-APP-C03 | Registro público seguro de instalaciones | BLOQUEADO | C02; validación pendiente de la SHA-256 real del certificado Android de C06 | Sí: ciclo de registro en staging | Sol — High |
+| PZ-APP-C04 | Canal persistente de imágenes WebP | EN CURSO | C02 | Sí: carga, visualización y persistencia | Terra — High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | PENDIENTE | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | PENDIENTE | C01, C03 | Sí: emulador y teléfono | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | PENDIENTE | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
@@ -632,11 +633,11 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 ### [ ] PZ-APP-C04 — Imágenes WebP persistentes
 
-**Objetivo:** permitir imágenes de campaña optimizadas y alojadas en Hetzner con URL estable.
+**Objetivo:** permitir imágenes de campaña optimizadas y alojadas en Hetzner con URL estable durante su vigencia de 24 horas.
 
 **Prompt para ejecutar:**
 
-> Implementa el flujo de medios para campañas push según PZ-APP-C01: carga autenticada por tienda, validación del contenido real, límites de peso y resolución, eliminación de metadatos, corrección de orientación, conversión a WebP, nombre aleatorio, almacenamiento persistente y URL HTTPS estable. Impide traversal, archivos ejecutables, dobles extensiones y consumo ilimitado. Agrega cuota por tienda, referencia desde campañas, limpieza segura de huérfanos y estrategia de backup. Configura cabeceras de caché compatibles con Cloudflare. Incluye pruebas con archivos válidos, corruptos, demasiado grandes y maliciosos. No guardes archivos en el contenedor efímero del frontend.
+> Implementa el flujo de medios para campañas push según PZ-APP-C01: carga autenticada por tienda, validación del contenido real, límites de peso y resolución, eliminación de metadatos, corrección de orientación, conversión a WebP, nombre aleatorio, almacenamiento persistente y URL HTTPS estable durante 24 horas. Impide traversal, archivos ejecutables, dobles extensiones y consumo ilimitado. Agrega cuota por tienda, presupuesto global de almacenamiento, vencimiento físico absoluto, limpieza transaccional de referencias y estrategia de backup. Configura cabeceras de caché compatibles con la vida temporal. Incluye pruebas con archivos válidos, corruptos, demasiado grandes y maliciosos. No guardes archivos en el contenedor efímero del frontend.
 
 **Modelo y nivel recomendado:** Terra — High. Es una implementación delimitada con validaciones claras; Terra ofrece buen equilibrio y High permite revisar seguridad y persistencia. Usar Sol — High si durante la fase cambia la arquitectura de almacenamiento.
 
@@ -645,9 +646,11 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 **Criterios de aceptación:**
 
 - [ ] Toda imagen publicada termina validada como WebP.
+- [ ] La WebP pesa como máximo 100 KiB después de la conversión adaptativa.
 - [ ] La URL funciona sin autenticación para que FCM/Android pueda descargarla.
 - [ ] No se aceptan tipos falsificados ni rutas manipuladas.
-- [ ] Hay cuotas, limpieza y respaldo documentados.
+- [ ] La imagen y sus referencias vencen de forma segura después de 24 horas.
+- [ ] Hay cuota por tienda, alerta global a 35 GiB, bloqueo a 40 GiB, limpieza y respaldo documentados.
 - [ ] La imagen sobrevive reinicios y despliegues.
 - [ ] La caché no impide reemplazos ni limpieza correctos.
 
@@ -912,7 +915,9 @@ Todas las decisiones requeridas para cerrar PZ-APP-C01 quedaron resueltas y regi
 - [x] Símbolo launcher, splash y paleta v3 derivados y aprobados explícitamente por el propietario.
 - [x] Subdominio de medios definitivo: `media.tusenda84.com` como alias estable.
 - [x] Uso de archivos PocketBase: `push_media.file` en el `pb_data/storage` persistente del servidor Tu Senda 84.
-- [x] Peso y dimensiones máximas: 8 MiB/6000 px/36 MP de entrada; 1200 × 630/750 KiB de salida.
+- [x] Peso y dimensiones máximas actualizadas por el propietario durante C04: 8 MiB/6000 px/36 MP de entrada; 1200 × 630/100 KiB de salida, con reducción adaptativa.
+- [x] Vencimiento de imágenes push: borrado físico automático a las 24 horas; el cliente conserva por su cuenta cualquier copia necesaria.
+- [x] Presupuesto de archivos de tiendas: alerta crítica al Master desde 35 GiB y bloqueo duro de nuevas cargas por encima de 40 GiB.
 - [x] Retención del IP completo y de eventos individuales: 30 y 180 días respectivamente.
 - [x] Límite diario: 6 campañas iniciadas por tienda; cada instalación elegible puede recibir las 6 en el día calendario de la tienda.
 - [x] Límite mensual: 186 campañas iniciadas por tienda.
@@ -925,6 +930,8 @@ Todas las decisiones requeridas para cerrar PZ-APP-C01 quedaron resueltas y regi
 - [x] App Check/Play Integrity obligatorio y probado por separado para APK directo y Google Play.
 
 ## 14. Protocolo para completar cada prompt
+
+**Rama de integración acordada — 2026-08-12:** `dev` es la única rama local de integración para los cambios de este proyecto. Se permite trabajar temporalmente en un worktree aislado o desacoplado para proteger cambios concurrentes, pero el trabajo debe quedar consolidado en `dev` antes de entregarse. `origin/dev` solo se actualiza mediante un push autorizado; esta regla no autoriza producción, `main` ni despliegues.
 
 Al iniciar un prompt:
 
@@ -1282,13 +1289,13 @@ Implementación y validación controlada terminadas para las ocho colecciones pr
 
 ### 2026-08-11 — PZ-APP-C03 — Registro público seguro de instalaciones
 
-- Estado: EN CURSO
+- Estado: BLOQUEADO
 - Responsable: Codex
 - Entorno: local; staging pendiente de la puerta manual de C03
 - Branch: `dev`
 - Commit base: `fd46936d3bbb06f87269f048be857a0d30c5d691`
 - Fecha/hora de inicio: 2026-08-11 22:05:39 -04:00
-- Fecha/hora de cierre: pendiente
+- Fecha/hora de cierre: pendiente; bloqueo registrado 2026-08-12 08:06:41 -04:00
 
 #### Objetivo en curso
 
@@ -1351,6 +1358,89 @@ Implementar exclusivamente el registro público seguro de instalaciones definido
 
 #### Riesgos o puertas pendientes
 
-- C03 continúa `EN CURSO`: la app y el proyecto Firebase storefront de staging ya son exclusivos y el gateway está desplegado con credenciales separadas, pero Firebase no emite un token App Check válido hasta registrar Play Integrity con la huella SHA-256 real del certificado Android. Esa huella pertenece a la firma/configuración de C06 y no se adelantará ni se inventará dentro de C03. La matriz válida de registro/repetición/rotación/heartbeat/permiso/bootstrap/disable queda pendiente de esa puerta.
+- C03 queda `BLOQUEADO` exclusivamente porque Firebase no emite un token App Check válido hasta registrar Play Integrity con la huella SHA-256 real del certificado Android. Esa huella pertenece a la firma/configuración de C06 y no se adelantará ni se inventará dentro de C03. La matriz válida de registro/repetición/rotación/heartbeat/permiso/bootstrap/disable queda pendiente de esa única puerta.
 - La validación en teléfono puede posponerse hasta C06 conforme al plan; si se pospone, debe quedar registrada explícitamente.
 - Producción, Firebase de producción, Cloudflare y C04-C12 permanecen fuera de alcance y sin cambios.
+
+#### Cambio de estado 2026-08-12
+
+- A las 2026-08-12 08:06:41 -04:00 se registró C03 como `BLOQUEADO`, no `COMPLETADO`, exclusivamente por la dependencia de la SHA-256 real del certificado Android requerida por Play Integrity.
+- La obtención y configuración de esa huella corresponde a C06. No se generó firma Android, no se creó ni descargó `google-services.json`, no se modificó la implementación de C03 y no se tocó producción.
+
+### 2026-08-12 — PZ-APP-C04 — Canal persistente de imágenes WebP
+
+- Estado: EN CURSO
+- Responsable: Codex
+- Entorno: local; staging pendiente de la prueba manual obligatoria de C04
+- Branch: `dev`; implementación preparada en worktree desacoplado y consolidada por fast-forward local
+- Commit base: `5652bd4aaef5e0958d4639998e61b00a5ba24e1b`
+- Fecha/hora de inicio: 2026-08-12 08:07:15 -04:00
+- Fecha/hora de cierre: pendiente
+
+#### Objetivo en curso
+
+Implementar exclusivamente el canal persistente de imágenes WebP definido para C04, con carga administrativa autenticada por tienda, validación y recodificación segura, cuotas, vencimiento absoluto, caché pública acotada, pruebas y documentación, sin iniciar C05 ni fases posteriores y sin modificar producción.
+
+#### Comprobaciones de inicio
+
+- `HEAD`, `dev`, la referencia local `origin/dev` y la consulta directa a `refs/heads/dev` en GitHub apuntan exactamente a `5652bd4aaef5e0958d4639998e61b00a5ba24e1b`.
+- El worktree comenzó limpio y desacoplado en ese commit; no había cambios versionados, no versionados ni ignorados por preservar. El `stash` ajeno de `main` no se tocó.
+- `.tmp/` está ausente en este worktree y se preservará sin crearla, borrarla ni manipular la que pueda existir en otro worktree.
+- C02 está `COMPLETADO`, por lo que la dependencia declarada de C04 está satisfecha. C03 quedó antes `BLOQUEADO` exclusivamente por la SHA-256 real del certificado Android requerida por Play Integrity en C06.
+- C05-C12 continúan `PENDIENTE`. No se generará firma Android ni `google-services.json`; Firebase, Cloudflare y producción permanecen fuera de alcance.
+
+#### Implementación local 2026-08-12
+
+- Durante C04 el propietario sustituyó la política inicial de 750 KiB/30 días por WebP de máximo 100 KiB y vencimiento físico absoluto a 24 horas; además aprobó reservar un presupuesto lógico de 40 GiB para archivos de tiendas con alerta crítica al Master desde 35 GiB. Si el cliente necesita la imagen después del vencimiento, conserva su propia copia.
+
+- El endpoint administrativo SSR `GET|POST|DELETE /api/admin/push-media` restaura la sesión, fija la tienda desde el contexto autenticado y exige simultáneamente `push_campaigns_enabled` y `marketing.push.manage`. Las mutaciones exigen origen same-origin y contratos exactos; el frontend no escribe uploads en su disco efímero.
+- `sharp` limita entrada, píxeles y dimensiones, valida el formato decodificado frente a extensión/MIME, rechaza animaciones, corrige orientación, elimina metadatos y recodifica adaptativamente a WebP de hasta 1200×630 y 102400 bytes. El nombre publicado nace de 128 bits aleatorios y nunca conserva el nombre original. La conversión queda serializada a una tarea con cola máxima de cuatro para proteger el servidor actual.
+- PocketBase vuelve a validar autenticación, tenant, Premium, permiso, nombre, tamaño, firma RIFF/WEBP y dimensiones reales de VP8/VP8L/VP8X. Las consultas de cuota y referencias fallan cerradas si la base no responde.
+- El almacenamiento usa `push_media.file` y `app.newFilesystem()`: archivos y base quedan dentro de la unidad persistente `pb_data`, sin acoplar la ruta pública al disco del frontend. La descarga pública resuelve un registro privado exacto y expone `Cache-Control: public, max-age=300, must-revalidate` sin abrir el CRUD de la colección.
+- La cuota física sigue en 250 MiB y 100 registros por tienda. Además, el filesystem completo de archivos de tiendas se mide con caché de 60 segundos: alerta crítica deduplicada al Master desde 35 GiB y rechazo de cargas push/productos que superarían 40 GiB.
+- Cada medio vence de forma absoluta a las 24 horas. El cron de cinco minutos retira dentro de una transacción las referencias de campañas y elimina registro y archivo; la eliminación administrativa anticipada continúa respondiendo `media_in_use` si corresponde.
+- La operación, el mount esperado `/app/pb_data`, backup/restauración, retención, limpieza y la prueba manual están documentados en `docs/tusenda84/PZ_APP_C04_MEDIA_OPERATIONS.md`.
+
+#### Archivos C04 modificados o añadidos
+
+- `frontend-powerzona/src/lib/storefrontPushMedia.ts`
+- `frontend-powerzona/src/lib/storefrontPushMediaAccess.ts`
+- `frontend-powerzona/src/pages/api/admin/push-media.ts`
+- `frontend-powerzona/tests/storefrontPushMedia.test.mjs`
+- `frontend-powerzona/.env.example`
+- `backend-powerzona/pb_hooks/pz_storefront_media.pb.js`
+- `backend-powerzona/pb_hooks/pz_storefront_media_lib.js`
+- `backend-powerzona/pb_hooks/pz_store_storage_budget_lib.js`
+- `backend-powerzona/pb_hooks/pz_product_image_limits_lib.js`
+- `backend-powerzona/pb_hooks/pz_product_image_limits.pb.js`
+- `backend-powerzona/pb_migrations/1786579400_storefront_push_media_100k.js`
+- `backend-powerzona/tests/pz_storefront_media.test.cjs`
+- `backend-powerzona/tests/pz_storefront_media_runtime.test.cjs`
+- `backend-powerzona/tests/pz_store_storage_budget.test.cjs`
+- `docs/tusenda84/PZ_APP_C04_MEDIA_OPERATIONS.md`
+- `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
+
+#### Evidencia local automatizada 2026-08-12
+
+- Sintaxis de hooks, librerías y migración C04, más `git diff --check`: aprobadas.
+- Backend C04 y presupuesto global: 13/13 pruebas aprobadas, incluidas validación binaria/dimensiones WebP, 100 KiB, tenant, acceso Premium, vencimiento con referencias, 35/40 GiB, notificación Master, caché de medición y fallo cerrado.
+- Regresión backend acotada a fotos de producto, C02, capabilities, permisos, relay administrativo, dispositivos, borrado de tienda y C04: 102/102 aprobadas.
+- Frontend C04: 10/10 pruebas aprobadas con salida de 100 KiB incluso para imagen ruidosa, serialización de conversión, orientación/EXIF, corruptos, SVG disfrazado, extensión/MIME falsos, traversal, límites, URL y origen detrás de proxy coherente.
+- Regresión frontend relacionada de capabilities, permisos, borrado Master, relay, gateway y C04: 61/61 aprobadas.
+- `npm.cmd run build`: aprobado; solo conserva las tres advertencias preexistentes de `getStaticPaths()` ignorado en rutas dinámicas.
+- Runtime oficial PocketBase 0.38.2 Windows amd64: 1/1 aprobada. El ZIP usado tuvo SHA-256 `9114bb978c694f49064bbf6f7ae28cf2bf01042a4ae9be26df1b98a4729a597e`; se verificó en el esquema real `maxSize/max = 102400`, se cargó un WebP real con vencimiento cercano a 24 horas, se confirmó CRUD anónimo `403`, descarga pública `200` con caché de cinco minutos y bytes exactos, persistencia tras reinicio y restauración desde una copia consistente de `pb_data` con el proceso detenido. Los datos, el ZIP y la extracción temporales se eliminaron al terminar.
+
+#### Inspección operativa aportada por el propietario
+
+- Hetzner: 2 vCPU, 4 GB RAM, 80 GB nominales y 20 TB de tráfico saliente; backups del proveedor no estaban habilitados en la captura aportada.
+- El root ext4 ofrece 74,8 GiB, usaba 15,5 GiB y tenía 56,2 GiB disponibles. La memoria disponible rondaba 1,9 GiB y no existía swap.
+- Coolify mantiene el volumen persistente de PocketBase staging en `/var/lib/docker/volumes/imdbiodgr30k0dbhx3wtlysj-powerzona-pocketbase-repo-staging/_data`, montado como `/app/pb_data`; `pb_data` usaba 121,6 MiB y `storage` 5,1 MiB con 82 archivos durante la inspección.
+- Docker reportó 3,21 GB de caché de build recuperable y 3,516 GB de imágenes recuperables. No se ejecutó ninguna poda: la operación exige distinguir caché segura de imágenes necesarias para rollback.
+- Se documentaron como mejoras separadas: swap de 2 GiB, rotación de logs, limpieza selectiva de build cache, alertas del disco raíz y backup externo. Ninguna se aplicó remotamente durante C04.
+
+#### Estado y puerta manual
+
+- A las 2026-08-12 18:30:38 -04:00 la implementación actualizada, pruebas y documentación locales quedaron listas, pero C04 permanece `EN CURSO`: no se marcan sus criterios como completados hasta ejecutar y registrar la prueba manual de staging exigida por el plan.
+- **PRUEBA MANUAL NECESARIA:** desplegar solo C04 en staging, reconfirmar el mount persistente `/app/pb_data`, cargar JPG/PNG, revisar la WebP de hasta 100 KiB y sus cabeceras, redesplegar PocketBase y validar la misma URL antes del vencimiento, comprobar el borrado después de 24 horas y probar una restauración aislada. Los pasos y la evidencia solicitada están en `docs/tusenda84/PZ_APP_C04_MEDIA_OPERATIONS.md`.
+- No se inició C05 ni ninguna fase posterior. No se modificó C03, no se generó firma Android ni `google-services.json`, no se abrió producción y `.tmp/` permaneció ausente e intacta.
+- Por solicitud del propietario, todos los cambios C04 quedaron alineados en la rama local `dev`; no se realizó push a `origin/dev` ni despliegue remoto.

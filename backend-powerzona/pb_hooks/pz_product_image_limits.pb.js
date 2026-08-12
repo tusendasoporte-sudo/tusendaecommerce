@@ -10,7 +10,7 @@ onRecordCreateRequest((e) => {
     const data = {};
     data[field] = new ValidationError(code, message);
     if (status === 400) throw new BadRequestError(message, data);
-    throw new InternalServerError(message, data);
+    throw new ApiError(status, message, data);
   }
   return e.next();
 }, "products");
@@ -25,7 +25,16 @@ onRecordUpdateRequest((e) => {
     const data = {};
     data[field] = new ValidationError(code, message);
     if (status === 400) throw new BadRequestError(message, data);
-    throw new InternalServerError(message, data);
+    throw new ApiError(status, message, data);
   }
   return e.next();
 }, "products");
+
+function continueAndInvalidateStoreStorage(e) {
+  e.next();
+  require(`${__hooks}/pz_store_storage_budget_lib.js`).invalidateStoreStorageUsage(e.app || $app);
+}
+
+onRecordAfterCreateSuccess(continueAndInvalidateStoreStorage, "products");
+onRecordAfterUpdateSuccess(continueAndInvalidateStoreStorage, "products");
+onRecordAfterDeleteSuccess(continueAndInvalidateStoreStorage, "products");
