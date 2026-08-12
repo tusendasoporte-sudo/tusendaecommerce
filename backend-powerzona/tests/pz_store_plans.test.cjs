@@ -12,6 +12,7 @@ const BASIC_CAPABILITIES = {
   security_enabled: false,
   landing_qr_enabled: false,
   product_expiration_tools_enabled: false,
+  push_campaigns_enabled: false,
 };
 
 const PREMIUM_CAPABILITIES = {
@@ -23,6 +24,7 @@ const PREMIUM_CAPABILITIES = {
   security_enabled: true,
   landing_qr_enabled: true,
   product_expiration_tools_enabled: true,
+  push_campaigns_enabled: true,
 };
 
 const NOW = new Date('2026-07-15T12:00:00.000Z');
@@ -78,12 +80,13 @@ test('Premium permite cuatro usuarios, cinco dispositivos por usuario, veinte po
   assert.equal(capabilities.max_product_images, 4);
 });
 
-test('solo Premium habilita las cuatro capacidades avanzadas', () => {
+test('solo Premium habilita las cinco capacidades avanzadas', () => {
   const advancedKeys = [
     'security_enabled',
     'raffles_enabled',
     'landing_qr_enabled',
     'product_expiration_tools_enabled',
+    'push_campaigns_enabled',
   ];
   for (const key of advancedKeys) {
     assert.equal(plans.getPlanCapabilities('free')[key], false);

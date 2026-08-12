@@ -20,6 +20,7 @@ test('M7U2-C3: Marketing y analytics no heredan catálogo o pedidos y read_only 
     'coupons.manage',
     'gifts.manage',
     'raffles.manage',
+    'marketing.push.manage',
     'analytics.view',
     'landing_qr.manage',
   ]);

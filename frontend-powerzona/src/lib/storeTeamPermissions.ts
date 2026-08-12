@@ -26,6 +26,7 @@ export const STORE_PERMISSION_KEYS = [
   'coupons.manage',
   'gifts.manage',
   'raffles.manage',
+  'marketing.push.manage',
   'reviews.manage',
   'notifications.view',
   'analytics.view',
@@ -126,6 +127,7 @@ export const STORE_PERMISSION_CATALOG: readonly StorePermissionGroup[] = Object.
       permission('coupons.manage', 'Gestionar cupones', 'Crea y modifica cupones.'),
       permission('gifts.manage', 'Gestionar regalos', 'Administra regalos del catálogo.'),
       permission('raffles.manage', 'Gestionar rifas', 'Crea y opera rifas cuando el plan lo permite.'),
+      permission('marketing.push.manage', 'Gestionar campañas push públicas', 'Crea y opera campañas para la app pública cuando el plan Premium lo permite.'),
     ]),
   }),
   Object.freeze({
@@ -176,6 +178,7 @@ export const STORE_PERMISSION_DEPENDENCIES: Readonly<Partial<Record<StorePermiss
 export const STORE_PERMISSION_CAPABILITIES: Readonly<Partial<Record<StorePermission, StoreCapabilityKey>>> = Object.freeze({
   'catalog.expirations.manage': 'product_expiration_tools_enabled',
   'raffles.manage': 'raffles_enabled',
+  'marketing.push.manage': 'push_campaigns_enabled',
   'landing_qr.manage': 'landing_qr_enabled',
   'security.view': 'security_enabled',
   'security.manage': 'security_enabled',
@@ -205,6 +208,7 @@ const MARKETING_PROMOTIONS_PERMISSIONS = Object.freeze([
   'coupons.manage',
   'gifts.manage',
   'raffles.manage',
+  'marketing.push.manage',
   'analytics.view',
   'landing_qr.manage',
 ] satisfies StorePermission[]);

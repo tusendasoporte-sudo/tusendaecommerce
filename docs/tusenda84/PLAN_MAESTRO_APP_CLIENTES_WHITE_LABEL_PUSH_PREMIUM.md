@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | EN EJECUCIÓN — PZ-APP-C01 COMPLETADO; PZ-APP-C02 PENDIENTE DE AUTORIZACIÓN |
-| Versión del documento | 1.7 |
+| Estado general | EN EJECUCIÓN — PZ-APP-C02 |
+| Versión del documento | 1.9 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | PZ-APP-C02 — pendiente de autorización expresa |
+| Próximo prompt | PZ-APP-C02 — validación manual limitada en staging |
 
 ### Convención de estados
 
@@ -541,7 +541,7 @@ Estado vigente:
 | ID | Entregable | Estado | Dependencia | Prueba manual | Modelo y razonamiento recomendado |
 |---|---|---|---|---|---|
 | PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
-| PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | PENDIENTE | C01 | Limitada: inspección en staging | Sol — Extra High |
+| PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | EN CURSO | C01 | Limitada: inspección en staging | Sol — Extra High |
 | PZ-APP-C03 | Registro público seguro de instalaciones | PENDIENTE | C02 | Sí: ciclo de registro en staging | Sol — High |
 | PZ-APP-C04 | Canal persistente de imágenes WebP | PENDIENTE | C02 | Sí: carga, visualización y persistencia | Terra — High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | PENDIENTE | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
@@ -594,12 +594,18 @@ Cada prompt debe ejecutarse en orden. Al comenzar, cambiar su estado a `EN CURSO
 
 **Criterios de aceptación:**
 
-- [ ] Las migraciones son reproducibles en una base limpia.
-- [ ] Ninguna tienda puede leer o modificar registros de otra.
-- [ ] El modelo separa dispositivos administrativos e instalaciones públicas.
-- [ ] Los índices y restricciones evitan duplicados previsibles.
-- [ ] Las pruebas de autorización y aislamiento pasan.
-- [ ] Se documentaron campos sensibles y retención.
+- [x] Las migraciones son reproducibles en una base limpia.
+- [x] Ninguna tienda puede leer o modificar registros de otra.
+- [x] El modelo separa dispositivos administrativos e instalaciones públicas.
+- [x] Los índices y restricciones evitan duplicados previsibles.
+- [x] Las pruebas de autorización y aislamiento pasan.
+- [x] Se documentaron campos sensibles y retención.
+
+**Resultado técnico local de C02:** se crearon `storefront_app_configs`, `storefront_installations`, `storefront_web_sessions`, `storefront_order_links`, `push_media`, `push_campaigns`, `push_campaign_deliveries` y `push_events`. Las cinco reglas directas de cada colección son `null`; no se creó `push_daily_stats` ni una colección pública de lotes. Todas las relaciones usan `cascadeDelete: false` y el borrado Master inventaría, detecta cruces, elimina de hijos a padres y verifica las ocho colecciones de forma explícita.
+
+El acceso administrativo exige simultáneamente `marketing.push.manage` y `push_campaigns_enabled`; la capability es `false` en Free/Básico y `true` solo en Premium vigente o permanente. El permiso fue incorporado a las plantillas `secondary_admin` y `marketing_promotions`, con migración reversible de los registros persistidos. Las instalaciones y campañas públicas no reutilizan `store_push_devices` ni `store_notifications`.
+
+Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. Retención acordada: IP completo 30 días; sesiones 30 días tras expirar; entregas/eventos 180 días; campañas 24 meses; agregados diarios 36 meses cuando se creen en C09. C02 permanece `EN CURSO` únicamente por la inspección manual limitada obligatoria en staging; no se autoriza ni ejecuta desde este trabajo local.
 
 ### [ ] PZ-APP-C03 — Registro público seguro de instalaciones
 
@@ -1087,7 +1093,7 @@ Se añadió a cada prompt el modelo y nivel de razonamiento recomendado, junto c
 - Responsable: Codex / propietario de Tu Senda 84
 - Entorno: local (auditoría documental; sin despliegues)
 - Branch: `HEAD` separado en `064d584f9de8c98638d4cb1bb035eb05b76c2458`
-- Commit: pendiente
+- Commit: `14c453fa390cd3da18d913ad6d3df61650ebb65f`
 - Fecha/hora de inicio: 2026-08-11 17:32:56 -04:00
 - Fecha/hora de cierre: 2026-08-11 19:43:07 -04:00
 
@@ -1151,3 +1157,99 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 #### Siguiente paso
 
 - PZ-APP-C01 cerrado. PZ-APP-C02 permanece `PENDIENTE` y no debe iniciarse sin autorización expresa del propietario.
+
+### 2026-08-11 — PZ-APP-C02 — Modelo de datos, migraciones y aislamiento
+
+- Estado: EN CURSO
+- Responsable: Codex
+- Entorno: local; sin despliegues
+- Branch: `HEAD` separado en `14c453fa390cd3da18d913ad6d3df61650ebb65f`
+- Commit: pendiente
+- Fecha/hora de inicio: 2026-08-11 19:59:08 -04:00
+- Fecha/hora de cierre: pendiente
+
+#### Objetivo ejecutado
+
+Implementación local terminada de las ocho colecciones privadas, migraciones reproducibles, capability Premium, permiso administrativo, reglas cerradas, índices, estados, retención, validación de relaciones y borrado multi-tienda definidos en C01. C02 no se cierra todavía porque falta la prueba manual limitada obligatoria en staging.
+
+#### Archivos modificados
+
+- `backend-powerzona/pb_migrations/1786579200_storefront_push_foundation.js`
+- `backend-powerzona/pb_migrations/1786579300_storefront_push_permission.js`
+- `backend-powerzona/pb_hooks/pz_storefront_push_schema_lib.js`
+- `backend-powerzona/pb_hooks/pz_store_plans_lib.js`
+- `backend-powerzona/pb_hooks/pz_store_capabilities_lib.js`
+- `backend-powerzona/pb_hooks/pz_store_team_permissions_lib.js`
+- `backend-powerzona/pb_hooks/pz_store_team_lib.js`
+- `backend-powerzona/pb_hooks/pz_store_permission_enforcement.pb.js`
+- `backend-powerzona/pb_hooks/pz_store_permission_enforcement_lib.js`
+- `backend-powerzona/pb_hooks/pz_master_store_deletion_lib.js`
+- `backend-powerzona/tests/pz_storefront_push_schema.test.cjs`
+- `backend-powerzona/tests/pz_storefront_push_permissions.test.cjs`
+- `backend-powerzona/tests/pz_master_store_deletion_storefront.test.cjs`
+- `backend-powerzona/tests/pz_store_plans.test.cjs`
+- `backend-powerzona/tests/pz_store_capabilities.test.cjs`
+- `backend-powerzona/tests/pz_store_team_permissions.test.cjs`
+- `frontend-powerzona/src/lib/storeCapabilities.ts`
+- `frontend-powerzona/src/lib/storeTeamPermissions.ts`
+- `frontend-powerzona/src/lib/storeTeam.ts`
+- `frontend-powerzona/src/lib/masterStorePlans.ts`
+- `frontend-powerzona/src/components/master/MasterStorePlanView.astro`
+- `frontend-powerzona/tests/storeCapabilities.test.mjs`
+- `frontend-powerzona/tests/m7u2StoreTeam.test.mjs`
+- `frontend-powerzona/tests/m7u2C3FrontendPermissions.test.mjs`
+- `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
+
+#### Migraciones o infraestructura
+
+- `1786579200_storefront_push_foundation.js`: crea solo las ocho colecciones C02, reglas directas `null`, relaciones sin cascada, estados tipados, campos sensibles y 31 índices; rollback bloqueado si existe cualquier dato C02.
+- `1786579300_storefront_push_permission.js`: agrega `marketing.push.manage` a registros existentes con plantilla `secondary_admin` o `marketing_promotions`; el down lo retira de forma determinista.
+- PocketBase oficial 0.38.2 se descargó en el directorio temporal del sistema, verificando SHA-256 `9114bb978c694f49064bbf6f7ae28cf2bf01042a4ae9be26df1b98a4729a597e`; no se añadió el binario ni la base efímera al repositorio y el directorio temporal fue eliminado al terminar.
+- Ciclo real en base limpia: todas las migraciones `up`; `down 2` de C02; segundo `up` de C02. Resultado: `Applied/Reverted` correcto en ambos sentidos.
+- Ninguna migración se aplicó a staging o producción; no se modificó Firebase, Cloudflare, Coolify ni infraestructura remota.
+
+#### Pruebas y resultados
+
+- Preflight: ruta y raíz Git confirmadas; `HEAD` exacto `14c453fa390cd3da18d913ad6d3df61650ebb65f`; árbol inicialmente limpio; `.tmp/` ausente.
+- Plan maestro e instrucciones aplicables leídos completamente.
+- Backend focal y regresión administrativa: 147/147 pruebas aprobadas. Incluye autorización, dos tiendas, duplicados, planes, permission/capability, rollback, inventario Master y compatibilidad de `store_push_devices`/`store_notifications`.
+- Frontend capabilities/permisos/planes: 64/64 pruebas aprobadas; regresión Master/V7E9 adicional: 45/45 aprobadas.
+- PocketBase/SQLite efímero: 8/8 colecciones presentes; 5/5 reglas cerradas por colección; 0 relaciones con cascada; 31 índices C02 presentes.
+- PocketBase 0.38.2 inició localmente con todos los hooks reales y respondió `SERVE_HOOKS_HEALTH_OK`; el proceso se cerró inmediatamente después de la comprobación.
+- `node --check` aprobó todas las migraciones, librerías y pruebas JavaScript nuevas o modificadas; `git diff --check` sin errores.
+- `npm.cmd run build` no pudo iniciarse porque `frontend-powerzona/node_modules` no está instalado (`astro` no reconocido). No se instalaron dependencias ni se usó red para ampliar el alcance; las pruebas Node que importan los contratos TypeScript sí pasaron.
+
+#### Decisiones tomadas
+
+- Mantener C03-C12 fuera de alcance y conservar las colecciones administrativas sin cambios de contrato.
+- Mantener CRUD REST completamente cerrado incluso para un usuario de tienda que posea `marketing.push.manage`; C03+ operará mediante gateways privados y reutilizará la validación central de tenant.
+- Usar doble gate: permiso asignable `marketing.push.manage` más `push_campaigns_enabled` de Premium vigente/permanente.
+- Conservar `push_daily_stats` para C09 y no crear una colección de lotes públicos.
+- Hacer explícito el borrado Master de hijos a padres; ninguna relación C02 depende de cascada.
+
+#### Riesgos, deuda o bloqueos
+
+- La inspección manual limitada en staging sigue pendiente y no está autorizada en este prompt local.
+- El build Astro queda no ejecutado por ausencia previa de dependencias locales; no bloquea el contrato C02, pero debe volver a correrse en un entorno con instalación ya preparada antes de desplegar.
+
+#### PRUEBA MANUAL NECESARIA — staging
+
+- Entorno: staging aislado de Tu Senda 84, PocketBase 0.38.2, usando el futuro commit exacto que contenga C02; no requiere teléfono.
+- Antes de empezar: obtener backup consistente de base y `pb_data/storage`, registrar el hash del commit y confirmar que se usan dos tiendas de prueba, nunca datos de producción.
+
+1. Aplicar las migraciones en staging y capturar el historial que muestre `1786579200` y `1786579300` aplicadas una sola vez.
+2. En PocketBase, abrir las ocho colecciones C02 y confirmar visualmente cinco reglas `null`, relaciones `cascadeDelete: false`, campos/estados e índices documentados. Confirmar que `store_push_devices` y `store_notifications` siguen separadas y sin cambios de contrato.
+3. Crear con acceso Master datos mínimos válidos para Tienda A y Tienda B. Verificar que duplicar `app_key`, `package_name`, `firebase_app_id`, `(app_config, fid_digest)`, `credential_digest`, `session_digest`, `(installation, order)`, `(campaign, installation)` e `(installation, idempotency_key)` falla por restricción única.
+4. Con un usuario válido de cada tienda —incluido uno Premium con `marketing.push.manage`— intentar listar, ver, crear y modificar por CRUD REST las ocho colecciones. Resultado esperado: acceso directo denegado; ningún token de Tienda A obtiene ni altera registros de Tienda B y viceversa.
+5. Ejecutar preview de borrado Master para una tienda de prueba y comprobar que los conteos incluyen las ocho colecciones C02. Cancelar el borrado salvo que se haya creado una tienda desechable específica para verificar la eliminación completa.
+6. Guardar como evidencia capturas sin FID, credenciales, IP, tokens ni Firebase message ID; registrar aprobado/fallido y limpiar los datos de prueba de forma controlada.
+
+- Puerta de salida: el propietario confirma visualmente estructura/reglas/índices y Codex registra el resultado. Hasta esa confirmación, C02 permanece `EN CURSO` y C03 no inicia.
+
+#### Despliegue
+
+- No realizado ni autorizado.
+
+#### Siguiente paso
+
+- Ejecutar y aprobar la `PRUEBA MANUAL NECESARIA` limitada en staging; solo entonces cambiar PZ-APP-C02 a `COMPLETADO` y habilitar PZ-APP-C03.

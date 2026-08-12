@@ -31,8 +31,8 @@ import {
 const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf8');
 const require = createRequire(import.meta.url);
 
-test('M7U2: catálogo frontend contiene las 28 claves asignables y excluye las reservadas', () => {
-  assert.equal(STORE_PERMISSION_KEYS.length, 28);
+test('M7U2: catálogo frontend contiene las 29 claves asignables y excluye las reservadas', () => {
+  assert.equal(STORE_PERMISSION_KEYS.length, 29);
   assert.equal(new Set(STORE_PERMISSION_KEYS).size, STORE_PERMISSION_KEYS.length);
   assert.deepEqual(RESERVED_STORE_PERMISSION_KEYS, [
     'team.manage',
@@ -94,6 +94,7 @@ test('M7U2: plantillas rápidas respetan alcance y cambios manuales pasan a Pers
     'coupons.manage',
     'gifts.manage',
     'raffles.manage',
+    'marketing.push.manage',
     'analytics.view',
     'landing_qr.manage',
   ]);

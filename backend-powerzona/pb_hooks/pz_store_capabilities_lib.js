@@ -9,6 +9,7 @@ const BOOLEAN_CAPABILITY_KEYS = Object.freeze([
   "security_enabled",
   "landing_qr_enabled",
   "product_expiration_tools_enabled",
+  "push_campaigns_enabled",
 ]);
 
 const NUMERIC_CAPABILITY_KEYS = Object.freeze([

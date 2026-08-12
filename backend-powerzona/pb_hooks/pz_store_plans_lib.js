@@ -17,6 +17,7 @@ const BASIC_CAPABILITIES = Object.freeze({
   security_enabled: false,
   landing_qr_enabled: false,
   product_expiration_tools_enabled: false,
+  push_campaigns_enabled: false,
 });
 
 const PREMIUM_CAPABILITIES = Object.freeze({
@@ -28,6 +29,7 @@ const PREMIUM_CAPABILITIES = Object.freeze({
   security_enabled: true,
   landing_qr_enabled: true,
   product_expiration_tools_enabled: true,
+  push_campaigns_enabled: true,
 });
 
 const PLAN_CODES = Object.freeze(["free", "basic", "premium"]);
@@ -90,6 +92,7 @@ function getPlanCapabilities(plan) {
     security_enabled: capabilities.security_enabled,
     landing_qr_enabled: capabilities.landing_qr_enabled,
     product_expiration_tools_enabled: capabilities.product_expiration_tools_enabled,
+    push_campaigns_enabled: capabilities.push_campaigns_enabled,
   };
 }
 

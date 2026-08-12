@@ -18,6 +18,8 @@ onRecordsListRequest(
   "store_analytics_events", "store_visual_items", "settings", "currencies",
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
 );
 
 onRecordViewRequest(
@@ -28,6 +30,8 @@ onRecordViewRequest(
   "store_analytics_events", "store_visual_items", "settings", "currencies",
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
 );
 
 // Per-field privacy must run at PocketBase's serialization boundary. Request
@@ -40,6 +44,8 @@ onRecordEnrich(
   "store_analytics_events", "store_visual_items", "settings", "currencies",
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
 );
 
 onRecordCreateRequest(
@@ -50,6 +56,8 @@ onRecordCreateRequest(
   "store_analytics_events", "store_visual_items", "settings", "currencies",
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
 );
 
 onRecordUpdateRequest(
@@ -60,6 +68,8 @@ onRecordUpdateRequest(
   "store_analytics_events", "store_visual_items", "settings", "currencies",
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
 );
 
 onRecordDeleteRequest(
@@ -70,6 +80,8 @@ onRecordDeleteRequest(
   "store_analytics_events", "store_visual_items", "settings", "currencies",
   "store_security_settings", "store_security_events", "store_security_blocks",
   "store_visitor_sessions", "store_customers",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns", "push_campaign_deliveries", "push_events",
 );
 
 onFileDownloadRequest(

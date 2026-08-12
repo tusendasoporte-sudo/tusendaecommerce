@@ -264,12 +264,14 @@ function teamReady(app) {
 function storePlan(store) {
   const maxAccess = capabilities.resolveStoreCapabilityAccess(store, "max_active_users", { enforceExpiration: true });
   const expirationAccess = capabilities.resolveStoreCapabilityAccess(store, "product_expiration_tools_enabled", { enforceExpiration: true });
+  const pushAccess = capabilities.resolveStoreCapabilityAccess(store, "push_campaigns_enabled", { enforceExpiration: true });
   if (!maxAccess || !Number.isInteger(maxAccess.limit) || maxAccess.limit < 1) throw codedError("team_unavailable");
   return {
     code: bounded(maxAccess.plan, 30),
     label: maxAccess.plan === "premium" ? "Plan Premium" : maxAccess.plan === "basic" ? "Plan Básico" : "Plan Free",
     max_active_users: permissions.effectiveMaxActiveUsers(store),
     product_expiration_tools_enabled: expirationAccess && expirationAccess.allowed === true,
+    push_campaigns_enabled: pushAccess && pushAccess.allowed === true,
   };
 }
 

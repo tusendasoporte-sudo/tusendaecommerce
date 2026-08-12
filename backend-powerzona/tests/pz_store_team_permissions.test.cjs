@@ -54,10 +54,10 @@ function fakeApp({ store = planStore('premium'), users = [], access = [] } = {})
   };
 }
 
-test('el catálogo M7U2 contiene las 28 claves operativas y separa cinco reservadas', () => {
-  assert.equal(permissions.ASSIGNABLE_PERMISSION_KEYS.length, 28);
+test('el catálogo contiene las 29 claves operativas y separa cinco reservadas', () => {
+  assert.equal(permissions.ASSIGNABLE_PERMISSION_KEYS.length, 29);
   assert.equal(permissions.RESERVED_PERMISSIONS.length, 5);
-  assert.equal(permissions.PERMISSION_KEYS.length, 33);
+  assert.equal(permissions.PERMISSION_KEYS.length, 34);
   assert.equal(new Set(permissions.PERMISSION_KEYS).size, permissions.PERMISSION_KEYS.length);
   assert.deepEqual(
     permissions.RESERVED_PERMISSIONS,
@@ -128,6 +128,7 @@ test('las plantillas mantienen alcance seguro y custom puede quedar vacío', () 
     'coupons.manage',
     'gifts.manage',
     'raffles.manage',
+    'marketing.push.manage',
     'analytics.view',
     'landing_qr.manage',
   ]);

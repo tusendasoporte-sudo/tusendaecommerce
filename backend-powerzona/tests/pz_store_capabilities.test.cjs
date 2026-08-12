@@ -17,7 +17,7 @@ const store = (plan, overrides = {}) => ({
 });
 const pocketBaseDateTime = (value) => ({ string() { return value; } });
 
-test('expone únicamente las ocho capacidades oficiales', () => {
+test('expone únicamente las nueve capacidades oficiales', () => {
   assert.deepEqual(capabilities.CAPABILITY_KEYS, [
     'max_active_users',
     'max_devices_per_user',
@@ -27,6 +27,7 @@ test('expone únicamente las ocho capacidades oficiales', () => {
     'security_enabled',
     'landing_qr_enabled',
     'product_expiration_tools_enabled',
+    'push_campaigns_enabled',
   ]);
   assert.deepEqual(capabilities.NUMERIC_CAPABILITY_KEYS, capabilities.CAPABILITY_KEYS.slice(0, 4));
   assert.deepEqual(capabilities.BOOLEAN_CAPABILITY_KEYS, capabilities.CAPABILITY_KEYS.slice(4));
@@ -56,7 +57,7 @@ test('Básico no incluye herramientas de vencimiento', () => {
   assert.equal(capabilities.hasStoreCapability(store('basic'), 'product_expiration_tools_enabled'), false);
 });
 
-test('Premium incluye las cuatro capacidades booleanas', () => {
+test('Premium incluye las cinco capacidades booleanas', () => {
   for (const key of capabilities.BOOLEAN_CAPABILITY_KEYS) {
     const access = capabilities.resolveStoreCapabilityAccess(store('premium'), key);
     assert.equal(access.kind, 'boolean');

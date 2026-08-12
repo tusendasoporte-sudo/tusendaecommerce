@@ -18,6 +18,9 @@ const COUNT_KEYS = [
   "activity_reviews", "activity_audit",
   "price_watches", "price_events", "master_notifications", "settings", "categories",
   "subcategories", "currencies", "shipping_zones", "visual_items",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns",
+  "push_campaign_deliveries", "push_events",
 ];
 const DIRECT_STORE_COLLECTIONS = [
   "automatic_promotions", "categories", "currencies", "gifts", "manual_coupons",
@@ -29,6 +32,9 @@ const DIRECT_STORE_COLLECTIONS = [
   "store_activity_reviews", "store_activity_audit",
   "store_user_device_audit", "store_user_devices",
   "store_visitor_pageviews", "store_visitor_sessions", "store_visual_items", "subcategories",
+  "storefront_app_configs", "storefront_installations", "storefront_web_sessions",
+  "storefront_order_links", "push_media", "push_campaigns",
+  "push_campaign_deliveries", "push_events",
   "users",
 ];
 const LOG_MESSAGES = {
@@ -217,7 +223,11 @@ function buildCounts(app, storeId) {
         SELECT id FROM users
         WHERE store = {:storeId} AND role IN ('store_admin', 'store_staff')
       ),
-      target_user_devices AS (SELECT id FROM store_user_devices WHERE store = {:storeId})
+      target_user_devices AS (SELECT id FROM store_user_devices WHERE store = {:storeId}),
+      target_storefront_apps AS (SELECT id FROM storefront_app_configs WHERE store = {:storeId}),
+      target_installations AS (SELECT id FROM storefront_installations WHERE store = {:storeId}),
+      target_push_campaigns AS (SELECT id FROM push_campaigns WHERE store = {:storeId}),
+      target_push_deliveries AS (SELECT id FROM push_campaign_deliveries WHERE store = {:storeId})
     SELECT
       (SELECT COUNT(*) FROM target_users) AS storeUsers,
       (SELECT COUNT(*) FROM target_products) AS products,
@@ -263,7 +273,15 @@ function buildCounts(app, storeId) {
       (SELECT COUNT(*) FROM subcategories WHERE store = {:storeId}) AS subcategories,
       (SELECT COUNT(*) FROM currencies WHERE store = {:storeId}) AS currencies,
       (SELECT COUNT(*) FROM shipping_zones WHERE store = {:storeId}) AS shippingZones,
-      (SELECT COUNT(*) FROM store_visual_items WHERE store = {:storeId}) AS visualItems
+      (SELECT COUNT(*) FROM store_visual_items WHERE store = {:storeId}) AS visualItems,
+      (SELECT COUNT(*) FROM target_storefront_apps) AS storefrontAppConfigs,
+      (SELECT COUNT(*) FROM target_installations) AS storefrontInstallations,
+      (SELECT COUNT(*) FROM storefront_web_sessions WHERE store = {:storeId}) AS storefrontWebSessions,
+      (SELECT COUNT(*) FROM storefront_order_links WHERE store = {:storeId}) AS storefrontOrderLinks,
+      (SELECT COUNT(*) FROM push_media WHERE store = {:storeId}) AS pushMedia,
+      (SELECT COUNT(*) FROM target_push_campaigns) AS pushCampaigns,
+      (SELECT COUNT(*) FROM target_push_deliveries) AS pushCampaignDeliveries,
+      (SELECT COUNT(*) FROM push_events WHERE store = {:storeId}) AS pushEvents
   `, { storeId }, {
     storeUsers: 0, products: 0, productVariations: 0, orders: 0, orderItems: 0,
     gifts: 0, promotions: 0, coupons: 0, couponUsages: 0, raffles: 0,
@@ -275,6 +293,9 @@ function buildCounts(app, storeId) {
     priceWatches: 0, priceEvents: 0,
     masterNotifications: 0, settings: 0, categories: 0, subcategories: 0,
     currencies: 0, shippingZones: 0, visualItems: 0,
+    storefrontAppConfigs: 0, storefrontInstallations: 0, storefrontWebSessions: 0,
+    storefrontOrderLinks: 0, pushMedia: 0, pushCampaigns: 0,
+    pushCampaignDeliveries: 0, pushEvents: 0,
   }) || {};
   const counts = {
     store_users: nonNegativeInteger(row.storeUsers),
@@ -314,6 +335,14 @@ function buildCounts(app, storeId) {
     currencies: nonNegativeInteger(row.currencies),
     shipping_zones: nonNegativeInteger(row.shippingZones),
     visual_items: nonNegativeInteger(row.visualItems),
+    storefront_app_configs: nonNegativeInteger(row.storefrontAppConfigs),
+    storefront_installations: nonNegativeInteger(row.storefrontInstallations),
+    storefront_web_sessions: nonNegativeInteger(row.storefrontWebSessions),
+    storefront_order_links: nonNegativeInteger(row.storefrontOrderLinks),
+    push_media: nonNegativeInteger(row.pushMedia),
+    push_campaigns: nonNegativeInteger(row.pushCampaigns),
+    push_campaign_deliveries: nonNegativeInteger(row.pushCampaignDeliveries),
+    push_events: nonNegativeInteger(row.pushEvents),
   };
   counts.total_records = COUNT_KEYS.reduce((total, key) => total + counts[key], 1);
   return counts;
@@ -354,6 +383,11 @@ function findCrossStoreReferences(app, storeId) {
       target_shipping AS (SELECT id FROM shipping_zones WHERE store = {:storeId}),
       target_currencies AS (SELECT id FROM currencies WHERE store = {:storeId}),
       target_watches AS (SELECT id FROM master_product_watches WHERE store = {:storeId}),
+      target_storefront_apps AS (SELECT id FROM storefront_app_configs WHERE store = {:storeId}),
+      target_installations AS (SELECT id FROM storefront_installations WHERE store = {:storeId}),
+      target_push_media AS (SELECT id FROM push_media WHERE store = {:storeId}),
+      target_push_campaigns AS (SELECT id FROM push_campaigns WHERE store = {:storeId}),
+      target_push_deliveries AS (SELECT id FROM push_campaign_deliveries WHERE store = {:storeId}),
       target_users AS (
         SELECT id FROM users
         WHERE store = {:storeId} AND role IN ('store_admin', 'store_staff')
@@ -541,6 +575,54 @@ function findCrossStoreReferences(app, storeId) {
           notification.product IN (SELECT id FROM target_products)
           OR notification.recipient IN (SELECT id FROM target_users)
         )
+    UNION ALL
+    SELECT 'storefront_installations', COUNT(DISTINCT installation.id)
+      FROM storefront_installations installation
+      WHERE COALESCE(installation.store, '') != {:storeId}
+        AND installation.app_config IN (SELECT id FROM target_storefront_apps)
+    UNION ALL
+    SELECT 'storefront_web_sessions', COUNT(DISTINCT session.id)
+      FROM storefront_web_sessions session
+      WHERE COALESCE(session.store, '') != {:storeId}
+        AND session.installation IN (SELECT id FROM target_installations)
+    UNION ALL
+    SELECT 'storefront_order_links', COUNT(DISTINCT link.id)
+      FROM storefront_order_links link
+      WHERE COALESCE(link.store, '') != {:storeId}
+        AND (
+          link.installation IN (SELECT id FROM target_installations)
+          OR link."order" IN (SELECT id FROM target_orders)
+        )
+    UNION ALL
+    SELECT 'push_campaigns', COUNT(DISTINCT campaign.id)
+      FROM push_campaigns campaign
+      WHERE COALESCE(campaign.store, '') != {:storeId}
+        AND (
+          campaign.media IN (SELECT id FROM target_push_media)
+          OR campaign.target_product IN (SELECT id FROM target_products)
+          OR campaign.target_category IN (SELECT id FROM target_categories)
+          OR campaign.target_order IN (SELECT id FROM target_orders)
+          OR campaign.target_raffle IN (SELECT id FROM target_raffles)
+          OR campaign.target_coupon IN (SELECT id FROM target_coupons)
+          OR campaign.created_by IN (SELECT id FROM target_users)
+        )
+    UNION ALL
+    SELECT 'push_campaign_deliveries', COUNT(DISTINCT delivery.id)
+      FROM push_campaign_deliveries delivery
+      WHERE COALESCE(delivery.store, '') != {:storeId}
+        AND (
+          delivery.campaign IN (SELECT id FROM target_push_campaigns)
+          OR delivery.installation IN (SELECT id FROM target_installations)
+        )
+    UNION ALL
+    SELECT 'push_events', COUNT(DISTINCT event.id)
+      FROM push_events event
+      WHERE COALESCE(event.store, '') != {:storeId}
+        AND (
+          event.campaign IN (SELECT id FROM target_push_campaigns)
+          OR event.delivery IN (SELECT id FROM target_push_deliveries)
+          OR event.installation IN (SELECT id FROM target_installations)
+        )
   `, { storeId }, { category: "", referenceCount: 0 });
   const references = {};
   rows.forEach((row) => {
@@ -609,6 +691,17 @@ function executeDeletionPlan(app, storeId, counts) {
       + ' && (recipient.role = "store_admin" || recipient.role = "store_staff")'
     + ')',
   ].join(' || ');
+
+  // La familia pública se elimina de hijos a padres. No depende de cascadas y
+  // nunca toca store_push_devices/store_notifications fuera de su inventario.
+  deleted += deleteExpected(app, "push_events", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_events));
+  deleted += deleteExpected(app, "push_campaign_deliveries", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_campaign_deliveries));
+  deleted += deleteExpected(app, "storefront_order_links", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_order_links));
+  deleted += deleteExpected(app, "storefront_web_sessions", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_web_sessions));
+  deleted += deleteExpected(app, "push_campaigns", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_campaigns));
+  deleted += deleteExpected(app, "push_media", "store = {:storeId}", storeId, nonNegativeInteger(counts.push_media));
+  deleted += deleteExpected(app, "storefront_installations", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_installations));
+  deleted += deleteExpected(app, "storefront_app_configs", "store = {:storeId}", storeId, nonNegativeInteger(counts.storefront_app_configs));
 
   deleted += deleteExpected(
     app,
@@ -684,7 +777,7 @@ function createCompletedAudit(app, store, actor, counts, preservedMasters, total
     counts,
     preserved_master_users: preservedMasters,
     batch_size: BATCH_SIZE,
-    inventory_version: "V91-D7A6",
+    inventory_version: "PZ-APP-C02",
   });
   audit.set("total_records", totalRecords);
   audit.set("status", "completed");
@@ -811,7 +904,13 @@ function handleStoreDeleteExecute(e) {
 }
 
 module.exports = {
+  COUNT_KEYS,
+  DIRECT_STORE_COLLECTIONS,
+  buildCounts,
+  executeDeletionPlan,
+  findCrossStoreReferences,
   handleStoreDeleteExecute,
   handleStoreDeletePreview,
   requireAuthenticatedUser,
+  verifyNoStoreOwnedRecords,
 };

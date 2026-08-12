@@ -89,6 +89,7 @@ const capabilities = [
   { label: 'Rifas', included: plan.capabilities.raffles_enabled, icon: 'check' as const },
   { label: 'Landing QR', included: plan.capabilities.landing_qr_enabled, icon: 'external' as const },
   { label: 'Productos vencidos y alertas', included: plan.capabilities.product_expiration_tools_enabled, icon: 'alert' as const },
+  { label: 'Campañas push públicas', included: plan.capabilities.push_campaigns_enabled, icon: 'external' as const },
 ];
 
 const planCopy: Record<MasterPlanCode, { title: string; price: string; period: string; features: string[] }> = {

@@ -9,6 +9,7 @@ export const STORE_CAPABILITY_KEYS = [
   'security_enabled',
   'landing_qr_enabled',
   'product_expiration_tools_enabled',
+  'push_campaigns_enabled',
 ] as const;
 
 const NUMERIC_CAPABILITY_KEYS = STORE_CAPABILITY_KEYS.slice(0, 4) as readonly StoreCapabilityKey[];
@@ -73,6 +74,7 @@ const BASIC_CAPABILITIES = Object.freeze({
   security_enabled: false,
   landing_qr_enabled: false,
   product_expiration_tools_enabled: false,
+  push_campaigns_enabled: false,
 });
 
 const STORE_PLAN_CAPABILITIES: CapabilityMatrix = Object.freeze({
@@ -87,6 +89,7 @@ const STORE_PLAN_CAPABILITIES: CapabilityMatrix = Object.freeze({
     security_enabled: true,
     landing_qr_enabled: true,
     product_expiration_tools_enabled: true,
+    push_campaigns_enabled: true,
   }),
 });
 

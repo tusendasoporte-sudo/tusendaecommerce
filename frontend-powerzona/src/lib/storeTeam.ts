@@ -47,6 +47,7 @@ export type StoreAccessContext = {
     code: string;
     max_active_users: number;
     product_expiration_tools_enabled: boolean;
+    push_campaigns_enabled: boolean;
     [key: string]: unknown;
   };
 };
@@ -368,6 +369,7 @@ export async function getStoreAccessContext(options: StoreTeamClientOptions): Pr
       code: text(result?.plan?.code),
       max_active_users: nonNegativeInteger(result?.plan?.max_active_users),
       product_expiration_tools_enabled: result?.plan?.product_expiration_tools_enabled === true,
+      push_campaigns_enabled: result?.plan?.push_campaigns_enabled === true,
     },
   };
 }

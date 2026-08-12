@@ -9,6 +9,7 @@ export type MasterPlanCapabilities = {
   security_enabled: boolean;
   landing_qr_enabled: boolean;
   product_expiration_tools_enabled: boolean;
+  push_campaigns_enabled: boolean;
 };
 
 export type MasterPlanDefinition = {
@@ -97,7 +98,7 @@ function isoDate(value: unknown) {
 
 function capabilities(value: any): MasterPlanCapabilities | null {
   const numericKeys = ['max_active_users', 'max_devices_per_user', 'max_store_devices', 'max_product_images'] as const;
-  const booleanKeys = ['raffles_enabled', 'security_enabled', 'landing_qr_enabled', 'product_expiration_tools_enabled'] as const;
+  const booleanKeys = ['raffles_enabled', 'security_enabled', 'landing_qr_enabled', 'product_expiration_tools_enabled', 'push_campaigns_enabled'] as const;
   if (!value || numericKeys.some((key) => !Number.isInteger(value[key]) || value[key] < 0)) return null;
   if (booleanKeys.some((key) => typeof value[key] !== 'boolean')) return null;
   return {
@@ -109,6 +110,7 @@ function capabilities(value: any): MasterPlanCapabilities | null {
     security_enabled: value.security_enabled,
     landing_qr_enabled: value.landing_qr_enabled,
     product_expiration_tools_enabled: value.product_expiration_tools_enabled,
+    push_campaigns_enabled: value.push_campaigns_enabled,
   };
 }
 

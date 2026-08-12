@@ -29,7 +29,7 @@ const store = (plan, overrides = {}) => ({
 });
 const pocketBaseDateTime = (value) => ({ string() { return value; } });
 
-test('la lista frontend contiene exactamente las ocho capacidades oficiales', () => {
+test('la lista frontend contiene exactamente las nueve capacidades oficiales', () => {
   assert.deepEqual(STORE_CAPABILITY_KEYS, [
     'max_active_users',
     'max_devices_per_user',
@@ -39,6 +39,7 @@ test('la lista frontend contiene exactamente las ocho capacidades oficiales', ()
     'security_enabled',
     'landing_qr_enabled',
     'product_expiration_tools_enabled',
+    'push_campaigns_enabled',
   ]);
 });
 
@@ -62,7 +63,7 @@ test('Free y Básico conservan las reglas numéricas y booleanas oficiales', () 
   }
 });
 
-test('Premium incluye límites ampliados y las cuatro capacidades booleanas', () => {
+test('Premium incluye límites ampliados y las cinco capacidades booleanas', () => {
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_active_users', { now: NOW }).limit, 4);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_devices_per_user', { now: NOW }).limit, 5);
   assert.equal(resolveStoreCapabilityAccess(store('premium'), 'max_store_devices', { now: NOW }).limit, 20);

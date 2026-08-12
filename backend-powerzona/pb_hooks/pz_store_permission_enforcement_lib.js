@@ -51,6 +51,19 @@ const SECURITY_PRIVATE_COLLECTIONS = Object.freeze([
   "store_customers",
 ]);
 
+// C02: ni los usuarios de tienda con permiso push ni la app pública acceden
+// por CRUD REST a estas tablas. Los gateways privados de C03+ usarán $app.
+const STOREFRONT_PUSH_PRIVATE_COLLECTIONS = Object.freeze([
+  "storefront_app_configs",
+  "storefront_installations",
+  "storefront_web_sessions",
+  "storefront_order_links",
+  "push_media",
+  "push_campaigns",
+  "push_campaign_deliveries",
+  "push_events",
+]);
+
 const READ_ANY_PERMISSIONS = Object.freeze({
   settings: Object.freeze([
     "catalog.view", "orders.view", "shipping.manage", "promotions.manage", "coupons.manage",
@@ -1539,6 +1552,9 @@ function assertSafeReadQuery(e, collection) {
 
 function enforceRead(e, collection) {
   const name = collectionName(e, collection);
+  if (STOREFRONT_PUSH_PRIVATE_COLLECTIONS.includes(name) && !superuserRequest(e)) {
+    denyPermission("marketing.push.manage");
+  }
   if (publicProductConsumer(e && e.auth) && ["raffles", "raffle_entries"].includes(name)) {
     return respondPublicUnavailable(e);
   }
@@ -1609,6 +1625,9 @@ function enforceEnrich(e, collection) {
 
 function enforceMutation(e, collection, operation) {
   const name = collectionName(e, collection);
+  if (STOREFRONT_PUSH_PRIVATE_COLLECTIONS.includes(name) && !superuserRequest(e)) {
+    denyPermission("marketing.push.manage");
+  }
   if (!e.auth && name === "store_notifications" && operation === "create") {
     sanitizePublicNotificationCreate(e);
     return e.next();
@@ -1945,6 +1964,7 @@ module.exports = {
   PUBLIC_SETTINGS_PRIVATE_FIELDS,
   PUBLIC_VARIATION_PRIVATE_FIELDS,
   SECURITY_PRIVATE_COLLECTIONS,
+  STOREFRONT_PUSH_PRIVATE_COLLECTIONS,
   READ_ALL_PERMISSIONS,
   READ_ANY_PERMISSIONS,
   READ_PERMISSIONS,
