@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | Estado general | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
-| Versión del documento | 1.16 |
+| Versión del documento | 1.17 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-12 |
 | Tienda piloto | PowerZona |
@@ -1344,9 +1344,13 @@ Implementar exclusivamente el registro público seguro de instalaciones definido
 - El frontend staging terminó desplegado en `31e0b9865447db41f0b2a4776a7ee6a9a422c821`; el backend C03 permanece en `5fe975352cd0a4cdb40ca91d8f2b6f4836926cc6`, que contiene sus hooks. La matriz negativa remota aprobó: payload válido sin App Check `401 app_check_required`, token inválido `401 app_check_invalid`, backend interno con sobre válido pero sin firma `401` y CRUD anónimo de configuraciones/instalaciones `403`.
 - La auditoría de Firebase fue de solo lectura: el proyecto compartido contiene únicamente `Tu Senda 84 Admin` (`com.tusenda84.admin`) y no existe una app Android storefront separada. La API Firebase App Check está deshabilitada; el intento controlado de emitir un token CI con Admin SDK terminó en `app-check/permission-denied` antes de registrar una instalación.
 - Para comprobar la puerta sin tocar Firebase se creó una configuración sintética exclusivamente en PocketBase staging. Al fallar la emisión del token se eliminó inmediatamente: `storefront_app_configs`, `storefront_installations` y `storefront_web_sessions` quedaron en `Total: 0`.
+- Con autorización posterior del propietario se creó exclusivamente para pruebas el proyecto Firebase `Tu Senda 84 Storefront Staging` (`tu-senda-84-storefront-staging`) y su app Android `PowerZona Storefront Staging`, paquete `com.tusenda84.powerzona`, app id `1:115337530324:android:8d3f78f8a93cdc1ea8e441`. Google Analytics y Gemini quedaron deshabilitados; no se descargó ni incorporó `google-services.json`, no se añadió firma Android y el proyecto compartido `tu-senda-84` permaneció intacto.
+- Dos claves privadas generadas durante un fallo de descarga fueron revocadas en Google Cloud. La única credencial recuperada quedó fuera de Descargas en `.secrets/firebase-storefront-staging.json`, ignorada por Git. Coolify frontend staging recibió solo en runtime `PZ_STOREFRONT_FIREBASE_PROJECT_ID` y `PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON`; el gateway C03 ahora falla cerrado si faltan o si sus proyectos no coinciden y dejó de depender de las variables Firebase del relay administrativo.
+- El aislamiento adicional quedó publicado en `a980f46974628c53837b2d686cdb781c98645998` y el frontend staging lo desplegó correctamente (`wpq3jrlnzv2npvn8ui3b6gpb`, `Success`, 2026-08-12 04:36:42–04:38:04 UTC). La regresión focal C03/seguridad aprobó 35/35 y el build Astro completo volvió a aprobar con solo las tres advertencias preexistentes de rutas dinámicas.
+- Play Integrity no pudo registrarse porque Firebase exige la huella SHA-256 del certificado Android. El propietario marcó las condiciones, pero `Save` permaneció deshabilitado y se canceló sin cambios; no se inventó una huella ni se inició la firma de C06. Un token Admin y un token debug CI oficial confirmaron por separado la misma puerta `App attestation failed` mientras la app figura `Not registered`; el token debug temporal se revocó y no quedan tokens debug registrados.
 
 #### Riesgos o puertas pendientes
 
-- C03 continúa `EN CURSO`: para completar el ciclo válido hace falta una app Firebase storefront separada y App Check habilitado en un proyecto de staging o una autorización explícita posterior sobre el proyecto compartido. No se reutilizará `Tu Senda 84 Admin`.
+- C03 continúa `EN CURSO`: la app y el proyecto Firebase storefront de staging ya son exclusivos y el gateway está desplegado con credenciales separadas, pero Firebase no emite un token App Check válido hasta registrar Play Integrity con la huella SHA-256 real del certificado Android. Esa huella pertenece a la firma/configuración de C06 y no se adelantará ni se inventará dentro de C03. La matriz válida de registro/repetición/rotación/heartbeat/permiso/bootstrap/disable queda pendiente de esa puerta.
 - La validación en teléfono puede posponerse hasta C06 conforme al plan; si se pospone, debe quedar registrada explícitamente.
 - Producción, Firebase de producción, Cloudflare y C04-C12 permanecen fuera de alcance y sin cambios.
