@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | Estado general | EN EJECUCIÓN — PZ-APP-C02 |
-| Versión del documento | 1.9 |
+| Versión del documento | 1.10 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -1162,9 +1162,9 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 
 - Estado: EN CURSO
 - Responsable: Codex
-- Entorno: local; sin despliegues
-- Branch: `HEAD` separado en `14c453fa390cd3da18d913ad6d3df61650ebb65f`
-- Commit: pendiente
+- Entorno: local integrado en `dev`; despliegue a staging autorizado y pendiente
+- Branch: `dev`
+- Commit de implementación: `7b720764e1380b9a342caecdcb23e1e7fb021ddd`
 - Fecha/hora de inicio: 2026-08-11 19:59:08 -04:00
 - Fecha/hora de cierre: pendiente
 
@@ -1206,7 +1206,7 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - `1786579300_storefront_push_permission.js`: agrega `marketing.push.manage` a registros existentes con plantilla `secondary_admin` o `marketing_promotions`; el down lo retira de forma determinista.
 - PocketBase oficial 0.38.2 se descargó en el directorio temporal del sistema, verificando SHA-256 `9114bb978c694f49064bbf6f7ae28cf2bf01042a4ae9be26df1b98a4729a597e`; no se añadió el binario ni la base efímera al repositorio y el directorio temporal fue eliminado al terminar.
 - Ciclo real en base limpia: todas las migraciones `up`; `down 2` de C02; segundo `up` de C02. Resultado: `Applied/Reverted` correcto en ambos sentidos.
-- Ninguna migración se aplicó a staging o producción; no se modificó Firebase, Cloudflare, Coolify ni infraestructura remota.
+- Las migraciones aún no se han aplicado a staging ni producción. El propietario autorizó publicar `dev` para alinear staging; Firebase, Cloudflare y producción permanecen fuera de alcance.
 
 #### Pruebas y resultados
 
@@ -1217,7 +1217,9 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - PocketBase/SQLite efímero: 8/8 colecciones presentes; 5/5 reglas cerradas por colección; 0 relaciones con cascada; 31 índices C02 presentes.
 - PocketBase 0.38.2 inició localmente con todos los hooks reales y respondió `SERVE_HOOKS_HEALTH_OK`; el proceso se cerró inmediatamente después de la comprobación.
 - `node --check` aprobó todas las migraciones, librerías y pruebas JavaScript nuevas o modificadas; `git diff --check` sin errores.
-- `npm.cmd run build` no pudo iniciarse porque `frontend-powerzona/node_modules` no está instalado (`astro` no reconocido). No se instalaron dependencias ni se usó red para ampliar el alcance; las pruebas Node que importan los contratos TypeScript sí pasaron.
+- Integración en el worktree principal: avance rápido de `dev` desde `6b95711a194abaac174d2818f9a38bedcc4030a1` hasta `7b720764e1380b9a342caecdcb23e1e7fb021ddd`; `.tmp/` se confirmó presente y preservada.
+- Revalidación sobre `dev` integrado: backend 147/147; frontend 109/109; ciclo PocketBase `up → down 2 → up` correcto; 8 colecciones, 8/8 con reglas cerradas y 31 índices.
+- `npm.cmd run build` completó correctamente sobre `dev`; solo emitió las advertencias preexistentes de `getStaticPaths()` ignorado en rutas dinámicas.
 
 #### Decisiones tomadas
 
@@ -1229,8 +1231,8 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 
 #### Riesgos, deuda o bloqueos
 
-- La inspección manual limitada en staging sigue pendiente y no está autorizada en este prompt local.
-- El build Astro queda no ejecutado por ausencia previa de dependencias locales; no bloquea el contrato C02, pero debe volver a correrse en un entorno con instalación ya preparada antes de desplegar.
+- La inspección manual limitada en staging sigue pendiente; el propietario autorizó integrar y desplegar `dev` únicamente hacia staging.
+- Antes del despliegue, `dev` está tres commits por delante de `origin/dev`; la compilación y las pruebas integradas están en verde.
 
 #### PRUEBA MANUAL NECESARIA — staging
 
@@ -1248,7 +1250,7 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 
 #### Despliegue
 
-- No realizado ni autorizado.
+- Autorizado por el propietario para `dev`/staging el 2026-08-11; publicación y verificación remota todavía pendientes al redactar esta actualización. Producción no autorizada y no modificada.
 
 #### Siguiente paso
 
