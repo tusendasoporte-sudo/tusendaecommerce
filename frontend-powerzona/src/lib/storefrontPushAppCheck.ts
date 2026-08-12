@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
 import {
@@ -154,12 +154,17 @@ function initializeStorefrontFirebaseAdmin() {
   const existing = getApps().find((app) => app.name === FIREBASE_APP_NAME);
   if (existing) return existing;
 
-  const projectId = environmentValue('FIREBASE_PROJECT_ID');
-  const inlineServiceAccount = environmentValue('FIREBASE_SERVICE_ACCOUNT_JSON');
-  const credential = inlineServiceAccount
-    ? cert(JSON.parse(inlineServiceAccount))
-    : applicationDefault();
-  return initializeApp({ credential, ...(projectId ? { projectId } : {}) }, FIREBASE_APP_NAME);
+  const projectId = environmentValue('PZ_STOREFRONT_FIREBASE_PROJECT_ID');
+  const inlineServiceAccount = environmentValue('PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON');
+  if (!projectId || !inlineServiceAccount) {
+    throw new Error('Storefront Firebase credentials are not configured');
+  }
+
+  const serviceAccount = JSON.parse(inlineServiceAccount) as Record<string, unknown>;
+  if (String(serviceAccount.project_id || '').trim() !== projectId) {
+    throw new Error('Storefront Firebase project mismatch');
+  }
+  return initializeApp({ credential: cert(serviceAccount), projectId }, FIREBASE_APP_NAME);
 }
 
 async function defaultAppCheckVerifier(token: string) {

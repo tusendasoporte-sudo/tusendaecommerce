@@ -314,6 +314,11 @@ test('inventario C03 expone seis rutas y no incluye C04 ni relay v2', () => {
     '../src/pages/api/storefront/v1/session/bootstrap/[code].ts',
   ].map(read).join('\n');
   assert.match(gateway, /verifyToken\(token\)/);
+  assert.match(gateway, /environmentValue\('PZ_STOREFRONT_FIREBASE_PROJECT_ID'\)/);
+  assert.match(gateway, /environmentValue\('PZ_STOREFRONT_FIREBASE_SERVICE_ACCOUNT_JSON'\)/);
+  assert.match(gateway, /Storefront Firebase credentials are not configured/);
+  assert.match(gateway, /Storefront Firebase project mismatch/);
+  assert.doesNotMatch(gateway, /environmentValue\('FIREBASE_(?:PROJECT_ID|SERVICE_ACCOUNT_JSON)'\)/);
   assert.match(gateway, /publicSecurityProxyHeaders\(request, clientAddress, false\)/);
   assert.match(routes, /installations_register/);
   assert.match(routes, /installations_heartbeat/);
