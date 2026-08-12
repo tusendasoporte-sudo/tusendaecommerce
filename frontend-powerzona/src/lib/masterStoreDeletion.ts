@@ -25,6 +25,8 @@ export type MasterStoreDeleteCounts = {
   security_blocks: number;
   security_audit: number;
   security_settings: number;
+  activity_reviews: number;
+  activity_audit: number;
   price_watches: number;
   price_events: number;
   master_notifications: number;
@@ -34,6 +36,14 @@ export type MasterStoreDeleteCounts = {
   currencies: number;
   shipping_zones: number;
   visual_items: number;
+  storefront_app_configs: number;
+  storefront_installations: number;
+  storefront_web_sessions: number;
+  storefront_order_links: number;
+  push_media: number;
+  push_campaigns: number;
+  push_campaign_deliveries: number;
+  push_events: number;
   total_records: number;
 };
 
@@ -76,8 +86,12 @@ const COUNT_KEYS: Array<Exclude<keyof MasterStoreDeleteCounts, 'total_records'>>
   'customer_devices', 'customer_links', 'user_devices', 'user_device_audit',
   'visitor_sessions', 'visitor_pageviews',
   'security_events', 'security_blocks', 'security_audit', 'security_settings',
+  'activity_reviews', 'activity_audit',
   'price_watches', 'price_events', 'master_notifications', 'settings', 'categories',
   'subcategories', 'currencies', 'shipping_zones', 'visual_items',
+  'storefront_app_configs', 'storefront_installations', 'storefront_web_sessions',
+  'storefront_order_links', 'push_media', 'push_campaigns',
+  'push_campaign_deliveries', 'push_events',
 ];
 
 function boundedString(value: unknown, maxLength: number) {

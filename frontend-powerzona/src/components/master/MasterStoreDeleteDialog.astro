@@ -36,6 +36,7 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         <div><dt>Analíticas y notificaciones</dt><dd data-delete-count="analytics_and_notifications">0</dd></div>
         <div><dt>Clientes y datos de Seguridad</dt><dd data-delete-count="customers_and_security">0</dd></div>
         <div><dt>Configuración y archivos</dt><dd data-delete-count="configuration_and_files">0</dd></div>
+        <div><dt>App pública y campañas push</dt><dd data-delete-count="public_app_and_push">0</dd></div>
         <div class="is-total"><dt>Total de registros</dt><dd data-delete-count="total_records">0</dd></div>
       </dl>
 
@@ -180,9 +181,10 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
         commerce_rules: sum(counts, ['promotions', 'coupons', 'coupon_usages', 'gifts']),
         raffles_and_entries: sum(counts, ['raffles', 'raffle_entries']),
         reviews: counts.reviews,
-        analytics_and_notifications: sum(counts, ['analytics_events', 'store_notifications', 'master_notifications', 'price_watches', 'price_events']),
+        analytics_and_notifications: sum(counts, ['analytics_events', 'store_notifications', 'master_notifications', 'price_watches', 'price_events', 'activity_reviews', 'activity_audit']),
         customers_and_security: sum(counts, ['customers', 'customer_phones', 'customer_devices', 'customer_links', 'visitor_sessions', 'visitor_pageviews', 'security_events', 'security_blocks', 'security_audit', 'security_settings']),
         configuration_and_files: sum(counts, ['settings', 'categories', 'subcategories', 'currencies', 'shipping_zones', 'visual_items']),
+        public_app_and_push: sum(counts, ['storefront_app_configs', 'storefront_installations', 'storefront_web_sessions', 'storefront_order_links', 'push_media', 'push_campaigns', 'push_campaign_deliveries', 'push_events']),
         total_records: counts.total_records,
       };
     }
