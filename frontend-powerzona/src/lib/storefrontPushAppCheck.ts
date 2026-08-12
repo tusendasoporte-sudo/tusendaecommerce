@@ -119,7 +119,17 @@ export function storefrontGatewayTransportAllowed(
 ) {
   if (storefrontRequestTransportAllowed(request.url, nodeEnvironment)) return true;
   const proxy = publicSecurityProxyDiagnostics(request, clientAddress);
-  return proxy.runtime === 'private' && proxy.forwarded_proto === 'https';
+  let requestHost = '';
+  try { requestHost = new URL(request.url).host.toLowerCase(); } catch { return false; }
+  const forwardedHost = String(request.headers.get('x-forwarded-host') || '').trim().toLowerCase();
+  return proxy.forwarded_proto === 'https'
+    && proxy.forwarded_for.present
+    && !proxy.forwarded_for.oversized
+    && proxy.forwarded_for.count > 0
+    && proxy.x_real_ip !== 'missing'
+    && proxy.x_real_ip !== 'invalid'
+    && Boolean(requestHost)
+    && forwardedHost === requestHost;
 }
 
 export function validateStorefrontInternalSecret(

@@ -1340,7 +1340,7 @@ Implementar exclusivamente el registro público seguro de instalaciones definido
 - `origin/dev`, backend y frontend staging quedaron convergentes inicialmente en `5fe975352cd0a4cdb40ca91d8f2b6f4836926cc6`; `.tmp/` permaneció intacta y producción no fue abierta ni modificada.
 - Se configuraron fuera de Git y solo para runtime staging `PZ_STOREFRONT_INTERNAL_SECRET` en ambos servicios y `PZ_STOREFRONT_CREDENTIAL_SECRET` en PocketBase. Los secretos existentes de seguridad/Firebase se preservaron.
 - El primer smoke test confirmó que la ruta C03 ya existía, pero detectó que Astro recibía el salto interno de Coolify como HTTP y respondía `https_required` aun cuando el cliente llegaba por HTTPS.
-- Se ajustó la puerta de transporte para aceptar `X-Forwarded-Proto: https` exclusivamente cuando la conexión runtime procede del proxy privado; la misma cabecera desde un cliente público directo sigue rechazada. La regresión C03/seguridad resultante aprobó 35/35 pruebas y el build Astro completo volvió a aprobar.
+- Se ajustó la puerta de transporte para reconocer HTTPS detrás de Coolify solo con un paquete de proxy coherente: protocolo HTTPS, cadena de forwarding acotada, Real-IP válida y host reenviado idéntico al host reconstruido por Astro. Una cabecera de protocolo aislada o un host discordante siguen rechazados. La regresión C03/seguridad resultante aprobó 35/35 pruebas y el build Astro completo volvió a aprobar.
 
 #### Riesgos o puertas pendientes
 

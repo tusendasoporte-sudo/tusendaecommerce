@@ -143,12 +143,33 @@ test('HTTPS es obligatorio salvo loopback local fuera de produccion', () => {
   assert.equal(storefrontRequestTransportAllowed('http://127.0.0.1:4321/register', 'development'), true);
 
   const proxiedHttps = new Request('http://staging.example/register', {
-    headers: { 'x-forwarded-proto': 'https' },
+    headers: {
+      'x-forwarded-for': '198.51.100.8',
+      'x-forwarded-host': 'staging.example',
+      'x-forwarded-proto': 'https',
+      'x-real-ip': '198.51.100.8',
+    },
   });
   assert.equal(storefrontGatewayTransportAllowed(proxiedHttps, '172.20.0.2', 'production'), true);
-  assert.equal(storefrontGatewayTransportAllowed(proxiedHttps, '198.51.100.8', 'production'), false);
+  assert.equal(storefrontGatewayTransportAllowed(proxiedHttps, '198.51.100.8', 'production'), true);
   assert.equal(storefrontGatewayTransportAllowed(new Request('http://staging.example/register', {
-    headers: { 'x-forwarded-proto': 'http' },
+    headers: { 'x-forwarded-proto': 'https' },
+  }), '198.51.100.8', 'production'), false);
+  assert.equal(storefrontGatewayTransportAllowed(new Request('http://staging.example/register', {
+    headers: {
+      'x-forwarded-for': '198.51.100.8',
+      'x-forwarded-host': 'attacker.example',
+      'x-forwarded-proto': 'https',
+      'x-real-ip': '198.51.100.8',
+    },
+  }), '198.51.100.8', 'production'), false);
+  assert.equal(storefrontGatewayTransportAllowed(new Request('http://staging.example/register', {
+    headers: {
+      'x-forwarded-for': '198.51.100.8',
+      'x-forwarded-host': 'staging.example',
+      'x-forwarded-proto': 'http',
+      'x-real-ip': '198.51.100.8',
+    },
   }), '172.20.0.2', 'production'), false);
 });
 
