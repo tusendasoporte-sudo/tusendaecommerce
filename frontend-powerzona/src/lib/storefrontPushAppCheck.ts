@@ -2,7 +2,10 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto
 import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAppCheck } from 'firebase-admin/app-check';
 import { serverPocketBaseUrl } from './pocketBaseServerUrl.ts';
-import { publicSecurityProxyHeaders } from './publicSecurity.ts';
+import {
+  publicSecurityProxyDiagnostics,
+  publicSecurityProxyHeaders,
+} from './publicSecurity.ts';
 import {
   STOREFRONT_BOOTSTRAP_CODE_PATTERN,
   STOREFRONT_INSTALLATION_CREDENTIAL_PATTERN,
@@ -107,6 +110,16 @@ export function storefrontRequestTransportAllowed(url: string, nodeEnvironment =
   } catch {
     return false;
   }
+}
+
+export function storefrontGatewayTransportAllowed(
+  request: Request,
+  clientAddress?: string,
+  nodeEnvironment = environmentValue('NODE_ENV'),
+) {
+  if (storefrontRequestTransportAllowed(request.url, nodeEnvironment)) return true;
+  const proxy = publicSecurityProxyDiagnostics(request, clientAddress);
+  return proxy.runtime === 'private' && proxy.forwarded_proto === 'https';
 }
 
 export function validateStorefrontInternalSecret(
@@ -310,7 +323,7 @@ function publicGatewayError(status: number, payload?: Record<string, unknown>) {
 }
 
 export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewayOptions<T>) {
-  if (!storefrontRequestTransportAllowed(options.request.url)) {
+  if (!storefrontGatewayTransportAllowed(options.request, options.clientAddress)) {
     return storefrontJson(400, { ok: false, error: 'https_required' });
   }
 
@@ -389,7 +402,7 @@ export async function consumeStorefrontBootstrap(options: {
   fetchImpl?: FetchLike;
   now?: Date;
 }) {
-  if (!storefrontRequestTransportAllowed(options.request.url)) {
+  if (!storefrontGatewayTransportAllowed(options.request, options.clientAddress)) {
     return storefrontJson(400, { ok: false, error: 'https_required' });
   }
   if (!STOREFRONT_BOOTSTRAP_CODE_PATTERN.test(options.code)) {

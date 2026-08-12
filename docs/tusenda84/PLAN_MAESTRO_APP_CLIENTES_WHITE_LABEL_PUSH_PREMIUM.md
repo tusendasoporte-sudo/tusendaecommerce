@@ -7,9 +7,9 @@
 | Campo | Valor |
 |---|---|
 | Estado general | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
-| Versión del documento | 1.14 |
+| Versión del documento | 1.15 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-11 |
+| Última actualización | 2026-08-12 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
@@ -1335,8 +1335,15 @@ Implementar exclusivamente el registro público seguro de instalaciones definido
 - `npm.cmd run build` → aprobado; solo emitió las advertencias preexistentes de `getStaticPaths()` ignorado en tres rutas dinámicas.
 - `node --check` de los dos hooks C03 y `git diff --check` → aprobados.
 
+#### Avance de staging 2026-08-12
+
+- `origin/dev`, backend y frontend staging quedaron convergentes inicialmente en `5fe975352cd0a4cdb40ca91d8f2b6f4836926cc6`; `.tmp/` permaneció intacta y producción no fue abierta ni modificada.
+- Se configuraron fuera de Git y solo para runtime staging `PZ_STOREFRONT_INTERNAL_SECRET` en ambos servicios y `PZ_STOREFRONT_CREDENTIAL_SECRET` en PocketBase. Los secretos existentes de seguridad/Firebase se preservaron.
+- El primer smoke test confirmó que la ruta C03 ya existía, pero detectó que Astro recibía el salto interno de Coolify como HTTP y respondía `https_required` aun cuando el cliente llegaba por HTTPS.
+- Se ajustó la puerta de transporte para aceptar `X-Forwarded-Proto: https` exclusivamente cuando la conexión runtime procede del proxy privado; la misma cabecera desde un cliente público directo sigue rechazada. La regresión C03/seguridad resultante aprobó 35/35 pruebas y el build Astro completo volvió a aprobar.
+
 #### Riesgos o puertas pendientes
 
-- C03 continúa `EN CURSO`: falta configurar secretos y App Check fuera de Git, desplegar únicamente en staging y completar allí el ciclo manual obligatorio.
+- C03 continúa `EN CURSO`: falta publicar/desplegar el ajuste HTTPS de staging, comprobar una app Firebase storefront separada y completar allí el ciclo manual obligatorio con App Check válido.
 - La validación en teléfono puede posponerse hasta C06 conforme al plan; si se pospone, debe quedar registrada explícitamente.
 - Producción, Firebase de producción, Cloudflare y C04-C12 permanecen fuera de alcance y sin cambios.

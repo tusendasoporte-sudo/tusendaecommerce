@@ -7,6 +7,7 @@ import {
   consumeStorefrontBootstrap,
   resetStorefrontRateLimitsForTests,
   storefrontAppCheckToken,
+  storefrontGatewayTransportAllowed,
   storefrontInternalSignature,
   storefrontNativeGateway,
   storefrontRateLimitAllowed,
@@ -140,6 +141,15 @@ test('HTTPS es obligatorio salvo loopback local fuera de produccion', () => {
   assert.equal(storefrontRequestTransportAllowed('https://staging.example/register', 'production'), true);
   assert.equal(storefrontRequestTransportAllowed('http://staging.example/register', 'production'), false);
   assert.equal(storefrontRequestTransportAllowed('http://127.0.0.1:4321/register', 'development'), true);
+
+  const proxiedHttps = new Request('http://staging.example/register', {
+    headers: { 'x-forwarded-proto': 'https' },
+  });
+  assert.equal(storefrontGatewayTransportAllowed(proxiedHttps, '172.20.0.2', 'production'), true);
+  assert.equal(storefrontGatewayTransportAllowed(proxiedHttps, '198.51.100.8', 'production'), false);
+  assert.equal(storefrontGatewayTransportAllowed(new Request('http://staging.example/register', {
+    headers: { 'x-forwarded-proto': 'http' },
+  }), '172.20.0.2', 'production'), false);
 });
 
 test('rate limiting separa acciones y bloquea al superar la ventana', () => {
