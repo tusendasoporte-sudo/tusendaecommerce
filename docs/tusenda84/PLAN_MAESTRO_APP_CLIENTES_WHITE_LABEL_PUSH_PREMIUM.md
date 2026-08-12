@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | Estado general | PZ-APP-C03 EN CURSO — registro público seguro de instalaciones |
-| Versión del documento | 1.15 |
+| Versión del documento | 1.16 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-12 |
 | Tienda piloto | PowerZona |
@@ -1341,9 +1341,12 @@ Implementar exclusivamente el registro público seguro de instalaciones definido
 - Se configuraron fuera de Git y solo para runtime staging `PZ_STOREFRONT_INTERNAL_SECRET` en ambos servicios y `PZ_STOREFRONT_CREDENTIAL_SECRET` en PocketBase. Los secretos existentes de seguridad/Firebase se preservaron.
 - El primer smoke test confirmó que la ruta C03 ya existía, pero detectó que Astro recibía el salto interno de Coolify como HTTP y respondía `https_required` aun cuando el cliente llegaba por HTTPS.
 - Se ajustó la puerta de transporte para reconocer HTTPS detrás de Coolify solo con un paquete de proxy coherente: protocolo HTTPS, cadena de forwarding acotada, Real-IP válida y host reenviado idéntico al host reconstruido por Astro. Una cabecera de protocolo aislada o un host discordante siguen rechazados. La regresión C03/seguridad resultante aprobó 35/35 pruebas y el build Astro completo volvió a aprobar.
+- El frontend staging terminó desplegado en `31e0b9865447db41f0b2a4776a7ee6a9a422c821`; el backend C03 permanece en `5fe975352cd0a4cdb40ca91d8f2b6f4836926cc6`, que contiene sus hooks. La matriz negativa remota aprobó: payload válido sin App Check `401 app_check_required`, token inválido `401 app_check_invalid`, backend interno con sobre válido pero sin firma `401` y CRUD anónimo de configuraciones/instalaciones `403`.
+- La auditoría de Firebase fue de solo lectura: el proyecto compartido contiene únicamente `Tu Senda 84 Admin` (`com.tusenda84.admin`) y no existe una app Android storefront separada. La API Firebase App Check está deshabilitada; el intento controlado de emitir un token CI con Admin SDK terminó en `app-check/permission-denied` antes de registrar una instalación.
+- Para comprobar la puerta sin tocar Firebase se creó una configuración sintética exclusivamente en PocketBase staging. Al fallar la emisión del token se eliminó inmediatamente: `storefront_app_configs`, `storefront_installations` y `storefront_web_sessions` quedaron en `Total: 0`.
 
 #### Riesgos o puertas pendientes
 
-- C03 continúa `EN CURSO`: falta publicar/desplegar el ajuste HTTPS de staging, comprobar una app Firebase storefront separada y completar allí el ciclo manual obligatorio con App Check válido.
+- C03 continúa `EN CURSO`: para completar el ciclo válido hace falta una app Firebase storefront separada y App Check habilitado en un proyecto de staging o una autorización explícita posterior sobre el proyecto compartido. No se reutilizará `Tu Senda 84 Admin`.
 - La validación en teléfono puede posponerse hasta C06 conforme al plan; si se pospone, debe quedar registrada explícitamente.
 - Producción, Firebase de producción, Cloudflare y C04-C12 permanecen fuera de alcance y sin cambios.
