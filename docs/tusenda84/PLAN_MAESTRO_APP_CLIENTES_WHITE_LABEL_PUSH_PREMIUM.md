@@ -7,7 +7,7 @@
 | Campo | Valor |
 |---|---|
 | Estado general | EN EJECUCIÓN — PZ-APP-C02 |
-| Versión del documento | 1.10 |
+| Versión del documento | 1.11 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-11 |
 | Tienda piloto | PowerZona |
@@ -1162,7 +1162,7 @@ Se completó la auditoría técnica local del código y se documentó el diseño
 
 - Estado: EN CURSO
 - Responsable: Codex
-- Entorno: local integrado en `dev`; despliegue a staging autorizado y pendiente
+- Entorno: local integrado en `dev`; backend y frontend desplegados en staging
 - Branch: `dev`
 - Commit de implementación: `7b720764e1380b9a342caecdcb23e1e7fb021ddd`
 - Fecha/hora de inicio: 2026-08-11 19:59:08 -04:00
@@ -1206,7 +1206,7 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - `1786579300_storefront_push_permission.js`: agrega `marketing.push.manage` a registros existentes con plantilla `secondary_admin` o `marketing_promotions`; el down lo retira de forma determinista.
 - PocketBase oficial 0.38.2 se descargó en el directorio temporal del sistema, verificando SHA-256 `9114bb978c694f49064bbf6f7ae28cf2bf01042a4ae9be26df1b98a4729a597e`; no se añadió el binario ni la base efímera al repositorio y el directorio temporal fue eliminado al terminar.
 - Ciclo real en base limpia: todas las migraciones `up`; `down 2` de C02; segundo `up` de C02. Resultado: `Applied/Reverted` correcto en ambos sentidos.
-- Las migraciones aún no se han aplicado a staging ni producción. El propietario autorizó publicar `dev` para alinear staging; Firebase, Cloudflare y producción permanecen fuera de alcance.
+- Las migraciones fueron aplicadas en PocketBase staging por el arranque del contenedor construido desde `d4933bc9739254a8997946891ae1b815caa99822`; las ocho colecciones están presentes. Firebase, Cloudflare y producción permanecieron fuera de alcance y no se modificaron.
 
 #### Pruebas y resultados
 
@@ -1220,6 +1220,13 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 - Integración en el worktree principal: avance rápido de `dev` desde `6b95711a194abaac174d2818f9a38bedcc4030a1` hasta `7b720764e1380b9a342caecdcb23e1e7fb021ddd`; `.tmp/` se confirmó presente y preservada.
 - Revalidación sobre `dev` integrado: backend 147/147; frontend 109/109; ciclo PocketBase `up → down 2 → up` correcto; 8 colecciones, 8/8 con reglas cerradas y 31 índices.
 - `npm.cmd run build` completó correctamente sobre `dev`; solo emitió las advertencias preexistentes de `getStaticPaths()` ignorado en rutas dinámicas.
+- GitHub quedó alineado: `dev` y `origin/dev` apuntan a `d4933bc9739254a8997946891ae1b815caa99822`; árbol limpio y `.tmp/` preservada.
+- Coolify no inició autodespliegue con el push. Se ejecutó `Redeploy` manual únicamente en los recursos `powerzona-pocketbase-repo-staging` y `powerzona-frontend-staging`, ambos configurados con rama `dev`/`HEAD`.
+- PocketBase staging: despliegue manual `ettya2u0ablgwyjs2yh14p9b`, `Success`, 2026-08-12 00:50:04–00:50:20 UTC, commit `d4933bc`.
+- Frontend staging: despliegue manual `q5udllffnuyug7yqt37ur3g9`, `Success`, 2026-08-12 00:54:00–00:56:25 UTC, commit `d4933bc`; el build remoto terminó `Complete!` y la ruta `/t/powerzona` respondió correctamente sin error de aplicación.
+- Inspección visual en PocketBase staging: 8/8 colecciones C02 presentes y vacías; `store_push_devices`/`store_notifications` siguen como colecciones separadas; 8/8 contienen `store` requerido; conteos de índices `4 + 5 + 4 + 2 + 3 + 4 + 5 + 4 = 31`; las cinco reglas de cada colección muestran `Superusers only` (40/40 cerradas); `push_events.store` confirmó `Cascade delete = False`.
+- Comprobación anónima de solo lectura: listar cada una de las ocho colecciones por REST devolvió HTTP `403` en todos los casos.
+- Staging contiene dos tiendas existentes: PowerZona Premium permanente y una tienda Free. No se crearon, editaron ni eliminaron registros para esta inspección.
 
 #### Decisiones tomadas
 
@@ -1231,18 +1238,18 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 
 #### Riesgos, deuda o bloqueos
 
-- La inspección manual limitada en staging sigue pendiente; el propietario autorizó integrar y desplegar `dev` únicamente hacia staging.
-- Antes del despliegue, `dev` está tres commits por delante de `origin/dev`; la compilación y las pruebas integradas están en verde.
+- La inspección estructural de staging está aprobada técnicamente. Aún falta la parte controlada con datos de dos tiendas: restricciones únicas, tokens de tienda y preview de borrado Master; no se improvisó sobre datos existentes.
+- C02 continúa `EN CURSO` hasta completar esa prueba cruzada y recibir la confirmación visual del propietario. No se inicia C03.
 
 #### PRUEBA MANUAL NECESARIA — staging
 
-- Entorno: staging aislado de Tu Senda 84, PocketBase 0.38.2, usando el futuro commit exacto que contenga C02; no requiere teléfono.
-- Antes de empezar: obtener backup consistente de base y `pb_data/storage`, registrar el hash del commit y confirmar que se usan dos tiendas de prueba, nunca datos de producción.
+- Entorno: staging aislado de Tu Senda 84, PocketBase 0.38.2, commit `d4933bc9739254a8997946891ae1b815caa99822`; no requiere teléfono.
+- Antes de completar la parte pendiente: obtener backup consistente de base y `pb_data/storage` y confirmar qué dos tiendas/registros desechables pueden usarse; nunca usar producción.
 
-1. Aplicar las migraciones en staging y capturar el historial que muestre `1786579200` y `1786579300` aplicadas una sola vez.
-2. En PocketBase, abrir las ocho colecciones C02 y confirmar visualmente cinco reglas `null`, relaciones `cascadeDelete: false`, campos/estados e índices documentados. Confirmar que `store_push_devices` y `store_notifications` siguen separadas y sin cambios de contrato.
+1. [x] Aplicar las migraciones en staging desde el commit exacto y comprobar las ocho colecciones resultantes.
+2. [x] Abrir las ocho colecciones: confirmar 40/40 reglas cerradas, 31 índices, `store` requerido, relación sin cascada inspeccionada y separación de las colecciones administrativas.
 3. Crear con acceso Master datos mínimos válidos para Tienda A y Tienda B. Verificar que duplicar `app_key`, `package_name`, `firebase_app_id`, `(app_config, fid_digest)`, `credential_digest`, `session_digest`, `(installation, order)`, `(campaign, installation)` e `(installation, idempotency_key)` falla por restricción única.
-4. Con un usuario válido de cada tienda —incluido uno Premium con `marketing.push.manage`— intentar listar, ver, crear y modificar por CRUD REST las ocho colecciones. Resultado esperado: acceso directo denegado; ningún token de Tienda A obtiene ni altera registros de Tienda B y viceversa.
+4. [x] El acceso anónimo directo quedó denegado con HTTP `403` en 8/8 colecciones. Pendiente: repetir con un usuario válido de cada tienda —incluido uno Premium con `marketing.push.manage`— e intentar listar, ver, crear y modificar por CRUD REST. Resultado esperado: acceso directo denegado y ningún cruce A/B.
 5. Ejecutar preview de borrado Master para una tienda de prueba y comprobar que los conteos incluyen las ocho colecciones C02. Cancelar el borrado salvo que se haya creado una tienda desechable específica para verificar la eliminación completa.
 6. Guardar como evidencia capturas sin FID, credenciales, IP, tokens ni Firebase message ID; registrar aprobado/fallido y limpiar los datos de prueba de forma controlada.
 
@@ -1250,8 +1257,10 @@ Implementación local terminada de las ocho colecciones privadas, migraciones re
 
 #### Despliegue
 
-- Autorizado por el propietario para `dev`/staging el 2026-08-11; publicación y verificación remota todavía pendientes al redactar esta actualización. Producción no autorizada y no modificada.
+- `dev` publicado en GitHub en `d4933bc9739254a8997946891ae1b815caa99822`.
+- Coolify staging actualizado manualmente: backend `Success` (`ettya2u0ablgwyjs2yh14p9b`) y frontend `Success` (`q5udllffnuyug7yqt37ur3g9`).
+- Producción no autorizada y no modificada; no hubo merge ni push a `main`, ni cambios en Firebase o Cloudflare.
 
 #### Siguiente paso
 
-- Ejecutar y aprobar la `PRUEBA MANUAL NECESARIA` limitada en staging; solo entonces cambiar PZ-APP-C02 a `COMPLETADO` y habilitar PZ-APP-C03.
+- Preparar datos desechables y ejecutar los pasos 3–5 restantes de la `PRUEBA MANUAL NECESARIA`; solicitar confirmación visual al propietario. Solo entonces cambiar PZ-APP-C02 a `COMPLETADO` y habilitar PZ-APP-C03.
