@@ -6,7 +6,7 @@ const products = readFileSync(new URL('../src/pages/admin/products.astro', impor
 
 test('EDITOR-PRODUCTO: la vista previa y el estado permanecen agrupados en la columna fija', () => {
   assert.match(products, /<aside class="editor-side-column" aria-label="Resumen del producto">\s*<div class="editor-side-summary">/);
-  assert.match(products, /@media \(min-width: 1181px\)[\s\S]*?\.app-shell\.pz-admin-content \{[\s\S]*?overflow-x: clip !important;[\s\S]*?overflow-y: visible !important;/);
+  assert.match(products, /@media \(min-width: 1181px\)[\s\S]*?html,\s*body,\s*\.app-shell\.pz-admin-content \{[\s\S]*?overflow-x: clip !important;[\s\S]*?overflow-y: visible !important;/);
   assert.match(products, /@media \(min-width: 1181px\)[\s\S]*?#product-editor:not\(\.hidden\) \.editor-side-column \{[\s\S]*?position: sticky !important;[\s\S]*?max-height: calc\(100dvh - 116px\) !important;/);
   assert.match(products, /#product-editor:not\(\.hidden\) \.editor-side-summary \{[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior: contain;/);
 });

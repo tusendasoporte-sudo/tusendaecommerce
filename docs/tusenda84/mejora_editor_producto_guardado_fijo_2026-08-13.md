@@ -28,7 +28,7 @@ También se añadió `setEditorSaveState()` como función exclusivamente visual.
 
 La primera validación visual mostró que la columna tenía `position: sticky`, pero continuaba desplazándose fuera de la ventana. La causa comprobada mediante estilos calculados fue el `overflow-x: hidden` global de `.app-shell`: el navegador calculaba `overflow-y: auto` y convertía ese elemento, aunque no tuviera desplazamiento propio, en el contenedor de referencia del sticky.
 
-En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-y: visible` en `.app-shell`. Se mantiene el recorte horizontal, pero se evita crear un contenedor vertical que invalide el anclaje de Vista previa. Esta corrección es exclusivamente de layout; no modifica datos ni procesos de producto.
+En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-y: visible` en `html`, `body` y `.app-shell`. La medición posterior al primer ajuste confirmó que eliminar el falso contenedor solo en `.app-shell` no era suficiente porque los dos niveles raíz conservaban el mismo cálculo `hidden/auto`. Se mantiene el recorte horizontal, pero ninguno de los tres niveles crea ya un contenedor vertical intermedio que invalide el anclaje de Vista previa. Esta corrección es exclusivamente de layout; no modifica datos ni procesos de producto.
 
 ## Pruebas automáticas necesarias
 
