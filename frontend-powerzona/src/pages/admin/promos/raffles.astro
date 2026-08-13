@@ -19,6 +19,7 @@ const adminAuthToken = authPb.authStore.token;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tu tienda';
 const publicStorePath = getPublicStorePath(currentStoreSlug);
+const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const raffleTimeZone = RAFFLE_TIME_ZONE;
 const rafflesAdminAccess = await resolveRafflesAdminAccess(adminContext, {
@@ -1656,6 +1657,8 @@ if (!canRenderRafflesEditor && !showRafflesGate) {
         storePlanValues={adminContext.store}
         activeSection="marketing"
         mobileTitle="Rifas"
+        mobileBackHref={adminPromosPath}
+        mobileBackLabel="Volver a Promociones"
         mobileActionLabel={canRenderRafflesEditor ? 'Actualizar' : undefined}
         mobileActionTarget={canRenderRafflesEditor ? '#raffle-new-btn' : undefined}
       />

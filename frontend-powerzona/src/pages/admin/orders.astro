@@ -955,7 +955,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
 
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle="Pedidos" mobileActionLabel="Actualizar" mobileActionTarget="#refresh-btn" />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle={isOrderDetailPage ? 'Detalle del pedido' : 'Pedidos'} mobileActionLabel={isOrderDetailPage ? '' : 'Actualizar'} mobileActionTarget={isOrderDetailPage ? '' : '#refresh-btn'} mobileBackHref={isOrderDetailPage ? adminOrdersPath : ''} mobileBackLabel={isOrderDetailPage ? 'Volver a Pedidos' : ''} />
       <LastModificationMeta
         pocketbaseUrl={pocketbaseUrl}
         enabled={storeAccessContext?.access.is_primary_admin === true}
@@ -4068,6 +4068,28 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
       closeDetailBtn.addEventListener('click', () => {
         if (IS_ORDER_DETAIL_PAGE) window.location.assign(ADMIN_ORDERS_PATH);
         else clearDetail();
+      });
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented || IS_ORDER_DETAIL_PAGE) return;
+        if (addProductPanel && !addProductPanel.classList.contains('hidden')) {
+          event.preventDefault();
+          setAddProductPanel(false);
+          return;
+        }
+        if (editOrderPanel && !editOrderPanel.classList.contains('hidden')) {
+          event.preventDefault();
+          setEditOrderPanel(false);
+          return;
+        }
+        if (cleanupOrdersPanel && !cleanupOrdersPanel.classList.contains('hidden')) {
+          event.preventDefault();
+          closeCleanupOrdersPanel();
+          return;
+        }
+        if (selectedOrder) {
+          event.preventDefault();
+          clearDetail();
+        }
       });
       cleanupOrdersCloseBtn?.addEventListener('click', closeCleanupOrdersPanel);
       cleanupSelectAllBtn?.addEventListener('click', selectAllCleanupOrders);

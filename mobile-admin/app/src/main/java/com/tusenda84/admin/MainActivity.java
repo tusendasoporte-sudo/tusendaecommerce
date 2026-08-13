@@ -56,6 +56,13 @@ public final class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 301;
     private static final int STORAGE_PERMISSION_REQUEST = 302;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 303;
+    private static final String ADMIN_BACK_SCRIPT =
+            "(function(){try{"
+                    + "var navigation=window.PZAdminBackNavigation;"
+                    + "if(navigation&&typeof navigation.handle==='function'){return navigation.handle()===true;}"
+                    + "var request=new CustomEvent('pz:admin-back-request',{cancelable:true,detail:{source:'android'}});"
+                    + "return window.dispatchEvent(request)===false;"
+                    + "}catch(error){return false;}})();";
 
     private WebView webView;
     private ProgressBar progressBar;
@@ -64,6 +71,7 @@ public final class MainActivity extends Activity {
     private TextView errorMessage;
     private ValueCallback<Uri[]> fileChooserCallback;
     private PendingDownload pendingDownload;
+    private boolean backNavigationPending;
     private final ExecutorService pushRegistrationExecutor = Executors.newSingleThreadExecutor();
 
     @Override
@@ -573,17 +581,27 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(outState);
     }
 
+    private void navigateWebViewBackOrExit() {
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            finishAfterTransition();
+        }
+    }
+
     private void handleBackNavigation() {
         if (errorView.getVisibility() == View.VISIBLE) {
             hideError();
             if (webView.getUrl() == null) openAdminHome();
             return;
         }
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            finishAfterTransition();
-        }
+        if (backNavigationPending || webView == null) return;
+        backNavigationPending = true;
+        webView.evaluateJavascript(ADMIN_BACK_SCRIPT, result -> {
+            backNavigationPending = false;
+            if ("true".equalsIgnoreCase(String.valueOf(result))) return;
+            navigateWebViewBackOrExit();
+        });
     }
 
     @Override

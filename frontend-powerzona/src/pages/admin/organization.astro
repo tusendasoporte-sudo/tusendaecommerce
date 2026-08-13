@@ -1251,6 +1251,25 @@ const canManageStoreSettings = hasStorePermission(organizationPermissionContext,
         visualForm.classList.add('hidden');
         resetVisualForm();
       }
+      async function requestCloseVisualForm() {
+        if (visualForm?.classList.contains('hidden')) return true;
+        if (isSavingVisual) {
+          showAlert(visualAlert, 'Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if (visualFormHasChanges()) {
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Salir sin guardar',
+            message: 'Tienes cambios sin guardar en este elemento visual. Si sales ahora, se perderán.',
+            confirmText: 'Salir sin guardar',
+            cancelText: 'Seguir editando',
+            tone: 'warning',
+          });
+          if (!confirmed) return false;
+        }
+        closeVisualForm();
+        return true;
+      }
       function updateActionFields() {
         const action = visualActionType.value;
         document.getElementById('visual-url-field').classList.toggle('hidden', action !== 'url');
@@ -1358,7 +1377,12 @@ const canManageStoreSettings = hasStorePermission(organizationPermissionContext,
       refreshBtn?.addEventListener('click', () => loadData());
       refreshOrgBtn?.addEventListener('click', () => loadData());
       openVisualFormBtn?.addEventListener('click', () => openVisualForm());
-      visualCancelBtn?.addEventListener('click', closeVisualForm);
+      visualCancelBtn?.addEventListener('click', () => { requestCloseVisualForm(); });
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented || visualForm?.classList.contains('hidden')) return;
+        event.preventDefault();
+        requestCloseVisualForm();
+      });
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('input', (event) => {
         if (event.target?.type === 'file') return;

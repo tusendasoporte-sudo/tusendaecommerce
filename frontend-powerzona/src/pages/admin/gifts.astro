@@ -1081,6 +1081,26 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         document.body.classList.remove('gift-modal-open');
       }
 
+      async function requestCloseGiftModal(){
+        if(giftModal?.classList.contains('hidden')) return true;
+        if(giftSaving){
+          showAlert('Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if(hasGiftChanges()){
+          const confirmed = await window.AdminDialog.confirm({
+            title:'Salir sin guardar',
+            message:'Tienes cambios sin guardar en este regalo. Si sales ahora, se perderán.',
+            confirmText:'Salir sin guardar',
+            cancelText:'Seguir editando',
+            tone:'warning',
+          });
+          if(!confirmed) return false;
+        }
+        closeGiftModal();
+        return true;
+      }
+
       function openGiftsCategoryInlineCard(){
         giftsCategoryInlineCard?.classList.remove('hidden');
         if(toggleGiftsCategoryCardBtn) toggleGiftsCategoryCardBtn.textContent = 'Cerrar';
@@ -1092,9 +1112,29 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if(toggleGiftsCategoryCardBtn) toggleGiftsCategoryCardBtn.textContent = 'Configurar';
       }
 
+      async function requestCloseGiftsCategoryInlineCard(){
+        if(giftsCategoryInlineCard?.classList.contains('hidden')) return true;
+        if(giftsCategorySaving){
+          showAlert('Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if(hasGiftsCategoryChanges()){
+          const confirmed = await window.AdminDialog.confirm({
+            title:'Salir sin guardar',
+            message:'Tienes cambios sin guardar en la categoría pública de regalos. Si sales ahora, se perderán.',
+            confirmText:'Salir sin guardar',
+            cancelText:'Seguir editando',
+            tone:'warning',
+          });
+          if(!confirmed) return false;
+        }
+        closeGiftsCategoryInlineCard();
+        return true;
+      }
+
       function toggleGiftsCategoryInlineCard(){
         if(giftsCategoryInlineCard?.classList.contains('hidden')) openGiftsCategoryInlineCard();
-        else closeGiftsCategoryInlineCard();
+        else requestCloseGiftsCategoryInlineCard();
       }
 
       function resetGiftForm(){
@@ -1283,13 +1323,25 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       giftForm?.addEventListener('submit', saveGift);
-      cancelEditBtn?.addEventListener('click', closeGiftModal);
-      closeGiftModalBtn?.addEventListener('click', closeGiftModal);
+      cancelEditBtn?.addEventListener('click', () => { requestCloseGiftModal(); });
+      closeGiftModalBtn?.addEventListener('click', () => { requestCloseGiftModal(); });
       giftModal?.addEventListener('click', (event) => {
-        if(event.target === giftModal) closeGiftModal();
+        if(event.target === giftModal) requestCloseGiftModal();
       });
       toggleGiftsCategoryCardBtn?.addEventListener('click', toggleGiftsCategoryInlineCard);
-      closeGiftsCategoryInlineBtn?.addEventListener('click', closeGiftsCategoryInlineCard);
+      closeGiftsCategoryInlineBtn?.addEventListener('click', () => { requestCloseGiftsCategoryInlineCard(); });
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if(event.defaultPrevented) return;
+        if(giftModal && !giftModal.classList.contains('hidden')){
+          event.preventDefault();
+          requestCloseGiftModal();
+          return;
+        }
+        if(giftsCategoryInlineCard && !giftsCategoryInlineCard.classList.contains('hidden')){
+          event.preventDefault();
+          requestCloseGiftsCategoryInlineCard();
+        }
+      });
       refreshBtn?.addEventListener('click', loadGifts);
       saveSettingsBtn?.addEventListener('click', saveSettingsSmart);
       sidebarOpenBtn?.addEventListener('click', openSidebar);
@@ -1326,7 +1378,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       document.addEventListener('click', closeGiftMenu);
       document.addEventListener('keydown', (event)=>{
         if(event.key !== 'Escape') return;
-        if(!giftModal?.classList.contains('hidden')) closeGiftModal();
+        if(!giftModal?.classList.contains('hidden')) requestCloseGiftModal();
         closeGiftMenu();
         closeSidebar();
       });

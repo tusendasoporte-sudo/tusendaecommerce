@@ -1927,6 +1927,12 @@ const marketingVisualSubClass = (subsection: string) => {
       setButtonsExpanded(false);
     }
 
+    window.addEventListener('pz:admin-back-request', (event) => {
+      if (event.defaultPrevented || !isOpen) return;
+      event.preventDefault();
+      closePanel();
+    });
+
     document.addEventListener('click', (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const trigger = target?.closest('[data-pz-admin-notification-trigger]');
@@ -2156,6 +2162,73 @@ const marketingVisualSubClass = (subsection: string) => {
         overlay.setAttribute('aria-hidden', 'true');
       }
     };
+
+    const isVisibleBackTarget = (element) => {
+      if (!(element instanceof HTMLElement)) return false;
+      if (element.hidden || element.classList.contains('hidden')) return false;
+      if (element.getAttribute('aria-hidden') === 'true') return false;
+      return element.getClientRects().length > 0;
+    };
+
+    const closeSharedAdminDialog = () => {
+      const overlay = document.getElementById('pz-admin-dialog-overlay');
+      if (!isVisibleBackTarget(overlay)) return false;
+      const cancel = document.getElementById('pz-admin-dialog-cancel')
+        || document.getElementById('pz-admin-dialog-close');
+      if (!(cancel instanceof HTMLElement)) return false;
+      cancel.click();
+      return true;
+    };
+
+    const closeTopVisibleDialog = () => {
+      const dialogs = Array.from(document.querySelectorAll('[role="dialog"], dialog[open]'))
+        .filter(isVisibleBackTarget);
+      const dialog = dialogs[dialogs.length - 1];
+      if (!(dialog instanceof HTMLElement)) return false;
+      const closeControl = dialog.querySelector(
+        '[data-pz-admin-back-close], [data-variation-modal-close], [aria-label^="Cerrar"], .modal-close, [id$="-cancel-btn"], [id$="-cancel"]'
+      );
+      if (closeControl instanceof HTMLElement) {
+        closeControl.click();
+        return true;
+      }
+      if (typeof HTMLDialogElement !== 'undefined' && dialog instanceof HTMLDialogElement) {
+        const cancelEvent = new Event('cancel', { cancelable: true });
+        if (dialog.dispatchEvent(cancelEvent) && dialog.open) dialog.close();
+        return true;
+      }
+      return false;
+    };
+
+    const followExplicitMobileBack = () => {
+      const backLinks = Array.from(document.querySelectorAll('[data-pz-admin-mobile-back]'))
+        .filter(isVisibleBackTarget);
+      const backLink = backLinks[backLinks.length - 1];
+      if (!(backLink instanceof HTMLElement)) return false;
+      backLink.click();
+      return true;
+    };
+
+    const handleAdminBackNavigation = () => {
+      if (closeSharedAdminDialog()) return true;
+      if (closeTopVisibleDialog()) return true;
+      const request = new CustomEvent('pz:admin-back-request', {
+        cancelable: true,
+        detail: { source: 'android' },
+      });
+      if (!window.dispatchEvent(request)) return true;
+      return followExplicitMobileBack();
+    };
+
+    window.PZAdminBackNavigation = Object.freeze({
+      handle: handleAdminBackNavigation,
+    });
+
+    window.addEventListener('pz:admin-back-request', (event) => {
+      if (event.defaultPrevented || !document.body.classList.contains('sidebar-open')) return;
+      event.preventDefault();
+      closeSidebar();
+    });
 
     const isOpenButton = (target) => target instanceof Element && openButtons.some((selector) => target.closest(selector));
     const hydrateOpenButtons = () => {

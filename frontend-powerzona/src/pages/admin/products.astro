@@ -6295,6 +6295,25 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         resetVariationState();
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Productos';
       }
+      async function requestCloseProductEditor() {
+        if (productEditor.classList.contains('hidden')) return true;
+        if (isSavingProduct || isSavingVariation) {
+          setFormAlert('Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if (hasProductChanges()) {
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Salir sin guardar',
+            message: 'Tienes cambios sin guardar en este producto. Si sales ahora, se perderán.',
+            confirmText: 'Salir sin guardar',
+            cancelText: 'Continuar editando',
+            tone: 'warning',
+          });
+          if (!confirmed) return false;
+        }
+        closeProductEditor();
+        return true;
+      }
       function openNewProductEditor() {
         if (!CAN_CREATE_PRODUCTS) return;
         resetProductForm();
@@ -7361,11 +7380,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         renderProducts();
       });
       newProductBtn?.addEventListener('click', openNewProductEditor);
-      editorCloseBtn?.addEventListener('click', closeProductEditor);
-      productCancelBtn?.addEventListener('click', closeProductEditor);
+      editorCloseBtn?.addEventListener('click', () => { requestCloseProductEditor(); });
+      productCancelBtn?.addEventListener('click', () => { requestCloseProductEditor(); });
       editorSideSaveBtn?.addEventListener('click', () => productSaveBtn?.click());
-      editorSideCancelBtn?.addEventListener('click', closeProductEditor);
-      editorSideBackBtn?.addEventListener('click', closeProductEditor);
+      editorSideCancelBtn?.addEventListener('click', () => { requestCloseProductEditor(); });
+      editorSideBackBtn?.addEventListener('click', () => { requestCloseProductEditor(); });
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented || productEditor.classList.contains('hidden')) return;
+        event.preventDefault();
+        if (getOpenQuickCreatePanel()) {
+          closeQuickCreatePanelsAndRestoreSelects();
+          return;
+        }
+        if (productExtraEditor && !productExtraEditor.classList.contains('hidden')) {
+          closeExtraInfoEditor();
+          return;
+        }
+        requestCloseProductEditor();
+      });
       editorPreviewToggle?.addEventListener('click', () => {
         if (!window.matchMedia('(max-width: 768px)').matches) return;
         isMobileEditorPreviewExpanded = !isMobileEditorPreviewExpanded;

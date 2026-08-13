@@ -5134,6 +5134,11 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
       newVisualBtn?.addEventListener('click', () => openVisualForm());
       openVisualFormBtn?.addEventListener('click', () => openVisualForm());
       visualCancelBtn?.addEventListener('click', closeVisualForm);
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented || visualForm?.classList.contains('hidden')) return;
+        event.preventDefault();
+        closeVisualForm();
+      });
       visualActionType?.addEventListener('change', updateActionFields);
       visualForm?.addEventListener('submit', (event) => saveVisualItem(event).catch((error) => showAlert(visualAlert, error.message || 'No se pudo guardar.', 'error')));
       settingsSidebarToggle?.addEventListener('click', () => {

@@ -5277,6 +5277,25 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         setCouponFormButtonOpen(false);
         resetCouponForm();
       }
+      async function requestCloseCouponForm() {
+        if (couponFormPanel?.classList.contains('hidden')) return true;
+        if (isSavingCoupon) {
+          showCouponNotice('Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if (couponFormHasChanges()) {
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Salir sin guardar',
+            message: 'Tienes cambios sin guardar en este cupón. Si sales ahora, se perderán.',
+            confirmText: 'Salir sin guardar',
+            cancelText: 'Seguir editando',
+            tone: 'warning',
+          });
+          if (!confirmed) return false;
+        }
+        closeCouponForm();
+        return true;
+      }
       function validateCouponPayload(payload, currentId = '') {
         if (!payload.code) return 'Escribe el código del cupón.';
         if (!payload.name) return 'Escribe el nombre interno.';
@@ -5698,6 +5717,25 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         promotionNewBtn?.querySelector('.pz-admin-btn__icon')?.classList.remove('hidden');
         resetPromotionForm();
       }
+      async function requestClosePromotionForm() {
+        if (promotionForm?.classList.contains('hidden')) return true;
+        if (isSavingPromotion) {
+          showPromotionNotice('Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if (promotionFormHasChanges()) {
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Salir sin guardar',
+            message: 'Tienes cambios sin guardar en esta promoción. Si sales ahora, se perderán.',
+            confirmText: 'Salir sin guardar',
+            cancelText: 'Seguir editando',
+            tone: 'warning',
+          });
+          if (!confirmed) return false;
+        }
+        closePromotionForm();
+        return true;
+      }
       function promotionScopeForType(type) {
         if (type === 'category_discount') return 'category';
         if (type === 'subcategory_discount') return 'subcategory';
@@ -6006,7 +6044,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       });
       promotionNewBtn?.addEventListener('click', () => {
         if (promotionForm && !promotionForm.classList.contains('hidden')) {
-          closePromotionForm();
+          requestClosePromotionForm();
           return;
         }
         openPromotionForm();
@@ -6031,7 +6069,7 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
         expandedPromotionGroups.clear();
         renderPromotions();
       });
-      promotionCancelBtn?.addEventListener('click', closePromotionForm);
+      promotionCancelBtn?.addEventListener('click', () => { requestClosePromotionForm(); });
       promotionType?.addEventListener('change', updatePromotionFields);
       promotionCategory?.addEventListener('change', () => {
         renderPromotionSubcategoryOptions();
@@ -6068,12 +6106,29 @@ const canManageStoreSettings = hasStorePermission(marketingPermissionContext, 's
       couponNewBtn?.addEventListener('click', () => {
         const isOpen = couponFormPanel && !couponFormPanel.classList.contains('hidden');
         if (isOpen) {
-          closeCouponForm();
+          requestCloseCouponForm();
           return;
         }
         openCouponForm();
       });
-      couponCancelBtn?.addEventListener('click', closeCouponForm);
+      couponCancelBtn?.addEventListener('click', () => { requestCloseCouponForm(); });
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented) return;
+        if (couponFormPanel && !couponFormPanel.classList.contains('hidden')) {
+          event.preventDefault();
+          requestCloseCouponForm();
+          return;
+        }
+        if (promotionForm && !promotionForm.classList.contains('hidden')) {
+          event.preventDefault();
+          requestClosePromotionForm();
+          return;
+        }
+        if (visualForm && !visualForm.classList.contains('hidden')) {
+          event.preventDefault();
+          closeVisualForm();
+        }
+      });
       couponReadmeBtn?.addEventListener('click', openCouponReadme);
       couponReadmeCloseBtn?.addEventListener('click', closeCouponReadme);
       couponReadmeModal?.addEventListener('click', (event) => { if (event.target === couponReadmeModal) closeCouponReadme(); });

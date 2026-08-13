@@ -2631,6 +2631,27 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       });
       contentViewBack?.addEventListener('click', closeContentView);
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented) return;
+        const editingRow = document.querySelector('.category-row.editing, .category-child-row.editing');
+        if (editingRow) {
+          event.preventDefault();
+          editingRow.classList.remove('editing');
+          return;
+        }
+        if (isCategoryCreatePanelOpen() && !categoryCreateSubmitting) {
+          event.preventDefault();
+          closeCategoryCreatePanel();
+          return;
+        }
+        if (contentNavigation?.type === 'general') return;
+        event.preventDefault();
+        if (contentNavigation?.type === 'subcategory' && contentNavigation.parentCategoryId) {
+          showCategoryContent(contentNavigation.parentCategoryId);
+          return;
+        }
+        closeContentView();
+      });
       contentViewBody?.addEventListener('click', (event) => {
         const subcategoryCard = event.target.closest('.js-open-subcategory-content');
         if (subcategoryCard?.dataset?.subcategoryId) {

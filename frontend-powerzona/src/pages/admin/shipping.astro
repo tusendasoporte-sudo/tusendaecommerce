@@ -872,20 +872,32 @@ const masterSupportHref = masterSupportWhatsapp
       form.addEventListener('input',syncFormState);
       form.addEventListener('change',syncFormState);
       form.addEventListener('submit',(event)=>saveZone(event).catch((error)=>{isSavingZone=false;syncFormState();showTimedAlert(formAlert,error.message||'No se pudieron guardar los cambios','error','form');}));
-      cancelEditBtn.addEventListener('click',()=>{resetForm();hideMainForm();});
-      closeMainFormBtn?.addEventListener('click',()=>{resetForm();hideMainForm();});
+      async function requestCloseMainForm(){
+        if(formPanel?.classList.contains('hidden'))return true;
+        if(isSavingZone){showTimedAlert(formAlert,'Espera a que termine el guardado antes de salir.','info','form');return false;}
+        if(hasFormChanges()){
+          const confirmed=await window.AdminDialog.confirm({
+            title:'Salir sin guardar',
+            message:'Tienes cambios sin guardar en esta zona de envío. Si sales ahora, se perderán.',
+            confirmText:'Salir sin guardar',
+            cancelText:'Continuar editando',
+            tone:'warning'
+          });
+          if(!confirmed)return false;
+        }
+        resetForm();hideMainForm();return true;
+      }
+      cancelEditBtn.addEventListener('click',()=>{requestCloseMainForm();});
+      closeMainFormBtn?.addEventListener('click',()=>{requestCloseMainForm();});
       function toggleMainForm(){
         const willOpen=formPanel?.classList.contains('hidden');
+        if(!willOpen){requestCloseMainForm();return;}
         resetForm();
-        if(willOpen){
-          showMainForm();
-          window.setTimeout(()=>{
-            formPanel?.scrollIntoView({behavior:'smooth',block:'start'});
-            fields.municipality?.focus();
-          },80);
-        }else{
-          hideMainForm();
-        }
+        showMainForm();
+        window.setTimeout(()=>{
+          formPanel?.scrollIntoView({behavior:'smooth',block:'start'});
+          fields.municipality?.focus();
+        },80);
       }
       newZoneTopBtn?.addEventListener('click',toggleMainForm);
       newZoneMobileBtn?.addEventListener('click',toggleMainForm);
@@ -895,6 +907,11 @@ const masterSupportHref = masterSupportWhatsapp
       zoneModalClose.addEventListener('click',closeZoneModal);
       zoneModalCancel.addEventListener('click',closeZoneModal);
       zoneModal.addEventListener('click',(event)=>{if(event.target===zoneModal)closeZoneModal();});
+      window.addEventListener('pz:admin-back-request',(event)=>{
+        if(event.defaultPrevented||formPanel?.classList.contains('hidden'))return;
+        event.preventDefault();
+        requestCloseMainForm();
+      });
       searchInput.addEventListener('input',renderZones);
       statusFilter.addEventListener('change',renderZones);
       municipalityFilter.addEventListener('change',renderZones);

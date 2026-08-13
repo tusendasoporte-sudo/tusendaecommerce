@@ -98,7 +98,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
   </head>
   <body>
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeId={adminContext.storeId} pocketbaseUrl={pocketbaseUrl} authToken={authToken} storeSlug={storeSlug} storeName={adminContext.store.name || storeSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="products" mobileTitle="Historial" />
+      <AdminSidebar storeId={adminContext.storeId} pocketbaseUrl={pocketbaseUrl} authToken={authToken} storeSlug={storeSlug} storeName={adminContext.store.name || storeSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="products" mobileTitle="Historial" mobileBackHref={returnPath} mobileBackLabel={returnLabel} />
       <main class="product-history-main pz-admin-content-inner">
         <div class="product-history-shell">
           <AdminSectionHeader kicker="Catálogo" title="Historial del producto" description="Cambios del producto seleccionado y sus variaciones." titleId="product-history-title">

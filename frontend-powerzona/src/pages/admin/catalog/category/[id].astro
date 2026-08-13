@@ -1650,6 +1650,26 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       }
 
+      async function requestCloseCategoryEditPanel() {
+        if (categoryEditPanel?.classList.contains('hidden')) return true;
+        if (categorySaving) {
+          showCategoryNotice('Espera a que termine el guardado antes de salir.', 'info');
+          return false;
+        }
+        if (hasCategoryChanges()) {
+          const confirmed = await window.AdminDialog.confirm({
+            title: 'Salir sin guardar',
+            message: 'Tienes cambios sin guardar en esta categoría. Si sales ahora, se perderán.',
+            confirmText: 'Salir sin guardar',
+            cancelText: 'Seguir editando',
+            tone: 'warning',
+          });
+          if (!confirmed) return false;
+        }
+        closeCategoryEditPanel();
+        return true;
+      }
+
       function categoryOverviewImageMarkup() {
         const url = recordImageUrl('categories', category);
         if (!url) return '+';
@@ -2176,13 +2196,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       subcategoryForm?.addEventListener('submit', createSubcategory);
       categoryEditToggleBtn?.addEventListener('click', () => {
         if (categoryEditPanel && !categoryEditPanel.classList.contains('hidden')) {
-          closeCategoryEditPanel();
+          requestCloseCategoryEditPanel();
           return;
         }
 
         openCategoryEditPanel();
       });
-      categoryEditCloseBtn?.addEventListener('click', closeCategoryEditPanel);
+      categoryEditCloseBtn?.addEventListener('click', () => { requestCloseCategoryEditPanel(); });
+      window.addEventListener('pz:admin-back-request', (event) => {
+        if (event.defaultPrevented || categoryEditPanel?.classList.contains('hidden')) return;
+        event.preventDefault();
+        requestCloseCategoryEditPanel();
+      });
       directProductsSearch?.addEventListener('input', () => {
         directProductQuery = directProductsSearch.value || '';
         directProductsExpanded = false;
