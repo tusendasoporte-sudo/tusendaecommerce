@@ -2687,7 +2687,103 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           flex-direction: column-reverse;
           align-items: stretch;
         }
-      }</style>
+      }
+
+      /* Editor de producto: resumen persistente y guardado siempre localizable. */
+      .editor-side-summary {
+        display: grid;
+        gap: 14px;
+        min-width: 0;
+        min-height: 0;
+      }
+      .editor-save-state {
+        position: relative;
+        margin: 0;
+        padding-left: 16px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 850;
+        line-height: 1.4;
+      }
+      .editor-save-state::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: .35em;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #94a3b8;
+        box-shadow: 0 0 0 4px rgba(148, 163, 184, .14);
+      }
+      .editor-save-state.is-dirty { color: #1d4ed8; }
+      .editor-save-state.is-dirty::before { background: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, .14); }
+      .editor-save-state.is-saved { color: #15803d; }
+      .editor-save-state.is-saved::before { background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, .14); }
+      .editor-save-state.is-warning { color: #9a3412; }
+      .editor-save-state.is-warning::before { background: #f97316; box-shadow: 0 0 0 4px rgba(249, 115, 22, .14); }
+      .editor-save-state.is-saving { color: #7c3aed; }
+      .editor-save-state.is-saving::before { background: #8b5cf6; box-shadow: 0 0 0 4px rgba(139, 92, 246, .14); }
+
+      @media (min-width: 1181px) {
+        #product-editor:not(.hidden) .editor-side-column {
+          position: sticky !important;
+          top: 92px !important;
+          max-height: calc(100dvh - 116px) !important;
+          grid-template-rows: minmax(0, 1fr) auto !important;
+          align-self: start !important;
+          overflow: hidden !important;
+        }
+        #product-editor:not(.hidden) .editor-side-summary {
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+          padding-right: 4px;
+        }
+        #product-editor:not(.hidden) .editor-actions-card {
+          position: relative !important;
+          z-index: 2 !important;
+          box-shadow: 0 16px 34px rgba(15, 23, 42, .10) !important;
+        }
+      }
+
+      @media (max-width: 768px) {
+        #product-editor:not(.hidden) .editor-main-column {
+          padding-bottom: calc(86px + var(--pz-admin-mobile-bottom-offset, 98px) + env(safe-area-inset-bottom, 0px)) !important;
+        }
+        #product-editor:not(.hidden) .editor-actions-card {
+          position: fixed !important;
+          left: max(10px, env(safe-area-inset-left, 0px)) !important;
+          right: max(10px, env(safe-area-inset-right, 0px)) !important;
+          bottom: calc(var(--pz-admin-mobile-bottom-offset, 98px) + env(safe-area-inset-bottom, 0px) + 8px) !important;
+          z-index: 70 !important;
+          display: grid !important;
+          grid-template-columns: minmax(0, 1fr) minmax(148px, auto) !important;
+          align-items: center !important;
+          gap: 10px !important;
+          padding: 10px 12px !important;
+          border-radius: 18px !important;
+          background: rgba(255, 255, 255, .97) !important;
+          backdrop-filter: blur(12px) !important;
+          box-shadow: 0 18px 42px rgba(15, 23, 42, .20) !important;
+          overflow: visible !important;
+        }
+        #product-editor:not(.hidden) .editor-actions-card .side-card-kicker,
+        #product-editor:not(.hidden) .side-cancel-btn,
+        #product-editor:not(.hidden) .side-back-btn {
+          display: none !important;
+        }
+        #product-editor:not(.hidden) .editor-save-state {
+          margin: 0 !important;
+          font-size: 11px !important;
+        }
+        #product-editor:not(.hidden) .side-save-btn {
+          grid-column: 2 !important;
+          min-height: 46px !important;
+        }
+      }
+      </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -3163,25 +3259,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </section>
                   </div>
                   <aside class="editor-side-column" aria-label="Resumen del producto">
-                    <div class="editor-preview-card">
-                      <p class="side-card-kicker">Vista previa</p>
-                      <div id="editor-preview-thumb" class="preview-thumb">PZ</div>
-                      <strong id="editor-preview-name">Nombre del producto</strong>
-                      <span id="editor-preview-price">0.00 USD</span>
-                      <span id="editor-preview-regular-price" class="preview-regular-price hidden">0.00 USD</span>
-                      <small>Así se verá en tu catálogo.</small>
-                    </div>
-                    <div class="editor-status-card">
-                      <p class="side-card-kicker">Estado del producto</p>
-                      <div class="editor-status-chips">
-                        <span id="editor-preview-visibility" class="mini-pill delivery">Visible</span>
-                        <span id="editor-preview-stock" class="mini-pill featured">Con stock</span>
-                        <span id="editor-preview-offer" class="mini-pill">Sin oferta</span>
-                        <span id="editor-preview-variations" class="mini-pill">Sin variaciones</span>
+                    <div class="editor-side-summary">
+                      <div class="editor-preview-card">
+                        <p class="side-card-kicker">Vista previa</p>
+                        <div id="editor-preview-thumb" class="preview-thumb">PZ</div>
+                        <strong id="editor-preview-name">Nombre del producto</strong>
+                        <span id="editor-preview-price">0.00 USD</span>
+                        <span id="editor-preview-regular-price" class="preview-regular-price hidden">0.00 USD</span>
+                        <small>Así se verá en tu catálogo.</small>
+                      </div>
+                      <div class="editor-status-card">
+                        <p class="side-card-kicker">Estado del producto</p>
+                        <div class="editor-status-chips">
+                          <span id="editor-preview-visibility" class="mini-pill delivery">Visible</span>
+                          <span id="editor-preview-stock" class="mini-pill featured">Con stock</span>
+                          <span id="editor-preview-offer" class="mini-pill">Sin oferta</span>
+                          <span id="editor-preview-variations" class="mini-pill">Sin variaciones</span>
+                        </div>
                       </div>
                     </div>
                     <div class="editor-actions-card">
                       <p class="side-card-kicker">Acciones</p>
+                      <p id="editor-save-state" class="editor-save-state is-pending" role="status">Completa los datos obligatorios para guardar.</p>
                       <button id="editor-side-save-btn" class="submit-btn side-save-btn" type="button">Guardar producto</button>
                       <button id="editor-side-cancel-btn" class="mini-btn side-cancel-btn" type="button">Cancelar</button>
                       <button id="editor-side-back-btn" class="mini-btn side-back-btn" type="button">← Volver a productos</button>
@@ -3524,6 +3623,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productCancelBtn = document.getElementById('product-cancel-btn');
       const productSaveBtn = document.getElementById('product-save-btn');
       const editorSideSaveBtn = document.getElementById('editor-side-save-btn');
+      const editorSaveState = document.getElementById('editor-save-state');
       const editorSideCancelBtn = document.getElementById('editor-side-cancel-btn');
       const editorSideBackBtn = document.getElementById('editor-side-back-btn');
       const editorPreviewThumb = document.getElementById('editor-preview-thumb');
@@ -4794,6 +4894,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationSaveBtn.textContent = isSavingVariation ? 'Guardando...' : 'Guardar variacion';
         applyProductPermissionState();
       }
+      function setEditorSaveState(message, tone = 'pending') {
+        if (!editorSaveState) return;
+        editorSaveState.textContent = message;
+        editorSaveState.className = `editor-save-state is-${tone}`;
+      }
       function updateProductFormState({ showMessage = false } = {}) {
         if (!productSaveBtn) return;
         syncProductDeliveryZoneWarning();
@@ -4862,6 +4967,30 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateVariationFormState();
         updateEditorPreview();
         applyProductPermissionState();
+        const canSaveProduct = isEditing ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
+        if (isSavingProduct) {
+          setEditorSaveState('Guardando los cambios...', 'saving');
+        } else if (!canSaveProduct) {
+          setEditorSaveState('No tienes permiso para guardar este producto.', 'warning');
+        } else if (missingName) {
+          setEditorSaveState('Escribe el nombre para poder guardar.', 'warning');
+        } else if (missingPriceCurrency) {
+          setEditorSaveState('Selecciona la moneda del precio.', 'warning');
+        } else if (missingValidVariation) {
+          setEditorSaveState('Añade una variación activa con precio válido.', 'warning');
+        } else if (invalidParentConfiguration) {
+          setEditorSaveState(invalidParentConfiguration, 'warning');
+        } else if (missingStock) {
+          setEditorSaveState('Escribe un stock válido.', 'warning');
+        } else if (invalidOffer) {
+          setEditorSaveState('Corrige el precio de oferta.', 'warning');
+        } else if (isEditing && !isDirtyEnough) {
+          setEditorSaveState('Todos los cambios están guardados.', 'saved');
+        } else if (isEditing) {
+          setEditorSaveState('Tienes cambios sin guardar.', 'dirty');
+        } else {
+          setEditorSaveState('Producto listo para guardar.', 'dirty');
+        }
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
           else if (missingPriceCurrency) setFormAlert('Selecciona la moneda del precio.', 'info');
