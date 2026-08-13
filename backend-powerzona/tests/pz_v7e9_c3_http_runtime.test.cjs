@@ -607,7 +607,18 @@ test('V7E9-C3F3 HTTP runtime valida estados manuales/efectivos, F12, permisos, t
     assertStatus(futurePublicDetail, 200, 'producto futuro permanece público');
     assert.equal(Object.prototype.hasOwnProperty.call(futurePublicDetail.data, 'expiration_date'), false, 'fecha futura se redacta públicamente');
     const undatedPublicProduct = await createProduct('undated-public-product');
+    const soldoutPublicProduct = await createProduct('soldout-public-product', storePremium, {
+      stock: 0,
+      track_stock: true,
+      allow_preorder: false,
+    });
     assertStatus(await publicDetail('products', undatedPublicProduct.id), 200, 'producto sin fecha permanece público');
+    const soldoutPublicList = await publicList('products', `id="${soldoutPublicProduct.id}"`);
+    assertStatus(soldoutPublicList, 200, 'listado público responde con producto agotado');
+    assert.equal(soldoutPublicList.data.items.length, 1, 'producto agotado permanece visible');
+    assertStatus(await publicDetail('products', soldoutPublicProduct.id), 200, 'detalle agotado permanece público');
+    assertStatus(await checkout(soldoutPublicProduct), 422, 'checkout sigue rechazando producto agotado');
+    assert.equal((await readRecord('products', soldoutPublicProduct.id)).active, true, 'stock cero no cambia active');
 
     const commerceVariationProduct = await createProduct('commerce-variation', storePremium, { has_variations: true, stock: 0 });
     const expiredVariation = await createRecord('product_variations', {

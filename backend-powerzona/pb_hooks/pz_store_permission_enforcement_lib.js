@@ -1136,16 +1136,22 @@ function publicProductRecordAvailable(app, collection, record, now, cache) {
   const candidates = collection === "products"
     ? units
     : units.filter((unit) => unit.variation_id === recordString(record, "id"));
-  return candidates.some((unit) => commerce.evaluateUnitAvailability({
-    store: context.store,
-    product: context.product,
-    variations: context.variations,
-    unit,
-    category: context.category,
-    subcategory: context.subcategory,
-    quantity: 1,
-    now,
-  }).available);
+  return candidates.some((unit) => {
+    const availability = commerce.evaluateUnitAvailability({
+      store: context.store,
+      product: context.product,
+      variations: context.variations,
+      unit,
+      category: context.category,
+      subcategory: context.subcategory,
+      quantity: 1,
+      now,
+    });
+    // Agotado no equivale a oculto: la lectura pública conserva la unidad
+    // para mostrar "Agotado", mientras checkout sigue rechazándola mediante
+    // evaluateUnitAvailability con reason=stock_unavailable.
+    return availability.available || availability.reason === "stock_unavailable";
+  });
 }
 
 function productScopedPromotion(record) {

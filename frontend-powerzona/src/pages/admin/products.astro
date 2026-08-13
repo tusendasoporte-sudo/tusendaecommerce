@@ -35,10 +35,19 @@ const productPermissionContext = storeAccessContext
       blocked_by_plan: storeAccessContext.access.blocked_by_plan,
     }
   : { permissions: [], blocked_by_plan: true };
+const primaryAdminUserValue = adminContext.store.primary_admin_user;
+const primaryAdminUserId = Array.isArray(primaryAdminUserValue)
+  ? String(primaryAdminUserValue[0] || '').trim()
+  : String(primaryAdminUserValue || '').trim();
+const isCurrentPrimaryProductAdmin = !adminContext.isMasterSupport
+  && primaryAdminUserId !== ''
+  && primaryAdminUserId === String(adminContext.user.id || '').trim();
 const canCreateProducts = hasStorePermission(productPermissionContext, 'catalog.products.create');
 const canEditProducts = hasStorePermission(productPermissionContext, 'catalog.products.edit');
 const canDeleteProducts = hasStorePermission(productPermissionContext, 'catalog.products.delete');
-const canManageProductVisibility = hasStorePermission(productPermissionContext, 'catalog.products.visibility');
+const canManageProductVisibility = adminContext.isMasterSupport
+  || isCurrentPrimaryProductAdmin
+  || hasStorePermission(productPermissionContext, 'catalog.products.visibility');
 const canManageProductPrice = hasStorePermission(productPermissionContext, 'catalog.products.price');
 const canManageProductStock = hasStorePermission(productPermissionContext, 'catalog.products.stock');
 const canManageProductImages = hasStorePermission(productPermissionContext, 'catalog.products.images');
@@ -6990,6 +6999,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
       productForm?.addEventListener('input', (event) => {
         if (event.target?.type === 'file') return;
+        // Los checkbox de visibilidad actualizan primero su estado manual en
+        // `change`. Recalcularlos durante `input` restauraba el valor anterior
+        // antes de que ese evento pudiera leer la nueva selección.
+        if (event.target === productActiveInput || event.target === variationActiveInput) return;
         updateProductFormState();
       });
       productForm?.addEventListener('change', (event) => {

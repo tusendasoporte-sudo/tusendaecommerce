@@ -6,6 +6,17 @@ import { addVariationPriceSummary } from '../src/lib/publicProductAvailability.t
 
 const productsAdmin = readFileSync(new URL('../src/pages/admin/products.astro', import.meta.url), 'utf8');
 
+test('E003: primary admin and visibility events keep the control usable', () => {
+  assert.match(
+    productsAdmin,
+    /isCurrentPrimaryProductAdmin[\s\S]*?hasStorePermission\(productPermissionContext, 'catalog\.products\.visibility'\)/,
+  );
+  assert.match(
+    productsAdmin,
+    /productForm\?\.addEventListener\('input',[\s\S]*?event\.target === productActiveInput \|\| event\.target === variationActiveInput\) return;[\s\S]*?updateProductFormState\(\)/,
+  );
+});
+
 test('E003: el menú y el editor conservan las dos vías autorizadas de visibilidad', () => {
   assert.match(productsAdmin, /catalog\.products\.visibility/);
   assert.match(productsAdmin, /product\.active \? 'Ocultar producto' : 'Mostrar producto'/);

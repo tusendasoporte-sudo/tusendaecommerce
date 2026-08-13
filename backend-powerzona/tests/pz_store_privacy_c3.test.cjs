@@ -511,8 +511,9 @@ test('catálogo público filtra por unidad canónica antes de ocultar expiration
     next() {},
   };
   privacy.enforceRead(variationEvent);
-  assert.deepEqual(variationEvent.records.map((entry) => entry.id), [validVariation.id]);
+  assert.deepEqual(variationEvent.records.map((entry) => entry.id), [validVariation.id, outOfStockVariation.id]);
   assert.equal(validVariation.hidden.has('expiration_date'), true);
+  assert.equal(outOfStockVariation.hidden.has('expiration_date'), true);
   assert.throws(() => privacy.enforceRead({
     app: catalog.app,
     auth: null,
@@ -728,6 +729,39 @@ test('catálogo público evalúa variaciones vendibles después del primer lote 
     true,
   );
   assert.deepEqual(offsets, [0, 500]);
+});
+
+test('catalogo publico conserva productos y variaciones agotados sin habilitar su compra', () => {
+  const simple = record('productpublic09', {
+    store: STORE_ID,
+    active: true,
+    has_variations: false,
+    base_price_usd: 20,
+    regular_price_usd: 20,
+    stock: 0,
+    track_stock: true,
+    allow_preorder: false,
+  });
+  const variable = record('productpublic10', {
+    store: STORE_ID,
+    active: true,
+    has_variations: true,
+    stock: 0,
+    track_stock: true,
+  });
+  const soldoutVariation = record('variationpublic10', {
+    product: variable.id,
+    active: true,
+    price_usd: 14,
+    stock: 0,
+    allow_preorder: false,
+  });
+  const catalog = publicCatalogFixture({ products: [simple, variable], variations: [soldoutVariation] });
+  const now = new Date('2026-07-21T16:00:00.000Z');
+
+  assert.equal(privacy.publicProductRecordAvailable(catalog.app, 'products', simple, now), true);
+  assert.equal(privacy.publicProductRecordAvailable(catalog.app, 'products', variable, now), true);
+  assert.equal(privacy.publicProductRecordAvailable(catalog.app, 'product_variations', soldoutVariation, now), true);
 });
 
 test('vista y realtime públicos de unidad no vendible fallan sin fecha ni razón comercial', () => {

@@ -193,8 +193,9 @@ function variationEffectiveStatus(product, variation, variations, now) {
 }
 
 // Identity and current availability intentionally remain separate. V7E9 can
-// enumerate active units even when a unit is out of stock, while public reads
-// and checkout can apply evaluateUnitAvailability to the same identity.
+// enumerate active units even when a unit is out of stock. Public reads can
+// retain stock_unavailable units for display, while checkout applies the full
+// evaluateUnitAvailability result to the same identity.
 function buildProductUnits(product, variations) {
   if (!product) return [];
   const productId = recordString(product, "id");
