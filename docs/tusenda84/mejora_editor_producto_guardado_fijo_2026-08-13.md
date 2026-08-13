@@ -30,6 +30,16 @@ La primera validación visual mostró que la columna tenía `position: sticky`, 
 
 En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-y: visible` en `html`, `body` y `.app-shell`. La medición posterior al primer ajuste confirmó que eliminar el falso contenedor solo en `.app-shell` no era suficiente porque los dos niveles raíz conservaban el mismo cálculo `hidden/auto`. Se mantiene el recorte horizontal, pero ninguno de los tres niveles crea ya un contenedor vertical intermedio que invalide el anclaje de Vista previa. Esta corrección es exclusivamente de layout; no modifica datos ni procesos de producto.
 
+## Adaptación de guardado para Admin móvil
+
+- Un producto existente sin modificaciones no muestra la barra Guardar.
+- La barra aparece después de un cambio real detectado por el snapshot existente y permanece visible mientras se guarda.
+- El formulario de creación registra un snapshot inicial vacío para distinguir entre abrir el editor y comenzar a completarlo. Esto no cambia las reglas que habilitan el guardado.
+- Al entrar en pantalla **Estado del producto**, la barra deja de ser flotante y vuelve al flujo, inmediatamente debajo del estado, para no cubrir sus indicadores.
+- Al guardar correctamente se actualiza el snapshot y la barra vuelve a ocultarse.
+
+Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState()` y `closeProductEditor()`. No se modificaron el payload, la petición, los permisos ni las validaciones comerciales de `saveProduct()`.
+
 ## Pruebas automáticas necesarias
 
 1. `node --test tests/productEditorStickySave.test.mjs`
@@ -58,6 +68,9 @@ En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-
 1. Abrir creación y edición de producto: la barra de guardado debe quedar sobre la navegación inferior.
 2. Desplazarse por todo el formulario y abrir el teclado: comprobar que se puede continuar editando y guardar.
 3. Probar producto simple y producto con variaciones sin desbordamiento horizontal.
+4. Abrir un producto sin editar: Guardar no debe aparecer. Modificar un campo: debe aparecer. Revertir exactamente el cambio: debe ocultarse nuevamente.
+5. Desplazarse hasta Estado del producto: la barra debe colocarse debajo de sus indicadores y no cubrirlos.
+6. Guardar correctamente: la barra debe ocultarse cuando el snapshot se actualice.
 
 ### Regresiones de producto
 

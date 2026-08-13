@@ -20,6 +20,16 @@ test('EDITOR-PRODUCTO: Guardar permanece accesible y muestra el estado de los ca
   assert.match(products, /@media \(max-width: 768px\)[\s\S]*?#product-editor:not\(\.hidden\) \.editor-actions-card \{[\s\S]*?position: fixed !important;[\s\S]*?bottom: calc\(var\(--pz-admin-mobile-bottom-offset, 98px\)/);
 });
 
+test('EDITOR-PRODUCTO-MOVIL: Guardar aparece solo con cambios y no cubre Estado del producto', () => {
+  assert.match(products, /#product-editor:not\(\.hidden\):not\(\.has-mobile-save-action\) \.editor-actions-card \{\s*display: none !important;/);
+  assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-save-action:not\(\.has-mobile-inline-save\) \.editor-main-column \{\s*padding-bottom: calc\(86px/);
+  assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-inline-save \.editor-actions-card \{[\s\S]*?position: static !important;/);
+  assert.match(products, /function updateMobileSaveActionState\(hasPendingChanges\)/);
+  assert.match(products, /updateMobileSaveActionState\(isSavingProduct \|\| hasPendingProductChanges\);/);
+  assert.match(products, /const statusTop = editorStatusCard\.getBoundingClientRect\(\)\.top;\s*productEditor\.classList\.toggle\('has-mobile-inline-save', statusTop <= inlineThreshold\);/);
+  assert.match(products, /productInitialSnapshot = createProductSnapshot\(\);\s*updateProductFormState\(\);/);
+});
+
 test('EDITOR-PRODUCTO: la mejora no sustituye las validaciones ni el botón de guardado existente', () => {
   assert.match(products, /productSaveBtn\.disabled = isSavingProduct \|\| missingName \|\| missingPriceCurrency \|\| missingStock \|\| invalidOffer \|\| missingValidVariation \|\| Boolean\(invalidParentConfiguration\) \|\| !isDirtyEnough;/);
   assert.match(products, /editorSideSaveBtn\.disabled = productSaveBtn\.disabled;/);

@@ -2756,6 +2756,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
 
       @media (max-width: 768px) {
         #product-editor:not(.hidden) .editor-main-column {
+          padding-bottom: 0 !important;
+        }
+        #product-editor:not(.hidden).has-mobile-save-action:not(.has-mobile-inline-save) .editor-main-column {
           padding-bottom: calc(86px + var(--pz-admin-mobile-bottom-offset, 98px) + env(safe-area-inset-bottom, 0px)) !important;
         }
         #product-editor:not(.hidden) .editor-actions-card {
@@ -2774,6 +2777,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           backdrop-filter: blur(12px) !important;
           box-shadow: 0 18px 42px rgba(15, 23, 42, .20) !important;
           overflow: visible !important;
+        }
+        #product-editor:not(.hidden):not(.has-mobile-save-action) .editor-actions-card {
+          display: none !important;
+        }
+        #product-editor:not(.hidden).has-mobile-inline-save .editor-actions-card {
+          position: static !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: 100% !important;
+          margin-top: 14px !important;
+          z-index: 1 !important;
+          box-shadow: 0 12px 28px rgba(15, 23, 42, .10) !important;
         }
         #product-editor:not(.hidden) .editor-actions-card .side-card-kicker,
         #product-editor:not(.hidden) .side-cancel-btn,
@@ -3630,6 +3646,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productSaveBtn = document.getElementById('product-save-btn');
       const editorSideSaveBtn = document.getElementById('editor-side-save-btn');
       const editorSaveState = document.getElementById('editor-save-state');
+      const editorActionsCard = document.querySelector('.editor-actions-card');
+      const editorStatusCard = document.querySelector('.editor-status-card');
       const editorSideCancelBtn = document.getElementById('editor-side-cancel-btn');
       const editorSideBackBtn = document.getElementById('editor-side-back-btn');
       const editorPreviewThumb = document.getElementById('editor-preview-thumb');
@@ -4905,6 +4923,27 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         editorSaveState.textContent = message;
         editorSaveState.className = `editor-save-state is-${tone}`;
       }
+      function updateMobileSavePlacement() {
+        if (!productEditor || !editorActionsCard || !editorStatusCard) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        const editorIsOpen = !productEditor.classList.contains('hidden');
+        const hasSaveAction = productEditor.classList.contains('has-mobile-save-action');
+        if (!isMobile || !editorIsOpen || !hasSaveAction) {
+          productEditor.classList.remove('has-mobile-inline-save');
+          return;
+        }
+        const rootStyles = getComputedStyle(document.documentElement);
+        const mobileNavOffset = Number.parseFloat(rootStyles.getPropertyValue('--pz-admin-mobile-bottom-offset')) || 98;
+        const inlineThreshold = window.innerHeight - mobileNavOffset - 12;
+        const statusTop = editorStatusCard.getBoundingClientRect().top;
+        productEditor.classList.toggle('has-mobile-inline-save', statusTop <= inlineThreshold);
+      }
+      function updateMobileSaveActionState(hasPendingChanges) {
+        if (!productEditor) return;
+        productEditor.classList.toggle('has-mobile-save-action', Boolean(hasPendingChanges));
+        if (!hasPendingChanges) productEditor.classList.remove('has-mobile-inline-save');
+        requestAnimationFrame(updateMobileSavePlacement);
+      }
       function updateProductFormState({ showMessage = false } = {}) {
         if (!productSaveBtn) return;
         syncProductDeliveryZoneWarning();
@@ -4964,6 +5003,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const missingValidVariation = useVariations && !hasModeEligibleVariation();
         const invalidParentConfiguration = !useVariations ? parentCommercialValidationMessage() : '';
         const isDirtyEnough = isEditing ? hasProductChanges() : true;
+        const hasPendingProductChanges = hasProductChanges();
         productSaveBtn.disabled = isSavingProduct || missingName || missingPriceCurrency || missingStock || invalidOffer || missingValidVariation || Boolean(invalidParentConfiguration) || !isDirtyEnough;
         productSaveBtn.textContent = isSavingProduct ? 'Guardando...' : 'Guardar producto';
         if (editorSideSaveBtn) {
@@ -4973,6 +5013,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateVariationFormState();
         updateEditorPreview();
         applyProductPermissionState();
+        updateMobileSaveActionState(isSavingProduct || hasPendingProductChanges);
         const canSaveProduct = isEditing ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
         if (isSavingProduct) {
           setEditorSaveState('Guardando los cambios...', 'saving');
@@ -5777,6 +5818,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         renderProductSelectOptions();
         resetVariationState();
         updateExpirationModeState();
+        productInitialSnapshot = createProductSnapshot();
         updateProductFormState();
       }
       function setCatalogOverviewVisible(isVisible) {
@@ -5805,6 +5847,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function closeProductEditor() {
         productEditor.classList.add('hidden');
+        productEditor.classList.remove('has-mobile-save-action', 'has-mobile-inline-save');
         setCatalogOverviewVisible(true);
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
@@ -7316,7 +7359,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
 
       window.addEventListener('scroll', () => closeProductActionMenus(), true);
-      window.addEventListener('resize', () => closeProductActionMenus());
+      window.addEventListener('scroll', updateMobileSavePlacement, { passive: true });
+      window.addEventListener('resize', () => {
+        closeProductActionMenus();
+        updateMobileSavePlacement();
+      });
 
       productsList?.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
