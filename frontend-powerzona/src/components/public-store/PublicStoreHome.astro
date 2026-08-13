@@ -6,7 +6,7 @@ import PublicConfirm from './PublicConfirm.astro';
 import PublicRafflesSection from './PublicRafflesSection.astro';
 import PromoBar from '../PromoBar.astro';
 import StoreAnalyticsTracker from '../StoreAnalyticsTracker.astro';
-import { getSettings, getCategories, getSubcategories, getProducts, getFeaturedProducts, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
+import { getSettings, getCategories, getSubcategories, getHomepageProducts, getProductTaxonomyIndex, getStoreVisualItems, getPublicGifts, getAutomaticPromotions, getProductAutomaticPromotionText, getStoreReviewSummary, getStoreReviews, getProductReviewSummaries } from '../../lib/api';
 import { formatBusinessHours, getBusinessHoursStatus } from '../../lib/businessHours';
 import { getTemporarilyClosedMessage, isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getStoreInitials } from '../../lib/storeIdentity';
@@ -23,21 +23,38 @@ const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
 const settings = await getSettings(storeQuery);
 const isTemporarilyClosed = isStoreTemporarilyClosed(settings);
 const temporarilyClosedMessage = getTemporarilyClosedMessage(settings);
-const categories = isTemporarilyClosed ? [] : await getCategories(storeQuery);
-const subcategories = isTemporarilyClosed ? [] : await getSubcategories(storeQuery);
-const products = isTemporarilyClosed ? [] : await getProducts(storeQuery);
-const featuredProducts = isTemporarilyClosed ? [] : await getFeaturedProducts(storeQuery);
-const visualItems = isTemporarilyClosed ? [] : await getStoreVisualItems(storeQuery);
-const gifts = isTemporarilyClosed ? [] : await getPublicGifts(storeQuery);
 const rafflesCapability = resolveRafflesCapability(currentStore);
-const visibleRaffles = isTemporarilyClosed || !rafflesCapability.allowed
-  ? []
-  : await getVisibleRafflesForStore(currentStore.slug);
-const automaticPromotions = isTemporarilyClosed ? [] : await getAutomaticPromotions(storeQuery);
 const reviewsEnabled = settings?.reviews_enabled !== false;
 const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;
-const storeReviewSummary = reviewsEnabled ? await getStoreReviewSummary(storeQuery) : { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
-const storeReviews = reviewsEnabled ? await getStoreReviews(storeQuery, 50) : [];
+const emptyStoreReviewSummary = { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
+const [
+  categories,
+  subcategories,
+  products,
+  productTaxonomyIndex,
+  visualItems,
+  gifts,
+  visibleRaffles,
+  automaticPromotions,
+  storeReviewSummary,
+  storeReviews,
+] = await Promise.all([
+  isTemporarilyClosed ? Promise.resolve([]) : getCategories(storeQuery),
+  isTemporarilyClosed ? Promise.resolve([]) : getSubcategories(storeQuery),
+  isTemporarilyClosed ? Promise.resolve([]) : getHomepageProducts(storeQuery),
+  isTemporarilyClosed ? Promise.resolve([]) : getProductTaxonomyIndex(storeQuery),
+  isTemporarilyClosed ? Promise.resolve([]) : getStoreVisualItems(storeQuery),
+  isTemporarilyClosed ? Promise.resolve([]) : getPublicGifts(storeQuery),
+  (async () => isTemporarilyClosed || !rafflesCapability.allowed
+    ? []
+    : await getVisibleRafflesForStore(currentStore.slug))(),
+  isTemporarilyClosed ? Promise.resolve([]) : getAutomaticPromotions(storeQuery),
+  isTemporarilyClosed || !reviewsEnabled ? Promise.resolve(emptyStoreReviewSummary) : getStoreReviewSummary(storeQuery),
+  isTemporarilyClosed || !reviewsEnabled ? Promise.resolve([]) : getStoreReviews(storeQuery, 50),
+]);
+const featuredProducts = products
+  .filter((product) => product.featured === true)
+  .sort((a, b) => Number(a.featured_order || 0) - Number(b.featured_order || 0) || String(b.updated || '').localeCompare(String(a.updated || '')));
 const publicReviewsPageSize = 5;
 
 // Regla pública:
@@ -177,7 +194,9 @@ const publicTrustItems = parseJsonArray(settings?.footer_trust_items)
 
 function productsByCategoryTotal(categoryId: string) {
   const childSubcategoryIds = new Set(subcategoriesByCategory(categoryId).map((subcategory) => subcategory.id));
-  const categoryProducts = products.filter((product) => product.category === categoryId || childSubcategoryIds.has(product.subcategory));
+  const categoryProducts = productTaxonomyIndex.filter((product) => product.subcategory
+    ? childSubcategoryIds.has(product.subcategory)
+    : product.category === categoryId);
   return Array.from(new Map(categoryProducts.map((product) => [product.id, product])).values());
 }
 

@@ -2,7 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
-import { getSettings, getProducts, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummary, getProductReviews } from '../../lib/api';
+import { getSettings, getProducts, getProductsByIds, getProductBySlug, getProductVariations, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummary, getProductReviews } from '../../lib/api';
 import {
 	buildProductSeoDescription,
 	buildProductShareMessage,
@@ -74,7 +74,25 @@ try {
 		extra_info: [],
 	};
 }
-let variations = !productUnavailable && product.has_variations === true ? await getProductVariations(product.id, storeQuery) : [];
+const reviewsEnabled = settings?.reviews_enabled !== false;
+const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;
+const showProductRating = reviewsEnabled && settings?.show_product_rating !== false;
+const productReviewsEnabled = reviewsEnabled && settings?.product_reviews_enabled !== false;
+const showVerifiedBadge = settings?.show_verified_badge !== false;
+const emptyReviewSummary = { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
+const relatedProductIds = !productUnavailable && Array.isArray(product.related_products)
+	? product.related_products.filter(Boolean).slice(0, 4)
+	: !productUnavailable && product.related_products
+		? [product.related_products].filter(Boolean).slice(0, 4)
+		: [];
+const [rawVariations, automaticPromotions, resolvedReviewSummary, resolvedProductReviews, resolvedRelatedProducts] = await Promise.all([
+	!productUnavailable && product.has_variations === true ? getProductVariations(product.id, storeQuery) : Promise.resolve([]),
+	productUnavailable ? Promise.resolve([]) : getAutomaticPromotions(storeQuery),
+	!productUnavailable && reviewsEnabled ? getProductReviewSummary(product.id, storeQuery) : Promise.resolve(emptyReviewSummary),
+	!productUnavailable && reviewsEnabled ? getProductReviews(product.id, storeQuery, 8) : Promise.resolve([]),
+	!productUnavailable && relatedProductIds.length ? getProductsByIds(relatedProductIds, storeQuery) : Promise.resolve([]),
+]);
+let variations = rawVariations;
 if (!productUnavailable && product.has_variations === true) {
 	variations = variations.filter((variation: any) => {
 		const price = Number(variation?.price_usd ?? variation?.precio_usd ?? 0);
@@ -89,16 +107,9 @@ if (productUnavailable) {
 	Astro.response.headers.set('Pragma', 'no-cache');
 	Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 }
-const automaticPromotions = productUnavailable ? [] : await getAutomaticPromotions(storeQuery);
 const automaticPromotionText = productUnavailable ? '' : getProductAutomaticPromotionText(product, automaticPromotions);
-const reviewsEnabled = settings?.reviews_enabled !== false;
-const reviewNotificationsEnabled = settings?.notifications_enabled !== false && settings?.notify_review_pending !== false;
-const showProductRating = reviewsEnabled && settings?.show_product_rating !== false;
-const productReviewsEnabled = reviewsEnabled && settings?.product_reviews_enabled !== false;
-const showVerifiedBadge = settings?.show_verified_badge !== false;
-const emptyReviewSummary = { average: 0, roundedAverage: 0, count: 0, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } };
-const productReviewSummary = !productUnavailable && reviewsEnabled ? await getProductReviewSummary(product.id, storeQuery) : emptyReviewSummary;
-const productReviews = !productUnavailable && reviewsEnabled ? await getProductReviews(product.id, storeQuery, 8) : [];
+const productReviewSummary = productUnavailable ? emptyReviewSummary : resolvedReviewSummary;
+const productReviews = productUnavailable ? [] : resolvedProductReviews;
 const productReviewsPageSize = 5;
 
 const productGalleryImages = Array.from(new Set([
@@ -117,16 +128,12 @@ const productBackLabel = product.expand?.subcategory?.name
 	: product.expand?.category?.name
 		? `← Volver a ${product.expand.category.name}`
 		: '← Volver al inicio';
-const relatedProductIds = !productUnavailable && Array.isArray(product.related_products)
-	? product.related_products.filter(Boolean).slice(0, 4)
-	: !productUnavailable && product.related_products
-		? [product.related_products].filter(Boolean).slice(0, 4)
-		: [];
-const allPublicProducts = !productUnavailable && relatedProductIds.length ? await getProducts(storeQuery) : [];
-const relatedProducts = relatedProductIds
-	.map((id: string) => allPublicProducts.find((item: any) => item.id === id))
-	.filter((item: any) => item && item.id !== product.id)
-	.slice(0, 4);
+const relatedProducts = productUnavailable
+	? []
+	: relatedProductIds
+		.map((id: string) => resolvedRelatedProducts.find((item: any) => item.id === id))
+		.filter((item: any) => item && item.id !== product.id)
+		.slice(0, 4);
 function getProductOfferState(item: any) {
 	if (item?.has_variations) {
 		const activePrice = Number(item.variation_price_min_usd || item.public_price_usd || 0);

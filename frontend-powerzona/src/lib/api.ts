@@ -10,6 +10,21 @@ type StoreQueryOptions = {
 
 type StoreQueryInput = string | StoreQueryOptions | undefined;
 
+const PUBLIC_CATEGORY_FIELDS = 'id,store,name,slug,description,image,active,featured_on_home,featured_order,order';
+const PUBLIC_SUBCATEGORY_FIELDS = 'id,store,name,slug,description,image,active,category,order,expand.category.id,expand.category.name,expand.category.slug,expand.category.active';
+const PUBLIC_PRODUCT_FIELDS = [
+  'id', 'store', 'name', 'slug', 'description', 'images', 'image_order',
+  'category', 'subcategory', 'base_price_usd', 'regular_price_usd',
+  'offer_price_usd', 'is_offer', 'stock', 'track_stock', 'allow_preorder',
+  'featured', 'featured_order', 'active', 'only_usd', 'delivery_mode',
+  'has_variations', 'variation_view', 'extra_info', 'related_products',
+  'created', 'updated',
+].join(',');
+const PUBLIC_VARIATION_SUMMARY_FIELDS = 'id,product,variation_type,value,price_usd,offer_price_usd,is_offer,stock,allow_preorder,active,sort_order';
+const PUBLIC_VARIATION_DETAIL_FIELDS = `${PUBLIC_VARIATION_SUMMARY_FIELDS},extra_price,image,sort_order,created,updated`;
+const PUBLIC_REVIEW_FIELDS = 'id,rating,customer_name,comment,verified_purchase,featured,created';
+const PUBLIC_PRODUCT_THUMB = '300x300';
+
 export type ReviewSummary = {
   average: number;
   roundedAverage: number;
@@ -43,13 +58,19 @@ async function storeFilter(baseFilter: string, options?: StoreQueryInput) {
 }
 
 export async function getSettings(options?: StoreQueryInput) {
-  const records = await pb.collection('settings').getFullList({
-    filter: await storeFilter('active = true', options),
-    expand: 'default_currency',
-    sort: '-updated,-created',
-  });
-
-  const settings = records[0] ?? null;
+  let settings;
+  try {
+    settings = await pb.collection('settings').getFirstListItem(
+      await storeFilter('active = true', options),
+      {
+        expand: 'default_currency',
+        sort: '-updated,-created',
+      },
+    );
+  } catch (error: any) {
+    if (error?.status === 404) return null;
+    throw error;
+  }
   if (!settings) return null;
 
   const logo = normalizeFileValue(settings.logo_image)[0] || '';
@@ -65,31 +86,61 @@ export async function getSettings(options?: StoreQueryInput) {
 
   return {
     ...settings,
-    logoImageUrl: logo ? getPocketBaseFileUrl('settings', settings.id, logo) : null,
-    coverImageUrl: cover ? getPocketBaseFileUrl('settings', settings.id, cover) : null,
-    coverGalleryUrls: coverGallery.map((filename: string) => getPocketBaseFileUrl('settings', settings.id, filename)),
-    giftsPublicImageUrl: giftsPublicImage ? getPocketBaseFileUrl('settings', settings.id, giftsPublicImage) : null,
-    landingQrHeroImageUrl: landingQrHeroImage ? getPocketBaseFileUrl('settings', settings.id, landingQrHeroImage) : null,
+    logoImageUrl: logo ? getPocketBaseFileUrl('settings', settings.id, logo, { thumb: '160x160' }) : null,
+    coverImageUrl: cover ? getPocketBaseFileUrl('settings', settings.id, cover, { thumb: '1200x420' }) : null,
+    coverGalleryUrls: coverGallery.map((filename: string) => getPocketBaseFileUrl('settings', settings.id, filename, { thumb: '1200x420' })),
+    giftsPublicImageUrl: giftsPublicImage ? getPocketBaseFileUrl('settings', settings.id, giftsPublicImage, { thumb: '700x420' }) : null,
+    landingQrHeroImageUrl: landingQrHeroImage ? getPocketBaseFileUrl('settings', settings.id, landingQrHeroImage, { thumb: '1200x675' }) : null,
+  };
+}
+
+function addCategoryImage(category: any) {
+  return {
+    ...category,
+    imageUrl: category.image
+      ? getPocketBaseFileUrl('categories', category.id, category.image, { thumb: '300x200' })
+      : null,
   };
 }
 
 export async function getCategories(options?: StoreQueryInput) {
   const categories = await pb.collection('categories').getFullList({
     filter: await storeFilter('active = true', options),
+    fields: PUBLIC_CATEGORY_FIELDS,
     sort: 'order,name',
   });
 
-  return categories.map((category) => ({
-    ...category,
-    imageUrl: category.image
-      ? getPocketBaseFileUrl('categories', category.id, category.image)
+  return categories.map(addCategoryImage);
+}
+
+export async function getCategoryBySlug(slug: string, options?: StoreQueryInput) {
+  if (!slug) return null;
+  try {
+    const category = await pb.collection('categories').getFirstListItem(
+      await storeFilter(`active = true && slug = "${escapePocketBaseValue(slug)}"`, options),
+      { fields: PUBLIC_CATEGORY_FIELDS },
+    );
+    return addCategoryImage(category);
+  } catch (error: any) {
+    if (error?.status === 404) return null;
+    throw error;
+  }
+}
+
+function addSubcategoryImage(subcategory: any) {
+  const image = normalizeFileValue(subcategory.image)[0] || '';
+  return {
+    ...subcategory,
+    imageUrl: image
+      ? getPocketBaseFileUrl('subcategories', subcategory.id, image, { thumb: '300x200' })
       : null,
-  }));
+  };
 }
 
 export async function getSubcategories(options?: StoreQueryInput) {
   const subcategories = await pb.collection('subcategories').getFullList({
     filter: await storeFilter('active = true', options),
+    fields: PUBLIC_SUBCATEGORY_FIELDS,
     sort: 'order,name',
     expand: 'category',
   });
@@ -99,18 +150,41 @@ export async function getSubcategories(options?: StoreQueryInput) {
       const categoryIsVisible = !subcategory.category || subcategory.expand?.category?.active === true;
       return subcategory.active === true && categoryIsVisible;
     })
-    .map((subcategory: any) => {
-      const image = normalizeFileValue(subcategory.image)[0] || '';
-      return {
-        ...subcategory,
-        imageUrl: image ? getPocketBaseFileUrl('subcategories', subcategory.id, image) : null,
-      };
-    });
+    .map(addSubcategoryImage);
+}
+
+export async function getSubcategoriesByCategory(categoryId: string, options?: StoreQueryInput) {
+  if (!categoryId) return [];
+  const subcategories = await pb.collection('subcategories').getFullList({
+    filter: await storeFilter(`active = true && category = "${escapePocketBaseValue(categoryId)}"`, options),
+    fields: PUBLIC_SUBCATEGORY_FIELDS,
+    sort: 'order,name',
+    expand: 'category',
+  });
+  return subcategories
+    .filter((subcategory: any) => subcategory.expand?.category?.active === true)
+    .map(addSubcategoryImage);
+}
+
+export async function getSubcategoryBySlug(slug: string, options?: StoreQueryInput) {
+  if (!slug) return null;
+  try {
+    const subcategory = await pb.collection('subcategories').getFirstListItem(
+      await storeFilter(`active = true && slug = "${escapePocketBaseValue(slug)}"`, options),
+      { fields: PUBLIC_SUBCATEGORY_FIELDS, expand: 'category' },
+    );
+    if (subcategory.expand?.category?.active !== true) return null;
+    return addSubcategoryImage(subcategory);
+  } catch (error: any) {
+    if (error?.status === 404) return null;
+    throw error;
+  }
 }
 
 export async function getCurrencies(options?: StoreQueryInput) {
   return await pb.collection('currencies').getFullList({
     filter: await storeFilter('active = true', options),
+    fields: 'id,store,code,name,symbol,exchange_rate,active,is_default',
     sort: 'code',
   });
 }
@@ -193,12 +267,12 @@ function publicProductRecord(product: any) {
   };
 }
 
-function addProductImages(product: any, options?: StoreQueryInput) {
+function addProductImages(product: any, options?: StoreQueryInput, thumb = '') {
   const store = typeof options === 'object' ? options.store : null;
   return {
     ...publicProductRecord(product),
     imageUrls: getPublicProductImageNames(product, store).map((filename: string) =>
-      getPocketBaseFileUrl('products', product.id, filename)
+      getPocketBaseFileUrl('products', product.id, filename, thumb ? { thumb } : {})
     ),
   };
 }
@@ -221,7 +295,7 @@ function addVariationImages(variation: any) {
     created: variation?.created || '',
     updated: variation?.updated || '',
     imageUrls: normalizeFileValue(variation.image).map((filename: string) =>
-      getPocketBaseFileUrl('product_variations', variation.id, filename)
+      getPocketBaseFileUrl('product_variations', variation.id, filename, { thumb: '900x900' })
     ),
   };
 }
@@ -233,35 +307,90 @@ async function attachVariationPriceSummary(products: any[]) {
   if (!productIds.length) return products;
 
   const variations = await pb.collection('product_variations').getFullList({
-    filter: productIds.map((id) => `product="${escapePocketBaseValue(id)}"`).join(' || '),
+    filter: `active = true && (${productIds.map((id) => `product="${escapePocketBaseValue(id)}"`).join(' || ')})`,
+    fields: PUBLIC_VARIATION_SUMMARY_FIELDS,
     sort: 'sort_order,variation_type,value',
   });
 
   return addVariationPriceSummary(products, variations);
 }
 
-export async function getProducts(options?: StoreQueryInput) {
+async function getPublicProducts(
+  baseFilter: string,
+  options?: StoreQueryInput,
+  sort = '-created',
+  projectFields = false,
+) {
   const products = await pb.collection('products').getFullList({
-    filter: await storeFilter('active = true', options),
-    sort: '-created',
-    expand: 'category,subcategory',
+    filter: await storeFilter(baseFilter, options),
+    sort,
+    ...(projectFields
+      ? { fields: PUBLIC_PRODUCT_FIELDS }
+      : { expand: 'category,subcategory' }),
   });
 
   return attachVariationPriceSummary(products
-    .filter(isProductPublicVisible)
-    .map((product) => addProductImages(product, options)));
+    .filter(projectFields ? (product) => product.active === true : isProductPublicVisible)
+    .map((product) => addProductImages(product, options, PUBLIC_PRODUCT_THUMB)));
+}
+
+export async function getProducts(options?: StoreQueryInput) {
+  return getPublicProducts('active = true', options);
+}
+
+export async function getHomepageProducts(options?: StoreQueryInput) {
+  return getPublicProducts('active = true && (category = "" || featured = true)', options);
+}
+
+export async function getProductTaxonomyIndex(options?: StoreQueryInput) {
+  const products = await pb.collection('products').getFullList({
+    filter: await storeFilter('active = true', options),
+    fields: 'id,category,subcategory,active',
+  });
+  return products.map((product) => ({
+    id: product.id || '',
+    category: product.category || '',
+    subcategory: product.subcategory || '',
+  }));
 }
 
 export async function getFeaturedProducts(options?: StoreQueryInput) {
-  const products = await pb.collection('products').getFullList({
-    filter: await storeFilter('active = true && featured = true', options),
-    sort: 'featured_order,-updated',
-    expand: 'category,subcategory',
-  });
+  return getPublicProducts('active = true && featured = true', options, 'featured_order,-updated');
+}
 
-  return attachVariationPriceSummary(products
-    .filter(isProductPublicVisible)
-    .map((product) => addProductImages(product, options)));
+export async function getProductsByCategory(
+  categoryId: string,
+  subcategoryIds: string[],
+  options?: StoreQueryInput,
+) {
+  if (!categoryId) return [];
+  const categoryFilter = `(category = "${escapePocketBaseValue(categoryId)}" && subcategory = "")`;
+  const subcategoryFilter = Array.from(new Set((subcategoryIds || []).filter(Boolean)))
+    .map((id) => `subcategory = "${escapePocketBaseValue(id)}"`)
+    .join(' || ');
+  const taxonomyFilter = subcategoryFilter
+    ? `(${categoryFilter} || ${subcategoryFilter})`
+    : categoryFilter;
+  return getPublicProducts(`active = true && ${taxonomyFilter}`, options, '-created', true);
+}
+
+export async function getProductsBySubcategory(subcategoryId: string, options?: StoreQueryInput) {
+  if (!subcategoryId) return [];
+  return getPublicProducts(
+    `active = true && subcategory = "${escapePocketBaseValue(subcategoryId)}"`,
+    options,
+    '-created',
+    true,
+  );
+}
+
+export async function getProductsByIds(productIds: string[], options?: StoreQueryInput) {
+  const uniqueIds = Array.from(new Set((productIds || []).filter(Boolean).map(String)));
+  if (!uniqueIds.length) return [];
+  const idFilter = uniqueIds
+    .map((id) => `id = "${escapePocketBaseValue(id)}"`)
+    .join(' || ');
+  return getPublicProducts(`active = true && (${idFilter})`, options);
 }
 
 function addVisualItemFiles(item: any) {
@@ -270,7 +399,7 @@ function addVisualItemFiles(item: any) {
 
   return {
     ...item,
-    imageUrl: image ? getPocketBaseFileUrl('store_visual_items', item.id, image) : null,
+    imageUrl: image ? getPocketBaseFileUrl('store_visual_items', item.id, image, { thumb: '700x420' }) : null,
     attachmentUrl: attachment ? getPocketBaseFileUrl('store_visual_items', item.id, attachment) : null,
   };
 }
@@ -293,7 +422,7 @@ function addGiftFiles(gift: any) {
   const image = normalizeFileValue(gift.image)[0] || '';
   return {
     ...gift,
-    imageUrl: image ? getPocketBaseFileUrl('gifts', gift.id, image) : null,
+    imageUrl: image ? getPocketBaseFileUrl('gifts', gift.id, image, { thumb: '700x700' }) : null,
   };
 }
 
@@ -378,6 +507,25 @@ async function getApprovedReviews(baseFilter: string, options?: StoreQueryInput,
   }
 }
 
+async function getApprovedReviewsPage(
+  baseFilter: string,
+  options?: StoreQueryInput,
+  limit = 8,
+) {
+  try {
+    const result = await pb.collection('reviews').getList(1, clampReviewLimit(limit), {
+      filter: await storeFilter(`status = "approved" && ${baseFilter}`, options),
+      fields: PUBLIC_REVIEW_FIELDS,
+      sort: '-featured,-created',
+      skipTotal: true,
+    });
+    return result.items;
+  } catch (error) {
+    if (isReviewsCollectionMissing(error)) return [];
+    return [];
+  }
+}
+
 export async function getStoreReviewSummary(options?: StoreQueryInput): Promise<ReviewSummary> {
   const reviews = await getApprovedReviews('type = "store"', options, {
     fields: 'id,rating',
@@ -386,10 +534,7 @@ export async function getStoreReviewSummary(options?: StoreQueryInput): Promise<
 }
 
 export async function getStoreReviews(options?: StoreQueryInput, limit = 8) {
-  return await getApprovedReviews('type = "store"', options, {
-    sort: '-featured,-created',
-    perPage: clampReviewLimit(limit),
-  });
+  return getApprovedReviewsPage('type = "store"', options, limit);
 }
 
 export async function getProductReviewSummary(productId: string, options?: StoreQueryInput): Promise<ReviewSummary> {
@@ -432,10 +577,11 @@ export async function getProductReviewSummaries(productIds: string[], options?: 
 export async function getProductReviews(productId: string, options?: StoreQueryInput, limit = 8) {
   if (!productId) return [];
 
-  return await getApprovedReviews(`type = "product" && product = "${escapePocketBaseValue(productId)}"`, options, {
-    sort: '-featured,-created',
-    perPage: clampReviewLimit(limit),
-  });
+  return getApprovedReviewsPage(
+    `type = "product" && product = "${escapePocketBaseValue(productId)}"`,
+    options,
+    limit,
+  );
 }
 
 function validatePublicReviewPayload(payload: PublicReviewPayload & Record<string, any>) {
@@ -571,7 +717,7 @@ export async function getProductBySlug(slug: string, options?: StoreQueryInput) 
     throw new Error('Producto no disponible en el catálogo público.');
   }
 
-  return addProductImages(product, options);
+  return addProductImages(product, options, '900x900');
 }
 
 export async function getProductVariations(productId: string, _options?: StoreQueryInput) {
@@ -580,6 +726,7 @@ export async function getProductVariations(productId: string, _options?: StoreQu
   const filter = `product="${productId}" && active=true`;
   const variations = await pb.collection('product_variations').getFullList({
     filter,
+    fields: PUBLIC_VARIATION_DETAIL_FIELDS,
     sort: 'sort_order,variation_type,value',
   });
 

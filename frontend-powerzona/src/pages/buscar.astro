@@ -11,9 +11,11 @@ const storeQuery = { storeId: currentStore.id, store: currentStore };
 const currentPathname = Astro.url.pathname;
 const settings = await getSettings(storeQuery);
 if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
-const categories = await getCategories(storeQuery);
-const subcategories = await getSubcategories(storeQuery);
-const products = await getProducts(storeQuery);
+const [categories, subcategories, products] = await Promise.all([
+  getCategories(storeQuery),
+  getSubcategories(storeQuery),
+  getProducts(storeQuery),
+]);
 
 const storeName = settings?.store_name || settings?.stored_name || currentStore?.name || 'Tienda';
 const storeInitials = getStoreInitials(storeName);

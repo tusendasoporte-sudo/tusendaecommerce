@@ -4,7 +4,7 @@ import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
-import { getSettings, getCategories, getSubcategories, getProducts, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
+import { getSettings, getSubcategories, getSubcategoryBySlug, getProductsBySubcategory, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getStoreInitials } from '../../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
@@ -18,17 +18,18 @@ const { slug } = Astro.params;
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id, store: currentStore };
 const currentPathname = Astro.url.pathname;
-const settings = await getSettings(storeQuery);
+const [settings, subcategory] = await Promise.all([
+  getSettings(storeQuery),
+  getSubcategoryBySlug(slug as string, storeQuery),
+]);
 if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
-const categories = await getCategories(storeQuery);
-const subcategories = await getSubcategories(storeQuery);
-const products = await getProducts(storeQuery);
-const automaticPromotions = await getAutomaticPromotions(storeQuery);
-
-const subcategory = subcategories.find((item) => item.slug === slug);
 if (!subcategory) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
+const [subcategoryProducts, automaticPromotions] = await Promise.all([
+  getProductsBySubcategory(subcategory.id, storeQuery),
+  getAutomaticPromotions(storeQuery),
+]);
 
-const category = categories.find((item) => item.id === subcategory.category);
+const category = subcategory.expand?.category || null;
 const storeName = settings?.store_name || settings?.stored_name || currentStore?.name || 'Tienda';
 const storeInitials = getStoreInitials(storeName);
 const logoImageUrl = settings?.logoImageUrl || currentStore?.logoUrl || '';
@@ -36,7 +37,6 @@ const homePath = getPublicPath('/', currentStore, currentPathname);
 const categoryBackPath = category
   ? getPublicPath(`/categoria/${category.slug}`, currentStore, currentPathname)
   : getPublicPath('/#categorias', currentStore, currentPathname);
-const subcategoryProducts = products.filter((product) => product.subcategory === subcategory.id);
 const productCountLabel = `${subcategoryProducts.length} ${subcategoryProducts.length === 1 ? 'producto' : 'productos'}`;
 const subcategorySeoImage =
   subcategory.imageUrl
