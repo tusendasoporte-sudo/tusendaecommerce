@@ -2687,7 +2687,234 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           flex-direction: column-reverse;
           align-items: stretch;
         }
-      }</style>
+      }
+
+      /* PZ-CREATE-WIZARD: creación corta en 3 pasos sin alterar el editor existente. */
+      .product-create-wizard {
+        display: none;
+        margin: 0 0 20px;
+        padding: 18px;
+        border: 1px solid #dbeafe;
+        border-radius: 20px;
+        background: linear-gradient(180deg, #ffffff, #f8fbff);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .05);
+      }
+      #product-form.is-create-wizard .product-create-wizard { display: block; }
+      .product-create-wizard-steps {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .product-create-step {
+        min-height: 54px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 15px;
+        background: #fff;
+        color: #64748b;
+        padding: 10px 12px;
+        font-weight: 900;
+        text-align: left;
+        cursor: pointer;
+      }
+      .product-create-step-number {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 13px;
+      }
+      .product-create-step.is-active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: #1d4ed8;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+      }
+      .product-create-step.is-active .product-create-step-number,
+      .product-create-step.is-complete .product-create-step-number {
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #fff;
+      }
+      .product-create-wizard-note {
+        margin: 13px 2px 0;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      #product-form.is-create-wizard .create-wizard-step-item { display: none !important; }
+      #product-form.is-create-wizard[data-create-step="1"] .create-wizard-step-1,
+      #product-form.is-create-wizard[data-create-step="2"] .create-wizard-step-2,
+      #product-form.is-create-wizard[data-create-step="3"] .create-wizard-step-3 { display: block !important; }
+      #product-form.is-create-wizard[data-create-step="1"] .create-wizard-step-1.field,
+      #product-form.is-create-wizard[data-create-step="2"] .create-wizard-step-2.field,
+      #product-form.is-create-wizard[data-create-step="3"] .create-wizard-step-3.field { display: block !important; }
+      #product-form.is-create-wizard .create-wizard-step-item.hidden,
+      #product-form.is-create-wizard:not(.is-create-variation-enabled) #variation-manager,
+      #product-form.is-create-wizard:not(.is-create-variation-enabled) #product-variation-view-field { display: none !important; }
+      #product-form.is-create-wizard .create-wizard-advanced-item { display: none !important; }
+      #product-form.is-create-wizard.is-create-advanced-open[data-create-step="3"] .create-wizard-advanced-item { display: block !important; }
+      #product-form.is-create-wizard.is-create-advanced-open[data-create-step="3"] .create-wizard-advanced-item.check-card { display: flex !important; }
+      #product-form.is-create-wizard.is-create-advanced-open[data-create-step="3"] .create-wizard-repeat-advanced { display: block !important; }
+      #product-form.is-create-wizard .create-wizard-advanced-item.hidden { display: none !important; }
+      #product-form.is-create-wizard .admin-product-editor-page {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      #product-form.is-create-wizard .editor-side-column,
+      #product-form.is-create-wizard .editor-actions { display: none !important; }
+      #product-form.is-create-wizard .product-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+      #product-form.is-create-wizard .product-form-grid > .field.full,
+      #product-form.is-create-wizard .create-wizard-full { grid-column: 1 / -1; }
+      #product-form.is-create-wizard[data-create-step="1"] #product-image-slots .product-image-slot:not(:first-child) { display: none !important; }
+      #product-form.is-create-wizard[data-create-step="1"] #product-image-slots { grid-template-columns: minmax(0, 260px) !important; }
+      .product-create-mode-card,
+      .product-create-advanced-toggle {
+        display: none;
+        grid-column: 1 / -1;
+        border: 1px solid #dbeafe;
+        border-radius: 18px;
+        background: #fff;
+        padding: 16px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, .04);
+      }
+      #product-form.is-create-wizard[data-create-step="2"] .product-create-mode-card { display: block; }
+      #product-form.is-create-wizard[data-create-step="3"] .product-create-advanced-toggle { display: flex; }
+      .product-create-mode-card-head,
+      .product-create-advanced-toggle {
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .product-create-mode-card-head { display: flex; }
+      .product-create-mode-card h3,
+      .product-create-advanced-toggle strong { margin: 0; color: #0f172a; font-size: 16px; font-weight: 1000; }
+      .product-create-mode-card p,
+      .product-create-advanced-toggle span { margin: 5px 0 0; color: #64748b; font-size: 12px; line-height: 1.45; font-weight: 750; }
+      .product-create-mode-switch { display: inline-flex; align-items: center; gap: 10px; color: #0f172a; font-weight: 950; white-space: nowrap; }
+      .product-create-mode-switch input { width: 20px; height: 20px; accent-color: #2563eb; }
+      .product-create-variation-generator {
+        display: grid;
+        gap: 14px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e2e8f0;
+      }
+      .product-create-variation-generator.hidden { display: none !important; }
+      .product-create-variation-generator-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .product-create-generator-field { display: grid; gap: 7px; min-width: 0; }
+      .product-create-generator-field label { color: #475569; font-size: 11px; font-weight: 950; }
+      .product-create-generator-field input {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+        padding: 0 13px;
+        color: #0f172a;
+        font-weight: 800;
+      }
+      .product-create-generator-actions,
+      .product-create-bulk-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+      .product-create-generator-actions { justify-content: flex-end; }
+      .product-create-bulk-actions {
+        padding: 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #f8fafc;
+      }
+      .product-create-bulk-actions .product-create-generator-field { min-width: 150px; flex: 1; }
+      .product-create-generator-feedback {
+        margin: 0;
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .product-create-generator-feedback.is-error { background: #fef2f2; color: #b91c1c; }
+      .product-create-advanced-toggle {
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+      }
+      .product-create-advanced-chevron { margin: 0 !important; color: #2563eb !important; font-size: 18px !important; }
+      #product-form.is-create-advanced-open .product-create-advanced-chevron { transform: rotate(180deg); }
+      .product-create-wizard-actions {
+        display: none;
+        position: sticky;
+        bottom: 10px;
+        z-index: 45;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid rgba(219, 234, 254, .98);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, .96);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 18px 42px rgba(15, 23, 42, .12);
+      }
+      #product-form.is-create-wizard .product-create-wizard-actions { display: flex; }
+      .product-create-wizard-actions .submit-btn { min-width: 180px; }
+      .product-create-wizard-actions-status {
+        margin-right: auto;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 850;
+      }
+      .variation-draft-badge {
+        display: inline-flex;
+        min-height: 22px;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0 9px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 10px;
+        font-weight: 950;
+      }
+      @media (max-width: 760px) {
+        .product-create-wizard { padding: 12px; border-radius: 17px; }
+        .product-create-wizard-steps { gap: 6px; }
+        .product-create-step { min-height: 48px; justify-content: center; padding: 8px; }
+        .product-create-step-label { display: none; }
+        .product-create-step-number { width: 28px; height: 28px; flex-basis: 28px; }
+        #product-form.is-create-wizard .product-form-grid { grid-template-columns: 1fr !important; }
+        .product-create-mode-card-head { align-items: flex-start; flex-direction: column; }
+        .product-create-mode-switch { width: 100%; justify-content: space-between; }
+        .product-create-variation-generator-grid { grid-template-columns: 1fr; }
+        .product-create-generator-actions,
+        .product-create-bulk-actions { align-items: stretch; flex-direction: column; }
+        .product-create-generator-actions .mini-btn,
+        .product-create-generator-actions .submit-btn,
+        .product-create-bulk-actions .mini-btn { width: 100%; }
+        .product-create-wizard-actions {
+          bottom: calc(8px + env(safe-area-inset-bottom));
+          display: grid !important;
+          grid-template-columns: 1fr 1.4fr;
+        }
+        .product-create-wizard-actions-status { grid-column: 1 / -1; margin: 0; text-align: center; }
+        #product-create-prev-btn { grid-column: 1; }
+        #product-create-next-btn { grid-column: 2; min-width: 0; }
+        #product-create-draft-btn { grid-column: 1 / -1; }
+        #product-form[data-create-step="1"] #product-create-prev-btn { display: none; }
+        #product-form[data-create-step="1"] #product-create-draft-btn { grid-column: 1; }
+      }
+      </style>
   </head>
   <body>
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
@@ -2745,10 +2972,87 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
               <form id="product-form">
                 <input id="product-id" type="hidden" />
                 <input id="product-slug" type="hidden" />
+                <nav id="product-create-wizard" class="product-create-wizard" aria-label="Pasos para crear el producto">
+                  <div class="product-create-wizard-steps">
+                    <button class="product-create-step is-active" type="button" data-product-create-step="1" aria-current="step">
+                      <span class="product-create-step-number">1</span>
+                      <span class="product-create-step-label">Información básica</span>
+                    </button>
+                    <button class="product-create-step" type="button" data-product-create-step="2">
+                      <span class="product-create-step-number">2</span>
+                      <span class="product-create-step-label">Precio e inventario</span>
+                    </button>
+                    <button class="product-create-step" type="button" data-product-create-step="3">
+                      <span class="product-create-step-number">3</span>
+                      <span class="product-create-step-label">Revisar y publicar</span>
+                    </button>
+                  </div>
+                  <p id="product-create-wizard-note" class="product-create-wizard-note">Paso 1 de 3 · Podrás completar más detalles después.</p>
+                </nav>
                 <div class="admin-product-editor-page">
                   <div class="editor-main-column">
                 <div class="product-form-grid">
-                  <div class="editor-section-heading full">
+                  <section id="product-create-mode-card" class="product-create-mode-card create-wizard-full" aria-labelledby="product-create-mode-title">
+                    <div class="product-create-mode-card-head">
+                      <div>
+                        <h3 id="product-create-mode-title">Tipo de producto</h3>
+                        <p>Activa las variaciones cuando cada opción tenga su propio precio, stock o imagen.</p>
+                      </div>
+                      <label class="product-create-mode-switch">
+                        <span>Usa variaciones</span>
+                        <input id="product-create-has-variations" type="checkbox" />
+                      </label>
+                    </div>
+                    <div id="product-create-variation-generator" class="product-create-variation-generator hidden">
+                      <div class="product-create-variation-generator-grid">
+                        <div class="product-create-generator-field">
+                          <label for="product-create-attribute-one">Atributo principal</label>
+                          <input id="product-create-attribute-one" type="text" value="Sabor" placeholder="Ej. Sabor" />
+                        </div>
+                        <div class="product-create-generator-field">
+                          <label for="product-create-values-one">Valores separados por coma</label>
+                          <input id="product-create-values-one" type="text" placeholder="Ej. Vainilla, Chocolate" />
+                        </div>
+                        <div class="product-create-generator-field">
+                          <label for="product-create-attribute-two">Segundo atributo (opcional)</label>
+                          <input id="product-create-attribute-two" type="text" placeholder="Ej. Tamaño" />
+                        </div>
+                        <div class="product-create-generator-field">
+                          <label for="product-create-values-two">Valores del segundo atributo</label>
+                          <input id="product-create-values-two" type="text" placeholder="Ej. 1 lb, 2 lb" />
+                        </div>
+                        <div class:list={['product-create-generator-field', !canManageProductPrice && 'hidden']}>
+                          <label for="product-create-bulk-price">Precio inicial para las variaciones</label>
+                          <input id="product-create-bulk-price" type="number" min="0" step="0.01" placeholder="0.00" />
+                        </div>
+                        <div class:list={['product-create-generator-field', !canManageProductStock && 'hidden']}>
+                          <label for="product-create-bulk-stock">Stock inicial por variación</label>
+                          <input id="product-create-bulk-stock" type="number" min="0" step="1" value="0" />
+                        </div>
+                      </div>
+                      <div class="product-create-generator-actions">
+                        <button id="product-create-generate-variations" class="submit-btn" type="button">Generar combinaciones</button>
+                      </div>
+                      <div class="product-create-bulk-actions">
+                        <div class:list={['product-create-generator-field', !canManageProductPrice && 'hidden']}>
+                          <label for="product-create-apply-price">Nuevo precio para todas</label>
+                          <input id="product-create-apply-price" type="number" min="0" step="0.01" placeholder="0.00" />
+                        </div>
+                        <button id="product-create-apply-price-btn" class:list={['mini-btn', !canManageProductPrice && 'hidden']} type="button">Aplicar precio a todas</button>
+                        <div class:list={['product-create-generator-field', !canManageProductStock && 'hidden']}>
+                          <label for="product-create-apply-stock">Nuevo stock para todas</label>
+                          <input id="product-create-apply-stock" type="number" min="0" step="1" placeholder="0" />
+                        </div>
+                        <button id="product-create-apply-stock-btn" class:list={['mini-btn', !canManageProductStock && 'hidden']} type="button">Aplicar stock a todas</button>
+                      </div>
+                      <p id="product-create-generator-feedback" class="product-create-generator-feedback hidden" role="status"></p>
+                    </div>
+                  </section>
+                  <button id="product-create-advanced-toggle" class="product-create-advanced-toggle create-wizard-full" type="button" aria-expanded="false">
+                    <span><strong>Opciones avanzadas</strong><span>Referencia interna, datos adicionales, productos relacionados y configuraciones menos frecuentes.</span></span>
+                    <span class="product-create-advanced-chevron" aria-hidden="true">⌄</span>
+                  </button>
+                  <div id="product-basic-heading" class="editor-section-heading full">
                     <p class="editor-section-kicker">Producto</p>
                     <h3>Información básica</h3>
                     <span>Completa la información para publicar este producto en tu tienda.</span>
@@ -2780,7 +3084,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <textarea id="product-description" placeholder="Descripción visible en la ficha del producto"></textarea>
                   </div>
 
-                  <div class="editor-section-heading full">
+                  <div id="product-organization-heading" class="editor-section-heading full">
                     <p class="editor-section-kicker">Organización</p>
                     <h3>Categoría y organización</h3>
                     <span>Ubica este producto dentro del catálogo y crea categorías rápidas si hace falta.</span>
@@ -2894,7 +3198,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       </div>
                     </div>
                   </div>
-                  <div class="editor-section-heading full">
+                  <div id="product-inventory-heading" class="editor-section-heading full">
                     <p class="editor-section-kicker">Disponibilidad</p>
                     <h3>Inventario</h3>
                     <span>Controla la disponibilidad del producto en tu tienda.</span>
@@ -2922,7 +3226,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   )) : null}
 
-                  <div class="editor-section-heading full">
+                  <div id="product-extra-info-heading" class="editor-section-heading full">
                     <p class="editor-section-kicker">Contenido</p>
                     <h3>Información adicional</h3>
                     <span>Agrega detalles, especificaciones o instrucciones para este producto.</span>
@@ -2962,7 +3266,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   </div>
 
-                  <div class="editor-section-heading full">
+                  <div id="product-related-heading" class="editor-section-heading full">
                     <p class="editor-section-kicker">Sugerencias</p>
                     <h3>Productos relacionados</h3>
                     <span>Selecciona productos para mostrarlos al final de la ficha pública.</span>
@@ -2985,7 +3289,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   </div>
 
-                  <div class:list={['editor-section-heading full', !canManageProductImages && 'hidden']}>
+                  <div id="product-images-heading" class:list={['editor-section-heading full', !canManageProductImages && 'hidden']}>
                     <p class="editor-section-kicker">Galería</p>
                     <h3>Imágenes del producto</h3>
                     <span>Arrastra imágenes aquí o selecciona archivos para preparar la galería.</span>
@@ -3002,7 +3306,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <div id="product-image-slots" class="product-image-slots"></div>
                   </div>
 
-                  <div class="editor-section-heading full">
+                  <div id="product-status-heading" class="editor-section-heading full">
                     <p class="editor-section-kicker">Estado</p>
                     <h3>Estado del producto</h3>
                     <span>Define visibilidad, stock descontable y opciones públicas.</span>
@@ -3188,6 +3492,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     </div>
                   </aside>
                 </div>
+                <div id="product-create-wizard-actions" class="product-create-wizard-actions">
+                  <span id="product-create-wizard-status" class="product-create-wizard-actions-status">Paso 1 de 3</span>
+                  <button id="product-create-prev-btn" class="mini-btn" type="button">Anterior</button>
+                  <button id="product-create-draft-btn" class="mini-btn" type="button">Guardar como borrador</button>
+                  <button id="product-create-next-btn" class="submit-btn" type="button">Continuar</button>
+                </div>
                 <div id="product-form-alert" class="alert alert-info hidden"></div>
                 <div id="duplicate-product-toast" class="duplicate-toast hidden" role="status" aria-live="polite">
                   <span class="duplicate-toast-icon">!</span>
@@ -3342,6 +3652,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         todayCivilDate,
       } from '../../lib/adminStoreProducts';
       import { calculateProductActionsMenuPosition } from '../../lib/adminProductActionsMenu';
+      import {
+        buildProductVariationCombinations,
+        clampProductCreateStep,
+        getProductCreationPublishPlan,
+        parseProductVariationValues,
+        validateProductCreateWizardStep,
+      } from '../../lib/adminProductCreateWizard.js';
 
       Object.defineProperty(globalThis, 'pzProductImageDropCore', {
         value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop }),
@@ -3359,6 +3676,18 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           isRecordManuallyActive,
           todayCivilDate,
           calculateProductActionsMenuPosition,
+        }),
+        configurable: true,
+        enumerable: false,
+        writable: false,
+      });
+      Object.defineProperty(globalThis, 'pzProductCreateWizard', {
+        value: Object.freeze({
+          buildProductVariationCombinations,
+          clampProductCreateStep,
+          getProductCreationPublishPlan,
+          parseProductVariationValues,
+          validateProductCreateWizardStep,
         }),
         configurable: true,
         enumerable: false,
@@ -3432,6 +3761,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let variationManualActive = true;
       let currentVariationImageUrl = "";
       let variationPreviewObjectUrl = "";
+      let currentProductCreateStep = 1;
+      let pendingVariationDraftSequence = 0;
 
       const sidebar = document.querySelector('[data-admin-sidebar-root]');
       const sidebarOpenBtn = document.getElementById('sidebar-open');
@@ -3451,6 +3782,28 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const filtersToggleBtn = document.getElementById('filters-toggle-btn');
       const productEditor = document.getElementById('product-editor');
       const productForm = document.getElementById('product-form');
+      const productCreateWizard = document.getElementById('product-create-wizard');
+      const productCreateWizardNote = document.getElementById('product-create-wizard-note');
+      const productCreateWizardStatus = document.getElementById('product-create-wizard-status');
+      const productCreateStepButtons = Array.from(document.querySelectorAll('[data-product-create-step]'));
+      const productCreatePrevBtn = document.getElementById('product-create-prev-btn');
+      const productCreateDraftBtn = document.getElementById('product-create-draft-btn');
+      const productCreateNextBtn = document.getElementById('product-create-next-btn');
+      const productCreateHasVariationsInput = document.getElementById('product-create-has-variations');
+      const productCreateAdvancedToggle = document.getElementById('product-create-advanced-toggle');
+      const productCreateVariationGenerator = document.getElementById('product-create-variation-generator');
+      const productCreateAttributeOneInput = document.getElementById('product-create-attribute-one');
+      const productCreateValuesOneInput = document.getElementById('product-create-values-one');
+      const productCreateAttributeTwoInput = document.getElementById('product-create-attribute-two');
+      const productCreateValuesTwoInput = document.getElementById('product-create-values-two');
+      const productCreateBulkPriceInput = document.getElementById('product-create-bulk-price');
+      const productCreateBulkStockInput = document.getElementById('product-create-bulk-stock');
+      const productCreateGenerateVariationsBtn = document.getElementById('product-create-generate-variations');
+      const productCreateApplyPriceInput = document.getElementById('product-create-apply-price');
+      const productCreateApplyPriceBtn = document.getElementById('product-create-apply-price-btn');
+      const productCreateApplyStockInput = document.getElementById('product-create-apply-stock');
+      const productCreateApplyStockBtn = document.getElementById('product-create-apply-stock-btn');
+      const productCreateGeneratorFeedback = document.getElementById('product-create-generator-feedback');
       const productIdInput = document.getElementById('product-id');
       const productNameInput = document.getElementById('product-name');
       const productSlugInput = document.getElementById('product-slug');
@@ -3615,6 +3968,277 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const variationCancelBtn = document.getElementById('variation-cancel-btn');
       const variationDeleteBtn = document.getElementById('variation-delete-btn');
       const variationSaveBtn = document.getElementById('variation-save-btn');
+
+      function isProductCreateWizard() {
+        return Boolean(productForm?.classList.contains('is-create-wizard') && !productIdInput?.value);
+      }
+
+      function assignCreateWizardItem(element, step, { advanced = false } = {}) {
+        if (!element) return;
+        element.classList.remove('create-wizard-step-1', 'create-wizard-step-2', 'create-wizard-step-3', 'create-wizard-advanced-item');
+        element.classList.add('create-wizard-step-item', `create-wizard-step-${step}`);
+        if (advanced) element.classList.add('create-wizard-advanced-item');
+      }
+
+      function setupProductCreateWizardLayout() {
+        const productGrid = productForm?.querySelector('.product-form-grid');
+        if (!productGrid) return;
+        Array.from(productGrid.children).forEach((element) => {
+          if (element.id === 'product-create-mode-card' || element.id === 'product-create-advanced-toggle') return;
+          if (element.classList.contains('field') || element.classList.contains('price-offer-card')) {
+            assignCreateWizardItem(element, 3, { advanced: true });
+          }
+        });
+        assignCreateWizardItem(productNameInput?.closest('.field'), 1);
+        assignCreateWizardItem(productDescriptionInput?.closest('.field'), 1);
+        assignCreateWizardItem(productCategoryInput?.closest('.field'), 1);
+        assignCreateWizardItem(productSubcategoryInput?.closest('.field'), 1);
+        assignCreateWizardItem(document.getElementById('product-basic-heading'), 1);
+        assignCreateWizardItem(document.getElementById('product-organization-heading'), 1);
+        assignCreateWizardItem(document.getElementById('product-inventory-heading'), 2);
+        assignCreateWizardItem(document.getElementById('product-extra-info-heading'), 3, { advanced: true });
+        assignCreateWizardItem(document.getElementById('product-related-heading'), 3, { advanced: true });
+        assignCreateWizardItem(document.getElementById('product-status-heading'), 3);
+        const productImagesField = productUploadDropzone?.closest('.field');
+        assignCreateWizardItem(productImagesField, 1);
+        productImagesField?.classList.add('create-wizard-repeat-advanced');
+        const productImagesHeading = document.getElementById('product-images-heading');
+        assignCreateWizardItem(productImagesHeading, 1);
+        productImagesHeading?.classList.add('create-wizard-repeat-advanced');
+        assignCreateWizardItem(productPriceInput?.closest('.price-offer-card'), 2);
+        assignCreateWizardItem(productStockField, 2);
+        assignCreateWizardItem(productVariationViewField, 2);
+        assignCreateWizardItem(variationManager, 2);
+        assignCreateWizardItem(productDeliveryModeInput?.closest('.field'), 3);
+        const statusField = productActiveInput?.closest('.field');
+        assignCreateWizardItem(statusField, 3);
+        [productFeaturedInput, productOnlyUsdInput, productAllowPreorderInput, productTrackStockInput, productHasVariationsInput]
+          .forEach((input) => input?.closest('.check-card')?.classList.add('create-wizard-advanced-item'));
+      }
+
+      function productCreateStepValidation(step = currentProductCreateStep, { allowDraft = false } = {}) {
+        const name = productNameInput?.value?.trim() || '';
+        const usesVariations = Boolean(productHasVariationsInput?.checked);
+        const result = globalThis.pzProductCreateWizard?.validateProductCreateWizardStep?.({
+          step,
+          name,
+          allowDraft,
+          currencyId: productPriceCurrencyInput?.value || '',
+          usesVariations,
+          hasEligibleVariation: hasModeEligibleVariation(),
+          parentCommercialError: usesVariations ? '' : parentCommercialValidationMessage(),
+        }) || { valid: Boolean(name), code: name ? 'valid' : 'missing_name', message: name ? '' : 'Escribe el nombre del producto para continuar.' };
+        const focusByCode = {
+          missing_name: productNameInput,
+          missing_currency: productPriceCurrencyInput,
+          missing_variation: productCreateHasVariationsInput,
+          invalid_parent_commerce: productPriceInput,
+        };
+        return { ...result, focus: focusByCode[result.code] || null };
+      }
+
+      function updateProductCreateWizardUi() {
+        if (!productForm) return;
+        const active = isProductCreateWizard();
+        productForm.dataset.createStep = String(currentProductCreateStep);
+        if (productCreateWizard) productCreateWizard.setAttribute('aria-hidden', active ? 'false' : 'true');
+        productCreateStepButtons.forEach((button) => {
+          const step = Number(button.dataset.productCreateStep || 1);
+          button.classList.toggle('is-active', active && step === currentProductCreateStep);
+          button.classList.toggle('is-complete', active && step < currentProductCreateStep);
+          if (step === currentProductCreateStep) button.setAttribute('aria-current', 'step');
+          else button.removeAttribute('aria-current');
+        });
+        const labels = ['Información básica', 'Precio e inventario', 'Revisar y publicar'];
+        const stepLabel = labels[currentProductCreateStep - 1] || labels[0];
+        if (productCreateWizardNote) productCreateWizardNote.textContent = `Paso ${currentProductCreateStep} de 3 · ${stepLabel}. Podrás completar más detalles después.`;
+        if (productCreateWizardStatus) productCreateWizardStatus.textContent = `Paso ${currentProductCreateStep} de 3 · ${stepLabel}`;
+        if (productCreatePrevBtn) productCreatePrevBtn.disabled = currentProductCreateStep <= 1;
+        if (productCreateNextBtn) {
+          productCreateNextBtn.textContent = currentProductCreateStep >= 3 ? 'Crear producto' : 'Siguiente';
+          productCreateNextBtn.disabled = currentProductCreateStep >= 3 ? Boolean(productSaveBtn?.disabled) : false;
+        }
+        if (productCreateDraftBtn) productCreateDraftBtn.disabled = !(productNameInput?.value?.trim());
+        if (productCreateHasVariationsInput) productCreateHasVariationsInput.checked = Boolean(productHasVariationsInput?.checked);
+        productCreateVariationGenerator?.classList.toggle('hidden', !active || !productHasVariationsInput?.checked);
+        const advancedOpen = productForm.classList.contains('is-create-advanced-open');
+        productCreateAdvancedToggle?.setAttribute('aria-expanded', advancedOpen ? 'true' : 'false');
+      }
+
+      function setProductCreateStep(step, { focus = true } = {}) {
+        currentProductCreateStep = globalThis.pzProductCreateWizard?.clampProductCreateStep?.(step)
+          ?? Math.max(1, Math.min(3, Number(step) || 1));
+        if (currentProductCreateStep !== 3) productForm?.classList.remove('is-create-advanced-open');
+        updateProductCreateWizardUi();
+        if (focus) {
+          productCreateWizard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const focusTarget = currentProductCreateStep === 1
+            ? productNameInput
+            : currentProductCreateStep === 2
+              ? (productHasVariationsInput?.checked ? variationNewBtn : productPriceInput)
+              : productActiveInput;
+          window.setTimeout(() => focusTarget?.focus?.(), 120);
+        }
+      }
+
+      function goToProductCreateStep(step) {
+        const targetStep = Math.max(1, Math.min(3, Number(step) || 1));
+        if (targetStep <= currentProductCreateStep) {
+          setFormAlert('');
+          setProductCreateStep(targetStep);
+          return true;
+        }
+        const validation = productCreateStepValidation(currentProductCreateStep);
+        if (!validation.valid) {
+          setFormAlert(validation.message, 'info');
+          validation.focus?.focus?.();
+          return false;
+        }
+        setFormAlert('');
+        setProductCreateStep(Math.min(currentProductCreateStep + 1, targetStep));
+        return true;
+      }
+
+      function setProductCreateGeneratorFeedback(message = '', type = 'info') {
+        if (!productCreateGeneratorFeedback) return;
+        productCreateGeneratorFeedback.textContent = message;
+        productCreateGeneratorFeedback.classList.toggle('hidden', !message);
+        productCreateGeneratorFeedback.classList.toggle('is-error', type === 'error');
+      }
+
+      function parseProductCreateVariationValues(value) {
+        return globalThis.pzProductCreateWizard?.parseProductVariationValues?.(value)
+          || [...new Set(String(value || '').split(',').map((item) => item.trim()).filter(Boolean))];
+      }
+
+      function pendingVariationKey(type, value) {
+        return `${String(type || '').trim().toLowerCase()}::${String(value || '').trim().toLowerCase()}`;
+      }
+
+      function createGeneratedVariationDraft({ type, value, price, stock, sortOrder }) {
+        const priceCurrency = getPriceCurrency();
+        const regularPrice = Math.max(0, Number(price || 0));
+        return {
+          id: `draft-${Date.now()}-${++pendingVariationDraftSequence}`,
+          _draft: true,
+          _draft_image_file: null,
+          _draft_preview_url: '',
+          product: '',
+          variation_type: type,
+          value,
+          price_currency: priceCurrency?.id || productPriceCurrencyInput?.value || '',
+          price_amount: regularPrice,
+          price_usd: amountToUsd(regularPrice, priceCurrency),
+          is_offer: false,
+          offer_price_amount: 0,
+          offer_price_usd: 0,
+          cost_amount: 0,
+          cost_usd: 0,
+          stock: Math.max(0, Math.floor(Number(stock || 0))),
+          expiration_date: '',
+          internal_ref: '',
+          sort_order: sortOrder,
+          active: true,
+          allow_preorder: false,
+        };
+      }
+
+      function generateProductCreateVariationCombinations() {
+        if (!isProductCreateWizard() || !productHasVariationsInput?.checked) return;
+        const attributeOne = productCreateAttributeOneInput?.value?.trim() || '';
+        const attributeTwo = productCreateAttributeTwoInput?.value?.trim() || '';
+        const combinationResult = globalThis.pzProductCreateWizard?.buildProductVariationCombinations?.({
+          attributeOne,
+          valuesOne: productCreateValuesOneInput?.value || '',
+          attributeTwo,
+          valuesTwo: productCreateValuesTwoInput?.value || '',
+          limit: 30,
+        }) || { valid: false, code: 'missing_primary_attribute', items: [] };
+        if (!combinationResult.valid) {
+          const messageByCode = {
+            missing_primary_attribute: 'Escribe el atributo principal y al menos un valor.',
+            incomplete_secondary_attribute: 'Completa el nombre y los valores del segundo atributo, o deja ambos vacíos.',
+            combination_limit: 'Puedes generar un máximo de 30 combinaciones a la vez.',
+          };
+          setProductCreateGeneratorFeedback(messageByCode[combinationResult.code] || 'No se pudieron generar las combinaciones.', 'error');
+          return;
+        }
+        if (!getPriceCurrency()?.id) {
+          setProductCreateGeneratorFeedback('Selecciona la moneda del producto antes de generar variaciones.', 'error');
+          return;
+        }
+        const price = Number(productCreateBulkPriceInput?.value || 0);
+        if (CAN_MANAGE_PRODUCT_PRICE && (!Number.isFinite(price) || price <= 0)) {
+          setProductCreateGeneratorFeedback('Escribe un precio inicial mayor que 0.', 'error');
+          return;
+        }
+        const stock = Number(productCreateBulkStockInput?.value || 0);
+        if (CAN_MANAGE_PRODUCT_STOCK && productTracksStock() && (!Number.isFinite(stock) || stock < 0)) {
+          setProductCreateGeneratorFeedback('Escribe un stock inicial válido.', 'error');
+          return;
+        }
+        const combinations = combinationResult.items;
+        const existingKeys = new Set(productVariations.map((item) => pendingVariationKey(item.variation_type, item.value)));
+        let added = 0;
+        combinations.forEach((combination) => {
+          const key = pendingVariationKey(combination.type, combination.value);
+          if (existingKeys.has(key)) return;
+          productVariations.push(createGeneratedVariationDraft({
+            ...combination,
+            price,
+            stock,
+            sortOrder: nextVariationOrder(),
+          }));
+          existingKeys.add(key);
+          added += 1;
+        });
+        renderVariations();
+        updateProductFormState();
+        setProductCreateGeneratorFeedback(added
+          ? `${added} ${added === 1 ? 'variación preparada' : 'variaciones preparadas'} correctamente.`
+          : 'Todas esas combinaciones ya estaban creadas.');
+      }
+
+      function applyValueToPendingVariations(kind) {
+        const drafts = productVariations.filter(isPendingVariationDraft);
+        if (!drafts.length) {
+          setProductCreateGeneratorFeedback('Primero genera o añade al menos una variación.', 'error');
+          return;
+        }
+        if (kind === 'price') {
+          const price = Number(productCreateApplyPriceInput?.value || 0);
+          if (!Number.isFinite(price) || price <= 0) {
+            setProductCreateGeneratorFeedback('Escribe un precio mayor que 0 para aplicarlo.', 'error');
+            return;
+          }
+          const currency = getPriceCurrency();
+          productVariations = productVariations.map((variation) => isPendingVariationDraft(variation) ? {
+            ...variation,
+            price_currency: currency?.id || variation.price_currency,
+            price_amount: price,
+            price_usd: amountToUsd(price, currency),
+            is_offer: false,
+            offer_price_amount: 0,
+            offer_price_usd: 0,
+          } : variation);
+          setProductCreateGeneratorFeedback(`Precio aplicado a ${drafts.length} ${drafts.length === 1 ? 'variación' : 'variaciones'}.`);
+        } else {
+          const stock = Number(productCreateApplyStockInput?.value ?? '');
+          if (!Number.isFinite(stock) || stock < 0) {
+            setProductCreateGeneratorFeedback('Escribe un stock mayor o igual que 0 para aplicarlo.', 'error');
+            return;
+          }
+          productVariations = productVariations.map((variation) => isPendingVariationDraft(variation) ? {
+            ...variation,
+            stock: Math.floor(stock),
+          } : variation);
+          setProductCreateGeneratorFeedback(`Stock aplicado a ${drafts.length} ${drafts.length === 1 ? 'variación' : 'variaciones'}.`);
+        }
+        renderVariations();
+        updateProductFormState();
+      }
+
+      setupProductCreateWizardLayout();
 
       function openSidebar() {
         document.body.classList.add('sidebar-open');
@@ -4583,9 +5207,116 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       });
       function variationImageUrl(variation) {
+        if (variation?._draft_preview_url) return variation._draft_preview_url;
         const imageValue = Array.isArray(variation?.image) ? variation.image[0] : variation?.image;
         if (!variation?.id || !imageValue || !POCKETBASE_URL) return '';
         return `${POCKETBASE_URL}/api/files/product_variations/${encodeURIComponent(variation.id)}/${encodeURIComponent(imageValue)}?thumb=120x120`;
+      }
+
+      function isPendingVariationDraft(variation) {
+        return Boolean(variation?._draft === true || String(variation?.id || '').startsWith('draft-'));
+      }
+
+      function revokePendingVariationPreview(variation) {
+        const url = String(variation?._draft_preview_url || '');
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      }
+
+      function buildPendingVariationDraft() {
+        const editingId = variationIdInput?.value || '';
+        const previous = productVariations.find((item) => item.id === editingId && isPendingVariationDraft(item)) || null;
+        const type = variationTypeInput?.value?.trim() || 'Sabor';
+        const value = variationValueInput?.value?.trim() || '';
+        if (!value) throw new Error('Escribe el valor de la variación. Ej: Chocolate.');
+        const priceCurrency = getPriceCurrency();
+        if (!priceCurrency?.id) throw new Error('Selecciona la moneda del producto.');
+        const price = Number(variationPriceInput?.value);
+        if (CAN_MANAGE_PRODUCT_PRICE && (!Number.isFinite(price) || price <= 0)) {
+          throw new Error('Escribe un precio de venta válido para la variación.');
+        }
+        const stockRaw = String(variationStockInput?.value ?? '').trim();
+        const stock = Number(stockRaw);
+        if (CAN_MANAGE_PRODUCT_STOCK && productTracksStock() && (!stockRaw || !Number.isFinite(stock) || stock < 0)) {
+          throw new Error('Escribe un stock válido mayor o igual que 0 para la variación.');
+        }
+        const offerState = getValidVariationOfferState();
+        if (CAN_MANAGE_PRODUCT_PRICE && offerState.enabled && !offerState.valid) {
+          throw new Error('El precio de oferta debe ser mayor que 0 y menor que el precio normal de la variación.');
+        }
+        if (variationManualActive && EXPIRATION_TOOLS_ENABLED && currentVariationEffectiveStatus().expired) {
+          throw new Error('No puedes activar esta variación porque su fecha de vencimiento ya pasó.');
+        }
+        const imageFile = variationImageInput?.files?.[0] || previous?._draft_image_file || null;
+        let previewUrl = previous?._draft_preview_url || '';
+        if (variationImageInput?.files?.[0]) {
+          revokePendingVariationPreview(previous);
+          previewUrl = URL.createObjectURL(variationImageInput.files[0]);
+        }
+        const id = previous?.id || `draft-${Date.now()}-${++pendingVariationDraftSequence}`;
+        const regularPrice = Math.max(0, Number.isFinite(price) ? price : 0);
+        const cost = Math.max(0, Number(variationCostInput?.value || 0));
+        return {
+          ...(previous || {}),
+          id,
+          _draft: true,
+          _draft_image_file: imageFile,
+          _draft_preview_url: previewUrl,
+          product: '',
+          variation_type: type,
+          value,
+          price_currency: priceCurrency.id,
+          price_amount: regularPrice,
+          price_usd: amountToUsd(regularPrice, priceCurrency),
+          is_offer: offerState.valid,
+          offer_price_amount: offerState.valid ? offerState.offerPrice : 0,
+          offer_price_usd: offerState.valid ? amountToUsd(offerState.offerPrice, priceCurrency) : 0,
+          cost_amount: cost,
+          cost_usd: amountToUsd(cost, priceCurrency),
+          stock: Math.max(0, Math.floor(Number.isFinite(stock) ? stock : 0)),
+          expiration_date: EXPIRATION_TOOLS_ENABLED ? (variationExpirationDateInput?.value || '') : '',
+          internal_ref: variationRefInput?.value?.trim() || '',
+          sort_order: Math.max(0, Math.floor(Number(variationOrderInput?.value || nextVariationOrder()))),
+          active: variationManualActive,
+          allow_preorder: Boolean(variationAllowPreorderInput?.checked),
+        };
+      }
+
+      async function savePendingVariationDraft() {
+        if (!isProductCreateWizard() || !productHasVariationsInput?.checked) return false;
+        const draft = buildPendingVariationDraft();
+        const existingIndex = productVariations.findIndex((item) => item.id === draft.id);
+        if (existingIndex >= 0) productVariations[existingIndex] = draft;
+        else productVariations.push(draft);
+        renderVariations();
+        resetVariationEditor();
+        updateProductFormState();
+        setVariationAlert(existingIndex >= 0 ? 'Variación preparada correctamente.' : 'Variación añadida al producto.', 'success');
+        return true;
+      }
+
+      async function buildPendingVariationFormData(variation, productId) {
+        const formData = new FormData();
+        formData.append('product', productId);
+        formData.append('variation_type', variation.variation_type || 'Sabor');
+        formData.append('value', variation.value || '');
+        formData.append('price_currency', variation.price_currency || productPriceCurrencyInput?.value || '');
+        formData.append('price_amount', String(Math.max(0, Number(variation.price_amount || 0))));
+        formData.append('price_usd', String(Math.max(0, Number(variation.price_usd || 0))));
+        formData.append('is_offer', variation.is_offer === true ? 'true' : 'false');
+        formData.append('offer_price_amount', variation.is_offer === true ? String(Math.max(0, Number(variation.offer_price_amount || 0))) : '0');
+        formData.append('offer_price_usd', variation.is_offer === true ? String(Math.max(0, Number(variation.offer_price_usd || 0))) : '0');
+        formData.append('cost_amount', String(Math.max(0, Number(variation.cost_amount || 0))));
+        formData.append('cost_usd', String(Math.max(0, Number(variation.cost_usd || 0))));
+        formData.append('stock', String(Math.max(0, Math.floor(Number(variation.stock || 0)))));
+        if (EXPIRATION_TOOLS_ENABLED) formData.append('expiration_date', variation.expiration_date || '');
+        formData.append('internal_ref', variation.internal_ref || '');
+        formData.append('sort_order', String(Math.max(0, Math.floor(Number(variation.sort_order || 0)))));
+        formData.append('active', variation.active === false ? 'false' : 'true');
+        formData.append('allow_preorder', variation.allow_preorder === true ? 'true' : 'false');
+        if (CAN_MANAGE_PRODUCT_IMAGES && variation._draft_image_file) {
+          formData.append('image', await optimizeCatalogLikeImageFile(variation._draft_image_file));
+        }
+        return filterProductMutationBodyForAccess(formData, { create: true });
       }
       function variationThumbMarkup(variation) {
         const url = variationImageUrl(variation);
@@ -4730,7 +5461,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         ], !canManageGeneral);
         if (productPriceCurrencyInput) productPriceCurrencyInput.disabled = !CAN_MANAGE_PRODUCT_PRICE;
         if (productExtraAddBtn) productExtraAddBtn.disabled = !canManageGeneral || productExtraInfoItems.length >= PRODUCT_EXTRA_INFO_LIMIT;
-        const usesVariations = Boolean(isEditing && productHasVariationsInput?.checked);
+        const usesVariations = Boolean(productHasVariationsInput?.checked);
         if (productPriceInput) productPriceInput.disabled = !CAN_MANAGE_PRODUCT_PRICE || usesVariations || Boolean(productIsOfferInput?.checked);
         if (productCostInput) productCostInput.disabled = !CAN_MANAGE_PRODUCT_PRICE || usesVariations;
         if (productIsOfferInput) productIsOfferInput.disabled = !CAN_MANAGE_PRODUCT_PRICE || usesVariations;
@@ -4747,7 +5478,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
 
         const isEditingVariation = Boolean(variationIdInput?.value);
-        const canManageVariationGeneral = isEditingVariation ? CAN_EDIT_PRODUCTS : CAN_CREATE_PRODUCTS;
+        const isEditingVariationDraft = String(variationIdInput?.value || '').startsWith('draft-');
+        const canManageVariationGeneral = isEditingVariationDraft ? CAN_CREATE_PRODUCTS : (isEditingVariation ? CAN_EDIT_PRODUCTS : CAN_CREATE_PRODUCTS);
         setDisabled([variationTypeInput, variationValueInput, variationOrderInput, variationRefInput], !canManageVariationGeneral);
         if (variationPriceInput) variationPriceInput.disabled = !CAN_MANAGE_PRODUCT_PRICE;
         if (variationCostInput) variationCostInput.disabled = !CAN_MANAGE_PRODUCT_PRICE;
@@ -4763,13 +5495,17 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         syncVariationEffectiveVisibility();
 
         if (variationNewBtn) variationNewBtn.classList.toggle('hidden', !CAN_CREATE_PRODUCTS || !CAN_EDIT_PRODUCTS);
-        if (variationDeleteBtn) variationDeleteBtn.classList.toggle('hidden', !isEditingVariation || !CAN_DELETE_PRODUCTS);
+        if (variationDeleteBtn) {
+          const editingDraft = String(variationIdInput?.value || '').startsWith('draft-');
+          variationDeleteBtn.classList.toggle('hidden', !isEditingVariation || (!editingDraft && !CAN_DELETE_PRODUCTS));
+        }
         const canSaveProduct = isEditing ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
         if (productSaveBtn) productSaveBtn.disabled = productSaveBtn.disabled || !canSaveProduct;
         if (editorSideSaveBtn) editorSideSaveBtn.disabled = editorSideSaveBtn.disabled || !canSaveProduct;
       }
       function variationHasMinimumData() {
-        if (!productIdInput?.value) return false;
+        if (!productIdInput?.value && !isProductCreateWizard()) return false;
+        if (isProductCreateWizard() && !productHasVariationsInput?.checked) return false;
         if (!variationValueInput?.value?.trim()) return false;
         const price = Number(variationPriceInput?.value);
         if (CAN_MANAGE_PRODUCT_PRICE && (!Number.isFinite(price) || price <= 0)) return false;
@@ -4786,9 +5522,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function updateVariationFormState() {
         if (!variationSaveBtn) return;
         const isEditingVariation = Boolean(variationIdInput?.value);
+        const isEditingDraft = String(variationIdInput?.value || '').startsWith('draft-');
         const variationOfferState = getValidVariationOfferState();
         const invalidVariationOffer = variationOfferState.enabled && !variationOfferState.valid;
-        const canMutateVariation = isEditingVariation ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
+        const canMutateVariation = isEditingDraft ? CAN_CREATE_PRODUCTS : (isEditingVariation ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS);
         const canSave = canMutateVariation && variationHasMinimumData() && !invalidVariationOffer && (!isEditingVariation || hasVariationChanges());
         variationSaveBtn.disabled = isSavingVariation || !canSave;
         variationSaveBtn.textContent = isSavingVariation ? 'Guardando...' : 'Guardar variacion';
@@ -4800,14 +5537,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const name = productNameInput.value.trim();
         const trackStock = productTrackStockInput ? productTrackStockInput.checked : true;
         const isEditing = Boolean(productIdInput.value);
-        const useVariations = isEditing && productHasVariationsInput ? productHasVariationsInput.checked : false;
+        const useVariations = Boolean(productHasVariationsInput?.checked);
+        productForm?.classList.toggle('is-create-variation-enabled', isProductCreateWizard() && useVariations);
         const stockRaw = productStockInput.value;
         const hasValidStock = stockRaw !== '' && Number.isFinite(Number(stockRaw)) && Number(stockRaw) >= 0;
         const offerState = getValidOfferState();
         updateOfferFieldState();
 
         if (productHasVariationsOption) productHasVariationsOption.classList.toggle('hidden', !isEditing);
-        if (!isEditing && productHasVariationsInput) productHasVariationsInput.checked = false;
 
         if (productStockField) productStockField.classList.toggle('hidden', !CAN_MANAGE_PRODUCT_STOCK || !trackStock);
         productStockInput.disabled = !CAN_MANAGE_PRODUCT_STOCK || !trackStock || useVariations;
@@ -4829,7 +5566,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
 
         if (variationManager) {
-          const shouldShowVariationPanel = isEditing && useVariations;
+          const shouldShowVariationPanel = useVariations && (isEditing || isProductCreateWizard());
           variationManager.classList.toggle('hidden', !shouldShowVariationPanel);
           if (!shouldShowVariationPanel) closeVariationModal();
         }
@@ -4862,6 +5599,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateVariationFormState();
         updateEditorPreview();
         applyProductPermissionState();
+        updateProductCreateWizardUi();
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
           else if (missingPriceCurrency) setFormAlert('Selecciona la moneda del precio.', 'info');
@@ -5107,6 +5845,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationValueInput?.focus();
       }
       function resetVariationState() {
+        productVariations.filter(isPendingVariationDraft).forEach(revokePendingVariationPreview);
         productVariations = [];
         if (variationManager) variationManager.classList.add('hidden');
         closeVariationModal();
@@ -5198,14 +5937,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function renderVariations() {
         if (!variationsList) return;
         const currentProductId = productIdInput.value;
-        if (!currentProductId) {
+        const creatingWithDrafts = isProductCreateWizard() && Boolean(productHasVariationsInput?.checked);
+        if (!currentProductId && !creatingWithDrafts) {
           variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Guarda el producto primero para poder crear variaciones.</div>';
           updateExpirationModeState();
           updateEditorPreview();
           return;
         }
         if (!productVariations.length) {
-          variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Este producto todavía no tiene variaciones. Usa el botón Nueva variación para crear la primera.</div>';
+          variationsList.innerHTML = `<div class="variation-empty pz-variation-empty">${creatingWithDrafts ? 'Añade la primera variación. Se guardará junto con el producto al finalizar.' : 'Este producto todavía no tiene variaciones. Usa el botón Nueva variación para crear la primera.'}</div>`;
           updateExpirationModeState();
           updateEditorPreview();
           return;
@@ -5253,6 +5993,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 <div class="variation-mini-copy">
                   <div class="variation-mini-badges">
                     ${index === 0 ? '<span class="default-badge">Predeterminada</span>' : ''}
+                    ${isPendingVariationDraft(variation) ? '<span class="variation-draft-badge">Pendiente de crear</span>' : ''}
                   </div>
                   <p class="variation-name">${escapeHtml(variation.variation_type || 'Variación')}: ${escapeHtml(variation.value || 'Sin valor')}</p>
                   <p class="variation-meta">
@@ -5280,7 +6021,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </span>
               </div>
               <div class="variation-mini-actions">
-                ${CAN_EDIT_PRODUCTS ? `<span class="variation-order-actions" aria-label="Mover variacion">
+                ${isPendingVariationDraft(variation) ? `<button class="mini-btn" type="button" data-variation-action="edit">Editar</button>
+                  <button class="mini-btn danger" type="button" data-variation-action="delete">Borrar</button>` : `${CAN_EDIT_PRODUCTS ? `<span class="variation-order-actions" aria-label="Mover variacion">
                   <button class="mini-btn variation-order-btn js-variation-up" type="button" title="Subir">
                     ${adminIconSvg('up', 'pz-admin-action-icon')}
                   </button>
@@ -5315,7 +6057,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       <span>Borrar variacion</span>
                     </button>` : ''}
                   </div>
-                </div>` : ''}
+                </div>` : ''}`}
               </div>
             </article>
           `;
@@ -5332,6 +6074,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Cargando variaciones...</div>';
         const filter = encodeURIComponent(`product="${productId}"`);
+        productVariations.filter(isPendingVariationDraft).forEach(revokePendingVariationPreview);
         productVariations = await loadAllRecords('product_variations', `filter=${filter}&sort=sort_order,variation_type,value`);
         if (!EXPIRATION_TOOLS_ENABLED) {
           productVariations = productVariations.map(({ expiration_date: _ignoredExpirationDate, ...variation }) => variation);
@@ -5428,9 +6171,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setVariationAlert(variation.active === false ? 'Variacion visible nuevamente.' : 'Variacion oculta correctamente.', 'success');
       }
       async function deleteVariationWithConfirm(variationId) {
-        if (!CAN_DELETE_PRODUCTS) return;
         if (!variationId) return;
         const variation = productVariations.find((item) => item.id === variationId);
+        const pendingDraft = isPendingVariationDraft(variation);
+        if (!pendingDraft && !CAN_DELETE_PRODUCTS) return;
         const label = `${variation?.variation_type || 'Variacion'}: ${variation?.value || 'Sin valor'}`;
         const confirmed = await window.adminConfirm({
           title: 'Eliminar variacion',
@@ -5440,6 +6184,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           tone: 'danger',
         });
         if (!confirmed) return;
+        if (pendingDraft) {
+          revokePendingVariationPreview(variation);
+          productVariations = productVariations.filter((item) => item.id !== variationId);
+          resetVariationEditor();
+          renderVariations();
+          updateProductFormState();
+          setVariationAlert('Variación pendiente eliminada.', 'success');
+          return;
+        }
         await apiRequest(`/api/collections/product_variations/records/${variationId}`, { method: 'DELETE' });
         resetVariationEditor();
         await loadProductVariations(productIdInput.value);
@@ -5569,7 +6322,21 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       async function saveVariation() {
         const currentProductId = productIdInput.value;
-        if (!currentProductId || isSavingVariation || variationSaveBtn.disabled) return;
+        if (isSavingVariation || variationSaveBtn.disabled) return;
+        if (!currentProductId && isProductCreateWizard() && productHasVariationsInput?.checked) {
+          isSavingVariation = true;
+          updateVariationFormState();
+          try {
+            await savePendingVariationDraft();
+          } catch (error) {
+            setVariationAlert(error.message || 'No se pudo preparar la variación.', 'error');
+          } finally {
+            isSavingVariation = false;
+            updateVariationFormState();
+          }
+          return;
+        }
+        if (!currentProductId) return;
         const editingVariationId = variationIdInput.value;
         if (editingVariationId ? !canMutateExistingProduct() : (!CAN_CREATE_PRODUCTS || !CAN_EDIT_PRODUCTS)) return;
         const replacesGeneralExpiration = EXPIRATION_TOOLS_ENABLED
@@ -5611,6 +6378,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function resetProductForm() {
         productForm.reset();
+        setProductCreateGeneratorFeedback('');
         productInitialSnapshot = '';
         persistedHasVariations = false;
         variationModeConfirmationPending = false;
@@ -5670,6 +6438,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function closeProductEditor() {
         productEditor.classList.add('hidden');
+        productForm?.classList.remove('is-create-wizard', 'is-create-advanced-open', 'is-create-variation-enabled');
         setCatalogOverviewVisible(true);
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
@@ -5681,8 +6450,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function openNewProductEditor() {
         if (!CAN_CREATE_PRODUCTS) return;
         resetProductForm();
+        productForm?.classList.add('is-create-wizard');
+        productForm?.classList.remove('is-create-advanced-open');
+        currentProductCreateStep = 1;
         editorTitle.textContent = 'Nuevo producto';
-        editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
+        editorSubtitle.textContent = 'Crea el producto en tres pasos. Podrás completar los detalles menos frecuentes después.';
         syncProductHistoryLink();
         syncEditorLastModification();
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Nuevo producto';
@@ -5691,6 +6463,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
         updateProductFormState({ showMessage: true });
+        updateProductCreateWizardUi();
         productNameInput.focus();
       }
       async function freshProductForEditor(productId) {
@@ -5713,6 +6486,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const product = await freshProductForEditor(productId);
         if (!product) return;
         resetProductForm();
+        productForm?.classList.remove('is-create-wizard', 'is-create-advanced-open', 'is-create-variation-enabled');
         editorTitle.textContent = 'Editar producto';
         editorSubtitle.textContent = 'Completa la información para publicar este producto en tu tienda.';
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Editar producto';
@@ -5793,7 +6567,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }) || null;
       }
 
-      async function buildProductFormData({ forceHasVariations = null } = {}) {
+      async function buildProductFormData({ forceHasVariations = null, allowIncompleteDraft = false } = {}) {
         const formData = new FormData();
         const name = productNameInput.value.trim();
         const slug = slugify(name);
@@ -5827,7 +6601,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (shouldUseVariations && !hasModeEligibleVariation()) {
           throw new Error('Crea o conserva al menos una variación activa con precio válido antes de activar este modo.');
         }
-        if (!shouldUseVariations) {
+        if (!shouldUseVariations && !allowIncompleteDraft) {
           const parentError = parentCommercialValidationMessage();
           if (parentError) throw new Error(parentError);
         }
@@ -5851,21 +6625,27 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (isEditing || category) formData.append('category', category);
         if (isEditing || subcategory) formData.append('subcategory', subcategory);
         const offerState = getValidOfferState();
-        if (CAN_MANAGE_PRODUCT_PRICE && !shouldUseVariations && offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el precio normal bloqueado.');
+        if (CAN_MANAGE_PRODUCT_PRICE && !shouldUseVariations && !allowIncompleteDraft && offerState.enabled && !offerState.valid) throw new Error('El precio de oferta debe ser mayor que 0 y menor que el precio normal bloqueado.');
         const priceCurrency = getPriceCurrency();
         if (!priceCurrency?.id) throw new Error('Selecciona la moneda del precio.');
-        const regularPriceAmount = offerState.enabled ? offerState.regularPrice : readRegularPriceInput();
-        const activePriceAmount = offerState.enabled ? offerState.offerPrice : regularPriceAmount;
+        const referenceVariation = shouldUseVariations ? productVariations.find(variationIsModeEligible) : null;
+        const regularPriceAmount = referenceVariation
+          ? variationPriceAmount(referenceVariation)
+          : (offerState.enabled ? offerState.regularPrice : readRegularPriceInput());
+        const parentOfferEnabled = !shouldUseVariations && offerState.enabled && offerState.valid;
+        const activePriceAmount = parentOfferEnabled ? offerState.offerPrice : regularPriceAmount;
         const regularPriceUsd = amountToUsd(regularPriceAmount, priceCurrency);
         const activePriceUsd = amountToUsd(activePriceAmount, priceCurrency);
         formData.append('price_currency', priceCurrency.id);
         formData.append('regular_price_amount', String(regularPriceAmount));
-        formData.append('offer_price_amount', offerState.enabled ? String(offerState.offerPrice) : '0');
+        formData.append('offer_price_amount', parentOfferEnabled ? String(offerState.offerPrice) : '0');
         formData.append('base_price_usd', String(activePriceUsd));
         formData.append('regular_price_usd', String(regularPriceUsd));
-        formData.append('is_offer', offerState.enabled ? 'true' : 'false');
-        formData.append('offer_price_usd', offerState.enabled ? String(amountToUsd(offerState.offerPrice, priceCurrency)) : '0');
-        const parentCostAmount = Math.max(0, Number(productCostInput.value || 0));
+        formData.append('is_offer', parentOfferEnabled ? 'true' : 'false');
+        formData.append('offer_price_usd', parentOfferEnabled ? String(amountToUsd(offerState.offerPrice, priceCurrency)) : '0');
+        const parentCostAmount = referenceVariation
+          ? Math.max(0, Number(referenceVariation.cost_amount || 0))
+          : Math.max(0, Number(productCostInput.value || 0));
         const parentCostUsd = amountToUsd(parentCostAmount, priceCurrency);
         formData.append('cost_amount', String(parentCostAmount));
         formData.append('cost_usd', String(parentCostUsd));
@@ -5982,16 +6762,35 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
       }
 
-      async function saveProduct() {
-        if (isSavingProduct || productSaveBtn.disabled) return;
+      async function saveProduct({ asDraft = false } = {}) {
+        if (isSavingProduct || (!asDraft && productSaveBtn.disabled)) return;
         const editingId = productIdInput.value;
         if (editingId ? !canMutateExistingProduct() : !CAN_CREATE_PRODUCTS) return;
         const requestedTrackStock = CAN_MANAGE_PRODUCT_STOCK && productTracksStock();
         const requestedStock = Math.max(0, Math.floor(Number(productStockInput.value || 0)));
+        const requestedHasVariations = !editingId && Boolean(productHasVariationsInput?.checked) && hasModeEligibleVariation();
+        const creationPublishPlan = globalThis.pzProductCreateWizard?.getProductCreationPublishPlan?.({
+          asDraft,
+          usesVariations: requestedHasVariations,
+          requestedVisible: productManualActive,
+        }) || {
+          initialVisible: !(asDraft || requestedHasVariations) && productManualActive,
+          initialHasVariations: false,
+          finalVisible: !asDraft && productManualActive,
+          finalHasVariations: requestedHasVariations,
+        };
+        const pendingVariationDrafts = requestedHasVariations
+          ? getSortedVariations().filter(isPendingVariationDraft)
+          : [];
         const shouldSyncProductImages = CAN_MANAGE_PRODUCT_IMAGES && hasPendingProductImageMutation();
+        let createdProductIdDuringFlow = '';
+        const createdVariationIdsDuringFlow = [];
         let formData;
         try {
-          formData = await buildProductFormData({ forceHasVariations: editingId ? null : false });
+          formData = await buildProductFormData({
+            forceHasVariations: editingId ? null : requestedHasVariations,
+            allowIncompleteDraft: !editingId && asDraft,
+          });
         } catch (error) {
           setFormAlert(error.message || 'No se pudo preparar el producto para guardar.', 'error');
           updateProductFormState();
@@ -5999,7 +6798,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         }
         isSavingProduct = true;
         updateProductFormState();
-        setFormAlert(editingId ? 'Guardando cambios...' : 'Creando producto...', 'info');
+        setFormAlert(editingId ? 'Guardando cambios...' : (asDraft ? 'Guardando borrador...' : 'Creando producto...'), 'info');
         try {
           if (editingId) {
             const updatedProduct = await apiRequest(`/api/collections/products/records/${editingId}`, { method: 'PATCH', body: formData });
@@ -6015,52 +6814,95 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             setFormAlert('Cambios guardados correctamente', 'success');
           } else {
             let created;
-
+            const createData = new FormData();
+            formData.forEach((value, key) => createData.append(key, value));
+            if (!creationPublishPlan.initialVisible) createData.set('active', 'false');
             if (requestedTrackStock) {
               // Evita el bloqueo al crear producto nuevo con stock descontable.
               // Creamos primero igual que el flujo que ya funciona manualmente: sin stock descontable.
-              const createData = new FormData();
-              formData.forEach((value, key) => {
-                createData.append(key, value);
-              });
               createData.set(TRACK_STOCK_FIELD, 'false');
               createData.set('stock', '0');
+            }
+            if (requestedHasVariations) {
+              // El padre nace oculto y sin el modo activo. Solo se publica después
+              // de crear correctamente todas sus variaciones pendientes.
               createData.set('has_variations', 'false');
               createData.set('variation_view', 'buttons');
-              created = await apiRequest('/api/collections/products/records', { method: 'POST', body: createData });
+            }
+            created = await apiRequest('/api/collections/products/records', { method: 'POST', body: createData });
+            createdProductIdDuringFlow = created.id || '';
 
+            if (requestedTrackStock) {
               const stockPatchData = new FormData();
               stockPatchData.set(TRACK_STOCK_FIELD, 'true');
-              stockPatchData.set('stock', String(requestedStock));
-              stockPatchData.set('has_variations', 'false');
-              stockPatchData.set('variation_view', 'buttons');
+              stockPatchData.set('stock', String(requestedHasVariations ? 0 : requestedStock));
+              if (requestedHasVariations) {
+                stockPatchData.set('has_variations', 'false');
+                stockPatchData.set('variation_view', 'buttons');
+              }
               created = await apiRequest(`/api/collections/products/records/${created.id}`, { method: 'PATCH', body: stockPatchData });
-            } else {
-              created = await apiRequest('/api/collections/products/records', { method: 'POST', body: formData });
             }
             created = await syncProductImageOrder(created, shouldSyncProductImages);
 
+            if (requestedHasVariations) {
+              for (const variation of pendingVariationDrafts) {
+                const variationData = await buildPendingVariationFormData(variation, created.id);
+                const createdVariation = await apiRequest('/api/collections/product_variations/records', { method: 'POST', body: variationData });
+                if (createdVariation?.id) createdVariationIdsDuringFlow.push(createdVariation.id);
+              }
+              const enableVariationsData = new FormData();
+              enableVariationsData.set('has_variations', 'true');
+              enableVariationsData.set('variation_view', productVariationViewInput?.value || 'buttons');
+              enableVariationsData.set('active', creationPublishPlan.finalVisible ? 'true' : 'false');
+              created = await apiRequest(`/api/collections/products/records/${created.id}`, {
+                method: 'PATCH',
+                body: filterProductMutationBodyForAccess(enableVariationsData),
+              });
+            }
+
             await loadProducts();
             productIdInput.value = created.id;
+            productForm?.classList.remove('is-create-wizard', 'is-create-advanced-open', 'is-create-variation-enabled');
             syncProductHistoryLink(created.id);
             const freshCreatedProduct = products.find((item) => item.id === created.id) || created;
             syncEditorLastModification(freshCreatedProduct);
             document.dispatchEvent(new CustomEvent('pz:last-modification:refresh'));
             renderCurrentImages(freshCreatedProduct);
-            editorTitle.textContent = 'Producto creado';
-            editorSubtitle.textContent = `Producto guardado: ${created.name || productNameInput.value.trim()}`;
-            productHasVariationsInput.checked = false;
-            persistedHasVariations = false;
+            editorTitle.textContent = asDraft ? 'Borrador guardado' : 'Producto creado';
+            editorSubtitle.textContent = asDraft
+              ? `Producto guardado como oculto: ${created.name || productNameInput.value.trim()}`
+              : `Producto guardado: ${created.name || productNameInput.value.trim()}`;
+            productHasVariationsInput.checked = requestedHasVariations;
+            persistedHasVariations = requestedHasVariations;
+            if (asDraft) {
+              productManualActive = false;
+              productActiveInput.checked = false;
+            }
             if (requestedTrackStock) {
               productTrackStockInput.checked = true;
-              productStockInput.value = String(requestedStock);
+              productStockInput.value = String(requestedHasVariations ? 0 : requestedStock);
             }
+            if (requestedHasVariations) await loadProductVariations(created.id);
             setProductSnapshotFromCurrent();
-            setFormAlert('Producto creado correctamente.', 'success');
-            showPostSaveVariationNotice(created.id);
+            setFormAlert(asDraft ? 'Borrador guardado como producto oculto.' : 'Producto creado correctamente.', 'success');
           }
         } catch (error) {
-          setFormAlert(error.message || 'No se pudo guardar el producto.', 'error');
+          let partialCreationNote = '';
+          if (!editingId && createdProductIdDuringFlow && requestedHasVariations) {
+            try {
+              for (const variationId of createdVariationIdsDuringFlow.reverse()) {
+                await apiRequest(`/api/collections/product_variations/records/${variationId}`, { method: 'DELETE' });
+              }
+              await apiRequest(`/api/collections/products/records/${createdProductIdDuringFlow}`, { method: 'DELETE' });
+              createdProductIdDuringFlow = '';
+              partialCreationNote = ' No se publicó ningún registro incompleto; puedes corregirlo e intentarlo nuevamente.';
+            } catch (_) {
+              partialCreationNote = ' El producto base quedó oculto para evitar publicarlo incompleto; revísalo desde Productos antes de reintentar.';
+            }
+          } else if (!editingId && createdProductIdDuringFlow && asDraft) {
+            partialCreationNote = ' El producto base quedó guardado como oculto; puedes abrirlo desde Productos y completar sus datos.';
+          }
+          setFormAlert(`${error.message || 'No se pudo guardar el producto.'}${partialCreationNote}`, 'error');
         } finally {
           isSavingProduct = false;
           updateProductFormState();
@@ -6732,6 +7574,48 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         renderProducts();
       });
       newProductBtn?.addEventListener('click', openNewProductEditor);
+      productCreateStepButtons.forEach((button) => {
+        button.addEventListener('click', () => goToProductCreateStep(Number(button.dataset.productCreateStep || 1)));
+      });
+      productCreatePrevBtn?.addEventListener('click', () => setProductCreateStep(currentProductCreateStep - 1));
+      productCreateNextBtn?.addEventListener('click', async () => {
+        if (!isProductCreateWizard()) return;
+        if (currentProductCreateStep < 3) {
+          goToProductCreateStep(currentProductCreateStep + 1);
+          return;
+        }
+        const validation = productCreateStepValidation(2);
+        if (!validation.valid) {
+          setFormAlert(validation.message, 'info');
+          setProductCreateStep(2, { focus: false });
+          validation.focus?.focus?.();
+          return;
+        }
+        await saveProduct();
+      });
+      productCreateDraftBtn?.addEventListener('click', async () => {
+        if (!isProductCreateWizard()) return;
+        const validation = productCreateStepValidation(currentProductCreateStep, { allowDraft: true });
+        if (!validation.valid) {
+          setFormAlert(validation.message, 'info');
+          validation.focus?.focus?.();
+          return;
+        }
+        await saveProduct({ asDraft: true });
+      });
+      productCreateAdvancedToggle?.addEventListener('click', () => {
+        productForm?.classList.toggle('is-create-advanced-open');
+        updateProductCreateWizardUi();
+      });
+      productCreateHasVariationsInput?.addEventListener('change', () => {
+        if (!isProductCreateWizard() || !productHasVariationsInput) return;
+        productHasVariationsInput.checked = productCreateHasVariationsInput.checked;
+        productHasVariationsInput.dispatchEvent(new Event('change', { bubbles: true }));
+        renderVariations();
+      });
+      productCreateGenerateVariationsBtn?.addEventListener('click', generateProductCreateVariationCombinations);
+      productCreateApplyPriceBtn?.addEventListener('click', () => applyValueToPendingVariations('price'));
+      productCreateApplyStockBtn?.addEventListener('click', () => applyValueToPendingVariations('stock'));
       editorCloseBtn?.addEventListener('click', closeProductEditor);
       productCancelBtn?.addEventListener('click', closeProductEditor);
       editorSideSaveBtn?.addEventListener('click', () => productSaveBtn?.click());
@@ -6890,6 +7774,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const variationId = variationIdInput.value;
         if (!variationId) return;
         const variation = productVariations.find((item) => item.id === variationId);
+        if (isPendingVariationDraft(variation)) {
+          await deleteVariationWithConfirm(variationId);
+          return;
+        }
         const label = `${variation?.variation_type || 'Variación'}: ${variation?.value || 'Sin valor'}`;
         const confirmed = await window.adminConfirm({
           title: 'Eliminar variación',
