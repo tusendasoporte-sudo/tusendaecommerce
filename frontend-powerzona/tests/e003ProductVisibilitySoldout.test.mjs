@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { addVariationPriceSummary } from '../src/lib/publicProductAvailability.ts';
+import { calculateProductActionsMenuPosition } from '../src/lib/adminProductActionsMenu.ts';
 
 const productsAdmin = readFileSync(new URL('../src/pages/admin/products.astro', import.meta.url), 'utf8');
 
@@ -15,6 +16,43 @@ test('E003: primary admin and visibility events keep the control usable', () => 
     productsAdmin,
     /productForm\?\.addEventListener\('input',[\s\S]*?event\.target === productActiveInput \|\| event\.target === variationActiveInput\) return;[\s\S]*?updateProductFormState\(\)/,
   );
+  assert.match(
+    productsAdmin,
+    /productActiveInput\?\.addEventListener\('input', syncProductManualVisibilityFromControl\);[\s\S]*?productActiveInput\?\.addEventListener\('change', syncProductManualVisibilityFromControl\)/,
+  );
+  assert.match(productsAdmin, /freshProductForEditor[\s\S]*?cache: 'no-store'[\s\S]*?await freshProductForEditor\(productId\)/);
+});
+
+test('E003: la acción de visibilidad no se oculta en móvil y el menú evita las barras fijas', () => {
+  assert.doesNotMatch(productsAdmin, /\.row-actions \.js-product-toggle\s*\{\s*display:\s*none/);
+  assert.match(productsAdmin, /position:\s*fixed !important;[\s\S]*?--pz-product-actions-max-height/);
+
+  const nearBottom = calculateProductActionsMenuPosition({
+    triggerRect: { top: 650, right: 404, bottom: 694 },
+    menuWidth: 210,
+    menuHeight: 260,
+    viewportWidth: 420,
+    viewportHeight: 800,
+    topReserved: 96,
+    bottomReserved: 98,
+  });
+  assert.equal(nearBottom.openAbove, true);
+  assert.ok(nearBottom.top >= 96);
+  assert.ok(nearBottom.top + nearBottom.maxHeight <= 702);
+  assert.ok(nearBottom.left >= 12);
+
+  const oversized = calculateProductActionsMenuPosition({
+    triggerRect: { top: 310, right: 220, bottom: 354 },
+    menuWidth: 500,
+    menuHeight: 900,
+    viewportWidth: 420,
+    viewportHeight: 800,
+    topReserved: 96,
+    bottomReserved: 98,
+  });
+  assert.ok(oversized.maxHeight <= 606);
+  assert.ok(oversized.top >= 96);
+  assert.ok(oversized.top + oversized.maxHeight <= 702);
 });
 
 test('E003: el menú y el editor conservan las dos vías autorizadas de visibilidad', () => {

@@ -225,11 +225,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .actions-wrap { position: relative; display: inline-flex; justify-content: flex-end; }
       .actions-trigger { min-width: 44px; padding-inline: 13px; font-size: 18px; line-height: 1; }
       .actions-menu {
-        position: absolute;
-        top: calc(100% + 8px);
-        right: 0;
-        z-index: 3000;
+        position: fixed !important;
+        top: var(--pz-product-actions-top, 0px) !important;
+        left: var(--pz-product-actions-left, 0px) !important;
+        right: auto !important;
+        bottom: auto !important;
+        z-index: 10060;
         width: 210px;
+        max-height: var(--pz-product-actions-max-height, calc(100dvh - 24px));
+        overflow-y: auto;
+        overscroll-behavior: contain;
         padding: 8px;
         border-radius: 20px;
         border: 1px solid rgba(226,232,240,.96);
@@ -237,8 +242,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         box-shadow: 0 22px 55px rgba(15,23,42,.18);
       }
       .actions-menu.open-up {
-        top: auto;
-        bottom: calc(100% + 8px);
+        top: var(--pz-product-actions-top, 0px) !important;
+        bottom: auto !important;
       }
       .actions-menu::before { display: none; }
       .actions-menu button, .actions-menu a {
@@ -1494,9 +1499,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           grid-row: 1 / span 4 !important;
           align-self: center !important;
           justify-self: end !important;
-        }
-        .row-actions .js-product-toggle {
-          display: none !important;
         }
         .actions-trigger {
           width: 44px !important;
@@ -3337,6 +3339,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         isRecordManuallyActive,
         todayCivilDate,
       } from '../../lib/adminStoreProducts';
+      import { calculateProductActionsMenuPosition } from '../../lib/adminProductActionsMenu';
 
       Object.defineProperty(globalThis, 'pzProductImageDropCore', {
         value: Object.freeze({ buildProductImageDropFeedback, classifyProductImageDrop }),
@@ -3353,6 +3356,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           getVariationEditorVisibilityState,
           isRecordManuallyActive,
           todayCivilDate,
+          calculateProductActionsMenuPosition,
         }),
         configurable: true,
         enumerable: false,
@@ -5687,9 +5691,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateProductFormState({ showMessage: true });
         productNameInput.focus();
       }
-      function openEditProductEditor(productId) {
+      async function freshProductForEditor(productId) {
+        const cached = products.find((item) => item.id === productId) || null;
+        if (!cached) return null;
+        try {
+          const fresh = await apiRequest(`/api/collections/products/records/${encodeURIComponent(productId)}`, {
+            cache: 'no-store',
+          });
+          if (!fresh || fresh.id !== productId || !isCurrentStoreRecord(fresh)) return cached;
+          const index = products.findIndex((item) => item.id === productId);
+          if (index >= 0) products[index] = { ...cached, ...fresh };
+          return products[index] || fresh;
+        } catch (_) {
+          return cached;
+        }
+      }
+      async function openEditProductEditor(productId) {
         if (!canMutateExistingProduct()) return;
-        const product = products.find((item) => item.id === productId);
+        const product = await freshProductForEditor(productId);
         if (!product) return;
         resetProductForm();
         editorTitle.textContent = 'Editar producto';
@@ -6453,23 +6472,41 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           if (exceptMenu && menu === exceptMenu) return;
           menu.classList.add('hidden');
           menu.classList.remove('open-up');
+          menu.style.removeProperty('--pz-product-actions-top');
+          menu.style.removeProperty('--pz-product-actions-left');
+          menu.style.removeProperty('--pz-product-actions-max-height');
           const trigger = menu.closest('.actions-wrap')?.querySelector('.js-actions-trigger');
           trigger?.setAttribute('aria-expanded', 'false');
         });
       }
       function positionProductActionsMenu(menu, trigger) {
         if (!menu || !trigger) return;
-
         menu.classList.remove('open-up');
-        const margin = 18;
         const triggerRect = trigger.getBoundingClientRect();
-        const menuHeight = menu.offsetHeight || 150;
-        const availableBelow = window.innerHeight - triggerRect.bottom;
-        const availableAbove = triggerRect.top;
-
-        if (availableBelow < menuHeight + margin && availableAbove > menuHeight + margin) {
-          menu.classList.add('open-up');
-        }
+        const rootStyles = getComputedStyle(document.documentElement);
+        const mobile = window.matchMedia('(max-width: 1023px)').matches;
+        const topReserved = mobile
+          ? Number.parseFloat(rootStyles.getPropertyValue('--pz-admin-mobile-topbar-offset')) || 96
+          : 12;
+        const bottomReserved = mobile
+          ? Number.parseFloat(rootStyles.getPropertyValue('--pz-admin-mobile-bottom-offset')) || 98
+          : 12;
+        const position = globalThis.pzAdminStoreProducts?.calculateProductActionsMenuPosition?.({
+          triggerRect,
+          menuWidth: menu.offsetWidth || 210,
+          menuHeight: menu.scrollHeight || menu.offsetHeight || 150,
+          viewportWidth: window.innerWidth,
+          viewportHeight: window.innerHeight,
+          viewportPadding: 12,
+          topReserved,
+          bottomReserved,
+          gap: 8,
+        });
+        if (!position) return;
+        menu.style.setProperty('--pz-product-actions-top', `${position.top}px`);
+        menu.style.setProperty('--pz-product-actions-left', `${position.left}px`);
+        menu.style.setProperty('--pz-product-actions-max-height', `${position.maxHeight}px`);
+        menu.classList.toggle('open-up', position.openAbove === true);
       }
       function renderProductPagination(totalItems, fromItem, toItem, totalPages) {
         if (!productsPagination) return;
@@ -6713,12 +6750,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       });
       productStockInput?.addEventListener('input', () => updateProductFormState());
       productTrackStockInput?.addEventListener('change', () => updateProductFormState({ showMessage: true }));
-      productActiveInput?.addEventListener('change', () => {
+      const syncProductManualVisibilityFromControl = () => {
         productManualActive = Boolean(productActiveInput.checked);
         syncProductEffectiveVisibility();
         updateEditorPreview();
         updateProductFormState();
-      });
+      };
+      productActiveInput?.addEventListener('input', syncProductManualVisibilityFromControl);
+      productActiveInput?.addEventListener('change', syncProductManualVisibilityFromControl);
       productExpirationDateInput?.addEventListener('input', () => {
         updateExpirationModeState();
         updateProductFormState();

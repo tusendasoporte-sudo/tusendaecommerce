@@ -110,3 +110,30 @@ Realizar en navegador y en el emulador Android:
 10. Confirmar que un producto vencido no puede mostrarse hasta corregir o eliminar su fecha.
 
 La migración se ejecuta al desplegar PocketBase. Después del despliegue se debe recargar la página en Web y la vista del WebView en la APK.
+
+## Tercera validación manual — 13 de agosto de 2026
+
+La prueba posterior confirmó que `Marcar agotado` ya conserva correctamente el producto en la tienda pública, con estado `Agotado` y compra bloqueada. Permanecían tres defectos de interfaz:
+
+1. Algunos recorridos táctiles cambiaban visualmente `Visible en tienda`, pero el editor dependía del evento `change` para actualizar `productManualActive`; por eso Guardar podía no activarse.
+2. Si la APK cambiaba la visibilidad mientras la web seguía abierta, `openEditProductEditor` utilizaba el registro conservado en memoria y podía comparar contra un estado inicial antiguo.
+3. Una regla responsive ocultaba explícitamente `.js-product-toggle`; era la causa directa de que la APK no mostrara `Ocultar producto` o `Mostrar producto`, aunque el mismo usuario tuviera permiso y pudiera usar el checkbox.
+
+### Funciones existentes tocadas en esta revisión
+
+- `openEditProductEditor`: ahora obtiene el producto actual desde PocketBase con `cache: no-store` antes de crear el snapshot inicial. Si la consulta falla, mantiene el registro ya cargado para no inutilizar el editor.
+- `closeProductActionMenus` y `positionProductActionsMenu`: ahora limpian y calculan coordenadas fijas dentro del área útil, respetando la barra superior y la navegación inferior de la APK.
+- Manejador de `productActiveInput`: sincroniza `productManualActive` tanto con `input` como con `change`, de forma idempotente.
+- CSS responsive de Productos: se eliminó la regla que escondía `.js-product-toggle`.
+
+Se añadió `calculateProductActionsMenuPosition` como función pura para poder probar los límites del menú sin depender del navegador.
+
+### Pruebas adicionales necesarias
+
+1. Automatizada: ambos eventos de visibilidad están enlazados al mismo sincronizador.
+2. Automatizada: el editor refresca el registro antes de fijar el snapshot inicial.
+3. Automatizada: el CSS móvil no vuelve a ocultar la acción de visibilidad.
+4. Automatizada: el menú abre hacia arriba cerca de la barra inferior y limita su altura dentro del viewport.
+5. Manual web: probar visible→oculto y oculto→visible sin tocar ningún otro campo; Guardar debe activarse en ambos sentidos.
+6. Manual cruzada: cambiar visibilidad en APK, abrir después el producto en web y confirmar que el checkbox refleja el estado nuevo.
+7. Manual APK: comprobar `Ocultar producto`/`Mostrar producto` en el menú de un producto con stock y de uno agotado; todas las opciones deben permanecer accesibles sin quedar debajo de la navegación inferior.
