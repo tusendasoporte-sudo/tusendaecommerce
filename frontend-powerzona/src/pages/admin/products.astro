@@ -2726,6 +2726,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .editor-save-state.is-saving::before { background: #8b5cf6; box-shadow: 0 0 0 4px rgba(139, 92, 246, .14); }
 
       @media (min-width: 1181px) {
+        .app-shell.pz-admin-content {
+          overflow-x: clip !important;
+          overflow-y: visible !important;
+        }
         #product-editor:not(.hidden) .editor-side-column {
           position: sticky !important;
           top: 92px !important;

@@ -24,6 +24,12 @@ Se amplió `updateProductFormState()` únicamente para exponer el estado visual 
 
 También se añadió `setEditorSaveState()` como función exclusivamente visual. No realiza solicitudes al servidor ni modifica datos del producto.
 
+## Corrección posterior detectada en staging
+
+La primera validación visual mostró que la columna tenía `position: sticky`, pero continuaba desplazándose fuera de la ventana. La causa comprobada mediante estilos calculados fue el `overflow-x: hidden` global de `.app-shell`: el navegador calculaba `overflow-y: auto` y convertía ese elemento, aunque no tuviera desplazamiento propio, en el contenedor de referencia del sticky.
+
+En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-y: visible` en `.app-shell`. Se mantiene el recorte horizontal, pero se evita crear un contenedor vertical que invalide el anclaje de Vista previa. Esta corrección es exclusivamente de layout; no modifica datos ni procesos de producto.
+
 ## Pruebas automáticas necesarias
 
 1. `node --test tests/productEditorStickySave.test.mjs`
@@ -45,6 +51,7 @@ También se añadió `setEditorSaveState()` como función exclusivamente visual.
 4. Producto con variaciones: verificar que Guardar respete la exigencia de una variación activa y válida.
 5. Usuario sin permisos de edición: los campos y Guardar deben permanecer bloqueados y el mensaje debe informar la falta de permiso.
 6. Verificar que la columna fija no tape el encabezado y que su contenido pueda desplazarse en una pantalla de poca altura.
+7. Con el formulario en una posición intermedia y al final, medir visualmente que el borde superior de la columna permanezca a 92 px de la ventana y que Vista previa no salga de pantalla.
 
 ### Móvil
 
