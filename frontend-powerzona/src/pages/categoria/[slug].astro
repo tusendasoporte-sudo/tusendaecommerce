@@ -18,9 +18,10 @@ const { slug } = Astro.params;
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id, store: currentStore };
 const currentPathname = Astro.url.pathname;
-const [settings, category] = await Promise.all([
+const [settings, category, categories] = await Promise.all([
   getSettings(storeQuery),
   getCategoryBySlug(slug as string, storeQuery),
+  getCategories(storeQuery),
 ]);
 if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 if (!category) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));

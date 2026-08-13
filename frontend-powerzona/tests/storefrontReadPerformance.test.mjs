@@ -40,10 +40,14 @@ test('paginas de taxonomia no descargan el catalogo completo', () => {
   assert.match(category, /getCategoryBySlug/);
   assert.match(category, /getSubcategoriesByCategory/);
   assert.match(category, /getProductsByCategory/);
+  assert.match(category, /const \[settings, category, categories\] = await Promise\.all/);
+  assert.match(category, /getCategories\(storeQuery\)/);
   assert.doesNotMatch(category, /getProducts\(storeQuery\)/);
 
   assert.match(subcategory, /getSubcategoryBySlug/);
   assert.match(subcategory, /getProductsBySubcategory/);
+  assert.match(subcategory, /const \[settings, subcategory, categories\] = await Promise\.all/);
+  assert.match(subcategory, /getCategories\(storeQuery\)/);
   assert.doesNotMatch(subcategory, /getProducts\(storeQuery\)/);
 });
 
