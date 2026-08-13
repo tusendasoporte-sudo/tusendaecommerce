@@ -1,0 +1,112 @@
+/* =========================================================
+   PZ-GLOBAL-PAGINATION-001
+   Patron compartido: Anterior | paginas | Proximo
+   ========================================================= */
+
+:where(
+  [class*="pagination-actions"],
+  .pagination-pages,
+  .product-reviews-pages,
+  .public-reviews-pages,
+  .store-activity-pagination,
+  .master-pagination,
+  .notifications-pagination,
+  .price-history-pagination
+) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+:where(
+  [class*="pagination"] button,
+  [class*="pagination"] a,
+  [class*="pagination"] span[aria-disabled="true"],
+  [class*="pagination"] span.is-disabled,
+  .pager-btn
+) {
+  appearance: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  height: 38px !important;
+  padding: 7px 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 9px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+  font: inherit !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  font-weight: 850 !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+  cursor: pointer;
+}
+
+:where(
+  [class*="pagination"] button:hover:not(:disabled),
+  [class*="pagination"] a:hover:not([aria-disabled="true"]),
+  .pager-btn:hover:not(:disabled)
+) {
+  border-color: #2563eb !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+:where(
+  [class*="pagination"] button.active,
+  [class*="pagination"] button.is-active,
+  [class*="pagination"] a.active,
+  [class*="pagination"] a.is-active,
+  [class*="pagination"] [aria-current="page"],
+  .master-pagination > span:not(.is-disabled)
+) {
+  border-color: #2563eb !important;
+  background: #eaf4ff !important;
+  color: #0f3f67 !important;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.12) !important;
+}
+
+:where(
+  [class*="pagination"] button:disabled,
+  [class*="pagination"] a.disabled,
+  [class*="pagination"] span[aria-disabled="true"],
+  [class*="pagination"] span.is-disabled,
+  .pager-btn:disabled
+) {
+  opacity: 0.48 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+:where(
+  [class*="pagination"] button:focus-visible,
+  [class*="pagination"] a:focus-visible,
+  .pager-btn:focus-visible
+) {
+  outline: 3px solid rgba(37, 99, 235, 0.24) !important;
+  outline-offset: 2px !important;
+}
+
+@media (max-width: 480px) {
+  :where(
+    [class*="pagination"] button,
+    [class*="pagination"] a,
+    [class*="pagination"] span[aria-disabled="true"],
+    [class*="pagination"] span.is-disabled,
+    .pager-btn
+  ) {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding-inline: 10px !important;
+    font-size: 12px !important;
+  }
+}

@@ -189,7 +189,7 @@ test('V7E9-C3F1: DTO, búsqueda, detalle y OG respetan el contrato público', ()
   const jpg = source('../src/pages/api/og/producto/[storeSlug]/[slug].jpg.ts');
   const png = source('../src/pages/api/og/producto/[storeSlug]/[slug].png.ts');
   const productDto = api.slice(api.indexOf('function publicProductRecord'), api.indexOf('function addProductImages'));
-  const variationDto = api.slice(api.indexOf('function addVariationImages'), api.indexOf('function variationPublicPrice'));
+  const variationDto = api.slice(api.indexOf('function addVariationImages'), api.indexOf('async function attachVariationPriceSummary'));
 
   assert.equal(api.includes('filterPublicCatalogByExpiration'), false);
   assert.equal(api.includes('isPublicProductAllowedByExpiration'), false);

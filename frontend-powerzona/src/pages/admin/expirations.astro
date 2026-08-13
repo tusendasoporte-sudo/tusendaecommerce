@@ -625,7 +625,7 @@ Astro.response.headers.set('Referrer-Policy', 'no-referrer');
           pagination.innerHTML = [
             `<button class="expiration-page-button" type="button" data-expiration-page="${Math.max(1, page - 1)}" ${page <= 1 ? 'disabled' : ''}>Anterior</button>`,
             ...pages.map((value) => `<button class="expiration-page-button ${value === page ? 'is-active' : ''}" type="button" data-expiration-page="${value}" ${value === page ? 'aria-current="page"' : ''} aria-label="Página ${value}">${value}</button>`),
-            `<button class="expiration-page-button" type="button" data-expiration-page="${Math.min(total, page + 1)}" ${page >= total ? 'disabled' : ''}>Siguiente</button>`,
+            `<button class="expiration-page-button" type="button" data-expiration-page="${Math.min(total, page + 1)}" ${page >= total ? 'disabled' : ''}>Próximo</button>`,
           ].join('');
         }
 

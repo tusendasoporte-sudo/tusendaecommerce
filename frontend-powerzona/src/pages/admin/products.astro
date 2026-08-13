@@ -3380,7 +3380,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const CAN_MANAGE_CATEGORIES = canManageCategories === true;
       const PRODUCT_HISTORY_BASE_PATH = `/t/${encodeURIComponent(String(currentStoreSlug || ''))}/admin/products`;
       const TRACK_STOCK_FIELD = 'track_stock';
-      const PRODUCT_PAGE_SIZE = 7;
+      const PRODUCT_PAGE_SIZE = 10;
       const PRODUCT_IMAGE_PHYSICAL_LIMIT = 4;
       const ACTIVE_IMAGE_LIMIT = Number.isInteger(Number(activeImageLimit))
         ? Math.max(0, Math.min(PRODUCT_IMAGE_PHYSICAL_LIMIT, Number(activeImageLimit)))
@@ -6469,17 +6469,20 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           productsPagination.innerHTML = '';
           return;
         }
-        const pageButtons = Array.from({ length: totalPages }, (_, index) => {
-          const page = index + 1;
+        const windowSize = 5;
+        const firstPage = Math.max(1, Math.min(currentProductPage - 2, totalPages - windowSize + 1));
+        const lastPage = Math.min(totalPages, firstPage + windowSize - 1);
+        const pageButtons = Array.from({ length: lastPage - firstPage + 1 }, (_, index) => {
+          const page = firstPage + index;
           return `<button class="page-btn ${page === currentProductPage ? 'is-active' : ''}" type="button" data-page="${page}" aria-label="Ir a pagina ${page}">${page}</button>`;
         }).join('');
         productsPagination.classList.remove('hidden');
         productsPagination.innerHTML = `
-          <p class="pagination-summary">Mostrando ${fromItem} a ${toItem} de ${totalItems} productos</p>
+          <p class="pagination-summary">Mostrando ${fromItem} a ${toItem} de ${totalItems} productos · ${PRODUCT_PAGE_SIZE} por página</p>
           <div class="pagination-actions">
             <button class="page-btn" type="button" data-page="prev" ${currentProductPage <= 1 ? 'disabled' : ''}>Anterior</button>
             ${pageButtons}
-            <button class="page-btn" type="button" data-page="next" ${currentProductPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+            <button class="page-btn" type="button" data-page="next" ${currentProductPage >= totalPages ? 'disabled' : ''}>Próximo</button>
           </div>
         `;
       }
@@ -6560,7 +6563,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                         </button>`
                       : `<button class="pz-admin-dropdown-item js-product-toggle" type="button" role="menuitem">
                           ${adminIconSvg(product.active ? 'hide' : 'visible', 'pz-admin-dropdown-item-icon')}
-                          <span>${product.active ? 'Ocultar' : 'Mostrar'}</span>
+                          <span>${product.active ? 'Ocultar producto' : 'Mostrar producto'}</span>
                         </button>`) : ''}
                     ${CAN_MANAGE_PRODUCT_STOCK && !variationMode ? `<button class="pz-admin-dropdown-item danger-action js-product-soldout" type="button" role="menuitem" ${isOutOfStock ? 'disabled' : ''}>
                       ${adminIconSvg('close', 'pz-admin-dropdown-item-icon')}

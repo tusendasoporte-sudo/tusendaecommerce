@@ -137,7 +137,7 @@ const displayName = String(masterUser.display_name || masterUser.name || masterU
           </div>
         ) : <p class="master-empty">No hay productos para estos filtros.</p>}
         {data && data.page.total_pages > 1 && (
-          <footer class="master-store-footer"><p>Página {data.page.page} de {data.page.total_pages}</p><nav class="master-pagination" aria-label="Paginación">{data.page.page > 1 ? <a href={pageUrl(data.page.page - 1)}>Anterior</a> : <span class="is-disabled">Anterior</span>}<span>{data.page.page}</span>{data.page.page < data.page.total_pages ? <a href={pageUrl(data.page.page + 1)}>Siguiente</a> : <span class="is-disabled">Siguiente</span>}</nav></footer>
+          <footer class="master-store-footer"><p>Página {data.page.page} de {data.page.total_pages}</p><nav class="master-pagination" aria-label="Paginación">{data.page.page > 1 ? <a href={pageUrl(data.page.page - 1)}>Anterior</a> : <span class="is-disabled">Anterior</span>}<span>{data.page.page}</span>{data.page.page < data.page.total_pages ? <a href={pageUrl(data.page.page + 1)}>Próximo</a> : <span class="is-disabled">Próximo</span>}</nav></footer>
         )}
       </section>
     </section>

@@ -2069,11 +2069,11 @@ const variationItems = sellableVariations.map((variation) => {
 						<div class="product-reviews-pagination" data-product-reviews-pagination>
 							<span data-product-reviews-range>Mostrando 1-5 de {reviewCountLabel(productReviews.length)}</span>
 							<div class="product-reviews-pages" aria-label="Paginación de reseñas del producto">
-								<button class="product-reviews-page-btn" type="button" data-product-review-prev aria-label="Página anterior">‹</button>
+								<button class="product-reviews-page-btn" type="button" data-product-review-prev aria-label="Página anterior">Anterior</button>
 								{Array.from({ length: Math.ceil(productReviews.length / productReviewsPageSize) }).map((_, index) => (
 									<button class={`product-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-product-review-page={index + 1} aria-label={`Página ${index + 1}`}>{index + 1}</button>
 								))}
-								<button class="product-reviews-page-btn" type="button" data-product-review-next aria-label="Página siguiente">›</button>
+								<button class="product-reviews-page-btn" type="button" data-product-review-next aria-label="Página próxima">Próximo</button>
 							</div>
 						</div>
 					)}

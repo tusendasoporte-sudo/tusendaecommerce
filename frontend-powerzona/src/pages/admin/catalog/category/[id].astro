@@ -268,10 +268,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         padding: 16px 18px; margin-bottom: 18px; border-radius: 24px;
       }
       .editor-heading { display: flex; align-items: center; gap: 12px; }
-      .square-back {
-        width: 44px; height: 44px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
-        background: #fff; border: 1px solid #e2e8f0; color: #0f172a; font-size: 20px; font-weight: 1000;
-      }
       .editor-topbar .page-title { margin: 0; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -.035em; }
       .breadcrumb { margin: 5px 0 0; color: #64748b; font-size: 12px; font-weight: 850; }
       .editor-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; align-items: start; }
@@ -901,9 +897,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             mobileBackLabel="Volver a Categorías"
           />
     <div class="app-shell pz-admin-content">
-      <div class="editor-section-nav">
-        <a class="square-back" href={adminCatalogPath} aria-label="Volver a categorias">←</a>
-      </div>
       <AdminSectionHeader
         kicker="Catalogo"
         title="Editar categoria"

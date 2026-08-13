@@ -13,6 +13,10 @@ const dashboard = readFileSync(
   new URL('../src/pages/admin/index.astro', import.meta.url),
   'utf8',
 );
+const categoryEditor = readFileSync(
+  new URL('../src/pages/admin/catalog/category/[id].astro', import.meta.url),
+  'utf8',
+);
 const launcher = readFileSync(
   new URL('../../mobile-admin/app/src/main/res/mipmap-anydpi/ic_launcher.xml', import.meta.url),
   'utf8',
@@ -34,6 +38,13 @@ test('las barras moviles globales quedan ancladas a los bordes seguros', () => {
   assert.match(dockedStyles, /\.pz-admin-content\s*\{[\s\S]*?padding-top:[\s\S]*?padding-bottom:/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-topbar/);
   assert.match(dockedStyles, /html\.pz-android-app \.pz-admin-mobile-bottom-nav/);
+});
+
+test('el editor de categoria muestra un solo regreso al catalogo en movil', () => {
+  assert.match(categoryEditor, /mobileBackHref=\{adminCatalogPath\}/);
+  assert.match(categoryEditor, /mobileBackLabel="Volver a Categorías"/);
+  assert.doesNotMatch(categoryEditor, /class="square-back"/);
+  assert.doesNotMatch(categoryEditor, /\.square-back\s*\{/);
 });
 
 test('Resumen ofrece una tarjeta contextual que activa el permiso Android', () => {

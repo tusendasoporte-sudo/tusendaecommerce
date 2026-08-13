@@ -97,7 +97,7 @@ const compactMode = shouldUseCompactStoreUserList(plan.total_users);
         <span data-users-count>{formatMasterStoreUserCount(initialData.pagination.total_items)}</span>
         <div class="master-users-pagination__navigation" data-users-navigation hidden={initialData.pagination.total_pages <= 1}>
           <div class="master-users-pages" data-users-pages></div>
-          <div><button class="master-btn master-btn--secondary" type="button" data-users-previous disabled={initialData.pagination.page <= 1}>Anterior</button> <button class="master-btn master-btn--secondary" type="button" data-users-next disabled={initialData.pagination.page >= initialData.pagination.total_pages}>Siguiente</button></div>
+          <div><button class="master-btn master-btn--secondary" type="button" data-users-previous disabled={initialData.pagination.page <= 1}>Anterior</button> <button class="master-btn master-btn--secondary" type="button" data-users-next disabled={initialData.pagination.page >= initialData.pagination.total_pages}>Próximo</button></div>
         </div>
       </footer>
     </section>

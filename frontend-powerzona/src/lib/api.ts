@@ -1,6 +1,7 @@
 import { pb, getPocketBaseFileUrl } from './pocketbase';
 import { getCurrentStore } from './stores';
 import { getPublicProductImageNames } from './productImageLimits';
+import { addVariationPriceSummary } from './publicProductAvailability';
 
 type StoreQueryOptions = {
   storeId?: string;
@@ -223,77 +224,6 @@ function addVariationImages(variation: any) {
       getPocketBaseFileUrl('product_variations', variation.id, filename)
     ),
   };
-}
-
-function variationPublicPrice(variation: any) {
-  const price = Number(variation?.price_usd ?? variation?.precio_usd ?? 0);
-  const regularPrice = Number.isFinite(price) ? Math.max(0, price) : 0;
-  const offerPrice = Number(variation?.offer_price_usd ?? 0);
-  const validOffer = Boolean(variation?.is_offer) && offerPrice > 0 && offerPrice < regularPrice;
-  return validOffer ? offerPrice : regularPrice;
-}
-
-function addVariationPriceSummary(products: any[], variations: any[]) {
-  const byProduct = new Map<string, number[]>();
-  const activeCountByProduct = new Map<string, number>();
-  const availableCountByProduct = new Map<string, number>();
-  const availableStockByProduct = new Map<string, number>();
-  const availablePreorderByProduct = new Map<string, boolean>();
-  const publicLabelsByProduct = new Map<string, string[]>();
-  const productsById = new Map(products.map((product) => [product.id, product]));
-  variations.forEach((variation) => {
-    if (!variation?.product || variation.active === false) return;
-    activeCountByProduct.set(variation.product, (activeCountByProduct.get(variation.product) || 0) + 1);
-    const price = variationPublicPrice(variation);
-    if (price <= 0) return;
-    const product = productsById.get(variation.product);
-    const tracksStock = product?.track_stock !== false;
-    if (tracksStock && Number(variation.stock || 0) <= 0 && !variation.allow_preorder) return;
-    availableCountByProduct.set(variation.product, (availableCountByProduct.get(variation.product) || 0) + 1);
-    availableStockByProduct.set(variation.product, (availableStockByProduct.get(variation.product) || 0) + Math.max(0, Number(variation.stock || 0)));
-    if (variation.allow_preorder) availablePreorderByProduct.set(variation.product, true);
-    const current = byProduct.get(variation.product) || [];
-    current.push(price);
-    byProduct.set(variation.product, current);
-    const label = [variation.variation_type, variation.value]
-      .map((part) => String(part || '').trim())
-      .filter(Boolean)
-      .join(': ');
-    if (label) {
-      const labels = publicLabelsByProduct.get(variation.product) || [];
-      if (!labels.includes(label)) labels.push(label);
-      publicLabelsByProduct.set(variation.product, labels);
-    }
-  });
-
-  return products.flatMap((product) => {
-    const availablePrices = byProduct.get(product.id) || [];
-    if (!product?.has_variations) return [product];
-    const activeVariationCount = activeCountByProduct.get(product.id) || 0;
-    const availableVariationCount = availableCountByProduct.get(product.id) || 0;
-    const variationPublicAvailable = activeVariationCount > 0 && availableVariationCount > 0;
-    const variationPublicStock = availableStockByProduct.get(product.id) || 0;
-    const variationPublicAllowPreorder = availablePreorderByProduct.get(product.id) === true;
-    if (!variationPublicAvailable || !availablePrices.length) return [];
-    const minPrice = Math.min(...availablePrices);
-    const maxPrice = Math.max(...availablePrices);
-    const hasDifferentPrices = availablePrices.some((price) => price !== minPrice);
-    return [{
-      ...product,
-      variation_price_min_usd: minPrice,
-      variation_price_max_usd: maxPrice,
-      variation_price_count: availablePrices.length,
-      variation_active_count: activeVariationCount,
-      variation_available_count: availableVariationCount,
-      variation_public_available: variationPublicAvailable,
-      variation_public_stock: variationPublicStock,
-      variation_public_allow_preorder: variationPublicAllowPreorder,
-      variation_public_labels: publicLabelsByProduct.get(product.id) || [],
-      variation_has_different_prices: hasDifferentPrices,
-      public_price_usd: minPrice,
-      public_price_prefix: 'DESDE:',
-    }];
-  });
 }
 
 async function attachVariationPriceSummary(products: any[]) {

@@ -785,41 +785,56 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         font-weight: 800;
       }
       @media (max-width: 900px) {
+        /* E002-MOBILE-ORDER-CARDS: jerarquia vertical legible para la APK admin. */
         .orders-list-head {
           padding: 16px;
           align-items: flex-start;
         }
+        #orders-list-refresh-btn { display: none; }
         .orders-table-head { display: none; }
         .orders-list #orders-list {
           display: grid;
-          gap: 8px;
-          padding: 10px;
+          gap: 14px;
+          padding: 14px;
           background: #f8fafc;
         }
         .order-table-row {
           display: grid;
-          grid-template-columns: minmax(58px, 0.75fr) minmax(72px, 0.9fr) minmax(76px, 0.95fr) auto auto minmax(88px, auto);
-          align-items: center;
-          gap: 6px;
-          min-height: 48px;
-          padding: 8px 8px;
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-areas:
+            "main status"
+            "date total"
+            "delivery delivery"
+            "actions actions";
+          align-items: start;
+          gap: 18px 22px;
+          min-height: 0;
+          padding: 18px;
           border: 1px solid #e2e8f0;
-          border-radius: 14px;
+          border-radius: 22px;
           background: #ffffff;
-          box-shadow: 0 8px 18px rgba(15,23,42,.05);
-          overflow: hidden;
+          box-shadow: 0 14px 30px rgba(15,23,42,.07);
+          overflow: visible;
         }
         .order-main {
-          grid-column: 1;
+          grid-area: main;
           min-width: 0;
         }
         .order-number {
-          font-size: 11px;
+          font-size: 16px;
           font-weight: 1000;
           color: #2563eb;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+        .order-main .pz-last-modification {
+          display: flex;
+          margin-top: 7px;
+          color: #94a3b8;
+          font-size: 12px;
+          font-weight: 850;
+          line-height: 1.3;
         }
         .order-items-summary,
         .order-customer,
@@ -827,73 +842,99 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           display: none !important;
         }
         .order-date-cell {
-          grid-column: 2;
-          font-size: 10px;
-          font-weight: 850;
-          color: #475569;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          grid-area: date;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 5px;
+          color: #0f172a;
+          font-size: 14px;
+          font-weight: 950;
+          white-space: normal;
         }
         .order-total-cell {
-          grid-column: 3;
+          grid-area: total;
           display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 5px;
           justify-content: flex-start;
           text-align: left;
           min-width: 0;
         }
-        .order-total-simple {
+        .order-date-cell::before,
+        .order-total-cell::before {
+          color: #64748b;
           font-size: 11px;
+          font-weight: 900;
+          line-height: 1;
+        }
+        .order-date-cell::before { content: "Fecha"; }
+        .order-total-cell::before { content: "Total"; }
+        .order-total-simple {
+          font-size: 14px;
           font-weight: 1000;
           color: #0f172a;
           white-space: nowrap;
         }
-        .order-delivery-cell,
         .order-status-cell {
+          grid-area: status;
           display: flex;
-          justify-content: center;
+          justify-content: flex-end;
+          justify-self: end;
           min-width: 0;
+        }
+        .order-delivery-cell {
+          grid-area: delivery;
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 10px;
+          min-width: 0;
+          padding-top: 14px;
+          border-top: 1px solid #e2e8f0;
+        }
+        .order-delivery-cell::before {
+          content: "Entrega";
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 900;
         }
         .order-chip,
         .order-status-chip {
-          min-height: 22px;
-          padding: 5px 7px;
+          min-height: 30px;
+          padding: 7px 10px;
           border-radius: 999px;
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 1000;
           white-space: nowrap;
         }
-        .order-delivery-cell { grid-column: 4; }
-        .order-status-cell { grid-column: 5; }
-        .order-cell.center:not(.order-total-cell) {
-          justify-content: flex-start;
-          text-align: left;
-        }
         .order-row-actions {
-          grid-column: 6;
+          grid-area: actions;
           display: flex;
           align-items: center;
-          justify-content: flex-end;
-          gap: 5px;
-          flex-wrap: nowrap;
-          min-width: max-content;
-          padding-right: 0;
+          gap: 10px;
+          width: 100%;
+          min-width: 0;
+          padding: 0;
         }
         .order-open-btn {
-          min-width: 52px;
-          min-height: 30px;
-          padding: 7px 9px;
-          border-radius: 10px;
-          font-size: 10px;
+          flex: 1 1 auto;
+          width: 100%;
+          min-width: 0;
+          min-height: 48px;
+          padding: 12px 16px;
+          border-radius: 15px;
+          font-size: 13px;
           font-weight: 1000;
         }
         .order-delete-btn {
-          width: 30px;
-          height: 30px;
-          flex: 0 0 30px;
-          border-radius: 10px;
+          flex: 0 0 54px;
+          width: 54px;
+          height: 48px;
+          border-radius: 15px;
         }
-        .order-delete-btn svg { width: 14px; height: 14px; }
+        .order-delete-btn svg { width: 18px; height: 18px; }
         .order-select-row {
           grid-template-columns: 34px minmax(0, 1fr);
           align-items: flex-start;
@@ -2524,7 +2565,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
               <div class="order-cell center order-delivery-cell"><span class="order-chip ${deliveryClass}">${escapeHtml(deliveryLabels[deliveryMethod] || deliveryMethod || 'Coordinar')}</span></div>
               <div class="order-cell center order-status-cell"><span class="order-status-chip status-${escapeHtml(statusClass)}">${escapeHtml(getStatusLabel(order.status))}</span></div>
               <div class="order-row-actions">
-                <button class="order-open-btn js-open-order" type="button" data-order-open="${escapeHtml(order.id)}">Abrir</button>
+                <button class="order-open-btn js-open-order" type="button" data-order-open="${escapeHtml(order.id)}">Abrir pedido</button>
                 ${CAN_CANCEL_DELETE_ORDERS ? `<button class="order-delete-btn js-delete-order" type="button" data-order-delete="${escapeHtml(order.id)}" aria-label="Borrar pedido">${deleteIcon}</button>` : ''}
               </div>
             </article>`;
@@ -2605,7 +2646,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           <div class="pagination-actions">
             <button class="page-btn" type="button" data-orders-page="prev" ${currentOrdersPage === 1 ? 'disabled' : ''}>Anterior</button>
             ${pageButtons}
-            <button class="page-btn" type="button" data-orders-page="next" ${currentOrdersPage === totalPages ? 'disabled' : ''}>Siguiente</button>
+            <button class="page-btn" type="button" data-orders-page="next" ${currentOrdersPage === totalPages ? 'disabled' : ''}>Próximo</button>
           </div>`;
 
         ordersPagination.querySelectorAll('[data-orders-page]').forEach((button) => {

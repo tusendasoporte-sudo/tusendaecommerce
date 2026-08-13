@@ -149,7 +149,7 @@ const last = counts.total > 0 ? Math.min(counts.total, first + stores.length - 1
           {visiblePages(page.page, page.totalPages).map((item) => item === 'ellipsis'
             ? <span class="is-disabled" aria-hidden="true">…</span>
             : <a href={pageHref(item)} aria-current={item === page.page ? 'page' : undefined}>{item}</a>)}
-          {page.page < page.totalPages ? <a href={pageHref(page.page + 1)}>Siguiente</a> : <span class="is-disabled">Siguiente</span>}
+          {page.page < page.totalPages ? <a href={pageHref(page.page + 1)}>Próximo</a> : <span class="is-disabled">Próximo</span>}
         </nav>
       )}
     </footer>

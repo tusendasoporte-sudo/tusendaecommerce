@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./pagination.css";
 html,
 body {
   width: 100%;

@@ -2531,11 +2531,11 @@ function getProductOfferView(product: any) {
             <div class="public-reviews-pagination" data-public-reviews-pagination>
               <span data-public-reviews-range>Mostrando 1-5 de {reviewCountLabel(storeReviews.length)}</span>
               <div class="public-reviews-pages" aria-label="Paginación de reseñas">
-                <button class="public-reviews-page-btn" type="button" data-review-prev aria-label="Página anterior">‹</button>
+                <button class="public-reviews-page-btn" type="button" data-review-prev aria-label="Página anterior">Anterior</button>
                 {Array.from({ length: Math.ceil(storeReviews.length / publicReviewsPageSize) }).map((_, index) => (
                   <button class={`public-reviews-page-btn ${index === 0 ? 'active' : ''}`} type="button" data-review-page={index + 1} aria-label={`Página ${index + 1}`}>{index + 1}</button>
                 ))}
-                <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página siguiente">›</button>
+                <button class="public-reviews-page-btn" type="button" data-review-next aria-label="Página próxima">Próximo</button>
               </div>
             </div>
           )}

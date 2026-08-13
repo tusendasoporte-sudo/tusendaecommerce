@@ -365,7 +365,7 @@ function pluralIp(value: number) {
               <div class="pagination-actions">
                 <a class:list={['page-button', { disabled: networkHistory.page <= 1 }]} href={networkPageHref(Math.max(1, networkHistory.page - 1))}>Anterior</a>
                 {pageWindow(networkHistory).map((page) => <a class:list={['page-button', { 'is-active': page === networkHistory.page }]} href={networkPageHref(page)}>{page}</a>)}
-                <a class:list={['page-button', { disabled: networkHistory.page >= networkHistory.totalPages }]} href={networkPageHref(Math.min(networkHistory.totalPages, networkHistory.page + 1))}>Siguiente</a>
+                <a class:list={['page-button', { disabled: networkHistory.page >= networkHistory.totalPages }]} href={networkPageHref(Math.min(networkHistory.totalPages, networkHistory.page + 1))}>Próximo</a>
               </div>
             </div>
           )}
@@ -416,7 +416,7 @@ function pluralIp(value: number) {
                 <div class="pagination-actions">
                   <a class:list={['page-button', { disabled: orders.page <= 1 }]} href={ordersPageHref(Math.max(1, orders.page - 1))}>Anterior</a>
                   {pageWindow(orders).map((page) => <a class:list={['page-button', { 'is-active': page === orders.page }]} href={ordersPageHref(page)}>{page}</a>)}
-                  <a class:list={['page-button', { disabled: orders.page >= orders.totalPages }]} href={ordersPageHref(Math.min(orders.totalPages, orders.page + 1))}>Siguiente</a>
+                  <a class:list={['page-button', { disabled: orders.page >= orders.totalPages }]} href={ordersPageHref(Math.min(orders.totalPages, orders.page + 1))}>Próximo</a>
                 </div>
               </div>
             )}
@@ -486,7 +486,7 @@ function pluralIp(value: number) {
           <div class="pagination-actions">
             <a class:list={['page-button', { disabled: pageviews.page <= 1 }]} href={detailPageHref(Math.max(1, pageviews.page - 1))}>Anterior</a>
             {pageWindow(pageviews).map((page) => <a class:list={['page-button', { 'is-active': page === pageviews.page }]} href={detailPageHref(page)}>{page}</a>)}
-            <a class:list={['page-button', { disabled: pageviews.page >= pageviews.totalPages }]} href={detailPageHref(Math.min(pageviews.totalPages, pageviews.page + 1))}>Siguiente</a>
+            <a class:list={['page-button', { disabled: pageviews.page >= pageviews.totalPages }]} href={detailPageHref(Math.min(pageviews.totalPages, pageviews.page + 1))}>Próximo</a>
           </div>
         </div>
       </>

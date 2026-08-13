@@ -7231,7 +7231,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 				expirationPagination.innerHTML = [
 					`<button class="expiration-page-button" type="button" data-expiration-summary-page="${Math.max(1, selectedExpirationPage - 1)}" ${selectedExpirationPage <= 1 ? 'disabled' : ''}>Anterior</button>`,
 					...pages.map((value) => `<button class="expiration-page-button" type="button" data-expiration-summary-page="${value}" ${value === selectedExpirationPage ? 'aria-current="page"' : ''} aria-label="Página ${value}">${value}</button>`),
-					`<button class="expiration-page-button" type="button" data-expiration-summary-page="${Math.min(total, selectedExpirationPage + 1)}" ${selectedExpirationPage >= total ? 'disabled' : ''}>Siguiente</button>`,
+					`<button class="expiration-page-button" type="button" data-expiration-summary-page="${Math.min(total, selectedExpirationPage + 1)}" ${selectedExpirationPage >= total ? 'disabled' : ''}>Próximo</button>`,
 				].join('');
 			}
 

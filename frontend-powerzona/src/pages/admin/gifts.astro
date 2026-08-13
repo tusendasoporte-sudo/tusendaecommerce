@@ -1017,7 +1017,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           <button class="mini-btn js-gifts-page-prev" type="button" ${giftsPage <= 1 ? 'disabled' : ''}>Anterior</button>
           <span class="pagination-text">Página ${giftsPage} de ${totalPages}</span>
           ${pages.length ? `<span class="pagination-pages">${pages.map((page) => `<button class="mini-btn pagination-page ${page === giftsPage ? 'active' : ''}" data-page="${page}" type="button">${page}</button>`).join('')}</span>` : ''}
-          <button class="mini-btn js-gifts-page-next" type="button" ${giftsPage >= totalPages ? 'disabled' : ''}>Siguiente</button>
+          <button class="mini-btn js-gifts-page-next" type="button" ${giftsPage >= totalPages ? 'disabled' : ''}>Próximo</button>
         `;
         giftsPagination.querySelector('.js-gifts-page-prev')?.addEventListener('click', () => { giftsPage -= 1; renderGifts(); });
         giftsPagination.querySelector('.js-gifts-page-next')?.addEventListener('click', () => { giftsPage += 1; renderGifts(); });
