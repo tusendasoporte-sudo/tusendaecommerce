@@ -50,6 +50,18 @@ function escapePocketBaseValue(value: string) {
   return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+export function getStoreFilterForStoreId(storeId: string, fieldName = 'store') {
+  const normalizedStoreId = String(storeId || '').trim();
+  const normalizedFieldName = String(fieldName || 'store').trim() || 'store';
+  if (!normalizedStoreId) {
+    throw new StoreContextError(
+      STORE_CONTEXT_ERRORS.MISSING_STORE,
+      'No se pudo determinar la tienda para esta consulta.',
+    );
+  }
+  return `${normalizedFieldName}="${escapePocketBaseValue(normalizedStoreId)}"`;
+}
+
 function isSuspended(value: unknown) {
   return String(value || 'active').trim().toLowerCase() === 'suspended';
 }
@@ -195,5 +207,5 @@ export async function getStoreFilterForAdmin(
   options: AdminStoreContextOptions = {},
 ) {
   const storeId = await getCurrentStoreIdForAdmin(client, options);
-  return `${fieldName}="${escapePocketBaseValue(storeId)}"`;
+  return getStoreFilterForStoreId(storeId, fieldName);
 }

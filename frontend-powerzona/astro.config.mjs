@@ -9,6 +9,10 @@ export default defineConfig({
   devToolbar: {
     enabled: process.env.PZ_VISUAL_TEST !== '1',
   },
+  prefetch: {
+    prefetchAll: false,
+    defaultStrategy: 'hover',
+  },
   security: {
     checkOrigin: true,
     allowedDomains: [

@@ -27,6 +27,7 @@ interface Props {
   storeId?: string;
   pocketbaseUrl?: string;
   authToken?: string;
+  storeAccessContext?: StoreAccessContext | null;
 }
 
 const {
@@ -46,6 +47,7 @@ const {
   storeId = '',
   pocketbaseUrl = '',
   authToken = '',
+  storeAccessContext,
 } = Astro.props;
 
 const planPresentation = resolveStorePlanPresentation(storePlanValues);
@@ -164,8 +166,8 @@ const masterSupportHref = supportWhatsapp
   ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
   : (supportEmail ? `mailto:${supportEmail}?subject=${encodeURIComponent('Soporte Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 
-let resolvedStoreAccess: StoreAccessContext | null = null;
-if (pocketbaseUrl && authToken) {
+let resolvedStoreAccess: StoreAccessContext | null = storeAccessContext ?? null;
+if (storeAccessContext === undefined && pocketbaseUrl && authToken) {
   try {
     resolvedStoreAccess = await getStoreAccessContext({
       baseUrl: pocketbaseUrl,
@@ -241,6 +243,13 @@ if (securityAccess.allowed && canViewSecurity) {
 }
 const canShowPrincipalGroup = canShowOverviewNav || canShowOrdersNav;
 const canShowStoreGroup = canShowCatalogNav || canShowGiftsNav || canShowShippingNav || canShowSecurityNav || canShowSettingsGroup;
+const fastAdminNavigationPaths = new Set([
+  adminOverviewPath,
+  adminOrdersPath,
+  adminShippingPath,
+]);
+const fastPrefetchStrategy = (href: string, mobile = false) =>
+  fastAdminNavigationPaths.has(href) ? (mobile ? 'tap' : 'hover') : undefined;
 
 type MobileBottomItem = {
   target: MobileBottomTarget;
@@ -376,8 +385,8 @@ const marketingVisualSubClass = (subsection: string) => {
       </button>
       <div id="pz-admin-sidebar-principal" class={sectionPanelClass(isPrincipalSectionActive)} data-sidebar-section-panel>
         <nav class="pz-admin-sidebar__nav-list">
-      {canShowOverviewNav && <a class={navClass('overview')} href={adminOverviewPath} title={adminOverviewLabel}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>{adminOverviewLabel}</span></a>}
-      {canShowOrdersNav && <a class={navClass('orders')} href={adminOrdersPath} title="Pedidos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>}
+      {canShowOverviewNav && <a class={navClass('overview')} href={adminOverviewPath} data-astro-prefetch={fastPrefetchStrategy(adminOverviewPath)} title={adminOverviewLabel}><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V9h4v10H4Zm6 0V5h4v14h-4Zm6 0v-7h4v7h-4Z"/></svg></span><span>{adminOverviewLabel}</span></a>}
+      {canShowOrdersNav && <a class={navClass('orders')} href={adminOrdersPath} data-astro-prefetch={fastPrefetchStrategy(adminOrdersPath)} title="Pedidos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-2 2-2-2-2 2-2-2-3 2V4a1 1 0 0 1 1-1Zm3 5h6V6H9v2Zm0 4h6v-2H9v2Zm0 4h4v-2H9v2Z"/></svg></span><span>Pedidos</span></a>}
         </nav>
       </div>
     </section>}
@@ -393,7 +402,7 @@ const marketingVisualSubClass = (subsection: string) => {
       {canShowCatalogNav && <a class={navClass('catalog')} href={adminCatalogPath} title="Categorías"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>}
       {canShowCatalogNav && <a class={navClass('products')} href={adminProductsPath} title="Productos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>}
       {canShowGiftsNav && <a class={navClass('gifts')} href={adminGiftsPath} title="Regalos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>}
-      {canShowShippingNav && <a class={navClass('shipping')} href={adminShippingPath} title="Envíos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>}
+      {canShowShippingNav && <a class={navClass('shipping')} href={adminShippingPath} data-astro-prefetch={fastPrefetchStrategy(adminShippingPath)} title="Envíos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>}
       {canShowSecurityNav && (
         <a class={navClass('security')} href={adminSecurityPath} title="Seguridad"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.4 2.9 8.5 7 9.9 4.1-1.4 7-5.5 7-9.9V5l-7-3Zm0 2.2 5 2.2V11c0 3.3-2 6.5-5 7.7-3-1.2-5-4.4-5-7.7V6.4l5-2.2Zm-1 4.8h2v3.1l2.2 2.2-1.4 1.4-2.8-2.8V9Z"/></svg></span><span>Seguridad</span></a>
       )}
@@ -564,6 +573,7 @@ const marketingVisualSubClass = (subsection: string) => {
   {mobileBottomItems.map((item) => <a
     class={mobileBottomClass(item.target)}
     href={item.href}
+    data-astro-prefetch={item.external ? undefined : fastPrefetchStrategy(item.href, true)}
     target={item.external ? '_blank' : undefined}
     rel={item.external ? 'noopener noreferrer' : undefined}
   >

@@ -123,6 +123,10 @@ function renderAdminBlock(message: string) {
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  const requestStartedAt = performance.now();
+  let authDurationMs = 0;
+  let storeDurationMs = 0;
+  let permissionDurationMs = 0;
   const pathname = context.url.pathname;
   const isAdminRoute = pathname === '/admin' || pathname.startsWith('/admin/');
   const isMasterRoute = pathname === '/master' || pathname.startsWith('/master/');
@@ -144,7 +148,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return next();
   }
 
+  const authStartedAt = performance.now();
   const authPb = await refreshAuthFromCookie(context.request.headers.get('cookie') || '');
+  authDurationMs = performance.now() - authStartedAt;
+  context.locals.adminAuthPb = authPb;
 
   if (!authPb.authStore.isValid || !authPb.authStore.record) {
     if (isProfessionalAdminRoute) {
@@ -167,7 +174,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   try {
+    const storeStartedAt = performance.now();
     const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname });
+    storeDurationMs = performance.now() - storeStartedAt;
+    context.locals.adminContext = adminContext;
     const currentStoreSlug = String(adminContext.store.slug || '').trim().toLowerCase();
     const canonicalAdminPath = getStoreAdminBasePath(currentStoreSlug);
     const temporaryPath = getTemporaryPasswordRedirect(adminContext.user, currentStoreSlug)
@@ -194,11 +204,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
     if (accessRule) {
       let storeAccess;
       try {
+        const permissionStartedAt = performance.now();
         storeAccess = await getStoreAccessContext({
           baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
           token: authPb.authStore.token,
           supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined,
         });
+        permissionDurationMs = performance.now() - permissionStartedAt;
+        context.locals.storeAccessContext = storeAccess;
       } catch (_) {
         return renderAdminBlock('No se pudo validar tus permisos. Inicia sesión nuevamente.');
       }
@@ -251,5 +264,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return renderAdminBlock('No se pudo validar el acceso administrativo. Intenta nuevamente.');
   }
 
-  return next();
+  const response = await next();
+  const totalDurationMs = performance.now() - requestStartedAt;
+  response.headers.append(
+    'Server-Timing',
+    [
+      `pz-auth;dur=${authDurationMs.toFixed(1)}`,
+      `pz-store;dur=${storeDurationMs.toFixed(1)}`,
+      `pz-permissions;dur=${permissionDurationMs.toFixed(1)}`,
+      `pz-admin-total;dur=${totalDurationMs.toFixed(1)}`,
+    ].join(', '),
+  );
+  response.headers.set('X-PZ-Admin-Context', 'request-scoped');
+  return response;
 });

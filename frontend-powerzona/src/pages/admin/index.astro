@@ -4,7 +4,7 @@
 // V15 - Top 10 productos: filas modernas tipo cápsula con cantidad y total resaltados.
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { getStoreAdminPath } from '../../lib/adminRoutes';
-import { getStoreFilterForAdmin, requireCurrentStoreForAdmin } from '../../lib/storeContext';
+import { getStoreFilterForStoreId, requireCurrentStoreForAdmin } from '../../lib/storeContext';
 import { resolveStoreCapabilityAccess } from '../../lib/storeCapabilities';
 import { getStoreAccessContext } from '../../lib/storeTeam';
 import { hasStorePermission } from '../../lib/storeTeamPermissions';
@@ -15,13 +15,15 @@ import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.ast
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const currentStoreName = adminContext.store.name || 'tu tienda';
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
 const currentStoreRoleLabel = adminContext.roleLabel;
-const currentStoreFilter = await getStoreFilterForAdmin('store', authPb, { pathname: Astro.url.pathname });
+const currentStoreFilter = getStoreFilterForStoreId(currentStoreId);
 const adminAuthToken = authPb.authStore.token;
 const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
@@ -35,7 +37,8 @@ const adminShippingPath = getStoreAdminPath(currentStoreSlug, 'shipping');
 const adminPromosPath = getStoreAdminPath(currentStoreSlug, 'promos');
 const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
 const dashboardPermissionContext = { permissions: storeAccessContext?.access.permissions };
 const canViewDashboardOrders = hasStorePermission(dashboardPermissionContext, 'orders.view');
 const canViewDashboardCatalog = hasStorePermission(dashboardPermissionContext, 'catalog.view');
@@ -5215,7 +5218,7 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 		<main>
 			<section id="admin-view" class="admin-view pz-admin-content">
 				<div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
-      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="overview" />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeAccessContext={storeAccessContext} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="overview" />
 
 				<div class="main-wrap pz-admin-content-inner">
 					<AdminSectionHeader

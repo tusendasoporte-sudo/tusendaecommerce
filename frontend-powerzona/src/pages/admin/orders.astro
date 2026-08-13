@@ -11,8 +11,10 @@ import LastModificationMeta from '../../components/admin/LastModificationMeta.as
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const adminAuthToken = authPb.authStore.token;
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
@@ -28,7 +30,8 @@ const adminOrganizationPath = getStoreAdminPath(currentStoreSlug, 'organization'
 const adminTeamActivityPath = getStoreAdminPath(currentStoreSlug, 'team');
 const publicStorePath = getPublicStorePath(currentStoreSlug);
 const currentStoreName = adminContext.store.name || adminContext.store.title || currentStoreSlug || 'Tienda';
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
 const orderPermissionContext = storeAccessContext
   ? {
       permissions: storeAccessContext.access.permissions,
@@ -955,7 +958,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
     <div id="sidebar-overlay" class="sidebar-overlay" hidden></div>
 
     <div class="app-shell pz-admin-content">
-      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle={isOrderDetailPage ? 'Detalle del pedido' : 'Pedidos'} mobileActionLabel={isOrderDetailPage ? '' : 'Actualizar'} mobileActionTarget={isOrderDetailPage ? '' : '#refresh-btn'} mobileBackHref={isOrderDetailPage ? adminOrdersPath : ''} mobileBackLabel={isOrderDetailPage ? 'Volver a Pedidos' : ''} />
+      <AdminSidebar storeId={currentStoreId} pocketbaseUrl={pocketbaseUrl} authToken={adminAuthToken} storeAccessContext={storeAccessContext} storeSlug={currentStoreSlug} storeName={adminContext.store.name || adminContext.store.title || currentStoreSlug || 'PowerZona'} storePlanValues={adminContext.store} activeSection="orders" mobileTitle={isOrderDetailPage ? 'Detalle del pedido' : 'Pedidos'} mobileActionLabel={isOrderDetailPage ? '' : 'Actualizar'} mobileActionTarget={isOrderDetailPage ? '' : '#refresh-btn'} mobileBackHref={isOrderDetailPage ? adminOrdersPath : ''} mobileBackLabel={isOrderDetailPage ? 'Volver a Pedidos' : ''} />
       <LastModificationMeta
         pocketbaseUrl={pocketbaseUrl}
         enabled={storeAccessContext?.access.is_primary_admin === true}
