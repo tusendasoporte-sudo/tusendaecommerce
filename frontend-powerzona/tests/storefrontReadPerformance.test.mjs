@@ -6,12 +6,14 @@ const read = (relative) => readFileSync(new URL(relative, import.meta.url), 'utf
 
 const api = read('../src/lib/api.ts');
 const pocketbase = read('../src/lib/pocketbase.ts');
+const stores = read('../src/lib/stores.ts');
 const home = read('../src/components/public-store/PublicStoreHome.astro');
 const category = read('../src/pages/categoria/[slug].astro');
 const subcategory = read('../src/pages/subcategoria/[slug].astro');
 const product = read('../src/pages/producto/[slug].astro');
 const adminCatalog = read('../src/pages/admin/catalog.astro');
 const adminCategory = read('../src/pages/admin/catalog/category/[id].astro');
+const adminStoreSettings = read('../src/pages/admin/store-settings.astro');
 
 test('storefront SSR usa la red interna sin publicar URLs internas en imagenes', () => {
   assert.match(pocketbase, /import\.meta\.env\.SSR\s*\?\s*serverPocketBaseUrl\(\)/);
@@ -78,4 +80,23 @@ test('subida conserva WebP 1200x675 y recorta otras proporciones sin franjas', (
     assert.match(source, /canvas\.toBlob\(resolve, 'image\/webp', 0\.9\)/);
     assert.doesNotMatch(source, /ctx\.fillRect\(0, 0, targetWidth, targetHeight\)/);
   }
+});
+
+test('portada usa el WebP optimizado original y conserva miniaturas para otros contextos', () => {
+  assert.match(api, /coverImageUrl:[^\n]*thumb: '1200x420'/);
+  assert.match(api, /coverHeroImageUrl: cover \? getPocketBaseFileUrl\('settings', settings\.id, cover\) : null/);
+  assert.match(api, /coverGalleryHeroUrls: coverGallery\.map\(\(filename: string\) => getPocketBaseFileUrl\('settings', settings\.id, filename\)\)/);
+  assert.match(stores, /bannerUrl:[^\n]*thumb: '1400x500'/);
+  assert.match(stores, /bannerHeroUrl: banner \? getPocketBaseFileUrl\('stores', store\.id, banner\) : null/);
+  assert.match(home, /currentStore\?\.bannerHeroUrl[\s\S]*settings\?\.coverHeroImageUrl/);
+  assert.match(home, /settings\?\.coverGalleryHeroUrls/);
+  assert.match(home, /\.public-hero-cover img \{[^}]*object-fit: cover/);
+  assert.match(home, /\.public-hero-slide img \{[^}]*object-fit: cover/);
+});
+
+test('subida de portada respeta 1600x900 y no recomprime WebP ya optimizado', () => {
+  assert.match(adminStoreSettings, /const maxWidth = 1600;[\s\S]*const maxHeight = 900;/);
+  assert.match(adminStoreSettings, /const isReadyWebp = file\.type === 'image\/webp'/);
+  assert.match(adminStoreSettings, /bitmap\.width <= maxWidth[\s\S]*bitmap\.height <= maxHeight/);
+  assert.match(adminStoreSettings, /if \(isReadyWebp\)[\s\S]*return file;/);
 });

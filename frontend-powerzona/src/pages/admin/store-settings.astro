@@ -5799,7 +5799,14 @@ const settingsResourceId = String(footerPreviewSettings?.id || '').trim();
           try {
             const bitmap = await createImageBitmap(file);
             const maxWidth = 1600;
-            const maxHeight = 760;
+            const maxHeight = 900;
+            const isReadyWebp = file.type === 'image/webp'
+              && bitmap.width <= maxWidth
+              && bitmap.height <= maxHeight;
+            if (isReadyWebp) {
+              if (typeof bitmap.close === 'function') bitmap.close();
+              return file;
+            }
             const ratio = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
             const width = Math.max(1, Math.round(bitmap.width * ratio));
             const height = Math.max(1, Math.round(bitmap.height * ratio));

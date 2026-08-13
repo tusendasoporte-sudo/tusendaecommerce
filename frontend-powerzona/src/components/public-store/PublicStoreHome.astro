@@ -93,8 +93,14 @@ const productReviewSummaries = showProductRating
   ? await getProductReviewSummaries(Array.from(new Set([...featuredProducts, ...homepageProducts].map((product) => product.id).filter(Boolean))), storeQuery)
   : {};
 const logoImageUrl = currentStore?.logoUrl || settings?.logoImageUrl || '';
-const coverImageUrl = currentStore?.bannerUrl || settings?.coverImageUrl || '';
-const coverGalleryUrls = Array.isArray(settings?.coverGalleryUrls) ? settings.coverGalleryUrls.filter(Boolean).slice(0, 4) : [];
+const coverImageUrl = currentStore?.bannerHeroUrl
+  || settings?.coverHeroImageUrl
+  || currentStore?.bannerUrl
+  || settings?.coverImageUrl
+  || '';
+const coverGalleryUrls = Array.isArray(settings?.coverGalleryHeroUrls)
+  ? settings.coverGalleryHeroUrls.filter(Boolean).slice(0, 4)
+  : (Array.isArray(settings?.coverGalleryUrls) ? settings.coverGalleryUrls.filter(Boolean).slice(0, 4) : []);
 const heroCarouselEnabled = settings?.cover_mode === 'carousel' && coverGalleryUrls.length > 0;
 const heroCarouselImages = heroCarouselEnabled && coverGalleryUrls.length >= 2 ? coverGalleryUrls : [];
 const heroImages = heroCarouselEnabled ? coverGalleryUrls : (coverImageUrl ? [coverImageUrl] : []);
@@ -288,11 +294,11 @@ function getProductOfferView(product: any) {
     .drawer-currency-select { width: 100%; border: 1px solid rgba(255,255,255,.14); outline: none; border-radius: 16px; background: #fff; color: #111827; padding: 12px 13px; font-size: 14px; font-weight: 1000; }
     .public-hero { position: relative; overflow: hidden; border-radius: 32px; border: 1px solid rgba(226,232,240,.95); background: #111827; min-height: 260px; margin-bottom: 12px; box-shadow: 0 24px 70px rgba(15,23,42,.15); }
     .public-hero-cover { position: absolute; inset: 0; background: radial-gradient(circle at 16% 0%, rgba(34,197,94,.22), transparent 34%), linear-gradient(135deg,#111827,#1f2937); }
-    .public-hero-cover img { width: 100%; height: 100%; object-fit: contain; opacity: .72; display: block; }
+    .public-hero-cover img { width: 100%; height: 100%; object-fit: cover; opacity: .72; display: block; }
     .public-hero-cover::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(15,23,42,.82), rgba(15,23,42,.34), rgba(15,23,42,.12)); }
     .public-hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .55s ease; }
     .public-hero-slide.active { opacity: 1; }
-    .public-hero-slide img { width: 100%; height: 100%; object-fit: contain; opacity: .72; display: block; }
+    .public-hero-slide img { width: 100%; height: 100%; object-fit: cover; opacity: .72; display: block; }
     .public-hero-content { position: relative; z-index: 1; padding: clamp(22px, 5vw, 42px); color: #fff; display: grid; gap: 14px; max-width: 780px; }
     .public-hero-title { margin: 0; font-size: clamp(32px, 8vw, 62px); line-height: .95; font-weight: 1000; letter-spacing: -.06em; }
     .public-hero-text { margin: 0; max-width: 620px; color: rgba(255,255,255,.86); font-size: 16px; line-height: 1.55; font-weight: 750; }
@@ -831,7 +837,7 @@ function getProductOfferView(product: any) {
     .public-hero-cover img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       object-position: center;
       opacity: .9;
     }
@@ -1251,7 +1257,7 @@ function getProductOfferView(product: any) {
     .public-hero-slide img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       object-position: center;
       display: block;
     }
