@@ -1273,7 +1273,15 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const targetHeight = 675;
           const sourceWidth = image.naturalWidth || image.width;
           const sourceHeight = image.naturalHeight || image.height;
-          const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight, 1);
+          const isExactWebp = file.type === 'image/webp'
+            && sourceWidth === targetWidth
+            && sourceHeight === targetHeight;
+          if (isExactWebp) {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            return file;
+          }
+
+          const scale = Math.max(targetWidth / sourceWidth, targetHeight / sourceHeight);
           const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
           const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
           const dx = Math.round((targetWidth - drawWidth) / 2);
@@ -1285,11 +1293,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           const ctx = canvas.getContext('2d');
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
-          ctx.fillStyle = '#f8fbff';
-          ctx.fillRect(0, 0, targetWidth, targetHeight);
           ctx.drawImage(image, 0, 0, sourceWidth, sourceHeight, dx, dy, drawWidth, drawHeight);
 
-          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.82));
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9));
           if (objectUrl) URL.revokeObjectURL(objectUrl);
           if (!blob) return file;
           const safeName = String(file.name || 'categoria')

@@ -10,6 +10,8 @@ const home = read('../src/components/public-store/PublicStoreHome.astro');
 const category = read('../src/pages/categoria/[slug].astro');
 const subcategory = read('../src/pages/subcategoria/[slug].astro');
 const product = read('../src/pages/producto/[slug].astro');
+const adminCatalog = read('../src/pages/admin/catalog.astro');
+const adminCategory = read('../src/pages/admin/catalog/category/[id].astro');
 
 test('storefront SSR usa la red interna sin publicar URLs internas en imagenes', () => {
   assert.match(pocketbase, /import\.meta\.env\.SSR\s*\?\s*serverPocketBaseUrl\(\)/);
@@ -54,4 +56,26 @@ test('paginas de taxonomia no descargan el catalogo completo', () => {
 test('detalle obtiene solamente los productos relacionados solicitados', () => {
   assert.match(product, /getProductsByIds\(relatedProductIds, storeQuery\)/);
   assert.doesNotMatch(product, /allPublicProducts/);
+});
+
+test('imagenes de taxonomia separan miniaturas y banners de alta resolucion', () => {
+  assert.match(api, /const PUBLIC_TAXONOMY_CARD_THUMB = '480x270'/);
+  assert.match(api, /heroImageUrl:[\s\S]*getPocketBaseFileUrl\('categories', category\.id, image\)/);
+  assert.match(api, /heroImageUrl:[\s\S]*getPocketBaseFileUrl\('subcategories', subcategory\.id, image\)/);
+  assert.match(category, /categoryHeroImageUrl = category\.heroImageUrl \|\| category\.imageUrl/);
+  assert.match(category, /categoryHeroImageUrl \? <img src=\{categoryHeroImageUrl\}/);
+  assert.match(subcategory, /subcategoryHeroImageUrl = subcategory\.heroImageUrl \|\| subcategory\.imageUrl/);
+  assert.match(subcategory, /subcategoryHeroImageUrl \? <img src=\{subcategoryHeroImageUrl\}/);
+  assert.match(category, /\.category-hero img \{[^}]*object-fit: cover/);
+  assert.match(subcategory, /\.subcategory-hero img \{[^}]*object-fit: cover/);
+});
+
+test('subida conserva WebP 1200x675 y recorta otras proporciones sin franjas', () => {
+  for (const source of [adminCatalog, adminCategory]) {
+    assert.match(source, /const isExactWebp = file\.type === 'image\/webp'/);
+    assert.match(source, /sourceWidth === targetWidth[\s\S]*sourceHeight === targetHeight/);
+    assert.match(source, /const scale = Math\.max\(targetWidth \/ sourceWidth, targetHeight \/ sourceHeight\)/);
+    assert.match(source, /canvas\.toBlob\(resolve, 'image\/webp', 0\.9\)/);
+    assert.doesNotMatch(source, /ctx\.fillRect\(0, 0, targetWidth, targetHeight\)/);
+  }
 });

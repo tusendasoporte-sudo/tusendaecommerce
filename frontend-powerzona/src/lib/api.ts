@@ -98,11 +98,17 @@ export async function getSettings(options?: StoreQueryInput) {
   });
 }
 
+const PUBLIC_TAXONOMY_CARD_THUMB = '480x270';
+
 function addCategoryImage(category: any) {
+  const image = normalizeFileValue(category.image)[0] || '';
   return {
     ...category,
-    imageUrl: category.image
-      ? getPocketBaseFileUrl('categories', category.id, category.image, { thumb: '300x200' })
+    imageUrl: image
+      ? getPocketBaseFileUrl('categories', category.id, image, { thumb: PUBLIC_TAXONOMY_CARD_THUMB })
+      : null,
+    heroImageUrl: image
+      ? getPocketBaseFileUrl('categories', category.id, image)
       : null,
   };
 }
@@ -142,7 +148,10 @@ function addSubcategoryImage(subcategory: any) {
   return {
     ...subcategory,
     imageUrl: image
-      ? getPocketBaseFileUrl('subcategories', subcategory.id, image, { thumb: '300x200' })
+      ? getPocketBaseFileUrl('subcategories', subcategory.id, image, { thumb: PUBLIC_TAXONOMY_CARD_THUMB })
+      : null,
+    heroImageUrl: image
+      ? getPocketBaseFileUrl('subcategories', subcategory.id, image)
       : null,
   };
 }
