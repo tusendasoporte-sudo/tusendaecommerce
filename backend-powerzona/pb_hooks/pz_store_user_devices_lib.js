@@ -41,12 +41,12 @@ const SAFE_CODES = new Set([
 ]);
 
 const AUTH_MESSAGES = Object.freeze({
-  device_required: "Este dispositivo no estÃ¡ autorizado para acceder. Contacta al Master Admin.",
-  device_revoked: "Este dispositivo no estÃ¡ autorizado para acceder. Contacta al Master Admin.",
-  device_not_authorized: "Este dispositivo no estÃ¡ autorizado para acceder. Contacta al Master Admin.",
-  user_device_limit_reached: "Se alcanzÃ³ el lÃ­mite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.",
-  store_device_limit_reached: "Se alcanzÃ³ el lÃ­mite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.",
-  device_authorization_unavailable: "No se pudo validar este dispositivo. Intenta nuevamente mÃ¡s tarde.",
+  device_required: "Este dispositivo no está autorizado para acceder. Contacta al Master Admin.",
+  device_revoked: "Este dispositivo no está autorizado para acceder. Contacta al Master Admin.",
+  device_not_authorized: "Este dispositivo no está autorizado para acceder. Contacta al Master Admin.",
+  user_device_limit_reached: "Se alcanzó el límite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.",
+  store_device_limit_reached: "Se alcanzó el límite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.",
+  device_authorization_unavailable: "No se pudo validar este dispositivo. Intenta nuevamente más tarde.",
 });
 
 function bodyValue(body, key) {

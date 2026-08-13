@@ -1139,7 +1139,7 @@ async function runC3Browser(frontendUrl, pocketBaseUrl, fixtures, identity) {
     assert.equal((await teamActivity.innerText()).includes(identity.secondaryEmail), false, 'Actividad filtra correo eliminado');
     await screenshot(primaryPage, '14-actividad-equipo.png');
 
-    await goto(primaryPage, `${adminBasePath}/account#my-activity`, '#my-activity [data-store-activity-root]');
+    await goto(primaryPage, `${adminBasePath}/account/history`, '#my-activity [data-store-activity-root]');
     const selfActivity = primaryPage.locator('#my-activity [data-store-activity-root]');
     await pollValue(
       () => selfActivity.locator('[data-activity-refresh]').getAttribute('aria-busy'),
@@ -1516,7 +1516,7 @@ async function runBrowser(frontendUrl, pocketBaseUrl, fixtures, identity) {
     await assertActivityPrivacy(userActivity, [identity.memberEmail, fixtures.temporaryPassword, fixtures.primaryAuth.token], 'reporte individual');
     await screenshot('06-reporte-usuario.png');
 
-    await goto(`/t/${encodeURIComponent(identity.slug)}/admin/account#my-activity`, '#my-activity [data-store-activity-root]');
+    await goto(`/t/${encodeURIComponent(identity.slug)}/admin/account/history`, '#my-activity [data-store-activity-root]');
     const selfActivity = page.locator('#my-activity [data-store-activity-root]');
     await waitActivity(selfActivity, 'mi actividad');
     await center(selfActivity);

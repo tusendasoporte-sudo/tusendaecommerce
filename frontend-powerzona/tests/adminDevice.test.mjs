@@ -138,6 +138,17 @@ test('mapea límites, revocación, indisponibilidad y credenciales a mensajes se
   assert.equal(getAdminDeviceLoginMessage(new Error('password=secret')), ADMIN_DEVICE_MESSAGES.credentials);
 });
 
+test('los mensajes del cartel de acceso conservan los caracteres en español', () => {
+  assert.equal(
+    ADMIN_DEVICE_MESSAGES.limit,
+    'Se alcanzó el límite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.',
+  );
+  assert.equal(ADMIN_DEVICE_MESSAGES.unauthorized, 'Este dispositivo no está autorizado para acceder. Contacta al Master Admin.');
+  assert.equal(ADMIN_DEVICE_MESSAGES.unavailable, 'No se pudo validar este dispositivo. Intenta nuevamente más tarde.');
+  assert.equal(ADMIN_DEVICE_MESSAGES.credentials, 'Email o contraseña incorrectos.');
+  assert.equal(Object.values(ADMIN_DEVICE_MESSAGES).some((message) => message.includes('Ã')), false);
+});
+
 test('login visual usa el mapper central y no expone IDs, digest ni token', () => {
   assert.match(loginSource, /getAdminDeviceLoginMessage\(error\)/);
   assert.equal(loginSource.includes('device_digest'), false);

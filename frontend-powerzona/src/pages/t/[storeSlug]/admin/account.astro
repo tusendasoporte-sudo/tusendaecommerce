@@ -3,7 +3,6 @@ export const prerender = false;
 
 import AdminDialog from '../../../../components/admin/AdminDialog.astro';
 import AdminSidebar from '../../../../components/admin/AdminSidebar.astro';
-import StoreActivityView from '../../../../components/admin/StoreActivityView.astro';
 import { getStoreAdminPath } from '../../../../lib/adminRoutes';
 import { isMasterAdmin, isStoreStaff, refreshAuthFromCookie } from '../../../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../../../lib/storeContext';
@@ -30,6 +29,7 @@ try {
 
 const storeSlug = String(adminContext.store.slug || '').trim().toLowerCase();
 const canonicalPath = getStoreAdminPath(storeSlug, 'account');
+const activityHistoryPath = getStoreAdminPath(storeSlug, 'account/history');
 const pathSlug = String(Astro.params.storeSlug || '').trim().toLowerCase();
 if (pathSlug !== storeSlug) return Astro.redirect(canonicalPath);
 const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
@@ -101,39 +101,53 @@ const planPresentation = isPrimaryStoreAdmin
           </dl>
         </section>
 
-        <section id="my-activity" class="pz-account-card" aria-label="Mi actividad">
-          <StoreActivityView
-            mode="self"
-            pocketbaseUrl={String(import.meta.env.PUBLIC_POCKETBASE_URL || '')}
-            storeSlug={storeSlug}
-            embedded={true}
-          />
+        <section class="pz-account-action-grid" aria-label="Acciones de la cuenta">
+          <article id="my-activity" class="pz-account-card pz-account-action-card">
+            <div>
+              <span class="pz-account-action-card__eyebrow">Actividad administrativa</span>
+              <h2>Mi actividad</h2>
+              <p>Consulta los cambios administrativos realizados con tu cuenta.</p>
+            </div>
+            <a class="pz-account-primary" href={activityHistoryPath}>Ver historial</a>
+          </article>
+
+          <article class="pz-account-card pz-account-action-card">
+            <div>
+              <span class="pz-account-action-card__eyebrow">Seguridad</span>
+              <h2>Cambiar contraseña</h2>
+              <p>Actualiza tu contraseña sin abandonar la página de tu cuenta.</p>
+            </div>
+            <button class="pz-account-primary" type="button" data-open-password-dialog>Cambiar contraseña</button>
+          </article>
         </section>
 
-        <section class="pz-account-card" aria-labelledby="account-password-title">
-          <header class="pz-account-card__head">
-            <h2 id="account-password-title">Cambiar contraseña</h2>
-            <p>Asegúrate de usar una contraseña segura y única.</p>
-          </header>
-          <form id="account-password-form" class="pz-account-form" novalidate>
-            <div class="pz-account-field">
-              <label for="account-current-password">Contraseña actual</label>
-              <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-current-password" name="currentPassword" type="password" autocomplete="current-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
-            </div>
-            <div class="pz-account-field">
-              <label for="account-new-password">Nueva contraseña</label>
-              <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-new-password" name="newPassword" type="password" autocomplete="new-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
-            </div>
-            <div class="pz-account-field">
-              <label for="account-confirm-password">Confirmar nueva contraseña</label>
-              <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-confirm-password" name="newPasswordConfirm" type="password" autocomplete="new-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
-            </div>
-            <div class="pz-account-strength"><span>Seguridad</span><span class="pz-account-strength__bar" data-strength-bar></span><strong data-strength-label>Sin evaluar</strong></div>
-            <button class="pz-account-submit" type="submit">Cambiar contraseña</button>
-            <p class="pz-account-message" data-account-message aria-live="polite"></p>
-            <div class="pz-account-alert">Al cambiar tu contraseña se cerrarán todas tus sesiones activas, incluida esta sesión. Deberás iniciar sesión nuevamente.</div>
-          </form>
-        </section>
+        <dialog id="account-password-dialog" class="pz-account-dialog" aria-labelledby="account-password-title">
+          <div class="pz-account-dialog__panel">
+            <header class="pz-account-card__head">
+              <h2 id="account-password-title">Cambiar contraseña</h2>
+              <p>Asegúrate de usar una contraseña segura y única.</p>
+              <button class="pz-account-dialog__close" type="button" aria-label="Cerrar cambio de contraseña" data-close-password-dialog>×</button>
+            </header>
+            <form id="account-password-form" class="pz-account-form" novalidate>
+              <div class="pz-account-field">
+                <label for="account-current-password">Contraseña actual</label>
+                <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-current-password" name="currentPassword" type="password" autocomplete="current-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
+              </div>
+              <div class="pz-account-field">
+                <label for="account-new-password">Nueva contraseña</label>
+                <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-new-password" name="newPassword" type="password" autocomplete="new-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
+              </div>
+              <div class="pz-account-field">
+                <label for="account-confirm-password">Confirmar nueva contraseña</label>
+                <div class="pz-account-input-wrap"><input class="pz-account-input" id="account-confirm-password" name="newPasswordConfirm" type="password" autocomplete="new-password" required /><button class="pz-account-toggle" type="button" data-toggle-password aria-label="Mostrar contraseña">◉</button></div>
+              </div>
+              <div class="pz-account-strength"><span>Seguridad</span><span class="pz-account-strength__bar" data-strength-bar></span><strong data-strength-label>Sin evaluar</strong></div>
+              <button class="pz-account-submit" type="submit">Cambiar contraseña</button>
+              <p class="pz-account-message" data-account-message aria-live="polite"></p>
+              <div class="pz-account-alert">Al cambiar tu contraseña se cerrarán todas tus sesiones activas, incluida esta sesión. Deberás iniciar sesión nuevamente.</div>
+            </form>
+          </div>
+        </dialog>
 
         <section class="pz-account-card pz-account-session" aria-labelledby="account-sessions-title">
           <div><h2 id="account-sessions-title">Sesiones</h2><p>Gestiona tus sesiones activas. Se cerrarán todas, incluida esta.</p></div>
@@ -153,6 +167,9 @@ const planPresentation = isPrimaryStoreAdmin
       const newPassword = document.getElementById('account-new-password') as HTMLInputElement | null;
       const strengthBar = document.querySelector<HTMLElement>('[data-strength-bar]');
       const strengthLabel = document.querySelector<HTMLElement>('[data-strength-label]');
+      const passwordDialog = document.getElementById('account-password-dialog') as HTMLDialogElement | null;
+      const openPasswordDialog = document.querySelector<HTMLButtonElement>('[data-open-password-dialog]');
+      const closePasswordDialog = document.querySelector<HTMLButtonElement>('[data-close-password-dialog]');
 
       function strength(value: string) {
         let score = 0;
@@ -176,6 +193,23 @@ const planPresentation = isPrimaryStoreAdmin
         });
       });
       newPassword?.addEventListener('input', () => strength(newPassword.value));
+
+      openPasswordDialog?.addEventListener('click', () => {
+        if (!passwordDialog) return;
+        if (typeof passwordDialog.showModal === 'function') passwordDialog.showModal();
+        else passwordDialog.setAttribute('open', '');
+        document.getElementById('account-current-password')?.focus();
+      });
+
+      closePasswordDialog?.addEventListener('click', () => passwordDialog?.close());
+      passwordDialog?.addEventListener('click', (event) => {
+        if (event.target === passwordDialog) passwordDialog.close();
+      });
+      passwordDialog?.addEventListener('close', () => {
+        form?.reset();
+        strength('');
+        if (message) message.textContent = '';
+      });
 
       form?.addEventListener('submit', async (event) => {
         event.preventDefault();

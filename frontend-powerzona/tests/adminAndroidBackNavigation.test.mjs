@@ -17,6 +17,7 @@ const promos = read('../src/pages/admin/promos.astro');
 const storeSettings = read('../src/pages/admin/store-settings.astro');
 const productHistory = read('../src/pages/admin/products/[productId]/history.astro');
 const teamActivity = read('../src/pages/admin/team/[userId]/activity.astro');
+const accountHistory = read('../src/pages/t/[storeSlug]/admin/account/history.astro');
 const visitorDetail = read('../src/pages/t/[storeSlug]/admin/security/visitors/[visitorSessionId].astro');
 const notifications = read('../src/pages/admin/notifications.astro');
 const pageviews = read('../src/pages/admin/pageviews.astro');
@@ -76,6 +77,8 @@ test('las rutas de detalle declaran su padre aunque se abran desde enlace direct
   assert.match(pageviews, /mobileBackHref=\{adminBasePath\}/);
   assert.match(profits, /mobileBackHref=\{adminBasePath\}/);
   assert.match(raffles, /mobileBackHref=\{adminPromosPath\}/);
+  assert.match(accountHistory, /mobileBackHref=\{accountPath\}/);
+  assert.match(accountHistory, /mobileBackLabel="Volver a Mi cuenta"/);
 });
 
 test('formularios administrativos consumen Atrás y conservan sus guardas de cambios', () => {

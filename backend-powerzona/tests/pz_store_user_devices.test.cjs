@@ -35,6 +35,22 @@ test('valida exclusivamente tokens base64url de 32 bytes', () => {
   assert.equal(devices.isValidDeviceToken(`${'a'.repeat(42)}+`), false);
 });
 
+test('los errores de autorización conservan los caracteres en español', () => {
+  assert.equal(
+    devices.AUTH_MESSAGES.user_device_limit_reached,
+    'Se alcanzó el límite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.',
+  );
+  assert.equal(
+    devices.AUTH_MESSAGES.device_not_authorized,
+    'Este dispositivo no está autorizado para acceder. Contacta al Master Admin.',
+  );
+  assert.equal(
+    devices.AUTH_MESSAGES.device_authorization_unavailable,
+    'No se pudo validar este dispositivo. Intenta nuevamente más tarde.',
+  );
+  assert.equal(Object.values(devices.AUTH_MESSAGES).some((message) => message.includes('Ã')), false);
+});
+
 test('el digest es SHA-256 determinista con dominio y nunca devuelve el token', () => {
   const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
   const digest = devices.hashDeviceToken(TOKEN, sha256);

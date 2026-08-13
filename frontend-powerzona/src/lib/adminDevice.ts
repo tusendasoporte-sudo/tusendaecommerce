@@ -5,10 +5,10 @@ export const ADMIN_DEVICE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 export const ADMIN_DEVICE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 export const ADMIN_DEVICE_MESSAGES = Object.freeze({
-  limit: 'Se alcanzÃ³ el lÃ­mite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.',
-  unauthorized: 'Este dispositivo no estÃ¡ autorizado para acceder. Contacta al Master Admin.',
-  unavailable: 'No se pudo validar este dispositivo. Intenta nuevamente mÃ¡s tarde.',
-  credentials: 'Email o contrasena incorrectos.',
+  limit: 'Se alcanzó el límite de dispositivos autorizados. Pide al Master Admin que revoque uno antes de continuar.',
+  unauthorized: 'Este dispositivo no está autorizado para acceder. Contacta al Master Admin.',
+  unavailable: 'No se pudo validar este dispositivo. Intenta nuevamente más tarde.',
+  credentials: 'Email o contraseña incorrectos.',
 });
 
 type CryptoLike = Pick<Crypto, 'getRandomValues'>;

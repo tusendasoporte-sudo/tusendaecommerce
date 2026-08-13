@@ -221,6 +221,7 @@ test('M7U2-C2: UI cubre tabs, reporte, self aislado y diálogo destructivo sin r
   const activityStyles = read('../src/styles/store-activity.css');
   const middleware = read('../src/middleware.ts');
   const account = read('../src/pages/t/[storeSlug]/admin/account.astro');
+  const accountHistory = read('../src/pages/t/[storeSlug]/admin/account/history.astro');
   const report = read('../src/pages/admin/team/[userId]/activity.astro');
   const wrapper = read('../src/pages/t/[storeSlug]/admin/team/[userId]/activity.astro');
 
@@ -260,7 +261,11 @@ test('M7U2-C2: UI cubre tabs, reporte, self aislado y diálogo destructivo sin r
   assert.doesNotMatch(activity, /Deshacer/);
   assert.match(activityStyles, /@media \(max-width: 760px\)[\s\S]*?\.store-activity-item \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 
-  assert.match(account, /<StoreActivityView[\s\S]*?mode="self"/);
+  assert.match(account, /Ver historial/);
+  assert.doesNotMatch(account, /<StoreActivityView/);
+  assert.match(accountHistory, /<StoreActivityView[\s\S]*?mode="self"/);
+  assert.match(accountHistory, /filtersInitiallyOpen=\{false\}/);
+  assert.match(accountHistory, /pageSize=\{10\}/);
   assert.match(report, /<StoreActivityView[\s\S]*?mode="user"/);
   assert.match(wrapper, /AdminTeamUserActivity/);
   assert.match(middleware, /normalized === 'team' \|\| normalized\.startsWith\('team\/'\)/);

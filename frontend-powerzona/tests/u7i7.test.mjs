@@ -272,6 +272,7 @@ test('rutas canonicas y legacy existen', () => {
     'src/pages/master/stores/[storeId]/users/[userId].astro',
     'src/pages/t/[storeSlug]/admin/change-temporary-password.astro',
     'src/pages/t/[storeSlug]/admin/account.astro',
+    'src/pages/t/[storeSlug]/admin/account/history.astro',
     'src/pages/admin/change-temporary-password.astro',
     'src/pages/admin/account.astro',
   ]) assert.equal(fs.existsSync(path.join(ROOT, route)), true, route);

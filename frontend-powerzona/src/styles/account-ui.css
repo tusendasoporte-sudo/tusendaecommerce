@@ -28,6 +28,22 @@
 .pz-account-info dt { font-size: 13px; font-weight: 900; color: #334155; }
 .pz-account-info dd { min-width: 0; margin: 0; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; padding: 11px 13px; font-size: 14px; font-weight: 750; overflow-wrap: anywhere; }
 .pz-account-badge { display: inline-flex; width: max-content; border-radius: 999px; padding: 5px 9px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 950; }
+.pz-account-action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.pz-account-action-card { display: flex; min-width: 0; min-height: 210px; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.pz-account-action-card h2 { margin: 5px 0 0; font-size: 20px; font-weight: 1000; }
+.pz-account-action-card p { margin: 8px 0 0; color: var(--account-muted); font-size: 13px; line-height: 1.55; font-weight: 650; }
+.pz-account-action-card__eyebrow { color: var(--account-blue); font-size: 11px; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+.pz-account-primary { display: inline-flex; min-height: 44px; width: 100%; align-items: center; justify-content: center; border: 1px solid #1d4ed8; border-radius: 12px; background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; padding: 11px 16px; font: inherit; font-size: 14px; font-weight: 1000; text-decoration: none; cursor: pointer; }
+.pz-account-primary:hover, .pz-account-primary:focus-visible { background: #1d4ed8; box-shadow: 0 0 0 4px rgba(37,99,235,.13); outline: none; }
+.pz-account-dialog { width: min(760px, calc(100% - 32px)); max-width: none; max-height: calc(100dvh - 40px); margin: auto; padding: 0; overflow: hidden; border: 0; border-radius: 22px; background: transparent; box-shadow: 0 26px 80px rgba(15,23,42,.3); }
+.pz-account-dialog::backdrop { background: rgba(15,23,42,.56); backdrop-filter: blur(4px); }
+.pz-account-dialog__panel { position: relative; max-height: calc(100dvh - 40px); overflow-y: auto; border: 1px solid #dbe3ef; border-radius: 22px; background: #fff; padding: clamp(20px, 4vw, 32px); }
+.pz-account-dialog__panel > .pz-account-card__head { margin-right: 44px; }
+.pz-account-dialog__close { position: absolute; top: 18px; right: 18px; display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid #dbe3ef; border-radius: 12px; background: #fff; color: #334155; font-size: 24px; line-height: 1; cursor: pointer; }
+.pz-account-dialog__close:hover, .pz-account-dialog__close:focus-visible { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; outline: none; }
+.pz-account-heading--with-back { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.pz-account-heading__back { display: inline-flex; align-items: center; justify-content: center; color: var(--account-ink); text-decoration: none; }
+.pz-account-history-shell .pz-account-card { min-width: 0; }
 .pz-account-form { display: grid; gap: 14px; }
 .pz-account-field { display: grid; grid-template-columns: 190px minmax(0, 1fr); align-items: center; gap: 14px; }
 .pz-account-field label { color: #334155; font-size: 13px; line-height: 1.3; font-weight: 900; }
@@ -63,6 +79,13 @@
 @media (max-width: 700px) {
   .pz-account-shell { padding: 94px 12px 118px; }
   .pz-account-card { border-radius: 18px; padding: 16px; }
+  .pz-account-action-grid { grid-template-columns: 1fr; gap: 14px; }
+  .pz-account-action-card { min-height: 0; gap: 18px; }
+  .pz-account-dialog { width: calc(100% - 20px); max-height: calc(100dvh - 24px); border-radius: 18px; }
+  .pz-account-dialog__panel { max-height: calc(100dvh - 24px); border-radius: 18px; padding: 18px 14px 20px; }
+  .pz-account-dialog__close { top: 12px; right: 12px; }
+  .pz-account-heading--with-back { align-items: flex-start; flex-direction: column; }
+  .pz-account-heading__back { display: none; }
   .pz-account-info > div { grid-template-columns: minmax(115px, .8fr) minmax(0, 1.2fr); gap: 8px; }
   .pz-account-info dt { border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; padding: 10px; }
   .pz-account-info dd { border: 0; background: transparent; padding: 8px 2px; }

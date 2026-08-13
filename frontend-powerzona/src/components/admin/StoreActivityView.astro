@@ -9,6 +9,8 @@ interface Props {
   userName?: string;
   deferred?: boolean;
   embedded?: boolean;
+  filtersInitiallyOpen?: boolean;
+  pageSize?: number;
 }
 
 const {
@@ -19,7 +21,13 @@ const {
   userName = '',
   deferred = false,
   embedded = false,
+  filtersInitiallyOpen = true,
+  pageSize = 20,
 } = Astro.props;
+
+const resolvedPageSize = Number.isInteger(pageSize) && pageSize >= 1 && pageSize <= 100
+  ? pageSize
+  : 20;
 
 const title = mode === 'team'
   ? 'Actividad del equipo'
@@ -42,6 +50,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
   data-store-slug={storeSlug}
   data-user-id={userId}
   data-deferred={deferred ? 'true' : 'false'}
+  data-activity-page-size={resolvedPageSize}
   aria-labelledby={`${activityInstance}-title`}
 >
   <header class="store-activity-heading">
@@ -82,7 +91,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     <button type="button" data-activity-resource-filter-clear>Quitar filtro</button>
   </div>
 
-  <details class="store-activity-filters" data-activity-filter-details open>
+  <details class="store-activity-filters" data-activity-filter-details open={filtersInitiallyOpen}>
     <summary>Filtros de actividad</summary>
     <form class="store-activity-filter-form" data-activity-filter-form>
       {mode === 'team' && (
@@ -350,6 +359,10 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
     const title = root.querySelector<HTMLElement>('[data-activity-title]');
     const refreshButton = root.querySelector<HTMLButtonElement>('[data-activity-refresh]');
     const resourceFilterNotice = root.querySelector<HTMLElement>('[data-activity-resource-filter]');
+    const configuredPageSize = Number(root.dataset.activityPageSize || STORE_ACTIVITY_PAGE_SIZE);
+    const activityPageSize = Number.isInteger(configuredPageSize) && configuredPageSize >= 1 && configuredPageSize <= 100
+      ? configuredPageSize
+      : STORE_ACTIVITY_PAGE_SIZE;
 
     const detailDialog = root.querySelector<HTMLDialogElement>('[data-activity-detail-dialog]');
     const detailTitle = root.querySelector<HTMLElement>('[data-activity-detail-title]');
@@ -371,7 +384,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
 
     let events: StoreActivityEvent[] = [];
     let currentPage = 1;
-    let currentPagination: StoreActivityPagination = { page: 1, per_page: STORE_ACTIVITY_PAGE_SIZE, total_items: 0, total_pages: 1 };
+    let currentPagination: StoreActivityPagination = { page: 1, per_page: activityPageSize, total_items: 0, total_pages: 1 };
     let loading = false;
     let activated = !deferred;
     let eventRefCounter = 0;
@@ -449,7 +462,7 @@ const activityInstance = `store-activity-${mode}-${Math.random().toString(36).sl
         date_to: String(data.get('date_to') || ''),
         search: String(data.get('search') || '').trim(),
         page: currentPage,
-        per_page: STORE_ACTIVITY_PAGE_SIZE,
+        per_page: activityPageSize,
       };
     }
 

@@ -28,7 +28,7 @@ function adminAccessRule(section: string): AdminAccessRule | null {
   if (!normalized) return { all: ['analytics.view', 'orders.view', 'catalog.view'] };
   if (normalized === 'pageviews') return { any: ['analytics.view'] };
   if (normalized === 'profits') return { all: ['orders.view', 'catalog.view'] };
-  if (normalized === 'account' || normalized === 'change-temporary-password') return null;
+  if (normalized === 'account' || normalized.startsWith('account/') || normalized === 'change-temporary-password') return null;
   if (normalized === 'team' || normalized.startsWith('team/')) return { primary: true };
   if (normalized === 'products' || normalized.startsWith('products/') || normalized === 'catalog' || normalized.startsWith('catalog/')) return { any: ['catalog.view'] };
   if (normalized === 'orders' || normalized.startsWith('orders/')) return { any: ['orders.view'] };
@@ -187,7 +187,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
       ? getLegacyAdminSection(pathname)
       : String(professionalAdminMatch?.[2] || '');
     if (adminContext.isMasterSupport
-      && (requestedSection === 'account' || requestedSection === 'change-temporary-password')) {
+      && (requestedSection === 'account' || requestedSection.startsWith('account/') || requestedSection === 'change-temporary-password')) {
       return context.redirect(`/master/stores/${encodeURIComponent(adminContext.storeId)}`);
     }
     const accessRule = adminAccessRule(requestedSection);
