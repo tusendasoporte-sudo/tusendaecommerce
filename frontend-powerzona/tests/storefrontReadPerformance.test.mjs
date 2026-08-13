@@ -37,10 +37,10 @@ test('portada consolida productos y ejecuta lecturas independientes en paralelo'
 });
 
 test('paginas de taxonomia no descargan el catalogo completo', () => {
-  assert.match(category, /getCategoryBySlug/);
+  assert.match(category, /const \[settings, categories\] = await Promise\.all/);
+  assert.match(category, /const category = categories\.find/);
   assert.match(category, /getSubcategoriesByCategory/);
   assert.match(category, /getProductsByCategory/);
-  assert.match(category, /const \[settings, category, categories\] = await Promise\.all/);
   assert.match(category, /getCategories\(storeQuery\)/);
   assert.doesNotMatch(category, /getProducts\(storeQuery\)/);
 

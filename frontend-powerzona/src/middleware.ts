@@ -16,6 +16,7 @@ import {
   renderPublicUnavailable,
   renderVpnUnavailable,
 } from './lib/publicSecurity';
+import { optimizePublicCatalogResponse } from './lib/publicCatalogResponse';
 
 type AdminAccessRule = Readonly<{
   any?: readonly StorePermission[];
@@ -145,7 +146,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
           : renderPublicUnavailable();
       }
     }
-    return next();
+    const response = await next();
+    return optimizePublicCatalogResponse(context.request, response, pathname);
   }
 
   const authStartedAt = performance.now();

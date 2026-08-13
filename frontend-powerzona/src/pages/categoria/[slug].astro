@@ -4,7 +4,7 @@ import ProductCard from '../../components/ProductCard.astro';
 import PublicFooter from '../../components/PublicFooter.astro';
 import PublicCategoryActions from '../../components/PublicCategoryActions.astro';
 import StoreAnalyticsTracker from '../../components/StoreAnalyticsTracker.astro';
-import { getSettings, getCategories, getCategoryBySlug, getSubcategoriesByCategory, getProductsByCategory, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
+import { getSettings, getCategories, getSubcategoriesByCategory, getProductsByCategory, getAutomaticPromotions, getProductAutomaticPromotionText, getProductReviewSummaries } from '../../lib/api';
 import { isStoreTemporarilyClosed } from '../../lib/storeAvailability';
 import { getStoreInitials } from '../../lib/storeIdentity';
 import { getCurrentStore, getPublicPath } from '../../lib/stores';
@@ -18,12 +18,12 @@ const { slug } = Astro.params;
 const currentStore = await getCurrentStore(Astro);
 const storeQuery = { storeId: currentStore.id, store: currentStore };
 const currentPathname = Astro.url.pathname;
-const [settings, category, categories] = await Promise.all([
+const [settings, categories] = await Promise.all([
   getSettings(storeQuery),
-  getCategoryBySlug(slug as string, storeQuery),
   getCategories(storeQuery),
 ]);
 if (isStoreTemporarilyClosed(settings)) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
+const category = categories.find((item) => item.slug === slug);
 if (!category) return Astro.redirect(getPublicPath('/', currentStore, currentPathname));
 const automaticPromotionsPromise = getAutomaticPromotions(storeQuery);
 const categorySubcategories = await getSubcategoriesByCategory(category.id, storeQuery);

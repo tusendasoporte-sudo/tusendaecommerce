@@ -1,6 +1,7 @@
 import type PocketBase from 'pocketbase';
 import { isMasterAdmin } from './auth';
 import { pb, getPocketBaseFileUrl } from './pocketbase';
+import { getCachedPublicData } from './publicDataCache';
 
 export const DEFAULT_STORE_SLUG = 'powerzona';
 export const ACTIVE_STORE_STATUS = 'active';
@@ -196,15 +197,17 @@ export async function getStoreBySlug(slug: string): Promise<PublicStore | null> 
   const normalizedSlug = String(slug || '').trim().toLowerCase();
   if (!normalizedSlug) return null;
 
-  try {
-    const store = await pb.collection('stores').getFirstListItem(
-      `slug="${escapePocketBaseValue(normalizedSlug)}" && status="${ACTIVE_STORE_STATUS}"`
-    ) as PublicStore;
-    return addStoreImages(store);
-  } catch (error: any) {
-    if (error?.status === 404) return null;
-    throw error;
-  }
+  return getCachedPublicData(`store:${normalizedSlug}`, async () => {
+    try {
+      const store = await pb.collection('stores').getFirstListItem(
+        `slug="${escapePocketBaseValue(normalizedSlug)}" && status="${ACTIVE_STORE_STATUS}"`
+      ) as PublicStore;
+      return addStoreImages(store);
+    } catch (error: any) {
+      if (error?.status === 404) return null;
+      throw error;
+    }
+  });
 }
 
 export async function getStoreBySlugAnyStatus(slug: string): Promise<PublicStore | null> {
