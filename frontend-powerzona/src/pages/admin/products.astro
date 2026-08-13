@@ -6809,6 +6809,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function assertProductMutationAllowed(path, options = {}) {
         const method = String(options.method || 'GET').toUpperCase();
         if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
+        if (/^\/api\/pz\/admin\/read\/products-bootstrap(?:\?|$)/.test(path)) {
+          if (method !== 'POST') throw new Error('Esta accion no esta habilitada para tu perfil.');
+          return;
+        }
         if (/^\/api\/pz\/admin\/product-expirations(?:\/|$)/.test(path)) {
           if (!EXPIRATION_TOOLS_ENABLED) throw new Error('No tienes permiso para gestionar vencimientos.');
           return;
@@ -7309,21 +7313,21 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (refreshBtn) refreshBtn.disabled = true;
         productsList.innerHTML = '<div class="empty-state">Cargando productos...</div>';
         try {
-          const [categoryRecords, subcategoryRecords, productRecords, currencyRecords, activeShippingZoneRecords] = await Promise.all([
-            loadAllRecords('categories', withStoreFilter('sort=order,name')),
-            loadAllRecords('subcategories', withStoreFilter('sort=order,name')),
-            loadAllRecords('products', withStoreFilter('sort=name')),
-            loadAllRecords('currencies', withStoreFilter('sort=-is_default,-is_base,code')),
-            loadAllRecords('shipping_zones', withStoreFilter('filter=active=true&fields=id')).catch(() => null),
-          ]);
-          categories = categoryRecords;
-          subcategories = subcategoryRecords;
+          const result = await apiRequest('/api/pz/admin/read/products-bootstrap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ store_id: CURRENT_STORE_ID }),
+            cache: 'no-store',
+          });
+          const data = result?.data || {};
+          categories = Array.isArray(data.categories) ? data.categories : [];
+          subcategories = Array.isArray(data.subcategories) ? data.subcategories : [];
+          const productRecords = Array.isArray(data.products) ? data.products : [];
+          const currencyRecords = Array.isArray(data.currencies) ? data.currencies : [];
           currencies = currencyRecords.filter((currency) => Number(currency.exchange_rate || 0) > 0);
           renderPriceCurrencyOptions(productPriceCurrencyInput?.value || getDefaultPriceCurrency()?.id || '');
-          if (Array.isArray(activeShippingZoneRecords)) {
-            shippingZoneConfigurationLoaded = true;
-            hasActiveShippingZones = activeShippingZoneRecords.length > 0;
-          }
+          shippingZoneConfigurationLoaded = true;
+          hasActiveShippingZones = Number(data.active_shipping_zone_count || 0) > 0;
           products = EXPIRATION_TOOLS_ENABLED
             ? productRecords
             : productRecords.map(({ expiration_date: _ignoredExpirationDate, ...product }) => product);

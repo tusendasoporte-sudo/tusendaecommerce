@@ -1436,7 +1436,9 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
       let orderItemsByOrder = {};
       let productCatalog = [];
       let productVariations = [];
+      let productCatalogLoaded = false;
       let shippingZones = [];
+      let shippingZonesLoaded = false;
       let selectedAddProduct = null;
       let adjustmentItem = null;
       let adjustmentPreviousFocus = null;
@@ -1805,6 +1807,11 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         const method = String(options.method || 'GET').toUpperCase();
         if (!['POST', 'PATCH', 'PUT', 'DELETE'].includes(method)) return;
 
+        if (/^\/api\/pz\/admin\/read\/orders-bootstrap(?:\?|$)/.test(path)) {
+          if (method !== 'POST') throw new Error('Esta accion no esta habilitada para tu perfil.');
+          return;
+        }
+
         if (/^\/api\/pz\/admin\/orders\/[^/]+\/transition(?:\?|$)/.test(path)) {
           const status = String(parseMutationJsonBody(options.body).status || '').trim().toLowerCase();
           const allowed = status === 'cancelled' ? CAN_CANCEL_DELETE_ORDERS : CAN_MANAGE_ORDER_STATUS;
@@ -1899,9 +1906,23 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         ordersList.innerHTML = '<div class="empty-state">Cargando órdenes...</div>';
         refreshBtn.disabled = true;
         try {
-          const result = await apiRequest(`/api/collections/orders/records?${withStoreFilter('sort=-created&expand=shipping_zone,currency&perPage=200')}`);
-          orders = result.items || [];
-          await loadOrderItemSummaries();
+          const result = await apiRequest('/api/pz/admin/read/orders-bootstrap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ store_id: CURRENT_STORE_ID }),
+            cache: 'no-store',
+          });
+          const data = result?.data || {};
+          orders = (Array.isArray(data.orders) ? data.orders : []).map(redactOrderForCurrentPermissions);
+          orderItemsByOrder = {};
+          (Array.isArray(data.order_items) ? data.order_items : []).forEach((item) => {
+            const orderId = item?.order;
+            if (!orderId) return;
+            if (!orderItemsByOrder[orderId]) orderItemsByOrder[orderId] = [];
+            orderItemsByOrder[orderId].push(item);
+          });
+          storeSettingsRecord = data.settings || null;
+          updateReviewRequestButtonState();
           adminSubtitle.textContent = `${orders.length} órdenes encontradas. Última actualización: ${formatDate(new Date().toISOString())}.`;
           renderStats();
           renderOrders();
@@ -1967,6 +1988,7 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
       }
 
       async function loadProductCatalog() {
+        if (productCatalogLoaded) return;
         try {
           const [productsResult, variationsResult] = await Promise.all([
             apiRequest(`/api/collections/products/records?${withStoreFilter('sort=name&perPage=500')}`),
@@ -1974,21 +1996,32 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
           ]);
           productCatalog = productsResult.items || [];
           productVariations = variationsResult.items || [];
+          productCatalogLoaded = true;
           resetAddProductForm();
         } catch (error) {
           productCatalog = [];
           productVariations = [];
+          productCatalogLoaded = false;
           resetAddProductForm('No se pudieron cargar los productos. Revisa las reglas de products y product_variations.');
         }
       }
 
       async function loadShippingZones() {
+        if (shippingZonesLoaded) return;
         try {
           const result = await apiRequest(`/api/collections/shipping_zones/records?${withStoreFilter('sort=municipality,zone&perPage=500')}`);
           shippingZones = result.items || [];
+          shippingZonesLoaded = true;
           renderShippingMunicipalities();
+          if (selectedOrder) {
+            const currentZone = selectedOrder.expand?.shipping_zone || getShippingZoneById(selectedOrder.shipping_zone);
+            renderShippingMunicipalities(currentZone?.municipality || '');
+            renderShippingZoneOptions(selectedOrder.shipping_zone || currentZone?.id || '');
+            updateDeliveryEditorVisibility();
+          }
         } catch (error) {
           shippingZones = [];
+          shippingZonesLoaded = false;
           renderShippingMunicipalities();
         }
       }
@@ -4011,7 +4044,6 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         });
       }
       const refreshOrdersView = () => {
-        loadStoreSettings();
         loadOrders();
       };
       refreshBtn.addEventListener('click', refreshOrdersView);
@@ -4021,7 +4053,11 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
       statusFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
       deliveryFilter.addEventListener('change', () => { currentOrdersPage = 1; renderOrders(); });
       saveOrderBtn.addEventListener('click', () => saveSelectedOrder());
-      toggleEditOrderBtn?.addEventListener('click', () => setEditOrderPanel(editOrderPanel?.classList.contains('hidden')));
+      toggleEditOrderBtn?.addEventListener('click', async () => {
+        const opening = editOrderPanel?.classList.contains('hidden');
+        if (opening && CAN_MANAGE_ORDER_SHIPPING) await loadShippingZones();
+        setEditOrderPanel(opening);
+      });
       closeEditOrderBtn?.addEventListener('click', () => setEditOrderPanel(false));
       editDeliveryMethod?.addEventListener('change', () => {
         updateDeliveryEditorVisibility();
@@ -4109,9 +4145,6 @@ const adminOrderHistoryPath = /^[a-z0-9]{15}$/.test(initialOrderId)
         ordersList.innerHTML = '<div class="empty-state">Falta PUBLIC_POCKETBASE_URL en el archivo .env del frontend.</div>';
       } else if (getAdminToken()) {
         showAdmin();
-        if (CAN_MANAGE_ORDER_ITEMS) loadProductCatalog();
-        if (CAN_MANAGE_ORDER_SHIPPING) loadShippingZones();
-        if (CAN_MANAGE_ORDER_REVIEWS) loadStoreSettings();
         loadOrders();
       } else {
         showAdmin();
