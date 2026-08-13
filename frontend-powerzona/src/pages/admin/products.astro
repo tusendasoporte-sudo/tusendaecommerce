@@ -1206,6 +1206,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .product-editor-disclosure-icon {
         display: none !important;
       }
+      .variation-manager-toggle {
+        display: none !important;
+      }
       .editor-status-chips {
         display: flex !important;
         gap: 8px !important;
@@ -2955,6 +2958,70 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         #product-editor:not(.hidden) .product-editor-disclosure-content {
           margin-top: 12px !important;
         }
+        #product-editor:not(.hidden) #variation-manager .variation-manager-toggle {
+          width: 100% !important;
+          min-height: 52px !important;
+          display: flex !important;
+          align-items: center !important;
+          flex-wrap: wrap !important;
+          gap: 10px !important;
+          padding: 0 !important;
+          border: 0 !important;
+          background: transparent !important;
+          color: #0f172a !important;
+          text-align: left !important;
+          cursor: pointer !important;
+        }
+        #product-editor:not(.hidden) #variation-manager .variation-manager-toggle-title {
+          flex: 0 0 auto !important;
+          font-size: 12px !important;
+          font-weight: 1000 !important;
+          letter-spacing: .04em !important;
+          text-transform: uppercase !important;
+        }
+        #product-editor:not(.hidden) #variation-manager .variation-manager-summary {
+          display: block !important;
+          flex: 1 1 100% !important;
+          order: 3 !important;
+          margin: -4px 34px 0 0 !important;
+          color: #64748b !important;
+          font-size: 11px !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+        #product-editor:not(.hidden) #variation-manager .variation-manager-toggle-icon {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 26px !important;
+          height: 26px !important;
+          margin-left: auto !important;
+          border-radius: 999px !important;
+          background: #eff6ff !important;
+          color: #2563eb !important;
+          font-size: 16px !important;
+          font-weight: 1000 !important;
+          transition: transform .2s ease !important;
+        }
+        #product-editor:not(.hidden) #variation-manager.is-mobile-variation-collapsed .variation-manager-content {
+          display: none !important;
+        }
+        #product-editor:not(.hidden) #variation-manager:not(.is-mobile-variation-collapsed) .variation-manager-toggle-icon {
+          transform: rotate(180deg) !important;
+        }
+        #product-editor:not(.hidden) #variation-manager .variation-manager-content {
+          margin-top: 14px !important;
+        }
+        #product-editor:not(.hidden) #variation-manager.requires-variation-attention .variation-manager-summary {
+          color: #b45309 !important;
+        }
+        #product-editor:not(.hidden) #variation-manager.requires-variation-attention .variation-manager-toggle-icon {
+          background: #fff7ed !important;
+          color: #c2410c !important;
+        }
+        #product-editor:not(.hidden) #variation-manager .variation-manager-toggle[aria-disabled="true"] {
+          cursor: default !important;
+        }
         #product-editor:not(.hidden) .editor-main-column {
           padding-bottom: 0 !important;
         }
@@ -3387,6 +3454,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                 </div>
 
                 <section id="variation-manager" class="variation-manager pz-variations-shell hidden" aria-live="polite">
+                  <button id="variation-manager-toggle" class="variation-manager-toggle" type="button" aria-expanded="true" aria-controls="variation-manager-content">
+                    <span class="variation-manager-toggle-title">Variaciones del producto</span>
+                    <span id="variation-manager-summary" class="variation-manager-summary">Sin variaciones</span>
+                    <span class="variation-manager-toggle-icon" aria-hidden="true">⌄</span>
+                  </button>
+                  <div id="variation-manager-content" class="variation-manager-content">
                   <div class="variation-head pz-variations-header">
                     <div class="pz-variations-title-wrap">
                       <span class="pz-variations-icon" aria-hidden="true">
@@ -3515,6 +3588,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                       <div class="variation-empty pz-variation-empty">Abre un producto existente para ver sus variaciones.</div>
                     </div>
                   </section>
+                  </div>
                 </section>
                   </div>
                   <aside class="editor-side-column" aria-label="Resumen del producto">
@@ -3794,6 +3868,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let isMobileProductOptionsExpanded = false;
       let isMobileProductExtraExpanded = false;
       let isMobileRelatedProductsExpanded = false;
+      let isMobileVariationManagerExpanded = false;
       let productInitialSnapshot = "";
       let variationInitialSnapshot = "";
       let productManualActive = true;
@@ -3935,6 +4010,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const quickSubcategoryX = document.getElementById('quick-subcategory-x');
       const quickSubcategorySave = document.getElementById('quick-subcategory-save');
       const variationManager = document.getElementById('variation-manager');
+      const variationManagerToggle = document.getElementById('variation-manager-toggle');
+      const variationManagerSummary = document.getElementById('variation-manager-summary');
       const variationManagerHelp = document.getElementById('variation-manager-help');
       const variationModal = document.getElementById('variation-modal');
       const variationEditor = document.getElementById('variation-editor');
@@ -5236,6 +5313,32 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         relatedProductsToggle.setAttribute('aria-disabled', String(!isMobile));
         relatedProductsToggle.setAttribute('aria-expanded', String(isExpanded));
       }
+      function updateVariationManagerDisclosure({ reset = false } = {}) {
+        if (!variationManager || !variationManagerToggle || !variationManagerSummary) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (reset) isMobileVariationManagerExpanded = false;
+        const activeVariations = productVariations.filter((variation) => variation?.active !== false);
+        const eligibleCount = activeVariations.filter(variationIsModeEligible).length;
+        const invalidActiveCount = Math.max(0, activeVariations.length - eligibleCount);
+        const requiresAttention = Boolean(productHasVariationsInput?.checked)
+          && (productVariations.length === 0 || eligibleCount === 0 || invalidActiveCount > 0);
+        const totalLabel = `${productVariations.length} ${productVariations.length === 1 ? 'variación' : 'variaciones'}`;
+        const activeLabel = `${activeVariations.length} ${activeVariations.length === 1 ? 'activa' : 'activas'}`;
+        const totalStock = activeVariations.reduce((total, variation) => {
+          const stock = Number(variation?.stock);
+          return total + (Number.isFinite(stock) && stock > 0 ? stock : 0);
+        }, 0);
+        const stockLabel = productTracksStock() ? `Stock total: ${totalStock}` : 'Sin control de stock';
+        variationManagerSummary.textContent = productVariations.length === 0
+          ? 'Sin variaciones · Debes crear una'
+          : `${totalLabel} · ${activeLabel} · ${requiresAttention ? 'Requiere atención' : stockLabel}`;
+        const isExpanded = !isMobile || requiresAttention || isMobileVariationManagerExpanded;
+        variationManager.classList.toggle('requires-variation-attention', requiresAttention);
+        variationManager.classList.toggle('is-mobile-variation-collapsed', isMobile && !isExpanded);
+        variationManagerToggle.tabIndex = isMobile && !requiresAttention ? 0 : -1;
+        variationManagerToggle.setAttribute('aria-disabled', String(!isMobile || requiresAttention));
+        variationManagerToggle.setAttribute('aria-expanded', String(isExpanded));
+      }
       function updateMobileSavePlacement() {
         if (!productEditor || !editorActionsCard || !editorStatusCard) return;
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -5329,6 +5432,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateEditorPreview();
         applyProductPermissionState();
         updateProductOptionsDisclosure();
+        updateVariationManagerDisclosure();
         const canSaveProduct = isEditing ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
         if (isSavingProduct) {
           setEditorSaveState('Guardando los cambios...', 'saving');
@@ -5591,6 +5695,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function openNewVariationEditor() {
         if (!CAN_CREATE_PRODUCTS || !CAN_EDIT_PRODUCTS) return;
+        isMobileVariationManagerExpanded = true;
+        updateVariationManagerDisclosure();
         resetVariationEditor();
         variationOrderInput.value = String(nextVariationOrder());
         variationDeleteBtn?.classList.add('hidden');
@@ -5600,10 +5706,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function resetVariationState() {
         productVariations = [];
+        isMobileVariationManagerExpanded = false;
         if (variationManager) variationManager.classList.add('hidden');
         closeVariationModal();
         if (variationsList) variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Abre un producto existente para ver sus variaciones.</div>';
         setVariationAlert('');
+        updateVariationManagerDisclosure({ reset: true });
       }
       function nextVariationOrder() {
         const maxOrder = productVariations.reduce((max, item) => Math.max(max, Number(item.sort_order || 0)), 0);
@@ -5626,6 +5734,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
       function openVariationEditor(variationId = '') {
         const variation = productVariations.find((item) => item.id === variationId);
+        isMobileVariationManagerExpanded = true;
+        updateVariationManagerDisclosure();
         resetVariationEditor();
         if (!variation) {
           variationValueInput.focus();
@@ -5694,12 +5804,14 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Guarda el producto primero para poder crear variaciones.</div>';
           updateExpirationModeState();
           updateEditorPreview();
+          updateVariationManagerDisclosure();
           return;
         }
         if (!productVariations.length) {
           variationsList.innerHTML = '<div class="variation-empty pz-variation-empty">Este producto todavía no tiene variaciones. Usa el botón Nueva variación para crear la primera.</div>';
           updateExpirationModeState();
           updateEditorPreview();
+          updateVariationManagerDisclosure();
           return;
         }
         const sorted = getSortedVariations();
@@ -5815,6 +5927,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         variationsList.innerHTML = header + rows;
         updateExpirationModeState();
         updateEditorPreview();
+        updateVariationManagerDisclosure();
       }
       async function loadProductVariations(productId) {
         if (!productId) {
@@ -6168,10 +6281,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         isMobileProductOptionsExpanded = false;
         isMobileProductExtraExpanded = false;
         isMobileRelatedProductsExpanded = false;
+        isMobileVariationManagerExpanded = false;
         updateEditorPreviewDisclosure({ reset: true });
         updateProductOptionsDisclosure({ reset: true });
         updateProductExtraDisclosure({ reset: true });
         updateRelatedProductsDisclosure({ reset: true });
+        updateVariationManagerDisclosure({ reset: true });
         setCatalogOverviewVisible(true);
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
@@ -6194,6 +6309,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateProductOptionsDisclosure({ reset: true });
         updateProductExtraDisclosure({ reset: true });
         updateRelatedProductsDisclosure({ reset: true });
+        updateVariationManagerDisclosure({ reset: true });
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
         updateProductFormState({ showMessage: true });
@@ -6270,6 +6386,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateProductOptionsDisclosure({ reset: true });
         updateProductExtraDisclosure({ reset: true });
         updateRelatedProductsDisclosure({ reset: true });
+        updateVariationManagerDisclosure({ reset: true });
         updateProductFormState();
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -7269,6 +7386,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         isMobileRelatedProductsExpanded = !isMobileRelatedProductsExpanded;
         updateRelatedProductsDisclosure();
       });
+      variationManagerToggle?.addEventListener('click', () => {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        const requiresAttention = variationManager?.classList.contains('requires-variation-attention');
+        if (requiresAttention) return;
+        isMobileVariationManagerExpanded = !isMobileVariationManagerExpanded;
+        updateVariationManagerDisclosure();
+      });
       productNameInput?.addEventListener('input', () => {
         productSlugInput.value = slugify(productNameInput.value);
         updateProductFormState();
@@ -7721,6 +7845,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateProductOptionsDisclosure();
         updateProductExtraDisclosure();
         updateRelatedProductsDisclosure();
+        updateVariationManagerDisclosure();
       });
 
       productsList?.addEventListener('keydown', (event) => {

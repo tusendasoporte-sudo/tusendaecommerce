@@ -83,6 +83,21 @@ test('EDITOR-PRODUCTO-MOVIL: Productos relacionados inicia plegado y resume la s
   assert.equal((products.match(/updateRelatedProductsDisclosure\(\{ reset: true \}\);/g) || []).length >= 3, true);
 });
 
+test('EDITOR-PRODUCTO-MOVIL: Variaciones se pliega cuando es válida y se abre si requiere atención', () => {
+  assert.match(products, /id="variation-manager-toggle"[\s\S]*?aria-expanded="true" aria-controls="variation-manager-content"/);
+  assert.match(products, /id="variation-manager-summary" class="variation-manager-summary">Sin variaciones</);
+  assert.match(products, /id="variation-manager-content" class="variation-manager-content"[\s\S]*?id="variation-new-btn"[\s\S]*?id="variation-refresh-btn"/);
+  assert.match(products, /#variation-manager\.is-mobile-variation-collapsed \.variation-manager-content \{\s*display: none !important;/);
+  assert.match(products, /function updateVariationManagerDisclosure\(\{ reset = false \} = \{\}\)/);
+  assert.match(products, /const requiresAttention = Boolean\(productHasVariationsInput\?\.checked\)[\s\S]*?productVariations\.length === 0 \|\| eligibleCount === 0 \|\| invalidActiveCount > 0/);
+  assert.match(products, /'Sin variaciones · Debes crear una'/);
+  assert.match(products, /'Requiere atención' : stockLabel/);
+  assert.match(products, /const isExpanded = !isMobile \|\| requiresAttention \|\| isMobileVariationManagerExpanded;/);
+  assert.match(products, /variationManagerToggle\?\.addEventListener\('click', \(\) => \{[\s\S]*?if \(requiresAttention\) return;[\s\S]*?isMobileVariationManagerExpanded = !isMobileVariationManagerExpanded;/);
+  assert.match(products, /updateProductOptionsDisclosure\(\);\s*updateVariationManagerDisclosure\(\);/);
+  assert.equal((products.match(/updateVariationManagerDisclosure\(\{ reset: true \}\);/g) || []).length >= 4, true);
+});
+
 test('EDITOR-PRODUCTO: la mejora no sustituye las validaciones ni el botón de guardado existente', () => {
   assert.match(products, /productSaveBtn\.disabled = isSavingProduct \|\| missingName \|\| missingPriceCurrency \|\| missingStock \|\| invalidOffer \|\| missingValidVariation \|\| Boolean\(invalidParentConfiguration\) \|\| !isDirtyEnough;/);
   assert.match(products, /editorSideSaveBtn\.disabled = productSaveBtn\.disabled;/);

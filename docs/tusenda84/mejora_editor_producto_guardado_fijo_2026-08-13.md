@@ -76,6 +76,26 @@ Funciones existentes tocadas y motivo:
 
 No se modificaron `saveProductExtraInfoDirectly()`, el modal de relacionados, el snapshot, el payload del producto, las solicitudes API, los permisos ni las validaciones.
 
+## Variaciones del producto desplegables en Admin móvil
+
+- El bloque aparece únicamente cuando **Usa variaciones** está activo, igual que antes.
+- En móvil inicia cerrado cuando existe al menos una variación activa con precio y stock válidos.
+- Resume cantidad total, cantidad activa y stock total; cuando el producto no controla stock indica `Sin control de stock`.
+- Permanece abierto y muestra `Requiere atención` cuando no existe ninguna variación válida o alguna variación activa carece del precio/stock exigido.
+- `Nueva variación` y `Actualizar` permanecen dentro del contenido y conservan sus eventos actuales.
+- En escritorio la sección permanece siempre abierta y el control móvil no es interactivo.
+- Abrir o cerrar el bloque no modifica el snapshot ni activa Guardar.
+
+Funciones existentes tocadas y motivo:
+
+- `updateProductFormState()`: actualiza solamente el estado visual del desplegable después de aplicar las reglas existentes.
+- `renderVariations()`: actualiza el resumen después de renderizar una lista vacía, cargada o modificada.
+- `resetVariationState()`: restablece el estado plegado al cambiar o cerrar producto.
+- `openNewVariationEditor()` y `openVariationEditor()`: mantienen el bloque abierto mientras se trabaja con una variación.
+- `openNewProductEditor()`, `openEditProductEditor()`, `closeProductEditor()` y el listener de `resize`: sincronizan el estado móvil/escritorio.
+
+La función nueva `updateVariationManagerDisclosure()` solo lee `productVariations`, `variationIsModeEligible()` y el control de stock existente. No se modificaron `loadProductVariations()`, `saveVariation()`, las solicitudes API, el orden, la duplicación, la visibilidad, las fechas, el payload ni las validaciones comerciales.
+
 ## Pruebas automáticas necesarias
 
 1. `node --test tests/productEditorStickySave.test.mjs`
@@ -117,6 +137,12 @@ No se modificaron `saveProductExtraInfoDirectly()`, el modal de relacionados, el
 14. Abrir Información adicional: añadir, editar y borrar un dato; confirmar que el resumen cambia sin perder el proceso actual.
 15. Abrir Productos relacionados: añadir y quitar productos; confirmar que el resumen cambia y que el máximo continúa siendo cuatro.
 16. Cambiar temporalmente a ancho de escritorio: ambas secciones deben permanecer abiertas, sin botones de plegado interactivos.
+17. Producto con variaciones válidas: el bloque debe iniciar cerrado y resumir total, activas y stock.
+18. Activar Usa variaciones sin registros: el bloque debe abrirse y mostrar `Sin variaciones · Debes crear una`.
+19. Dejar una variación activa sin precio o stock requerido: el bloque debe permanecer abierto con `Requiere atención`.
+20. Crear, editar, ordenar, ocultar, duplicar y borrar variaciones; confirmar que cada proceso conserva su guardado independiente.
+21. Producto sin control de stock: confirmar que el resumen indica `Sin control de stock` y no exige stock por variación.
+22. En escritorio: confirmar que Variaciones permanece abierta y que Nueva variación/Actualizar funcionan igual.
 
 ### Regresiones de producto
 
