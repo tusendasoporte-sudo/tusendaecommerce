@@ -10,7 +10,7 @@ Mantener el formulario actual de producto, sin convertirlo en un asistente por p
 - En escritorio, la columna **Vista previa / Estado del producto / Acciones** permanece visible mientras se desplaza la configuración.
 - El botón **Guardar producto** permanece localizable durante toda la edición.
 - Un mensaje junto al botón informa si faltan datos, hay cambios pendientes, se está guardando o todo está guardado.
-- En móvil, el guardado se presenta en una barra compacta sobre la navegación inferior; la vista previa conserva el flujo vertical para no reducir el espacio útil.
+- En móvil, el guardado se presenta en una barra compacta sobre la navegación inferior y la vista previa se ofrece como un bloque desplegable cerrado inicialmente.
 
 ## Función implementada que se tocó
 
@@ -41,6 +41,22 @@ En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-
 - La visibilidad móvil se refleja también mediante `data-mobile-save-visible`; esto impide que el estilo general de la tarjeta vuelva a mostrar un botón deshabilitado cuando el estado autoritativo dice que no existen cambios.
 
 Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState()` y `closeProductEditor()`. No se modificaron el payload, la petición, los permisos ni las validaciones comerciales de `saveProduct()`.
+
+## Vista previa desplegable en Admin móvil
+
+- **Vista previa** inicia cerrada al abrir la creación o edición de un producto en pantallas de hasta 768 px.
+- El botón accesible **Mostrar/Ocultar** controla exclusivamente imagen, nombre y precio de la previsualización.
+- En escritorio permanece siempre abierta y fija; el encabezado no ofrece interacción para conservar el comportamiento ya validado.
+- Cerrar el editor restablece el estado plegado para la siguiente apertura.
+- La función nueva `updateEditorPreviewDisclosure()` solo cambia clases y atributos visuales. No modifica el snapshot, el payload, la validación ni los datos del producto.
+
+## Opciones del producto desplegables en Admin móvil
+
+- La sección **Opciones del producto** inicia cerrada en pantallas de hasta 768 px y conserva todos sus controles existentes.
+- El encabezado resume en tiempo real los tres estados principales: **Visible/Oculto**, **Controla/No controla stock** y **Con/Sin variaciones**.
+- Al abrir se mantienen Visible en tienda, Destacado, Solo USD, Preorden, Descontar stock y Usar variaciones con sus permisos y eventos originales.
+- En escritorio la sección permanece siempre abierta y no ofrece interacción de plegado.
+- La función visual `updateProductOptionsDisclosure()` no altera `updateProductFormState()`, el snapshot ni el payload; solo lee los controles después de su actualización para construir el resumen.
 
 ## Pruebas automáticas necesarias
 
@@ -74,6 +90,11 @@ Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState
 5. Desplazarse hasta Estado del producto: la barra debe colocarse debajo de sus indicadores y no cubrirlos.
 6. Guardar correctamente: la barra debe ocultarse cuando el snapshot se actualice.
 7. Confirmar que el mensaje **Todos los cambios están guardados** nunca aparece dentro de una barra móvil visible.
+8. Abrir creación y edición: Vista previa debe iniciar cerrada; tocar **Mostrar** debe revelar imagen, nombre y precio, y **Ocultar** debe plegarlos nuevamente.
+9. Cambiar temporalmente a ancho de escritorio: Vista previa debe permanecer abierta y fija sin alterar el formulario.
+10. Abrir creación y edición: Opciones del producto debe iniciar cerrado y mostrar `Visible · Controla stock · Sin variaciones` o los valores reales del producto.
+11. Abrir Opciones, cambiar visibilidad, control de stock y variaciones: el resumen debe actualizarse al cerrar sin perder ni guardar automáticamente la selección.
+12. Confirmar en escritorio que Opciones permanece abierta y que todos los controles conservan sus permisos.
 
 ### Regresiones de producto
 

@@ -33,6 +33,34 @@ test('EDITOR-PRODUCTO-MOVIL: Guardar aparece solo con cambios y no cubre Estado 
   assert.match(products, /productInitialSnapshot = createProductSnapshot\(\);\s*updateProductFormState\(\);/);
 });
 
+test('EDITOR-PRODUCTO-MOVIL: Vista previa inicia plegada y se abre bajo demanda', () => {
+  assert.match(products, /id="editor-preview-toggle"[\s\S]*?aria-expanded="true" aria-controls="editor-preview-content"/);
+  assert.match(products, /id="editor-preview-content" class="editor-preview-content"/);
+  assert.match(products, /#product-editor:not\(\.hidden\) \.editor-preview-card\.is-mobile-preview-collapsed \.editor-preview-content \{\s*display: none !important;/);
+  assert.match(products, /function updateEditorPreviewDisclosure\(\{ reset = false \} = \{\}\)/);
+  assert.match(products, /const isExpanded = !isMobile \|\| isMobileEditorPreviewExpanded;/);
+  assert.match(products, /editorPreviewToggle\.tabIndex = isMobile \? 0 : -1;/);
+  assert.match(products, /editorPreviewToggle\.setAttribute\('aria-disabled', String\(!isMobile\)\);/);
+  assert.match(products, /editorPreviewToggle\.setAttribute\('aria-expanded', String\(isExpanded\)\);/);
+  assert.match(products, /editorPreviewToggleLabel\.textContent = isExpanded \? 'Ocultar' : 'Mostrar';/);
+  assert.match(products, /editorPreviewToggle\?\.addEventListener\('click', \(\) => \{[\s\S]*?isMobileEditorPreviewExpanded = !isMobileEditorPreviewExpanded;[\s\S]*?updateEditorPreviewDisclosure\(\);/);
+  assert.equal((products.match(/updateEditorPreviewDisclosure\(\{ reset: true \}\);/g) || []).length >= 3, true);
+});
+
+test('EDITOR-PRODUCTO-MOVIL: Opciones inicia plegado y resume sus estados principales', () => {
+  assert.match(products, /id="product-options-toggle"[\s\S]*?aria-expanded="true" aria-controls="product-options-content"/);
+  assert.match(products, /id="product-options-summary" class="product-options-summary">Visible · Controla stock · Sin variaciones</);
+  assert.match(products, /id="product-options-content" class="product-options-content"/);
+  assert.match(products, /#product-editor:not\(\.hidden\) \.product-options-card\.is-mobile-options-collapsed \.product-options-content \{\s*display: none !important;/);
+  assert.match(products, /function updateProductOptionsDisclosure\(\{ reset = false \} = \{\}\)/);
+  assert.match(products, /const visibilityLabel = productActiveInput\?\.checked \? 'Visible' : 'Oculto';/);
+  assert.match(products, /const stockLabel = productTrackStockInput\?\.checked \? 'Controla stock' : 'No controla stock';/);
+  assert.match(products, /const variationsLabel = productHasVariationsInput\?\.checked \? 'Con variaciones' : 'Sin variaciones';/);
+  assert.match(products, /productOptionsSummary\.textContent = `\$\{visibilityLabel\} · \$\{stockLabel\} · \$\{variationsLabel\}`;/);
+  assert.match(products, /productOptionsToggle\?\.addEventListener\('click', \(\) => \{[\s\S]*?isMobileProductOptionsExpanded = !isMobileProductOptionsExpanded;[\s\S]*?updateProductOptionsDisclosure\(\);/);
+  assert.equal((products.match(/updateProductOptionsDisclosure\(\{ reset: true \}\);/g) || []).length >= 3, true);
+});
+
 test('EDITOR-PRODUCTO: la mejora no sustituye las validaciones ni el botón de guardado existente', () => {
   assert.match(products, /productSaveBtn\.disabled = isSavingProduct \|\| missingName \|\| missingPriceCurrency \|\| missingStock \|\| invalidOffer \|\| missingValidVariation \|\| Boolean\(invalidParentConfiguration\) \|\| !isDirtyEnough;/);
   assert.match(products, /editorSideSaveBtn\.disabled = productSaveBtn\.disabled;/);

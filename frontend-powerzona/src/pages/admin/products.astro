@@ -1151,6 +1151,51 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         font-size: 12px !important;
         font-weight: 800 !important;
       }
+      .editor-preview-toggle {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        text-align: left !important;
+        cursor: default !important;
+      }
+      .editor-preview-toggle .side-card-kicker {
+        display: block !important;
+        margin: 0 !important;
+        color: #2563eb !important;
+        font-size: 11px !important;
+        font-weight: 1000 !important;
+        letter-spacing: .06em !important;
+      }
+      .editor-preview-toggle-label,
+      .editor-preview-toggle-icon {
+        display: none !important;
+      }
+      .product-options-toggle {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        color: #0f172a !important;
+        text-align: left !important;
+        cursor: default !important;
+      }
+      .product-options-toggle-title {
+        font-size: 12px !important;
+        font-weight: 1000 !important;
+        letter-spacing: .04em !important;
+        text-transform: uppercase !important;
+      }
+      .product-options-summary,
+      .product-options-toggle-icon {
+        display: none !important;
+      }
       .editor-status-chips {
         display: flex !important;
         gap: 8px !important;
@@ -2755,6 +2800,85 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       @media (max-width: 768px) {
+        #product-editor:not(.hidden) .editor-preview-card {
+          padding: 14px 16px !important;
+        }
+        #product-editor:not(.hidden) .editor-preview-toggle {
+          min-height: 44px !important;
+          cursor: pointer !important;
+        }
+        #product-editor:not(.hidden) .editor-preview-toggle-label {
+          display: inline-flex !important;
+          align-items: center !important;
+          margin: 0 0 0 auto !important;
+          color: #2563eb !important;
+          font-size: 12px !important;
+          font-weight: 900 !important;
+        }
+        #product-editor:not(.hidden) .editor-preview-toggle-icon {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 26px !important;
+          height: 26px !important;
+          margin: 0 !important;
+          border-radius: 999px !important;
+          background: #eff6ff !important;
+          color: #2563eb !important;
+          font-size: 16px !important;
+          font-weight: 1000 !important;
+          transition: transform .2s ease !important;
+        }
+        #product-editor:not(.hidden) .editor-preview-card.is-mobile-preview-collapsed .editor-preview-content {
+          display: none !important;
+        }
+        #product-editor:not(.hidden) .editor-preview-card:not(.is-mobile-preview-collapsed) .editor-preview-toggle-icon {
+          transform: rotate(180deg) !important;
+        }
+        #product-editor:not(.hidden) .product-options-card {
+          padding: 14px 16px !important;
+        }
+        #product-editor:not(.hidden) .product-options-toggle {
+          min-height: 48px !important;
+          cursor: pointer !important;
+          flex-wrap: wrap !important;
+        }
+        #product-editor:not(.hidden) .product-options-toggle-title {
+          flex: 0 0 auto !important;
+        }
+        #product-editor:not(.hidden) .product-options-summary {
+          display: block !important;
+          flex: 1 1 100% !important;
+          order: 3 !important;
+          margin: -4px 34px 0 0 !important;
+          color: #64748b !important;
+          font-size: 11px !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+        #product-editor:not(.hidden) .product-options-toggle-icon {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 26px !important;
+          height: 26px !important;
+          margin-left: auto !important;
+          border-radius: 999px !important;
+          background: #eff6ff !important;
+          color: #2563eb !important;
+          font-size: 16px !important;
+          font-weight: 1000 !important;
+          transition: transform .2s ease !important;
+        }
+        #product-editor:not(.hidden) .product-options-card.is-mobile-options-collapsed .product-options-content {
+          display: none !important;
+        }
+        #product-editor:not(.hidden) .product-options-card:not(.is-mobile-options-collapsed) .product-options-toggle-icon {
+          transform: rotate(180deg) !important;
+        }
+        #product-editor:not(.hidden) .product-options-content {
+          margin-top: 12px !important;
+        }
         #product-editor:not(.hidden) .editor-main-column {
           padding-bottom: 0 !important;
         }
@@ -3138,18 +3262,24 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <h3>Estado del producto</h3>
                     <span>Define visibilidad, stock descontable y opciones públicas.</span>
                   </div>
-                  <div class="field full">
-                    <label>Opciones</label>
-                    <div class="check-grid">
-                      <label class:list={['check-card', !canManageProductVisibility && 'hidden']}><input id="product-active" type="checkbox" checked disabled={!canManageProductVisibility} /> Visible en tienda</label>
-                      <label class:list={['check-card', !canManageProductVisibility && 'hidden']}><input id="product-featured" type="checkbox" disabled={!canManageProductVisibility} /> Destacado</label>
-                      <label class:list={['check-card', !canManageProductPrice && 'hidden']} title="Limita la moneda de pago del cliente; no cambia la moneda en que fijaste el precio."><input id="product-only-usd" type="checkbox" disabled={!canManageProductPrice} /> Cobrar solo en USD</label>
-                      <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-allow-preorder" type="checkbox" disabled={!canManageProductStock} /> Preorder si está agotado</label>
-                      <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-track-stock" type="checkbox" checked disabled={!canManageProductStock} /> Descontar stock en órdenes</label>
-                      <label id="product-has-variations-option" class="check-card hidden"><input id="product-has-variations" type="checkbox" /> Usa variaciones</label>
+                  <div id="product-options-card" class="field full product-options-card">
+                    <button id="product-options-toggle" class="product-options-toggle" type="button" aria-expanded="true" aria-controls="product-options-content">
+                      <span class="product-options-toggle-title">Opciones del producto</span>
+                      <span id="product-options-summary" class="product-options-summary">Visible · Controla stock · Sin variaciones</span>
+                      <span class="product-options-toggle-icon" aria-hidden="true">⌄</span>
+                    </button>
+                    <div id="product-options-content" class="product-options-content">
+                      <div class="check-grid">
+                        <label class:list={['check-card', !canManageProductVisibility && 'hidden']}><input id="product-active" type="checkbox" checked disabled={!canManageProductVisibility} /> Visible en tienda</label>
+                        <label class:list={['check-card', !canManageProductVisibility && 'hidden']}><input id="product-featured" type="checkbox" disabled={!canManageProductVisibility} /> Destacado</label>
+                        <label class:list={['check-card', !canManageProductPrice && 'hidden']} title="Limita la moneda de pago del cliente; no cambia la moneda en que fijaste el precio."><input id="product-only-usd" type="checkbox" disabled={!canManageProductPrice} /> Cobrar solo en USD</label>
+                        <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-allow-preorder" type="checkbox" disabled={!canManageProductStock} /> Preorder si está agotado</label>
+                        <label class:list={['check-card', !canManageProductStock && 'hidden']}><input id="product-track-stock" type="checkbox" checked disabled={!canManageProductStock} /> Descontar stock en órdenes</label>
+                        <label id="product-has-variations-option" class="check-card hidden"><input id="product-has-variations" type="checkbox" /> Usa variaciones</label>
+                      </div>
+                      <p id="product-effective-visibility-note" class="effective-visibility-note hidden" role="status">Este producto no está visible porque su fecha de vencimiento ya pasó. Corrige o elimina la fecha para volver a mostrarlo.</p>
+                      <p class="form-help">Cada variación usa su propio stock. El precio, costo y stock del padre se conservan para cuando desactives variaciones.</p>
                     </div>
-                    <p id="product-effective-visibility-note" class="effective-visibility-note hidden" role="status">Este producto no está visible porque su fecha de vencimiento ya pasó. Corrige o elimina la fecha para volver a mostrarlo.</p>
-                    <p class="form-help">Cada variación usa su propio stock. El precio, costo y stock del padre se conservan para cuando desactives variaciones.</p>
                   </div>
                   <div id="product-variation-view-field" class="field full hidden">
                     <label for="product-variation-view">Vista de variaciones en tienda</label>
@@ -3295,13 +3425,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                   </div>
                   <aside class="editor-side-column" aria-label="Resumen del producto">
                     <div class="editor-side-summary">
-                      <div class="editor-preview-card">
-                        <p class="side-card-kicker">Vista previa</p>
-                        <div id="editor-preview-thumb" class="preview-thumb">PZ</div>
-                        <strong id="editor-preview-name">Nombre del producto</strong>
-                        <span id="editor-preview-price">0.00 USD</span>
-                        <span id="editor-preview-regular-price" class="preview-regular-price hidden">0.00 USD</span>
-                        <small>Así se verá en tu catálogo.</small>
+                      <div id="editor-preview-card" class="editor-preview-card">
+                        <button id="editor-preview-toggle" class="editor-preview-toggle" type="button" aria-expanded="true" aria-controls="editor-preview-content">
+                          <span class="side-card-kicker">Vista previa</span>
+                          <span id="editor-preview-toggle-label" class="editor-preview-toggle-label">Ocultar</span>
+                          <span class="editor-preview-toggle-icon" aria-hidden="true">⌄</span>
+                        </button>
+                        <div id="editor-preview-content" class="editor-preview-content">
+                          <div id="editor-preview-thumb" class="preview-thumb">PZ</div>
+                          <strong id="editor-preview-name">Nombre del producto</strong>
+                          <span id="editor-preview-price">0.00 USD</span>
+                          <span id="editor-preview-regular-price" class="preview-regular-price hidden">0.00 USD</span>
+                          <small>Así se verá en tu catálogo.</small>
+                        </div>
                       </div>
                       <div class="editor-status-card">
                         <p class="side-card-kicker">Estado del producto</p>
@@ -3560,6 +3696,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let variationNoticeTimer = null;
       let isSavingProduct = false;
       let isSavingVariation = false;
+      let isMobileEditorPreviewExpanded = false;
+      let isMobileProductOptionsExpanded = false;
       let productInitialSnapshot = "";
       let variationInitialSnapshot = "";
       let productManualActive = true;
@@ -3635,6 +3773,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const relatedProductsApplyBtn = document.getElementById('related-products-apply-btn');
       const relatedProductsSearchInput = document.getElementById('related-products-search');
       const relatedProductsModalList = document.getElementById('related-products-modal-list');
+      const productOptionsCard = document.getElementById('product-options-card');
+      const productOptionsToggle = document.getElementById('product-options-toggle');
+      const productOptionsSummary = document.getElementById('product-options-summary');
       const productActiveInput = document.getElementById('product-active');
       const productEffectiveVisibilityNote = document.getElementById('product-effective-visibility-note');
       const productFeaturedInput = document.getElementById('product-featured');
@@ -3661,6 +3802,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const editorSaveState = document.getElementById('editor-save-state');
       const editorActionsCard = document.querySelector('.editor-actions-card');
       const editorStatusCard = document.querySelector('.editor-status-card');
+      const editorPreviewCard = document.getElementById('editor-preview-card');
+      const editorPreviewToggle = document.getElementById('editor-preview-toggle');
+      const editorPreviewToggleLabel = document.getElementById('editor-preview-toggle-label');
       const editorSideCancelBtn = document.getElementById('editor-side-cancel-btn');
       const editorSideBackBtn = document.getElementById('editor-side-back-btn');
       const editorPreviewThumb = document.getElementById('editor-preview-thumb');
@@ -4936,6 +5080,31 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         editorSaveState.textContent = message;
         editorSaveState.className = `editor-save-state is-${tone}`;
       }
+      function updateEditorPreviewDisclosure({ reset = false } = {}) {
+        if (!editorPreviewCard || !editorPreviewToggle || !editorPreviewToggleLabel) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (reset) isMobileEditorPreviewExpanded = false;
+        const isExpanded = !isMobile || isMobileEditorPreviewExpanded;
+        editorPreviewCard.classList.toggle('is-mobile-preview-collapsed', isMobile && !isExpanded);
+        editorPreviewToggle.tabIndex = isMobile ? 0 : -1;
+        editorPreviewToggle.setAttribute('aria-disabled', String(!isMobile));
+        editorPreviewToggle.setAttribute('aria-expanded', String(isExpanded));
+        editorPreviewToggleLabel.textContent = isExpanded ? 'Ocultar' : 'Mostrar';
+      }
+      function updateProductOptionsDisclosure({ reset = false } = {}) {
+        if (!productOptionsCard || !productOptionsToggle || !productOptionsSummary) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (reset) isMobileProductOptionsExpanded = false;
+        const isExpanded = !isMobile || isMobileProductOptionsExpanded;
+        const visibilityLabel = productActiveInput?.checked ? 'Visible' : 'Oculto';
+        const stockLabel = productTrackStockInput?.checked ? 'Controla stock' : 'No controla stock';
+        const variationsLabel = productHasVariationsInput?.checked ? 'Con variaciones' : 'Sin variaciones';
+        productOptionsSummary.textContent = `${visibilityLabel} · ${stockLabel} · ${variationsLabel}`;
+        productOptionsCard.classList.toggle('is-mobile-options-collapsed', isMobile && !isExpanded);
+        productOptionsToggle.tabIndex = isMobile ? 0 : -1;
+        productOptionsToggle.setAttribute('aria-disabled', String(!isMobile));
+        productOptionsToggle.setAttribute('aria-expanded', String(isExpanded));
+      }
       function updateMobileSavePlacement() {
         if (!productEditor || !editorActionsCard || !editorStatusCard) return;
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -5028,6 +5197,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateVariationFormState();
         updateEditorPreview();
         applyProductPermissionState();
+        updateProductOptionsDisclosure();
         const canSaveProduct = isEditing ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
         if (isSavingProduct) {
           setEditorSaveState('Guardando los cambios...', 'saving');
@@ -5863,6 +6033,10 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       function closeProductEditor() {
         productEditor.classList.add('hidden');
         productEditor.classList.remove('has-mobile-save-action', 'has-mobile-inline-save');
+        isMobileEditorPreviewExpanded = false;
+        isMobileProductOptionsExpanded = false;
+        updateEditorPreviewDisclosure({ reset: true });
+        updateProductOptionsDisclosure({ reset: true });
         setCatalogOverviewVisible(true);
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
@@ -5881,6 +6055,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (mobileTopbarTitle) mobileTopbarTitle.textContent = 'Nuevo producto';
         if (productHasVariationsOption) productHasVariationsOption.classList.add('hidden');
         productEditor.classList.remove('hidden');
+        updateEditorPreviewDisclosure({ reset: true });
+        updateProductOptionsDisclosure({ reset: true });
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
         updateProductFormState({ showMessage: true });
@@ -5953,6 +6129,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         setupVariationManager(product);
         productInitialSnapshot = createProductSnapshot();
         productEditor.classList.remove('hidden');
+        updateEditorPreviewDisclosure({ reset: true });
+        updateProductOptionsDisclosure({ reset: true });
         updateProductFormState();
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -6930,6 +7108,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       editorSideSaveBtn?.addEventListener('click', () => productSaveBtn?.click());
       editorSideCancelBtn?.addEventListener('click', closeProductEditor);
       editorSideBackBtn?.addEventListener('click', closeProductEditor);
+      editorPreviewToggle?.addEventListener('click', () => {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        isMobileEditorPreviewExpanded = !isMobileEditorPreviewExpanded;
+        updateEditorPreviewDisclosure();
+      });
+      productOptionsToggle?.addEventListener('click', () => {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        isMobileProductOptionsExpanded = !isMobileProductOptionsExpanded;
+        updateProductOptionsDisclosure();
+      });
       productNameInput?.addEventListener('input', () => {
         productSlugInput.value = slugify(productNameInput.value);
         updateProductFormState();
@@ -7378,6 +7566,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       window.addEventListener('resize', () => {
         closeProductActionMenus();
         updateMobileSavePlacement();
+        updateEditorPreviewDisclosure();
+        updateProductOptionsDisclosure();
       });
 
       productsList?.addEventListener('keydown', (event) => {
