@@ -6738,7 +6738,12 @@ const productExpirationBottleIconSvg = PRODUCT_EXPIRATION_BOTTLE_ICON_SVG;
 					clicks: Number(landing?.clicks || 0),
 					topButton: clicksByButton[0] || null,
 					clicksByButton,
-					series: [],
+					series: (Array.isArray(landing?.daily) ? landing.daily : []).map((item) => ({
+						day: String(item?.day || ''),
+						label: String(item?.label || shortDayLabel(item?.day || '')),
+						views: Number(item?.views || 0),
+						clicks: Number(item?.clicks || 0),
+					})),
 				};
 			}
 

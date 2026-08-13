@@ -967,9 +967,12 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
         );
       }
       if (includeLandingQr) {
-        assertExactKeys(summary.landing_qr, ['views', 'clicks', 'top_buttons'], `landing QR ${fixture.key}`);
+        assertExactKeys(summary.landing_qr, ['views', 'clicks', 'top_buttons', 'daily'], `landing QR ${fixture.key}`);
         for (const row of summary.landing_qr.top_buttons) {
           assertExactKeys(row, ['link_type', 'link_label', 'clicks'], `boton landing QR ${fixture.key}`);
+        }
+        for (const row of summary.landing_qr.daily) {
+          assertExactKeys(row, ['day', 'label', 'views', 'clicks'], `dia landing QR ${fixture.key}`);
         }
       } else {
         assert.equal(Object.prototype.hasOwnProperty.call(summary, 'landing_qr'), false);
@@ -1074,6 +1077,14 @@ test('M7U2-C3 HTTP runtime migra legacy en dos fases y revoca solo sesiones afec
       'analytics Marketing incluye su producto agregado',
     );
     assert.equal(marketingSummary.data.landing_qr.clicks, 1);
+    assert.equal(
+      marketingSummary.data.landing_qr.daily.length,
+      marketingSummary.data.period_days,
+    );
+    assert.equal(
+      marketingSummary.data.landing_qr.daily.reduce((total, row) => total + row.clicks, 0),
+      marketingSummary.data.landing_qr.clicks,
+    );
     assertSafeAnalytics(marketingSummary.data, fixtureByKey.marketing, fixtureByKey.reordered, true);
 
     const reorderedSummary = await analyticsSummary(fixtureByKey.reordered);

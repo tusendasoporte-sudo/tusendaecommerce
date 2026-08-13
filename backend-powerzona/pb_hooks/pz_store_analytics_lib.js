@@ -212,6 +212,12 @@ function sanitizeLandingQr(source) {
       link_label: safeText(item && item.link_label, 100) || "Botón",
       clicks: nonNegativeInteger(item && item.clicks),
     })),
+    daily: (Array.isArray(landing.daily) ? landing.daily : []).slice(0, 30).map((item) => ({
+      day: safeText(item && item.day, 10),
+      label: safeText(item && item.label, 20),
+      views: nonNegativeInteger(item && item.views),
+      clicks: nonNegativeInteger(item && item.clicks),
+    })).filter((item) => /^\d{4}-\d{2}-\d{2}$/.test(item.day)),
   };
 }
 
@@ -240,8 +246,11 @@ function buildSummary(app, context, payload, now) {
     pages: pages.pages,
   };
   if (permissions.hasStorePermission(app, context.actor, context.store, "landing_qr.manage")) {
+    const landingQr = masterAnalytics.queryLandingQr(app, context.storeId, period);
     response.landing_qr = sanitizeLandingQr(
-      masterAnalytics.queryLandingQr(app, context.storeId, period),
+      Object.assign({}, landingQr, {
+        daily: masterAnalytics.queryLandingQrDaily(app, context.storeId, period),
+      }),
     );
   }
   return response;

@@ -85,6 +85,7 @@ function withMasterAnalyticsStubs(callback) {
     queryTopViewedProducts: masterAnalytics.queryTopViewedProducts,
     queryPages: masterAnalytics.queryPages,
     queryLandingQr: masterAnalytics.queryLandingQr,
+    queryLandingQrDaily: masterAnalytics.queryLandingQrDaily,
   };
   const calls = [];
   masterAnalytics.buildPeriod = (range) => ({ periodDays: range === 'today' ? 1 : Number(range) });
@@ -152,6 +153,17 @@ function withMasterAnalyticsStubs(callback) {
       }],
     };
   };
+  masterAnalytics.queryLandingQrDaily = (_app, storeId) => {
+    calls.push(['landing-daily', storeId]);
+    return [{
+      day: '2026-07-20',
+      label: '20 jul',
+      views: 4,
+      clicks: 3,
+      session_id: 'session-secret',
+      visitor_id: 'visitor-secret',
+    }];
+  };
   try {
     return callback(calls);
   } finally {
@@ -184,6 +196,7 @@ test('analytics summary expone solo agregados seguros y Landing QR condicionado'
     assert.deepEqual(Object.keys(response.top_pages[0]), ['page_type', 'name', 'detail', 'visits', 'last_visited_at', 'public_path']);
     assert.equal(response.top_pages[1].public_path, '');
     assert.deepEqual(Object.keys(response.landing_qr.top_buttons[0]), ['link_type', 'link_label', 'clicks']);
+    assert.deepEqual(Object.keys(response.landing_qr.daily[0]), ['day', 'label', 'views', 'clicks']);
     const forbidden = [
       'customer_name', 'entity_id', 'link_id', 'orders', 'order_id', 'product_id', 'raw_path',
       'revenue', 'sales', 'session_id', 'store_id', 'url', 'visitor_id', 'cost_usd', 'stock',
@@ -195,6 +208,7 @@ test('analytics summary expone solo agregados seguros y Landing QR condicionado'
       ['products', STORE_ID],
       ['pages', STORE_ID],
       ['landing', STORE_ID],
+      ['landing-daily', STORE_ID],
     ]);
   });
 
@@ -209,6 +223,7 @@ test('analytics summary expone solo agregados seguros y Landing QR condicionado'
     );
     assert.equal(Object.hasOwn(response, 'landing_qr'), false);
     assert.equal(calls.some(([kind]) => kind === 'landing'), false);
+    assert.equal(calls.some(([kind]) => kind === 'landing-daily'), false);
   });
 });
 
@@ -223,6 +238,63 @@ test('rutas privadas C3 registran auth, body limit y contratos POST', () => {
   }
   assert.match(analyticsRoute, /\$apis\.bodyLimit\(512\)/);
   assert.match(selectorRoute, /\$apis\.bodyLimit\(4096\)/);
+});
+
+test('E005: serie diaria Landing QR conserva días vacíos y usa solo agregados', () => {
+  const previousArrayOf = global.arrayOf;
+  const previousDynamicModel = global.DynamicModel;
+  global.arrayOf = () => [];
+  global.DynamicModel = class DynamicModel { constructor(values) { Object.assign(this, values); } };
+  const queries = [];
+  const app = {
+    db() {
+      return {
+        newQuery(sql) {
+          const query = { sql, bindings: null };
+          queries.push(query);
+          return {
+            bind(bindings) { query.bindings = bindings; return this; },
+            all(rows) {
+              rows.push({ day: '2026-07-18', views: 2, clicks: 1 });
+              rows.push({ day: '2026-07-20', views: 4, clicks: 3 });
+            },
+          };
+        },
+      };
+    },
+  };
+  const period = {
+    startDay: '2026-07-18',
+    endDay: '2026-07-20',
+    days: [
+      { day: '2026-07-18', label: '18 jul' },
+      { day: '2026-07-19', label: '19 jul' },
+      { day: '2026-07-20', label: '20 jul' },
+    ],
+  };
+
+  try {
+    assert.deepEqual(masterAnalytics.queryLandingQrDaily(app, STORE_ID, period), [
+      { day: '2026-07-18', label: '18 jul', views: 2, clicks: 1 },
+      { day: '2026-07-19', label: '19 jul', views: 0, clicks: 0 },
+      { day: '2026-07-20', label: '20 jul', views: 4, clicks: 3 },
+    ]);
+    assert.equal(queries.length, 1);
+    assert.deepEqual(queries[0].bindings, {
+      storeId: STORE_ID,
+      startDay: period.startDay,
+      endDay: period.endDay,
+    });
+    assert.match(queries[0].sql, /COUNT\(DISTINCT CASE[\s\S]*session_id[\s\S]*visitor_id/);
+    assert.match(queries[0].sql, /event_type = 'landing_qr_click'/);
+    assert.match(queries[0].sql, /GROUP BY day/);
+    assert.equal(queries[0].sql.includes(STORE_ID), false);
+  } finally {
+    if (previousArrayOf === undefined) delete global.arrayOf;
+    else global.arrayOf = previousArrayOf;
+    if (previousDynamicModel === undefined) delete global.DynamicModel;
+    else global.DynamicModel = previousDynamicModel;
+  }
 });
 
 test('selector acepta {} o search acotado, nunca tenant ni opciones de expand', () => {

@@ -636,6 +636,49 @@ function queryLandingQr(app, storeId, period) {
   };
 }
 
+function queryLandingQrDaily(app, storeId, period) {
+  const rows = queryRows(app, `
+    SELECT
+      day AS day,
+      COUNT(DISTINCT CASE
+        WHEN event_type = 'landing_qr_view'
+          OR (event_type = 'pageview' AND page_type = 'landing_qr')
+        THEN CASE
+          WHEN TRIM(session_id) != '' THEN 'session:' || session_id || ':' || day
+          WHEN TRIM(visitor_id) != '' THEN 'visitor:' || visitor_id || ':' || day
+          ELSE 'event:' || id
+        END
+      END) AS views,
+      SUM(CASE WHEN event_type = 'landing_qr_click' THEN 1 ELSE 0 END) AS clicks
+    FROM store_analytics_events
+    WHERE store = {:storeId}
+      AND day >= {:startDay}
+      AND day <= {:endDay}
+      AND (
+        event_type IN ('landing_qr_view', 'landing_qr_click')
+        OR (event_type = 'pageview' AND page_type = 'landing_qr')
+      )
+    GROUP BY day
+    ORDER BY day
+  `, { storeId, startDay: period.startDay, endDay: period.endDay }, {
+    day: "",
+    views: 0,
+    clicks: 0,
+  }, "PZ_MASTER_ANALYTICS_QUERY_FAILED");
+
+  const byDay = new Map();
+  rows.forEach((row) => byDay.set(String(row.day || ""), row));
+  return period.days.map((day) => {
+    const row = byDay.get(day.day) || {};
+    return {
+      day: day.day,
+      label: day.label,
+      views: nonNegativeInteger(row.views),
+      clicks: nonNegativeInteger(row.clicks),
+    };
+  });
+}
+
 const PAGE_GROUP_CTE = `
   WITH grouped AS (
     SELECT
@@ -1170,6 +1213,7 @@ module.exports = {
   handleStoreActivitySummary,
   publicEntityPath,
   queryLandingQr,
+  queryLandingQrDaily,
   queryPages,
   queryTopViewedProducts,
   queryTraffic,
