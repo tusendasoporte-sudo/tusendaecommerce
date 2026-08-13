@@ -19,13 +19,15 @@ const logoUrl = store.logoUrl || settings?.logoImageUrl || '';
 const bannerUrl = store.bannerUrl || settings?.coverImageUrl || '';
 const storeStatus = String(store.status || '').toLowerCase();
 const isSuspended = storeStatus !== ACTIVE_STORE_STATUS;
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 let showDashboard = false;
 let loginBlockMessage = '';
 
 if (authPb.authStore.isValid && authPb.authStore.record) {
   try {
-    const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+    const adminContext = Astro.locals.adminContext
+      ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
     if (String(adminContext.store.slug || '').trim().toLowerCase() === storeSlug) {
       showDashboard = true;
     } else {

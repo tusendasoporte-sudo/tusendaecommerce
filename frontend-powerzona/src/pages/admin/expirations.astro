@@ -13,8 +13,10 @@ import StoreCapabilityGate from '../../components/shared/StoreCapabilityGate.ast
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const adminAuthToken = authPb.authStore.token;
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';
@@ -23,7 +25,8 @@ const adminBasePath = getStoreAdminPath(currentStoreSlug);
 const adminProductsPath = getStoreAdminPath(currentStoreSlug, 'products');
 const adminExpirationsPath = getStoreAdminPath(currentStoreSlug, 'expirations');
 const expirationToolsAccess = resolveStoreCapabilityAccess(adminContext.store, 'product_expiration_tools_enabled');
-const storeAccessContext = await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
+const storeAccessContext = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({ baseUrl: pocketbaseUrl, token: adminAuthToken, supportStoreId: adminContext.isMasterSupport ? adminContext.storeId : undefined }).catch(() => null);
 const expirationPermissionContext = storeAccessContext
   ? {
       permissions: storeAccessContext.access.permissions,

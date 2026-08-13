@@ -3,9 +3,11 @@ export const prerender = false;
 import { getStoreAdminPath } from '../../lib/adminRoutes';
 import { refreshAuthFromCookie } from '../../lib/auth';
 import { requireCurrentStoreForAdmin } from '../../lib/storeContext';
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 try {
-  const context = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+  const context = Astro.locals.adminContext
+    ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
   return Astro.redirect(getStoreAdminPath(context.store.slug || '', 'account'));
 } catch (_) {
   return Astro.redirect('/login');

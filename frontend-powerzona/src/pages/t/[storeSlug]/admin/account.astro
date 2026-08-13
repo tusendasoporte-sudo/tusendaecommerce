@@ -16,13 +16,15 @@ Astro.response.headers.set('Pragma', 'no-cache');
 Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
 Astro.response.headers.set('Referrer-Policy', 'no-referrer');
 
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
 if (!authPb.authStore.isValid || !authPb.authStore.record) return Astro.redirect('/login');
 if (isMasterAdmin(authPb.authStore.record as any)) return Astro.redirect('/master');
 
 let adminContext;
 try {
-  adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+  adminContext = Astro.locals.adminContext
+    ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 } catch (_) {
   return Astro.redirect('/login');
 }
@@ -36,10 +38,11 @@ const storeName = String(adminContext.store.name || storeSlug || 'Tienda');
 const user = adminContext.user;
 const displayName = String(user.display_name || user.name || user.email || 'Administrador');
 const roleLabel = isStoreStaff(user) ? 'Personal de tienda' : 'Administrador de tienda';
-const storeAccess = await getStoreAccessContext({
-  baseUrl: String(import.meta.env.PUBLIC_POCKETBASE_URL || ''),
-  token: String(authPb.authStore.token || ''),
-}).catch(() => null);
+const storeAccess = Astro.locals.storeAccessContext
+  ?? await getStoreAccessContext({
+    baseUrl: String(import.meta.env.PUBLIC_POCKETBASE_URL || ''),
+    token: String(authPb.authStore.token || ''),
+  }).catch(() => null);
 const isPrimaryStoreAdmin = storeAccess?.access.is_primary_admin === true;
 const planPresentation = isPrimaryStoreAdmin
   ? resolveStorePlanPresentation(adminContext.store)

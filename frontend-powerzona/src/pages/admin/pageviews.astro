@@ -6,8 +6,10 @@ import AdminSidebar from '../../components/admin/AdminSidebar.astro';
 import '../../styles/global.css';
 
 const pocketbaseUrl = import.meta.env.PUBLIC_POCKETBASE_URL;
-const authPb = await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
-const adminContext = await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
+const authPb = Astro.locals.adminAuthPb
+  ?? await refreshAuthFromCookie(Astro.request.headers.get('cookie') || '');
+const adminContext = Astro.locals.adminContext
+  ?? await requireCurrentStoreForAdmin(authPb, { pathname: Astro.url.pathname });
 const adminAuthToken = authPb.authStore.token;
 const currentStoreId = adminContext.storeId;
 const currentStoreSlug = adminContext.store.slug || '';

@@ -166,8 +166,11 @@ const masterSupportHref = supportWhatsapp
   ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
   : (supportEmail ? `mailto:${supportEmail}?subject=${encodeURIComponent('Soporte Tu Senda 84')}&body=${encodeURIComponent(supportMessage)}` : '');
 
-let resolvedStoreAccess: StoreAccessContext | null = storeAccessContext ?? null;
-if (storeAccessContext === undefined && pocketbaseUrl && authToken) {
+const requestStoreAccessContext = Astro.locals.storeAccessContext;
+let resolvedStoreAccess: StoreAccessContext | null = storeAccessContext
+  ?? requestStoreAccessContext
+  ?? null;
+if (storeAccessContext === undefined && requestStoreAccessContext === undefined && pocketbaseUrl && authToken) {
   try {
     resolvedStoreAccess = await getStoreAccessContext({
       baseUrl: pocketbaseUrl,
@@ -245,11 +248,25 @@ const canShowPrincipalGroup = canShowOverviewNav || canShowOrdersNav;
 const canShowStoreGroup = canShowCatalogNav || canShowGiftsNav || canShowShippingNav || canShowSecurityNav || canShowSettingsGroup;
 const fastAdminNavigationPaths = new Set([
   adminOverviewPath,
+  adminPageviewsPath,
+  adminCatalogPath,
+  adminProductsPath,
   adminOrdersPath,
+  adminStoreSettingsPath,
+  adminGiftsPath,
   adminShippingPath,
+  adminPromosPath,
+  adminOrganizationPath,
+  adminRafflesPath,
+  adminNotificationsPath,
+  adminSecurityPath,
+  adminAccountPath,
+  adminTeamPath,
 ]);
 const fastPrefetchStrategy = (href: string, mobile = false) =>
-  fastAdminNavigationPaths.has(href) ? (mobile ? 'tap' : 'hover') : undefined;
+  fastAdminNavigationPaths.has(String(href || '').split('#', 1)[0])
+    ? (mobile ? 'tap' : 'hover')
+    : undefined;
 
 type MobileBottomItem = {
   target: MobileBottomTarget;
@@ -399,18 +416,18 @@ const marketingVisualSubClass = (subsection: string) => {
       </button>
       <div id="pz-admin-sidebar-store" class={sectionPanelClass(isStoreSectionActive)} data-sidebar-section-panel>
         <nav class="pz-admin-sidebar__nav-list">
-      {canShowCatalogNav && <a class={navClass('catalog')} href={adminCatalogPath} title="Categorías"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>}
-      {canShowCatalogNav && <a class={navClass('products')} href={adminProductsPath} title="Productos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>}
-      {canShowGiftsNav && <a class={navClass('gifts')} href={adminGiftsPath} title="Regalos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>}
+      {canShowCatalogNav && <a class={navClass('catalog')} href={adminCatalogPath} data-astro-prefetch={fastPrefetchStrategy(adminCatalogPath)} title="Categorías"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H3V6Zm0 5h18v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7Z"/></svg></span><span>Categorías</span></a>}
+      {canShowCatalogNav && <a class={navClass('products')} href={adminProductsPath} data-astro-prefetch={fastPrefetchStrategy(adminProductsPath)} title="Productos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5ZM5 10.7V17l6 3v-6.3l-6-3Zm8 9.3 6-3v-6.3l-6 3V20Z"/></svg></span><span>Productos</span></a>}
+      {canShowGiftsNav && <a class={navClass('gifts')} href={adminGiftsPath} data-astro-prefetch={fastPrefetchStrategy(adminGiftsPath)} title="Regalos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Regalos</span></a>}
       {canShowShippingNav && <a class={navClass('shipping')} href={adminShippingPath} data-astro-prefetch={fastPrefetchStrategy(adminShippingPath)} title="Envíos"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h10v9h2.2l1.5-3H21v5h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V9a2 2 0 0 1 1-1.73V7Zm2 0v7.17A3 3 0 0 1 8.83 16H13V7H5Zm12 6h2v1h-2v-1ZM6 17a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg></span><span>Envíos</span></a>}
       {canShowSecurityNav && (
-        <a class={navClass('security')} href={adminSecurityPath} title="Seguridad"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.4 2.9 8.5 7 9.9 4.1-1.4 7-5.5 7-9.9V5l-7-3Zm0 2.2 5 2.2V11c0 3.3-2 6.5-5 7.7-3-1.2-5-4.4-5-7.7V6.4l5-2.2Zm-1 4.8h2v3.1l2.2 2.2-1.4 1.4-2.8-2.8V9Z"/></svg></span><span>Seguridad</span></a>
+        <a class={navClass('security')} href={adminSecurityPath} data-astro-prefetch={fastPrefetchStrategy(adminSecurityPath)} title="Seguridad"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2 5 5v6c0 4.4 2.9 8.5 7 9.9 4.1-1.4 7-5.5 7-9.9V5l-7-3Zm0 2.2 5 2.2V11c0 3.3-2 6.5-5 7.7-3-1.2-5-4.4-5-7.7V6.4l5-2.2Zm-1 4.8h2v3.1l2.2 2.2-1.4 1.4-2.8-2.8V9Z"/></svg></span><span>Seguridad</span></a>
       )}
 
       {canShowSettingsGroup && <div class="pz-admin-sidebar__settings-group">
         <button class={settingsToggleClass} type="button" title="Ajustes de tienda" aria-expanded={isSettingsActive ? 'true' : 'false'} aria-controls="pz-admin-sidebar-settings-subnav" data-settings-sidebar-toggle><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7H3V8h18v4h-1ZM5 10h14V9H5v1Zm1 2v7h12v-7H6Zm6-4H8.5A2.5 2.5 0 1 1 11 5.5L12 8Zm1 0h2.5A2.5 2.5 0 1 0 13 5.5L12 8h1Z"/></svg></span><span>Ajustes de tienda</span><span class="pz-admin-sidebar__settings-chevron" aria-hidden="true">v</span></button>
         <div id="pz-admin-sidebar-settings-subnav" class={settingsSubnavClass} aria-label="Secciones de ajustes de tienda">
-          {canShowStoreSettingsNav && <a class={subClass('generales')} data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>}
+          {canShowStoreSettingsNav && <a class={subClass('generales')} data-settings-subitem="generales" href={`${adminStoreSettingsPath}#generales`} data-astro-prefetch={fastPrefetchStrategy(`${adminStoreSettingsPath}#generales`)}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.4 13.5c.1-.5.1-1 .1-1.5s0-1-.1-1.5l2-1.5-2-3.5-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2h-4l-.4 2.5A7.5 7.5 0 0 0 7 6L4.6 5l-2 3.5 2 1.5c-.1.5-.1 1-.1 1.5s0 1 .1 1.5l-2 1.5 2 3.5 2.4-1a7.5 7.5 0 0 0 2.6 1.5L10 22h4l.4-2.5A7.5 7.5 0 0 0 17 18l2.4 1 2-3.5-2-1.5ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span>Ajustes generales</span></a>}
           {canShowStoreSettingsNav && <a class={subClass('footer')} data-settings-subitem="footer" href={`${adminStoreSettingsPath}#footer`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6V2Zm8 2.5V8h3.5L14 4.5ZM8 11h8v2H8v-2Zm0 4h8v2H8v-2Z"/></svg></span><span>Footer público</span></a>}
           {canShowStoreSettingsNav && <a class={subClass('monedas')} data-settings-subitem="monedas" href={`${adminStoreSettingsPath}#monedas`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 3v2.1c2.3.4 4 1.8 4 3.9h-3c0-.8-.8-1.3-2-1.3s-2 .5-2 1.2c0 .8.7 1.1 2.8 1.6 2.8.7 4.7 1.7 4.7 4.3 0 2.1-1.7 3.7-4.5 4.1V21h-2v-2.1c-2.7-.4-4.6-2-4.7-4.4h3c.1 1 1 1.7 2.5 1.7s2.4-.6 2.4-1.4c0-.9-.8-1.2-3-1.8-2.7-.7-4.4-1.7-4.4-4 0-2 1.6-3.5 4.2-3.9V3h2Z"/></svg></span><span>Monedas</span></a>}
           {canShowStoreSettingsNav && <a class={subClass('horario')} data-settings-subitem="horario" href={`${adminStoreSettingsPath}#horario`}><span class="pz-admin-sidebar__settings-subicon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 5v4.6l3.2 3.2-1.4 1.4L11 12.4V7h2Z"/></svg></span><span>Horarios</span></a>}
@@ -448,8 +465,8 @@ const marketingVisualSubClass = (subsection: string) => {
       </button>
       <div id="pz-admin-sidebar-personal" class={sectionPanelClass(isPersonalDataActive)} data-sidebar-section-panel>
         <nav class="pz-admin-sidebar__nav-list">
-          {isPrimaryAdmin && <a class={navClass('team')} href={adminTeamPath} title="Mi equipo"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8.5 1a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM1 21v-2a6 6 0 0 1 12 0v2H1Zm12.5 0v-2a7.5 7.5 0 0 0-1.1-3.9A5.5 5.5 0 0 1 23 17v4h-9.5Z"/></svg></span><span>Mi equipo</span></a>}
-          {!isMasterSupportMode && <a class={navClass('account')} href={adminAccountPath} title="Mi cuenta"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span><span>Mi cuenta</span></a>}
+          {isPrimaryAdmin && <a class={navClass('team')} href={adminTeamPath} data-astro-prefetch={fastPrefetchStrategy(adminTeamPath)} title="Mi equipo"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8.5 1a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM1 21v-2a6 6 0 0 1 12 0v2H1Zm12.5 0v-2a7.5 7.5 0 0 0-1.1-3.9A5.5 5.5 0 0 1 23 17v4h-9.5Z"/></svg></span><span>Mi equipo</span></a>}
+          {!isMasterSupportMode && <a class={navClass('account')} href={adminAccountPath} data-astro-prefetch={fastPrefetchStrategy(adminAccountPath)} title="Mi cuenta"><span class="pz-admin-sidebar__nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span><span>Mi cuenta</span></a>}
         </nav>
       </div>
     </section>

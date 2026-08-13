@@ -92,3 +92,45 @@ Por tanto, esta mejora no añade fallos nuevos a la suite existente.
 - No se cambió la caché de la WebView.
 - No se cachea HTML administrativo ni respuestas de API mediante service worker.
 - La navegación parcial del contenido se evaluará después de validar esta fase y adaptar los scripts para evitar eventos duplicados.
+
+## Segunda fase: cierre del administrador
+
+Después de validar el piloto se extendió la misma optimización al resto de los destinos principales del administrador, sin incluir todavía la tienda pública. Los editores conservan su navegación tradicional para proteger los cambios sin guardar.
+
+### Funciones y procesos existentes modificados
+
+- El resumen del tenant, Productos, Categorías, Ajustes, Regalos, Promos, Organización visual, Vencimientos, Notificaciones, Analítica, Ganancias, Equipo, Seguridad, Mi cuenta y sus vistas internas reutilizan la autenticación y el contexto de tienda ya validados por `middleware.ts`.
+- Las páginas que requieren permisos granulares reutilizan `Astro.locals.storeAccessContext`; si se renderizan fuera del middleware conservan la consulta anterior como fallback seguro.
+- `AdminSidebar.astro` reutiliza automáticamente el contexto de permisos de la petición y evita repetir la misma consulta para construir el menú.
+- La precarga selectiva se amplió a los destinos principales permitidos por el perfil. Sigue siendo `hover` en escritorio y `tap` en móvil.
+- No se añadió navegación SPA, no se cambió el guardado de formularios y no se modificaron las reglas de autorización.
+- `profits.astro` construye su filtro con el `storeId` que ya fue validado en el contexto de la petición, manteniendo el mismo aislamiento por tienda.
+
+Riesgos controlados: sesión, tenant activo, modo Master soporte, permisos por módulo, visibilidad de enlaces, formularios con cambios pendientes y navegación Atrás de Android.
+
+### Pruebas automáticas de la segunda fase
+
+- Compilación Astro SSR: aprobada.
+- Contexto compartido y precarga administrativa ampliada: 2/2 aprobada.
+- Regresiones focalizadas: 47 pruebas, 46 aprobadas y 1 fallo conocido de Ajustes ya presente en la línea base.
+- Suite completa: 458 pruebas, 453 aprobadas y los mismos 5 fallos conocidos de la línea base.
+- `git diff --check`: aprobado, sin errores de espacios ni conflictos.
+
+### Pruebas manuales necesarias en staging para cerrar el administrador
+
+1. Administrador principal: recorrer Resumen, Categorías, Productos, Pedidos, Regalos, Envíos, Seguridad, Ajustes, Promos, Equipo y Mi cuenta.
+2. Colaborador limitado: confirmar que el menú solo precarga y muestra destinos autorizados y que una URL prohibida continúa bloqueada o redirigida.
+3. Master soporte: recorrer los mismos módulos y comprobar que `Volver al panel Master` y los permisos de soporte no cambian.
+4. Productos y Categorías: editar un campo, usar Atrás y confirmar que continúa apareciendo la protección de cambios sin guardar.
+5. Productos: comprobar Mostrar/Ocultar, Marcar agotado, historial y menú de tres puntos para asegurar que E003 no regresa.
+6. Ajustes y Promos: abrir sus subsecciones mediante anclas y comprobar que el destino correcto queda visible.
+7. Equipo y Mi cuenta: validar que los datos y acciones exclusivos del administrador principal no aparecen a colaboradores.
+8. Seguridad: comprobar acceso permitido, acceso denegado y regreso desde el detalle de un visitante.
+9. Android: recorrer una vista de lista, una vista de detalle y un editor; el botón físico Atrás debe volver al padre correcto.
+10. Repetir la navegación en PC y APK y confirmar que menús, diálogos, botones y escuchas responden una sola vez.
+
+### No incluido en la segunda fase
+
+- No se modificó la navegación ni el rendimiento de las tiendas públicas.
+- No se alteró PocketBase, el esquema de datos ni las reglas de producción.
+- No se desplegó a producción; la verificación corresponde únicamente a staging.
