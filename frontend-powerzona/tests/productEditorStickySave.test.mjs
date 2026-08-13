@@ -61,6 +61,28 @@ test('EDITOR-PRODUCTO-MOVIL: Opciones inicia plegado y resume sus estados princi
   assert.equal((products.match(/updateProductOptionsDisclosure\(\{ reset: true \}\);/g) || []).length >= 3, true);
 });
 
+test('EDITOR-PRODUCTO-MOVIL: Información adicional inicia plegada y resume la cantidad configurada', () => {
+  assert.match(products, /id="product-extra-toggle"[\s\S]*?aria-expanded="true" aria-controls="product-extra-content"/);
+  assert.match(products, /id="product-extra-summary" class="product-editor-disclosure-summary">Sin información adicional</);
+  assert.match(products, /id="product-extra-content" class="product-editor-disclosure-content"/);
+  assert.match(products, /\.product-editor-disclosure-card\.is-mobile-disclosure-collapsed \.product-editor-disclosure-content \{\s*display: none !important;/);
+  assert.match(products, /function updateProductExtraDisclosure\(\{ reset = false \} = \{\}\)/);
+  assert.match(products, /productExtraSummary\.textContent = count === 0[\s\S]*?'Sin información adicional'[\s\S]*?'dato configurado'[\s\S]*?'datos configurados'/);
+  assert.match(products, /productExtraToggle\?\.addEventListener\('click', \(\) => \{[\s\S]*?isMobileProductExtraExpanded = !isMobileProductExtraExpanded;[\s\S]*?updateProductExtraDisclosure\(\);/);
+  assert.equal((products.match(/updateProductExtraDisclosure\(\{ reset: true \}\);/g) || []).length >= 3, true);
+});
+
+test('EDITOR-PRODUCTO-MOVIL: Productos relacionados inicia plegado y resume la selección', () => {
+  assert.match(products, /id="related-products-toggle"[\s\S]*?aria-expanded="true" aria-controls="related-products-content"/);
+  assert.match(products, /id="related-products-summary" class="product-editor-disclosure-summary">Sin productos relacionados</);
+  assert.match(products, /id="related-products-content" class="product-editor-disclosure-content"/);
+  assert.match(products, /function updateRelatedProductsDisclosure\(\{ reset = false \} = \{\}\)/);
+  assert.match(products, /const count = getSelectedRelatedProducts\(\)\.length;/);
+  assert.match(products, /relatedProductsSummary\.textContent = count === 0[\s\S]*?'Sin productos relacionados'[\s\S]*?'producto seleccionado'[\s\S]*?'productos seleccionados'/);
+  assert.match(products, /relatedProductsToggle\?\.addEventListener\('click', \(\) => \{[\s\S]*?isMobileRelatedProductsExpanded = !isMobileRelatedProductsExpanded;[\s\S]*?updateRelatedProductsDisclosure\(\);/);
+  assert.equal((products.match(/updateRelatedProductsDisclosure\(\{ reset: true \}\);/g) || []).length >= 3, true);
+});
+
 test('EDITOR-PRODUCTO: la mejora no sustituye las validaciones ni el botón de guardado existente', () => {
   assert.match(products, /productSaveBtn\.disabled = isSavingProduct \|\| missingName \|\| missingPriceCurrency \|\| missingStock \|\| invalidOffer \|\| missingValidVariation \|\| Boolean\(invalidParentConfiguration\) \|\| !isDirtyEnough;/);
   assert.match(products, /editorSideSaveBtn\.disabled = productSaveBtn\.disabled;/);

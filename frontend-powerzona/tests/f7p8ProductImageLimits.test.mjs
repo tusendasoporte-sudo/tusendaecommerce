@@ -203,6 +203,16 @@ test('F7P8: el admin usa capacidad SSR, MIME cerrado y drag/drop real', () => {
   assert.equal(source.includes('localStorage'), false);
 });
 
+test('F7P8: las instrucciones de carga distinguen escritorio y móvil sin cambiar el dropzone', () => {
+  const source = readFileSync(new URL('../src/pages/admin/products.astro', import.meta.url), 'utf8');
+  assert.equal(source.includes('product-upload-instruction-desktop'), true);
+  assert.equal(source.includes('product-upload-instruction-mobile'), true);
+  assert.equal(source.includes('Arrastra imágenes aquí o selecciona archivos'), true);
+  assert.equal(source.includes('Selecciona imágenes'), true);
+  assert.equal(source.includes('aria-label="Seleccionar fotos del producto"'), true);
+  assert.equal(source.includes("productUploadDropzone?.addEventListener('drop'"), true);
+});
+
 test('F7P8-C1: el adaptador productivo conserva la capacidad central sin duplicar planes', () => {
   const source = readFileSync(new URL('../src/lib/productImageLimits.ts', import.meta.url), 'utf8');
   assert.equal(source.includes("resolveStoreCapabilityAccess(store, 'max_product_images')"), true);

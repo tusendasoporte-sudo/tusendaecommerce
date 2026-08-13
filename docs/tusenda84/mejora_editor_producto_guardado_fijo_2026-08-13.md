@@ -58,6 +58,24 @@ Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState
 - En escritorio la sección permanece siempre abierta y no ofrece interacción de plegado.
 - La función visual `updateProductOptionsDisclosure()` no altera `updateProductFormState()`, el snapshot ni el payload; solo lee los controles después de su actualización para construir el resumen.
 
+## Información adicional y Productos relacionados desplegables en Admin móvil
+
+- Ambas secciones inician cerradas en pantallas de hasta 768 px y se abren de forma independiente.
+- **Información adicional** resume `Sin información adicional`, `1 dato configurado` o la cantidad real configurada.
+- **Productos relacionados** resume `Sin productos relacionados`, `1 producto seleccionado` o la cantidad real seleccionada.
+- Al abrir se conservan los controles existentes para añadir, editar y borrar información, además de añadir o quitar relacionados.
+- En escritorio ambas secciones permanecen abiertas y conservan sus etiquetas y distribución actuales.
+- `updateProductExtraDisclosure()` y `updateRelatedProductsDisclosure()` son funciones nuevas exclusivamente visuales.
+
+Funciones existentes tocadas y motivo:
+
+- `renderProductExtraInfo()`: llama a la actualización visual del resumen después de renderizar la lista.
+- `renderSelectedRelatedProducts()`: llama a la actualización visual del resumen después de renderizar o vaciar la selección.
+- `openNewProductEditor()`, `openEditProductEditor()` y `closeProductEditor()`: restablecen ambos desplegables al estado móvil cerrado.
+- El listener existente de `resize`: mantiene las secciones abiertas en escritorio y recupera el estado móvil correspondiente.
+
+No se modificaron `saveProductExtraInfoDirectly()`, el modal de relacionados, el snapshot, el payload del producto, las solicitudes API, los permisos ni las validaciones.
+
 ## Pruebas automáticas necesarias
 
 1. `node --test tests/productEditorStickySave.test.mjs`
@@ -95,6 +113,10 @@ Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState
 10. Abrir creación y edición: Opciones del producto debe iniciar cerrado y mostrar `Visible · Controla stock · Sin variaciones` o los valores reales del producto.
 11. Abrir Opciones, cambiar visibilidad, control de stock y variaciones: el resumen debe actualizarse al cerrar sin perder ni guardar automáticamente la selección.
 12. Confirmar en escritorio que Opciones permanece abierta y que todos los controles conservan sus permisos.
+13. Abrir creación y edición: Información adicional y Productos relacionados deben iniciar cerrados y mostrar sus cantidades reales.
+14. Abrir Información adicional: añadir, editar y borrar un dato; confirmar que el resumen cambia sin perder el proceso actual.
+15. Abrir Productos relacionados: añadir y quitar productos; confirmar que el resumen cambia y que el máximo continúa siendo cuatro.
+16. Cambiar temporalmente a ancho de escritorio: ambas secciones deben permanecer abiertas, sin botones de plegado interactivos.
 
 ### Regresiones de producto
 

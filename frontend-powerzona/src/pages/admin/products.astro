@@ -1094,6 +1094,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         font-style: normal !important;
         font-weight: 1000 !important;
       }
+      .product-upload-instruction-mobile {
+        display: none !important;
+      }
       .editor-side-column {
         position: sticky !important;
         top: 24px !important;
@@ -1196,6 +1199,13 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       .product-options-toggle-icon {
         display: none !important;
       }
+      .product-editor-disclosure-toggle {
+        display: none !important;
+      }
+      .product-editor-disclosure-summary,
+      .product-editor-disclosure-icon {
+        display: none !important;
+      }
       .editor-status-chips {
         display: flex !important;
         gap: 8px !important;
@@ -1264,6 +1274,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       }
 
       @media (max-width: 768px) {
+        .product-upload-instruction-desktop {
+          display: none !important;
+        }
+        .product-upload-instruction-mobile {
+          display: inline !important;
+        }
         body {
           background: #f6f8fb !important;
         }
@@ -2879,6 +2895,66 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         #product-editor:not(.hidden) .product-options-content {
           margin-top: 12px !important;
         }
+        #product-editor:not(.hidden) .product-editor-disclosure-card {
+          padding: 14px 16px !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-label {
+          display: none !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-toggle {
+          width: 100% !important;
+          min-height: 48px !important;
+          display: flex !important;
+          align-items: center !important;
+          flex-wrap: wrap !important;
+          gap: 10px !important;
+          padding: 0 !important;
+          border: 0 !important;
+          background: transparent !important;
+          color: #0f172a !important;
+          text-align: left !important;
+          cursor: pointer !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-title {
+          flex: 0 0 auto !important;
+          font-size: 12px !important;
+          font-weight: 1000 !important;
+          letter-spacing: .04em !important;
+          text-transform: uppercase !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-summary {
+          display: block !important;
+          flex: 1 1 100% !important;
+          order: 3 !important;
+          margin: -4px 34px 0 0 !important;
+          color: #64748b !important;
+          font-size: 11px !important;
+          font-weight: 800 !important;
+          line-height: 1.35 !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-icon {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          width: 26px !important;
+          height: 26px !important;
+          margin-left: auto !important;
+          border-radius: 999px !important;
+          background: #eff6ff !important;
+          color: #2563eb !important;
+          font-size: 16px !important;
+          font-weight: 1000 !important;
+          transition: transform .2s ease !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-card.is-mobile-disclosure-collapsed .product-editor-disclosure-content {
+          display: none !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-card:not(.is-mobile-disclosure-collapsed) .product-editor-disclosure-icon {
+          transform: rotate(180deg) !important;
+        }
+        #product-editor:not(.hidden) .product-editor-disclosure-content {
+          margin-top: 12px !important;
+        }
         #product-editor:not(.hidden) .editor-main-column {
           padding-bottom: 0 !important;
         }
@@ -3182,36 +3258,43 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <h3>Información adicional</h3>
                     <span>Agrega detalles, especificaciones o instrucciones para este producto.</span>
                   </div>
-                  <div class="field full">
-                    <label>Información adicional</label>
-                    <p class="form-help">Agrega hasta 3 datos editables por producto. Ej: Marca, Presentación, Beneficio, Sabor, Tamaño o Servicio.</p>
-                    <div class="product-extra-panel">
-                      <div id="product-extra-list" class="product-extra-list"></div>
-                      <button id="product-extra-add-btn" class="product-extra-add pz-admin-action-btn" type="button">
-                        <AdminIcon name="plus" class="pz-admin-action-icon" />
-                        <span data-product-extra-add-label>Añadir información</span>
-                      </button>
-                      <div id="product-extra-editor" class="product-extra-editor hidden">
-                        <div class="product-extra-editor-head">
-                          <div>
-                            <p id="product-extra-editor-title" class="product-extra-editor-title">Nueva información</p>
-                            <p class="product-extra-editor-help">El admin puede editar el nombre del dato y su valor para cada producto.</p>
+                  <div id="product-extra-card" class="field full product-editor-disclosure-card">
+                    <label class="product-editor-disclosure-label">Información adicional</label>
+                    <button id="product-extra-toggle" class="product-editor-disclosure-toggle" type="button" aria-expanded="true" aria-controls="product-extra-content">
+                      <span class="product-editor-disclosure-title">Información adicional</span>
+                      <span id="product-extra-summary" class="product-editor-disclosure-summary">Sin información adicional</span>
+                      <span class="product-editor-disclosure-icon" aria-hidden="true">⌄</span>
+                    </button>
+                    <div id="product-extra-content" class="product-editor-disclosure-content">
+                      <p class="form-help">Agrega hasta 3 datos editables por producto. Ej: Marca, Presentación, Beneficio, Sabor, Tamaño o Servicio.</p>
+                      <div class="product-extra-panel">
+                        <div id="product-extra-list" class="product-extra-list"></div>
+                        <button id="product-extra-add-btn" class="product-extra-add pz-admin-action-btn" type="button">
+                          <AdminIcon name="plus" class="pz-admin-action-icon" />
+                          <span data-product-extra-add-label>Añadir información</span>
+                        </button>
+                        <div id="product-extra-editor" class="product-extra-editor hidden">
+                          <div class="product-extra-editor-head">
+                            <div>
+                              <p id="product-extra-editor-title" class="product-extra-editor-title">Nueva información</p>
+                              <p class="product-extra-editor-help">El admin puede editar el nombre del dato y su valor para cada producto.</p>
+                            </div>
+                            <button id="product-extra-close-btn" class="mini-btn" type="button">×</button>
                           </div>
-                          <button id="product-extra-close-btn" class="mini-btn" type="button">×</button>
-                        </div>
-                        <div class="product-extra-editor-grid">
-                          <div class="field">
-                            <label for="product-extra-label">Nombre del dato</label>
-                            <input id="product-extra-label" type="text" placeholder="Ej: Marca" maxlength="40" />
+                          <div class="product-extra-editor-grid">
+                            <div class="field">
+                              <label for="product-extra-label">Nombre del dato</label>
+                              <input id="product-extra-label" type="text" placeholder="Ej: Marca" maxlength="40" />
+                            </div>
+                            <div class="field">
+                              <label for="product-extra-value">Valor</label>
+                              <input id="product-extra-value" type="text" placeholder="Ej: Spring Valley" maxlength="80" />
+                            </div>
                           </div>
-                          <div class="field">
-                            <label for="product-extra-value">Valor</label>
-                            <input id="product-extra-value" type="text" placeholder="Ej: Spring Valley" maxlength="80" />
+                          <div class="product-extra-editor-actions">
+                            <button id="product-extra-cancel-btn" class="mini-btn" type="button">Cancelar</button>
+                            <button id="product-extra-save-btn" class="submit-btn" type="button">Guardar información</button>
                           </div>
-                        </div>
-                        <div class="product-extra-editor-actions">
-                          <button id="product-extra-cancel-btn" class="mini-btn" type="button">Cancelar</button>
-                          <button id="product-extra-save-btn" class="submit-btn" type="button">Guardar información</button>
                         </div>
                       </div>
                     </div>
@@ -3222,33 +3305,44 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
                     <h3>Productos relacionados</h3>
                     <span>Selecciona productos para mostrarlos al final de la ficha pública.</span>
                   </div>
-                  <div class="field full">
-                    <label>Productos relacionados</label>
-                    <p class="form-help">Selecciona hasta 4 productos sugeridos para mostrar al final de la ficha pública.</p>
-                    <div class="related-products-panel">
-                      <div class="related-products-head">
-                        <div>
-                          <p class="related-products-title">Productos relacionados</p>
-                          <p class="related-products-subtitle">Artículos sugeridos junto a este producto.</p>
+                  <div id="related-products-card" class="field full product-editor-disclosure-card">
+                    <label class="product-editor-disclosure-label">Productos relacionados</label>
+                    <button id="related-products-toggle" class="product-editor-disclosure-toggle" type="button" aria-expanded="true" aria-controls="related-products-content">
+                      <span class="product-editor-disclosure-title">Productos relacionados</span>
+                      <span id="related-products-summary" class="product-editor-disclosure-summary">Sin productos relacionados</span>
+                      <span class="product-editor-disclosure-icon" aria-hidden="true">⌄</span>
+                    </button>
+                    <div id="related-products-content" class="product-editor-disclosure-content">
+                      <p class="form-help">Selecciona hasta 4 productos sugeridos para mostrar al final de la ficha pública.</p>
+                      <div class="related-products-panel">
+                        <div class="related-products-head">
+                          <div>
+                            <p class="related-products-title">Productos relacionados</p>
+                            <p class="related-products-subtitle">Artículos sugeridos junto a este producto.</p>
+                          </div>
+                          <button id="related-products-open-btn" class="mini-btn pz-admin-action-btn" type="button">
+                            <AdminIcon name="plus" class="pz-admin-action-icon" />
+                            <span>Añadir productos</span>
+                          </button>
                         </div>
-                        <button id="related-products-open-btn" class="mini-btn pz-admin-action-btn" type="button">
-                          <AdminIcon name="plus" class="pz-admin-action-icon" />
-                          <span>Añadir productos</span>
-                        </button>
+                        <div id="related-products-list" class="related-products-list"></div>
                       </div>
-                      <div id="related-products-list" class="related-products-list"></div>
                     </div>
                   </div>
 
                   <div class:list={['editor-section-heading full', !canManageProductImages && 'hidden']}>
                     <p class="editor-section-kicker">Galería</p>
                     <h3>Imágenes del producto</h3>
-                    <span>Arrastra imágenes aquí o selecciona archivos para preparar la galería.</span>
+                    <span class="product-upload-instruction-desktop">Arrastra imágenes aquí o selecciona archivos para preparar la galería.</span>
+                    <span class="product-upload-instruction-mobile">Selecciona archivos para preparar la galería.</span>
                   </div>
                   <div class:list={['field full', !canManageProductImages && 'hidden']}>
                     <label>Imágenes del producto</label>
-                    <div id="product-upload-dropzone" class="product-upload-dropzone" role="button" tabindex="0" aria-label="Seleccionar o soltar fotos del producto">
-                      <strong>Arrastra imágenes aquí o selecciona archivos</strong>
+                    <div id="product-upload-dropzone" class="product-upload-dropzone" role="button" tabindex="0" aria-label="Seleccionar fotos del producto">
+                      <strong>
+                        <span class="product-upload-instruction-desktop">Arrastra imágenes aquí o selecciona archivos</span>
+                        <span class="product-upload-instruction-mobile">Selecciona imágenes</span>
+                      </strong>
                       <span id="product-image-plan-message"></span>
                       <em>Seleccionar archivos</em>
                       <input id="product-images-multiple" type="file" accept="image/jpeg,image/png,image/webp" multiple />
@@ -3698,6 +3792,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       let isSavingVariation = false;
       let isMobileEditorPreviewExpanded = false;
       let isMobileProductOptionsExpanded = false;
+      let isMobileProductExtraExpanded = false;
+      let isMobileRelatedProductsExpanded = false;
       let productInitialSnapshot = "";
       let variationInitialSnapshot = "";
       let productManualActive = true;
@@ -3751,6 +3847,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productExpirationDateInput = document.getElementById('product-expiration-date');
       const productExpirationHelp = document.getElementById('product-expiration-help');
       const productDescriptionInput = document.getElementById('product-description');
+      const productExtraCard = document.getElementById('product-extra-card');
+      const productExtraToggle = document.getElementById('product-extra-toggle');
+      const productExtraSummary = document.getElementById('product-extra-summary');
       const productExtraList = document.getElementById('product-extra-list');
       const productExtraAddBtn = document.getElementById('product-extra-add-btn');
       const productExtraEditor = document.getElementById('product-extra-editor');
@@ -3764,6 +3863,9 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
       const productUploadDropzone = document.getElementById('product-upload-dropzone');
       const productImagesMultipleInput = document.getElementById('product-images-multiple');
       const productImagePlanMessage = document.getElementById('product-image-plan-message');
+      const relatedProductsCard = document.getElementById('related-products-card');
+      const relatedProductsToggle = document.getElementById('related-products-toggle');
+      const relatedProductsSummary = document.getElementById('related-products-summary');
       const relatedProductsOpenBtn = document.getElementById('related-products-open-btn');
       const relatedProductsList = document.getElementById('related-products-list');
       const relatedProductsModal = document.getElementById('related-products-modal');
@@ -4398,6 +4500,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             }
           });
         });
+        updateProductExtraDisclosure();
       }
       function openExtraInfoEditor(index = -1) {
         if (!productExtraEditor) return;
@@ -5104,6 +5207,34 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productOptionsToggle.tabIndex = isMobile ? 0 : -1;
         productOptionsToggle.setAttribute('aria-disabled', String(!isMobile));
         productOptionsToggle.setAttribute('aria-expanded', String(isExpanded));
+      }
+      function updateProductExtraDisclosure({ reset = false } = {}) {
+        if (!productExtraCard || !productExtraToggle || !productExtraSummary) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (reset) isMobileProductExtraExpanded = false;
+        const isExpanded = !isMobile || isMobileProductExtraExpanded;
+        const count = productExtraInfoItems.length;
+        productExtraSummary.textContent = count === 0
+          ? 'Sin información adicional'
+          : `${count} ${count === 1 ? 'dato configurado' : 'datos configurados'}`;
+        productExtraCard.classList.toggle('is-mobile-disclosure-collapsed', isMobile && !isExpanded);
+        productExtraToggle.tabIndex = isMobile ? 0 : -1;
+        productExtraToggle.setAttribute('aria-disabled', String(!isMobile));
+        productExtraToggle.setAttribute('aria-expanded', String(isExpanded));
+      }
+      function updateRelatedProductsDisclosure({ reset = false } = {}) {
+        if (!relatedProductsCard || !relatedProductsToggle || !relatedProductsSummary) return;
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        if (reset) isMobileRelatedProductsExpanded = false;
+        const isExpanded = !isMobile || isMobileRelatedProductsExpanded;
+        const count = getSelectedRelatedProducts().length;
+        relatedProductsSummary.textContent = count === 0
+          ? 'Sin productos relacionados'
+          : `${count} ${count === 1 ? 'producto seleccionado' : 'productos seleccionados'}`;
+        relatedProductsCard.classList.toggle('is-mobile-disclosure-collapsed', isMobile && !isExpanded);
+        relatedProductsToggle.tabIndex = isMobile ? 0 : -1;
+        relatedProductsToggle.setAttribute('aria-disabled', String(!isMobile));
+        relatedProductsToggle.setAttribute('aria-expanded', String(isExpanded));
       }
       function updateMobileSavePlacement() {
         if (!productEditor || !editorActionsCard || !editorStatusCard) return;
@@ -6035,8 +6166,12 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productEditor.classList.remove('has-mobile-save-action', 'has-mobile-inline-save');
         isMobileEditorPreviewExpanded = false;
         isMobileProductOptionsExpanded = false;
+        isMobileProductExtraExpanded = false;
+        isMobileRelatedProductsExpanded = false;
         updateEditorPreviewDisclosure({ reset: true });
         updateProductOptionsDisclosure({ reset: true });
+        updateProductExtraDisclosure({ reset: true });
+        updateRelatedProductsDisclosure({ reset: true });
         setCatalogOverviewVisible(true);
         setFormAlert('');
         duplicateProductToast?.classList.add('hidden');
@@ -6057,6 +6192,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productEditor.classList.remove('hidden');
         updateEditorPreviewDisclosure({ reset: true });
         updateProductOptionsDisclosure({ reset: true });
+        updateProductExtraDisclosure({ reset: true });
+        updateRelatedProductsDisclosure({ reset: true });
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
         updateProductFormState({ showMessage: true });
@@ -6131,6 +6268,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productEditor.classList.remove('hidden');
         updateEditorPreviewDisclosure({ reset: true });
         updateProductOptionsDisclosure({ reset: true });
+        updateProductExtraDisclosure({ reset: true });
+        updateRelatedProductsDisclosure({ reset: true });
         updateProductFormState();
         setCatalogOverviewVisible(false);
         productEditor.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -6652,6 +6791,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         const selectedProducts = getSelectedRelatedProducts();
         if (!selectedProducts.length) {
           relatedProductsList.innerHTML = '<div class="related-modal-empty">No hay productos relacionados seleccionados.</div>';
+          updateRelatedProductsDisclosure();
           return;
         }
         relatedProductsList.innerHTML = selectedProducts.map((product) => `
@@ -6673,6 +6813,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
             updateProductFormState();
           });
         });
+        updateRelatedProductsDisclosure();
       }
       function renderRelatedProductsModal() {
         if (!relatedProductsModalList) return;
@@ -7117,6 +7258,16 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         if (!window.matchMedia('(max-width: 768px)').matches) return;
         isMobileProductOptionsExpanded = !isMobileProductOptionsExpanded;
         updateProductOptionsDisclosure();
+      });
+      productExtraToggle?.addEventListener('click', () => {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        isMobileProductExtraExpanded = !isMobileProductExtraExpanded;
+        updateProductExtraDisclosure();
+      });
+      relatedProductsToggle?.addEventListener('click', () => {
+        if (!window.matchMedia('(max-width: 768px)').matches) return;
+        isMobileRelatedProductsExpanded = !isMobileRelatedProductsExpanded;
+        updateRelatedProductsDisclosure();
       });
       productNameInput?.addEventListener('input', () => {
         productSlugInput.value = slugify(productNameInput.value);
@@ -7568,6 +7719,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateMobileSavePlacement();
         updateEditorPreviewDisclosure();
         updateProductOptionsDisclosure();
+        updateProductExtraDisclosure();
+        updateRelatedProductsDisclosure();
       });
 
       productsList?.addEventListener('keydown', (event) => {

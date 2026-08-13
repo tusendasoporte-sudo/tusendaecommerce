@@ -252,3 +252,16 @@ Backend real, frontend, SSR público, pruebas focalizadas, runtime F7P8, suites 
 ## 43. Cierre controlado
 
 F7P8 queda **COMPLETADO**, confirmado explícitamente por Kraken el 17 de julio de 2026. Referencia: bitácora v30. Source de continuidad: V104.
+
+## 44. Texto de carga adaptado para Admin móvil (13 de agosto de 2026)
+
+- En móvil, el encabezado indica `Selecciona archivos para preparar la galería` y la zona de carga indica `Selecciona imágenes`.
+- En escritorio se conserva `Arrastra imágenes aquí o selecciona archivos`, porque el drop real continúa disponible.
+- No se modificaron las funciones de selección, drag/drop, optimización WebP, límites de 2/4 imágenes, permisos ni persistencia.
+
+Pruebas de regresión necesarias:
+
+- Móvil: abrir creación y edición, confirmar que no aparece ninguna instrucción de arrastrar y que tocar la zona abre el selector.
+- Escritorio: confirmar que continúa visible la instrucción de arrastrar y que funcionan tanto el drop como el selector.
+- Free/Básico/Premium: comprobar que los límites activos de imágenes no cambian.
+- Ejecutar `f7p8ProductImageLimits.test.mjs`, la suite focalizada del editor y el build del frontend.
