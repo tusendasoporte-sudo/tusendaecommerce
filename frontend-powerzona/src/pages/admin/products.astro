@@ -2778,7 +2778,8 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           box-shadow: 0 18px 42px rgba(15, 23, 42, .20) !important;
           overflow: visible !important;
         }
-        #product-editor:not(.hidden):not(.has-mobile-save-action) .editor-actions-card {
+        #product-editor:not(.hidden):not(.has-mobile-save-action) .editor-actions-card,
+        #product-editor:not(.hidden) .editor-actions-card[data-mobile-save-visible="false"] {
           display: none !important;
         }
         #product-editor:not(.hidden).has-mobile-inline-save .editor-actions-card {
@@ -2789,7 +2790,19 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
           width: 100% !important;
           margin-top: 14px !important;
           z-index: 1 !important;
-          box-shadow: 0 12px 28px rgba(15, 23, 42, .10) !important;
+          display: block !important;
+          padding: 0 !important;
+          border: 0 !important;
+          background: transparent !important;
+          backdrop-filter: none !important;
+          box-shadow: none !important;
+        }
+        #product-editor:not(.hidden).has-mobile-inline-save .editor-save-state {
+          display: none !important;
+        }
+        #product-editor:not(.hidden).has-mobile-inline-save .side-save-btn {
+          width: 100% !important;
+          grid-column: 1 / -1 !important;
         }
         #product-editor:not(.hidden) .editor-actions-card .side-card-kicker,
         #product-editor:not(.hidden) .side-cancel-btn,
@@ -4939,9 +4952,11 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         productEditor.classList.toggle('has-mobile-inline-save', statusTop <= inlineThreshold);
       }
       function updateMobileSaveActionState(hasPendingChanges) {
-        if (!productEditor) return;
-        productEditor.classList.toggle('has-mobile-save-action', Boolean(hasPendingChanges));
-        if (!hasPendingChanges) productEditor.classList.remove('has-mobile-inline-save');
+        if (!productEditor || !editorActionsCard) return;
+        const shouldShow = Boolean(hasPendingChanges);
+        productEditor.classList.toggle('has-mobile-save-action', shouldShow);
+        editorActionsCard.dataset.mobileSaveVisible = shouldShow ? 'true' : 'false';
+        if (!shouldShow) productEditor.classList.remove('has-mobile-inline-save');
         requestAnimationFrame(updateMobileSavePlacement);
       }
       function updateProductFormState({ showMessage = false } = {}) {
@@ -5013,7 +5028,6 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         updateVariationFormState();
         updateEditorPreview();
         applyProductPermissionState();
-        updateMobileSaveActionState(isSavingProduct || hasPendingProductChanges);
         const canSaveProduct = isEditing ? canMutateExistingProduct() : CAN_CREATE_PRODUCTS;
         if (isSavingProduct) {
           setEditorSaveState('Guardando los cambios...', 'saving');
@@ -5038,6 +5052,7 @@ const masterSupportLabel = masterSupportHref ? 'Contactar a soporte' : 'Soporte 
         } else {
           setEditorSaveState('Producto listo para guardar.', 'dirty');
         }
+        updateMobileSaveActionState(isSavingProduct || hasPendingProductChanges);
         if (showMessage) {
           if (missingName) setFormAlert('Escribe el nombre del producto para activar Guardar.', 'info');
           else if (missingPriceCurrency) setFormAlert('Selecciona la moneda del precio.', 'info');

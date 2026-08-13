@@ -36,7 +36,9 @@ En escritorio, la página de productos ahora usa `overflow-x: clip` y `overflow-
 - La barra aparece después de un cambio real detectado por el snapshot existente y permanece visible mientras se guarda.
 - El formulario de creación registra un snapshot inicial vacío para distinguir entre abrir el editor y comenzar a completarlo. Esto no cambia las reglas que habilitan el guardado.
 - Al entrar en pantalla **Estado del producto**, la barra deja de ser flotante y vuelve al flujo, inmediatamente debajo del estado, para no cubrir sus indicadores.
+- En esa posición final desaparece el panel de estado de guardado y queda únicamente **Guardar producto** como botón normal de ancho completo.
 - Al guardar correctamente se actualiza el snapshot y la barra vuelve a ocultarse.
+- La visibilidad móvil se refleja también mediante `data-mobile-save-visible`; esto impide que el estilo general de la tarjeta vuelva a mostrar un botón deshabilitado cuando el estado autoritativo dice que no existen cambios.
 
 Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState()` y `closeProductEditor()`. No se modificaron el payload, la petición, los permisos ni las validaciones comerciales de `saveProduct()`.
 
@@ -71,6 +73,7 @@ Funciones existentes relacionadas: `resetProductForm()`, `updateProductFormState
 4. Abrir un producto sin editar: Guardar no debe aparecer. Modificar un campo: debe aparecer. Revertir exactamente el cambio: debe ocultarse nuevamente.
 5. Desplazarse hasta Estado del producto: la barra debe colocarse debajo de sus indicadores y no cubrirlos.
 6. Guardar correctamente: la barra debe ocultarse cuando el snapshot se actualice.
+7. Confirmar que el mensaje **Todos los cambios están guardados** nunca aparece dentro de una barra móvil visible.
 
 ### Regresiones de producto
 

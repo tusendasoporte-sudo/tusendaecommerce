@@ -21,10 +21,13 @@ test('EDITOR-PRODUCTO: Guardar permanece accesible y muestra el estado de los ca
 });
 
 test('EDITOR-PRODUCTO-MOVIL: Guardar aparece solo con cambios y no cubre Estado del producto', () => {
-  assert.match(products, /#product-editor:not\(\.hidden\):not\(\.has-mobile-save-action\) \.editor-actions-card \{\s*display: none !important;/);
+  assert.match(products, /#product-editor:not\(\.hidden\) \.editor-actions-card\[data-mobile-save-visible="false"\] \{\s*display: none !important;/);
   assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-save-action:not\(\.has-mobile-inline-save\) \.editor-main-column \{\s*padding-bottom: calc\(86px/);
-  assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-inline-save \.editor-actions-card \{[\s\S]*?position: static !important;/);
+  assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-inline-save \.editor-actions-card \{[\s\S]*?position: static !important;[\s\S]*?background: transparent !important;[\s\S]*?box-shadow: none !important;/);
+  assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-inline-save \.editor-save-state \{\s*display: none !important;/);
+  assert.match(products, /#product-editor:not\(\.hidden\)\.has-mobile-inline-save \.side-save-btn \{[\s\S]*?width: 100% !important;/);
   assert.match(products, /function updateMobileSaveActionState\(hasPendingChanges\)/);
+  assert.match(products, /editorActionsCard\.dataset\.mobileSaveVisible = shouldShow \? 'true' : 'false';/);
   assert.match(products, /updateMobileSaveActionState\(isSavingProduct \|\| hasPendingProductChanges\);/);
   assert.match(products, /const statusTop = editorStatusCard\.getBoundingClientRect\(\)\.top;\s*productEditor\.classList\.toggle\('has-mobile-inline-save', statusTop <= inlineThreshold\);/);
   assert.match(products, /productInitialSnapshot = createProductSnapshot\(\);\s*updateProductFormState\(\);/);
