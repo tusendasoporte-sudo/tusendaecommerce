@@ -137,3 +137,26 @@ Se añadió `calculateProductActionsMenuPosition` como función pura para poder 
 5. Manual web: probar visible→oculto y oculto→visible sin tocar ningún otro campo; Guardar debe activarse en ambos sentidos.
 6. Manual cruzada: cambiar visibilidad en APK, abrir después el producto en web y confirmar que el checkbox refleja el estado nuevo.
 7. Manual APK: comprobar `Ocultar producto`/`Mostrar producto` en el menú de un producto con stock y de uno agotado; todas las opciones deben permanecer accesibles sin quedar debajo de la navegación inferior.
+
+## Cuarta corrección web — 13 de agosto de 2026
+
+### Regresión observada
+
+- En modo soporte Master, guardar solamente `Visible en tienda` fallaba porque el formulario reenviaba también `expiration_date`, aunque la fecha no hubiera cambiado. El backend rechaza correctamente que un Master modifique vencimientos.
+- En escritorio, el botón de tres puntos abría el menú en el DOM, pero este quedaba fuera del viewport. El `backdrop-filter` heredado de la tarjeta opaca creaba un bloque contenedor para el elemento `position: fixed`.
+
+### Funciones y estilos existentes tocados
+
+- `buildProductFormData`: conserva el guardado existente, pero ahora agrega `expiration_date` durante una edición solo cuando la fecha normalizada difiere de la almacenada. Esto evita mezclar permisos o procesos ajenos al cambio actual.
+- `.products-table-card, .list-card`: se desactiva `backdrop-filter` en estas tarjetas opacas para que `positionProductActionsMenu` vuelva a calcular contra el viewport real. No se altera el fondo blanco ni la sombra visual.
+- Prueba E003 existente del menú: amplía la cobertura para impedir que vuelva a introducirse un bloque contenedor visual.
+- Prueba E003 existente de visibilidad: amplía la cobertura para impedir que un cambio de visibilidad reenvíe un vencimiento sin cambios.
+
+### Pruebas necesarias
+
+1. Desde la APK, ocultar un producto; en la web abrirlo, activar `Visible en tienda`, guardar y confirmar que no aparece un error de `expiration_date`.
+2. Repetir el flujo visible → oculto desde el editor web y confirmar que el botón Guardar se activa y persiste el cambio.
+3. En la lista web, abrir los tres puntos de la primera, una intermedia y la última fila; el menú debe verse completo dentro de la pantalla.
+4. Confirmar que un visible ofrece `Ocultar producto` y un oculto ofrece `Mostrar producto`.
+5. Confirmar que `Marcar agotado` conserva el producto visible en la tienda pública como `Agotado` y sin compra.
+6. Con un usuario autorizado para vencimientos, modificar realmente una fecha y comprobar que ese cambio sí se envía y persiste.

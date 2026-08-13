@@ -26,6 +26,11 @@ test('E003: primary admin and visibility events keep the control usable', () => 
 test('E003: la acción de visibilidad no se oculta en móvil y el menú evita las barras fijas', () => {
   assert.doesNotMatch(productsAdmin, /\.row-actions \.js-product-toggle\s*\{\s*display:\s*none/);
   assert.match(productsAdmin, /position:\s*fixed !important;[\s\S]*?--pz-product-actions-max-height/);
+  assert.match(
+    productsAdmin,
+    /\.products-table-card,[\s\S]*?\.list-card[\s\S]*?backdrop-filter:\s*none !important;[\s\S]*?overflow:\s*visible !important;/,
+    'la tarjeta opaca no debe crear un bloque contenedor que saque el menú fixed del viewport',
+  );
 
   const nearBottom = calculateProductActionsMenuPosition({
     triggerRect: { top: 650, right: 404, bottom: 694 },
@@ -60,6 +65,11 @@ test('E003: el menú y el editor conservan las dos vías autorizadas de visibili
   assert.match(productsAdmin, /product\.active \? 'Ocultar producto' : 'Mostrar producto'/);
   assert.match(productsAdmin, /id="product-active" type="checkbox" checked disabled=\{!canManageProductVisibility\}/);
   assert.match(productsAdmin, /savedProductWasActive !== productManualActive[\s\S]*?formData\.append\('active', productManualActive \? 'true' : 'false'\)/);
+  assert.match(
+    productsAdmin,
+    /const expirationDate = dateForInput\(productExpirationDateInput\.value\);[\s\S]*?const savedExpirationDate = dateForInput\(savedProduct\?\.expiration_date\);[\s\S]*?isEditing && expirationDate !== savedExpirationDate[\s\S]*?formData\.append\('expiration_date', expirationDate\)/,
+    'cambiar visibilidad no debe reenviar un vencimiento sin cambios',
+  );
 });
 
 test('E003: marcar agotado modifica únicamente stock y nunca oculta el producto', () => {
