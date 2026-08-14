@@ -24,6 +24,11 @@ const client = {
   adminDeviceToken: 'A'.repeat(43),
 };
 
+const pushCampaignViewSource = readFileSync(
+  new URL('../src/components/admin/PushCampaignsView.astro', import.meta.url),
+  'utf8',
+);
+
 const baseForm = {
   campaign_id: '',
   title: 'Oferta Premium',
@@ -220,7 +225,7 @@ test('presenta estados, acciones, filtros y errores honestos', () => {
 });
 
 test('el componente contiene todos los flujos C08, confirmaciones y accesibilidad responsive', () => {
-  const source = readFileSync(new URL('../src/components/admin/PushCampaignsView.astro', import.meta.url), 'utf8');
+  const source = pushCampaignViewSource;
   for (const marker of [
     'data-campaign-list', 'data-status-filter', 'data-new-campaign', 'data-save-draft',
     'data-media-upload', 'image/jpeg,image/png,image/webp', 'data-preview-image',
@@ -234,4 +239,7 @@ test('el componente contiene todos los flujos C08, confirmaciones y accesibilida
   assert.match(source, /@media \(max-width: 720px\)/);
   assert.match(source, /prefers-reduced-motion/);
   assert.match(source, /data-only v2/);
+  assert.match(source, /root\.dataset\.storeSlug/);
+  assert.match(source, /\/api\/admin\/push-media\?store=\$\{encodeURIComponent\(storeSlug\)\}/);
+  assert.equal((source.match(/fetch\(mediaEndpoint/g) || []).length, 2);
 });

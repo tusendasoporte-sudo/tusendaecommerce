@@ -68,7 +68,10 @@ function safeMediaId(value: unknown) {
 
 async function adminContext(request: Request) {
   const authPb = await refreshAuthFromCookie(request.headers.get('cookie') || '');
-  const context = await requireCurrentStoreForAdmin(authPb);
+  const supportStoreSlug = String(new URL(request.url).searchParams.get('store') || '')
+    .trim()
+    .toLowerCase();
+  const context = await requireCurrentStoreForAdmin(authPb, { storeSlug: supportStoreSlug });
   await requireStorefrontPushMediaAccess(context, {
     baseUrl: import.meta.env.PUBLIC_POCKETBASE_URL,
     token: authPb.authStore.token,

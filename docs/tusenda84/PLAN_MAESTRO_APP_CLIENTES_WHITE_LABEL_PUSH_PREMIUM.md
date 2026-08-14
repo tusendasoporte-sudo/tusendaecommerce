@@ -1851,7 +1851,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 - Estado: EN CURSO
 - Responsable: Codex
-- Entorno: local; staging y producción fuera de alcance sin autorización separada
+- Entorno: local + frontend staging autorizado; producción fuera de alcance
 - Branch: `codex/pz-app-c08`, worktree aislado creado desde `dev` en `e61e055fac5c3a00e87b974a38da4f2f1584104b`
 - Commit base: `e61e055fac5c3a00e87b974a38da4f2f1584104b`
 - Commit de implementación local: `07c5df9a82081639667df01b55d25b4b9dbb7179`
@@ -1903,8 +1903,10 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - `frontend-powerzona/src/components/admin/AdminSidebar.astro`
 - `frontend-powerzona/src/middleware.ts`
 - `frontend-powerzona/src/lib/storefrontPushAdmin.ts`
+- `frontend-powerzona/src/pages/api/admin/push-media.ts` (corrección focal C08 del contexto Master al reutilizar C04)
 - `frontend-powerzona/tests/storefrontPushAdminAccess.test.mjs`
 - `frontend-powerzona/tests/storefrontPushAdminForm.test.mjs`
+- `frontend-powerzona/tests/storefrontPushMedia.test.mjs` (regresión focal del puente C08 → C04)
 - `docs/tusenda84/PLAN_MAESTRO_APP_CLIENTES_WHITE_LABEL_PUSH_PREMIUM.md`
 
 #### Migraciones o infraestructura
@@ -1919,6 +1921,8 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 - `npm.cmd run build` con Astro 6.4.3 → aprobado. Solo mostró las tres advertencias históricas de `getStaticPaths()` ignorado en rutas dinámicas de categoría, subcategoría y producto.
 - El build reutilizó mediante un junction temporal la instalación exacta de dependencias del worktree principal, cuyo `package-lock.json` tiene el mismo SHA-256. El junction se verificó como `ReparsePoint`, se retiró después y el destino original continuó intacto; no se instalaron ni descargaron paquetes.
 - `git diff --check` y revisión de whitespace de archivos nuevos → sin errores. `.tmp/`, `.secrets/`, `google-services.json`, identidad de firma staging, worktrees y stash ajenos permanecen intactos.
+- Smoke del primer despliegue encontró una regresión directa de C08 exclusiva del modo soporte Master: el panel resolvía correctamente las 33 campañas, pero `/api/admin/push-media` no recibía el slug de la tienda y mostraba `No se pudo cargar la biblioteca de imágenes.` El proxy seguía aplicando autenticación, Premium y permiso, pero no podía construir el contexto Master desde una ruta API sin `/t/<slug>`.
+- Corrección focal local: la vista propaga el slug canónico en las peticiones GET/POST de medios y el proxy lo entrega a `requireCurrentStoreForAdmin`; un usuario de tienda continúa usando su tienda asignada y el backend C04 vuelve a validar el acceso. Pruebas C08 → 11/11; regresión focal C08+C04 → 21/21; build Astro aprobado con las mismas tres advertencias históricas de rutas dinámicas. No se descargaron dependencias: se reutilizó una unión temporal verificada y retirada, conservando intacto el `node_modules` principal.
 
 #### PRUEBA MANUAL NECESARIA — pendiente de despliegue staging autorizado
 
@@ -1943,10 +1947,20 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 | Duplicado | [ ] | [ ] | Crea un borrador separado, conserva contenido/destino/audiencia y advierte revisar el medio temporal. |
 | Errores y accesibilidad | [ ] | [ ] | Red/403/409/imagen muestran mensajes útiles; teclado, Escape, foco visible, lector y reducción de movimiento funcionan. |
 
+#### Ejecución manual parcial — primer despliegue staging
+
+- Escritorio 1440 × 900: ruta canónica, sidebar `Promos > Campañas push`, encabezado Premium, límites 10/310, historial de 33 campañas, filtro `Enviada` con 21 resultados y ausencia de desborde horizontal aprobados en modo soporte Master.
+- El smoke no creó borradores, no duplicó/canceló campañas, no subió medios y no envió FCM; por tanto no consumió cuota ni modificó datos staging.
+- La biblioteca WebP falló cerrada en modo soporte Master por el contexto descrito arriba. La corrección está localmente validada, pero esta matriz permanece pendiente hasta autorizar, publicar y desplegar ese commit; móvil y acciones mutables todavía no se marcan.
+
 #### Despliegue
 
-- No realizado ni autorizado. Frontend staging permanece en `a8f3c20`; PocketBase staging, `origin/dev` y la referencia remota real permanecen en `4efb9a6`. Producción no se abrió ni modificó.
+- El propietario autorizó expresamente consolidar/publicar `dev` en `https://github.com/tusendasoporte-sudo/tusendaecommerce.git` y redesplegar exclusivamente `powerzona-frontend-staging`.
+- `dev` avanzó por fast-forward desde `e61e055` hasta `d5cbdc9`; `origin/dev` y la referencia remota real quedaron en `d5cbdc9f6f748c57c217cf53b280bbf1d1dab64a`.
+- Coolify ejecutó el deployment `fzb6b8zuqgrdylqj82krnslt`: build aprobado, rolling update terminado, recurso frontend `Running` y commit activo `d5cbdc9`. Storefront y salud de PocketBase devolvieron HTTP 200.
+- PocketBase no se redesplegó: continúa `Running` en `4efb9a6a3d06bf78d81bdadb406748998718545f`. Su historial confirmó que el último deployment fue el manual previo de C07, cuatro horas antes de este smoke. Firebase, App Check, Cloudflare y producción no se modificaron.
+- El fix focal del contexto Master permanece solo local y requiere autorización separada para un segundo push/redeploy. El frontend público sigue operativo; en `d5cbdc9` la biblioteca WebP del panel falla únicamente bajo soporte Master.
 
 #### Siguiente paso
 
-- Mantener exclusivamente C08 `EN CURSO`. Solicitar autorización separada para consolidar/publicar `dev` y desplegar solo frontend staging; después ejecutar la matriz manual de escritorio/móvil. No iniciar C09 aunque la implementación local C08 esté en verde.
+- Mantener exclusivamente C08 `EN CURSO`. Commit local de la corrección focal, solicitar autorización separada para publicarlo/redesplegar solo frontend staging y después completar la matriz manual de escritorio/móvil. No iniciar C09.

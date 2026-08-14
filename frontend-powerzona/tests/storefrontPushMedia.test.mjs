@@ -247,6 +247,8 @@ test('API SSR impone origen, payload exacto, auth y nunca escribe en disco efím
   assert.match(apiSource, /storefrontPushMediaSameOriginMutation/);
   assert.match(apiSource, /exactFormData\(formData, \['file'\]\)/);
   assert.match(apiSource, /requireStorefrontPushMediaAccess/);
+  assert.match(apiSource, /searchParams\.get\('store'\)/);
+  assert.match(apiSource, /requireCurrentStoreForAdmin\(authPb, \{ storeSlug: supportStoreSlug \}\)/);
   assert.match(apiSource, /serverPocketBaseUrl/);
   assert.match(apiSource, /\/api\/pz\/storefront\/v1\/media\/upload/);
   assert.doesNotMatch(apiSource, /writeFile|createWriteStream|mkdtemp|\.collection\(['"]push_media/);

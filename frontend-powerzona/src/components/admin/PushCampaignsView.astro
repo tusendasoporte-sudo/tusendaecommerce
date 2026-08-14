@@ -384,6 +384,10 @@ const {
     const successBox = one('[data-form-success]');
     const toast = one('[data-push-toast]');
     const defaultTimezone = String(root.dataset.defaultTimezone || 'America/Havana');
+    const storeSlug = String(root.dataset.storeSlug || '').trim().toLowerCase();
+    const mediaEndpoint = storeSlug
+      ? `/api/admin/push-media?store=${encodeURIComponent(storeSlug)}`
+      : '/api/admin/push-media';
     const client = {
       baseUrl: String(root.dataset.pocketbaseUrl || ''),
       token: readStorefrontPushAdminAuthToken(document.cookie),
@@ -569,7 +573,7 @@ const {
     async function loadMedia() {
       const mediaStatus = one('[data-media-status]');
       try {
-        const response = await fetch('/api/admin/push-media', {
+        const response = await fetch(mediaEndpoint, {
           headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store',
         });
         const result = await response.json().catch(() => null);
@@ -599,7 +603,7 @@ const {
       try {
         const payload = new FormData();
         payload.append('file', file);
-        const response = await fetch('/api/admin/push-media', {
+        const response = await fetch(mediaEndpoint, {
           method: 'POST', body: payload, credentials: 'same-origin', headers: { Accept: 'application/json' },
         });
         const result = await response.json().catch(() => null);
