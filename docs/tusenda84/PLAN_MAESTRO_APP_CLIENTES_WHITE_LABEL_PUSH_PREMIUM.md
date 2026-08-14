@@ -1855,6 +1855,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - Branch: `codex/pz-app-c08`, worktree aislado creado desde `dev` en `e61e055fac5c3a00e87b974a38da4f2f1584104b`
 - Commit base: `e61e055fac5c3a00e87b974a38da4f2f1584104b`
 - Commit de implementación local: `07c5df9a82081639667df01b55d25b4b9dbb7179`
+- Commit de corrección focal post-smoke: `90579f8bce8ec64767616bda37080cf411354513`
 - Fecha/hora de inicio: 2026-08-14 16:10:31 -04:00
 - Fecha/hora de cierre:
 
@@ -1950,6 +1951,7 @@ Implementar exclusivamente el panel administrativo Premium de campañas push C08
 #### Ejecución manual parcial — primer despliegue staging
 
 - Escritorio 1440 × 900: ruta canónica, sidebar `Promos > Campañas push`, encabezado Premium, límites 10/310, historial de 33 campañas, filtro `Enviada` con 21 resultados y ausencia de desborde horizontal aprobados en modo soporte Master.
+- Móvil 390 × 844: header móvil, acción `Nueva`, 33 campañas, búsqueda `M90` con cinco resultados anunciados y ausencia de desborde horizontal aprobados. El editor abrió sin persistir datos; título/cuerpo actualizaron en vivo el preview Android, sección `checkout` y audiencia por versión mostraron sus campos condicionales, no existe entrada de URL libre y el cierre visible funcionó. La simulación automatizada no consiguió generar un evento Escape nativo confiable, aunque el listener `cancel` está implementado; ese gesto queda pendiente de comprobación humana.
 - El smoke no creó borradores, no duplicó/canceló campañas, no subió medios y no envió FCM; por tanto no consumió cuota ni modificó datos staging.
 - La biblioteca WebP falló cerrada en modo soporte Master por el contexto descrito arriba. La corrección está localmente validada, pero esta matriz permanece pendiente hasta autorizar, publicar y desplegar ese commit; móvil y acciones mutables todavía no se marcan.
 
