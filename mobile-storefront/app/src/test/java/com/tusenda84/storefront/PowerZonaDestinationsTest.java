@@ -17,8 +17,14 @@ public final class PowerZonaDestinationsTest {
         assertEquals("powerzona", StorefrontConfig.storeKey());
         assertEquals("PowerZona", StorefrontConfig.displayName());
         assertEquals(HOME, StorefrontConfig.storeUrl());
-        assertEquals("com.tusenda84.powerzona.debug", BuildConfig.APPLICATION_ID);
-        assertTrue(BuildConfig.VERSION_NAME.endsWith("-debug"));
+        if ("debug".equals(BuildConfig.BUILD_TYPE)) {
+            assertEquals("com.tusenda84.powerzona.debug", BuildConfig.APPLICATION_ID);
+            assertTrue(BuildConfig.VERSION_NAME.endsWith("-debug"));
+        } else {
+            assertEquals("staging", BuildConfig.BUILD_TYPE);
+            assertEquals("com.tusenda84.powerzona", BuildConfig.APPLICATION_ID);
+            assertTrue(BuildConfig.VERSION_NAME.endsWith("-staging"));
+        }
     }
 
     @Test
