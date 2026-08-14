@@ -296,11 +296,18 @@ function creatorAuthorized(app, campaign, store) {
 
 function timezonePartsWithPocketBase(date, timezone) {
   if (typeof DateTime === "undefined" || typeof Timezone === "undefined") return null;
-  const zone = new Timezone(timezone);
-  const zoneName = String(zone.string ? zone.string() : zone).trim();
-  if (timezone !== "UTC" && zoneName === "UTC") return null;
-  const value = new DateTime(date.toISOString()).time().in(zone);
-  return { year: Number(value.year()), month: Number(value.month()), day: Number(value.day()) };
+  try {
+    const zone = new Timezone(timezone);
+    const zoneName = String(zone.string ? zone.string() : zone).trim();
+    if (timezone !== "UTC" && zoneName === "UTC") return null;
+    const value = new DateTime(date.toISOString()).time().in(zone);
+    const formatted = String(value.format("2006-01-02") || "").trim();
+    const match = formatted.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  } catch (_) {
+    return null;
+  }
 }
 
 function timezonePartsWithIntl(date, timezone) {
