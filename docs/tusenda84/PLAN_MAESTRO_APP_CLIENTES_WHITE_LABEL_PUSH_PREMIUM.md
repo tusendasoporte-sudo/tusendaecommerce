@@ -1685,8 +1685,8 @@ Implementar exclusivamente la base Android white-label C06 sobre el proyecto mí
 
 #### Pruebas y resultados
 
-- `testDebugUnitTest lintDebug assembleDebug --no-daemon` con URL/key/nombre declarativos de PowerZona: exit `0`; 4 suites, 16 pruebas, 0 fallos, 0 errores, 0 omitidas y 0 issues de lint.
-- APK local: `app-debug.apk`, `com.tusenda84.powerzona.debug`, `0.1.0-debug`, minSdk 26, target/compileSdk 36, 3,749,098 bytes, SHA-256 `bbd4fa324bb10f0f2fa2de929c65d93ffe6f33efefc9b216238d3c5357bff5a2`.
+- Dos ejecuciones consecutivas de `clean testDebugUnitTest lintDebug assembleDebug --no-daemon` con URL/key/nombre declarativos de PowerZona: exit `0`; APK byte-idéntica, 4 suites, 16 pruebas, 0 fallos, 0 errores, 0 omitidas y 0 issues de lint.
+- APK local: `app-debug.apk`, `com.tusenda84.powerzona.debug`, `0.1.0-debug`, minSdk 26, target/compileSdk 36, 3,717,161 bytes, SHA-256 `4376c5cc392198350d1b202886496c181a4705ff65097ec90c0b079a631a64c2`.
 - Firma del APK: certificado Android Debug SHA-256 `3ef106bebf2393438c55c48453797c0229097668e5290511ea0771bf6090935c`; no se usó ni cambió la firma de staging. El APK tiene 0 entradas sensibles y Git tiene 0 candidatos rastreados de `google-services.json`, keystore, service account o `.secrets`.
 - Emulador `Pixel_4a`, Android 16/API 36: la tienda pública abrió sin login; se aprobaron navegación, Atrás, rotación con restauración, overlay offline y recuperación online.
 - Permiso Android: la tarjeta contextual abrió el diálogo, reflejó la denegación, llevó a Ajustes y desapareció tras conceder `POST_NOTIFICATIONS`.
