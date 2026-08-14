@@ -283,6 +283,40 @@ test('audiencia y snapshot se aíslan por tienda y son idempotentes sin límite 
   assert.equal(app.rows('push_campaign_deliveries')[0].getString('store'), STORE_A);
 });
 
+test('las cinco secciones se validan y duplican sin tratar el enum como relación', () => {
+  const app = createApp();
+  app.add(appConfig('appconfig000001', STORE_A));
+  const now = new Date('2026-08-14T16:30:00.000Z');
+  const sections = {
+    search: '/buscar',
+    links: '/links',
+    gifts: '/regalos',
+    raffles: '/rifa',
+    checkout: '/checkout',
+  };
+
+  let source = null;
+  Object.entries(sections).forEach(([section, suffix], index) => {
+    const item = app.add(campaign(`sectioncamp${String(index).padStart(4, '0')}`, {
+      target_type: 'section',
+      target_section: section,
+      target_path: '',
+    }));
+    const validated = campaigns.validateCampaignForExecution(app, item, now, now);
+    assert.equal(validated.target.target_section, section);
+    assert.equal(validated.target.target_path, `/t/powerzona${suffix}`);
+    assert.equal(item.getString('target_path'), `/t/powerzona${suffix}`);
+    if (section === 'search') source = item;
+  });
+
+  const context = campaigns.loadCampaignAccessContext(app, { id: USER_A }, '');
+  const duplicate = campaigns.duplicateCampaign(app, context, source.id, now);
+  assert.equal(duplicate.getString('status'), 'draft');
+  assert.equal(duplicate.getString('target_type'), 'section');
+  assert.equal(duplicate.getString('target_section'), 'search');
+  assert.equal(duplicate.getString('target_path'), '/t/powerzona/buscar');
+});
+
 test('cuotas diarias/mensuales usan el calendario IANA de la tienda', () => {
   assert.equal(campaigns.DAILY_CAMPAIGN_LIMIT, 10);
   assert.equal(campaigns.MONTHLY_CAMPAIGN_LIMIT, 310);

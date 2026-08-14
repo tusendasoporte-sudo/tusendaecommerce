@@ -105,6 +105,12 @@ function relationId(record, key) {
   return String(value || "").trim();
 }
 
+function campaignTargetReference(record, targetType) {
+  const normalizedType = String(targetType || "").trim();
+  if (!["product", "category", "order", "raffle", "coupon"].includes(normalizedType)) return "";
+  return relationId(record, `target_${normalizedType}`);
+}
+
 function integerValue(value) {
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 ? number : 0;
@@ -687,9 +693,7 @@ function mapCampaign(record) {
     audience_config: recordAudienceConfig(record) || {},
     target_type: recordString(record, "target_type"),
     target_section: recordString(record, "target_section"),
-    target_ref: ["product", "category", "order", "raffle", "coupon"].includes(recordString(record, "target_type"))
-      ? relationId(record, `target_${recordString(record, "target_type")}`)
-      : "",
+    target_ref: campaignTargetReference(record, recordString(record, "target_type")),
     target_path: recordString(record, "target_path"),
     timezone: recordString(record, "timezone"),
     scheduled_at: recordString(record, "scheduled_at"),
@@ -861,7 +865,7 @@ function validateCampaignForExecution(app, campaign, nowValue, scheduledFor) {
     recordString(campaign, "target_type"),
   );
   const targetType = recordString(campaign, "target_type");
-  const targetRef = relationId(campaign, `target_${targetType}`);
+  const targetRef = campaignTargetReference(campaign, targetType);
   const target = resolveTarget(
     app,
     store,
@@ -1131,7 +1135,7 @@ function duplicateCampaign(app, context, campaignId, nowValue) {
   const payload = {
     campaignId: "",
     mediaId,
-    targetRef: relationId(source, `target_${targetType}`),
+    targetRef: campaignTargetReference(source, targetType),
     title: recordString(source, "title"),
     body: recordString(source, "body"),
     timezone: recordString(source, "timezone"),
