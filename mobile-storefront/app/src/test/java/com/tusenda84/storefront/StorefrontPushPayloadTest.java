@@ -12,6 +12,7 @@ public final class StorefrontPushPayloadTest {
     @Test
     public void parsesOnlyTheStorefrontContractForTheCompiledStore() {
         StorefrontPushPayload payload = StorefrontPushPayload.fromMap(validPayload(), "powerzona");
+        assertEquals("ok", StorefrontPushPayload.diagnosticCode(validPayload(), "powerzona"));
         assertEquals("powerzona", payload.storeKey);
         assertEquals("abc123def456ghi", payload.campaignId);
         assertEquals("Oferta PowerZona", payload.title);
@@ -24,6 +25,7 @@ public final class StorefrontPushPayloadTest {
     public void rejectsCrossTenantUnknownSchemaAndFreeUrlTypes() {
         Map<String, String> crossTenant = validPayload();
         crossTenant.put(StorefrontPushPayload.STORE_KEY, "otra");
+        assertEquals("invalid_store", StorefrontPushPayload.diagnosticCode(crossTenant, "powerzona"));
         assertNull(StorefrontPushPayload.fromMap(crossTenant, "powerzona"));
 
         Map<String, String> schema = validPayload();
@@ -49,6 +51,7 @@ public final class StorefrontPushPayloadTest {
     public void rejectsOversizedNotificationCopy() {
         Map<String, String> title = validPayload();
         title.put(StorefrontPushPayload.TITLE, "x".repeat(121));
+        assertEquals("invalid_title", StorefrontPushPayload.diagnosticCode(title, "powerzona"));
         assertNull(StorefrontPushPayload.fromMap(title, "powerzona"));
 
         Map<String, String> body = validPayload();

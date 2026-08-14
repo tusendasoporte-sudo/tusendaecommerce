@@ -53,7 +53,27 @@ final class StorefrontPushPayload {
     }
 
     static StorefrontPushPayload fromMap(Map<String, String> source, String expectedStoreKey) {
-        if (source == null) return null;
+        if (!"ok".equals(diagnosticCode(source, expectedStoreKey))) return null;
+        String storeKey = StorefrontConfig.normalizeStoreKey(source.get(STORE_KEY));
+        String campaignId = clean(source.get(CAMPAIGN_ID));
+        String title = clean(source.get(TITLE));
+        String body = clean(source.get(BODY));
+        String targetType = clean(source.get(TARGET_TYPE));
+        String targetPath = clean(source.get(TARGET_PATH));
+        String imageUrl = clean(source.get(IMAGE_URL));
+        return new StorefrontPushPayload(
+                storeKey,
+                campaignId,
+                title,
+                body,
+                targetType,
+                targetPath,
+                imageUrl
+        );
+    }
+
+    static String diagnosticCode(Map<String, String> source, String expectedStoreKey) {
+        if (source == null) return "missing_data";
         String schemaVersion = clean(source.get(SCHEMA_VERSION));
         String channel = clean(source.get(CHANNEL));
         String storeKey = StorefrontConfig.normalizeStoreKey(source.get(STORE_KEY));
@@ -65,22 +85,19 @@ final class StorefrontPushPayload {
         String targetPath = clean(source.get(TARGET_PATH));
         String imageUrl = clean(source.get(IMAGE_URL));
 
-        if (!"1".equals(schemaVersion) || !"storefront".equals(channel)) return null;
-        if (expected.isEmpty() || !expected.equals(storeKey)) return null;
-        if (!CAMPAIGN.matcher(campaignId).matches() || !TARGET_TYPES.contains(targetType)) return null;
-        if (title.length() > 120 || body.length() > 1000) return null;
-        if (targetPath.length() > 500 || containsControl(targetPath)) return null;
-        if (!imageUrl.isEmpty() && (!HTTPS_IMAGE.matcher(imageUrl).matches() || containsControl(imageUrl))) return null;
-        if (!"order".equals(targetType) && targetPath.isEmpty()) return null;
-        return new StorefrontPushPayload(
-                storeKey,
-                campaignId,
-                title,
-                body,
-                targetType,
-                targetPath,
-                imageUrl
-        );
+        if (!"1".equals(schemaVersion)) return "invalid_schema";
+        if (!"storefront".equals(channel)) return "invalid_channel";
+        if (expected.isEmpty() || !expected.equals(storeKey)) return "invalid_store";
+        if (!CAMPAIGN.matcher(campaignId).matches()) return "invalid_campaign";
+        if (!TARGET_TYPES.contains(targetType)) return "invalid_target_type";
+        if (title.length() > 120) return "invalid_title";
+        if (body.length() > 1000) return "invalid_body";
+        if (targetPath.length() > 500 || containsControl(targetPath)) return "invalid_target_path";
+        if (!imageUrl.isEmpty() && (!HTTPS_IMAGE.matcher(imageUrl).matches() || containsControl(imageUrl))) {
+            return "invalid_image";
+        }
+        if (!"order".equals(targetType) && targetPath.isEmpty()) return "missing_target_path";
+        return "ok";
     }
 
     static StorefrontPushPayload fromIntent(Intent intent, String expectedStoreKey) {

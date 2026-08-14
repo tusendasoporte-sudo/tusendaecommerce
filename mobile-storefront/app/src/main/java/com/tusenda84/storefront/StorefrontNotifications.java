@@ -37,15 +37,15 @@ final class StorefrontNotifications {
         manager.createNotificationChannel(channel);
     }
 
-    static void show(
+    static boolean show(
             Context context,
             StorefrontPushPayload payload,
             String rawTitle,
             String rawBody
     ) {
-        if (payload == null || !canNotify(context)) return;
+        if (payload == null || !canNotify(context)) return false;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        if (manager == null) return;
+        if (manager == null) return false;
         createChannels(context);
 
         Intent openIntent = new Intent(context, StorefrontActivity.class)
@@ -79,6 +79,7 @@ final class StorefrontNotifications {
             builder.setStyle(new Notification.BigTextStyle().bigText(body));
         }
         manager.notify("pz_storefront_" + payload.campaignId, requestCode, builder.build());
+        return true;
     }
 
     private static Bitmap downloadWebp(String rawUrl) {
