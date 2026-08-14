@@ -1713,7 +1713,7 @@ Implementar exclusivamente la base Android white-label C06 sobre el proyecto mí
 - Estado: EN CURSO
 - Responsable: Codex
 - Entorno: local; emulador después de las pruebas automatizadas; staging, Firebase y producción fuera de alcance sin autorización separada
-- Branch: trabajo preparado en worktree desacoplado desde el cierre local de `dev`; consolidación local en `dev` autorizada para la matriz staging C07
+- Branch: `dev`; implementación C07 consolidada localmente por fast-forward para la matriz staging autorizada
 - Commit base: `17704dfce6304d84d74b20171c0c9c775d947020`
 - Commit de implementación local: `5d7a8e4c239aa7e70fbeb9373544d7498d0bf7a6`
 - Fecha/hora de inicio: 2026-08-14 06:31:01 -04:00
