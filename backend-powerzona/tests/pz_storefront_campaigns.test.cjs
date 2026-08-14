@@ -197,6 +197,10 @@ test('contratos de entrada son exactos y validan límites, zona y audiencia', ()
     campaigns.calendarKeys(new Date('2026-08-14T03:30:00.000Z'), 'America/New_York'),
     { day: '2026-08-13', month: '2026-08' },
   );
+  assert.deepEqual(
+    campaigns.normalizedAudienceConfig('all_active', { internal: true, toJSON: () => ({}) }, 'home'),
+    {},
+  );
 });
 
 test('calendario IANA usa el formato estable del runtime PocketBase', () => {
@@ -224,6 +228,23 @@ test('calendario IANA usa el formato estable del runtime PocketBase', () => {
     if (previousDateTime === undefined) delete global.DateTime;
     else global.DateTime = previousDateTime;
     global.Intl = previousIntl;
+  }
+});
+
+test('audiencia persistida se deserializa desde DynamicModel del runtime PocketBase', () => {
+  const previousDynamicModel = global.DynamicModel;
+  global.DynamicModel = class MockDynamicModel {
+    constructor(shape) { Object.assign(this, shape); }
+  };
+  try {
+    const record = {
+      get: (key) => ({ audience_type: 'app_version', target_type: 'home' })[key],
+      unmarshalJSONField: (_key, model) => { model.app_version_code = 42; },
+    };
+    assert.deepEqual(campaigns.recordAudienceConfig(record), { app_version_code: 42 });
+  } finally {
+    if (previousDynamicModel === undefined) delete global.DynamicModel;
+    else global.DynamicModel = previousDynamicModel;
   }
 });
 

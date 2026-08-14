@@ -165,7 +165,14 @@ function bodyValue(body, key) {
 }
 
 function jsonObject(value) {
-  if (value && typeof value === "object" && !Array.isArray(value)) return value;
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    try {
+      const normalized = JSON.parse(JSON.stringify(value));
+      return normalized && typeof normalized === "object" && !Array.isArray(normalized) ? normalized : null;
+    } catch (_) {
+      return null;
+    }
+  }
   if (typeof value !== "string") return null;
   try {
     const parsed = JSON.parse(value);
@@ -173,6 +180,35 @@ function jsonObject(value) {
   } catch (_) {
     return null;
   }
+}
+
+function recordAudienceConfig(record) {
+  const type = recordString(record, "audience_type");
+  const targetType = recordString(record, "target_type");
+  if (["all_active", "active_7d", "active_30d"].includes(type) && targetType !== "order") return {};
+  if (record && typeof record.unmarshalJSONField === "function" && typeof DynamicModel !== "undefined") {
+    try {
+      const model = new DynamicModel({
+        installation_id: "",
+        app_version_code: 0,
+        permission: "",
+        country_code: "",
+        region_code: "",
+      });
+      record.unmarshalJSONField("audience_config", model);
+      if (targetType === "order") return { installation_id: bounded(model.installation_id, 15) };
+      if (type === "app_version") return { app_version_code: Number(model.app_version_code) };
+      if (type === "notification_permission") return { permission: bounded(model.permission, 20) };
+      if (type === "country_region") {
+        const countryCode = bounded(model.country_code, 2);
+        const regionCode = bounded(model.region_code, 80);
+        return { country_code: countryCode, ...(regionCode ? { region_code: regionCode } : {}) };
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+  return jsonObject(recordValue(record, "audience_config"));
 }
 
 function codedError(code) {
@@ -648,7 +684,7 @@ function mapCampaign(record) {
     body: recordString(record, "body"),
     media_id: relationId(record, "media"),
     audience_type: recordString(record, "audience_type"),
-    audience_config: jsonObject(recordValue(record, "audience_config")) || {},
+    audience_config: recordAudienceConfig(record) || {},
     target_type: recordString(record, "target_type"),
     target_section: recordString(record, "target_section"),
     target_ref: ["product", "category", "order", "raffle", "coupon"].includes(recordString(record, "target_type"))
@@ -678,7 +714,7 @@ function installationMatchesAudience(installation, appConfig, campaign, now) {
     || recordString(appConfig, "status") !== "active"
     || relationId(appConfig, "store") !== relationId(campaign, "store")) return false;
   const type = recordString(campaign, "audience_type");
-  const config = normalizedAudienceConfig(type, recordValue(campaign, "audience_config"), recordString(campaign, "target_type"));
+  const config = normalizedAudienceConfig(type, recordAudienceConfig(campaign), recordString(campaign, "target_type"));
   if (recordString(campaign, "target_type") === "order") return recordId(installation) === config.installation_id;
   if (type === "active_7d" || type === "active_30d") {
     const seen = parsedDate(recordValue(installation, "last_seen_at"));
@@ -821,7 +857,7 @@ function validateCampaignForExecution(app, campaign, nowValue, scheduledFor) {
   if (!isValidTimezone(recordString(campaign, "timezone"))) throw codedError("invalid_timezone");
   const audience = normalizedAudienceConfig(
     recordString(campaign, "audience_type"),
-    recordValue(campaign, "audience_config"),
+    recordAudienceConfig(campaign),
     recordString(campaign, "target_type"),
   );
   const targetType = recordString(campaign, "target_type");
@@ -1102,7 +1138,7 @@ function duplicateCampaign(app, context, campaignId, nowValue) {
     audienceType: recordString(source, "audience_type"),
     audienceConfig: normalizedAudienceConfig(
       recordString(source, "audience_type"),
-      recordValue(source, "audience_config"),
+      recordAudienceConfig(source),
       targetType,
     ),
     targetType,
@@ -1367,6 +1403,7 @@ module.exports = {
   pauseDowngradedScheduledCampaigns,
   previewAudience,
   processCampaignById,
+  recordAudienceConfig,
   renewCampaignLock,
   requireAuthenticatedUser,
   resolveTarget,

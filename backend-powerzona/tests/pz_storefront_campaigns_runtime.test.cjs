@@ -115,6 +115,20 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
     const stores = await request(baseUrl, `/api/collections/stores/records?filter=${encodeURIComponent('slug = "powerzona"')}&perPage=1`, { token: superToken });
     assert.equal(stores.status, 200, stores.raw);
     const store = stores.data.items[0];
+    const appConfig = await request(baseUrl, '/api/collections/storefront_app_configs/records', {
+      token: superToken,
+      json: {
+        store: store.id,
+        app_key: 'powerzona_runtime_c05',
+        display_name: 'PowerZona Runtime C05',
+        package_name: 'com.tusenda84.powerzona.runtimec05',
+        firebase_app_id: '1:123456789012:android:abcdef0123456789',
+        public_origin: 'https://runtime-c05.example.com',
+        store_path_prefix: '/t/powerzona',
+        status: 'active',
+      },
+    });
+    assert.ok([200, 201].includes(appConfig.status), appConfig.raw);
     const master = await request(baseUrl, '/api/collections/users/records', {
       token: superToken,
       json: {
@@ -136,6 +150,30 @@ test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
     assert.equal(saved.status, 201, saved.raw);
     assert.equal(saved.data.campaign.status, 'draft');
     assert.equal(saved.data.campaign.timezone, 'America/New_York');
+    const preview = await request(baseUrl, '/api/pz/storefront/v1/campaigns/audience-preview', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+      json: { campaign_id: saved.data.campaign.id },
+    });
+    assert.equal(preview.status, 200, preview.raw);
+    assert.equal(preview.data.audience.count, 0);
+    const versionSaved = await request(baseUrl, '/api/pz/storefront/v1/campaigns/save', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+      json: {
+        title: 'Runtime C05 app version', body: 'Validación JSON PocketBase 0.38.2',
+        timezone: 'America/New_York', audience_type: 'app_version',
+        audience_config: { app_version_code: 1 }, target_type: 'home',
+      },
+    });
+    assert.equal(versionSaved.status, 201, versionSaved.raw);
+    const versionPreview = await request(baseUrl, '/api/pz/storefront/v1/campaigns/audience-preview', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+      json: { campaign_id: versionSaved.data.campaign.id },
+    });
+    assert.equal(versionPreview.status, 200, versionPreview.raw);
+    assert.equal(versionPreview.data.audience.count, 0);
   } finally {
     await stop(runtime);
     fs.rmSync(dataDirectory, { recursive: true, force: true });
