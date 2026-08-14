@@ -1556,7 +1556,7 @@ Resolver exclusivamente la dependencia circular entre C03 y C06 mediante una ide
 - Estado: EN CURSO
 - Responsable: Codex
 - Entorno: local; staging pendiente de autorización explícita y prueba manual obligatoria de C05
-- Branch: preparación en worktree desacoplado; consolidación local en `dev` pendiente
+- Branch: `dev` local; implementación consolidada sin push
 - Commit base: `2564635560f50196fa55b7ce33ed893759d554fa`
 - Fecha/hora de inicio: 2026-08-13 21:51:14 -04:00
 - Fecha/hora de cierre: pendiente
@@ -1604,7 +1604,8 @@ Implementar exclusivamente el motor backend C05 de campañas storefront y su rel
 #### Estado de criterios
 
 - La evidencia automatizada local cubre bloqueo sin Premium/permiso, aislamiento entre tiendas, no duplicación por snapshot/lock, invalidación de FID, programación exclusiva por lock, fallo parcial auditable y compatibilidad estática/funcional del relay v1.
-- C05 permanece `EN CURSO`: faltan deliberadamente la prueba manual con destinatarios reales de staging y la consolidación local en `dev`. Ninguna de las dos autoriza por sí sola push, despliegue, reinicio o cambio remoto.
+- C05 permanece `EN CURSO`: falta deliberadamente la prueba manual con destinatarios reales de staging. Esto no autoriza por sí solo push, despliegue, reinicio o cambio remoto.
+- Commit local de implementación: `5286515c54965c4a6e67a4fdf4c120c462147495`, integrado por avance rápido de `dev` desde `2564635560f50196fa55b7ce33ed893759d554fa`. `.tmp/`, `.secrets/` y el stash ajeno permanecieron intactos.
 
 #### Despliegue
 
@@ -1612,4 +1613,4 @@ Implementar exclusivamente el motor backend C05 de campañas storefront y su rel
 
 #### Siguiente paso
 
-- Consolidar el cambio local de C05 en `dev` sin push. Después, solo con autorización explícita separada, preparar la prueba manual de staging: preservar evidencia previa, configurar el relay v2 sin reutilizar secretos, enviar una campaña inmediata y una programada, provocar un FID inválido y comprobar ausencia de duplicados y continuidad del relay v1. C06 y fases posteriores no deben iniciarse.
+- Solo con autorización explícita separada, preparar la prueba manual de staging: preservar evidencia previa, configurar el relay v2 sin reutilizar secretos, enviar una campaña inmediata y una programada, provocar un FID inválido y comprobar ausencia de duplicados y continuidad del relay v1. C06 y fases posteriores no deben iniciarse.
