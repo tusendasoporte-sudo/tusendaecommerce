@@ -44,14 +44,23 @@ def validateBrandAsset = { String key ->
     }
 }
 
+def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+def stagingPackagingRequested = requestedTasks.any { name ->
+    name.contains('assemblestaging') || name.contains('bundlestaging') || name.contains('installstaging')
+}
+def releasePackagingRequested = requestedTasks.any { name ->
+    name.contains('assemblerelease') || name.contains('bundlerelease') || name.contains('installrelease')
+}
+
 def firebaseConfigFile = file('google-services.json')
-if (firebaseConfigFile.exists()) {
+if (firebaseConfigFile.exists() && stagingPackagingRequested) {
     apply plugin: 'com.google.gms.google-services'
 }
 
 def apiBaseUrl = (project.findProperty('PZ_STOREFRONT_API_BASE_URL') ?: '').toString().trim()
 def storeUrl = configuredValue('PZ_STOREFRONT_STORE_URL', 'store.url')
 def storeKey = configuredValue('PZ_STOREFRONT_STORE_KEY', 'store.key')
+def stagingStoreUrl = apiBaseUrl ? "${apiBaseUrl}/t/${storeKey}" : ''
 def appKey = configuredValue('PZ_STOREFRONT_APP_KEY', 'app.key')
 def appDisplayName = configuredValue('PZ_STOREFRONT_APP_NAME', 'app.display_name')
 def configuredApplicationId = configuredValue('PZ_STOREFRONT_APPLICATION_ID', 'application.id')
@@ -69,14 +78,6 @@ if (signingPropertiesFile.exists()) {
 }
 def signingConfigured = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every { key ->
     signingProperties.getProperty(key)?.trim()
-}
-
-def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
-def stagingPackagingRequested = requestedTasks.any { name ->
-    name.contains('assemblestaging') || name.contains('bundlestaging') || name.contains('installstaging')
-}
-def releasePackagingRequested = requestedTasks.any { name ->
-    name.contains('assemblerelease') || name.contains('bundlerelease') || name.contains('installrelease')
 }
 
 def validHttpsOrigin = { String value ->
@@ -162,6 +163,9 @@ if (stagingPackagingRequested) {
     if (!validHttpsOrigin(apiBaseUrl)) {
         throw new GradleException('PZ_STOREFRONT_API_BASE_URL debe ser un origen HTTPS sin ruta, query ni fragmento.')
     }
+    if (!validStoreUrl(stagingStoreUrl, storeKey)) {
+        throw new GradleException('El storefront staging debe derivarse del origen HTTPS de PZ_STOREFRONT_API_BASE_URL.')
+    }
 }
 if (releasePackagingRequested) {
     throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C07.')
@@ -187,7 +191,7 @@ android {
         buildConfigField 'String', 'STORE_KEY', javaStringLiteral(storeKey)
         buildConfigField 'String', 'APP_KEY', javaStringLiteral(appKey)
         buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(appDisplayName)
-        buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
+        buildConfigField 'boolean', 'FIREBASE_CONFIGURED', 'false'
         buildConfigField 'boolean', 'ALLOW_STAGING_DESTRUCTIVE_TESTS', destructiveTestsEnabled.toString()
         manifestPlaceholders = [storefrontAppName: appDisplayName]
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
@@ -218,6 +222,8 @@ android {
             initWith release
             matchingFallbacks = ['release']
             versionNameSuffix '-staging'
+            buildConfigField 'String', 'STORE_URL', javaStringLiteral(stagingStoreUrl)
+            buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
             manifestPlaceholders = [storefrontAppName: "${appDisplayName} Staging"]
             minifyEnabled false
             shrinkResources false
