@@ -1744,7 +1744,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 #### Migraciones o infraestructura
 
-- No se añadieron migraciones. La implementación C07, el relay storefront v2 data-only y las cuotas 10/310 se publicaron y desplegaron con autorización en frontend y PocketBase staging hasta `a8f3c20`. Las correcciones móviles `cf846b5` y `fdfa87a` permanecen sólo en `dev` local. Firebase, App Check, Cloudflare y producción no se modificaron.
+- No se añadieron migraciones. `dev`/`origin/dev` y PocketBase staging quedaron en `4efb9a6`; frontend staging conserva `a8f3c20` porque no necesitaba ni tenía autorizado otro redespliegue. El push publicó la cadena móvil/documental en `dev`, pero el único runtime redesplegado fue PocketBase staging. Firebase, App Check, Cloudflare y producción no se modificaron.
 
 #### Implementación local
 
@@ -1772,6 +1772,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - La repetición corregida `7bvs4f2pyvus2rl`, titulada `PowerZona Aminos foreground 2`, se creó sólo después de verificar `target_type=category`, categoría `aminos` y `/t/powerzona/categoria/aminos`. El cron registró `sent`, 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas; Android registró `notification_posted`, la app permaneció en foreground y el propietario confirmó que al tocarla abrió la página de Aminos sin caer en Home ni mostrar `Internal server error`.
 - La campaña `4azw2vwy74bmesb`, titulada `PowerZona Portada cerrada`, se creó desde el fixture home validado con `target_type=home`, `/t/powerzona`, texto y medio WebP `ng4c8sr6iqzpk84`. Antes del envío `pidof com.tusenda84.powerzona` estaba vacío y Recientes era la actividad visible; el cron registró `sent`, 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas. FCM inició sólo el servicio para publicar la notificación, sin abrir la actividad, y el propietario confirmó que al tocarla PowerZona inició y abrió correctamente la portada con el contenido visual esperado.
 - La primera prueba real de sección, `5g72yanuk8bh9hk` (`PowerZona Buscar abierta`), se verificó previamente como `section=search` y `/t/powerzona/buscar`, pero el cron la terminalizó con `invalid_target`, 0 seleccionadas y 0 notificaciones. La causa fue que `validateCampaignForExecution` construía siempre `target_${targetType}` como relación: para `section` leía el propio enum `target_section=search` como `targetRef` y después lo rechazaba. La corrección local centraliza las referencias sólo para producto, categoría, orden, rifa y cupón; ejecución, respuesta y duplicación conservan las secciones sin referencia.
+- Con autorización separada se publicó `dev` hasta `4efb9a6` y se redesplegó exclusivamente `powerzona-pocketbase-repo-staging`. Coolify importó ese hash, construyó la imagen, inició el contenedor nuevo, retiró el anterior y terminó el rolling update; salud PocketBase y storefront respondieron HTTP 200 y la campaña fallida persistió. La repetición `wuutps8ztrhgexb`, `PowerZona Buscar abierta 2`, terminó `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas; Android registró `notification_posted` en foreground y el propietario confirmó que el toque abrió Buscar.
 
 #### Validación automatizada local
 
@@ -1805,7 +1806,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 | Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [x] `0.2.4`: proceso cerrado antes del FCM; toque inicia la app y abre portada correcta |
 | Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.3`: M90 exacto, background, notificación visible y toque abre artículo correcto |
 | Categoría | [x] URL exacta; `0.2.4` staging visible | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.4`: Aminos real en foreground, notificación visible y toque abre la categoría correcta sin error |
-| Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [ ] repetir las cinco secciones |
+| Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [!] `search` aprobado en foreground; pendientes `links`, `gifts`, `raffles` y `checkout` |
 | Orden | [x] fallback sin credencial | [x] fallback sin credencial | [x] fallback sin credencial | [ ] pedido real autorizado |
 | Rifa | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] vigente/vencida |
 | Cupón | [x] URL sintáctica | [x] URL sintáctica | [x] PID vacío + URL | [ ] válido/inválido servidor |
@@ -1826,12 +1827,12 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 #### Despliegue
 
-- `dev`, la referencia remota real, frontend staging y PocketBase staging quedaron publicados/desplegados con autorización hasta `a8f3c20`. Smoke checks posteriores confirmaron ambos runtimes sanos, relay storefront v2 data-only y cuotas efectivas 10/310; el relay administrativo v1 permaneció separado.
-- Los commits móviles `cf846b5`, `fdfa87a`, documental `e377d65`, de aislamiento staging `1417dee` y documental `cccf0e5` no se publicaron ni desplegaron; cualquier push nuevo requiere autorización explícita y separada.
+- `dev`, `origin/dev` y la referencia remota real quedaron exactamente en `4efb9a6`. Frontend staging permanece desplegado en `a8f3c20`; PocketBase staging se redesplegó exclusivamente en `4efb9a6` y Coolify lo confirmó `Running` tras un rolling update terminado.
+- Smoke checks posteriores confirmaron PocketBase y storefront HTTP 200, persistencia de campañas y procesamiento correcto de `section=search`. El relay storefront v2 data-only, las cuotas 10/310 y el relay administrativo v1 separado no se modificaron.
 - El APK `0.2.4-staging` se instaló primero en emulador y después en el Samsung SM-F946U1, conservando userdata y permiso. El teléfono actualizó code 5 → 6, recreó el proceso y abrió Aminos directamente desde proceso cerrado sin el error público; la repetición FCM real confirmó además la apertura correcta de Aminos desde foreground.
-- La corrección del procesador de secciones permanece exclusivamente local; PocketBase staging continúa en `a8f3c20` y requiere autorización explícita separada para publicar `dev` y redesplegar antes de repetir Buscar.
+- Esta actualización documental posterior al push permanece local y cualquier publicación adicional requiere otra autorización explícita separada.
 - No se modificó Firebase/App Check, no se generó firma de producción y producción permaneció fuera de alcance.
 
 #### Siguiente paso
 
-- Solicitar autorización explícita para publicar `dev` hasta el commit de corrección de secciones y redesplegar únicamente PocketBase staging; ejecutar smoke checks y repetir `PowerZona Buscar abierta` con la app en foreground. Después completar exclusivamente las otras cuatro secciones, orden real, rifa, cupón válido/inválido, icono y splash. Mantener 10/310 como límites permanentes, usar sólo la excepción de pruebas staging ya autorizada hasta cerrar esta tarea y no iniciar PZ-APP-C08 ni fases posteriores.
+- Completar exclusivamente las otras cuatro secciones (`links`, `gifts`, `raffles`, `checkout`), orden real, rifa, cupón válido/inválido, icono y splash. Mantener 10/310 como límites permanentes, usar sólo la excepción de pruebas staging ya autorizada hasta cerrar esta tarea, no publicar esta evidencia documental sin otra autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
