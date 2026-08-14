@@ -22,23 +22,55 @@ routerAdd(
   $apis.skipSuccessActivityLog(),
 );
 
-[
-  ["/api/pz/storefront/v1/campaigns/save", "handleSave", 16384],
-  ["/api/pz/storefront/v1/campaigns/audience-preview", "handleAudiencePreview", 2048],
-  ["/api/pz/storefront/v1/campaigns/schedule", "handleSchedule", 4096],
-  ["/api/pz/storefront/v1/campaigns/cancel", "handleCancel", 2048],
-  ["/api/pz/storefront/v1/campaigns/duplicate", "handleDuplicate", 2048],
-].forEach(([path, handler, bodyLimit]) => {
-  routerAdd(
-    "POST",
-    path,
-    (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`)[handler](e),
-    campaignAuth,
-    $apis.requireAuth("users"),
-    $apis.bodyLimit(bodyLimit),
-    $apis.skipSuccessActivityLog(),
-  );
-});
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/save",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleSave(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(16384),
+  $apis.skipSuccessActivityLog(),
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/audience-preview",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleAudiencePreview(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog(),
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/schedule",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleSchedule(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(4096),
+  $apis.skipSuccessActivityLog(),
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/cancel",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleCancel(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog(),
+);
+
+routerAdd(
+  "POST",
+  "/api/pz/storefront/v1/campaigns/duplicate",
+  (e) => require(`${__hooks}/pz_storefront_campaigns_lib.js`).handleDuplicate(e),
+  campaignAuth,
+  $apis.requireAuth("users"),
+  $apis.bodyLimit(2048),
+  $apis.skipSuccessActivityLog(),
+);
 
 cronAdd(
   "pz_storefront_push_campaigns",

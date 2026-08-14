@@ -302,6 +302,12 @@ test('rutas exponen solo C05, cron por minuto y mantienen relay administrativo v
   const relayV1 = fs.readFileSync(path.resolve(__dirname, '../pb_hooks/pz_store_push_dispatch.pb.js'), 'utf8');
   assert.match(routes, /\/api\/pz\/storefront\/v1\/campaigns/);
   assert.match(routes, /audience-preview/);
+  assert.match(routes, /\.handleSave\(e\)/);
+  assert.match(routes, /\.handleAudiencePreview\(e\)/);
+  assert.match(routes, /\.handleSchedule\(e\)/);
+  assert.match(routes, /\.handleCancel\(e\)/);
+  assert.match(routes, /\.handleDuplicate\(e\)/);
+  assert.doesNotMatch(routes, /\[handler\]\(e\)/);
   assert.match(routes, /cronAdd\([\s\S]*pz_storefront_push_campaigns[\s\S]*"\* \* \* \* \*"/);
   assert.match(relayV1, /continueNotificationCreated/);
   assert.doesNotMatch(routes, /continueNotificationCreated|store_notifications/);
