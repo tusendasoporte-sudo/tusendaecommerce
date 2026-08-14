@@ -1763,7 +1763,10 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - La corrección limita el relay storefront v2 a FCM data-only: título, texto, imagen y destino viajan como datos validados; PowerZona analiza el contrato y crea localmente la notificación y su `PendingIntent`. No se modificó el relay administrativo v1 ni se envió otra campaña antes de compilar, desplegar e instalar la corrección.
 - La instrumentación mínima staging de `0.2.2`/code 4 confirmó recepción por `FirebaseMessagingService`, pero rechazó el contrato con el código fijo `payload_rejected_invalid_store`; no registró payload, token, secreto ni identificador. El relay storefront v2 usa correctamente el `app_key` público `powerzona-storefront-staging` en `store_key`, mientras la app lo comparaba erróneamente con el slug web `powerzona`.
 - `0.2.3`/code 5 separa `APP_KEY=powerzona-storefront-staging` de `STORE_KEY=powerzona`: el primero valida el contrato push y el segundo conserva las URLs `/t/powerzona`. La notificación real `PowerZona M90 corregida` se publicó en segundo plano y el propietario confirmó que al tocarla abrió `https://tusenda84.com/t/powerzona/producto/audifonos-m90-pro-ultra-calidad` mostrando el audífono correcto.
-- La prueba aprobada consumió la octava de diez campañas diarias de staging. C07 permanece `EN CURSO`: quedan dos campañas disponibles hoy y no se eludirá ni reiniciará la cuota para completar el resto de la matriz.
+- La prueba M90 aprobada consumió la octava campaña. La novena, `PowerZona Aminos abierta`, publicó correctamente en foreground, pero al tocarla el dominio público mostró `Internal server error`; por tanto, esa navegación no se aprobó.
+- La ruta pública `/t/powerzona/categoria/aminos` responde HTTP 200 con el cuerpo literal de error, mientras la misma ruta del frontend staging renderiza `aminos`, `0 productos` y `1 subcategorías`. Producción permanece fuera de alcance. `0.2.4`/code 6 hace que sólo el build `staging` derive `STORE_URL` de `PZ_STOREFRONT_API_BASE_URL` y añada `/t/powerzona`; debug y la definición de marca conservan la URL pública, y release continúa bloqueada.
+- Gradle aplica `google-services.json` y `FIREBASE_CONFIGURED=true` únicamente al empaquetado staging. Esto recupera el build debug sin cliente Firebase `.debug`, preserva el archivo privado sin modificarlo y mantiene la identidad staging existente.
+- El propietario autorizó expresamente continuar las notificaciones C07 más allá del techo diario hasta terminar esta tarea. La décima campaña, `PowerZona Aminos staging`, fue aceptada y Android registró `notification_posted` con la app abierta; el toque y el contenido final esperan confirmación manual. El límite permanente sigue siendo 10/310 y cualquier ampliación temporal se limitará a staging, se anunciará antes y se restaurará al cerrar la matriz.
 
 #### Validación automatizada local
 
@@ -1775,6 +1778,8 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - APK staging final disponible: `com.tusenda84.powerzona`, `0.2.1-staging`/code 3, minSdk 26, target/compileSdk 36, lint 0, SHA-256 `d08a040371f8501350907d3820d28d3706b2052f5e5b31725e0b03f767e2181e`. La firma privada y `google-services.json` se consumieron desde sus ubicaciones ignoradas y no se modificaron ni expusieron.
 - La inspección del APK encontró 0 entradas y 0 strings de `google-services.json`, keystore, service account, `.secrets` o clave privada. `git diff --check` quedó limpio antes de esta actualización documental.
 - La corrección final `0.2.3-staging`/code 5 repitió las 23/23 pruebas unitarias y lint 0. El build limpio `clean lintStaging assembleStaging` terminó correctamente; el APK de 4.301.650 bytes tiene SHA-256 `a4f41d1749ac8734164eba98c230bd8a8395a4d6475ced912d7eebe65cc09426`, firma v2 válida y el mismo certificado staging SHA-256 `125bdcccb5530d94fc7c0ce33221be7852960c453ed2f047462982fcc54fb372`.
+- `0.2.4` repitió 5 suites y 23/23 pruebas unitarias, sin fallos, errores ni omitidas; `lintDebug`, `assembleDebug`, `lintStaging` y `assembleStaging` terminaron correctamente. El primer intento debug reveló que el plugin Google Services se aplicaba al paquete `.debug`; se corrigió el aislamiento por build type y la repetición aprobó sin leer ni alterar el JSON.
+- APK `0.2.4-staging`/code 6: `com.tusenda84.powerzona`, minSdk 26, target/compileSdk 36, 4.301.650 bytes, SHA-256 `b241eede26b448d1153572bcedd5faa5e672ec753675b1c434708f9c26638497`, firma v2 válida y certificado staging SHA-256 `125bdcccb5530d94fc7c0ce33221be7852960c453ed2f047462982fcc54fb372`. `BuildConfig` confirma API/origen y storefront staging, `APP_KEY=powerzona-storefront-staging`, `STORE_KEY=powerzona` y Firebase configurado sólo para staging.
 
 #### Validación local en emulador
 
@@ -1786,6 +1791,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - El primer harness ADB fue descartado porque pasó `image_url` vacío con sintaxis inválida; no se contó como evidencia. La matriz corregida omitió el campo opcional y registró código de arranque, PID, foco y URL.
 - Durante la captura intensiva de frames el AVD se cerró inesperadamente sin que se ejecutara un comando de apagado. Tras informar recurso, impacto y prueba, se reinició únicamente `Pixel_4a` conservando userdata; boot, API y versiones debug/staging quedaron intactos. No se repitió la captura intensiva.
 - Se capturó el splash del sistema antes de ajustar la zona segura y se verificó que Android usaba el foreground PowerZona; esa evidencia reveló el recorte y motivó la corrección. El recurso final compila y el launcher final muestra el símbolo completo, pero el emulador no expuso un frame estable del splash posterior. Esa observación visual final queda en la matriz manual pendiente y no se presenta como aprobada.
+- `0.2.4-staging` se instaló primero en `Pixel_4a`, preservando userdata y actualizando code 3 → 6. La portada staging cargó y un intent contractual de categoría abrió `aminos`; accesibilidad confirmó `CATEGORÍA`, `0 productos`, `1 subcategorías`, `Subcategorías` y cero coincidencias de `Internal server error`.
 
 #### Matriz manual requerida
 
@@ -1793,7 +1799,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 |---|---|---|---|---|
 | Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [ ] pendiente |
 | Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.3`: M90 exacto, background, notificación visible y toque abre artículo correcto |
-| Categoría | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] pendiente |
+| Categoría | [x] URL exacta; `0.2.4` staging visible | [x] URL exacta | [x] PID vacío + URL | [!] `0.2.3` público dio error; `0.2.4` foreground publicada, toque pendiente de confirmar |
 | Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [ ] repetir las cinco secciones |
 | Orden | [x] fallback sin credencial | [x] fallback sin credencial | [x] fallback sin credencial | [ ] pedido real autorizado |
 | Rifa | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] vigente/vencida |
@@ -1804,22 +1810,22 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 | Icono final | [x] símbolo completo y paquetes separados | [ ] pendiente |
 | Splash final | [ ] recurso compilado; frame final no capturado | [ ] pendiente |
 | Imagen WebP y texto | [ ] implementación/pruebas; falta entrega real | [ ] pendiente |
-| Permiso concedido/denegado | [x] base C06 preservada | [x] denegación y concesión confirmadas; permiso preservado hasta `0.2.3` |
-| App abierta/background/cerrada | [x] lifecycle sintético | [!] background real aprobado con producto; foreground y proceso cerrado pendientes |
+| Permiso concedido/denegado | [x] base C06 preservada | [x] denegación y concesión confirmadas; permiso preservado hasta `0.2.4` |
+| App abierta/background/cerrada | [x] lifecycle sintético | [!] background real aprobado; foreground publicado y pendiente de toque; proceso cerrado pendiente |
 
 #### Riesgos, deuda o bloqueos
 
-- La prueba manual obligatoria de C07 incluye emulador y teléfono físico para cada destino en app abierta, background y cerrada. El propietario autorizó las tres acciones C07 en staging y teléfono físico; cada cambio sigue requiriendo el aviso operativo previo. Hoy se consumieron 8/10 campañas y sólo las dos restantes pueden usarse sin exceder la cuota; el resto de la matriz deberá continuar en otra ventana diaria.
+- La prueba manual obligatoria de C07 incluye emulador y teléfono físico para cada destino en app abierta, background y cerrada. El propietario autorizó las tres acciones C07 en staging/teléfono y, después de consumir 10/10, autorizó superar temporalmente el techo sólo hasta terminar esta tarea. Cada cambio de cuota/flujo sigue requiriendo aviso operativo; no se cambiará el límite permanente 10/310 ni producción.
 - La identidad de firma de staging, secretos locales ignorados y `google-services.json` no se leerán, regenerarán ni alterarán. No se generará firma de producción ni se habilitará enforcement.
 - C07 permanece `EN CURSO`: no puede marcarse `COMPLETADO` hasta que el propietario autorice y confirme la matriz FCM real/teléfono, incluidos pedido, cupón válido/inválido, WebP/texto, permiso e inspección final de splash. Esa autorización no se infiere de la solicitud de trabajo local.
 
 #### Despliegue
 
 - `dev`, la referencia remota real, frontend staging y PocketBase staging quedaron publicados/desplegados con autorización hasta `a8f3c20`. Smoke checks posteriores confirmaron ambos runtimes sanos, relay storefront v2 data-only y cuotas efectivas 10/310; el relay administrativo v1 permaneció separado.
-- Los commits móviles `cf846b5` y `fdfa87a` no se publicaron ni desplegaron. `dev` local está en `fdfa87a`, dos commits por delante de `origin/dev`; cualquier push nuevo requiere autorización explícita y separada.
-- El APK `0.2.3-staging` se instaló en el Samsung SM-F946U1 físico conservando userdata y permiso de notificaciones. El paquete confirmado es `com.tusenda84.powerzona`, versión `0.2.3-staging`/code 5; la recepción data-only, publicación local y navegación M90 se aprobaron en background.
+- Los commits móviles `cf846b5`, `fdfa87a`, documental `e377d65` y de aislamiento staging `1417dee` no se publicaron ni desplegaron. `dev` local está en `1417dee`, cuatro commits por delante de `origin/dev`; cualquier push nuevo requiere autorización explícita y separada.
+- El APK `0.2.4-staging` se instaló primero en emulador y después en el Samsung SM-F946U1, conservando userdata y permiso. El teléfono actualizó code 5 → 6, recreó el proceso y abrió Aminos directamente desde proceso cerrado sin el error público; la décima notificación real quedó activa para la confirmación manual foreground.
 - No se modificó Firebase/App Check, no se generó firma de producción y producción permaneció fuera de alcance.
 
 #### Siguiente paso
 
-- Conservar las dos campañas restantes de la cuota diaria para validar, con aviso previo, un caso foreground y otro con proceso cerrado; continuar los demás destinos/variantes en la siguiente ventana diaria sin eludir 10/310. Completar icono, splash, WebP/texto, pedido real, rifa y cupón válido/inválido antes de cerrar C07. No publicar `cf846b5`/`fdfa87a` sin autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
+- Confirmar manualmente que `PowerZona Aminos staging` abre la categoría correcta. Después, si hacen falta más campañas hoy, aplicar sólo en PocketBase staging una ampliación temporal anunciada y restaurarla a 10/310 al terminar. Completar estados/destinos, icono, splash, WebP/texto, pedido real, rifa y cupón válido/inválido antes de cerrar C07. No publicar los commits locales sin autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
