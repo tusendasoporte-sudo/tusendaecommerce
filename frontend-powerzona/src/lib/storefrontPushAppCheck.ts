@@ -397,12 +397,27 @@ export async function storefrontNativeGateway<T>(options: StorefrontNativeGatewa
     : storefrontJson(503, { ok: false, error: 'gateway_unavailable' });
 }
 
-export function mapBootstrapResponse(request: Request, payload: Record<string, unknown>) {
+export function storefrontPublicHttpsOrigin(request: Request, clientAddress?: string) {
+  let requestUrl: URL;
+  try { requestUrl = new URL(request.url); } catch { return ''; }
+  if (requestUrl.protocol === 'https:') return requestUrl.origin;
+  const forwardedProto = String(request.headers.get('x-forwarded-proto') || '').trim().toLowerCase();
+  if (forwardedProto !== 'https'
+    || !storefrontGatewayTransportAllowed(request, clientAddress)) return '';
+  return `https://${requestUrl.host}`;
+}
+
+export function mapBootstrapResponse(
+  request: Request,
+  payload: Record<string, unknown>,
+  clientAddress?: string,
+) {
   const code = String(payload.bootstrap_code || '');
   const expiresIn = Number(payload.expires_in_seconds);
   if (!STOREFRONT_BOOTSTRAP_CODE_PATTERN.test(code)
     || !Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > 60) return null;
-  const origin = new URL(request.url).origin;
+  const origin = storefrontPublicHttpsOrigin(request, clientAddress);
+  if (!origin) return null;
   return {
     ok: true,
     bootstrap_url: `${origin}/api/storefront/v1/session/bootstrap/${code}`,

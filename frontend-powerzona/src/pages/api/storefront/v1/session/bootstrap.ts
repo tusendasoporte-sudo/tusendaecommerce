@@ -19,5 +19,5 @@ export const POST: APIRoute = async ({ request, clientAddress }) => storefrontNa
   allowEmptyBody: true,
   credential: 'required',
   parsePayload: normalizeStorefrontEmptyPayload,
-  mapSuccess: (payload) => mapBootstrapResponse(request, payload),
+  mapSuccess: (payload) => mapBootstrapResponse(request, payload, clientAddress),
 });

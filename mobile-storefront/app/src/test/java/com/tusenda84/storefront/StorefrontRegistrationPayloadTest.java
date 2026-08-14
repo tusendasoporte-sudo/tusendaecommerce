@@ -80,4 +80,14 @@ public final class StorefrontRegistrationPayloadTest {
                 StorefrontRegistrationClient.safeFailure(network)
         );
     }
+
+    @Test
+    public void messagingCallbackCannotRegisterMessagingAgain() {
+        assertTrue(StorefrontRegistrationClient.shouldRequestMessagingRegistration(
+                StorefrontRegistrationClient.RegistrationOrigin.USER_ACTION
+        ));
+        assertTrue(!StorefrontRegistrationClient.shouldRequestMessagingRegistration(
+                StorefrontRegistrationClient.RegistrationOrigin.MESSAGING_CALLBACK
+        ));
+    }
 }

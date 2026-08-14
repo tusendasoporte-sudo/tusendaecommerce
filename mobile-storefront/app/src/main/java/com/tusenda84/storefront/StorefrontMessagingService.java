@@ -16,7 +16,7 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
 
     private void registerWithoutExposingIdentifiers() {
         if (!BuildConfig.FIREBASE_CONFIGURED) return;
-        new StorefrontRegistrationClient(this).register(result -> {
+        new StorefrontRegistrationClient(this).registerFromMessagingCallback(result -> {
             // C06A no registra identificadores ni tokens en logs o interfaz en segundo plano.
         });
     }

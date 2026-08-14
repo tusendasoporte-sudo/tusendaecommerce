@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import {
   consumeStorefrontBootstrap,
+  mapBootstrapResponse,
   resetStorefrontRateLimitsForTests,
   storefrontAppCheckToken,
   storefrontGatewayTransportAllowed,
@@ -171,6 +172,43 @@ test('HTTPS es obligatorio salvo loopback local fuera de produccion', () => {
       'x-real-ip': '198.51.100.8',
     },
   }), '172.20.0.2', 'production'), false);
+});
+
+test('bootstrap publica siempre el origen HTTPS validado aun detras del proxy', () => {
+  const code = `pzb_v1_${'B'.repeat(48)}`;
+  const payload = { bootstrap_code: code, expires_in_seconds: 60 };
+  assert.deepEqual(mapBootstrapResponse(
+    new Request('https://staging.example/api/storefront/v1/session/bootstrap'),
+    payload,
+    '8.8.8.8',
+  ), {
+    ok: true,
+    bootstrap_url: `https://staging.example/api/storefront/v1/session/bootstrap/${code}`,
+    expires_in_seconds: 60,
+  });
+
+  const proxiedHttps = new Request('http://staging.example/api/storefront/v1/session/bootstrap', {
+    headers: {
+      'x-forwarded-for': '198.51.100.8',
+      'x-forwarded-host': 'staging.example',
+      'x-forwarded-proto': 'https',
+      'x-real-ip': '198.51.100.8',
+    },
+  });
+  assert.equal(
+    mapBootstrapResponse(proxiedHttps, payload, '172.20.0.2')?.bootstrap_url,
+    `https://staging.example/api/storefront/v1/session/bootstrap/${code}`,
+  );
+
+  const forgedHost = new Request('http://staging.example/api/storefront/v1/session/bootstrap', {
+    headers: {
+      'x-forwarded-for': '198.51.100.8',
+      'x-forwarded-host': 'attacker.example',
+      'x-forwarded-proto': 'https',
+      'x-real-ip': '198.51.100.8',
+    },
+  });
+  assert.equal(mapBootstrapResponse(forgedHost, payload, '172.20.0.2'), null);
 });
 
 test('rate limiting separa acciones y bloquea al superar la ventana', () => {

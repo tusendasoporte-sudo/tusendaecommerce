@@ -29,6 +29,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 final class StorefrontRegistrationClient {
+    enum RegistrationOrigin {
+        USER_ACTION,
+        MESSAGING_CALLBACK
+    }
+
     interface Callback {
         void complete(Result result);
     }
@@ -71,7 +76,11 @@ final class StorefrontRegistrationClient {
     }
 
     void register(Callback callback) {
-        execute(callback, () -> registerInternal(false));
+        execute(callback, () -> registerInternal(false, RegistrationOrigin.USER_ACTION));
+    }
+
+    void registerFromMessagingCallback(Callback callback) {
+        execute(callback, () -> registerInternal(false, RegistrationOrigin.MESSAGING_CALLBACK));
     }
 
     void rotateFidAndRegister(Callback callback) {
@@ -87,7 +96,7 @@ final class StorefrontRegistrationClient {
             Tasks.await(messaging.unregister(), 30, TimeUnit.SECONDS);
             Tasks.await(FirebaseInstallations.getInstance().delete(), 30, TimeUnit.SECONDS);
             messaging.setAutoInitEnabled(true);
-            return registerInternal(true);
+            return registerInternal(true, RegistrationOrigin.USER_ACTION);
         });
     }
 
@@ -130,7 +139,10 @@ final class StorefrontRegistrationClient {
         });
     }
 
-    private Result registerInternal(boolean forceAppCheckRefresh) throws Exception {
+    private Result registerInternal(
+            boolean forceAppCheckRefresh,
+            RegistrationOrigin origin
+    ) throws Exception {
         Result readiness = readiness();
         if (!readiness.ok) return readiness;
 
@@ -140,7 +152,9 @@ final class StorefrontRegistrationClient {
 
         FirebaseMessaging messaging = FirebaseMessaging.getInstance();
         messaging.setAutoInitEnabled(true);
-        Tasks.await(messaging.register(), 30, TimeUnit.SECONDS);
+        if (shouldRequestMessagingRegistration(origin)) {
+            Tasks.await(messaging.register(), 30, TimeUnit.SECONDS);
+        }
         String fid = Tasks.await(FirebaseInstallations.getInstance().getId(), 30, TimeUnit.SECONDS);
         String body = StorefrontRegistrationPayload.register(
                 fid,
@@ -372,6 +386,10 @@ final class StorefrontRegistrationClient {
             return "No fue posible conectar con los servicios de staging.";
         }
         return "La operación falló de forma segura. Revisa conectividad y configuración de staging.";
+    }
+
+    static boolean shouldRequestMessagingRegistration(RegistrationOrigin origin) {
+        return origin == RegistrationOrigin.USER_ACTION;
     }
 
     static String permissionState(Context context) {
