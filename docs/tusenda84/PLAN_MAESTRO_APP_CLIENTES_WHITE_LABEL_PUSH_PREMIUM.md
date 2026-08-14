@@ -6,16 +6,16 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C06A BLOQUEADO por prueba física — C03 continúa BLOQUEADO; C05 permanece PENDIENTE |
-| Versión del documento | 1.24 |
+| Estado general | PZ-APP-C06A y PZ-APP-C03 COMPLETADOS — C05 habilitado y PENDIENTE |
+| Versión del documento | 1.25 |
 | Fecha de creación | 2026-08-11 |
-| Última actualización | 2026-08-13 |
+| Última actualización | 2026-08-14 |
 | Tienda piloto | PowerZona |
 | Plataforma inicial | Android (APK y AAB) |
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Reanudar PZ-APP-C06A con un teléfono Android físico desbloqueado y acceso administrativo a PocketBase staging; C05 no debe iniciarse |
+| Próximo prompt | Iniciar exclusivamente PZ-APP-C05 desde `dev`, con preflight completo y sin iniciar C06 ni fases posteriores |
 
 ### Convención de estados
 
@@ -546,9 +546,9 @@ Estado vigente:
 |---|---|---|---|---|---|
 | PZ-APP-C01 | Auditoría y diseño técnico definitivo | COMPLETADO | Ninguna | Completada: identidad y derivados v3 aprobados | Sol — Extra High |
 | PZ-APP-C02 | Modelo de datos, migraciones y reglas multi-tienda | COMPLETADO | C01 | Completada: inspección controlada A/B en staging | Sol — Extra High |
-| PZ-APP-C03 | Registro público seguro de instalaciones | BLOQUEADO | C02; SHA-256 real ya registrada por C06A, pendiente atestación Play Integrity en teléfono físico y matriz real | Sí: ciclo de registro en staging | Sol — High |
+| PZ-APP-C03 | Registro público seguro de instalaciones | COMPLETADO | C02 | Completada: matriz real App Check/Play Integrity en teléfono físico | Sol — High |
 | PZ-APP-C04 | Canal persistente de imágenes WebP | COMPLETADO | C02 | Completada: carga, visualización, persistencia, limpieza y restauración aislada en staging | Terra — High |
-| PZ-APP-C06A | Identidad de firma y cliente App Check de staging | BLOQUEADO | C01; cliente, firma y registro Firebase listos; falta teléfono físico y configuración activa de la app en PocketBase staging | Sí: token Play Integrity y registro C03 real | Sol — Extra High |
+| PZ-APP-C06A | Identidad de firma y cliente App Check de staging | COMPLETADO | C01 | Completada: token Play Integrity y matriz C03 real en Fold5 | Sol — Extra High |
 | PZ-APP-C05 | Motor de campañas y entrega FCM | PENDIENTE | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | PENDIENTE | C01, C03, C06A | Sí: emulador y teléfono | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | PENDIENTE | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
@@ -614,7 +614,7 @@ El acceso administrativo exige simultáneamente `marketing.push.manage` y `push_
 
 Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema_lib.js`: FID, digests, credenciales, IP cifrado, sesiones, tokens de lock/lease, Firebase message ID, idempotencia y metadatos privados. Retención acordada: IP completo 30 días; sesiones 30 días tras expirar; entregas/eventos 180 días; campañas 24 meses; agregados diarios 36 meses cuando se creen en C09. La inspección controlada con dos tiendas desechables terminó correctamente en staging, todos sus datos temporales fueron eliminados y el propietario confirmó la validación. C02 queda `COMPLETADO`; producción no fue modificada.
 
-### [ ] PZ-APP-C03 — Registro público seguro de instalaciones
+### [x] PZ-APP-C03 — Registro público seguro de instalaciones
 
 **Objetivo:** registrar y mantener instalaciones anónimas sin exigir una cuenta de cliente.
 
@@ -628,12 +628,12 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] Repetir el registro no crea duplicados para la misma instalación.
-- [ ] Rotar el FID no pierde el historial auditable de instalación.
-- [ ] Una app no puede registrarse en una tienda arbitraria.
-- [ ] Existe rate limiting y validación de entradas.
-- [ ] IP, FID y credencial no aparecen en logs generales.
-- [ ] Se prueban altas, heartbeats, desactivación y errores.
+- [x] Repetir el registro no crea duplicados para la misma instalación.
+- [x] Rotar el FID no pierde el historial auditable de instalación.
+- [x] Una app no puede registrarse en una tienda arbitraria.
+- [x] Existe rate limiting y validación de entradas.
+- [x] IP, FID y credencial no aparecen en logs generales.
+- [x] Se prueban altas, heartbeats, desactivación y errores.
 
 ### [x] PZ-APP-C04 — Imágenes WebP persistentes
 
@@ -658,7 +658,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] La imagen sobrevive reinicios y despliegues.
 - [x] La caché no impide reemplazos ni limpieza correctos.
 
-### PZ-APP-C06A — Identidad de firma y cliente App Check de staging — BLOQUEADO
+### [x] PZ-APP-C06A — Identidad de firma y cliente App Check de staging
 
 **Objetivo:** crear exclusivamente el prerrequisito Android mínimo que permita obtener una atestación Play Integrity real y completar la validación bloqueada de C03, sin iniciar C05 ni desarrollar todavía la app white-label completa.
 
@@ -676,8 +676,8 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] El keystore y sus contraseñas están fuera de Git, con ruta y respaldo seguro documentados sin revelar secretos.
 - [x] La SHA-256 se extrajo del certificado que firma realmente la APK de staging y se verificó también desde la APK.
 - [x] Firebase App Check staging reconoce la app con Play Integrity y la política correcta para distribución fuera de Play.
-- [ ] El cliente Android mínimo obtiene FID y token App Check sin exponerlos al WebView, URLs o logs.
-- [ ] El gateway C03 acepta la atestación real y la matriz de staging queda registrada.
+- [x] El cliente Android mínimo obtiene FID y token App Check sin exponerlos al WebView, URLs o logs.
+- [x] El gateway C03 acepta la atestación real y la matriz de staging queda registrada.
 - [x] No se inició C05 ni el resto funcional/visual de C06.
 - [x] No se modificó producción ni se incorporaron secretos o artefactos firmados a Git.
 
@@ -1316,13 +1316,13 @@ Implementación y validación controlada terminadas para las ocho colecciones pr
 
 ### 2026-08-11 — PZ-APP-C03 — Registro público seguro de instalaciones
 
-- Estado: BLOQUEADO
+- Estado: COMPLETADO
 - Responsable: Codex
-- Entorno: local; staging pendiente de la puerta manual de C03
+- Entorno: local y staging; matriz física completada mediante la excepción C06A
 - Branch: `dev`
 - Commit base: `fd46936d3bbb06f87269f048be857a0d30c5d691`
 - Fecha/hora de inicio: 2026-08-11 22:05:39 -04:00
-- Fecha/hora de cierre: pendiente; bloqueo registrado 2026-08-12 08:06:41 -04:00
+- Fecha/hora de cierre: 2026-08-13 21:43:00 -04:00; bloqueo intermedio registrado 2026-08-12 08:06:41 -04:00
 
 #### Objetivo en curso
 
@@ -1479,13 +1479,13 @@ Implementar exclusivamente el canal persistente de imágenes WebP definido para 
 
 ### 2026-08-13 — PZ-APP-C06A — Identidad de firma y cliente App Check de staging
 
-- Estado: BLOQUEADO
+- Estado: COMPLETADO
 - Responsable: Codex / propietario de Tu Senda 84
-- Entorno: local, Firebase storefront staging y emulador Android; servicios Coolify inspeccionados únicamente en lectura
-- Branch: preparación en worktree desacoplado alineado con `dev`
+- Entorno: local, Firebase storefront staging, Samsung SM-F946U1 físico, Android 16 y frontend/PocketBase staging
+- Branch: preparación en worktree desacoplado integrada finalmente en `dev`
 - Commit base: `7031769fce48cade44c8a24e669722bd35514900`
 - Fecha/hora de inicio: 2026-08-13 20:16:21 -04:00
-- Fecha/hora de bloqueo: 2026-08-13 20:50:36 -04:00
+- Fecha/hora de cierre: 2026-08-13 21:43:00 -04:00
 
 #### Objetivo en curso
 
@@ -1523,12 +1523,30 @@ Resolver exclusivamente la dependencia circular entre C03 y C06 mediante una ide
 - `testDebugUnitTest` aprobó 7/7 pruebas; `lintStaging` terminó con 0 incidencias; `assembleStaging` aprobó. La APK final pesa 2.910.818 bytes, tiene SHA-256 `3EE45B8F4640A5ED10622D75FE651BFBC01F44B4FC05495B05303C90E6A1A5A7`, una sola firma RSA 3072 y APK Signature Scheme v2 válido. La inspección del paquete no encontró `google-services.json`, keystore, propiedades privadas ni cuenta de servicio.
 - Con aviso previo se instaló y reemplazó solo `com.tusenda84.powerzona` en `emulator-5554`. La pantalla técnica no expuso identificadores. El registro falló cerrado con el mensaje sanitizado `App Check/Play Integrity no pudo emitir una atestación válida`, resultado esperado porque el emulador no satisface la señal física `Device integrity`; no se habilitó el proveedor debug para eludir la prueba real.
 
-#### Bloqueo actual
+#### Bloqueo resuelto y preestado físico
 
-- No hay teléfono físico conectado; `adb devices -l` muestra únicamente `emulator-5554`. C06A y C03 no pueden aprobar la atestación real ni la matriz obligatoria en ese dispositivo virtual.
-- El último estado autoritativo documentado por C03 dejó `storefront_app_configs`, `storefront_installations` y `storefront_web_sessions` en cero. La sesión actual de PocketBase staging requiere autenticación de Superuser, por lo que no se afirmó un conteo nuevo ni se modificaron registros. Antes de la matriz física debe verificarse y, con aviso previo, provisionarse una única configuración activa para el Firebase app id de staging y PowerZona.
-- Hasta resolver ambas condiciones, C06A y C03 permanecen `BLOQUEADO`; C05 permanece `PENDIENTE` por su dependencia obligatoria de C03.
+- Se conectó y desbloqueó un Samsung SM-F946U1 físico con Android 16 y depuración USB. El emulador se mantuvo separado y no se utilizó para sustituir la señal `Device integrity`.
+- PocketBase staging se inspeccionó con una sesión Superuser ya autenticada. Antes de la matriz había cero configuraciones, cero instalaciones y cero sesiones storefront; PowerZona seguía activa, Premium y permanente.
+- Con aviso y autorización se creó una única `storefront_app_configs` activa para PowerZona, el paquete `com.tusenda84.powerzona`, el Firebase app id aislado de storefront staging, el origen público HTTPS del frontend y el prefijo fijo `/t/powerzona`. No se modificó otra tienda ni producción.
 
-#### Siguiente paso
+#### Matriz física C03 aprobada
 
-- Conectar y desbloquear un teléfono Android físico con depuración USB, y abrir una sesión Superuser de PocketBase staging. Antes de instalar la APK o crear la configuración activa se volverá a informar el recurso exacto, impacto y prueba manual. Luego se ejecutará la matriz C03 completa y sanitizada; solo si aprueba se cerrarán C06A/C03 y podrá abrirse C05.
+- El registro real con Play Integrity creó exactamente una instalación activa en staging. Repetirlo conservó una sola instalación y la rotación autenticada de FID mantuvo el mismo registro lógico y su historial.
+- Heartbeat y actualización del permiso Android fueron aceptados; el permiso quedó `granted`. FID, credencial, token App Check y digests no se mostraron ni se escribieron en logs generales.
+- El primer bootstrap falló cerrado porque Astro construía la URL pública con el protocolo HTTP interno de Coolify. La sesión pendiente anterior expiró y quedó revocada al crear el bootstrap siguiente.
+- Tras la corrección del origen público HTTPS, el bootstrap se consumió una sola vez, devolvió la cookie `HttpOnly; Secure; SameSite=Lax` y creó una sesión web activa independiente de la credencial nativa.
+- La desactivación final fue confirmada en el teléfono: Android eliminó su credencial local, la única instalación quedó `disabled` y dejó de ser elegible para heartbeat o entregas. La sesión web consumida permanece activa hasta su vencimiento normal, conforme a la separación entre navegación web y credencial push; el intento anterior permanece revocado. La tienda `/t/powerzona` continuó cargando sin error.
+
+#### Correcciones y pruebas de cierre
+
+- Se eliminó un ciclo de callbacks FCM: `StorefrontMessagingService.onRegistered` ya no vuelve a invocar `FirebaseMessaging.register()`. El registro explícito del usuario conserva esa llamada, mientras el callback solo sincroniza la instalación con el backend. La repetición física dejó de producir `429` y no creó duplicados.
+- El gateway ahora deriva el origen HTTPS público únicamente desde una solicitud HTTPS directa o desde el paquete de proxy previamente validado; nunca toma como origen un `x-forwarded-host` discordante. Se añadió regresión para HTTPS directo, Coolify proxied y host falsificado.
+- Android aprobó 8/8 pruebas unitarias, lint con 0 incidencias y `assembleStaging`. La APK corregida tiene SHA-256 `9CF529D97CC80B604A633733BBD15DF0E62A921872B6BEB06C325069FFF4D40D`; conserva una sola firma v2 y la SHA-256 pública del certificado `125bdcccb5530d94fc7c0ce33221be7852960c453ed2f047462982fcc54fb372`.
+- Backend C03 aprobó 12/12 pruebas, incluida la ejecución con PocketBase 0.38.2 real. Gateway C03 aprobó 12/12 y el build Astro completo terminó correctamente. La suite frontend amplia conservó los mismos cinco fallos preexistentes que reproduce el commit base, sin regresión atribuible a C03/C06A.
+
+#### Despliegue autorizado y estado final
+
+- `dev` y `origin/dev` se alinearon en `c4c2c7ae0fabceda82fe7f35c56332d87f39d6dd`. Coolify no inició autodespliegue; con autorización separada se ejecutó `Redeploy` únicamente en `powerzona-frontend-staging`.
+- El rolling update terminó correctamente y el frontend quedó `Running` con `c4c2c7a`. PocketBase no fue reiniciado ni redesplegado. La tienda pública volvió a renderizar PowerZona después del cambio.
+- C06A queda `COMPLETADO` y la puerta física de C03 queda cerrada. C03 pasa de `BLOQUEADO` a `COMPLETADO`; C04 ya estaba `COMPLETADO`. C05 continúa `PENDIENTE`, ahora con sus dependencias satisfechas y listo para abrirse en el siguiente prompt secuencial.
+- C05, el resto de C06, fases posteriores y producción no se iniciaron. `.tmp/`, el stash ajeno, secretos locales ignorados y la identidad de firma de staging se preservaron.
