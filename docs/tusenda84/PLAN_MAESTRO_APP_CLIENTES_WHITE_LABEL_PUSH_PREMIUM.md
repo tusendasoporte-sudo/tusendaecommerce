@@ -6,8 +6,8 @@
 
 | Campo | Valor |
 |---|---|
-| Estado general | PZ-APP-C05 EN CURSO — motor de campañas y entrega FCM |
-| Versión del documento | 1.26 |
+| Estado general | PZ-APP-C05 COMPLETADO — motor de campañas y entrega FCM |
+| Versión del documento | 1.27 |
 | Fecha de creación | 2026-08-11 |
 | Última actualización | 2026-08-14 |
 | Tienda piloto | PowerZona |
@@ -15,7 +15,7 @@
 | Proyecto móvil propuesto | `mobile-storefront` |
 | Aplicación administrativa existente | `mobile-admin` / Tu Senda 84 Admin |
 | Responsable de aprobación | Propietario de Tu Senda 84 |
-| Próximo prompt | Continuar exclusivamente PZ-APP-C05; no iniciar C06 ni fases posteriores |
+| Próximo prompt | Iniciar exclusivamente PZ-APP-C06; no iniciar C07 ni fases posteriores |
 
 ### Convención de estados
 
@@ -117,6 +117,15 @@ Se crearán modelos específicos para la app pública. Los nombres definitivos a
 - `push_daily_stats`, diferida a PZ-APP-C09
 
 No se creará una colección pública de lotes: el bloqueo, intento y resultado se conservarán en `push_campaign_deliveries` y en campos de control de `push_campaigns`.
+
+### 4.4 Estado alcanzado al cerrar PZ-APP-C05
+
+- [x] C02 creó y validó el modelo privado multi-tienda, migraciones, reglas, índices y retención del canal storefront.
+- [x] C03 registró instalaciones públicas con App Check/Play Integrity real, credenciales rotables, heartbeat, permiso, bootstrap y disable.
+- [x] C04 dejó operativo el canal persistente WebP con cuotas, vencimiento, caché pública y limpieza transaccional.
+- [x] C06A aportó únicamente la identidad Android y cliente mínimo de staging necesarios para cerrar la puerta física de C03.
+- [x] C05 dejó desplegado en staging el motor de campañas, cron por minuto y relay storefront v2 separado; la matriz inmediata/programada/invalidación/no duplicación fue aprobada y los datos técnicos quedaron limpiados.
+- [x] El relay administrativo v1 continúa separado y funcional. Producción, Firebase, enforcement y las fases C06-C12 no se modificaron durante C05.
 
 ## 5. Arquitectura objetivo
 
@@ -549,7 +558,7 @@ Estado vigente:
 | PZ-APP-C03 | Registro público seguro de instalaciones | COMPLETADO | C02 | Completada: matriz real App Check/Play Integrity en teléfono físico | Sol — High |
 | PZ-APP-C04 | Canal persistente de imágenes WebP | COMPLETADO | C02 | Completada: carga, visualización, persistencia, limpieza y restauración aislada en staging | Terra — High |
 | PZ-APP-C06A | Identidad de firma y cliente App Check de staging | COMPLETADO | C01 | Completada: token Play Integrity y matriz C03 real en Fold5 | Sol — Extra High |
-| PZ-APP-C05 | Motor de campañas y entrega FCM | EN CURSO | C02, C03, C04 | Sí: envío real controlado | Sol — Extra High |
+| PZ-APP-C05 | Motor de campañas y entrega FCM | COMPLETADO | C02, C03, C04 | Completada: inmediata, programada, FID inválido y no duplicación en staging | Sol — Extra High |
 | PZ-APP-C06 | Base Android white-label `mobile-storefront` | PENDIENTE | C01, C03, C06A | Sí: emulador y teléfono | Sol — High |
 | PZ-APP-C07 | Variante PowerZona y deep links | PENDIENTE | C05, C06 | Sí, obligatoria: teléfono físico | Sol — High |
 | PZ-APP-C08 | Panel Premium Campañas push | PENDIENTE | C04, C05 | Sí: panel móvil y escritorio | Sol — High |
@@ -681,7 +690,7 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 - [x] No se inició C05 ni el resto funcional/visual de C06.
 - [x] No se modificó producción ni se incorporaron secretos o artefactos firmados a Git.
 
-### [ ] PZ-APP-C05 — Motor de campañas y entrega FCM
+### [x] PZ-APP-C05 — Motor de campañas y entrega FCM
 
 **Objetivo:** crear el servicio backend que selecciona destinatarios y entrega campañas de clientes mediante Firebase.
 
@@ -695,13 +704,13 @@ Los campos sensibles y plazos quedan centralizados en `pz_storefront_push_schema
 
 **Criterios de aceptación:**
 
-- [ ] Un usuario sin Premium o sin permiso no puede enviar.
-- [ ] Nunca se seleccionan instalaciones de otra tienda.
-- [ ] Los reintentos no duplican una campaña completa.
-- [ ] FID inválidos cambian de estado automáticamente.
-- [ ] Las campañas programadas se ejecutan una sola vez.
-- [ ] Un fallo parcial queda visible y auditable.
-- [ ] Las alertas administrativas actuales continúan funcionando.
+- [x] Un usuario sin Premium o sin permiso no puede enviar.
+- [x] Nunca se seleccionan instalaciones de otra tienda.
+- [x] Los reintentos no duplican una campaña completa.
+- [x] FID inválidos cambian de estado automáticamente.
+- [x] Las campañas programadas se ejecutan una sola vez.
+- [x] Un fallo parcial queda visible y auditable.
+- [x] Las alertas administrativas actuales continúan funcionando.
 
 ### [ ] PZ-APP-C06 — Base Android white-label
 
@@ -1553,15 +1562,15 @@ Resolver exclusivamente la dependencia circular entre C03 y C06 mediante una ide
 
 ### 2026-08-13 — PZ-APP-C05 — Motor de campañas y entrega FCM
 
-- Estado: EN CURSO
+- Estado: COMPLETADO
 - Responsable: Codex
-- Entorno: local; staging pendiente de autorización explícita y prueba manual obligatoria de C05
-- Branch: `dev` local; implementación consolidada sin push
+- Entorno: local y staging autorizado; producción fuera de alcance
+- Branch: `dev`, publicada y alineada con `origin/dev`
 - Commit base: `2564635560f50196fa55b7ce33ed893759d554fa`
 - Fecha/hora de inicio: 2026-08-13 21:51:14 -04:00
-- Fecha/hora de cierre: pendiente
+- Fecha/hora de cierre: 2026-08-13 23:27:01 -04:00
 
-#### Objetivo en curso
+#### Objetivo completado
 
 Implementar exclusivamente el motor backend C05 de campañas storefront y su relay FCM v2: ciclo de vida, validación, audiencia elegible por tienda, Premium más `marketing.push.manage`, lotes, idempotencia, leases, programación, reintentos, fallos parciales e invalidación permanente de FID. El relay administrativo v1 debe permanecer intacto; C06-C12 y producción quedan fuera de alcance.
 
@@ -1603,14 +1612,32 @@ Implementar exclusivamente el motor backend C05 de campañas storefront y su rel
 
 #### Estado de criterios
 
-- La evidencia automatizada local cubre bloqueo sin Premium/permiso, aislamiento entre tiendas, no duplicación por snapshot/lock, invalidación de FID, programación exclusiva por lock, fallo parcial auditable y compatibilidad estática/funcional del relay v1.
-- C05 permanece `EN CURSO`: falta deliberadamente la prueba manual con destinatarios reales de staging. Esto no autoriza por sí solo push, despliegue, reinicio o cambio remoto.
-- Commit local de implementación: `5286515c54965c4a6e67a4fdf4c120c462147495`, integrado por avance rápido de `dev` desde `2564635560f50196fa55b7ce33ed893759d554fa`. `.tmp/`, `.secrets/` y el stash ajeno permanecieron intactos.
+- La evidencia automatizada y manual cubre bloqueo sin Premium/permiso, aislamiento entre tiendas, no duplicación por snapshot/lock/estado terminal, invalidación permanente de FID, programación exclusiva por lock, fallo parcial auditable y continuidad funcional del relay v1.
+- Los siete criterios de aceptación de C05 quedan satisfechos. C05 pasa a `COMPLETADO`; C06 y fases posteriores permanecen `PENDIENTE` y no se iniciaron.
+- Implementación base: `5286515c54965c4a6e67a4fdf4c120c462147495`. Consolidación y documentación local: `c615ce1`. Correcciones de compatibilidad PocketBase 0.38.2 publicadas: `07fe35c`, `c2c9777`, `7fad72c` y `ac45f350b7f827a25acde05abc3f50750029defa`.
 
 #### Despliegue
 
-- No realizado ni autorizado. No se tocaron frontend o PocketBase staging, Firebase, Cloudflare, Coolify, producción, firma Android, `google-services.json` ni enforcement.
+- Con autorización explícita separada se publicó exclusivamente `dev` y se desplegó staging. El frontend `mob76fcvxkxyb8tq0nwys18o` incorporó el relay v2 mediante el despliegue `jotlyqzrc24iqk2c22n49qsk`; storefront, relay v1 y relay v2 quedaron respectivamente en HTTP 200, 401 sin secreto y 401 sin secreto.
+- PocketBase staging `imdbiodgr30k0dbhx3wtlysj` se actualizó mediante rolling updates informados. El despliegue final `r5g8gwv85ooefps7cxg1c8y2` terminó en `ac45f350b7f827a25acde05abc3f50750029defa`, salud HTTP 200 y ruta C05 protegida. Las correcciones reales fueron: handlers explícitos por aislamiento de hooks, calendario IANA compatible con PocketBase 0.38.2 y deserialización tipada de `audience_config` con `DynamicModel`.
+- Se configuraron solo las claves staging `PZ_STOREFRONT_PUSH_RELAY_URL`, `PZ_STOREFRONT_PUSH_RELAY_SECRET`, `PZ_STOREFRONT_MEDIA_PUBLIC_ORIGIN` y `PZ_STOREFRONT_PUSH_RELAY_ALLOW_HTTP`. El secreto storefront es nuevo y distinto del administrativo; sus valores no se documentan. Las variables y el código del relay administrativo v1 permanecieron intactos.
+
+#### Matriz manual de staging completada
+
+- Evidencia previa: storefront HTTP 200, PocketBase health HTTP 200, relay administrativo v1 HTTP 401 sin autenticación, relay storefront v2 HTTP 401 sin autenticación, 0 campañas y 0 entregas antes de crear fixtures.
+- Campaña inmediata `8u54rwv2szjzdmf`: audiencia exacta 2; resultado terminal `partially_sent`, 2 seleccionadas, 1 aceptada por FCM, 1 `invalid_fid`, 1 fallo y código `partial_delivery_failure`. El FID sintético pasó automáticamente a `invalid`.
+- La repetición de la programación inmediata devolvió HTTP 409 y conservó exactamente `accepted=1` e `invalid_fid=1`, sin materializar ni enviar una entrega duplicada.
+- Campaña programada `wukymb5la5fxxb7`: audiencia exacta 1 y estado inicial `scheduled`. Antes de la hora objetivo conservó 0 entregas; el cron del minuto siguiente la llevó una sola vez a `sent`, con 1 seleccionada, 1 aceptada, 0 inválidas y 0 fallos. Tras otro tick conservó exactamente los mismos contadores.
+- La aceptación FCM se registra correctamente como aceptación, no como entrega o lectura visual. La recepción visual completa y destinos se repetirán en C07, tal como exige el plan.
+- Al terminar se eliminaron exclusivamente 3 entregas, 2 campañas, la instalación sintética y el usuario QA temporal mediante los flujos administrativos. Staging quedó restaurado con 0 campañas, 0 entregas, 3 usuarios PocketBase y una sola instalación real `disabled` con permiso `granted`; la configuración storefront PowerZona permaneció `active`.
+
+#### Validación final
+
+- Suite focal C05: 33/33 pruebas aprobadas. Runtime aislado con el binario exacto PocketBase 0.38.2: 1/1 aprobado, incluyendo creación, zona IANA, persistencia JSON y previsualización de audiencias `all_active`/`app_version`. El proceso local terminó y no dejó temporales.
+- `npm run build` de `frontend-powerzona` terminó correctamente con Astro 6.4.3. `git diff --check` terminó limpio.
+- Como control exploratorio fuera del inventario, la suite backend global obtuvo 632/641 aprobadas, 7 omitidas y 2 fallos históricos reproducibles en `M7U2-C3` y `R7P2`; la frontend global obtuvo 477/482 y 5 fallos históricos en M7U2, BLOCKED-UI y V7E9. La comparación con `2564635` confirma que C05 no modificó los hooks, páginas ni pruebas implicados; no se amplió el alcance para corregir deuda previa.
+- Producción, Firebase, Cloudflare, enforcement, firma Android y `google-services.json` no se modificaron. `.tmp/`, `.secrets/`, la identidad de firma de staging y `stash@{0}: On main: WIP recibo orden desde main` permanecieron preservados.
 
 #### Siguiente paso
 
-- Solo con autorización explícita separada, preparar la prueba manual de staging: preservar evidencia previa, configurar el relay v2 sin reutilizar secretos, enviar una campaña inmediata y una programada, provocar un FID inválido y comprobar ausencia de duplicados y continuidad del relay v1. C06 y fases posteriores no deben iniciarse.
+- Abrir una tarea nueva e iniciar exclusivamente PZ-APP-C06 desde este cierre confirmado de C05. Antes de comenzar deberá repetirse la auditoría autoritativa de `dev`, `origin/dev`, worktrees, stash, `.tmp/` y secretos locales. C07 y fases posteriores no deben iniciarse en esta tarea.
