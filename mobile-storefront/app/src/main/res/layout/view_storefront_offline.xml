@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="30dp">
+
+    <TextView
+        android:id="@+id/storefront_offline_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/offline_title"
+        android:textColor="@color/pz_staging_text"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/storefront_offline_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:text="@string/offline_message"
+        android:textColor="@color/pz_staging_muted"
+        android:textSize="15sp" />
+
+    <Button
+        android:id="@+id/storefront_retry"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/retry"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/storefront_home"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:text="@string/open_store_home"
+        android:textAllCaps="false" />
+
+</LinearLayout>

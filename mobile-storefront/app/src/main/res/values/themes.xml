@@ -8,5 +8,6 @@
         <item name="android:navigationBarColor">@color/pz_staging_surface</item>
         <item name="android:colorAccent">@color/pz_staging_primary</item>
         <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
     </style>
 </resources>

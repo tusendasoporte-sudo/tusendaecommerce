@@ -8,6 +8,10 @@ if (firebaseConfigFile.exists()) {
 }
 
 def apiBaseUrl = (project.findProperty('PZ_STOREFRONT_API_BASE_URL') ?: '').toString().trim()
+def storeUrl = (project.findProperty('PZ_STOREFRONT_STORE_URL') ?: 'https://example.invalid/t/store')
+        .toString().trim()
+def storeKey = (project.findProperty('PZ_STOREFRONT_STORE_KEY') ?: 'store').toString().trim()
+def appDisplayName = (project.findProperty('PZ_STOREFRONT_APP_NAME') ?: 'Storefront').toString().trim()
 def destructiveTestsEnabled = (project.findProperty('PZ_ALLOW_STAGING_DESTRUCTIVE_TESTS') ?: 'false')
         .toString().trim().equalsIgnoreCase('true')
 def configuredSigningPropertiesPath = System.getenv('PZ_STOREFRONT_SIGNING_PROPERTIES')?.trim()
@@ -46,6 +50,32 @@ def validHttpsOrigin = { String value ->
     }
 }
 
+def validStoreUrl = { String value, String key ->
+    try {
+        def parsed = new URI(value)
+        def expectedPath = "/t/${key}"
+        return parsed.scheme == 'https'
+                && parsed.host
+                && !parsed.userInfo
+                && (parsed.port == -1 || parsed.port == 443)
+                && parsed.path == expectedPath
+                && !parsed.query
+                && !parsed.fragment
+                && key ==~ /[a-z0-9][a-z0-9-]{1,62}/
+    } catch (Exception ignored) {
+        return false
+    }
+}
+
+if (!validStoreUrl(storeUrl, storeKey)) {
+    throw new GradleException(
+            'PZ_STOREFRONT_STORE_URL debe ser una URL HTTPS /t/{store_key} y coincidir con PZ_STOREFRONT_STORE_KEY.'
+    )
+}
+if (!appDisplayName || appDisplayName.length() > 60 || appDisplayName.find(/[\p{Cntrl}]/)) {
+    throw new GradleException('PZ_STOREFRONT_APP_NAME debe contener entre 1 y 60 caracteres visibles.')
+}
+
 if (stagingPackagingRequested) {
     if (!signingConfigured) {
         throw new GradleException(
@@ -60,7 +90,7 @@ if (stagingPackagingRequested) {
     }
 }
 if (releasePackagingRequested) {
-    throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C06A.')
+    throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C06.')
 }
 
 def javaStringLiteral = { String value ->
@@ -79,8 +109,12 @@ android {
         versionName '0.1.0'
 
         buildConfigField 'String', 'API_BASE_URL', javaStringLiteral(apiBaseUrl)
+        buildConfigField 'String', 'STORE_URL', javaStringLiteral(storeUrl)
+        buildConfigField 'String', 'STORE_KEY', javaStringLiteral(storeKey)
+        buildConfigField 'String', 'APP_DISPLAY_NAME', javaStringLiteral(appDisplayName)
         buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
         buildConfigField 'boolean', 'ALLOW_STAGING_DESTRUCTIVE_TESTS', destructiveTestsEnabled.toString()
+        manifestPlaceholders = [storefrontAppName: appDisplayName]
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
@@ -101,6 +135,7 @@ android {
 
     buildTypes {
         debug {
+            applicationIdSuffix '.debug'
             versionNameSuffix '-debug'
         }
         staging {

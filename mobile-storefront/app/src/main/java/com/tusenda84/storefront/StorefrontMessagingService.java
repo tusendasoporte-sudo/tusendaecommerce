@@ -17,12 +17,23 @@ public final class StorefrontMessagingService extends FirebaseMessagingService {
     private void registerWithoutExposingIdentifiers() {
         if (!BuildConfig.FIREBASE_CONFIGURED) return;
         new StorefrontRegistrationClient(this).registerFromMessagingCallback(result -> {
-            // C06A no registra identificadores ni tokens en logs o interfaz en segundo plano.
+            // El callback no registra identificadores, tokens ni credenciales en segundo plano.
         });
     }
 
     @Override
     public void onMessageReceived(@NonNull RemoteMessage message) {
-        // La entrega y visualización de campañas pertenece a C05/C06 y permanece fuera de C06A.
+        StorefrontPushPayload payload = StorefrontPushPayload.fromMap(
+                message.getData(),
+                StorefrontConfig.storeKey()
+        );
+        if (payload == null) return;
+        RemoteMessage.Notification notification = message.getNotification();
+        StorefrontNotifications.show(
+                this,
+                payload,
+                notification == null ? StorefrontConfig.displayName() : notification.getTitle(),
+                notification == null ? "" : notification.getBody()
+        );
     }
 }

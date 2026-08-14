@@ -19,6 +19,8 @@ final class StorefrontInstallationStore {
     private static final String PREFERENCES = "pz_storefront_native_v1";
     private static final String CREDENTIAL = "installation_credential_encrypted";
     private static final String IV = "installation_credential_iv";
+    private static final String NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested";
+    private static final String LAST_REPORTED_PERMISSION = "last_reported_notification_permission";
     private static final String KEY_ALIAS = "pz_storefront_installation_credential_v1";
     private static final Pattern CREDENTIAL_PATTERN = Pattern.compile("^pzs_v1_[a-f0-9]{64}$");
 
@@ -66,6 +68,30 @@ final class StorefrontInstallationStore {
 
     static synchronized void clearCredential(Context context) {
         preferences(context).edit().remove(CREDENTIAL).remove(IV).apply();
+    }
+
+    static synchronized boolean hasCredential(Context context) {
+        return !credential(context).isEmpty();
+    }
+
+    static synchronized void markNotificationPermissionRequested(Context context) {
+        preferences(context).edit().putBoolean(NOTIFICATION_PERMISSION_REQUESTED, true).apply();
+    }
+
+    static synchronized boolean wasNotificationPermissionRequested(Context context) {
+        return preferences(context).getBoolean(NOTIFICATION_PERMISSION_REQUESTED, false);
+    }
+
+    static synchronized void recordReportedPermission(Context context, String permission) {
+        if (!"granted".equals(permission) && !"denied".equals(permission) && !"unknown".equals(permission)) {
+            return;
+        }
+        preferences(context).edit().putString(LAST_REPORTED_PERMISSION, permission).apply();
+    }
+
+    static synchronized String lastReportedPermission(Context context) {
+        String value = preferences(context).getString(LAST_REPORTED_PERMISSION, "");
+        return value == null ? "" : value;
     }
 
     private static SecretKey key() throws Exception {

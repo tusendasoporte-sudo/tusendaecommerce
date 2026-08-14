@@ -1,82 +1,71 @@
-# PowerZona Storefront — prerrequisito C06A
+# Storefront Android white-label — PZ-APP-C06
 
-Este proyecto contiene únicamente el cliente técnico mínimo autorizado para resolver la puerta de Firebase App Check/Play Integrity de PZ-APP-C03. No es todavía la app pública final: no incluye WebView, campañas, deep links, marca final ni artefactos de producción.
+`mobile-storefront` es el shell Android público y reutilizable para tiendas Premium. Está separado de `mobile-admin`, no contiene autenticación administrativa y abre únicamente el storefront público configurado.
 
-## Fronteras de seguridad
+La implementación C06 reutiliza la identidad y el cliente nativo App Check/FCM auditados en C06A. C07 sigue pendiente: iconos, splash, branding final de PowerZona y la matriz completa de destinos no forman parte de este cierre.
 
-- Paquete de staging: `com.tusenda84.powerzona`, igual a la app Firebase storefront ya registrada.
-- El FID, token App Check y credencial de instalación permanecen en código nativo.
-- La credencial se cifra mediante Android Keystore antes de guardarse localmente.
-- La interfaz y los logs nunca muestran FID, token, credencial, IP o secretos.
-- Solo se admite un origen HTTPS sin ruta, query, fragmento, credenciales ni puerto distinto de 443.
-- La variante `release` de producción falla de forma deliberada durante C06A.
-- La rotación de FID permanece deshabilitada salvo una compilación explícita de prueba.
+## Configuración white-label
 
-## Archivos privados obligatoriamente fuera de Git
+El build recibe la tienda de forma declarativa:
 
-La raíz del repositorio ya ignora `.secrets/`. `mobile-storefront/.gitignore` excluye además `app/google-services.json`, keystores y builds.
+| Propiedad Gradle | Ejemplo | Regla |
+|---|---|---|
+| `PZ_STOREFRONT_STORE_URL` | `https://tusenda84.com/t/powerzona` | HTTPS exacto, sin query ni fragmento y con ruta `/t/{store_key}` |
+| `PZ_STOREFRONT_STORE_KEY` | `powerzona` | Minúsculas, números y guiones; debe coincidir con la URL |
+| `PZ_STOREFRONT_APP_NAME` | `PowerZona` | Nombre visible de 1 a 60 caracteres |
+| `PZ_STOREFRONT_API_BASE_URL` | origen de staging | Opcional en debug; obligatorio y HTTPS puro en staging |
 
-La configuración local de firma se guarda en:
+Los valores por defecto de debug son deliberadamente inertes (`example.invalid`, `store`, `Storefront`). Ninguna URL, FID, credencial ni token se expone al JavaScript del WebView.
 
-```text
-.secrets/mobile-storefront-staging.properties
-```
+## Variantes y separación
 
-con estas claves, sin registrar sus valores en documentación o logs:
+- `debug`: `com.tusenda84.powerzona.debug`, firma debug local y sufijo `-debug`. Puede coexistir con la app de staging.
+- `staging`: conserva `com.tusenda84.powerzona`, la identidad privada de C06A y exige API, Firebase y firma local válidos.
+- `release`: bloqueada deliberadamente durante C06. No se genera firma ni artefacto de producción.
+- `mobile-admin`: continúa siendo una aplicación independiente; no comparte `applicationId` con el debug storefront.
 
-```properties
-storeFile=powerzona-storefront-staging.jks
-storePassword=VALOR_PRIVADO
-keyAlias=powerzona-storefront-staging
-keyPassword=VALOR_PRIVADO
-```
+El `applicationId` base de staging se conserva por compatibilidad con la Firebase app auditada en C06A. La variante/identidad final de PowerZona se completa en C07.
 
-La clave y las contraseñas deben conservarse en un gestor de contraseñas o backup cifrado separado. Perder la clave de staging obliga a reinstalar la app y registrar una nueva huella. Nunca se reutilizará como clave de producción.
+## Seguridad del shell
 
-Para compartir una única identidad segura entre un worktree de preparación y `dev`, se puede apuntar Gradle a la ubicación privada mediante `PZ_STOREFRONT_SIGNING_PROPERTIES`. La variable contiene solo la ruta; las contraseñas permanecen dentro del archivo privado.
+- WebView con JavaScript y DOM storage solo para el storefront, sin `addJavascriptInterface`, acceso a archivos o contenido, selector de archivos, geolocalización, mixed content ni ventanas múltiples.
+- Tráfico cleartext deshabilitado, errores TLS cancelados y Safe Browsing activo cuando la plataforma lo permite.
+- Navegación interna limitada al host configurado y a `/t/{store_key}` o recibos públicos; rutas administrativas, API, otros tenants, puertos, credenciales y paths ambiguos se bloquean.
+- HTTPS externo y esquemas explícitos `tel`, `mailto`, `sms`, `smsto`, `geo` y `market` se delegan al sistema. Esquemas inseguros se bloquean.
+- Descargas solo se delegan al navegador cuando proceden del storefront permitido.
+- Estados offline/HTTP 5xx tienen overlay nativo con reintento y regreso seguro a portada.
 
-## Verificación de la huella
+## Notificaciones e instalación C03
 
-La SHA-256 se obtiene del certificado público de la clave real de staging con `keytool -list -v`. Después de compilar, debe verificarse nuevamente desde el APK con `apksigner verify --print-certs`. Ambos digests deben coincidir antes de modificar Firebase.
+La tarjeta de permiso aparece con contexto después de cargar la tienda. La primera acción solicita `POST_NOTIFICATIONS`; tras una denegación ofrece abrir Ajustes y desaparece al recuperar el permiso.
 
-Huella pública vigente de staging, verificada desde el keystore y la APK:
+El cliente nativo registra la instalación con C03 al iniciar y cuando rota el token/FID, conserva la credencial cifrada con Android Keystore y nunca la entrega al WebView. Si no existen Firebase/API válidos, debug falla cerrado y el storefront sigue navegable.
+
+`StorefrontMessagingService` valida `schema_version`, `channel`, `store_key`, `campaign_id`, `target_type`, `target_path` e `image_url`. Los mensajes data recibidos en foreground crean una notificación local; el manifiesto define icono/canal por defecto para background y proceso cerrado. El `Intent` de apertura se procesa tanto en `onCreate` como en `onNewIntent`. El destino `order` permanece con fallback a portada hasta el resolvedor autorizado de C07.
+
+## Archivos privados fuera de Git
+
+La raíz ignora `.secrets/` y este proyecto ignora `app/google-services.json`, keystores y builds. La firma de staging se resuelve desde `.secrets/mobile-storefront-staging.properties` o desde la ruta indicada por `PZ_STOREFRONT_SIGNING_PROPERTIES`; no debe copiarse, regenerarse ni reutilizarse para producción.
+
+La huella pública de staging auditada en C06A se mantiene sin cambios:
 
 ```text
 12:5B:DC:CC:B5:53:0D:94:FC:7C:0C:E3:32:21:BE:78:52:96:0C:45:3E:D2:F0:47:46:29:82:FC:C5:4F:B3:72
 ```
 
-Firebase App Check está registrado con Play Integrity para distribución exclusiva fuera de Play: `Device integrity` requerido, `PLAY_RECOGNIZED` y `LICENSED` no requeridos, TTL de una hora y enforcement deshabilitado durante la matriz C03.
+No se debe añadir `google-services.json` a Git, habilitar App Check debug/enforcement ni modificar Firebase para compilar C06.
 
-La futura versión distribuida por Google Play se probará por separado con la huella de la **clave de firma de aplicación de Play**, no solamente con la clave de carga.
+## Build debug reproducible
 
-## Comandos locales
-
-Pruebas unitarias sin credenciales:
+Requisitos: JDK 17, Android SDK 36 y dependencias Gradle declaradas en el proyecto.
 
 ```powershell
-./gradlew.bat testDebugUnitTest
+./gradlew.bat testDebugUnitTest lintDebug assembleDebug --no-daemon `
+  -PPZ_STOREFRONT_STORE_URL="https://tusenda84.com/t/powerzona" `
+  -PPZ_STOREFRONT_STORE_KEY="powerzona" `
+  -PPZ_STOREFRONT_APP_NAME="PowerZona"
 ```
 
-APK de staging, después de configurar los tres recursos privados y el origen HTTPS real:
+La APK queda en `app/build/outputs/apk/debug/app-debug.apk`. El build debug no necesita secretos, firma de staging, `google-services.json` ni acceso a staging.
 
-```powershell
-./gradlew.bat assembleStaging `
-  -PPZ_STOREFRONT_API_BASE_URL="https://ORIGEN-STAGING" `
-  -PPZ_ALLOW_STAGING_DESTRUCTIVE_TESTS=false
-```
-
-La APK se genera en `app/build/outputs/apk/staging/app-staging.apk` y permanece fuera de Git.
-
-## Orden manual de C03
-
-La aprobación exige un teléfono Android físico. El emulador debe fallar cerrado y no se habilita el proveedor App Check debug para sustituir la atestación real. Antes de empezar debe existir una única `storefront_app_configs` activa en PocketBase staging que vincule el Firebase app id con PowerZona.
-
-1. Registrar instalación.
-2. Repetir registro y confirmar que no crea duplicado.
-3. Habilitar y ejecutar rotación solo con autorización y evidencia previa.
-4. Enviar heartbeat.
-5. Conceder o denegar notificaciones y actualizar el permiso.
-6. Crear y consumir el bootstrap de un solo uso.
-7. Desactivar la instalación al finalizar.
-
-Firebase, staging y cualquier proceso existente requieren aviso previo con impacto y prueba manual antes de cambiarse.
+Las pruebas unitarias cubren configuración, payload de registro, allowlist/normalización de navegación y parsing/fallback de destinos push. La matriz manual C06 incluye apertura pública sin login, Atrás, rotación, offline/recuperación, permiso/Ajustes y apertura de payload contractual en foreground, background y proceso cerrado. El envío visual FCM real y cada destino de negocio se repiten en C07/C11 con autorización de staging y teléfono físico.

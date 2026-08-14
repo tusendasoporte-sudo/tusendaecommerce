@@ -3,4 +3,6 @@
     <color name="pz_staging_primary">#123F9A</color>
     <color name="pz_staging_surface">#F8FAFC</color>
     <color name="pz_staging_text">#0F172A</color>
+    <color name="pz_staging_muted">#475569</color>
+    <color name="pz_staging_permission_surface">#FFFFFFFF</color>
 </resources>

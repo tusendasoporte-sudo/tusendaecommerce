@@ -84,6 +84,9 @@ public final class StorefrontRegistrationPayloadTest {
     @Test
     public void messagingCallbackCannotRegisterMessagingAgain() {
         assertTrue(StorefrontRegistrationClient.shouldRequestMessagingRegistration(
+                StorefrontRegistrationClient.RegistrationOrigin.APP_START
+        ));
+        assertTrue(StorefrontRegistrationClient.shouldRequestMessagingRegistration(
                 StorefrontRegistrationClient.RegistrationOrigin.USER_ACTION
         ));
         assertTrue(!StorefrontRegistrationClient.shouldRequestMessagingRegistration(

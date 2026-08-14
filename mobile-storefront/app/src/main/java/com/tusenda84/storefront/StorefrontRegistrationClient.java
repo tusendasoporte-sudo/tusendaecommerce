@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 
 final class StorefrontRegistrationClient {
     enum RegistrationOrigin {
+        APP_START,
         USER_ACTION,
         MESSAGING_CALLBACK
     }
@@ -79,6 +80,10 @@ final class StorefrontRegistrationClient {
         execute(callback, () -> registerInternal(false, RegistrationOrigin.USER_ACTION));
     }
 
+    void syncFromAppStart(Callback callback) {
+        execute(callback, () -> registerInternal(false, RegistrationOrigin.APP_START));
+    }
+
     void registerFromMessagingCallback(Callback callback) {
         execute(callback, () -> registerInternal(false, RegistrationOrigin.MESSAGING_CALLBACK));
     }
@@ -116,11 +121,16 @@ final class StorefrontRegistrationClient {
     }
 
     void updatePermission(Callback callback) {
-        execute(callback, () -> authenticatedPost(
-                StorefrontConfig.PERMISSION_PATH,
-                StorefrontRegistrationPayload.permission(permissionState()),
-                "Permiso actualizado."
-        ));
+        execute(callback, () -> {
+            String permission = permissionState();
+            Result result = authenticatedPost(
+                    StorefrontConfig.PERMISSION_PATH,
+                    StorefrontRegistrationPayload.permission(permission),
+                    "Permiso actualizado."
+            );
+            if (result.ok) StorefrontInstallationStore.recordReportedPermission(context, permission);
+            return result;
+        });
     }
 
     void bootstrap(Callback callback) {
@@ -156,6 +166,7 @@ final class StorefrontRegistrationClient {
             Tasks.await(messaging.register(), 30, TimeUnit.SECONDS);
         }
         String fid = Tasks.await(FirebaseInstallations.getInstance().getId(), 30, TimeUnit.SECONDS);
+        String permission = permissionState();
         String body = StorefrontRegistrationPayload.register(
                 fid,
                 BuildConfig.VERSION_NAME,
@@ -164,7 +175,7 @@ final class StorefrontRegistrationClient {
                 deviceModel(),
                 locale(),
                 timezone(),
-                permissionState()
+                permission
         );
         String existingCredential = StorefrontInstallationStore.credential(context);
         HttpResult response = postWithToken(
@@ -181,6 +192,7 @@ final class StorefrontRegistrationClient {
             return Result.fail("El gateway devolvió una respuesta no válida.");
         }
         StorefrontInstallationStore.saveCredential(context, credential);
+        StorefrontInstallationStore.recordReportedPermission(context, permission);
         boolean created = payload.optBoolean("created", false);
         boolean rotated = payload.optBoolean("fid_rotated", false);
         if (rotated) return Result.ok("FID rotado y registro actualizado sin exponer identificadores.");
@@ -389,14 +401,17 @@ final class StorefrontRegistrationClient {
     }
 
     static boolean shouldRequestMessagingRegistration(RegistrationOrigin origin) {
-        return origin == RegistrationOrigin.USER_ACTION;
+        return origin != RegistrationOrigin.MESSAGING_CALLBACK;
     }
 
     static String permissionState(Context context) {
         if (Build.VERSION.SDK_INT < 33) return "granted";
-        return context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                ? "granted"
-                : "denied";
+        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            return "granted";
+        }
+        return StorefrontInstallationStore.wasNotificationPermissionRequested(context)
+                ? "denied"
+                : "unknown";
     }
 
     private String permissionState() {

@@ -11,14 +11,17 @@ public final class StorefrontApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        StorefrontNotifications.createChannels(this);
         if (!BuildConfig.FIREBASE_CONFIGURED) return;
-
-        FirebaseApp firebaseApp = FirebaseApp.initializeApp(this);
-        if (firebaseApp == null) return;
-
-        FirebaseAppCheck.getInstance(firebaseApp).installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-        );
-        FirebaseMessaging.getInstance().setAutoInitEnabled(false);
+        try {
+            FirebaseApp firebaseApp = FirebaseApp.initializeApp(this);
+            if (firebaseApp == null) return;
+            FirebaseAppCheck.getInstance(firebaseApp).installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+            );
+            FirebaseMessaging.getInstance().setAutoInitEnabled(false);
+        } catch (RuntimeException ignored) {
+            // La tienda pública sigue disponible y la integración nativa falla cerrada.
+        }
     }
 }

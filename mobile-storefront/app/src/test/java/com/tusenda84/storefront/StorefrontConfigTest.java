@@ -25,4 +25,25 @@ public final class StorefrontConfigTest {
         assertFalse(StorefrontConfig.sameOrigin("https://evil.example/path", "https://staging.example"));
         assertFalse(StorefrontConfig.sameOrigin("http://staging.example/path", "https://staging.example"));
     }
+
+    @Test
+    public void validatesDeclarativeStoreConfiguration() {
+        assertEquals("powerzona", StorefrontConfig.normalizeStoreKey("powerzona"));
+        assertEquals("", StorefrontConfig.normalizeStoreKey("Power Zona"));
+        assertEquals(
+                "https://tusenda84.com/t/powerzona",
+                StorefrontConfig.normalizeStoreUrl(
+                        "https://TuSenda84.com/t/powerzona",
+                        "powerzona"
+                )
+        );
+        assertEquals("", StorefrontConfig.normalizeStoreUrl(
+                "https://tusenda84.com/t/otra",
+                "powerzona"
+        ));
+        assertEquals("", StorefrontConfig.normalizeStoreUrl(
+                "https://tusenda84.com/t/powerzona?admin=1",
+                "powerzona"
+        ));
+    }
 }

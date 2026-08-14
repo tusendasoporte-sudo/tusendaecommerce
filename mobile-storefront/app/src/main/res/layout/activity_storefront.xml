@@ -1,49 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/storefront_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    tools:ignore="MergeRootFrame">
+
+    <WebView
+        android:id="@+id/storefront_webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/pz_staging_surface"
+        android:contentDescription="@string/storefront_web_content" />
+
+    <ProgressBar
+        android:id="@+id/storefront_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:layout_gravity="top"
+        android:max="100"
+        android:progressTint="@color/pz_staging_primary"
+        android:visibility="gone" />
+
+    <include
+        android:id="@+id/storefront_offline"
+        layout="@layout/view_storefront_offline"
+        android:visibility="gone" />
 
     <LinearLayout
+        android:id="@+id/notification_permission_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_margin="16dp"
+        android:background="@color/pz_staging_permission_surface"
+        android:elevation="10dp"
+        android:gravity="center_vertical"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="16dp"
+        android:visibility="gone">
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/c06a_title"
+            android:text="@string/notification_card_title"
             android:textColor="@color/pz_staging_text"
-            android:textSize="24sp"
+            android:textSize="17sp"
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/notification_permission_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/notification_card_prompt"
+            android:textColor="@color/pz_staging_muted"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/notification_permission_action"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="@string/c06a_notice"
-            android:textColor="@color/pz_staging_text"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:background="#E2E8F0"
-            android:padding="16dp"
-            android:text="@string/status_ready"
-            android:textColor="@color/pz_staging_text"
-            android:textIsSelectable="false"
-            android:textSize="15sp" />
-
-        <Button android:id="@+id/register" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="@string/register" android:textAllCaps="false" />
-        <Button android:id="@+id/register_repeat" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/register_repeat" android:textAllCaps="false" />
-        <Button android:id="@+id/rotate" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/rotate" android:textAllCaps="false" />
-        <Button android:id="@+id/heartbeat" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/heartbeat" android:textAllCaps="false" />
-        <Button android:id="@+id/permission" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/permission" android:textAllCaps="false" />
-        <Button android:id="@+id/bootstrap" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/bootstrap" android:textAllCaps="false" />
-        <Button android:id="@+id/disable" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/disable" android:textAllCaps="false" />
+            android:text="@string/notification_enable"
+            android:textAllCaps="false" />
     </LinearLayout>
-</ScrollView>
+
+</FrameLayout>
