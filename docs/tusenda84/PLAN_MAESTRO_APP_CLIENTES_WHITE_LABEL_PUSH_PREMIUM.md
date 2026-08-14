@@ -1854,6 +1854,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - Entorno: local; staging y producción fuera de alcance sin autorización separada
 - Branch: `codex/pz-app-c08`, worktree aislado creado desde `dev` en `e61e055fac5c3a00e87b974a38da4f2f1584104b`
 - Commit base: `e61e055fac5c3a00e87b974a38da4f2f1584104b`
+- Commit de implementación local: `07c5df9a82081639667df01b55d25b4b9dbb7179`
 - Fecha/hora de inicio: 2026-08-14 16:10:31 -04:00
 - Fecha/hora de cierre:
 
