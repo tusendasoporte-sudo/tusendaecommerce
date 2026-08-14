@@ -1,0 +1,10 @@
+.gradle/
+local.properties
+**/build/
+captures/
+releases/
+*.jks
+*.keystore
+app/google-services.json
+firebase-service-account*.json
+service-account*.json

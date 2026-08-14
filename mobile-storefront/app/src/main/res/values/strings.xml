@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PowerZona Storefront Staging</string>
+    <string name="c06a_title">Validación segura C03 / App Check</string>
+    <string name="c06a_notice">Cliente técnico temporal de staging. No muestra FID, credenciales ni tokens.</string>
+    <string name="status_ready">Listo para iniciar la prueba controlada.</string>
+    <string name="register">1. Registrar instalación</string>
+    <string name="register_repeat">2. Repetir registro</string>
+    <string name="rotate">3. Rotar FID de prueba</string>
+    <string name="heartbeat">4. Enviar heartbeat</string>
+    <string name="permission">5. Actualizar permiso</string>
+    <string name="bootstrap">6. Probar bootstrap</string>
+    <string name="disable">7. Desactivar instalación</string>
+    <string name="status_registering">Registrando instalación…</string>
+    <string name="status_repeating">Repitiendo registro…</string>
+    <string name="status_heartbeat">Enviando heartbeat…</string>
+    <string name="status_permission">Actualizando permiso…</string>
+    <string name="status_bootstrap">Creando y consumiendo bootstrap…</string>
+    <string name="status_rotating">Rotando FID de staging…</string>
+    <string name="status_disabling">Desactivando instalación…</string>
+    <string name="status_permission_result">Registrando resultado del permiso…</string>
+    <string name="status_incomplete_build">Compilación incompleta: faltan Firebase o el origen HTTPS de staging.</string>
+    <string name="result_approved">APROBADO</string>
+    <string name="result_failed">FALLIDO</string>
+    <string name="status_result">%1$s — %2$s</string>
+    <string name="rotate_title">Rotar FID de staging</string>
+    <string name="rotate_message">Esta prueba invalida el FID actual del dispositivo de staging y registra uno nuevo. No afecta producción.</string>
+    <string name="rotate_confirm">Rotar</string>
+    <string name="disable_title">Desactivar instalación</string>
+    <string name="disable_message">Ejecuta este paso al final de la matriz. La credencial local se eliminará después de la confirmación del backend.</string>
+    <string name="disable_confirm">Desactivar</string>
+    <string name="cancel">Cancelar</string>
+</resources>

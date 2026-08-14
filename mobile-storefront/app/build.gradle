@@ -1,0 +1,143 @@
+plugins {
+    id 'com.android.application'
+}
+
+def firebaseConfigFile = file('google-services.json')
+if (firebaseConfigFile.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}
+
+def apiBaseUrl = (project.findProperty('PZ_STOREFRONT_API_BASE_URL') ?: '').toString().trim()
+def destructiveTestsEnabled = (project.findProperty('PZ_ALLOW_STAGING_DESTRUCTIVE_TESTS') ?: 'false')
+        .toString().trim().equalsIgnoreCase('true')
+def configuredSigningPropertiesPath = System.getenv('PZ_STOREFRONT_SIGNING_PROPERTIES')?.trim()
+def signingPropertiesFile = configuredSigningPropertiesPath
+        ? new File(configuredSigningPropertiesPath)
+        : rootProject.file('../.secrets/mobile-storefront-staging.properties')
+def signingProperties = new Properties()
+if (signingPropertiesFile.exists()) {
+    signingPropertiesFile.withInputStream { stream -> signingProperties.load(stream) }
+}
+def signingConfigured = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword'].every { key ->
+    signingProperties.getProperty(key)?.trim()
+}
+
+def requestedTasks = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+def stagingPackagingRequested = requestedTasks.any { name ->
+    name.contains('assemblestaging') || name.contains('bundlestaging') || name.contains('installstaging')
+}
+def releasePackagingRequested = requestedTasks.any { name ->
+    name.contains('assemblerelease') || name.contains('bundlerelease') || name.contains('installrelease')
+}
+
+def validHttpsOrigin = { String value ->
+    try {
+        def parsed = new URI(value)
+        def path = parsed.path ?: ''
+        return parsed.scheme == 'https'
+                && parsed.host
+                && !parsed.userInfo
+                && (parsed.port == -1 || parsed.port == 443)
+                && (path == '' || path == '/')
+                && !parsed.query
+                && !parsed.fragment
+    } catch (Exception ignored) {
+        return false
+    }
+}
+
+if (stagingPackagingRequested) {
+    if (!signingConfigured) {
+        throw new GradleException(
+                'La firma de staging no esta configurada. Crea .secrets/mobile-storefront-staging.properties.'
+        )
+    }
+    if (!firebaseConfigFile.exists()) {
+        throw new GradleException('Falta mobile-storefront/app/google-services.json local e ignorado por Git.')
+    }
+    if (!validHttpsOrigin(apiBaseUrl)) {
+        throw new GradleException('PZ_STOREFRONT_API_BASE_URL debe ser un origen HTTPS sin ruta, query ni fragmento.')
+    }
+}
+if (releasePackagingRequested) {
+    throw new GradleException('La variante release de produccion permanece fuera del alcance de PZ-APP-C06A.')
+}
+
+def javaStringLiteral = { String value ->
+    '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+
+android {
+    namespace 'com.tusenda84.storefront'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.tusenda84.powerzona'
+        minSdk 26
+        targetSdk 36
+        versionCode 1
+        versionName '0.1.0'
+
+        buildConfigField 'String', 'API_BASE_URL', javaStringLiteral(apiBaseUrl)
+        buildConfigField 'boolean', 'FIREBASE_CONFIGURED', firebaseConfigFile.exists().toString()
+        buildConfigField 'boolean', 'ALLOW_STAGING_DESTRUCTIVE_TESTS', destructiveTestsEnabled.toString()
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        staging {
+            if (signingConfigured) {
+                storeFile new File(signingPropertiesFile.parentFile, signingProperties.getProperty('storeFile'))
+                storePassword signingProperties.getProperty('storePassword')
+                keyAlias signingProperties.getProperty('keyAlias')
+                keyPassword signingProperties.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            versionNameSuffix '-debug'
+        }
+        staging {
+            initWith release
+            matchingFallbacks = ['release']
+            versionNameSuffix '-staging'
+            minifyEnabled false
+            shrinkResources false
+            if (signingConfigured) signingConfig signingConfigs.staging
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        checkReleaseBuilds true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:34.17.0')
+    implementation 'com.google.firebase:firebase-appcheck-playintegrity'
+    implementation 'com.google.firebase:firebase-installations'
+    implementation 'com.google.firebase:firebase-messaging'
+
+    testImplementation 'junit:junit:4.13.2'
+}

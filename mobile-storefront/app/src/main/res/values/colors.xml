@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pz_staging_primary">#123F9A</color>
+    <color name="pz_staging_surface">#F8FAFC</color>
+    <color name="pz_staging_text">#0F172A</color>
+</resources>

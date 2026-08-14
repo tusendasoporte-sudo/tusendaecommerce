@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/c06a_title"
+            android:textColor="@color/pz_staging_text"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/c06a_notice"
+            android:textColor="@color/pz_staging_text"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="#E2E8F0"
+            android:padding="16dp"
+            android:text="@string/status_ready"
+            android:textColor="@color/pz_staging_text"
+            android:textIsSelectable="false"
+            android:textSize="15sp" />
+
+        <Button android:id="@+id/register" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:text="@string/register" android:textAllCaps="false" />
+        <Button android:id="@+id/register_repeat" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/register_repeat" android:textAllCaps="false" />
+        <Button android:id="@+id/rotate" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/rotate" android:textAllCaps="false" />
+        <Button android:id="@+id/heartbeat" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/heartbeat" android:textAllCaps="false" />
+        <Button android:id="@+id/permission" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/permission" android:textAllCaps="false" />
+        <Button android:id="@+id/bootstrap" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/bootstrap" android:textAllCaps="false" />
+        <Button android:id="@+id/disable" style="?android:attr/buttonStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/disable" android:textAllCaps="false" />
+    </LinearLayout>
+</ScrollView>
