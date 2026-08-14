@@ -1743,7 +1743,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 #### Migraciones o infraestructura
 
-- Ninguna. No se cambió ni redesplegó PocketBase, frontend, relay, Firebase, App Check, Cloudflare, Coolify, staging o producción.
+- No se añadieron migraciones. La implementación inicial C07 ya fue publicada y desplegada con autorización en frontend y PocketBase staging; ambos runtimes quedaron en `9bf0e8c`. La corrección `9debf8e` todavía no fue publicada ni desplegada. Firebase, App Check, Cloudflare y producción no se modificaron.
 
 #### Implementación local
 
@@ -1767,12 +1767,15 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - Backend proporcional: `node --test tests/pz_storefront_installations.test.cjs tests/pz_storefront_order_targets.test.cjs tests/pz_storefront_campaigns.test.cjs tests/pz_storefront_push_dispatch.test.cjs` → 34 pruebas, 33 aprobadas, 0 fallos y 1 omitida porque el binario PocketBase runtime no está dentro de este worktree.
 - Frontend proporcional: `node --test tests/storefrontPushGateway.test.mjs tests/pushRelayV2Payload.test.mjs` → 18/18 aprobadas. `npm run build` terminó correctamente; sólo mostró las tres advertencias históricas de Astro sobre `getStaticPaths` ignorado en rutas dinámicas. El junction temporal de `node_modules` auditado se retiró y no quedó en Git.
 - Android, después de la corrección data-only: `clean testDebugUnitTest lintDebug assembleDebug --no-daemon` → 5 suites, 23/23 pruebas, 0 fallos, 0 errores, 0 omitidas y lint 0.
-- APK debug de corrección: `com.tusenda84.powerzona.debug`, `0.2.1-debug`/code 3, minSdk 26, target/compileSdk 36, 5.271.545 bytes, SHA-256 `3ef92e0316bd1d2085f0016c7527746c7e1263a81f2a0a5f3116a83826e4a3cf`. La instalación en emulador y el build firmado de staging quedan pendientes tras consolidar y desplegar el relay corregido.
+- APK debug de corrección: `com.tusenda84.powerzona.debug`, `0.2.1-debug`/code 3, minSdk 26, target/compileSdk 36, 5.271.545 bytes, SHA-256 `3ef92e0316bd1d2085f0016c7527746c7e1263a81f2a0a5f3116a83826e4a3cf`.
+- Dos builds limpios de staging produjeron 142 entradas ZIP byte-idénticas, huella agregada SHA-256 `17f3411a41d9e8fd441d1b210cf943488325b22b7b08ad4e4c434571e91ddb11`, y 4.301.650 bytes. La firma v2 RSA-PSS aleatoria cambió únicamente el SHA del contenedor (`50e3c928e58ce0b0b619b8d1cd7b67f71dd7fc855bcbe8b274718fae30cfc415` → `d08a040371f8501350907d3820d28d3706b2052f5e5b31725e0b03f767e2181e`); ambos usan un firmante y el certificado staging SHA-256 `125bdcccb5530d94fc7c0ce33221be7852960c453ed2f047462982fcc54fb372`.
+- APK staging final disponible: `com.tusenda84.powerzona`, `0.2.1-staging`/code 3, minSdk 26, target/compileSdk 36, lint 0, SHA-256 `d08a040371f8501350907d3820d28d3706b2052f5e5b31725e0b03f767e2181e`. La firma privada y `google-services.json` se consumieron desde sus ubicaciones ignoradas y no se modificaron ni expusieron.
 - La inspección del APK encontró 0 entradas y 0 strings de `google-services.json`, keystore, service account, `.secrets` o clave privada. `git diff --check` quedó limpio antes de esta actualización documental.
 
 #### Validación local en emulador
 
 - El APK final se instaló primero mediante `adb install -r` en `Pixel_4a`, Android 16/API 36. Debug pasó de `0.1.0-debug` a `0.2.0-debug`; `com.tusenda84.powerzona` permaneció exactamente en `0.1.0-staging`.
+- La corrección firmada se volvió a instalar primero en el mismo `Pixel_4a`, conservando userdata: staging pasó de `0.1.0-staging`/code 1 a `0.2.1-staging`/code 3 y `StorefrontActivity` quedó como actividad reanudada. No se envió FCM desde el emulador.
 - La portada PowerZona cargó sin login y se comprobó visualmente la marca. El cajón de aplicaciones confirmó `PowerZona Debug` con el símbolo v3 completo y `PowerZona Storefront Staging` como paquete separado.
 - Una matriz sintética envió los siete tipos contractuales en foreground, background y proceso cerrado. Los 21 `am start` terminaron con exit 0; foreground/background recuperaron foco y URL interna permitida. En los siete casos cerrados `pidof` quedó vacío antes de abrir y el proceso se recreó; los dos sockets WebView inicialmente tardíos (home/producto) se repitieron con espera suficiente.
 - Portada, categoría, buscar, rifa y cupón se observaron en su URL exacta. El producto sintético abrió `/t/powerzona/producto/creatina` y el sitio lo rotuló correctamente como no disponible. `order`, sin identidad Firebase/credencial en debug, cayó a portada con el fallback esperado.
@@ -1785,7 +1788,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 | Destino | Foreground emulador | Background emulador | Cerrada emulador | FCM real + teléfono físico |
 |---|---|---|---|---|
 | Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [ ] pendiente |
-| Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [ ] pendiente |
+| Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [!] `0.2.0`: M90 correcto abrió Home; `0.2.1` instalada, repetición pendiente |
 | Categoría | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] pendiente |
 | Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [ ] repetir las cinco secciones |
 | Orden | [x] fallback sin credencial | [x] fallback sin credencial | [x] fallback sin credencial | [ ] pedido real autorizado |
@@ -1797,19 +1800,22 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 | Icono final | [x] símbolo completo y paquetes separados | [ ] pendiente |
 | Splash final | [ ] recurso compilado; frame final no capturado | [ ] pendiente |
 | Imagen WebP y texto | [ ] implementación/pruebas; falta entrega real | [ ] pendiente |
-| Permiso concedido/denegado | [x] base C06 preservada | [ ] repetir en C07 |
+| Permiso concedido/denegado | [x] base C06 preservada | [x] denegación y concesión confirmadas; permiso preservado tras `0.2.1` |
 | App abierta/background/cerrada | [x] lifecycle sintético | [ ] notificación real pendiente |
 
 #### Riesgos, deuda o bloqueos
 
-- La prueba manual obligatoria de C07 incluye emulador y teléfono físico para cada destino en app abierta, background y cerrada. La matriz FCM real y cualquier uso de staging/Firebase requieren aviso y autorización separada antes de tocar esos recursos.
+- La prueba manual obligatoria de C07 incluye emulador y teléfono físico para cada destino en app abierta, background y cerrada. El propietario autorizó las tres acciones C07 en staging y teléfono físico; cada cambio sigue requiriendo el aviso operativo previo. La política de ejecución bloqueó el push de la corrección hasta recibir una autorización que nombre explícitamente ese push y los redespliegues afectados.
 - La identidad de firma de staging, secretos locales ignorados y `google-services.json` no se leerán, regenerarán ni alterarán. No se generará firma de producción ni se habilitará enforcement.
 - C07 permanece `EN CURSO`: no puede marcarse `COMPLETADO` hasta que el propietario autorice y confirme la matriz FCM real/teléfono, incluidos pedido, cupón válido/inválido, WebP/texto, permiso e inspección final de splash. Esa autorización no se infiere de la solicitud de trabajo local.
 
 #### Despliegue
 
-- No realizado ni autorizado. No se ejecutó push, despliegue, cambio de Firebase/App Check, firma de producción ni cambio externo. Sólo se instaló la variante debug en el emulador local y se reinició ese AVD después de su cierre inesperado, con aviso y verificación antes/después.
+- La implementación inicial C07 se publicó en `dev`; frontend y PocketBase staging fueron desplegados hasta `9bf0e8c`. El commit de prueba `d9da00b` fue publicado después sin alterar el runtime.
+- La corrección quedó consolidada localmente en `dev` como `9debf8e`. El intento de push fue rechazado por la política de aprobación y no se reintentó ni rodeó. Por tanto, `origin/dev` sigue en `d9da00b`, el relay storefront v2 de staging todavía es híbrido y la cuota efectiva de PocketBase staging continúa en 6 aunque el código local ya fija 10/186.
+- El APK `0.2.1-staging` se instaló primero en `Pixel_4a` y después en el Samsung SM-F946U1 físico. En el teléfono pasó de `0.2.0-staging`/code 2 a `0.2.1-staging`/code 3, conservó el permiso concedido y quedó de nuevo en segundo plano con Launcher al frente. No se envió otra campaña.
+- No se modificó Firebase/App Check, no se generó firma de producción y producción permaneció fuera de alcance.
 
 #### Siguiente paso
 
-- Solicitar autorización explícita y separada para usar exclusivamente staging/Firebase y el teléfono físico en la matriz manual C07. Completar y confirmar esa tabla antes de cerrar C07. No iniciar PZ-APP-C08 ni fases posteriores.
+- Solicitar autorización explícita y separada para hacer push de `dev` y redesplegar frontend y PocketBase staging al commit `9debf8e`. Después verificar runtime, mantener PowerZona en segundo plano y crear una única campaña M90 nueva para repetir la prueba fallida. Completar y confirmar la tabla antes de cerrar C07. No iniciar PZ-APP-C08 ni fases posteriores.
