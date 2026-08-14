@@ -1769,6 +1769,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - El propietario autorizó expresamente continuar las notificaciones C07 más allá del techo diario hasta terminar esta tarea. La décima campaña, `PowerZona Aminos staging`, fue aceptada y Android registró `notification_posted` con la app abierta, pero la notificación se cerró antes de validar el toque. El límite permanente sigue siendo 10/310; no se cambió globalmente para estas repeticiones.
 - Una primera repetición de staging (`7ilv2ak6gim2313`) heredó por error el destino sección/buscar al duplicar el fixture. El cron la marcó `failed` con `invalid_target`, 0 dispositivos seleccionados y 0 notificaciones; se conservó como evidencia y no se reintentó ni eliminó.
 - La repetición corregida `7bvs4f2pyvus2rl`, titulada `PowerZona Aminos foreground 2`, se creó sólo después de verificar `target_type=category`, categoría `aminos` y `/t/powerzona/categoria/aminos`. El cron registró `sent`, 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas; Android registró `notification_posted`, la app permaneció en foreground y el propietario confirmó que al tocarla abrió la página de Aminos sin caer en Home ni mostrar `Internal server error`.
+- La campaña `4azw2vwy74bmesb`, titulada `PowerZona Portada cerrada`, se creó desde el fixture home validado con `target_type=home`, `/t/powerzona`, texto y medio WebP `ng4c8sr6iqzpk84`. Antes del envío `pidof com.tusenda84.powerzona` estaba vacío y Recientes era la actividad visible; el cron registró `sent`, 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas. FCM inició sólo el servicio para publicar la notificación, sin abrir la actividad, y el propietario confirmó que al tocarla PowerZona inició y abrió correctamente la portada con el contenido visual esperado.
 
 #### Validación automatizada local
 
@@ -1799,7 +1800,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 | Destino | Foreground emulador | Background emulador | Cerrada emulador | FCM real + teléfono físico |
 |---|---|---|---|---|
-| Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [ ] pendiente |
+| Portada | [x] intent + URL | [x] intent + URL | [x] PID vacío + reapertura | [x] `0.2.4`: proceso cerrado antes del FCM; toque inicia la app y abre portada correcta |
 | Producto | [x] lifecycle; ruta exacta cubierta | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.3`: M90 exacto, background, notificación visible y toque abre artículo correcto |
 | Categoría | [x] URL exacta; `0.2.4` staging visible | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.4`: Aminos real en foreground, notificación visible y toque abre la categoría correcta sin error |
 | Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [ ] repetir las cinco secciones |
@@ -1811,9 +1812,9 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 |---|---|---|
 | Icono final | [x] símbolo completo y paquetes separados | [ ] pendiente |
 | Splash final | [ ] recurso compilado; frame final no capturado | [ ] pendiente |
-| Imagen WebP y texto | [ ] implementación/pruebas; falta entrega real | [ ] pendiente |
+| Imagen WebP y texto | [ ] implementación/pruebas locales | [x] portada cerrada con medio WebP, título y texto confirmados |
 | Permiso concedido/denegado | [x] base C06 preservada | [x] denegación y concesión confirmadas; permiso preservado hasta `0.2.4` |
-| App abierta/background/cerrada | [x] lifecycle sintético | [!] foreground real aprobado con Aminos y background real aprobado con M90; proceso cerrado pendiente |
+| App abierta/background/cerrada | [x] lifecycle sintético | [x] foreground Aminos, background M90 y proceso cerrado Portada aprobados |
 
 #### Riesgos, deuda o bloqueos
 
@@ -1830,4 +1831,4 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 
 #### Siguiente paso
 
-- Completar exclusivamente las pruebas C07 aún pendientes: portada, cinco secciones, orden real, rifa y cupón válido/inválido en teléfono; proceso cerrado real; e inspección final de icono, splash y WebP/texto. Mantener 10/310 como límites permanentes, usar sólo la excepción de pruebas staging ya autorizada hasta cerrar esta tarea, no publicar los commits locales sin autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
+- Completar exclusivamente las pruebas C07 aún pendientes: cinco secciones, orden real, rifa y cupón válido/inválido en teléfono, además de la inspección final de icono y splash. Mantener 10/310 como límites permanentes, usar sólo la excepción de pruebas staging ya autorizada hasta cerrar esta tarea, no publicar los commits locales sin autorización separada y no iniciar PZ-APP-C08 ni fases posteriores.
