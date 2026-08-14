@@ -1778,6 +1778,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 - La campaña `jq3lswyrt74n76k`, titulada `PowerZona Rifas abierta`, se creó con `target_type=section` y `target_section=raffles`; el backend normalizó el destino a la ruta canónica `/t/powerzona/rifa`. PocketBase la terminó `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas. PowerZona permaneció como actividad visible durante la recepción y Android publicó `pz_storefront_jq3lswyrt74n76k`; el propietario confirmó que el toque abrió perfectamente la sección Rifas en staging.
 - La campaña `xxcrlmze4u3y2m3`, titulada `PowerZona Checkout abierta`, se creó con `target_type=section`, `target_section=checkout` y `/t/powerzona/checkout`. PocketBase la terminó `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas. PowerZona permaneció como actividad visible durante la recepción y Android publicó `pz_storefront_xxcrlmze4u3y2m3`; el propietario confirmó que el toque abrió Checkout correctamente en staging. Con esta aprobación quedan cubiertas las cinco secciones reales.
 - La campaña `9tx4fdy6dljpds6`, titulada `PowerZona Pedido PP-F6BRD`, usó `target_type=order`, `target_path` vacío y audiencia `all_active` restringida mediante `installation_id` al Fold5 activo. El vínculo `storefront_order_links` existente estaba `active`, pertenecía a PowerZona y asociaba esa instalación con `PP-F6BRD`; no se creó ni modificó ningún fixture. PocketBase terminó la campaña `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas, y Android publicó `pz_storefront_9tx4fdy6dljpds6` en foreground. El FCM transportó sólo `campaign_id`; el propietario confirmó que el toque abrió directamente el recibo esperado. El token no se leyó, documentó ni expuso.
+- La campaña `j2zqplr3iy1kr9m`, titulada `PowerZona Rifa C07 vigente`, apuntó a `Rifa C07 Fold5` (`rifa-2`) mientras el registro estaba `active` y `link_enabled=true`. PocketBase resolvió `/t/powerzona/rifa/rifa-2` y terminó `sent` con 1 seleccionada, 1 aceptada, 0 fallos y 0 inválidas; PowerZona permaneció visible y Android publicó `pz_storefront_j2zqplr3iy1kr9m`. El propietario confirmó que el toque abrió el detalle de la rifa y no el listado general. La variante vencida/fallback continúa pendiente.
 
 #### Validación automatizada local
 
@@ -1813,7 +1814,7 @@ Implementar exclusivamente la variante PowerZona y la navegación segura desde p
 | Categoría | [x] URL exacta; `0.2.4` staging visible | [x] URL exacta | [x] PID vacío + URL | [x] `0.2.4`: Aminos real en foreground, notificación visible y toque abre la categoría correcta sin error |
 | Sección | [x] `/buscar` | [x] `/buscar` | [x] PID vacío + `/buscar` | [x] `search`, `raffles` y `checkout` en foreground; `links` y `gifts` en background |
 | Orden | [x] fallback sin credencial | [x] fallback sin credencial | [x] fallback sin credencial | [x] `PP-F6BRD`, Fold5 vinculado, resolución segura y recibo directo aprobados |
-| Rifa | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [ ] vigente/vencida |
+| Rifa | [x] URL exacta | [x] URL exacta | [x] PID vacío + URL | [!] vigente `rifa-2` aprobada; vencida/fallback pendiente |
 | Cupón | [x] URL sintáctica | [x] URL sintáctica | [x] PID vacío + URL | [ ] válido/inválido servidor |
 
 | Comprobación visual/operativa | Emulador local | Teléfono físico + FCM real |
