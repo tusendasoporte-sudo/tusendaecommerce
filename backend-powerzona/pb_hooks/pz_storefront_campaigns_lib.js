@@ -295,16 +295,20 @@ function creatorAuthorized(app, campaign, store) {
 }
 
 function timezonePartsWithPocketBase(date, timezone) {
-  if (typeof DateTime === "undefined" || typeof Timezone === "undefined") return null;
+  if (typeof DateTime === "undefined") return null;
   try {
-    const zone = new Timezone(timezone);
-    const zoneName = String(zone.string ? zone.string() : zone).trim();
-    if (timezone !== "UTC" && zoneName === "UTC") return null;
-    const value = new DateTime(date.toISOString()).time().in(zone);
-    const formatted = String(value.format("2006-01-02") || "").trim();
-    const match = formatted.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) return null;
-    return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+    const wallClock = date.toISOString().slice(0, 19).replace("T", " ");
+    const interpreted = new DateTime(wallClock, timezone);
+    const interpretedMs = Number(interpreted.unix()) * 1000;
+    if (!Number.isFinite(interpretedMs)) return null;
+    const offsetMs = date.getTime() - interpretedMs;
+    if (Math.abs(offsetMs) > 24 * 60 * 60 * 1000) return null;
+    const local = new Date(date.getTime() + offsetMs);
+    return {
+      year: local.getUTCFullYear(),
+      month: local.getUTCMonth() + 1,
+      day: local.getUTCDate(),
+    };
   } catch (_) {
     return null;
   }

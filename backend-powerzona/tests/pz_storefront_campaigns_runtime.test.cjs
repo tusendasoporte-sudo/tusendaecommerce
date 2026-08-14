@@ -1,0 +1,143 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const { spawn, spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
+const path = require('node:path');
+const test = require('node:test');
+
+const BACKEND_DIR = path.resolve(__dirname, '..');
+const DEFAULT_EXE = path.join(BACKEND_DIR, process.platform === 'win32' ? 'pocketbase.exe' : 'pocketbase');
+const POCKETBASE_EXE = String(process.env.PZ_C05_POCKETBASE_EXE || DEFAULT_EXE);
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      server.close((error) => error ? reject(error) : resolve(address.port));
+    });
+  });
+}
+
+function flags(dataDirectory) {
+  return [
+    `--dir=${dataDirectory}`,
+    `--hooksDir=${path.join(BACKEND_DIR, 'pb_hooks')}`,
+    `--migrationsDir=${path.join(BACKEND_DIR, 'pb_migrations')}`,
+    '--hooksWatch=false', '--hooksPool=2', '--automigrate=true', '--indexFallback=false',
+  ];
+}
+
+function start(dataDirectory, port, environment) {
+  let output = '';
+  const child = spawn(POCKETBASE_EXE, ['serve', `--http=127.0.0.1:${port}`, ...flags(dataDirectory)], {
+    cwd: BACKEND_DIR, env: environment, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
+  });
+  const capture = (chunk) => { output = `${output}${String(chunk)}`.slice(-80_000); };
+  child.stdout.on('data', capture);
+  child.stderr.on('data', capture);
+  return { child, output: () => output };
+}
+
+async function stop(runtime) {
+  if (!runtime || runtime.child.exitCode !== null || runtime.child.signalCode !== null) return;
+  const exited = new Promise((resolve) => runtime.child.once('exit', resolve));
+  runtime.child.kill('SIGTERM');
+  if (!await Promise.race([exited.then(() => true), sleep(5000).then(() => false)])) {
+    runtime.child.kill('SIGKILL');
+    await Promise.race([exited, sleep(5000)]);
+  }
+}
+
+async function request(baseUrl, route, options = {}) {
+  const response = await fetch(`${baseUrl}${route}`, {
+    method: options.json === undefined ? 'GET' : 'POST',
+    headers: {
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      ...(options.headers || {}),
+      ...(options.json === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    body: options.json === undefined ? undefined : JSON.stringify(options.json),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const raw = await response.text();
+  let data = null;
+  try { data = raw ? JSON.parse(raw) : null; } catch (_) {}
+  return { status: response.status, data, raw };
+}
+
+async function authenticate(baseUrl, collection, identity, password) {
+  const result = await request(baseUrl, `/api/collections/${collection}/auth-with-password`, {
+    json: { identity, password },
+  });
+  assert.equal(result.status, 200, result.raw);
+  return result.data.token;
+}
+
+test('PocketBase 0.38.2 acepta zona IANA al crear un borrador C05', {
+  skip: !fs.existsSync(POCKETBASE_EXE), timeout: 90_000,
+}, async () => {
+  const dataDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'pz-c05-runtime-'));
+  const environment = {
+    ...process.env,
+    PZ_STOREFRONT_INTERNAL_SECRET: 'runtime-internal-c05-abcdefghijklmnopqrstuvwxyz',
+    PZ_STOREFRONT_CREDENTIAL_SECRET: 'runtime-credential-c05-abcdefghijklmnopqrstuvwxyz',
+    PZ_SECURITY_HMAC_SECRET: 'runtime-security-hmac-c05-abcdefghijklmnopqrstuvwxyz',
+    PZ_SECURITY_AES_KEY: '12345678901234567890123456789012',
+    PZ_PUSH_RELAY_SECRET: 'runtime-admin-relay-c05-abcdefghijklmnopqrstuvwxyz',
+  };
+  const superEmail = 'pz-c05-super@example.com';
+  const superPassword = 'Qa-C05-super-password-2026!';
+  const masterEmail = 'pz-c05-master@example.com';
+  const masterPassword = 'Qa-C05-master-password-2026!';
+  let runtime = null;
+  try {
+    const bootstrap = spawnSync(POCKETBASE_EXE, ['superuser', 'create', superEmail, superPassword, ...flags(dataDirectory)], {
+      cwd: BACKEND_DIR, env: environment, encoding: 'utf8', windowsHide: true, maxBuffer: 4 * 1024 * 1024,
+    });
+    assert.equal(bootstrap.status, 0, `${bootstrap.stdout || ''}\n${bootstrap.stderr || ''}`);
+    const port = await freePort();
+    const baseUrl = `http://127.0.0.1:${port}`;
+    runtime = start(dataDirectory, port, environment);
+    for (let index = 0; index < 200; index += 1) {
+      try {
+        if ((await request(baseUrl, '/api/health')).status === 200) break;
+      } catch (_) {}
+      if (runtime.child.exitCode !== null) throw new Error(runtime.output());
+      await sleep(100);
+    }
+    const superToken = await authenticate(baseUrl, '_superusers', superEmail, superPassword);
+    const stores = await request(baseUrl, `/api/collections/stores/records?filter=${encodeURIComponent('slug = "powerzona"')}&perPage=1`, { token: superToken });
+    assert.equal(stores.status, 200, stores.raw);
+    const store = stores.data.items[0];
+    const master = await request(baseUrl, '/api/collections/users/records', {
+      token: superToken,
+      json: {
+        email: masterEmail, emailVisibility: false, password: masterPassword,
+        passwordConfirm: masterPassword, verified: true, name: 'QA C05 Master',
+        role: 'master_admin', status: 'active',
+      },
+    });
+    assert.ok([200, 201].includes(master.status), master.raw);
+    const masterToken = await authenticate(baseUrl, 'users', masterEmail, masterPassword);
+    const saved = await request(baseUrl, '/api/pz/storefront/v1/campaigns/save', {
+      token: masterToken,
+      headers: { 'X-PZ-Support-Store': store.id },
+      json: {
+        title: 'Runtime C05', body: 'Validación IANA PocketBase 0.38.2',
+        timezone: 'America/New_York', audience_type: 'all_active', audience_config: {}, target_type: 'home',
+      },
+    });
+    assert.equal(saved.status, 201, saved.raw);
+    assert.equal(saved.data.campaign.status, 'draft');
+    assert.equal(saved.data.campaign.timezone, 'America/New_York');
+  } finally {
+    await stop(runtime);
+    fs.rmSync(dataDirectory, { recursive: true, force: true });
+  }
+});

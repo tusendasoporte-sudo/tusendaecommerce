@@ -201,30 +201,18 @@ test('contratos de entrada son exactos y validan límites, zona y audiencia', ()
 
 test('calendario IANA usa el formato estable del runtime PocketBase', () => {
   const previousDateTime = global.DateTime;
-  const previousTimezone = global.Timezone;
-  global.Timezone = class MockTimezone {
-    constructor(name) { this.name = name; }
-    string() { return this.name === 'Not/A_Real_Zone' ? 'UTC' : this.name; }
-  };
+  const previousIntl = global.Intl;
   global.DateTime = class MockDateTime {
-    constructor(value) { this.value = value; }
-    time() {
-      return {
-        in: (zone) => ({
-          format: () => {
-            const parts = new Intl.DateTimeFormat('en-CA', {
-              timeZone: zone.name,
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-            }).formatToParts(new Date(this.value));
-            const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-            return `${values.year}-${values.month}-${values.day}`;
-          },
-        }),
-      };
+    constructor(value, timezone) {
+      if (!['UTC', 'America/New_York'].includes(timezone)) throw new Error('invalid_timezone');
+      const utcWallClock = Date.parse(`${value.replace(' ', 'T')}Z`);
+      const month = new Date(utcWallClock).getUTCMonth() + 1;
+      const offsetHours = timezone === 'America/New_York' && month >= 3 && month <= 10 ? 4 : timezone === 'America/New_York' ? 5 : 0;
+      this.value = utcWallClock + offsetHours * 60 * 60 * 1000;
     }
+    unix() { return this.value / 1000; }
   };
+  global.Intl = undefined;
   try {
     assert.deepEqual(
       campaigns.timezoneParts(new Date('2026-08-14T03:30:00.000Z'), 'America/New_York'),
@@ -235,8 +223,7 @@ test('calendario IANA usa el formato estable del runtime PocketBase', () => {
   } finally {
     if (previousDateTime === undefined) delete global.DateTime;
     else global.DateTime = previousDateTime;
-    if (previousTimezone === undefined) delete global.Timezone;
-    else global.Timezone = previousTimezone;
+    global.Intl = previousIntl;
   }
 });
 
